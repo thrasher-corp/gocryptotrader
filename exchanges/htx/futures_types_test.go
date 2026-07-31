@@ -2,11 +2,54 @@ package htx
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+func TestUnmarshalV3FuturesResponse(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		payload        string
+		expectedArray  int
+		expectedLegacy int64
+		expectedErr    bool
+	}{
+		{name: "array", payload: `{"data":[{"id":1}],"ts":1604312615051}`, expectedArray: 1},
+		{name: "legacy", payload: `{"data":{"items":[{"id":1}],"total_page":2},"ts":1604312615051}`, expectedLegacy: 2},
+		{name: "empty string", payload: `{"data":"","ts":1604312615051}`},
+		{name: "null", payload: `{"data":null,"ts":1604312615051}`},
+		{name: "malformed document", payload: `{`, expectedErr: true},
+		{name: "malformed data", payload: `{"data":1}`, expectedErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var timestamp types.Time
+			var array []struct {
+				ID int64 `json:"id"`
+			}
+			var legacy struct {
+				Items []struct {
+					ID int64 `json:"id"`
+				} `json:"items"`
+				TotalPage int64 `json:"total_page"`
+			}
+			err := unmarshalV3FuturesResponse([]byte(tc.payload), &timestamp, &array, &legacy)
+			if tc.expectedErr {
+				require.Error(t, err, "unmarshalV3FuturesResponse must return the expected error")
+				return
+			}
+			require.NoError(t, err, "unmarshalV3FuturesResponse must not error")
+			assert.Len(t, array, tc.expectedArray, "array response should decode")
+			assert.Equal(t, tc.expectedLegacy, legacy.TotalPage, "legacy pagination should decode")
+			assert.Equal(t, time.UnixMilli(1604312615051), timestamp.Time(), "timestamp should decode")
+		})
+	}
+}
 
 func TestFFinancialRecordsUnmarshalJSON(t *testing.T) {
 	t.Parallel()

@@ -8,12 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestPlaceV5AlgoOrder(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/algo/order", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/order", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
 	_, err := h.PlaceV5AlgoOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceV5AlgoOrder must reject nil request")
 	resp, err := h.PlaceV5AlgoOrder(t.Context(), &V5AlgoOrderRequest{
@@ -31,7 +32,7 @@ func TestPlaceV5AlgoOrder(t *testing.T) {
 
 func TestCancelV5AlgoOrders(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/algo/cancel_orders", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/cancel_orders", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
 	_, err := h.CancelV5AlgoOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams, "CancelV5AlgoOrders must reject empty request")
 	resp, err := h.CancelV5AlgoOrders(t.Context(), []*V5CancelAlgoOrderRequest{{ContractCode: "BTC-USDT", AlgoID: "1"}})
@@ -42,7 +43,7 @@ func TestCancelV5AlgoOrders(t *testing.T) {
 
 func TestGetV5AlgoOrder(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/algo/order", `{"code":200,"data":[{"algo_id":"1","volume":"2"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order", `{"code":200,"data":[{"algo_id":"1","volume":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "1", r.URL.Query().Get("algo_id"), "algo ID should be sent")
 		assert.Equal(t, "trigger", r.URL.Query().Get("type"), "order type should be sent")
 	})
@@ -54,7 +55,7 @@ func TestGetV5AlgoOrder(t *testing.T) {
 
 func TestGetV5OpenAlgoOrders(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/algo/order/opens", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/opens", `{"code":200,"data":[{"algo_id":"1"}]}`, nil)
 	_, err := h.GetV5OpenAlgoOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetV5OpenAlgoOrders must reject nil request")
 	resp, err := h.GetV5OpenAlgoOrders(t.Context(), &V5OpenAlgoOrdersRequest{
@@ -73,7 +74,7 @@ func TestGetV5OpenAlgoOrders(t *testing.T) {
 
 func TestGetV5AlgoOrderHistory(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/algo/order/history", `{"code":200,"data":[{"algo_id":"1","actual_volume":"2"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/history", `{"code":200,"data":[{"algo_id":"1","actual_volume":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "trigger", r.URL.Query().Get("type"), "order type should be sent")
 	})
 	_, err := h.GetV5AlgoOrderHistory(t.Context(), nil)

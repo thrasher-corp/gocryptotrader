@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -248,194 +247,183 @@ func TestFGetBasisData(t *testing.T) {
 
 func TestFGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetAccountInfo(t.Context(), currency.EMPTYCODE)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fAccountData, emptySuccessResponse, nil)
+	_, err := h.FGetAccountInfo(t.Context(), currency.BTC)
+	require.NoError(t, err, "FGetAccountInfo must not error")
 }
 
 func TestFGetPositionsInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetPositionsInfo(t.Context(), currency.EMPTYCODE)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fPositionInformation, emptySuccessResponse, nil)
+	_, err := h.FGetPositionsInfo(t.Context(), currency.BTC)
+	require.NoError(t, err, "FGetPositionsInfo must not error")
 }
 
 func TestFGetAllSubAccountAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetAllSubAccountAssets(t.Context(), currency.EMPTYCODE)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fAllSubAccountAssets, emptySuccessResponse, nil)
+	_, err := h.FGetAllSubAccountAssets(t.Context(), currency.BTC)
+	require.NoError(t, err, "FGetAllSubAccountAssets must not error")
 }
 
 func TestFGetSingleSubAccountInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetSingleSubAccountInfo(t.Context(), "", "154263566")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fSingleSubAccountAssets, emptySuccessResponse, nil)
+	_, err := h.FGetSingleSubAccountInfo(t.Context(), "BTC", "154263566")
+	require.NoError(t, err, "FGetSingleSubAccountInfo must not error")
 }
 
 func TestFGetSingleSubPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetSingleSubPositions(t.Context(), "", "154263566")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fSingleSubAccountPositions, emptySuccessResponse, nil)
+	_, err := h.FGetSingleSubPositions(t.Context(), "BTC", "154263566")
+	require.NoError(t, err, "FGetSingleSubPositions must not error")
 }
 
 func TestFGetFinancialRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetFinancialRecords(t.Context(),
-		"BTC", "closeLong", 2, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fFinancialRecords, emptySuccessResponse, nil)
+	_, err := h.FGetFinancialRecords(t.Context(), "BTC", "closeLong", 2, 1, 20)
+	require.NoError(t, err, "FGetFinancialRecords must not error")
 }
 
 func TestFGetSettlementRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetSettlementRecords(t.Context(),
-		currency.BTC, 0, 0, time.Now().Add(-48*time.Hour), time.Now())
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fSettlementRecords, emptySuccessResponse, nil)
+	start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	_, err := h.FGetSettlementRecords(t.Context(), currency.BTC, 1, 20, start, start.Add(time.Hour))
+	require.NoError(t, err, "FGetSettlementRecords must not error")
 }
 
 func TestFGetOrderLimits(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-
-	_, err := h.FGetOrderLimits(t.Context(), "BTC", "not-real")
-	require.Error(t, err, "FGetOrderLimits must reject invalid order price type")
-
-	h.API.AuthenticatedSupport = true
-	_, err = h.FGetOrderLimits(t.Context(), "BTC", "limit")
-	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "FGetOrderLimits must return credentials error")
+	t.Run("invalid order price type", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+		_, err := h.FGetOrderLimits(t.Context(), "BTC", "not-real")
+		require.Error(t, err, "FGetOrderLimits must reject invalid order price type")
+	})
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fOrderLimitInfo, emptySuccessResponse, nil)
+		_, err := h.FGetOrderLimits(t.Context(), "BTC", "limit")
+		require.NoError(t, err, "FGetOrderLimits must not error")
+	})
 }
 
 func TestFContractTradingFee(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FContractTradingFee(t.Context(), currency.EMPTYCODE)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fContractTradingFee, emptySuccessResponse, nil)
+	_, err := h.FContractTradingFee(t.Context(), currency.BTC)
+	require.NoError(t, err, "FContractTradingFee must not error")
 }
 
 func TestFGetTransferLimits(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetTransferLimits(t.Context(), currency.EMPTYCODE)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fTransferLimitInfo, emptySuccessResponse, nil)
+	_, err := h.FGetTransferLimits(t.Context(), currency.BTC)
+	require.NoError(t, err, "FGetTransferLimits must not error")
 }
 
 func TestFGetPositionLimits(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetPositionLimits(t.Context(), currency.EMPTYCODE)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fPositionLimitInfo, emptySuccessResponse, nil)
+	_, err := h.FGetPositionLimits(t.Context(), currency.BTC)
+	require.NoError(t, err, "FGetPositionLimits must not error")
 }
 
 func TestFGetAssetsAndPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetAssetsAndPositions(t.Context(), currency.HT)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fQueryAssetsAndPositions, emptySuccessResponse, nil)
+	_, err := h.FGetAssetsAndPositions(t.Context(), currency.BTC)
+	require.NoError(t, err, "FGetAssetsAndPositions must not error")
 }
 
 func TestFTransfer(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FTransfer(t.Context(), "154263566", "HT", "sub_to_master", 5)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fTransfer, emptySuccessResponse, nil)
+	_, err := h.FTransfer(t.Context(), "154263566", "BTC", "sub_to_master", 5)
+	require.NoError(t, err, "FTransfer must not error")
 }
 
 func TestFGetTransferRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetTransferRecords(t.Context(), "HT", "master_to_sub", 90, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fTransferRecords, emptySuccessResponse, nil)
+	_, err := h.FGetTransferRecords(t.Context(), "BTC", "master_to_sub", 2, 1, 20)
+	require.NoError(t, err, "FGetTransferRecords must not error")
 }
 
 func TestFGetAvailableLeverage(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetAvailableLeverage(t.Context(), currency.BTC)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fAvailableLeverage, emptySuccessResponse, nil)
+	_, err := h.FGetAvailableLeverage(t.Context(), currency.BTC)
+	require.NoError(t, err, "FGetAvailableLeverage must not error")
 }
 
 func TestFOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "123", "BUY", "open", "limit", 1, 1, 1)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fOrder, emptySuccessResponse, nil)
+	_, err := h.FOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "123", "buy", "open", "limit", 1, 1, 1)
+	require.NoError(t, err, "FOrder must not error")
 }
 
 func TestFPlaceBatchOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FPlaceBatchOrder(t.Context(), []fBatchOrderData{
-		{
-			Symbol:         "btc",
-			ContractType:   "quarter",
-			Price:          5,
-			Volume:         1,
-			Direction:      "buy",
-			Offset:         "open",
-			LeverageRate:   1,
-			OrderPriceType: "limit",
-		},
-		{
-			Symbol:         "xrp",
-			ContractType:   "this_week",
-			Price:          10000,
-			Volume:         1,
-			Direction:      "sell",
-			Offset:         "open",
-			LeverageRate:   1,
-			OrderPriceType: "limit",
-		},
-	})
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fBatchOrder, emptySuccessResponse, nil)
+	_, err := h.FPlaceBatchOrder(t.Context(), []fBatchOrderData{{
+		Symbol:         "BTC",
+		ContractType:   "quarter",
+		Price:          5,
+		Volume:         1,
+		Direction:      "buy",
+		Offset:         "open",
+		LeverageRate:   1,
+		OrderPriceType: "limit",
+	}})
+	require.NoError(t, err, "FPlaceBatchOrder must not error")
 }
 
 func TestFCancelOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FCancelOrder(t.Context(), currency.BTC, "123", "")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fCancelOrder, emptySuccessResponse, nil)
+	_, err := h.FCancelOrder(t.Context(), currency.BTC, "123", "")
+	require.NoError(t, err, "FCancelOrder must not error")
 }
 
 func TestFCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	updatePairsOnce(t, e)
-	_, err := e.FCancelAllOrders(t.Context(), btcFutureDatedPair, "", "")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fCancelAllOrders, emptySuccessResponse, nil)
+	_, err := h.FCancelAllOrders(t.Context(), currency.EMPTYPAIR, "BTC", "quarter")
+	require.NoError(t, err, "FCancelAllOrders must not error")
 }
 
 func TestFFlashCloseOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FFlashCloseOrder(t.Context(),
-		currency.EMPTYPAIR, "BTC", "quarter", "BUY", "lightning", "", 1)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fFlashCloseOrder, emptySuccessResponse, nil)
+	_, err := h.FFlashCloseOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "buy", "lightning", "", 1)
+	require.NoError(t, err, "FFlashCloseOrder must not error")
 }
 
 func TestFGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetOrderInfo(t.Context(), "BTC", "", "123")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fOrderInfo, emptySuccessResponse, nil)
+	_, err := h.FGetOrderInfo(t.Context(), "BTC", "", "123")
+	require.NoError(t, err, "FGetOrderInfo must not error")
 }
 
 func TestFOrderDetails(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FOrderDetails(t.Context(), "BTC", "123", "quotation", time.Now().Add(-1*time.Hour), 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fOrderDetails, emptySuccessResponse, nil)
+	_, err := h.FOrderDetails(t.Context(), "BTC", "123", "quotation", time.Now().Add(-time.Hour), 1, 20)
+	require.NoError(t, err, "FOrderDetails must not error")
 }
 
 func TestFGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FGetOpenOrders(t.Context(), currency.BTC, 1, 2)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fQueryOpenOrders, emptySuccessResponse, nil)
+	_, err := h.FGetOpenOrders(t.Context(), currency.BTC, 1, 20)
+	require.NoError(t, err, "FGetOpenOrders must not error")
 }
 
 func TestFGetOrderHistory(t *testing.T) {
@@ -451,19 +439,11 @@ func TestFGetOrderHistory(t *testing.T) {
 func TestFGetOrderHistoryByTimeRange(t *testing.T) {
 	t.Parallel()
 	body := make(chan []byte, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fOrderHistory, `{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6}]}`, func(r *http.Request) {
 		payload, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		body <- payload
-		_, _ = w.Write([]byte(`{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6}]}`))
-	}))
-	t.Cleanup(server.Close)
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
-	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	})
 	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 	endTime := startTime.Add(48 * time.Hour)
 	resp, err := h.FGetOrderHistoryByTimeRange(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", "limit", nil, startTime, endTime, 11, 50)
@@ -485,44 +465,44 @@ func TestFGetOrderHistoryByTimeRange(t *testing.T) {
 
 func TestFTradeHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FTradeHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", 2, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fMatchResult, emptySuccessResponse, nil)
+	_, err := h.FTradeHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", 2, 1, 20)
+	require.NoError(t, err, "FTradeHistory must not error")
 }
 
 func TestFPlaceTriggerOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FPlaceTriggerOrder(t.Context(), currency.EMPTYPAIR, "EOS", "quarter", "greaterOrEqual", "limit", "buy", "close", 1.1, 1.05, 5, 2)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fTriggerOrder, emptySuccessResponse, nil)
+	_, err := h.FPlaceTriggerOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "greaterOrEqual", "limit", "buy", "close", 1.1, 1.05, 5, 2)
+	require.NoError(t, err, "FPlaceTriggerOrder must not error")
 }
 
 func TestFCancelTriggerOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FCancelTriggerOrder(t.Context(), "ETH", "123")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fCancelTriggerOrder, emptySuccessResponse, nil)
+	_, err := h.FCancelTriggerOrder(t.Context(), "BTC", "123")
+	require.NoError(t, err, "FCancelTriggerOrder must not error")
 }
 
 func TestFCancelAllTriggerOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FCancelAllTriggerOrders(t.Context(), currency.EMPTYPAIR, "BTC", "this_week")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fCancelAllTriggerOrders, emptySuccessResponse, nil)
+	_, err := h.FCancelAllTriggerOrders(t.Context(), currency.EMPTYPAIR, "BTC", "this_week")
+	require.NoError(t, err, "FCancelAllTriggerOrders must not error")
 }
 
 func TestFQueryTriggerOpenOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FQueryTriggerOpenOrders(t.Context(), currency.EMPTYPAIR, "BTC", 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fTriggerOpenOrders, emptySuccessResponse, nil)
+	_, err := h.FQueryTriggerOpenOrders(t.Context(), currency.EMPTYPAIR, "BTC", 1, 20)
+	require.NoError(t, err, "FQueryTriggerOpenOrders must not error")
 }
 
 func TestFQueryTriggerOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.FQueryTriggerOrderHistory(t.Context(), currency.EMPTYPAIR, "EOS", "all", "all", 10, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fTriggerOrderHistory, emptySuccessResponse, nil)
+	_, err := h.FQueryTriggerOrderHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", 10, 1, 20)
+	require.NoError(t, err, "FQueryTriggerOrderHistory must not error")
 }
 
 func TestFormatFuturesPair(t *testing.T) {
@@ -606,284 +586,12 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 	}
 }
 
-func TestFuturesAuthenticatedEndpoints(t *testing.T) {
-	t.Parallel()
-	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
-	for _, tc := range []struct {
-		name string
-		path string
-		call func(*Exchange) error
-	}{
-		{
-			name: "FGetAccountInfo",
-			path: fAccountData,
-			call: func(h *Exchange) error {
-				_, err := h.FGetAccountInfo(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FGetPositionsInfo",
-			path: fPositionInformation,
-			call: func(h *Exchange) error {
-				_, err := h.FGetPositionsInfo(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FGetAllSubAccountAssets",
-			path: fAllSubAccountAssets,
-			call: func(h *Exchange) error {
-				_, err := h.FGetAllSubAccountAssets(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FGetSingleSubAccountInfo",
-			path: fSingleSubAccountAssets,
-			call: func(h *Exchange) error {
-				_, err := h.FGetSingleSubAccountInfo(t.Context(), "BTC", "123")
-				return err
-			},
-		},
-		{
-			name: "FGetSingleSubPositions",
-			path: fSingleSubAccountPositions,
-			call: func(h *Exchange) error {
-				_, err := h.FGetSingleSubPositions(t.Context(), "BTC", "123")
-				return err
-			},
-		},
-		{
-			name: "FGetFinancialRecords",
-			path: fFinancialRecords,
-			call: func(h *Exchange) error {
-				_, err := h.FGetFinancialRecords(t.Context(), "BTC", "closeLong", 2, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "FGetSettlementRecords",
-			path: fSettlementRecords,
-			call: func(h *Exchange) error {
-				_, err := h.FGetSettlementRecords(t.Context(), currency.BTC, 1, 20, startTime, startTime.Add(time.Hour))
-				return err
-			},
-		},
-		{
-			name: "FContractTradingFee",
-			path: fContractTradingFee,
-			call: func(h *Exchange) error {
-				_, err := h.FContractTradingFee(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FGetTransferLimits",
-			path: fTransferLimitInfo,
-			call: func(h *Exchange) error {
-				_, err := h.FGetTransferLimits(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FGetPositionLimits",
-			path: fPositionLimitInfo,
-			call: func(h *Exchange) error {
-				_, err := h.FGetPositionLimits(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FGetAssetsAndPositions",
-			path: fQueryAssetsAndPositions,
-			call: func(h *Exchange) error {
-				_, err := h.FGetAssetsAndPositions(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FTransfer",
-			path: fTransfer,
-			call: func(h *Exchange) error {
-				_, err := h.FTransfer(t.Context(), "123", "BTC", "master_to_sub", 1)
-				return err
-			},
-		},
-		{
-			name: "FGetTransferRecords",
-			path: fTransferRecords,
-			call: func(h *Exchange) error {
-				_, err := h.FGetTransferRecords(t.Context(), "BTC", "master_to_sub", 2, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "FGetAvailableLeverage",
-			path: fAvailableLeverage,
-			call: func(h *Exchange) error {
-				_, err := h.FGetAvailableLeverage(t.Context(), currency.BTC)
-				return err
-			},
-		},
-		{
-			name: "FOrder",
-			path: fOrder,
-			call: func(h *Exchange) error {
-				_, err := h.FOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "123", "buy", "open", "limit", 1, 1, 1)
-				return err
-			},
-		},
-		{
-			name: "FPlaceBatchOrder",
-			path: fBatchOrder,
-			call: func(h *Exchange) error {
-				_, err := h.FPlaceBatchOrder(t.Context(), []fBatchOrderData{{
-					Symbol:         "BTC",
-					ContractType:   "quarter",
-					Price:          1,
-					Volume:         1,
-					Direction:      "buy",
-					Offset:         "open",
-					LeverageRate:   1,
-					OrderPriceType: "limit",
-				}})
-				return err
-			},
-		},
-		{
-			name: "FCancelOrder",
-			path: fCancelOrder,
-			call: func(h *Exchange) error {
-				_, err := h.FCancelOrder(t.Context(), currency.BTC, "123", "")
-				return err
-			},
-		},
-		{
-			name: "FCancelAllOrders",
-			path: fCancelAllOrders,
-			call: func(h *Exchange) error {
-				_, err := h.FCancelAllOrders(t.Context(), currency.EMPTYPAIR, "BTC", "quarter")
-				return err
-			},
-		},
-		{
-			name: "FFlashCloseOrder",
-			path: fFlashCloseOrder,
-			call: func(h *Exchange) error {
-				_, err := h.FFlashCloseOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "buy", "lightning", "", 1)
-				return err
-			},
-		},
-		{
-			name: "FGetOrderInfo",
-			path: fOrderInfo,
-			call: func(h *Exchange) error {
-				_, err := h.FGetOrderInfo(t.Context(), "BTC", "", "123")
-				return err
-			},
-		},
-		{
-			name: "FOrderDetails",
-			path: fOrderDetails,
-			call: func(h *Exchange) error {
-				_, err := h.FOrderDetails(t.Context(), "BTC", "123", "quotation", startTime, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "FGetOpenOrders",
-			path: fQueryOpenOrders,
-			call: func(h *Exchange) error {
-				_, err := h.FGetOpenOrders(t.Context(), currency.BTC, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "FTradeHistory",
-			path: fMatchResult,
-			call: func(h *Exchange) error {
-				_, err := h.FTradeHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", 2, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "FPlaceTriggerOrder",
-			path: fTriggerOrder,
-			call: func(h *Exchange) error {
-				_, err := h.FPlaceTriggerOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "greaterOrEqual", "limit", "buy", "open", 2, 1, 1, 1)
-				return err
-			},
-		},
-		{
-			name: "FCancelTriggerOrder",
-			path: fCancelTriggerOrder,
-			call: func(h *Exchange) error {
-				_, err := h.FCancelTriggerOrder(t.Context(), "BTC", "123")
-				return err
-			},
-		},
-		{
-			name: "FCancelAllTriggerOrders",
-			path: fCancelAllTriggerOrders,
-			call: func(h *Exchange) error {
-				_, err := h.FCancelAllTriggerOrders(t.Context(), currency.EMPTYPAIR, "BTC", "quarter")
-				return err
-			},
-		},
-		{
-			name: "FQueryTriggerOpenOrders",
-			path: fTriggerOpenOrders,
-			call: func(h *Exchange) error {
-				_, err := h.FQueryTriggerOpenOrders(t.Context(), currency.EMPTYPAIR, "BTC", 1, 20)
-				return err
-			},
-		},
-		{
-			name: "FQueryTriggerOrderHistory",
-			path: fTriggerOrderHistory,
-			call: func(h *Exchange) error {
-				_, err := h.FQueryTriggerOrderHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", 2, 1, 20)
-				return err
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, http.MethodPost, r.Method, "authenticated futures method should match")
-				assert.Equal(t, tc.path, r.URL.Path, "authenticated futures path should match HTX documentation")
-				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "authenticated futures content type should match")
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"status":"ok","code":200,"msg":"","data":null}`))
-			}))
-			t.Cleanup(server.Close)
-
-			h := new(Exchange)
-			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-			h.API.AuthenticatedSupport = true
-			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
-			require.NoError(t, tc.call(h), "authenticated futures endpoint must not error")
-		})
-	}
-}
-
 func TestFSwitchLeverage(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, fSwitchLeverage, r.URL.Path, "delivery leverage path should match")
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fSwitchLeverage, `{"status":"ok","data":{"symbol":"BTC","lever_rate":5}}`, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		assert.JSONEq(t, `{"symbol":"BTC","lever_rate":5}`, string(body), "delivery leverage body should match")
-		_, _ = w.Write([]byte(`{"status":"ok","data":{"symbol":"BTC","lever_rate":5}}`))
-	}))
-	t.Cleanup(server.Close)
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
-	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	})
 	require.NoError(t, h.FSwitchLeverage(t.Context(), currency.BTC, 5), "FSwitchLeverage must not error")
 }

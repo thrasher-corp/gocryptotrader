@@ -103,18 +103,21 @@ type obItem struct {
 
 // FKlineData stores kline data for futures
 type FKlineData struct {
-	Ch   string `json:"ch"`
-	Data []struct {
-		Volume      float64    `json:"vol"`
-		Close       float64    `json:"close"`
-		Count       float64    `json:"count"`
-		High        float64    `json:"high"`
-		IDTimestamp types.Time `json:"id"`
-		Low         float64    `json:"low"`
-		Open        float64    `json:"open"`
-		Amount      float64    `json:"amount"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
+	Ch        string         `json:"ch"`
+	Data      []FuturesKline `json:"data"`
+	Timestamp types.Time     `json:"ts"`
+}
+
+// FuturesKline stores the common delivery and perpetual futures candlestick fields.
+type FuturesKline struct {
+	Volume      float64    `json:"vol"`
+	Close       float64    `json:"close"`
+	Count       float64    `json:"count"`
+	High        float64    `json:"high"`
+	IDTimestamp types.Time `json:"id"`
+	Low         float64    `json:"low"`
+	Open        float64    `json:"open"`
+	Amount      float64    `json:"amount"`
 }
 
 // FMarketOverviewData stores overview data for futures
@@ -440,22 +443,12 @@ type FFinancialRecords struct {
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *FFinancialRecords) UnmarshalJSON(data []byte) error {
-	type response FFinancialRecords
-	var raw struct {
-		response
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var response FFinancialRecords
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.FinancialRecord, &response.Data); err != nil {
 		return err
 	}
-	*f = FFinancialRecords(raw.response)
-	if isEmptyHTXData(raw.Data) {
-		return nil
-	}
-	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
-		return json.Unmarshal(raw.Data, &f.Data.FinancialRecord)
-	}
-	return json.Unmarshal(raw.Data, &f.Data)
+	*f = response
+	return nil
 }
 
 // FSettlementRecords stores user's futures settlement records
@@ -817,22 +810,12 @@ type FOrderHistoryData struct {
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *FOrderHistoryData) UnmarshalJSON(data []byte) error {
-	type response FOrderHistoryData
-	var raw struct {
-		response
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var response FOrderHistoryData
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Orders, &response.Data); err != nil {
 		return err
 	}
-	*f = FOrderHistoryData(raw.response)
-	if isEmptyHTXData(raw.Data) {
-		return nil
-	}
-	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
-		return json.Unmarshal(raw.Data, &f.Data.Orders)
-	}
-	return json.Unmarshal(raw.Data, &f.Data)
+	*f = response
+	return nil
 }
 
 // FTradeHistoryEntry stores a trade history entry for futures.
@@ -875,22 +858,32 @@ type FTradeHistoryData struct {
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *FTradeHistoryData) UnmarshalJSON(data []byte) error {
-	type response FTradeHistoryData
+	var response FTradeHistoryData
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Trades, &response.Data); err != nil {
+		return err
+	}
+	*f = response
+	return nil
+}
+
+// unmarshalV3FuturesResponse preserves HTX's legacy paginated response shape
+// while accepting the array and empty-data forms returned by current V3 APIs.
+func unmarshalV3FuturesResponse[T, P any](data []byte, timestamp *types.Time, arrayResponse *[]T, legacyResponse *P) error {
 	var raw struct {
-		response
-		Data json.RawMessage `json:"data"`
+		Data      json.RawMessage `json:"data"`
+		Timestamp types.Time      `json:"ts"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	*f = FTradeHistoryData(raw.response)
+	*timestamp = raw.Timestamp
 	if isEmptyHTXData(raw.Data) {
 		return nil
 	}
 	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
-		return json.Unmarshal(raw.Data, &f.Data.Trades)
+		return json.Unmarshal(raw.Data, arrayResponse)
 	}
-	return json.Unmarshal(raw.Data, &f.Data)
+	return json.Unmarshal(raw.Data, legacyResponse)
 }
 
 // FTriggerOrderData stores trigger order data

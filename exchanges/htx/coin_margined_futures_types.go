@@ -1,10 +1,7 @@
 package htx
 
 import (
-	"bytes"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -52,16 +49,7 @@ type SwapMarketDepthData struct {
 
 // SwapKlineData stores kline data for perpetual swaps
 type SwapKlineData struct {
-	Data []struct {
-		Volume      float64    `json:"vol"`
-		Close       float64    `json:"close"`
-		Count       float64    `json:"count"`
-		High        float64    `json:"high"`
-		IDTimestamp types.Time `json:"id"`
-		Low         float64    `json:"low"`
-		Open        float64    `json:"open"`
-		Amount      float64    `json:"amount"`
-	} `json:"data"`
+	Data []FuturesKline `json:"data"`
 }
 
 // MarketOverviewData stores market overview data
@@ -486,28 +474,19 @@ type FinancialRecordResponseData struct {
 
 // FinancialRecordData stores an accounts financial records.
 type FinancialRecordData struct {
-	Data FinancialRecordResponseData `json:"data"`
+	Data      FinancialRecordResponseData `json:"data"`
+	Timestamp types.Time                  `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *FinancialRecordData) UnmarshalJSON(data []byte) error {
-	type response FinancialRecordData
-	var raw struct {
-		response
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var response FinancialRecordData
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.FinancialRecord, &response.Data); err != nil {
 		return err
 	}
-	*f = FinancialRecordData(raw.response)
-	if isEmptyHTXData(raw.Data) {
-		return nil
-	}
-	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
-		return json.Unmarshal(raw.Data, &f.Data.FinancialRecord)
-	}
-	return json.Unmarshal(raw.Data, &f.Data)
+	*f = response
+	return nil
 }
 
 // SwapOrderLimitInfo stores information about order limits on a perpetual swap
@@ -811,22 +790,12 @@ type SwapOrderHistory struct {
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (s *SwapOrderHistory) UnmarshalJSON(data []byte) error {
-	type response SwapOrderHistory
-	var raw struct {
-		response
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var response SwapOrderHistory
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Orders, &response.Data); err != nil {
 		return err
 	}
-	*s = SwapOrderHistory(raw.response)
-	if isEmptyHTXData(raw.Data) {
-		return nil
-	}
-	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
-		return json.Unmarshal(raw.Data, &s.Data.Orders)
-	}
-	return json.Unmarshal(raw.Data, &s.Data)
+	*s = response
+	return nil
 }
 
 // AccountTradeHistoryEntry stores a trade history entry for coin-margined swaps.
@@ -868,22 +837,12 @@ type AccountTradeHistoryData struct {
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (a *AccountTradeHistoryData) UnmarshalJSON(data []byte) error {
-	type response AccountTradeHistoryData
-	var raw struct {
-		response
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var response AccountTradeHistoryData
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Trades, &response.Data); err != nil {
 		return err
 	}
-	*a = AccountTradeHistoryData(raw.response)
-	if isEmptyHTXData(raw.Data) {
-		return nil
-	}
-	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
-		return json.Unmarshal(raw.Data, &a.Data.Trades)
-	}
-	return json.Unmarshal(raw.Data, &a.Data)
+	*a = response
+	return nil
 }
 
 // TriggerOrderData stores trigger order data

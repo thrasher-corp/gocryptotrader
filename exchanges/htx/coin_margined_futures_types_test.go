@@ -15,6 +15,7 @@ func TestFinancialRecordDataUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err, "FinancialRecordData unmarshal must support v3 array data")
 	require.Len(t, arrayResp.Data.FinancialRecord, 1, "financial records must decode from v3 array data")
 	assert.Equal(t, int64(12), arrayResp.Data.FinancialRecord[0].QueryID, "query id should decode")
+	assert.Equal(t, int64(1604312615051), arrayResp.Timestamp.Time().UnixMilli(), "response timestamp should decode")
 
 	var emptyResp FinancialRecordData
 	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)

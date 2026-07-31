@@ -30,6 +30,41 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const emptySuccessResponse = `{"status":"ok","code":200,"msg":"","data":null}`
+
+func newHTTPTestExchange(t *testing.T, endpoint exchange.URL, method, path, response string, check func(*http.Request)) *Exchange {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, method, r.Method, "HTTP method should match")
+		assert.Equal(t, path, r.URL.Path, "endpoint path should match")
+		if check != nil {
+			check(r)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+	t.Cleanup(server.Close)
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	h.API.AuthenticatedSupport = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, h.API.Endpoints.SetRunningURL(endpoint.String(), server.URL), "running endpoint must be set")
+	return h
+}
+
+func TestNewHTTPTestExchange(t *testing.T) {
+	t.Parallel()
+	var checked atomic.Bool
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":1}}`, func(r *http.Request) {
+		checked.Store(true)
+		assert.NotEmpty(t, r.URL.Query().Get("Signature"), "authenticated request should include a signature")
+	})
+	response, err := h.GetV5AssetMode(t.Context())
+	require.NoError(t, err, "newHTTPTestExchange must provide a usable authenticated exchange")
+	assert.True(t, checked.Load(), "request check should run")
+	assert.Equal(t, uint64(1), response.Data.AssetMode, "response should decode")
+}
+
 func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	h := new(Exchange)

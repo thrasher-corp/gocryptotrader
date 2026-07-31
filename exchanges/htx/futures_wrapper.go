@@ -4,15 +4,37 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+// appendFuturesCandles normalises the candlestick shape shared by HTX delivery
+// and perpetual futures while enforcing the caller's requested time window.
+func appendFuturesCandles(destination []kline.Candle, candles []FuturesKline, start, end time.Time) []kline.Candle {
+	for i := range candles {
+		timestamp := candles[i].IDTimestamp.Time()
+		if timestamp.Before(start) || timestamp.After(end) {
+			continue
+		}
+		destination = append(destination, kline.Candle{
+			Time:   timestamp,
+			Open:   candles[i].Open,
+			High:   candles[i].High,
+			Low:    candles[i].Low,
+			Close:  candles[i].Close,
+			Volume: candles[i].Volume,
+		})
+	}
+	return destination
+}
 
 // GetHistoricalFundingRates returns historical funding rates for coin- and USDT-margined perpetual contracts.
 func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {

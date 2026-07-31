@@ -46,20 +46,8 @@ func (e *Exchange) WSPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	conn, err := e.Websocket.GetConnection(exchange.WebsocketTrade)
-	if err != nil {
-		return nil, err
-	}
-	cid := e.MessageID()
-	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WsTradeRequest{Operation: "place_order", CID: cid, Data: req})
-	if err != nil {
-		return nil, err
-	}
-	if err := getErrResp(raw); err != nil {
-		return nil, err
-	}
 	var resp *V5WsOrderResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
+	if err := e.sendV5TradeRequest(ctx, "place_order", req, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -70,20 +58,8 @@ func (e *Exchange) WSPlaceV5BatchOrders(ctx context.Context, req []*V5OrderReque
 	if len(req) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	conn, err := e.Websocket.GetConnection(exchange.WebsocketTrade)
-	if err != nil {
-		return nil, err
-	}
-	cid := e.MessageID()
-	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WsTradeRequest{Operation: "place_batch_orders", CID: cid, Data: req})
-	if err != nil {
-		return nil, err
-	}
-	if err := getErrResp(raw); err != nil {
-		return nil, err
-	}
 	var resp *V5WsBatchOrderResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
+	if err := e.sendV5TradeRequest(ctx, "place_batch_orders", req, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -94,20 +70,8 @@ func (e *Exchange) WSCancelV5Order(ctx context.Context, req *V5CancelOrderReques
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	conn, err := e.Websocket.GetConnection(exchange.WebsocketTrade)
-	if err != nil {
-		return nil, err
-	}
-	cid := e.MessageID()
-	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WsTradeRequest{Operation: "cancel_order", CID: cid, Data: req})
-	if err != nil {
-		return nil, err
-	}
-	if err := getErrResp(raw); err != nil {
-		return nil, err
-	}
 	var resp *V5WsOrderResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
+	if err := e.sendV5TradeRequest(ctx, "cancel_order", req, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -118,20 +82,8 @@ func (e *Exchange) WSCancelV5BatchOrders(ctx context.Context, req *V5CancelBatch
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	conn, err := e.Websocket.GetConnection(exchange.WebsocketTrade)
-	if err != nil {
-		return nil, err
-	}
-	cid := e.MessageID()
-	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WsTradeRequest{Operation: "cancel_batch_orders", CID: cid, Data: req})
-	if err != nil {
-		return nil, err
-	}
-	if err := getErrResp(raw); err != nil {
-		return nil, err
-	}
 	var resp *V5WsBatchOrderResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
+	if err := e.sendV5TradeRequest(ctx, "cancel_batch_orders", req, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -142,21 +94,27 @@ func (e *Exchange) WSCancelAllV5Orders(ctx context.Context, req *V5CancelAllOrde
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	conn, err := e.Websocket.GetConnection(exchange.WebsocketTrade)
-	if err != nil {
-		return nil, err
-	}
-	cid := e.MessageID()
-	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WsTradeRequest{Operation: "cancel_all_orders", CID: cid, Data: req})
-	if err != nil {
-		return nil, err
-	}
-	if err := getErrResp(raw); err != nil {
-		return nil, err
-	}
 	var resp *V5WsBatchOrderResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
+	if err := e.sendV5TradeRequest(ctx, "cancel_all_orders", req, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
+}
+
+// sendV5TradeRequest centralises response correlation and exchange error
+// handling for authenticated V5 websocket operations.
+func (e *Exchange) sendV5TradeRequest(ctx context.Context, operation string, data, response any) error {
+	conn, err := e.Websocket.GetConnection(exchange.WebsocketTrade)
+	if err != nil {
+		return err
+	}
+	cid := e.MessageID()
+	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WsTradeRequest{Operation: operation, CID: cid, Data: data})
+	if err != nil {
+		return err
+	}
+	if err := getErrResp(raw); err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, response)
 }

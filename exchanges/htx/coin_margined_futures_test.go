@@ -11,10 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -127,189 +125,173 @@ func TestGetSwapPriceLimits(t *testing.T) {
 
 func TestGetSwapAccountInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapAccountInfo(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_account_info", emptySuccessResponse, nil)
+	_, err := h.GetSwapAccountInfo(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapAccountInfo must not error")
 }
 
 func TestGetSwapPositionsInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapPositionsInfo(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_position_info", emptySuccessResponse, nil)
+	_, err := h.GetSwapPositionsInfo(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapPositionsInfo must not error")
 }
 
 func TestGetSwapAssetsAndPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapAssetsAndPositions(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_account_position_info", emptySuccessResponse, nil)
+	_, err := h.GetSwapAssetsAndPositions(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapAssetsAndPositions must not error")
 }
 
 func TestGetSwapAllSubAccAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapAllSubAccAssets(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_list", emptySuccessResponse, nil)
+	_, err := h.GetSwapAllSubAccAssets(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapAllSubAccAssets must not error")
 }
 
 func TestGetSubAccPositionInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSubAccPositionInfo(t.Context(), ethusdPair, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_position_info", emptySuccessResponse, nil)
+	_, err := h.GetSubAccPositionInfo(t.Context(), ethusdPair, 123)
+	require.NoError(t, err, "GetSubAccPositionInfo must not error")
 }
 
 func TestSwapSingleSubAccAssets(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_info", emptySuccessResponse, nil)
 	_, err := h.SwapSingleSubAccAssets(t.Context(), ethusdPair, 123)
-	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SwapSingleSubAccAssets must return credentials error")
+	require.NoError(t, err, "SwapSingleSubAccAssets must not error")
 }
 
 func TestGetAccountFinancialRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetAccountFinancialRecords(t.Context(), ethusdPair, "3,4", 2, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_financial_record", emptySuccessResponse, nil)
+	_, err := h.GetAccountFinancialRecords(t.Context(), ethusdPair, "3,4", 2, 1, 20)
+	require.NoError(t, err, "GetAccountFinancialRecords must not error")
 }
 
 func TestGetSwapSettlementRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	r, err := e.GetSwapSettlementRecords(t.Context(), ethusdPair, time.Now().AddDate(0, -1, 0), time.Now(), 0, 0)
-	require.NoError(t, err)
-	assert.NotEmpty(t, r.Data, "GetSwapSettlementRecords should return some data")
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_user_settlement_records", emptySuccessResponse, nil)
+	start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	_, err := h.GetSwapSettlementRecords(t.Context(), ethusdPair, start, start.Add(time.Hour), 1, 20)
+	require.NoError(t, err, "GetSwapSettlementRecords must not error")
 }
 
 func TestGetAvailableLeverage(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetAvailableLeverage(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_available_level_rate", emptySuccessResponse, nil)
+	_, err := h.GetAvailableLeverage(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetAvailableLeverage must not error")
 }
 
 func TestGetSwapOrderLimitInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapOrderLimitInfo(t.Context(), ethusdPair, "limit")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_limit", emptySuccessResponse, nil)
+	_, err := h.GetSwapOrderLimitInfo(t.Context(), ethusdPair, "limit")
+	require.NoError(t, err, "GetSwapOrderLimitInfo must not error")
 }
 
 func TestGetSwapTradingFeeInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapTradingFeeInfo(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_fee", emptySuccessResponse, nil)
+	_, err := h.GetSwapTradingFeeInfo(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapTradingFeeInfo must not error")
 }
 
 func TestGetSwapTransferLimitInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapTransferLimitInfo(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_transfer_limit", emptySuccessResponse, nil)
+	_, err := h.GetSwapTransferLimitInfo(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapTransferLimitInfo must not error")
 }
 
 func TestGetSwapPositionLimitInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapPositionLimitInfo(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_position_limit", emptySuccessResponse, nil)
+	_, err := h.GetSwapPositionLimitInfo(t.Context(), ethusdPair)
+	require.NoError(t, err, "GetSwapPositionLimitInfo must not error")
 }
 
 func TestAccountTransferData(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.AccountTransferData(t.Context(), ethusdPair, "123", "master_to_sub", 15)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer", emptySuccessResponse, nil)
+	_, err := h.AccountTransferData(t.Context(), ethusdPair, "123", "master_to_sub", 15)
+	require.NoError(t, err, "AccountTransferData must not error")
 }
 
 func TestAccountTransferRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.AccountTransferRecords(t.Context(), ethusdPair, "master_to_sub", 12, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer_record", emptySuccessResponse, nil)
+	_, err := h.AccountTransferRecords(t.Context(), ethusdPair, "master_to_sub", 12, 1, 20)
+	require.NoError(t, err, "AccountTransferRecords must not error")
 }
 
 func TestPlaceSwapOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceSwapOrders(t.Context(), ethusdPair, "", "buy", "open", "limit", 0.01, 1, 1)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order", emptySuccessResponse, nil)
+	_, err := h.PlaceSwapOrders(t.Context(), ethusdPair, "", "buy", "open", "limit", 0.01, 1, 1)
+	require.NoError(t, err, "PlaceSwapOrders must not error")
 }
 
 func TestPlaceSwapBatchOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var req BatchOrderRequestType
-	order1 := batchOrderData{
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", emptySuccessResponse, nil)
+	req := BatchOrderRequestType{Data: []batchOrderData{{
 		ContractCode:   "ETH-USD",
-		ClientOrderID:  "",
 		Price:          5,
 		Volume:         1,
 		Direction:      "buy",
 		Offset:         "open",
 		LeverageRate:   1,
 		OrderPriceType: "limit",
-	}
-	order2 := batchOrderData{
-		ContractCode:   "BTC-USD",
-		ClientOrderID:  "",
-		Price:          2.5,
-		Volume:         1,
-		Direction:      "buy",
-		Offset:         "open",
-		LeverageRate:   1,
-		OrderPriceType: "limit",
-	}
-	req.Data = append(req.Data, order1, order2)
-
-	_, err := e.PlaceSwapBatchOrders(t.Context(), req)
-	require.NoError(t, err)
+	}}}
+	_, err := h.PlaceSwapBatchOrders(t.Context(), req)
+	require.NoError(t, err, "PlaceSwapBatchOrders must not error")
 }
 
 func TestCancelSwapOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelSwapOrder(t.Context(), "test123", "", ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancel", emptySuccessResponse, nil)
+	_, err := h.CancelSwapOrder(t.Context(), "test123", "", ethusdPair)
+	require.NoError(t, err, "CancelSwapOrder must not error")
 }
 
 func TestCancelAllSwapOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelAllSwapOrders(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancelall", emptySuccessResponse, nil)
+	_, err := h.CancelAllSwapOrders(t.Context(), ethusdPair)
+	require.NoError(t, err, "CancelAllSwapOrders must not error")
 }
 
 func TestPlaceLightningCloseOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", "lightning", 5, 1)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_lightning_close_position", emptySuccessResponse, nil)
+	_, err := h.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", "lightning", 5, 1)
+	require.NoError(t, err, "PlaceLightningCloseOrder must not error")
 }
 
 func TestGetSwapOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapOrderInfo(t.Context(), ethusdPair, "123", "")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_info", emptySuccessResponse, nil)
+	_, err := h.GetSwapOrderInfo(t.Context(), ethusdPair, "123", "")
+	require.NoError(t, err, "GetSwapOrderInfo must not error")
 }
 
 func TestGetSwapOrderDetails(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapOrderDetails(t.Context(), ethusdPair, "123", "10", "cancelledOrder", 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_detail", emptySuccessResponse, nil)
+	_, err := h.GetSwapOrderDetails(t.Context(), ethusdPair, "123", "10", "cancelledOrder", 1, 20)
+	require.NoError(t, err, "GetSwapOrderDetails must not error")
 }
 
 func TestGetSwapOpenOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapOpenOrders(t.Context(), ethusdPair, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_openorders", emptySuccessResponse, nil)
+	_, err := h.GetSwapOpenOrders(t.Context(), ethusdPair, 1, 20)
+	require.NoError(t, err, "GetSwapOpenOrders must not error")
 }
 
 func TestGetSwapOrderHistory(t *testing.T) {
@@ -321,19 +303,11 @@ func TestGetSwapOrderHistory(t *testing.T) {
 func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
 	t.Parallel()
 	body := make(chan []byte, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_hisorders", `{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"ETH-USD","direction":"buy","order_price_type":"limit","status":6}]}`, func(r *http.Request) {
 		payload, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		body <- payload
-		_, _ = w.Write([]byte(`{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"ETH-USD","direction":"buy","order_price_type":"limit","status":6}]}`))
-	}))
-	t.Cleanup(server.Close)
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
-	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	})
 	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 	endTime := startTime.Add(48 * time.Hour)
 	resp, err := h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, startTime, endTime, 11, 50)
@@ -355,37 +329,47 @@ func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
 
 func TestGetSwapTradeHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapTradeHistory(t.Context(), ethusdPair, "liquidateShort", 2, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_matchresults", emptySuccessResponse, nil)
+	_, err := h.GetSwapTradeHistory(t.Context(), ethusdPair, "liquidateShort", 2, 1, 20)
+	require.NoError(t, err, "GetSwapTradeHistory must not error")
 }
 
 func TestPlaceSwapTriggerOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceSwapTriggerOrder(t.Context(), ethusdPair, "greaterOrEqual", "buy", "open", "optimal_5", 5, 3, 1, 1)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_order", emptySuccessResponse, nil)
+	_, err := h.PlaceSwapTriggerOrder(t.Context(), ethusdPair, "greaterOrEqual", "buy", "open", "optimal_5", 5, 3, 1, 1)
+	require.NoError(t, err, "PlaceSwapTriggerOrder must not error")
 }
 
 func TestCancelSwapTriggerOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelSwapTriggerOrder(t.Context(), ethusdPair, "test123")
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_cancel", emptySuccessResponse, func(r *http.Request) {
+		payload, err := io.ReadAll(r.Body)
+		if !assert.NoError(t, err, "request body should be readable") {
+			return
+		}
+		var body map[string]any
+		if !assert.NoError(t, json.Unmarshal(payload, &body), "request body should decode") {
+			return
+		}
+		assert.Equal(t, "ETH-USD", body["contract_code"], "contract code should be included")
+	})
+	_, err := h.CancelSwapTriggerOrder(t.Context(), ethusdPair, "test123")
+	require.NoError(t, err, "CancelSwapTriggerOrder must not error")
 }
 
 func TestCancelAllSwapTriggerOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelAllSwapTriggerOrders(t.Context(), ethusdPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_cancelall", emptySuccessResponse, nil)
+	_, err := h.CancelAllSwapTriggerOrders(t.Context(), ethusdPair)
+	require.NoError(t, err, "CancelAllSwapTriggerOrders must not error")
 }
 
 func TestGetSwapTriggerOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapTriggerOrderHistory(t.Context(), ethusdPair, "open", "all", 15, 0, 0)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_hisorders", emptySuccessResponse, nil)
+	_, err := h.GetSwapTriggerOrderHistory(t.Context(), ethusdPair, "open", "all", 15, 1, 20)
+	require.NoError(t, err, "GetSwapTriggerOrderHistory must not error")
 }
 
 func TestGetSwapMarkets(t *testing.T) {
@@ -404,291 +388,6 @@ func TestGetSwapFundingRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSwapFundingRate(t.Context(), btcusdPair)
 	require.NoError(t, err, "GetSwapFundingRate must not error")
-}
-
-func TestCoinMarginedAuthenticatedEndpoints(t *testing.T) {
-	t.Parallel()
-	contractCode := currency.NewPairWithDelimiter("ETH", "USD", "-")
-	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
-	for _, tc := range []struct {
-		name          string
-		path          string
-		expectedField string
-		expectedValue any
-		call          func(*Exchange) error
-	}{
-		{
-			name: "GetSwapAccountInfo",
-			path: "/swap-api/v1/swap_account_info",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapAccountInfo(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "GetSwapPositionsInfo",
-			path: "/swap-api/v1/swap_position_info",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapPositionsInfo(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "GetSwapAssetsAndPositions",
-			path: "/swap-api/v1/swap_account_position_info",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapAssetsAndPositions(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "GetSwapAllSubAccAssets",
-			path: "/swap-api/v1/swap_sub_account_list",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapAllSubAccAssets(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "SwapSingleSubAccAssets",
-			path: "/swap-api/v1/swap_sub_account_info",
-			call: func(h *Exchange) error {
-				_, err := h.SwapSingleSubAccAssets(t.Context(), contractCode, 123)
-				return err
-			},
-		},
-		{
-			name: "GetSubAccPositionInfo",
-			path: "/swap-api/v1/swap_sub_position_info",
-			call: func(h *Exchange) error {
-				_, err := h.GetSubAccPositionInfo(t.Context(), contractCode, 123)
-				return err
-			},
-		},
-		{
-			name: "GetAccountFinancialRecords",
-			path: "/swap-api/v3/swap_financial_record",
-			call: func(h *Exchange) error {
-				_, err := h.GetAccountFinancialRecords(t.Context(), contractCode, "3,4", 2, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "GetSwapSettlementRecords",
-			path: "/swap-api/v1/swap_user_settlement_records",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapSettlementRecords(t.Context(), contractCode, startTime, startTime.Add(time.Hour), 1, 20)
-				return err
-			},
-		},
-		{
-			name: "GetAvailableLeverage",
-			path: "/swap-api/v1/swap_available_level_rate",
-			call: func(h *Exchange) error {
-				_, err := h.GetAvailableLeverage(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "SwitchCoinMarginedLeverage",
-			path: "/swap-api/v1/swap_switch_lever_rate",
-			call: func(h *Exchange) error {
-				return h.SwitchCoinMarginedLeverage(t.Context(), contractCode, 5)
-			},
-		},
-		{
-			name: "GetSwapOrderLimitInfo",
-			path: "/swap-api/v1/swap_order_limit",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapOrderLimitInfo(t.Context(), contractCode, "limit")
-				return err
-			},
-		},
-		{
-			name: "GetSwapTradingFeeInfo",
-			path: "/swap-api/v1/swap_fee",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapTradingFeeInfo(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "GetSwapTransferLimitInfo",
-			path: "/swap-api/v1/swap_transfer_limit",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapTransferLimitInfo(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "GetSwapPositionLimitInfo",
-			path: "/swap-api/v1/swap_position_limit",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapPositionLimitInfo(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "AccountTransferData",
-			path: "/swap-api/v1/swap_master_sub_transfer",
-			call: func(h *Exchange) error {
-				_, err := h.AccountTransferData(t.Context(), contractCode, "123", "master_to_sub", 1)
-				return err
-			},
-		},
-		{
-			name: "AccountTransferRecords",
-			path: "/swap-api/v1/swap_master_sub_transfer_record",
-			call: func(h *Exchange) error {
-				_, err := h.AccountTransferRecords(t.Context(), contractCode, "master_to_sub", 2, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "PlaceSwapOrders",
-			path: "/swap-api/v1/swap_order",
-			call: func(h *Exchange) error {
-				_, err := h.PlaceSwapOrders(t.Context(), contractCode, "", "buy", "open", "limit", 1, 1, 1)
-				return err
-			},
-		},
-		{
-			name: "PlaceSwapBatchOrders",
-			path: "/swap-api/v1/swap_batchorder",
-			call: func(h *Exchange) error {
-				_, err := h.PlaceSwapBatchOrders(t.Context(), BatchOrderRequestType{Data: []batchOrderData{{
-					ContractCode:   "ETH-USD",
-					Price:          1,
-					Volume:         1,
-					Direction:      "buy",
-					Offset:         "open",
-					LeverageRate:   1,
-					OrderPriceType: "limit",
-				}}})
-				return err
-			},
-		},
-		{
-			name: "CancelSwapOrder",
-			path: "/swap-api/v1/swap_cancel",
-			call: func(h *Exchange) error {
-				_, err := h.CancelSwapOrder(t.Context(), "123", "", contractCode)
-				return err
-			},
-		},
-		{
-			name: "CancelAllSwapOrders",
-			path: "/swap-api/v1/swap_cancelall",
-			call: func(h *Exchange) error {
-				_, err := h.CancelAllSwapOrders(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "PlaceLightningCloseOrder",
-			path: "/swap-api/v1/swap_lightning_close_position",
-			call: func(h *Exchange) error {
-				_, err := h.PlaceLightningCloseOrder(t.Context(), contractCode, "buy", "lightning", 1, 123)
-				return err
-			},
-		},
-		{
-			name: "GetSwapOrderDetails",
-			path: "/swap-api/v1/swap_order_detail",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapOrderDetails(t.Context(), contractCode, "123", "10", "cancelledOrder", 1, 20)
-				return err
-			},
-		},
-		{
-			name: "GetSwapOrderInfo",
-			path: "/swap-api/v1/swap_order_info",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapOrderInfo(t.Context(), contractCode, "123", "")
-				return err
-			},
-		},
-		{
-			name: "GetSwapOpenOrders",
-			path: "/swap-api/v1/swap_openorders",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapOpenOrders(t.Context(), contractCode, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "GetSwapTradeHistory",
-			path: "/swap-api/v3/swap_matchresults",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapTradeHistory(t.Context(), contractCode, "liquidateShort", 2, 1, 20)
-				return err
-			},
-		},
-		{
-			name: "PlaceSwapTriggerOrder",
-			path: "/swap-api/v1/swap_trigger_order",
-			call: func(h *Exchange) error {
-				_, err := h.PlaceSwapTriggerOrder(t.Context(), contractCode, "greaterOrEqual", "buy", "open", "optimal_5", 2, 1, 1, 1)
-				return err
-			},
-		},
-		{
-			name:          "CancelSwapTriggerOrder",
-			path:          "/swap-api/v1/swap_trigger_cancel",
-			expectedField: "contract_code",
-			expectedValue: "ETH-USD",
-			call: func(h *Exchange) error {
-				_, err := h.CancelSwapTriggerOrder(t.Context(), contractCode, "123")
-				return err
-			},
-		},
-		{
-			name: "CancelAllSwapTriggerOrders",
-			path: "/swap-api/v1/swap_trigger_cancelall",
-			call: func(h *Exchange) error {
-				_, err := h.CancelAllSwapTriggerOrders(t.Context(), contractCode)
-				return err
-			},
-		},
-		{
-			name: "GetSwapTriggerOrderHistory",
-			path: "/swap-api/v1/swap_trigger_hisorders",
-			call: func(h *Exchange) error {
-				_, err := h.GetSwapTriggerOrderHistory(t.Context(), contractCode, "open", "all", 2, 1, 20)
-				return err
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, http.MethodPost, r.Method, "authenticated coin-margined method should match")
-				assert.Equal(t, tc.path, r.URL.Path, "authenticated coin-margined path should match HTX documentation")
-				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "authenticated coin-margined content type should match")
-				if tc.expectedField != "" {
-					payload, err := io.ReadAll(r.Body)
-					if !assert.NoError(t, err, "request body should be readable") {
-						return
-					}
-					var body map[string]any
-					if !assert.NoError(t, json.Unmarshal(payload, &body), "request body should decode") {
-						return
-					}
-					assert.Equal(t, tc.expectedValue, body[tc.expectedField], "request body should contain the documented value")
-				}
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"status":"ok","code":200,"msg":"","data":null}`))
-			}))
-			t.Cleanup(server.Close)
-
-			h := new(Exchange)
-			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-			h.API.AuthenticatedSupport = true
-			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "coin-margined endpoint must be set")
-			require.NoError(t, tc.call(h), "authenticated coin-margined endpoint must not error")
-		})
-	}
 }
 
 func TestGetHistoricalFundingRatesForPair(t *testing.T) {
@@ -712,19 +411,10 @@ func TestGetHistoricalFundingRatesForPair(t *testing.T) {
 
 func TestSwitchCoinMarginedLeverage(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/swap-api/v1/swap_switch_lever_rate", r.URL.Path, "coin-margined leverage path should match")
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_switch_lever_rate", `{"status":"ok","data":{"contract_code":"BTC-USD","lever_rate":5}}`, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		assert.JSONEq(t, `{"contract_code":"BTC-USD","lever_rate":5}`, string(body), "coin-margined leverage body should match")
-		_, _ = w.Write([]byte(`{"status":"ok","data":{"contract_code":"BTC-USD","lever_rate":5}}`))
-	}))
-	t.Cleanup(server.Close)
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
-	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	})
 	require.NoError(t, h.SwitchCoinMarginedLeverage(t.Context(), btcusdPair, 5), "SwitchCoinMarginedLeverage must not error")
 }

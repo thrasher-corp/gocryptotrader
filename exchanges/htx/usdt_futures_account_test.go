@@ -2,22 +2,19 @@ package htx
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestGetV5AssetMode(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":1}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":1}}`, nil)
 	resp, err := h.GetV5AssetMode(t.Context())
 	require.NoError(t, err, "GetV5AssetMode must not error")
 	require.NotNil(t, resp, "asset mode response must not be nil")
@@ -26,7 +23,7 @@ func TestGetV5AssetMode(t *testing.T) {
 
 func TestSetV5AssetMode(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":2}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":2}}`, nil)
 	resp, err := h.SetV5AssetMode(t.Context(), 2)
 	require.NoError(t, err, "SetV5AssetMode must not error")
 	require.NotNil(t, resp, "asset mode response must not be nil")
@@ -35,7 +32,7 @@ func TestSetV5AssetMode(t *testing.T) {
 
 func TestGetV5AccountBills(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/account/bills", `{"code":200,"data":[{"id":"1","amount":"2"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/bills", `{"code":200,"data":[{"id":"1","amount":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit should be sent")
 	})
@@ -58,7 +55,7 @@ func TestGetV5AccountBills(t *testing.T) {
 
 func TestGetV5FeeDeductionCurrency(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/account/fee_deduction_currency", `{"code":200,"data":{"fee_option":1,"deduction_currency":"HTX"}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/fee_deduction_currency", `{"code":200,"data":{"fee_option":1,"deduction_currency":"HTX"}}`, nil)
 	resp, err := h.GetV5FeeDeductionCurrency(t.Context())
 	require.NoError(t, err, "GetV5FeeDeductionCurrency must not error")
 	require.NotNil(t, resp, "fee deduction response must not be nil")
@@ -67,7 +64,7 @@ func TestGetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestSetV5FeeDeductionCurrency(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/account/fee_deduction_currency", `{"code":200,"data":{"fee_option":1,"deduction_currency":"HTX"}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/fee_deduction_currency", `{"code":200,"data":{"fee_option":1,"deduction_currency":"HTX"}}`, nil)
 	_, err := h.SetV5FeeDeductionCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetV5FeeDeductionCurrency must reject nil request")
 	resp, err := h.SetV5FeeDeductionCurrency(t.Context(), &V5SetFeeDeductionCurrencyRequest{FeeOption: 1, DeductionCurrency: "HTX"})
@@ -78,7 +75,7 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)
 	_, err := h.V5UniversalTransfer(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "V5UniversalTransfer must reject nil request")
 	resp, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{
@@ -94,7 +91,7 @@ func TestV5UniversalTransfer(t *testing.T) {
 
 func TestGetV5UniversalTransferRecords(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/account/universal_transfer_records", `{"code":200,"data":[{"id":1,"transfer_id":"123","amount":"10"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/universal_transfer_records", `{"code":200,"data":[{"id":1,"transfer_id":"123","amount":"10"}]}`, func(r *http.Request) {
 		assert.Equal(t, "123", r.URL.Query().Get("transfer_id"), "transfer ID should be sent")
 		assert.Equal(t, "USDT", r.URL.Query().Get("currency"), "currency should be sent")
 	})
@@ -117,16 +114,7 @@ func TestGetV5UniversalTransferRecords(t *testing.T) {
 
 func TestGetV5AccountBalance(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v5/account/balance", r.URL.Path, "balance endpoint path should match")
-		_, _ = w.Write([]byte(`{"code":200,"data":{"state":"working"}}`))
-	}))
-	t.Cleanup(server.Close)
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
-	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/balance", `{"code":200,"data":{"state":"working"}}`, nil)
 	resp, err := h.GetV5AccountBalance(t.Context())
 	require.NoError(t, err, "GetV5AccountBalance must not error")
 	require.NotNil(t, resp, "decoded balance must be returned")

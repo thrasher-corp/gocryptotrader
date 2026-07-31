@@ -1,17 +1,122 @@
 package htx
 
 import (
+	"context"
 	"testing"
 
+	"github.com/buger/jsonparser"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+func TestSendV5TradeRequest(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		setup       func(*testing.T) *Exchange
+		expectedErr bool
+		cancel      bool
+	}{
+		{
+			name: "success",
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				return testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+			},
+		},
+		{
+			name: "missing connection",
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				h := new(Exchange)
+				require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+				return h
+			},
+			expectedErr: true,
+		},
+		{
+			name: "cancelled context",
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				return testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+			},
+			expectedErr: true,
+			cancel:      true,
+		},
+		{
+			name: "exchange error",
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				fixture := func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					cid, err := jsonparser.GetString(message, "cid")
+					if err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"code":400,"message":"invalid request","cid":"`+cid+`"}`))
+				}
+				return testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, fixture))
+			},
+			expectedErr: true,
+		},
+		{
+			name: "send error",
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+				conn, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+				require.NoError(t, err, "trade connection must be available")
+				require.NoError(t, conn.Shutdown(), "trade connection must shut down")
+				return h
+			},
+			expectedErr: true,
+		},
+		{
+			name: "decode error",
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				fixture := func(tb testing.TB, message []byte, conn *gws.Conn) error {
+					tb.Helper()
+					cid, err := jsonparser.GetString(message, "cid")
+					if err != nil {
+						return err
+					}
+					return conn.WriteMessage(gws.TextMessage, []byte(`{"code":200,"cid":"`+cid+`","data":[]}`))
+				}
+				return testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, fixture))
+			},
+			expectedErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := tc.setup(t)
+			var response *V5WsOrderResponse
+			ctx := t.Context()
+			if tc.cancel {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+			err := h.sendV5TradeRequest(ctx, "place_order", &V5OrderRequest{ContractCode: "BTC-USDT"}, &response)
+			if tc.expectedErr {
+				require.Error(t, err, "sendV5TradeRequest must return the expected error")
+				return
+			}
+			require.NoError(t, err, "sendV5TradeRequest must not error")
+			require.NotNil(t, response, "sendV5TradeRequest response must not be nil")
+			assert.Equal(t, "1", response.Data.OrderID, "order ID should decode")
+		})
+	}
+}
 
 func TestWSPlaceV5Order(t *testing.T) {
 	t.Parallel()

@@ -2,7 +2,6 @@ package htx
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -11,25 +10,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestGetV5AssetsDeductionCurrencies(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/assets_deduction_currency", `{"code":200,"data":{"currency":["USDT","HTX"]}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/assets_deduction_currency", `{"code":200,"data":{"currency":["USDT","HTX"]}}`, nil)
 	resp, err := h.GetV5AssetsDeductionCurrencies(t.Context())
 	require.NoError(t, err, "GetV5AssetsDeductionCurrencies must not error")
 	assert.Equal(t, []string{"USDT", "HTX"}, resp.Data.Currencies, "currencies should decode")
 
-	errorExchange := setupV5HTTPTest(t, http.MethodGet, "/v5/market/assets_deduction_currency", `{"code":400,"message":"invalid request"}`, nil)
+	errorExchange := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/assets_deduction_currency", `{"code":400,"message":"invalid request"}`, nil)
 	_, err = errorExchange.GetV5AssetsDeductionCurrencies(t.Context())
 	require.ErrorContains(t, err, "invalid request", "GetV5AssetsDeductionCurrencies must return V5 API errors")
 }
 
 func TestGetV5MultiAssetsMarginCurrencies(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/multi_assets_margin", `{"code":200,"data":{"multi_assets":["USDT","BTC"]}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/multi_assets_margin", `{"code":200,"data":{"multi_assets":["USDT","BTC"]}}`, nil)
 	resp, err := h.GetV5MultiAssetsMarginCurrencies(t.Context())
 	require.NoError(t, err, "GetV5MultiAssetsMarginCurrencies must not error")
 	assert.Equal(t, []string{"USDT", "BTC"}, resp.Data.Currencies, "currencies should decode")
@@ -37,7 +35,7 @@ func TestGetV5MultiAssetsMarginCurrencies(t *testing.T) {
 
 func TestGetV5EliteAccountRatio(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/elite_account_ratio", `{"code":200,"data":[{"contract_code":"BTC-USDT","buy_ratio":"0.6"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/elite_account_ratio", `{"code":200,"data":[{"contract_code":"BTC-USDT","buy_ratio":"0.6"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "5min", r.URL.Query().Get("period"), "period should be sent")
 	})
@@ -49,7 +47,7 @@ func TestGetV5EliteAccountRatio(t *testing.T) {
 
 func TestGetV5ElitePositionRatio(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/elite_position_ratio", `{"code":200,"data":[{"contract_code":"BTC-USDT","sell_ratio":"0.4"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/elite_position_ratio", `{"code":200,"data":[{"contract_code":"BTC-USDT","sell_ratio":"0.4"}]}`, nil)
 	resp, err := h.GetV5ElitePositionRatio(t.Context(), btcusdtPair, "5min")
 	require.NoError(t, err, "GetV5ElitePositionRatio must not error")
 	require.Len(t, resp.Data, 1, "one ratio must decode")
@@ -58,7 +56,7 @@ func TestGetV5ElitePositionRatio(t *testing.T) {
 
 func TestGetV5EstimatedSettlementPrice(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/estimated_settlement_price", `{"code":200,"data":[{"contract_code":"BTC-USDT","estimated_settlement_price":"10"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/estimated_settlement_price", `{"code":200,"data":[{"contract_code":"BTC-USDT","estimated_settlement_price":"10"}]}`, nil)
 	resp, err := h.GetV5EstimatedSettlementPrice(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetV5EstimatedSettlementPrice must not error")
 	require.Len(t, resp.Data, 1, "one estimate must decode")
@@ -67,7 +65,7 @@ func TestGetV5EstimatedSettlementPrice(t *testing.T) {
 
 func TestGetV5FundingRates(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/funding_rate", `{"code":200,"data":[{"contract_code":"BTC-USDT","funding_rate":"-0.0001","funding_time":"1782460800000","next_funding_time":"1782489600000","min_funding_rate":"-0.00375","max_funding_rate":"0.00375"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate", `{"code":200,"data":[{"contract_code":"BTC-USDT","funding_rate":"-0.0001","funding_time":"1782460800000","next_funding_time":"1782489600000","min_funding_rate":"-0.00375","max_funding_rate":"0.00375"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT,ETH-USDT", r.URL.Query().Get("contract_code"), "contract codes should be sent")
 	})
 	_, err := h.GetV5FundingRates(t.Context(), nil)
@@ -89,7 +87,7 @@ func TestGetV5FundingRates(t *testing.T) {
 
 func TestGetV5FundingRateHistory(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/funding_rate_history", `{"code":200,"data":[{"id":"9566","contract_code":"BTC-USDT","funding_rate":"-0.00375","funding_time":"1721887200000"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `{"code":200,"data":[{"id":"9566","contract_code":"BTC-USDT","funding_rate":"-0.00375","funding_time":"1721887200000"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit should be sent")
 		assert.Equal(t, "next", r.URL.Query().Get("direct"), "direction should be sent")
@@ -112,7 +110,7 @@ func TestGetV5FundingRateHistory(t *testing.T) {
 
 func TestGetV5PriceLimits(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/price_limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","high_limit":"88660.5","low_limit":"100"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/price_limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","high_limit":"88660.5","low_limit":"100"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 	})
 	resp, err := h.GetV5PriceLimits(t.Context(), btcusdtPair)
@@ -124,7 +122,7 @@ func TestGetV5PriceLimits(t *testing.T) {
 
 func TestGetV5LiquidationOrders(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/liquidation_orders", `{"code":200,"data":[{"id":"1","volume":"2"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/liquidation_orders", `{"code":200,"data":[{"id":"1","volume":"2"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit should be sent")
 	})
@@ -146,7 +144,7 @@ func TestGetV5LiquidationOrders(t *testing.T) {
 
 func TestGetV5MarketRiskLimit(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_lever":"20"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_lever":"20"}]}`, nil)
 	resp, err := h.GetV5MarketRiskLimit(t.Context(), btcusdtPair, "cross", "1")
 	require.NoError(t, err, "GetV5MarketRiskLimit must not error")
 	require.Len(t, resp.Data, 1, "one risk limit must decode")
@@ -155,7 +153,7 @@ func TestGetV5MarketRiskLimit(t *testing.T) {
 
 func TestGetV5SettlementHistory(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/settlement_history", `{"code":200,"data":[{"id":"1","settlement_price":"10"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/settlement_history", `{"code":200,"data":[{"id":"1","settlement_price":"10"}]}`, func(r *http.Request) {
 		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
 	})
 	_, err := h.GetV5SettlementHistory(t.Context(), nil)
@@ -175,14 +173,7 @@ func TestGetV5SettlementHistory(t *testing.T) {
 
 func TestGetV5OpenInterest(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v5/market/open_interest", r.URL.Path, "open interest endpoint path should match")
-		_, _ = w.Write([]byte(`{"code":200,"success":true,"data":{"contract_code":"BTC-USDT"}}`))
-	}))
-	t.Cleanup(server.Close)
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/open_interest", `{"code":200,"success":true,"data":{"contract_code":"BTC-USDT"}}`, nil)
 	resp, err := h.GetV5OpenInterest(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetV5OpenInterest must not error")
 	require.NotNil(t, resp, "decoded open interest must be returned")

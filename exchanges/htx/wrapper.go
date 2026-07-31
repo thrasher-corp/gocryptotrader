@@ -2224,20 +2224,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		if err != nil {
 			return nil, err
 		}
-		for x := range candles.Data {
-			timestamp := candles.Data[x].IDTimestamp.Time()
-			if timestamp.Before(req.Start) || timestamp.After(req.End) {
-				continue
-			}
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   timestamp,
-				Open:   candles.Data[x].Open,
-				High:   candles.Data[x].High,
-				Low:    candles.Data[x].Low,
-				Close:  candles.Data[x].Close,
-				Volume: candles.Data[x].Volume,
-			})
-		}
+		timeSeries = appendFuturesCandles(timeSeries, candles.Data, req.Start, req.End)
 	case asset.CoinMarginedFutures:
 		// if size, from, to are all populated, only size is considered
 		size := int64(-1)
@@ -2245,40 +2232,14 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		if err != nil {
 			return nil, err
 		}
-		for x := range candles.Data {
-			timestamp := candles.Data[x].IDTimestamp.Time()
-			if timestamp.Before(req.Start) || timestamp.After(req.End) {
-				continue
-			}
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   timestamp,
-				Open:   candles.Data[x].Open,
-				High:   candles.Data[x].High,
-				Low:    candles.Data[x].Low,
-				Close:  candles.Data[x].Close,
-				Volume: candles.Data[x].Volume,
-			})
-		}
+		timeSeries = appendFuturesCandles(timeSeries, candles.Data, req.Start, req.End)
 	case asset.USDTMarginedFutures:
 		size := int64(-1)
 		candles, err := e.GetLinearSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End)
 		if err != nil {
 			return nil, err
 		}
-		for x := range candles.Data {
-			timestamp := candles.Data[x].IDTimestamp.Time()
-			if timestamp.Before(req.Start) || timestamp.After(req.End) {
-				continue
-			}
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   timestamp,
-				Open:   candles.Data[x].Open,
-				High:   candles.Data[x].High,
-				Low:    candles.Data[x].Low,
-				Close:  candles.Data[x].Close,
-				Volume: candles.Data[x].Volume,
-			})
-		}
+		timeSeries = appendFuturesCandles(timeSeries, candles.Data, req.Start, req.End)
 	}
 
 	return req.ProcessResponse(timeSeries)
@@ -2304,21 +2265,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			if err != nil {
 				return nil, err
 			}
-			for x := range candles.Data {
-				// align response data
-				timestamp := candles.Data[x].IDTimestamp.Time()
-				if timestamp.Before(req.Start) || timestamp.After(req.End) {
-					continue
-				}
-				timeSeries = append(timeSeries, kline.Candle{
-					Time:   timestamp,
-					Open:   candles.Data[x].Open,
-					High:   candles.Data[x].High,
-					Low:    candles.Data[x].Low,
-					Close:  candles.Data[x].Close,
-					Volume: candles.Data[x].Volume,
-				})
-			}
+			timeSeries = appendFuturesCandles(timeSeries, candles.Data, req.Start, req.End)
 		}
 	case asset.CoinMarginedFutures:
 		for i := range req.RangeHolder.Ranges {
@@ -2329,21 +2276,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			if err != nil {
 				return nil, err
 			}
-			for x := range candles.Data {
-				// align response data
-				timestamp := candles.Data[x].IDTimestamp.Time()
-				if timestamp.Before(req.Start) || timestamp.After(req.End) {
-					continue
-				}
-				timeSeries = append(timeSeries, kline.Candle{
-					Time:   timestamp,
-					Open:   candles.Data[x].Open,
-					High:   candles.Data[x].High,
-					Low:    candles.Data[x].Low,
-					Close:  candles.Data[x].Close,
-					Volume: candles.Data[x].Volume,
-				})
-			}
+			timeSeries = appendFuturesCandles(timeSeries, candles.Data, req.Start, req.End)
 		}
 	case asset.USDTMarginedFutures:
 		for i := range req.RangeHolder.Ranges {
@@ -2353,20 +2286,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			if err != nil {
 				return nil, err
 			}
-			for x := range candles.Data {
-				timestamp := candles.Data[x].IDTimestamp.Time()
-				if timestamp.Before(req.Start) || timestamp.After(req.End) {
-					continue
-				}
-				timeSeries = append(timeSeries, kline.Candle{
-					Time:   timestamp,
-					Open:   candles.Data[x].Open,
-					High:   candles.Data[x].High,
-					Low:    candles.Data[x].Low,
-					Close:  candles.Data[x].Close,
-					Volume: candles.Data[x].Volume,
-				})
-			}
+			timeSeries = appendFuturesCandles(timeSeries, candles.Data, req.Start, req.End)
 		}
 	}
 

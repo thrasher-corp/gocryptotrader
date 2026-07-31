@@ -17,7 +17,50 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+func TestAppendFuturesCandles(t *testing.T) {
+	t.Parallel()
+	start := time.Unix(100, 0)
+	end := time.Unix(200, 0)
+	for _, tc := range []struct {
+		name     string
+		candles  []FuturesKline
+		expected int
+	}{
+		{
+			name: "inclusive range and field mapping",
+			candles: []FuturesKline{
+				{IDTimestamp: types.Time(start), Open: 1, High: 2, Low: 0.5, Close: 1.5, Volume: 3},
+				{IDTimestamp: types.Time(end), Open: 4, High: 5, Low: 3.5, Close: 4.5, Volume: 6},
+			},
+			expected: 2,
+		},
+		{
+			name: "outside range",
+			candles: []FuturesKline{
+				{IDTimestamp: types.Time(start.Add(-time.Second))},
+				{IDTimestamp: types.Time(end.Add(time.Second))},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := appendFuturesCandles(nil, tc.candles, start, end)
+			require.Len(t, result, tc.expected, "appendFuturesCandles must return the expected candles")
+			if tc.expected == 0 {
+				return
+			}
+			assert.Equal(t, start, result[0].Time, "candle time should map")
+			assert.Equal(t, float64(1), result[0].Open, "open should map")
+			assert.Equal(t, float64(2), result[0].High, "high should map")
+			assert.Equal(t, float64(0.5), result[0].Low, "low should map")
+			assert.Equal(t, float64(1.5), result[0].Close, "close should map")
+			assert.Equal(t, float64(3), result[0].Volume, "volume should map")
+		})
+	}
+}
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()

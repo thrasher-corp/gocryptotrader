@@ -3,22 +3,19 @@ package htx
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestGetV5Leverage(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/position/lever", `{"code":200,"data":[{"contract_code":"BTC-USDT","lever_rate":5,"available_lever":[1,5,10]}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/lever", `{"code":200,"data":[{"contract_code":"BTC-USDT","lever_rate":5,"available_lever":[1,5,10]}]}`, func(r *http.Request) {
 		assert.Equal(t, "cross", r.URL.Query().Get("margin_mode"), "margin mode should be sent")
 	})
 	resp, err := h.GetV5Leverage(t.Context(), btcusdtPair, "cross", "long")
@@ -29,7 +26,7 @@ func TestGetV5Leverage(t *testing.T) {
 
 func TestSetV5Leverage(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/position/lever", `{"code":200,"data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, nil)
 	_, err := h.SetV5Leverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetV5Leverage must reject nil request")
 	resp, err := h.SetV5Leverage(t.Context(), &V5SetLeverageRequest{ContractCode: "BTC-USDT", MarginMode: "cross", LeverageRate: 5})
@@ -39,7 +36,7 @@ func TestSetV5Leverage(t *testing.T) {
 
 func TestAdjustV5PositionMargin(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/position/margin", `{"code":200,"message":"Success","data":null}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/margin", `{"code":200,"message":"Success","data":null}`, nil)
 	_, err := h.AdjustV5PositionMargin(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "AdjustV5PositionMargin must reject nil request")
 	resp, err := h.AdjustV5PositionMargin(t.Context(), &V5AdjustPositionMarginRequest{ContractCode: "BTC-USDT", PositionSide: "long", Type: "add", Amount: 10})
@@ -49,7 +46,7 @@ func TestAdjustV5PositionMargin(t *testing.T) {
 
 func TestGetV5PositionMode(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/position/mode", `{"code":200,"data":{"position_mode":"dual_side"}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/mode", `{"code":200,"data":{"position_mode":"dual_side"}}`, nil)
 	resp, err := h.GetV5PositionMode(t.Context())
 	require.NoError(t, err, "GetV5PositionMode must not error")
 	assert.Equal(t, "dual_side", resp.Data.PositionMode, "position mode should decode")
@@ -57,7 +54,7 @@ func TestGetV5PositionMode(t *testing.T) {
 
 func TestSetV5PositionMode(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodPost, "/v5/position/mode", `{"code":200,"data":{"position_mode":"single_side"}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", `{"code":200,"data":{"position_mode":"single_side"}}`, nil)
 	resp, err := h.SetV5PositionMode(t.Context(), "single_side")
 	require.NoError(t, err, "SetV5PositionMode must not error")
 	assert.Equal(t, "single_side", resp.Data.PositionMode, "position mode should decode")
@@ -65,7 +62,7 @@ func TestSetV5PositionMode(t *testing.T) {
 
 func TestGetV5PositionRiskLimit(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/position/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_volume":"100"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_volume":"100"}]}`, nil)
 	resp, err := h.GetV5PositionRiskLimit(t.Context(), currency.EMPTYPAIR, "cross", "long")
 	require.NoError(t, err, "GetV5PositionRiskLimit must not error")
 	require.Len(t, resp.Data, 1, "one risk limit must decode")
@@ -74,7 +71,7 @@ func TestGetV5PositionRiskLimit(t *testing.T) {
 
 func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 	t.Parallel()
-	h := setupV5HTTPTest(t, http.MethodGet, "/v5/position/risk/limit_tier", `{"code":200,"data":[{"contract_code":"BTC-USDT","tier":"1"}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit_tier", `{"code":200,"data":[{"contract_code":"BTC-USDT","tier":"1"}]}`, nil)
 	resp, err := h.GetV5PositionRiskLimitTiers(t.Context(), btcusdtPair, "cross")
 	require.NoError(t, err, "GetV5PositionRiskLimitTiers must not error")
 	require.Len(t, resp.Data, 1, "one risk tier must decode")
@@ -83,21 +80,12 @@ func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 
 func TestSwitchLinearSwapLeverage(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v5/position/lever", r.URL.Path, "USDT-margined leverage path should use the current V5 endpoint")
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"message":"Success","data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		assert.Contains(t, string(body), `"margin_mode"`, "V5 leverage request should include margin mode")
 		assert.Contains(t, string(body), `"lever_rate":"5"`, "V5 leverage request should encode leverage as documented")
-		_, _ = w.Write([]byte(`{"code":200,"message":"Success","data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`))
-	}))
-	t.Cleanup(server.Close)
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	h.API.AuthenticatedSupport = true
-	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+	})
 	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false), "isolated SwitchLinearSwapLeverage must not error")
 	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, true), "cross SwitchLinearSwapLeverage must not error")
 }
