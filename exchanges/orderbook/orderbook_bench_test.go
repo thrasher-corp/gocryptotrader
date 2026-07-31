@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"math"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,10 +20,10 @@ func BenchmarkReverse(b *testing.B) {
 	}
 }
 
-// 361266	      3556 ns/op	      24 B/op	       1 allocs/op (old)
-// 385783	      3000 ns/op	     152 B/op	       3 allocs/op (new)
+// BenchmarkSortAsksDecending measures the full-sort path for asks.
 func BenchmarkSortAsksDecending(b *testing.B) {
 	lvls := levelsFixture()
+	lvls.Reverse()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
 		copy(bucket, lvls)
@@ -30,11 +31,9 @@ func BenchmarkSortAsksDecending(b *testing.B) {
 	}
 }
 
-// 266998	      4292 ns/op	      40 B/op	       2 allocs/op (old)
-// 372396	      3001 ns/op	     152 B/op	       3 allocs/op (new)
+// BenchmarkSortBidsAscending measures the full-sort path for bids.
 func BenchmarkSortBidsAscending(b *testing.B) {
 	lvls := levelsFixture()
-	lvls.Reverse()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
 		copy(bucket, lvls)
@@ -42,8 +41,88 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 	}
 }
 
-// 22119	     46532 ns/op	      35 B/op	       1 allocs/op (old)
-// 16233	     76951 ns/op	     167 B/op	       3 allocs/op (new)
+// BenchmarkSortAsksLateInversion measures the fallback after a full ordered-prefix scan.
+func BenchmarkSortAsksLateInversion(b *testing.B) {
+	lvls := levelsFixture()
+	lvls[len(lvls)-1].Price = 0.5
+	bucket := make(Levels, len(lvls))
+	for b.Loop() {
+		copy(bucket, lvls)
+		bucket.SortAsks()
+	}
+}
+
+// BenchmarkSortBidsLateInversion measures the fallback after a full ordered-prefix scan.
+func BenchmarkSortBidsLateInversion(b *testing.B) {
+	lvls := levelsFixture()
+	lvls.Reverse()
+	lvls[len(lvls)-1].Price = float64(len(lvls)) + 0.5
+	bucket := make(Levels, len(lvls))
+	for b.Loop() {
+		copy(bucket, lvls)
+		bucket.SortBids()
+	}
+}
+
+// BenchmarkSortAsksNaN measures each legacy NaN fallback entry point for asks.
+func BenchmarkSortAsksNaN(b *testing.B) {
+	early := levelsFixture()
+	early[0].Price = math.NaN()
+	late := levelsFixture()
+	late[len(late)-1].Price = math.NaN()
+	afterInversion := levelsFixture()
+	afterInversion[0], afterInversion[1] = afterInversion[1], afterInversion[0]
+	afterInversion[len(afterInversion)-1].Price = math.NaN()
+
+	for _, tc := range []struct {
+		name   string
+		levels Levels
+	}{
+		{name: "early", levels: early},
+		{name: "late", levels: late},
+		{name: "after-inversion", levels: afterInversion},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			bucket := make(Levels, len(tc.levels))
+			for b.Loop() {
+				copy(bucket, tc.levels)
+				bucket.SortAsks()
+			}
+		})
+	}
+}
+
+// BenchmarkSortBidsNaN measures each legacy NaN fallback entry point for bids.
+func BenchmarkSortBidsNaN(b *testing.B) {
+	early := levelsFixture()
+	early.Reverse()
+	early[0].Price = math.NaN()
+	late := levelsFixture()
+	late.Reverse()
+	late[len(late)-1].Price = math.NaN()
+	afterInversion := levelsFixture()
+	afterInversion.Reverse()
+	afterInversion[0], afterInversion[1] = afterInversion[1], afterInversion[0]
+	afterInversion[len(afterInversion)-1].Price = math.NaN()
+
+	for _, tc := range []struct {
+		name   string
+		levels Levels
+	}{
+		{name: "early", levels: early},
+		{name: "late", levels: late},
+		{name: "after-inversion", levels: afterInversion},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			bucket := make(Levels, len(tc.levels))
+			for b.Loop() {
+				copy(bucket, tc.levels)
+				bucket.SortBids()
+			}
+		})
+	}
+}
+
 func BenchmarkSortAsksStandard(b *testing.B) {
 	lvls := levelsFixtureRandom()
 	bucket := make(Levels, len(lvls))
@@ -53,8 +132,6 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 	}
 }
 
-// 19504	     62518 ns/op	      53 B/op	       2 allocs/op (old)
-// 15698	     72859 ns/op	     168 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsStandard(b *testing.B) {
 	lvls := levelsFixtureRandom()
 	bucket := make(Levels, len(lvls))
@@ -64,8 +141,6 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 	}
 }
 
-// 376708	      3559 ns/op	      24 B/op 		   1 allocs/op (old)
-// 377113	      3020 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksAscending(b *testing.B) {
 	lvls := levelsFixture()
 	bucket := make(Levels, len(lvls))
@@ -75,8 +150,6 @@ func BenchmarkSortAsksAscending(b *testing.B) {
 	}
 }
 
-// 262874	      4364 ns/op	      40 B/op	       2 allocs/op (old)
-// 401788	      3348 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsDescending(b *testing.B) {
 	lvls := levelsFixture()
 	lvls.Reverse()
