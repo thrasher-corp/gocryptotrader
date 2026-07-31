@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -359,7 +360,7 @@ func TestWSAuthenticateConnection(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.API.AuthenticatedSupport = true
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	ex.SetCredentials("key", "secret", "passphrase", "", "", "")
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
 
 	t.Run("send error", func(t *testing.T) {
 		t.Parallel()
