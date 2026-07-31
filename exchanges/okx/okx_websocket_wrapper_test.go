@@ -97,7 +97,9 @@ func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
 		ID        string `json:"id"`
 		Op        string `json:"op"`
 		Arguments []struct {
-			InstrumentIDCode int64 `json:"instIdCode"`
+			InstrumentIDCode int64  `json:"instIdCode"`
+			PositionSide     string `json:"posSide"`
+			ReduceOnly       bool   `json:"reduceOnly"`
 		} `json:"args"`
 	}
 	if err := json.Unmarshal(p, &req); err != nil {
@@ -112,6 +114,9 @@ func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
 	case "order":
 		require.Len(tb, req.Arguments, 1, "order request must contain one argument")
 		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "order request must contain instIdCode")
+		if req.Arguments[0].ReduceOnly {
+			require.Empty(tb, req.Arguments[0].PositionSide, "reduce-only net order must omit posSide")
+		}
 		response = `{"id":"` + req.ID + `","op":"order","code":"0","msg":"","data":[{"ordId":"submit-order","clOrdId":"client-order","sCode":"0","sMsg":"","ts":"1694153250532"}]}`
 	case "amend-order":
 		require.Len(tb, req.Arguments, 1, "amend request must contain one argument")

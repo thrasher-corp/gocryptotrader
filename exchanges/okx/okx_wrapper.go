@@ -917,15 +917,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	case asset.Futures, asset.PerpetualSwap, asset.Options:
 		positionSide = s.Side.Lower()
 	}
-	amount := s.Amount
-	var targetCurrency string
-	if s.AssetType == asset.Spot && s.Type == order.Market {
-		targetCurrency = "base_ccy" // Default to base currency
-		if s.QuoteAmount > 0 {
-			amount = s.QuoteAmount
-			targetCurrency = "quote_ccy"
-		}
-	}
 	// If asset type is spread
 	if s.AssetType == asset.Spread {
 		spreadParam := &SpreadOrderParam{
@@ -963,35 +954,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	var result *AlgoOrder
 	switch orderTypeString {
 	case orderLimit, orderMarket, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only":
-		orderRequest := &PlaceOrderRequestParam{
-			InstrumentID:   pairString,
-			TradeMode:      tradeMode,
-			Side:           sideType,
-			PositionSide:   positionSide,
-			OrderType:      orderTypeString,
-			Amount:         amount,
-			ClientOrderID:  s.ClientOrderID,
-			Price:          s.Price,
-			TargetCurrency: targetCurrency,
-			AssetType:      s.AssetType,
-			ReduceOnly:     s.ReduceOnly,
-		}
-		switch s.Type.Lower() {
-		case orderLimit, orderPostOnly, orderFOK, orderIOC:
-			orderRequest.Price = s.Price
-		}
-		if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
-			if s.Type.Lower() == "" {
-				orderRequest.OrderType = orderOptimalLimitIOC
-			}
-			// TODO: handle positionSideLong while side is Short and positionSideShort while side is Long
-			if s.Side.IsLong() {
-				orderRequest.PositionSide = positionSideLong
-			} else {
-				orderRequest.PositionSide = positionSideShort
-			}
+		orderRequest, err := e.deriveSubmitOrderArguments(s)
+		if err != nil {
+			return nil, err
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			orderRequest.InstrumentIDCode, err = e.cachedInstrumentIDCode(s.AssetType, orderRequest.InstrumentID)
+			if err != nil {
+				return nil, err
+			}
 			placeOrderResponse, err = e.WSPlaceOrder(ctx, orderRequest)
 		} else {
 			placeOrderResponse, err = e.PlaceOrder(ctx, orderRequest)

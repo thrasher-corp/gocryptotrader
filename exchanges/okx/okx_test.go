@@ -3649,6 +3649,28 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	mockedExchange := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+	mockedExchange.instrumentsInfoMapLock.Lock()
+	mockedExchange.instrumentsInfoMap[instTypeFutures] = []Instrument{
+		{
+			InstrumentID:     mainPair,
+			InstrumentIDCode: types.Number(456),
+		},
+	}
+	mockedExchange.instrumentsInfoMapLock.Unlock()
+	result, err := mockedExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:   mockedExchange.Name,
+		Pair:       mainPair,
+		AssetType:  asset.Futures,
+		Side:       order.Buy,
+		Type:       order.Limit,
+		Amount:     1,
+		Price:      1,
+		ReduceOnly: true,
+	})
+	require.NoError(t, err, "SubmitOrder must send reduce-only net orders over authenticated websocket")
+	require.Equal(t, "submit-order", result.OrderID, "SubmitOrder must return the websocket order ID")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{
 		Pair: currency.Pair{
@@ -3663,7 +3685,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
-	result, err := e.SubmitOrder(contextGenerate(), arg)
+	result, err = e.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
