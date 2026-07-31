@@ -126,7 +126,7 @@ func TestGetLinearSwapFundingRates(t *testing.T) {
 func TestGetV5OpenInterest(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, v5MarketOpenInterest, r.URL.Path, "open interest endpoint path should match")
+		assert.Equal(t, "/v5/market/open_interest", r.URL.Path, "open interest endpoint path should match")
 		_, _ = w.Write([]byte(`{"code":200,"success":true,"data":{"contract_code":"BTC-USDT"}}`))
 	}))
 	t.Cleanup(server.Close)
@@ -142,7 +142,7 @@ func TestGetV5OpenInterest(t *testing.T) {
 func TestGetV5AccountBalance(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, v5AccountBalance, r.URL.Path, "balance endpoint path should match")
+		assert.Equal(t, "/v5/account/balance", r.URL.Path, "balance endpoint path should match")
 		_, _ = w.Write([]byte(`{"code":200,"data":{"state":"working"}}`))
 	}))
 	t.Cleanup(server.Close)
@@ -160,7 +160,7 @@ func TestGetV5AccountBalance(t *testing.T) {
 func TestPlaceV5Order(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, v5TradeOrder, r.URL.Path, "place order endpoint path should match")
+		assert.Equal(t, "/v5/trade/order", r.URL.Path, "place order endpoint path should match")
 		_, _ = w.Write([]byte(`{"code":200,"data":{"order_id":"123"}}`))
 	}))
 	t.Cleanup(server.Close)
@@ -180,7 +180,7 @@ func TestPlaceV5Order(t *testing.T) {
 func TestCancelV5Order(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, v5TradeCancelOrder, r.URL.Path, "cancel order endpoint path should match")
+		assert.Equal(t, "/v5/trade/cancel_order", r.URL.Path, "cancel order endpoint path should match")
 		_, _ = w.Write([]byte(`{"code":200,"data":{"order_id":"123"}}`))
 	}))
 	t.Cleanup(server.Close)
@@ -198,7 +198,7 @@ func TestCancelV5Order(t *testing.T) {
 func TestCancelAllV5Orders(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, v5TradeCancelAllOrders, r.URL.Path, "cancel all endpoint path should match")
+		assert.Equal(t, "/v5/trade/cancel_all_orders", r.URL.Path, "cancel all endpoint path should match")
 		_, _ = w.Write([]byte(`{"code":200,"data":[{"order_id":"123"}]}`))
 	}))
 	t.Cleanup(server.Close)
@@ -217,7 +217,7 @@ func TestCancelAllV5Orders(t *testing.T) {
 func TestGetV5Order(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, v5TradeOrder, r.URL.Path, "get order endpoint path should match")
+		assert.Equal(t, "/v5/trade/order", r.URL.Path, "get order endpoint path should match")
 		_, _ = w.Write([]byte(`{"code":200,"data":{"order_id":"123"}}`))
 	}))
 	t.Cleanup(server.Close)
@@ -235,7 +235,7 @@ func TestGetV5Order(t *testing.T) {
 func TestGetV5OpenOrders(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, v5TradeOrderOpens, r.URL.Path, "open orders endpoint path should match")
+		assert.Equal(t, "/v5/trade/order/opens", r.URL.Path, "open orders endpoint path should match")
 		_, _ = w.Write([]byte(`{"code":200,"data":[{"order_id":"123"}]}`))
 	}))
 	t.Cleanup(server.Close)

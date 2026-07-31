@@ -9,7 +9,63 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+func TestWSPlaceV5Order(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	_, err := h.WSPlaceV5Order(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WSPlaceV5Order must reject nil request")
+	resp, err := h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1})
+	require.NoError(t, err, "WSPlaceV5Order must not error")
+	assert.Equal(t, "1", resp.Data.OrderID, "order ID should decode")
+	assert.Equal(t, types.Number(19), resp.RateLimit.Remaining, "remaining rate limit should decode")
+}
+
+func TestWSPlaceV5BatchOrders(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	_, err := h.WSPlaceV5BatchOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams, "WSPlaceV5BatchOrders must reject empty request")
+	resp, err := h.WSPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1}})
+	require.NoError(t, err, "WSPlaceV5BatchOrders must not error")
+	require.Len(t, resp.Data, 1, "one order acknowledgement must decode")
+	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+}
+
+func TestWSCancelV5Order(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	_, err := h.WSCancelV5Order(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelV5Order must reject nil request")
+	resp, err := h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
+	require.NoError(t, err, "WSCancelV5Order must not error")
+	assert.Equal(t, "1", resp.Data.OrderID, "order ID should decode")
+}
+
+func TestWSCancelV5BatchOrders(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	_, err := h.WSCancelV5BatchOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelV5BatchOrders must reject nil request")
+	resp, err := h.WSCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1"}})
+	require.NoError(t, err, "WSCancelV5BatchOrders must not error")
+	require.Len(t, resp.Data, 1, "one cancellation must decode")
+	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+}
+
+func TestWSCancelAllV5Orders(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	_, err := h.WSCancelAllV5Orders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelAllV5Orders must reject nil request")
+	resp, err := h.WSCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "BTC-USDT"})
+	require.NoError(t, err, "WSCancelAllV5Orders must not error")
+	require.Len(t, resp.Data, 1, "one cancellation must decode")
+	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+}
 
 func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 	t.Parallel()

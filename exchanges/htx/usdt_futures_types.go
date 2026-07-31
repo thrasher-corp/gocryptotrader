@@ -1,6 +1,10 @@
 package htx
 
 import (
+	"bytes"
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -28,22 +32,6 @@ type V5Response struct {
 	Code      int64      `json:"code"`
 	Message   string     `json:"message"`
 	Timestamp types.Time `json:"ts"`
-}
-
-// SwitchLinearSwapLeverageRequest defines a USDT-margined leverage change.
-type SwitchLinearSwapLeverageRequest struct {
-	ContractCode string `json:"contract_code"`
-	LeverageRate uint64 `json:"lever_rate"`
-}
-
-// SwitchLinearSwapLeverageResponse contains the leverage accepted by HTX.
-type SwitchLinearSwapLeverageResponse struct {
-	Response
-	Data struct {
-		ContractCode string `json:"contract_code"`
-		LeverageRate uint64 `json:"lever_rate"`
-		MarginMode   string `json:"margin_mode"`
-	} `json:"data"`
 }
 
 // V5AccountBalanceResponse stores USDT-margined unified-margin balances.
@@ -106,18 +94,27 @@ type V5OpenInterestData struct {
 
 // V5OrderRequest stores a USDT-margined V5 order request.
 type V5OrderRequest struct {
-	ContractCode     string       `json:"contract_code"`
-	MarginMode       string       `json:"margin_mode"`
-	PositionSide     string       `json:"position_side,omitempty"`
-	Side             string       `json:"side"`
-	Type             string       `json:"type"`
-	PriceMatch       string       `json:"price_match,omitempty"`
-	ClientOrderID    string       `json:"client_order_id,omitempty"`
-	Price            types.Number `json:"price,omitempty"`
-	Volume           types.Number `json:"volume"`
-	ReduceOnly       int64        `json:"reduce_only,omitempty"`
-	TimeInForce      string       `json:"time_in_force,omitempty"`
-	SelfMatchPrevent string       `json:"self_match_prevent,omitempty"`
+	ContractCode        string        `json:"contract_code"`
+	MarginMode          string        `json:"margin_mode"`
+	PositionSide        string        `json:"position_side,omitempty"`
+	Side                string        `json:"side"`
+	Type                string        `json:"type"`
+	PriceMatch          string        `json:"price_match,omitempty"`
+	ClientOrderID       string        `json:"client_order_id,omitempty"`
+	Price               types.Number  `json:"price,omitempty"`
+	Volume              types.Number  `json:"volume"`
+	ReduceOnly          int64         `json:"reduce_only,omitempty"`
+	TimeInForce         string        `json:"time_in_force,omitempty"`
+	TakeProfitTrigger   types.Number  `json:"tp_trigger_price,omitempty"`
+	TakeProfitPrice     types.Number  `json:"tp_order_price,omitempty"`
+	TakeProfitType      string        `json:"tp_type,omitempty"`
+	TakeProfitPriceType string        `json:"tp_trigger_price_type,omitempty"`
+	StopLossTrigger     types.Number  `json:"sl_trigger_price,omitempty"`
+	StopLossPrice       types.Number  `json:"sl_order_price,omitempty"`
+	StopLossType        string        `json:"sl_type,omitempty"`
+	StopLossPriceType   string        `json:"sl_trigger_price_type,omitempty"`
+	PriceProtect        types.Boolean `json:"price_protect,omitempty"`
+	SelfMatchPrevent    string        `json:"self_match_prevent,omitempty"`
 }
 
 // V5CancelOrderRequest stores a USDT-margined V5 cancel order request.
@@ -148,6 +145,45 @@ type V5OrderResponseData struct {
 	ClientOrderID string `json:"client_order_id"`
 }
 
+// UnmarshalJSON preserves order identifiers regardless of whether HTX emits them as strings or bare numbers.
+func (v *V5OrderResponseData) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Code          int64           `json:"code"`
+		Message       string          `json:"message"`
+		OrderID       json.RawMessage `json:"order_id"`
+		ClientOrderID json.RawMessage `json:"client_order_id"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	decodeID := func(value json.RawMessage) (string, error) {
+		if len(value) == 0 || bytes.Equal(value, []byte("null")) {
+			return "", nil
+		}
+		if value[0] != '"' {
+			return string(value), nil
+		}
+		var id string
+		if err := json.Unmarshal(value, &id); err != nil {
+			return "", fmt.Errorf("error decoding V5 order identifier: %w", err)
+		}
+		return id, nil
+	}
+	orderID, err := decodeID(raw.OrderID)
+	if err != nil {
+		return err
+	}
+	clientOrderID, err := decodeID(raw.ClientOrderID)
+	if err != nil {
+		return err
+	}
+	v.Code = raw.Code
+	v.Message = raw.Message
+	v.OrderID = orderID
+	v.ClientOrderID = clientOrderID
+	return nil
+}
+
 // V5CancelAllOrdersResponse stores USDT-margined V5 cancel all order acknowledgements.
 type V5CancelAllOrdersResponse struct {
 	V5Response
@@ -168,31 +204,40 @@ type V5OrdersQueryResponse struct {
 
 // V5OrderData stores USDT-margined V5 order details.
 type V5OrderData struct {
-	ID                string        `json:"id"`
-	ContractCode      string        `json:"contract_code"`
-	Side              string        `json:"side"`
-	PositionSide      string        `json:"position_side"`
-	Type              string        `json:"type"`
-	PriceMatch        string        `json:"price_match"`
-	OrderID           string        `json:"order_id"`
-	ClientOrderID     string        `json:"client_order_id"`
-	MarginMode        string        `json:"margin_mode"`
-	Price             types.Number  `json:"price"`
-	Volume            types.Number  `json:"volume"`
-	LeverageRate      types.Number  `json:"lever_rate"`
-	State             string        `json:"state"`
-	OrderSource       string        `json:"order_source"`
-	ReduceOnly        types.Boolean `json:"reduce_only"`
-	TimeInForce       string        `json:"time_in_force"`
-	TradeAveragePrice types.Number  `json:"trade_avg_price"`
-	TradeVolume       types.Number  `json:"trade_volume"`
-	TradeTurnover     types.Number  `json:"trade_turnover"`
-	FeeCurrency       string        `json:"fee_currency"`
-	Fee               types.Number  `json:"fee"`
-	Profit            types.Number  `json:"profit"`
-	ContractType      string        `json:"contract_type"`
-	CreatedTime       types.Time    `json:"created_time"`
-	UpdatedTime       types.Time    `json:"updated_time"`
-	CancelReason      string        `json:"cancel_reason"`
-	SelfMatchPrevent  string        `json:"self_match_prevent"`
+	ID                  string        `json:"id"`
+	ContractCode        string        `json:"contract_code"`
+	Side                string        `json:"side"`
+	PositionSide        string        `json:"position_side"`
+	Type                string        `json:"type"`
+	PriceMatch          string        `json:"price_match"`
+	OrderID             string        `json:"order_id"`
+	ClientOrderID       string        `json:"client_order_id"`
+	MarginMode          string        `json:"margin_mode"`
+	Price               types.Number  `json:"price"`
+	Volume              types.Number  `json:"volume"`
+	LeverageRate        types.Number  `json:"lever_rate"`
+	State               string        `json:"state"`
+	OrderSource         string        `json:"order_source"`
+	ReduceOnly          types.Boolean `json:"reduce_only"`
+	TimeInForce         string        `json:"time_in_force"`
+	TakeProfitTrigger   types.Number  `json:"tp_trigger_price"`
+	TakeProfitPrice     types.Number  `json:"tp_order_price"`
+	TakeProfitType      string        `json:"tp_type"`
+	TakeProfitPriceType string        `json:"tp_trigger_price_type"`
+	StopLossTrigger     types.Number  `json:"sl_trigger_price"`
+	StopLossPrice       types.Number  `json:"sl_order_price"`
+	StopLossType        string        `json:"sl_type"`
+	StopLossPriceType   string        `json:"sl_trigger_price_type"`
+	TradeAveragePrice   types.Number  `json:"trade_avg_price"`
+	TradeVolume         types.Number  `json:"trade_volume"`
+	TradeTurnover       types.Number  `json:"trade_turnover"`
+	FeeCurrency         string        `json:"fee_currency"`
+	Fee                 types.Number  `json:"fee"`
+	PriceProtect        types.Boolean `json:"price_protect"`
+	Profit              types.Number  `json:"profit"`
+	ContractType        string        `json:"contract_type"`
+	CreatedTime         types.Time    `json:"created_time"`
+	UpdatedTime         types.Time    `json:"updated_time"`
+	CancelReason        string        `json:"cancel_reason"`
+	SelfMatchPrevent    string        `json:"self_match_prevent"`
 }

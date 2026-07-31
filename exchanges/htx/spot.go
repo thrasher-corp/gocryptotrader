@@ -934,6 +934,12 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 				htxError(errCap.ErrMsgType2))
 		}
 	}
+	if strings.HasPrefix(path, "/v5/") {
+		var resp V5Response
+		if err := json.Unmarshal(tempResp, &resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
+			return fmt.Errorf("error code: %v error message: %s", resp.Code, resp.Message)
+		}
+	}
 	return unmarshalResponse(tempResp, result)
 }
 

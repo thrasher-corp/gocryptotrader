@@ -31,6 +31,7 @@ const (
 	wsCoinMarginedPrivateURL  = "wss://api.hbdm.com/swap-notification"
 	wsUSDTMarginedURL         = "wss://api.hbdm.com/linear-swap-ws"
 	wsUSDTMarginedPrivateURL  = "wss://api.hbdm.com/ws/v5/notification"
+	wsUSDTMarginedTradeURL    = "wss://api.hbdm.com/linear-swap-trade"
 	wsPositionsChannel        = "positions"
 	wsTriggerOrdersChannel    = "triggerOrders"
 	wsTradeUpdatesChannel     = "tradeUpdates"

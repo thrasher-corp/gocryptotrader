@@ -169,6 +169,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.WebsocketCoinMarginedPrivate: wsCoinMarginedPrivateURL,
 		exchange.WebsocketUSDTMargined:        wsUSDTMarginedURL,
 		exchange.WebsocketUSDTMarginedPrivate: wsUSDTMarginedPrivateURL,
+		exchange.WebsocketTrade:               wsUSDTMarginedTradeURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -217,6 +218,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		endpoint exchange.URL
 		asset    asset.Item
 		private  bool
+		trade    bool
 	}{
 		{endpoint: exchange.WebsocketSpot, asset: asset.Spot},
 		{endpoint: exchange.WebsocketPrivate, asset: asset.Spot, private: true},
@@ -226,6 +228,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		{endpoint: exchange.WebsocketCoinMarginedPrivate, asset: asset.CoinMarginedFutures, private: true},
 		{endpoint: exchange.WebsocketUSDTMargined, asset: asset.USDTMarginedFutures},
 		{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, private: true},
+		{endpoint: exchange.WebsocketTrade, asset: asset.USDTMarginedFutures, private: true, trade: true},
 	} {
 		runningURL, err := e.API.Endpoints.GetURL(ws.endpoint)
 		if err != nil {
@@ -235,17 +238,24 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		if ws.private && ws.asset != asset.Spot {
 			rateLimitDuration = 25 * time.Millisecond
 		}
+		if ws.trade {
+			rateLimitDuration = 3 * time.Second / 24
+		}
 		setup := &websocket.ConnectionSetup{
-			URL:                  runningURL,
-			RateLimit:            request.NewWeightedRateLimitByDuration(rateLimitDuration),
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			Connector:            e.wsConnect,
-			Handler:              e.wsHandleData,
-			Subscriber:           e.subscribeConnection,
-			Unsubscriber:         e.unsubscribeConnection,
-			MessageFilter:        ws.endpoint,
+			URL:                      runningURL,
+			RateLimit:                request.NewWeightedRateLimitByDuration(rateLimitDuration),
+			ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+			Connector:                e.wsConnect,
+			Handler:                  e.wsHandleData,
+			Subscriber:               e.subscribeConnection,
+			Unsubscriber:             e.unsubscribeConnection,
+			MessageFilter:            ws.endpoint,
+			SubscriptionsNotRequired: ws.trade,
 			GenerateSubscriptions: func() (subscription.List, error) {
+				if ws.trade {
+					return nil, nil
+				}
 				return e.generateSubscriptionsForAsset(ws.asset, ws.private)
 			},
 		}

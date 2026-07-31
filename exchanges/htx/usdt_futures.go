@@ -2,8 +2,6 @@ package htx
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -24,14 +22,6 @@ const (
 	linearSwapFunding        = "/linear-swap-api/v1/swap_funding_rate"
 	linearSwapBatchFunding   = "/linear-swap-api/v1/swap_batch_funding_rate"
 	linearSwapFundingHistory = "/linear-swap-api/v1/swap_historical_funding_rate"
-	linearSwapSwitchLeverage = "/linear-swap-api/v1/swap_switch_lever_rate"
-	linearSwapCrossLeverage  = "/linear-swap-api/v1/swap_cross_switch_lever_rate"
-	v5AccountBalance         = "/v5/account/balance"
-	v5TradeOrder             = "/v5/trade/order"
-	v5TradeCancelOrder       = "/v5/trade/cancel_order"
-	v5TradeCancelAllOrders   = "/v5/trade/cancel_all_orders"
-	v5TradeOrderOpens        = "/v5/trade/order/opens"
-	v5MarketOpenInterest     = "/v5/market/open_interest"
 )
 
 // GetLinearSwapMarkets gets current USDT-margined contract metadata.
@@ -182,165 +172,6 @@ func (e *Exchange) GetLinearSwapHistoricalFundingRates(ctx context.Context, code
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapFundingHistory, params), &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// SwitchLinearSwapLeverage changes the leverage used by a USDT-margined contract.
-func (e *Exchange) SwitchLinearSwapLeverage(ctx context.Context, code currency.Pair, leverage uint64, crossMargin bool) error {
-	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	req := &SwitchLinearSwapLeverageRequest{
-		ContractCode: codeValue,
-		LeverageRate: leverage,
-	}
-	endpoint := linearSwapSwitchLeverage
-	if crossMargin {
-		endpoint = linearSwapCrossLeverage
-	}
-	var resp *SwitchLinearSwapLeverageResponse
-	return e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, endpoint, nil, req, &resp)
-}
-
-// GetV5OpenInterest gets the current USDT-margined contract open interest.
-func (e *Exchange) GetV5OpenInterest(ctx context.Context, code currency.Pair) (*V5OpenInterestResponse, error) {
-	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
-	if err != nil {
-		return nil, err
-	}
-	params := url.Values{}
-	params.Set("contract_code", codeValue)
-	var resp *V5OpenInterestResponse
-	err = e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(v5MarketOpenInterest, params), &resp)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Code != http.StatusOK {
-		return nil, fmt.Errorf("error code: %v error message: %s", resp.Code, resp.Message)
-	}
-	return resp, nil
-}
-
-// GetV5AccountBalance gets the migrated USDT-margined unified-margin account balance.
-func (e *Exchange) GetV5AccountBalance(ctx context.Context) (*V5AccountBalanceResponse, error) {
-	var resp *V5AccountBalanceResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5AccountBalance, nil, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// PlaceV5Order places a migrated USDT-margined unified-margin order.
-func (e *Exchange) PlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5OrderResponse, error) {
-	if req == nil {
-		return nil, fmt.Errorf("%w V5OrderRequest", common.ErrNilPointer)
-	}
-	var resp *V5OrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeOrder, nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// CancelV5Order cancels a migrated USDT-margined unified-margin order.
-func (e *Exchange) CancelV5Order(ctx context.Context, code currency.Pair, orderID, clientOrderID string) (*V5OrderResponse, error) {
-	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
-	if err != nil {
-		return nil, err
-	}
-	req := &V5CancelOrderRequest{
-		ContractCode: codeValue,
-	}
-	if orderID != "" {
-		req.OrderID = orderID
-	}
-	if clientOrderID != "" {
-		req.ClientOrderID = clientOrderID
-	}
-	var resp *V5OrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeCancelOrder, nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// CancelAllV5Orders cancels all migrated USDT-margined unified-margin orders for a contract.
-func (e *Exchange) CancelAllV5Orders(ctx context.Context, code currency.Pair, side, positionSide string) (*V5CancelAllOrdersResponse, error) {
-	req := &V5CancelAllOrdersRequest{
-		Side:         side,
-		PositionSide: positionSide,
-	}
-	if !code.IsEmpty() {
-		codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		req.ContractCode = codeValue
-	}
-	var resp *V5CancelAllOrdersResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeCancelAllOrders, nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// GetV5Order gets a migrated USDT-margined unified-margin order.
-func (e *Exchange) GetV5Order(ctx context.Context, code currency.Pair, marginMode, orderID, clientOrderID string) (*V5OrderQueryResponse, error) {
-	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
-	if err != nil {
-		return nil, err
-	}
-	params := url.Values{}
-	params.Set("contract_code", codeValue)
-	if marginMode != "" {
-		params.Set("margin_mode", marginMode)
-	}
-	if orderID != "" {
-		params.Set("order_id", orderID)
-	}
-	if clientOrderID != "" {
-		params.Set("client_order_id", clientOrderID)
-	}
-	var resp *V5OrderQueryResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5TradeOrder, params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// GetV5OpenOrders gets migrated USDT-margined unified-margin open orders.
-func (e *Exchange) GetV5OpenOrders(ctx context.Context, code currency.Pair, marginMode, orderID, clientOrderID string, from, limit uint64, direct string) (*V5OrdersQueryResponse, error) {
-	params := url.Values{}
-	if !code.IsEmpty() {
-		codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("contract_code", codeValue)
-	}
-	if marginMode != "" {
-		params.Set("margin_mode", marginMode)
-	}
-	if orderID != "" {
-		params.Set("order_id", orderID)
-	}
-	if clientOrderID != "" {
-		params.Set("client_order_id", clientOrderID)
-	}
-	if from != 0 {
-		params.Set("from", strconv.FormatUint(from, 10))
-	}
-	if limit != 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
-	if direct != "" {
-		params.Set("direct", direct)
-	}
-	var resp *V5OrdersQueryResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5TradeOrderOpens, params, nil, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil

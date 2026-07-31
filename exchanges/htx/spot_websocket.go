@@ -85,6 +85,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			return nil
 		}
 	}
+	if cid, err := jsonparser.GetString(respRaw, "cid"); err == nil && conn != nil && conn.IncomingWithData(cid, respRaw) {
+		return nil
+	}
 
 	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
 		return e.wsHandleV1ping(ctx, conn, int(pingValue))

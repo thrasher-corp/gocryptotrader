@@ -132,13 +132,13 @@ func TestSwitchCoinMarginedLeverage(t *testing.T) {
 
 func TestSwitchLinearSwapLeverage(t *testing.T) {
 	t.Parallel()
-	var expectedPath string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, expectedPath, r.URL.Path, "USDT-margined leverage path should match")
+		assert.Equal(t, "/v5/position/lever", r.URL.Path, "USDT-margined leverage path should use the current V5 endpoint")
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
-		assert.JSONEq(t, `{"contract_code":"BTC-USDT","lever_rate":5}`, string(body), "USDT-margined leverage body should match")
-		_, _ = w.Write([]byte(`{"status":"ok","data":{"contract_code":"BTC-USDT","lever_rate":5}}`))
+		assert.Contains(t, string(body), `"margin_mode"`, "V5 leverage request should include margin mode")
+		assert.Contains(t, string(body), `"lever_rate":"5"`, "V5 leverage request should encode leverage as documented")
+		_, _ = w.Write([]byte(`{"code":200,"message":"Success","data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`))
 	}))
 	t.Cleanup(server.Close)
 
@@ -147,9 +147,7 @@ func TestSwitchLinearSwapLeverage(t *testing.T) {
 	h.API.AuthenticatedSupport = true
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
-	expectedPath = linearSwapSwitchLeverage
 	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false), "isolated SwitchLinearSwapLeverage must not error")
-	expectedPath = linearSwapCrossLeverage
 	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, true), "cross SwitchLinearSwapLeverage must not error")
 }
 

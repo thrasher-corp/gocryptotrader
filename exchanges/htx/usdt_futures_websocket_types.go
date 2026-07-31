@@ -5,6 +5,37 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// V5WsTradeRequest wraps an authenticated V5 trade operation.
+type V5WsTradeRequest struct {
+	Operation string `json:"op"`
+	CID       string `json:"cid"`
+	Data      any    `json:"data"`
+}
+
+// V5WsRateLimit stores the rate-limit state returned by V5 trade operations.
+type V5WsRateLimit struct {
+	Limit     types.Number `json:"limit"`
+	Interval  types.Number `json:"interval"`
+	Remaining types.Number `json:"remaining"`
+	Reset     types.Time   `json:"reset"`
+}
+
+// V5WsOrderResponse stores a single V5 WebSocket trade acknowledgement.
+type V5WsOrderResponse struct {
+	V5Response
+	CID       string              `json:"cid"`
+	Data      V5OrderResponseData `json:"data"`
+	RateLimit V5WsRateLimit       `json:"rate_limit"`
+}
+
+// V5WsBatchOrderResponse stores batch V5 WebSocket trade acknowledgements.
+type V5WsBatchOrderResponse struct {
+	V5Response
+	CID       string                `json:"cid"`
+	Data      []V5OrderResponseData `json:"data"`
+	RateLimit V5WsRateLimit         `json:"rate_limit"`
+}
+
 // V5WsOrderUpdate contains an authenticated V5 USDT-margined order update.
 type V5WsOrderUpdate struct {
 	Operation    string        `json:"op"`

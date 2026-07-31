@@ -44,6 +44,7 @@ func TestSetDefaults(t *testing.T) {
 		{endpoint: exchange.WebsocketFuturesPrivate, want: wsFuturesPrivateURL},
 		{endpoint: exchange.WebsocketCoinMarginedPrivate, want: wsCoinMarginedPrivateURL},
 		{endpoint: exchange.WebsocketUSDTMarginedPrivate, want: wsUSDTMarginedPrivateURL},
+		{endpoint: exchange.WebsocketTrade, want: wsUSDTMarginedTradeURL},
 	} {
 		got, err := h.API.Endpoints.GetURL(tt.endpoint)
 		require.NoError(t, err, "private derivative endpoint must be configured")

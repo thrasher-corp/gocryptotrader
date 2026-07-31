@@ -309,12 +309,6 @@ func TestUSDTFuturesEndpointPaths(t *testing.T) {
 	assert.Equal(t, "/linear-swap-api/v1/swap_contract_info", linearSwapMarkets, "linear swap contract info endpoint should match HTX docs")
 	assert.Equal(t, "/linear-swap-api/v1/swap_funding_rate", linearSwapFunding, "linear swap funding rate endpoint should match HTX docs")
 	assert.Equal(t, "/linear-swap-api/v1/swap_batch_funding_rate", linearSwapBatchFunding, "linear swap batch funding rate endpoint should match HTX docs")
-	assert.Equal(t, "/v5/account/balance", v5AccountBalance, "V5 account balance endpoint should match HTX docs")
-	assert.Equal(t, "/v5/trade/order", v5TradeOrder, "V5 order endpoint should match HTX docs")
-	assert.Equal(t, "/v5/trade/cancel_order", v5TradeCancelOrder, "V5 cancel order endpoint should match HTX docs")
-	assert.Equal(t, "/v5/trade/cancel_all_orders", v5TradeCancelAllOrders, "V5 cancel all orders endpoint should match HTX docs")
-	assert.Equal(t, "/v5/trade/order/opens", v5TradeOrderOpens, "V5 open orders endpoint should match HTX docs")
-	assert.Equal(t, "/v5/market/open_interest", v5MarketOpenInterest, "V5 open interest endpoint should match HTX docs")
 }
 
 func TestV5OrderQueryResponseUnmarshal(t *testing.T) {
@@ -326,6 +320,27 @@ func TestV5OrderQueryResponseUnmarshal(t *testing.T) {
 	assert.Equal(t, 5000.0, resp.Data.Price.Float64(), "price should decode from quoted number")
 	assert.Equal(t, 0.25, resp.Data.TradeVolume.Float64(), "trade volume should decode from quoted number")
 	assert.Equal(t, 10.0, resp.Data.LeverageRate.Float64(), "leverage should decode from bare number")
+}
+
+func TestV5OrderResponseDataUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		payload       string
+		orderID       string
+		clientOrderID string
+	}{
+		{name: "string identifiers", payload: `{"order_id":"123","client_order_id":"456"}`, orderID: "123", clientOrderID: "456"},
+		{name: "numeric identifiers", payload: `{"order_id":1358944503420903424,"client_order_id":1358944503420903425}`, orderID: "1358944503420903424", clientOrderID: "1358944503420903425"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var response V5OrderResponseData
+			require.NoError(t, json.Unmarshal([]byte(tc.payload), &response), "V5OrderResponseData unmarshal must not error")
+			assert.Equal(t, tc.orderID, response.OrderID, "order ID should retain full precision")
+			assert.Equal(t, tc.clientOrderID, response.ClientOrderID, "client order ID should retain full precision")
+		})
+	}
 }
 
 func TestV5OpenInterestResponseUnmarshal(t *testing.T) {

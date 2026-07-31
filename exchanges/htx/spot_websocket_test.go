@@ -469,6 +469,13 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	if operation == "pong" {
 		return nil
 	}
+	cid, _ := jsonparser.GetString(msg, "cid")
+	switch operation {
+	case "place_order", "cancel_order":
+		return w.WriteMessage(gws.TextMessage, []byte(`{"code":200,"message":"Success","cid":"`+cid+`","data":{"order_id":"1","client_order_id":"2"},"rate_limit":{"limit":"24","interval":"3000","remaining":"19","reset":"1772779491561"}}`))
+	case "place_batch_orders", "cancel_batch_orders", "cancel_all_orders":
+		return w.WriteMessage(gws.TextMessage, []byte(`{"code":200,"message":"Success","cid":"`+cid+`","data":[{"order_id":"1","client_order_id":"2"}],"rate_limit":{"limit":"24","interval":"3000","remaining":"19","reset":"1772779491561"}}`))
+	}
 	action, _ := jsonparser.GetString(msg, "action")
 	ch, _ := jsonparser.GetString(msg, "ch")
 	if action == "req" && ch == "auth" {
