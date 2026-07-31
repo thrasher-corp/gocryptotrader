@@ -311,12 +311,16 @@ func TestSpotMatchResultsEndpoint(t *testing.T) {
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
 	t.Parallel()
-	r, err := e.GetCurrenciesIncludingChains(t.Context(), currency.EMPTYCODE)
-	require.NoError(t, err)
-	assert.Greater(t, len(r), 1, "should get more than one currency back")
-	r, err = e.GetCurrenciesIncludingChains(t.Context(), currency.USDT)
-	require.NoError(t, err)
-	assert.Equal(t, 1, len(r), "Should only get one currency back")
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, htxCurrenciesReference,
+		`{"code":200,"data":[{"currency":"usdt","chains":[{"chain":"trc20usdt","maxWithdrawAmt":"280000.00000000"}]}]}`,
+		func(r *http.Request) {
+			assert.Equal(t, "usdt", r.URL.Query().Get("currency"), "currency query should match")
+		})
+	resp, err := h.GetCurrenciesIncludingChains(t.Context(), currency.USDT)
+	require.NoError(t, err, "GetCurrenciesIncludingChains must not error")
+	require.Len(t, resp, 1, "one currency must decode")
+	require.Len(t, resp[0].ChainData, 1, "one chain must decode")
+	assert.Equal(t, 280000.0, resp[0].ChainData[0].MaximumWithdrawAmount.Float64(), "maximum withdrawal amount should decode")
 }
 
 func TestGetMarginRates(t *testing.T) {

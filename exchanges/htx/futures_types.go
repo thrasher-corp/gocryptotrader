@@ -130,7 +130,7 @@ type FMarketOverviewData struct {
 		Close     types.Number `json:"close"`
 		Count     float64      `json:"count"`
 		High      types.Number `json:"high"`
-		ID        int64        `jso:"id"`
+		ID        int64        `json:"id"`
 		Low       types.Number `json:"low"`
 		Open      types.Number `json:"open"`
 		Timestamp types.Time   `json:"ts"`

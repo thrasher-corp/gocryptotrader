@@ -50,7 +50,7 @@ type CurrenciesChainData struct {
 		WithdrawStatus            string       `json:"withdrawStatus"`
 		MinimumWithdrawalAmount   types.Number `json:"minWithdrawAmt"`
 		WithdrawPrecision         int16        `json:"withdrawPrecision"`
-		MaximumWithdrawAmount     types.Number `json:"maxWithdrawwAmt"`
+		MaximumWithdrawAmount     types.Number `json:"maxWithdrawAmt"`
 		WithdrawQuotaPerDay       types.Number `json:"withdrawQuotaPerDay"`
 		WithdrawQuotaPerYear      types.Number `json:"withdrawQuotaPerYear"`
 		WithdrawQuotaTotal        types.Number `json:"withdrawQuotaTotal"`

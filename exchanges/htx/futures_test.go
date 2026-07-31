@@ -180,8 +180,10 @@ func TestFGetKlineData(t *testing.T) {
 
 func TestFGetMarketOverviewData(t *testing.T) {
 	t.Parallel()
-	_, err := e.FGetMarketOverviewData(t.Context(), btccwPair)
-	require.NoError(t, err)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, fMarketOverview, `{"status":"ok","tick":{"id":123}}`, nil)
+	resp, err := h.FGetMarketOverviewData(t.Context(), btccwPair)
+	require.NoError(t, err, "FGetMarketOverviewData must not error")
+	assert.Equal(t, int64(123), resp.Tick.ID, "market overview ID should decode")
 }
 
 func TestFLastTradeData(t *testing.T) {
