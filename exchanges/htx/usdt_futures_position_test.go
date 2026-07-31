@@ -1,13 +1,18 @@
 package htx
 
 import (
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -74,4 +79,25 @@ func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 	require.NoError(t, err, "GetV5PositionRiskLimitTiers must not error")
 	require.Len(t, resp.Data, 1, "one risk tier must decode")
 	assert.Equal(t, types.Number(1), resp.Data[0].Tier, "risk tier should decode")
+}
+
+func TestSwitchLinearSwapLeverage(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v5/position/lever", r.URL.Path, "USDT-margined leverage path should use the current V5 endpoint")
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "request body should be readable")
+		assert.Contains(t, string(body), `"margin_mode"`, "V5 leverage request should include margin mode")
+		assert.Contains(t, string(body), `"lever_rate":"5"`, "V5 leverage request should encode leverage as documented")
+		_, _ = w.Write([]byte(`{"code":200,"message":"Success","data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	h.API.AuthenticatedSupport = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false), "isolated SwitchLinearSwapLeverage must not error")
+	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, true), "cross SwitchLinearSwapLeverage must not error")
 }

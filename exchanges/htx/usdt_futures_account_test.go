@@ -2,12 +2,16 @@ package htx
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -109,4 +113,22 @@ func TestGetV5UniversalTransferRecords(t *testing.T) {
 	require.NoError(t, err, "GetV5UniversalTransferRecords must not error")
 	require.Len(t, resp.Data, 1, "one transfer record must decode")
 	assert.Equal(t, types.Number(123), resp.Data[0].TransferID, "transfer ID should decode")
+}
+
+func TestGetV5AccountBalance(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v5/account/balance", r.URL.Path, "balance endpoint path should match")
+		_, _ = w.Write([]byte(`{"code":200,"data":{"state":"working"}}`))
+	}))
+	t.Cleanup(server.Close)
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	h.API.AuthenticatedSupport = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+	resp, err := h.GetV5AccountBalance(t.Context())
+	require.NoError(t, err, "GetV5AccountBalance must not error")
+	require.NotNil(t, resp, "decoded balance must be returned")
+	assert.Equal(t, "working", resp.Data.State, "account state should decode")
 }

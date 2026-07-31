@@ -326,114 +326,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetTickers(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetTickers(t.Context())
-	require.NoError(t, err)
-}
-
-func TestGetCurrentServerTime(t *testing.T) {
-	t.Parallel()
-	st, err := e.GetCurrentServerTime(t.Context())
-	require.NoError(t, err)
-	assert.NotEmpty(t, st, "GetCurrentServerTime should return a time")
-}
-
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := e.GetServerTime(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, st, "GetServerTime should return a time")
-}
-
-func TestGetFeeByType(t *testing.T) {
-	t.Parallel()
-	feeBuilder := setFeeBuilder()
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	_, err := h.GetFeeByType(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType must reject nil fee builder")
-
-	_, err = h.GetFeeByType(t.Context(), feeBuilder)
-	require.NoError(t, err, "GetFeeByType must not error")
-	assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "fee type should fall back when credentials are not valid")
-}
-
-func TestGetFee(t *testing.T) {
-	t.Parallel()
-	feeBuilder := setFeeBuilder()
-	// CryptocurrencyTradeFee Basic
-	_, err := e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// CryptocurrencyTradeFee High quantity
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Amount = 1000
-	feeBuilder.PurchasePrice = 1000
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// CryptocurrencyTradeFee IsMaker
-	feeBuilder = setFeeBuilder()
-	feeBuilder.IsMaker = true
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// CryptocurrencyTradeFee Negative purchase price
-	feeBuilder = setFeeBuilder()
-	feeBuilder.PurchasePrice = -1000
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// CryptocurrencyWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// CryptocurrencyWithdrawalFee Invalid currency
-	feeBuilder = setFeeBuilder()
-	feeBuilder.Pair.Base = currency.NewCode("hello")
-	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// CryptocurrencyDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// InternationalBankDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-
-	// InternationalBankWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.FiatCurrency = currency.USD
-	_, err = e.GetFee(feeBuilder)
-	require.NoError(t, err)
-}
-
-func TestCalculateTradingFee(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name     string
-		pair     currency.Pair
-		expected float64
-	}{
-		{name: "crypto fiat", pair: currency.NewBTCUSD(), expected: 0.1},
-		{name: "non-fiat quote", pair: currency.NewPair(currency.BTC, currency.ETH), expected: 0.2},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tc.expected, calculateTradingFee(tc.pair, 100, 1), "trading fee should use the documented rate")
-		})
-	}
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
@@ -1195,3 +1092,54 @@ var (
 )
 
 // updatePairsOnce updates the pairs once, and ensures a future dated contract is enabled
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewBTCUSDT(),
+		},
+	})
+	require.NoError(t, err)
+}
+
+func TestGetHistoricCandlesUSDTMargined(t *testing.T) {
+	t.Parallel()
+	now := time.Now().UTC().Truncate(time.Minute)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, linearSwapKline, r.URL.Path, "USDT-margined kline path should match")
+		_, _ = w.Write([]byte(`{"status":"ok","data":[{"id":` + strconv.FormatInt(now.Add(-time.Minute).Unix(), 10) + `,"open":1,"high":2,"low":0.5,"close":1.5,"vol":10}]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, false), "available pair must be set")
+	require.NoError(t, h.SetPairs(currency.Pairs{btcusdtPair}, asset.USDTMarginedFutures, true), "enabled pair must be set")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+
+	got, err := h.GetHistoricCandles(t.Context(), btcusdtPair, asset.USDTMarginedFutures, kline.OneMin, now.Add(-2*time.Minute), now)
+	require.NoError(t, err, "GetHistoricCandles must not error for USDT-margined futures")
+	require.NotEmpty(t, got.Candles, "candles must be returned")
+
+	got, err = h.GetHistoricCandlesExtended(t.Context(), btcusdtPair, asset.USDTMarginedFutures, kline.OneMin, now.Add(-2*time.Minute), now)
+	require.NoError(t, err, "GetHistoricCandlesExtended must not error for USDT-margined futures")
+	require.NotEmpty(t, got.Candles, "extended candles must be returned")
+}
+
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	feeBuilder := setFeeBuilder()
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "Setup must not error")
+	_, err := h.GetFeeByType(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType must reject nil fee builder")
+
+	_, err = h.GetFeeByType(t.Context(), feeBuilder)
+	require.NoError(t, err, "GetFeeByType must not error")
+	assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "fee type should fall back when credentials are not valid")
+}

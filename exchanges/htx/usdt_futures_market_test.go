@@ -2,6 +2,7 @@ package htx
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -168,4 +171,20 @@ func TestGetV5SettlementHistory(t *testing.T) {
 	require.NoError(t, err, "GetV5SettlementHistory must not error")
 	require.Len(t, resp.Data, 1, "one settlement must decode")
 	assert.Equal(t, types.Number(10), resp.Data[0].SettlementPrice, "settlement price should decode")
+}
+
+func TestGetV5OpenInterest(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v5/market/open_interest", r.URL.Path, "open interest endpoint path should match")
+		_, _ = w.Write([]byte(`{"code":200,"success":true,"data":{"contract_code":"BTC-USDT"}}`))
+	}))
+	t.Cleanup(server.Close)
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+	resp, err := h.GetV5OpenInterest(t.Context(), btcusdtPair)
+	require.NoError(t, err, "GetV5OpenInterest must not error")
+	require.NotNil(t, resp, "decoded open interest must be returned")
+	assert.Equal(t, "BTC-USDT", resp.Data.ContractCode, "contract code should decode")
 }

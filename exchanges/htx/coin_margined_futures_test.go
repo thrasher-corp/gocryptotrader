@@ -18,78 +18,6 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestFinancialRecordDataUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	var arrayResp FinancialRecordData
-	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"id":34,"symbol":"ETH","contract_code":"ETH-USD","type":3,"amount":1.25,"ts":1604312615051}],"ts":1604312615051}`), &arrayResp)
-	require.NoError(t, err, "FinancialRecordData unmarshal must support v3 array data")
-	require.Len(t, arrayResp.Data.FinancialRecord, 1, "financial records must decode from v3 array data")
-	assert.Equal(t, int64(12), arrayResp.Data.FinancialRecord[0].QueryID, "query id should decode")
-
-	var emptyResp FinancialRecordData
-	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
-	require.NoError(t, err, "FinancialRecordData unmarshal must support empty string data")
-	assert.Empty(t, emptyResp.Data.FinancialRecord, "financial records should be empty")
-
-	var legacyResp FinancialRecordData
-	err = json.Unmarshal([]byte(`{"data":{"financial_record":[{"query_id":12,"id":34}],"total_page":2},"ts":1604312615051}`), &legacyResp)
-	require.NoError(t, err, "FinancialRecordData unmarshal must support legacy object data")
-	assert.Equal(t, int64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
-
-	err = json.Unmarshal([]byte(`{`), &legacyResp)
-	require.Error(t, err, "FinancialRecordData unmarshal must return malformed JSON errors")
-	err = json.Unmarshal([]byte(`{"data":1}`), &legacyResp)
-	require.Error(t, err, "FinancialRecordData unmarshal must return malformed data errors")
-}
-
-func TestSwapOrderHistoryUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	var arrayResp SwapOrderHistory
-	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"order_id":34,"order_id_str":"34","symbol":"ETH","contract_code":"ETH-USD","lever_rate":20,"direction":"buy","offset":"open","volume":1,"price":10,"create_date":1604312615051,"order_source":"api","order_price_type":"limit","margin_frozen":0,"profit":0,"trade_volume":0,"trade_turnover":0,"fee":0,"trade_avg_price":0,"status":6,"order_type":1,"fee_asset":"ETH","liquidation_type":"0"}],"ts":1604312615051}`), &arrayResp)
-	require.NoError(t, err, "SwapOrderHistory unmarshal must support v3 array data")
-	require.Len(t, arrayResp.Data.Orders, 1, "orders must decode from v3 array data")
-	assert.Equal(t, int64(12), arrayResp.Data.Orders[0].QueryID, "query id should decode")
-
-	var emptyResp SwapOrderHistory
-	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
-	require.NoError(t, err, "SwapOrderHistory unmarshal must support empty string data")
-	assert.Empty(t, emptyResp.Data.Orders, "orders should be empty")
-
-	var legacyResp SwapOrderHistory
-	err = json.Unmarshal([]byte(`{"data":{"orders":[{"query_id":12,"order_id":34}],"total_page":2},"ts":1604312615051}`), &legacyResp)
-	require.NoError(t, err, "SwapOrderHistory unmarshal must support legacy object data")
-	assert.Equal(t, int64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
-
-	err = json.Unmarshal([]byte(`{`), &legacyResp)
-	require.Error(t, err, "SwapOrderHistory unmarshal must return malformed JSON errors")
-	err = json.Unmarshal([]byte(`{"data":1}`), &legacyResp)
-	require.Error(t, err, "SwapOrderHistory unmarshal must return malformed data errors")
-}
-
-func TestAccountTradeHistoryDataUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	var arrayResp AccountTradeHistoryData
-	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"id":"match","match_id":34,"order_id":56,"order_id_str":"56","symbol":"ETH","contract_code":"ETH-USD","direction":"buy","offset":"open","trade_volume":1,"trade_price":10,"trade_turnover":10,"trade_fee":0.1,"offset_profitloss":0,"create_date":"1604312615051","role":"Maker","order_source":"api","fee_asset":"ETH"}],"ts":1604312615051}`), &arrayResp)
-	require.NoError(t, err, "AccountTradeHistoryData unmarshal must support v3 array data")
-	require.Len(t, arrayResp.Data.Trades, 1, "trades must decode from v3 array data")
-	assert.Equal(t, int64(12), arrayResp.Data.Trades[0].QueryID, "query id should decode")
-
-	var emptyResp AccountTradeHistoryData
-	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
-	require.NoError(t, err, "AccountTradeHistoryData unmarshal must support empty string data")
-	assert.Empty(t, emptyResp.Data.Trades, "trades should be empty")
-
-	var legacyResp AccountTradeHistoryData
-	err = json.Unmarshal([]byte(`{"data":{"trades":[{"query_id":12,"id":"match"}],"total_page":2},"ts":1604312615051}`), &legacyResp)
-	require.NoError(t, err, "AccountTradeHistoryData unmarshal must support legacy object data")
-	assert.Equal(t, int64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
-
-	err = json.Unmarshal([]byte(`{`), &legacyResp)
-	require.Error(t, err, "AccountTradeHistoryData unmarshal must return malformed JSON errors")
-	err = json.Unmarshal([]byte(`{"data":1}`), &legacyResp)
-	require.Error(t, err, "AccountTradeHistoryData unmarshal must return malformed data errors")
-}
-
 func TestQuerySwapIndexPriceInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.QuerySwapIndexPriceInfo(t.Context(), btcusdPair)
@@ -478,9 +406,325 @@ func TestGetSwapFundingRate(t *testing.T) {
 	require.NoError(t, err, "GetSwapFundingRate must not error")
 }
 
-func TestGetBatchCoinMarginSwapContracts(t *testing.T) {
+func TestCoinMarginedAuthenticatedEndpoints(t *testing.T) {
 	t.Parallel()
-	resp, err := e.GetBatchCoinMarginSwapContracts(t.Context())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	contractCode := currency.NewPairWithDelimiter("ETH", "USD", "-")
+	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name          string
+		path          string
+		expectedField string
+		expectedValue any
+		call          func(*Exchange) error
+	}{
+		{
+			name: "GetSwapAccountInfo",
+			path: "/swap-api/v1/swap_account_info",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapAccountInfo(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "GetSwapPositionsInfo",
+			path: "/swap-api/v1/swap_position_info",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapPositionsInfo(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "GetSwapAssetsAndPositions",
+			path: "/swap-api/v1/swap_account_position_info",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapAssetsAndPositions(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "GetSwapAllSubAccAssets",
+			path: "/swap-api/v1/swap_sub_account_list",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapAllSubAccAssets(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "SwapSingleSubAccAssets",
+			path: "/swap-api/v1/swap_sub_account_info",
+			call: func(h *Exchange) error {
+				_, err := h.SwapSingleSubAccAssets(t.Context(), contractCode, 123)
+				return err
+			},
+		},
+		{
+			name: "GetSubAccPositionInfo",
+			path: "/swap-api/v1/swap_sub_position_info",
+			call: func(h *Exchange) error {
+				_, err := h.GetSubAccPositionInfo(t.Context(), contractCode, 123)
+				return err
+			},
+		},
+		{
+			name: "GetAccountFinancialRecords",
+			path: "/swap-api/v3/swap_financial_record",
+			call: func(h *Exchange) error {
+				_, err := h.GetAccountFinancialRecords(t.Context(), contractCode, "3,4", 2, 1, 20)
+				return err
+			},
+		},
+		{
+			name: "GetSwapSettlementRecords",
+			path: "/swap-api/v1/swap_user_settlement_records",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapSettlementRecords(t.Context(), contractCode, startTime, startTime.Add(time.Hour), 1, 20)
+				return err
+			},
+		},
+		{
+			name: "GetAvailableLeverage",
+			path: "/swap-api/v1/swap_available_level_rate",
+			call: func(h *Exchange) error {
+				_, err := h.GetAvailableLeverage(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "SwitchCoinMarginedLeverage",
+			path: "/swap-api/v1/swap_switch_lever_rate",
+			call: func(h *Exchange) error {
+				return h.SwitchCoinMarginedLeverage(t.Context(), contractCode, 5)
+			},
+		},
+		{
+			name: "GetSwapOrderLimitInfo",
+			path: "/swap-api/v1/swap_order_limit",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapOrderLimitInfo(t.Context(), contractCode, "limit")
+				return err
+			},
+		},
+		{
+			name: "GetSwapTradingFeeInfo",
+			path: "/swap-api/v1/swap_fee",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapTradingFeeInfo(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "GetSwapTransferLimitInfo",
+			path: "/swap-api/v1/swap_transfer_limit",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapTransferLimitInfo(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "GetSwapPositionLimitInfo",
+			path: "/swap-api/v1/swap_position_limit",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapPositionLimitInfo(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "AccountTransferData",
+			path: "/swap-api/v1/swap_master_sub_transfer",
+			call: func(h *Exchange) error {
+				_, err := h.AccountTransferData(t.Context(), contractCode, "123", "master_to_sub", 1)
+				return err
+			},
+		},
+		{
+			name: "AccountTransferRecords",
+			path: "/swap-api/v1/swap_master_sub_transfer_record",
+			call: func(h *Exchange) error {
+				_, err := h.AccountTransferRecords(t.Context(), contractCode, "master_to_sub", 2, 1, 20)
+				return err
+			},
+		},
+		{
+			name: "PlaceSwapOrders",
+			path: "/swap-api/v1/swap_order",
+			call: func(h *Exchange) error {
+				_, err := h.PlaceSwapOrders(t.Context(), contractCode, "", "buy", "open", "limit", 1, 1, 1)
+				return err
+			},
+		},
+		{
+			name: "PlaceSwapBatchOrders",
+			path: "/swap-api/v1/swap_batchorder",
+			call: func(h *Exchange) error {
+				_, err := h.PlaceSwapBatchOrders(t.Context(), BatchOrderRequestType{Data: []batchOrderData{{
+					ContractCode:   "ETH-USD",
+					Price:          1,
+					Volume:         1,
+					Direction:      "buy",
+					Offset:         "open",
+					LeverageRate:   1,
+					OrderPriceType: "limit",
+				}}})
+				return err
+			},
+		},
+		{
+			name: "CancelSwapOrder",
+			path: "/swap-api/v1/swap_cancel",
+			call: func(h *Exchange) error {
+				_, err := h.CancelSwapOrder(t.Context(), "123", "", contractCode)
+				return err
+			},
+		},
+		{
+			name: "CancelAllSwapOrders",
+			path: "/swap-api/v1/swap_cancelall",
+			call: func(h *Exchange) error {
+				_, err := h.CancelAllSwapOrders(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "PlaceLightningCloseOrder",
+			path: "/swap-api/v1/swap_lightning_close_position",
+			call: func(h *Exchange) error {
+				_, err := h.PlaceLightningCloseOrder(t.Context(), contractCode, "buy", "lightning", 1, 123)
+				return err
+			},
+		},
+		{
+			name: "GetSwapOrderDetails",
+			path: "/swap-api/v1/swap_order_detail",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapOrderDetails(t.Context(), contractCode, "123", "10", "cancelledOrder", 1, 20)
+				return err
+			},
+		},
+		{
+			name: "GetSwapOrderInfo",
+			path: "/swap-api/v1/swap_order_info",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapOrderInfo(t.Context(), contractCode, "123", "")
+				return err
+			},
+		},
+		{
+			name: "GetSwapOpenOrders",
+			path: "/swap-api/v1/swap_openorders",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapOpenOrders(t.Context(), contractCode, 1, 20)
+				return err
+			},
+		},
+		{
+			name: "GetSwapTradeHistory",
+			path: "/swap-api/v3/swap_matchresults",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapTradeHistory(t.Context(), contractCode, "liquidateShort", 2, 1, 20)
+				return err
+			},
+		},
+		{
+			name: "PlaceSwapTriggerOrder",
+			path: "/swap-api/v1/swap_trigger_order",
+			call: func(h *Exchange) error {
+				_, err := h.PlaceSwapTriggerOrder(t.Context(), contractCode, "greaterOrEqual", "buy", "open", "optimal_5", 2, 1, 1, 1)
+				return err
+			},
+		},
+		{
+			name:          "CancelSwapTriggerOrder",
+			path:          "/swap-api/v1/swap_trigger_cancel",
+			expectedField: "contract_code",
+			expectedValue: "ETH-USD",
+			call: func(h *Exchange) error {
+				_, err := h.CancelSwapTriggerOrder(t.Context(), contractCode, "123")
+				return err
+			},
+		},
+		{
+			name: "CancelAllSwapTriggerOrders",
+			path: "/swap-api/v1/swap_trigger_cancelall",
+			call: func(h *Exchange) error {
+				_, err := h.CancelAllSwapTriggerOrders(t.Context(), contractCode)
+				return err
+			},
+		},
+		{
+			name: "GetSwapTriggerOrderHistory",
+			path: "/swap-api/v1/swap_trigger_hisorders",
+			call: func(h *Exchange) error {
+				_, err := h.GetSwapTriggerOrderHistory(t.Context(), contractCode, "open", "all", 2, 1, 20)
+				return err
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method, "authenticated coin-margined method should match")
+				assert.Equal(t, tc.path, r.URL.Path, "authenticated coin-margined path should match HTX documentation")
+				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "authenticated coin-margined content type should match")
+				if tc.expectedField != "" {
+					payload, err := io.ReadAll(r.Body)
+					if !assert.NoError(t, err, "request body should be readable") {
+						return
+					}
+					var body map[string]any
+					if !assert.NoError(t, json.Unmarshal(payload, &body), "request body should decode") {
+						return
+					}
+					assert.Equal(t, tc.expectedValue, body[tc.expectedField], "request body should contain the documented value")
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"status":"ok","code":200,"msg":"","data":null}`))
+			}))
+			t.Cleanup(server.Close)
+
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			h.API.AuthenticatedSupport = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "coin-margined endpoint must be set")
+			require.NoError(t, tc.call(h), "authenticated coin-margined endpoint must not error")
+		})
+	}
+}
+
+func TestGetHistoricalFundingRatesForPair(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/swap-api/v1/swap_historical_funding_rate", r.URL.Path, "coin-margined funding history path should match")
+		assert.Equal(t, "25", r.URL.Query().Get("page_size"), "page size should use the pageSize argument")
+		assert.Equal(t, "2", r.URL.Query().Get("page_index"), "page index should use the pageIndex argument")
+		_, _ = w.Write([]byte(`{"status":"ok","data":{"total_page":1,"current_page":1,"total_size":1,"data":[{"funding_rate":"0.001","funding_time":"1604312615051","contract_code":"BTC-USD"}]}}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	got, err := h.GetHistoricalFundingRatesForPair(t.Context(), btcusdPair, 25, 2)
+	require.NoError(t, err, "GetHistoricalFundingRatesForPair must not error")
+	require.Len(t, got.Data.Data, 1, "one funding rate must be returned")
+	assert.Equal(t, time.UnixMilli(1604312615051), got.Data.Data[0].FundingTime.Time(), "funding time should match")
+}
+
+func TestSwitchCoinMarginedLeverage(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/swap-api/v1/swap_switch_lever_rate", r.URL.Path, "coin-margined leverage path should match")
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "request body should be readable")
+		assert.JSONEq(t, `{"contract_code":"BTC-USD","lever_rate":5}`, string(body), "coin-margined leverage body should match")
+		_, _ = w.Write([]byte(`{"status":"ok","data":{"contract_code":"BTC-USD","lever_rate":5}}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	h.API.AuthenticatedSupport = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	require.NoError(t, h.SwitchCoinMarginedLeverage(t.Context(), btcusdPair, 5), "SwitchCoinMarginedLeverage must not error")
 }

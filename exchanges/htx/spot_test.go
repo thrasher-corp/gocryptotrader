@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -28,6 +28,12 @@ const canManipulateRealOrders = false
 var apiCredentials = &accounts.Credentials{
 	Key:    "",
 	Secret: "",
+}
+
+func init() {
+	if os.Getenv("GCT_HTX_RUN_LIVE_TESTS") != "true" {
+		apiCredentials = new(accounts.Credentials)
+	}
 }
 
 var (
@@ -302,74 +308,6 @@ func TestUnmarshalResponse(t *testing.T) {
 func TestSpotMatchResultsEndpoint(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "/order/matchresults", htxGetOrdersMatch, "spot match results endpoint should match HTX docs")
-}
-
-func TestUSDTFuturesEndpointPaths(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, "/linear-swap-api/v1/swap_contract_info", linearSwapMarkets, "linear swap contract info endpoint should match HTX docs")
-}
-
-func TestV5OrderQueryResponseUnmarshal(t *testing.T) {
-	t.Parallel()
-	var resp *V5OrderQueryResponse
-	err := json.Unmarshal([]byte(`{"code":200,"message":"Success","data":{"order_id":"1","contract_code":"BTC-USDT","side":"buy","type":"limit","price":"5000","volume":"1","trade_volume":"0.25","trade_turnover":"1250","fee":"0.1","lever_rate":10,"reduce_only":false,"created_time":"1769076510922","updated_time":"1769076510922"}}`), &resp)
-	require.NoError(t, err, "Unmarshal must decode HTX V5 order response")
-	require.NotNil(t, resp, "response must not be nil")
-	assert.Equal(t, 5000.0, resp.Data.Price.Float64(), "price should decode from quoted number")
-	assert.Equal(t, 0.25, resp.Data.TradeVolume.Float64(), "trade volume should decode from quoted number")
-	assert.Equal(t, 10.0, resp.Data.LeverageRate.Float64(), "leverage should decode from bare number")
-}
-
-func TestV5OrderResponseDataUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name          string
-		payload       string
-		orderID       string
-		clientOrderID string
-	}{
-		{name: "string identifiers", payload: `{"order_id":"123","client_order_id":"456"}`, orderID: "123", clientOrderID: "456"},
-		{name: "numeric identifiers", payload: `{"order_id":1358944503420903424,"client_order_id":1358944503420903425}`, orderID: "1358944503420903424", clientOrderID: "1358944503420903425"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			var response V5OrderResponseData
-			require.NoError(t, json.Unmarshal([]byte(tc.payload), &response), "V5OrderResponseData unmarshal must not error")
-			assert.Equal(t, tc.orderID, response.OrderID, "order ID should retain full precision")
-			assert.Equal(t, tc.clientOrderID, response.ClientOrderID, "client order ID should retain full precision")
-		})
-	}
-}
-
-func TestV5OpenInterestResponseUnmarshal(t *testing.T) {
-	t.Parallel()
-	var resp *V5OpenInterestResponse
-	err := json.Unmarshal([]byte(`{"code":200,"data":{"amount":"244.004","volume":"244004","value":"29275599.92","contract_code":"BTC-USDT","trade_amount":"9.838","trade_volume":"9838","trade_turnover":"1091416.458752"},"message":null,"success":true}`), &resp)
-	require.NoError(t, err, "Unmarshal must decode HTX V5 open interest response")
-	require.NotNil(t, resp, "response must not be nil")
-	assert.True(t, resp.Success, "success should decode")
-	assert.Equal(t, 244.004, resp.Data.Amount.Float64(), "amount should decode from quoted number")
-	assert.Equal(t, 1091416.458752, resp.Data.TradeTurnover.Float64(), "trade turnover should decode from quoted number")
-}
-
-func TestIsEmptyHTXData(t *testing.T) {
-	t.Parallel()
-	for _, tt := range []struct {
-		name string
-		data []byte
-		want bool
-	}{
-		{name: "empty", want: true},
-		{name: "empty string", data: []byte(`""`), want: true},
-		{name: "null", data: []byte(` null `), want: true},
-		{name: "array", data: []byte(`[]`)},
-		{name: "object", data: []byte(`{}`)},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, isEmptyHTXData(tt.data), "isEmptyHTXData should identify empty HTX data values")
-		})
-	}
 }
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
@@ -704,19 +642,6 @@ func TestCancelOpenOrdersBatch(t *testing.T) {
 	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "CancelOpenOrdersBatch must require credentials")
 }
 
-func TestCancelBatchOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
-		{
-			OrderID:   "1234",
-			AssetType: asset.Spot,
-			Pair:      currency.NewBTCUSDT(),
-		},
-	})
-	require.NoError(t, err)
-}
-
 func TestGetBatchLinearSwapContracts(t *testing.T) {
 	t.Parallel()
 	resp, err := e.GetBatchLinearSwapContracts(t.Context())
@@ -757,4 +682,373 @@ func updatePairsOnce(tb testing.TB, h *Exchange) {
 
 	err := h.CurrencyPairs.EnablePair(asset.Futures, btcFutureDatedPair) // Must enable every time we refresh the CurrencyPairs from cache
 	require.NoError(tb, common.ExcludeError(err, currency.ErrPairAlreadyEnabled))
+}
+
+func TestSpotAuthenticatedEndpoints(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewBTCUSDT()
+	for _, tc := range []struct {
+		name     string
+		method   string
+		path     string
+		response string
+		call     func(*Exchange) error
+	}{
+		{
+			name:   "GetMarginRates",
+			method: http.MethodGet,
+			path:   "/v1" + htxMarginRates,
+			call: func(h *Exchange) error {
+				_, err := h.GetMarginRates(t.Context(), pair)
+				return err
+			},
+		},
+		{
+			name:   "GetAccounts",
+			method: http.MethodGet,
+			path:   "/v1" + htxAccounts,
+			call: func(h *Exchange) error {
+				_, err := h.GetAccounts(t.Context())
+				return err
+			},
+		},
+		{
+			name:   "GetAccountBalance",
+			method: http.MethodGet,
+			path:   "/v1" + fmt.Sprintf(htxAccountBalance, "123"),
+			call: func(h *Exchange) error {
+				_, err := h.GetAccountBalance(t.Context(), "123")
+				return err
+			},
+		},
+		{
+			name:   "GetAggregatedBalance",
+			method: http.MethodGet,
+			path:   "/v1" + htxAggregatedBalance,
+			call: func(h *Exchange) error {
+				_, err := h.GetAggregatedBalance(t.Context())
+				return err
+			},
+		},
+		{
+			name:     "SpotNewOrder",
+			method:   http.MethodPost,
+			path:     "/v1" + htxOrderPlace,
+			response: `{"status":"ok","data":"123"}`,
+			call: func(h *Exchange) error {
+				_, err := h.SpotNewOrder(t.Context(), &SpotNewOrderRequestParams{
+					Symbol:    pair,
+					AccountID: 123,
+					Amount:    1,
+					Price:     1,
+					Type:      SpotNewOrderRequestTypeBuyLimit,
+				})
+				return err
+			},
+		},
+		{
+			name:     "CancelExistingOrder",
+			method:   http.MethodPost,
+			path:     "/v1" + fmt.Sprintf(htxOrderCancel, "123"),
+			response: `{"status":"ok","data":"123"}`,
+			call: func(h *Exchange) error {
+				_, err := h.CancelExistingOrder(t.Context(), 123)
+				return err
+			},
+		},
+		{
+			name:     "CancelOrderBatch",
+			method:   http.MethodPost,
+			path:     "/v1" + htxOrderCancelBatch,
+			response: `{"status":"ok","data":{"success":["123"],"failed":[]}}`,
+			call: func(h *Exchange) error {
+				_, err := h.CancelOrderBatch(t.Context(), []string{"123"}, nil)
+				return err
+			},
+		},
+		{
+			name:     "CancelOpenOrdersBatch",
+			method:   http.MethodPost,
+			path:     "/v1" + htxBatchCancelOpenOrders,
+			response: `{"status":"ok","data":{"success-count":1,"failed-count":0,"next-id":0}}`,
+			call: func(h *Exchange) error {
+				_, err := h.CancelOpenOrdersBatch(t.Context(), "123", pair)
+				return err
+			},
+		},
+		{
+			name:   "GetOrder",
+			method: http.MethodGet,
+			path:   "/v1" + htxGetOrder,
+			call: func(h *Exchange) error {
+				_, err := h.GetOrder(t.Context(), 123)
+				return err
+			},
+		},
+		{
+			name:   "GetOrderMatchResults",
+			method: http.MethodGet,
+			path:   "/v1" + fmt.Sprintf(htxGetOrderMatch, "123"),
+			call: func(h *Exchange) error {
+				_, err := h.GetOrderMatchResults(t.Context(), 123)
+				return err
+			},
+		},
+		{
+			name:   "GetOrders",
+			method: http.MethodGet,
+			path:   "/v1" + htxGetOrders,
+			call: func(h *Exchange) error {
+				_, err := h.GetOrders(t.Context(), pair, "buy-limit", "", "", "submitted", "", "", "10")
+				return err
+			},
+		},
+		{
+			name:   "GetOpenOrders",
+			method: http.MethodGet,
+			path:   "/v1" + htxGetOpenOrders,
+			call: func(h *Exchange) error {
+				_, err := h.GetOpenOrders(t.Context(), pair, "123", "buy", 10)
+				return err
+			},
+		},
+		{
+			name:   "GetOrdersMatch",
+			method: http.MethodGet,
+			path:   "/v1" + htxGetOrdersMatch,
+			call: func(h *Exchange) error {
+				_, err := h.GetOrdersMatch(t.Context(), pair, "buy-limit", "", "", "", "", "10")
+				return err
+			},
+		},
+		{
+			name:     "MarginTransfer/in",
+			method:   http.MethodPost,
+			path:     "/v1" + htxMarginTransferIn,
+			response: `{"status":"ok","data":123}`,
+			call: func(h *Exchange) error {
+				_, err := h.MarginTransfer(t.Context(), pair, "usdt", 1, true)
+				return err
+			},
+		},
+		{
+			name:     "MarginTransfer/out",
+			method:   http.MethodPost,
+			path:     "/v1" + htxMarginTransferOut,
+			response: `{"status":"ok","data":123}`,
+			call: func(h *Exchange) error {
+				_, err := h.MarginTransfer(t.Context(), pair, "usdt", 1, false)
+				return err
+			},
+		},
+		{
+			name:     "MarginOrder",
+			method:   http.MethodPost,
+			path:     "/v1" + htxMarginOrders,
+			response: `{"status":"ok","data":123}`,
+			call: func(h *Exchange) error {
+				_, err := h.MarginOrder(t.Context(), pair, "usdt", 1)
+				return err
+			},
+		},
+		{
+			name:     "MarginRepayment",
+			method:   http.MethodPost,
+			path:     "/v1" + fmt.Sprintf(htxMarginRepay, "123"),
+			response: `{"status":"ok","data":123}`,
+			call: func(h *Exchange) error {
+				_, err := h.MarginRepayment(t.Context(), 123, 1)
+				return err
+			},
+		},
+		{
+			name:   "GetMarginLoanOrders",
+			method: http.MethodGet,
+			path:   "/v1" + htxMarginLoanOrders,
+			call: func(h *Exchange) error {
+				_, err := h.GetMarginLoanOrders(t.Context(), pair, "usdt", "", "", "", "", "", "10")
+				return err
+			},
+		},
+		{
+			name:   "GetMarginAccountBalance",
+			method: http.MethodGet,
+			path:   "/v1" + htxMarginAccountBalance,
+			call: func(h *Exchange) error {
+				_, err := h.GetMarginAccountBalance(t.Context(), pair)
+				return err
+			},
+		},
+		{
+			name:     "Withdraw",
+			method:   http.MethodPost,
+			path:     "/v1" + htxWithdrawCreate,
+			response: `{"status":"ok","data":123}`,
+			call: func(h *Exchange) error {
+				_, err := h.Withdraw(t.Context(), currency.USDT, "address", "", "trc20usdt", 1, 0.1)
+				return err
+			},
+		},
+		{
+			name:     "CancelWithdraw",
+			method:   http.MethodPost,
+			path:     "/v1" + fmt.Sprintf(htxWithdrawCancel, "123"),
+			response: `{"status":"ok","data":123}`,
+			call: func(h *Exchange) error {
+				_, err := h.CancelWithdraw(t.Context(), 123)
+				return err
+			},
+		},
+		{
+			name:     "QueryDepositAddress",
+			method:   http.MethodGet,
+			path:     "/v2" + htxAccountDepositAddress,
+			response: `{"code":200,"data":[{"currency":"usdt","address":"address","addressTag":"","chain":"trc20usdt"}]}`,
+			call: func(h *Exchange) error {
+				_, err := h.QueryDepositAddress(t.Context(), currency.USDT)
+				return err
+			},
+		},
+		{
+			name:   "QueryWithdrawQuotas",
+			method: http.MethodGet,
+			path:   "/v2" + htxAccountWithdrawQuota,
+			call: func(h *Exchange) error {
+				_, err := h.QueryWithdrawQuotas(t.Context(), "usdt")
+				return err
+			},
+		},
+		{
+			name:   "SearchForExistedWithdrawsAndDeposits",
+			method: http.MethodGet,
+			path:   "/v1" + htxWithdrawHistory,
+			call: func(h *Exchange) error {
+				_, err := h.SearchForExistedWithdrawsAndDeposits(t.Context(), currency.USDT, "deposit", "next", 1, 10)
+				return err
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.method, r.Method, "authenticated spot method should match")
+				assert.Equal(t, tc.path, r.URL.Path, "authenticated spot path should match HTX documentation")
+				if tc.method == http.MethodGet {
+					assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"), "authenticated spot GET content type should match")
+				} else {
+					assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "authenticated spot POST content type should match")
+				}
+				w.Header().Set("Content-Type", "application/json")
+				response := tc.response
+				if response == "" {
+					response = `{"status":"ok","code":200,"data":null}`
+				}
+				_, _ = w.Write([]byte(response))
+			}))
+			t.Cleanup(server.Close)
+
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			h.API.AuthenticatedSupport = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
+			require.NoError(t, tc.call(h), "authenticated spot endpoint must not error")
+		})
+	}
+}
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetTickers(t.Context())
+	require.NoError(t, err)
+}
+
+func TestGetCurrentServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := e.GetCurrentServerTime(t.Context())
+	require.NoError(t, err)
+	assert.NotEmpty(t, st, "GetCurrentServerTime should return a time")
+}
+
+func TestGetFee(t *testing.T) {
+	t.Parallel()
+	feeBuilder := setFeeBuilder()
+	// CryptocurrencyTradeFee Basic
+	_, err := e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// CryptocurrencyTradeFee High quantity
+	feeBuilder = setFeeBuilder()
+	feeBuilder.Amount = 1000
+	feeBuilder.PurchasePrice = 1000
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// CryptocurrencyTradeFee IsMaker
+	feeBuilder = setFeeBuilder()
+	feeBuilder.IsMaker = true
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// CryptocurrencyTradeFee Negative purchase price
+	feeBuilder = setFeeBuilder()
+	feeBuilder.PurchasePrice = -1000
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// CryptocurrencyWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// CryptocurrencyWithdrawalFee Invalid currency
+	feeBuilder = setFeeBuilder()
+	feeBuilder.Pair.Base = currency.NewCode("hello")
+	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// CryptocurrencyDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// InternationalBankDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankDepositFee
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+
+	// InternationalBankWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
+	feeBuilder.FiatCurrency = currency.USD
+	_, err = e.GetFee(feeBuilder)
+	require.NoError(t, err)
+}
+
+func TestCalculateTradingFee(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		pair     currency.Pair
+		expected float64
+	}{
+		{name: "crypto fiat", pair: currency.NewBTCUSD(), expected: 0.1},
+		{name: "non-fiat quote", pair: currency.NewPair(currency.BTC, currency.ETH), expected: 0.2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, calculateTradingFee(tc.pair, 100, 1), "trading fee should use the documented rate")
+		})
+	}
+}
+
+func TestGetBatchCoinMarginSwapContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := e.GetBatchCoinMarginSwapContracts(t.Context())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
