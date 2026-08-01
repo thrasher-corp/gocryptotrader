@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"text/template"
 	"time"
 
@@ -50,7 +51,7 @@ var klineIntervals = map[kline.Interval]string{
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 100},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
@@ -403,7 +404,7 @@ subscriptionLoop:
 				req = map[string]any{
 					"action":    action,
 					"subscribe": chName,
-					"depth":     "100",
+					"depth":     strconv.Itoa(s.Levels),
 					"pair":      p.Lower().String(),
 				}
 			case subscription.CandlesChannel:
