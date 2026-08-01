@@ -260,6 +260,8 @@ func (e *Exchange) wsHandleKbar(ctx context.Context, respRaw []byte) error {
 // lbankOrderStatusToOrderStatus converts LBank integer status to order.Status
 func lbankOrderStatusToOrderStatus(status int64) (order.Status, error) {
 	switch status {
+	case -1:
+		return order.Cancelled, nil
 	case 0:
 		return order.New, nil
 	case 1:
