@@ -28,11 +28,11 @@ func TestWsHandleKbar(t *testing.T) {
 			"l": "28800.0",
 			"c": "29200.0",
 			"v": "100.5",
-			"t": 1704067200000,
+			"t": "2026-07-07T12:30:00.000Z",
 			"slot": "1min"
 		},
 		"SERVER": "V2",
-		"TS": 1704067200000
+		"TS": "2026-07-07T12:30:00.000Z"
 	}`))
 	assert.NoError(t, err, "wsHandleData kbar should not error")
 }

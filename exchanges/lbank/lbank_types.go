@@ -185,7 +185,7 @@ type websocketKbarData struct {
 	Low       types.Number `json:"l"`
 	Close     types.Number `json:"c"`
 	Volume    types.Number `json:"v"`
-	Timestamp types.Time   `json:"t"`
+	Timestamp time.Time    `json:"t"`
 	Slot      string       `json:"slot"`
 }
 

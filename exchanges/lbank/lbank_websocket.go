@@ -246,7 +246,7 @@ func (e *Exchange) wsHandleKbar(ctx context.Context, respRaw []byte) error {
 		Asset:    asset.Spot,
 		Interval: interval,
 		Candles: []kline.Candle{{
-			Time:   resp.Kbar.Timestamp.Time(),
+			Time:   resp.Kbar.Timestamp,
 			Open:   resp.Kbar.Open.Float64(),
 			High:   resp.Kbar.High.Float64(),
 			Low:    resp.Kbar.Low.Float64(),
