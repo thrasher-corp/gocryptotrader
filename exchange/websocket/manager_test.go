@@ -1265,6 +1265,50 @@ func TestParseBinaryResponse(t *testing.T) {
 	assert.ErrorContains(t, err, "unexpected EOF", "parseBinaryResponse should error on empty input")
 }
 
+func TestParseBinaryResponseWithDecoder(t *testing.T) {
+	t.Parallel()
+
+	wc := &connection{
+		binaryMessageDecoder: func(b []byte) ([]byte, error) {
+			return append([]byte("decoded:"), b...), nil
+		},
+	}
+
+	resp, err := wc.parseBinaryResponse([]byte("payload"))
+	assert.NoError(t, err, "parseBinaryResponse should not error with a decoder set")
+	assert.EqualValues(t, "decoded:payload", resp, "parseBinaryResponse should use the connection decoder")
+
+	errDecode := errors.New("decode failure")
+	wc.binaryMessageDecoder = func([]byte) ([]byte, error) { return nil, errDecode }
+	_, err = wc.parseBinaryResponse([]byte("payload"))
+	assert.ErrorIs(t, err, errDecode, "parseBinaryResponse should return the decoder error")
+
+	wc.binaryMessageDecoder = nil
+	var b bytes.Buffer
+	f, err := flate.NewWriter(&b, 1)
+	require.NoError(t, err, "flate.NewWriter must not error")
+	_, err = f.Write([]byte("goodbye"))
+	require.NoError(t, err, "flate.Write must not error")
+	require.NoError(t, f.Close(), "Close must not error")
+
+	resp, err = wc.parseBinaryResponse(b.Bytes())
+	assert.NoError(t, err, "parseBinaryResponse should not error without a decoder")
+	assert.EqualValues(t, "goodbye", resp, "parseBinaryResponse should keep the default behaviour when no decoder is set")
+}
+
+func TestCreateConnectionFromSetupPassesBinaryMessageDecoder(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	decoder := func(b []byte) ([]byte, error) { return b, nil }
+
+	c := m.createConnectionFromSetup(&ConnectionSetup{BinaryMessageDecoder: decoder})
+	require.NotNil(t, c.binaryMessageDecoder, "createConnectionFromSetup must pass the decoder through")
+
+	c = m.createConnectionFromSetup(&ConnectionSetup{})
+	assert.Nil(t, c.binaryMessageDecoder, "createConnectionFromSetup should leave the decoder unset when not supplied")
+}
+
 // TestCanUseAuthenticatedWebsocketForWrapper logic test
 func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 	t.Parallel()
