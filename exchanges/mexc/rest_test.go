@@ -963,8 +963,8 @@ func TestGetContractDepthInformation(t *testing.T) {
 	result, err := e.GetContractOrderbook(t.Context(), futuresTradablePair, 1000)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.NotEmpty(t, result.Bids, "bids must be unwrapped from the response envelope")
-	assert.NotEmpty(t, result.Asks, "asks must be unwrapped from the response envelope")
+	assert.NotEmpty(t, result.Bids, "bids should be unwrapped from the response envelope")
+	assert.NotEmpty(t, result.Asks, "asks should be unwrapped from the response envelope")
 }
 
 func TestGetDepthSnapshotOfContract(t *testing.T) {

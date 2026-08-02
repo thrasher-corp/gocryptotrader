@@ -61,12 +61,12 @@ func TestFuturesSubscriptionParam(t *testing.T) {
 
 	param, err := ex.futuresSubscriptionParam(&subscription.Subscription{QualifiedChannel: channelFTicker}, pair)
 	require.NoError(t, err)
-	assert.Equal(t, "BTC_USDT", param.Symbol, "ticker subscription must carry the symbol")
+	assert.Equal(t, "BTC_USDT", param.Symbol, "ticker subscription should carry the symbol")
 
 	param, err = ex.futuresSubscriptionParam(&subscription.Subscription{QualifiedChannel: channelFDepthFull}, pair)
 	require.NoError(t, err)
 	assert.Equal(t, "BTC_USDT", param.Symbol)
-	assert.Equal(t, defaultFuturesDepthLevels, param.Limit, "depth subscription without levels must fall back to a default limit")
+	assert.Equal(t, defaultFuturesDepthLevels, param.Limit, "depth subscription without levels should fall back to a default limit")
 
 	param, err = ex.futuresSubscriptionParam(&subscription.Subscription{QualifiedChannel: channelFDepthFull, Levels: 5}, pair)
 	require.NoError(t, err)
@@ -110,7 +110,7 @@ func TestFuturesSubscriptionPayloads(t *testing.T) {
 		if payloads[i].Param == nil {
 			continue
 		}
-		assert.NotEmptyf(t, payloads[i].Param.Symbol, "payload %d for a per-contract channel must carry a symbol", i)
+		assert.NotEmptyf(t, payloads[i].Param.Symbol, "payload %d for a per-contract channel should carry a symbol", i)
 	}
 
 	_, err = ex.futuresSubscriptionPayloads(subscription.List{
@@ -152,7 +152,7 @@ func TestSubscribeFuturesRegistersSubscriptions(t *testing.T) {
 	assert.Equal(t, channelFTicker, registered[0].QualifiedChannel)
 
 	require.NoError(t, ex.UnsubscribeFutures(t.Context(), conn, subs))
-	assert.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribing must deregister the subscription")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribing should deregister the subscription")
 }
 
 func TestGenerateFuturesSubscriptionsUsesVenueChannels(t *testing.T) {
@@ -162,9 +162,9 @@ func TestGenerateFuturesSubscriptionsUsesVenueChannels(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
 	for _, s := range subs {
-		assert.NotEqualf(t, channelFTickers, s.QualifiedChannel, "%s must not resolve to the venue-wide broadcast channel", s.Channel)
+		assert.NotEqualf(t, channelFTickers, s.QualifiedChannel, "%s should not resolve to the venue-wide broadcast channel", s.Channel)
 		if isFuturesSymbolChannel(s.QualifiedChannel) {
-			assert.NotEmptyf(t, s.Pairs, "per-contract channel %s must carry pairs", s.QualifiedChannel)
+			assert.NotEmptyf(t, s.Pairs, "per-contract channel %s should carry pairs", s.QualifiedChannel)
 		}
 	}
 }
@@ -201,8 +201,8 @@ func TestProcessFuturesTickerCarriesBBO(t *testing.T) {
 	require.Len(t, received, 1)
 	price, ok := received[0].(*ticker.Price)
 	require.True(t, ok)
-	assert.Equal(t, 14.021, price.Ask, "ask must be the best offer, not the price-limit band")
-	assert.Equal(t, 14.02, price.Bid, "bid must be the best bid, not the price-limit band")
+	assert.Equal(t, 14.021, price.Ask, "ask should be the best offer, not the price-limit band")
+	assert.Equal(t, 14.02, price.Bid, "bid should be the best bid, not the price-limit band")
 	assert.Positive(t, price.Ask)
 	assert.Positive(t, price.Bid)
 	assert.LessOrEqual(t, price.Bid, price.Ask, "a BBO cannot be crossed")
@@ -215,14 +215,14 @@ func TestWsHandleFuturesPong(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesTestExchange(t)
 	require.NoError(t, ex.WsHandleFuturesData(t.Context(), nil, []byte(`{"channel":"pong","data":1587442022003,"ts":1587442022003}`)))
-	assert.Empty(t, drainDataHandler(t, ex), "a pong must not be relayed as data")
+	assert.Empty(t, drainDataHandler(t, ex), "a pong should not be relayed as data")
 }
 
 func TestWsHandleSpotPong(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesTestExchange(t)
 	require.NoError(t, ex.WsHandleData(t.Context(), nil, []byte(`{"id":0,"code":0,"msg":"PONG"}`)))
-	assert.Empty(t, drainDataHandler(t, ex), "a pong must not be reported as an unhandled message")
+	assert.Empty(t, drainDataHandler(t, ex), "a pong should not be reported as an unhandled message")
 }
 
 func TestIsSpotPongMessage(t *testing.T) {
@@ -230,7 +230,7 @@ func TestIsSpotPongMessage(t *testing.T) {
 	assert.True(t, isSpotPongMessage([]byte(`{"id":0,"code":0,"msg":"PONG"}`)))
 	assert.True(t, isSpotPongMessage([]byte(`{"id":0,"code":0,"msg":"pong"}`)))
 
-	assert.False(t, isSpotPongMessage([]byte(`{"id":42,"code":0,"msg":"SOMETHING_ELSE"}`)), "an unrelated message must not be swallowed as a pong")
-	assert.False(t, isSpotPongMessage([]byte(`{"id":42,"code":0}`)), "a message without msg must not be swallowed as a pong")
-	assert.False(t, isSpotPongMessage([]byte(`{"id":0,"code":0,"msg":"PONGO"}`)), "a partial match must not be swallowed as a pong")
+	assert.False(t, isSpotPongMessage([]byte(`{"id":42,"code":0,"msg":"SOMETHING_ELSE"}`)), "an unrelated message should not be swallowed as a pong")
+	assert.False(t, isSpotPongMessage([]byte(`{"id":42,"code":0}`)), "a message without msg should not be swallowed as a pong")
+	assert.False(t, isSpotPongMessage([]byte(`{"id":0,"code":0,"msg":"PONGO"}`)), "a partial match should not be swallowed as a pong")
 }

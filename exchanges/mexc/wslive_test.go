@@ -89,7 +89,7 @@ collect:
 
 	t.Logf("за %s: тикеров %d (с ненулевыми Bid/Ask %d, с ненулевым Last %d), наблюдений стакана %d",
 		window, tickers, tickersWithBBO, tickersWithLast, bookUpdates)
-	assert.Positive(t, tickersWithBBO, "websocket ticker with a non-zero best bid/offer must arrive")
-	assert.Positive(t, tickersWithLast, "websocket ticker must carry a last price")
-	assert.Positive(t, bookUpdates, "the existing orderbook path must keep publishing")
+	assert.Positive(t, tickersWithBBO, "websocket ticker with a non-zero best bid/offer should arrive")
+	assert.Positive(t, tickersWithLast, "websocket ticker should carry a last price")
+	assert.Positive(t, bookUpdates, "the existing orderbook path should keep publishing")
 }

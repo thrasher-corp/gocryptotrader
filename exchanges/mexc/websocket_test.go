@@ -185,14 +185,14 @@ func TestWsSpotTickerFromMiniTicker(t *testing.T) {
 	assert.Equal(t, 92000.25, got.Low, "Low should be correct")
 	assert.Equal(t, 12058672.07, got.Volume, "Volume should be the base asset volume (miniTicker quantity)")
 	assert.Equal(t, 323169.867864, got.QuoteVolume, "QuoteVolume should be the quote volume (miniTicker volume)")
-	assert.Equal(t, 93387.28, got.Bid, "Bid from the bookTicker channel must survive a miniTicker update")
-	assert.Equal(t, 93387.29, got.Ask, "Ask from the bookTicker channel must survive a miniTicker update")
+	assert.Equal(t, 93387.28, got.Bid, "Bid from the bookTicker channel should survive a miniTicker update")
+	assert.Equal(t, 93387.29, got.Ask, "Ask from the bookTicker channel should survive a miniTicker update")
 	assert.Equal(t, int64(1736412092500), got.LastUpdated.UnixMilli(), "LastUpdated should come from the exchange send time")
 }
 
 func TestWsHandleDataShortChannel(t *testing.T) {
 	t.Parallel()
-	assert.NoError(t, e.WsHandleData(t.Context(), nil, []byte("no-separator-here")), "a frame without channel separators must not panic")
+	assert.NoError(t, e.WsHandleData(t.Context(), nil, []byte("no-separator-here")), "a frame without channel separators should not panic")
 }
 
 func TestChannelSuffix(t *testing.T) {
@@ -205,7 +205,7 @@ func TestSubscriptionAccepted(t *testing.T) {
 	t.Parallel()
 	const ch = "spot@public.miniTicker.v3.api.pb@BTCUSDT@UTC+8"
 	assert.True(t, subscriptionAccepted("SUBSCRIPTION", ch, ch), "an echoed channel means accepted")
-	assert.False(t, subscriptionAccepted("SUBSCRIPTION", ch, "Not Subscribed successfully! ["+ch+"].  Reason： Blocked! "), "a rejection carrying code 0 must not count as accepted")
+	assert.False(t, subscriptionAccepted("SUBSCRIPTION", ch, "Not Subscribed successfully! ["+ch+"].  Reason： Blocked! "), "a rejection carrying code 0 should not count as accepted")
 	assert.True(t, subscriptionAccepted("UNSUBSCRIPTION", ch, "no subscription"), "unsubscribe responses are not channel echoes")
 }
 
@@ -219,9 +219,9 @@ func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {
 			continue
 		}
 		found = true
-		assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, s.QualifiedChannel, "miniTicker must carry the mandatory timezone suffix; MEXC blocks the subscription without it")
+		assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, s.QualifiedChannel, "miniTicker should carry the mandatory timezone suffix; MEXC blocks the subscription without it")
 	}
-	assert.True(t, found, "the spot miniTicker channel must be subscribed")
+	assert.True(t, found, "the spot miniTicker channel should be subscribed")
 }
 
 func TestIsFutures(t *testing.T) {
