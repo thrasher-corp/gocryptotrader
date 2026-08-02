@@ -1530,6 +1530,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if !e.SupportsAsset(r.Asset) {
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 	}
+	if !r.Asset.IsFutures() {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotFuturesAsset, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	pFmt, err := e.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
 		return nil, err

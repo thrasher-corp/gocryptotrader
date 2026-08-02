@@ -101,7 +101,13 @@ func (e *Exchange) GetContractFundingPrice(ctx context.Context, symbol currency.
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *ContractFundingRateResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getContractFundingPriceEPL, http.MethodGet, "contract/funding_rate/"+symbol.String(), nil, nil, &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, getContractFundingPriceEPL, http.MethodGet, "contract/funding_rate/"+symbol.String(), nil, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, common.ErrNoResults
+	}
+	return resp, nil
 }
 
 var contractIntervalToStringMap = map[kline.Interval]string{

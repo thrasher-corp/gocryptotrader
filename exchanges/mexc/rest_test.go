@@ -1729,12 +1729,29 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+	_, err := e.GetLatestFundingRates(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.Options,
 		Pair:                 spotTradablePair,
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	// A supported but non-futures asset must be rejected rather than being sent
+	// to the futures funding rate endpoint
+	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+		Asset: asset.Spot,
+		Pair:  spotTradablePair,
+	})
+	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
+	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.EMPTYPAIR,
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	result, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,

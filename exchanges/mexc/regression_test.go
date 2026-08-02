@@ -9,9 +9,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -27,6 +29,34 @@ func newSignedTestExchange(t *testing.T, handler http.Handler) *Exchange {
 		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(k, server.URL), "SetRunningURL must not error for %s", k)
 	}
 	return ex
+}
+
+// TestGetContractFundingPriceNilResponse ensures an empty payload surfaces an error instead of
+// returning a nil response that callers would dereference
+func TestGetContractFundingPriceNilResponse(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`null`))
+	}))
+	resp, err := e.GetContractFundingPrice(t.Context(), futuresTradablePair)
+	require.ErrorIs(t, err, common.ErrNoResults)
+	assert.Nil(t, resp)
+}
+
+// TestGetLatestFundingRatesNilResponse ensures the wrapper propagates the empty payload error
+// rather than panicking on a nil funding rate response
+func TestGetLatestFundingRatesNilResponse(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`null`))
+	}))
+	require.NoError(t, e.setEnabledPairs(spotTradablePair, futuresTradablePair), "setEnabledPairs must not error")
+	resp, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  futuresTradablePair,
+	})
+	require.ErrorIs(t, err, common.ErrNoResults)
+	assert.Nil(t, resp)
 }
 
 func TestPrivateEndpointRequestConstruction(t *testing.T) {
