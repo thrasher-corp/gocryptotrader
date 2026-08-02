@@ -57,7 +57,7 @@ func TestIsFuturesSymbolChannel(t *testing.T) {
 func TestFuturesSubscriptionParam(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesTestExchange(t)
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 
 	param, err := ex.futuresSubscriptionParam(&subscription.Subscription{QualifiedChannel: channelFTicker}, pair)
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestFuturesSubscriptionPayloads(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesTestExchange(t)
 	pairs := currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewBTCUSDT(),
 		currency.NewPair(currency.ETH, currency.USDT),
 	}
 
@@ -140,7 +140,7 @@ func TestSubscribeFuturesRegistersSubscriptions(t *testing.T) {
 	ex := newFuturesTestExchange(t)
 	conn := &captureConn{}
 	subs := subscription.List{
-		{Asset: asset.Futures, Channel: subscription.TickerChannel, QualifiedChannel: channelFTicker, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}},
+		{Asset: asset.Futures, Channel: subscription.TickerChannel, QualifiedChannel: channelFTicker, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
 	}
 	require.NoError(t, ex.SubscribeFutures(t.Context(), conn, subs))
 	require.Len(t, conn.sent, 1, "one payload per subscribed contract must reach the wire")

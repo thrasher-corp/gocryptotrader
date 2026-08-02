@@ -565,9 +565,9 @@ func (e *Exchange) processFuturesTicker(ctx context.Context, data []byte) error 
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
-		Last:         resp.LastPrice,
-		High:         resp.High24Price,
-		Low:          resp.Lower24Price,
+		Last: resp.LastPrice,
+		High: resp.High24Price,
+		Low:  resp.Lower24Price,
 		// Ask1/Bid1 are the best offer and bid. MinAskPrice/MaxBidPrice are the venue's
 		// price-limit band (e.g. last 14.022 -> band 11.222/16.833) and are not a BBO.
 		Ask:          resp.Ask1,
