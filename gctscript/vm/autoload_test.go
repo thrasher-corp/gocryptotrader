@@ -2,6 +2,8 @@ package vm
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGctScriptManagerAutoLoadNonExisting(t *testing.T) {
@@ -14,7 +16,5 @@ func TestGctScriptManagerAutoLoadNonExisting(t *testing.T) {
 		MaxVirtualMachines: &vms,
 	}
 	g.autoLoad()
-	if VMSCount != 0 {
-		t.Errorf("Expected no VMs, got %v", VMSCount)
-	}
+	assert.Zero(t, VMSCount.Len(), "autoLoad should not register virtual machines for missing scripts")
 }

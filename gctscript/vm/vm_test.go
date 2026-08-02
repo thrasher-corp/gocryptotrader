@@ -43,14 +43,14 @@ func TestVMLoad(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	require.NoError(t, testVM.Load(testScript))
+	require.NoError(t, testVM.Load(testScript), "Load must accept the valid script")
 
 	testScript = testScript[0 : len(testScript)-4]
 	testVM = manager.New()
-	require.NoError(t, testVM.Load(testScript))
+	require.NoError(t, testVM.Load(testScript), "Load must accept the script without an extension")
 
 	manager.config = configHelper(false, false, maxTestVirtualMachines)
-	require.NoError(t, testVM.Load(testScript))
+	require.NoError(t, testVM.Load(testScript), "Load must accept the script when imports are disabled")
 }
 
 func TestVMLoad1s(t *testing.T) {
@@ -59,10 +59,10 @@ func TestVMLoad1s(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	require.NoError(t, testVM.Load(testScriptRunner1s))
+	require.NoError(t, testVM.Load(testScriptRunner1s), "Load must accept the one-second timer script")
 
 	testVM.CompileAndRun()
-	require.NoError(t, testVM.Shutdown())
+	require.NoError(t, testVM.Shutdown(), "Shutdown must stop the one-second timer script")
 }
 
 func TestVMLoadNegativeTimer(t *testing.T) {
@@ -71,10 +71,10 @@ func TestVMLoadNegativeTimer(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	require.NoError(t, testVM.Load(testScriptRunnerNegative))
+	require.NoError(t, testVM.Load(testScriptRunnerNegative), "Load must accept the negative-timer script")
 
 	testVM.CompileAndRun()
-	require.Error(t, testVM.Shutdown())
+	require.Error(t, testVM.Shutdown(), "Shutdown must report the negative timer")
 }
 
 func TestVMLoadNilVM(t *testing.T) {
@@ -83,10 +83,10 @@ func TestVMLoadNilVM(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	require.NoError(t, testVM.Load(testScript))
+	require.NoError(t, testVM.Load(testScript), "Load must accept the valid script")
 
 	testVM = nil
-	require.ErrorIs(t, testVM.Load(testScript), ErrNoVMLoaded)
+	require.ErrorIs(t, testVM.Load(testScript), ErrNoVMLoaded, "Load must reject a nil virtual machine")
 }
 
 func TestCompileAndRunNilVM(t *testing.T) {
@@ -96,14 +96,14 @@ func TestCompileAndRunNilVM(t *testing.T) {
 	}
 	vmcount := VMSCount.Len()
 	testVM := manager.New()
-	require.NoError(t, testVM.Load(testScript))
+	require.NoError(t, testVM.Load(testScript), "Load must accept the valid script")
 
-	require.NoError(t, testVM.Load(testScript))
+	require.NoError(t, testVM.Load(testScript), "Load must remain idempotent for the valid script")
 
 	testVM = nil
 	testVM.CompileAndRun()
-	require.ErrorIs(t, testVM.Shutdown(), ErrNoVMLoaded)
-	assert.NotEqual(t, vmcount-1, VMSCount.Len(), "Expected vmcount to decrease")
+	require.ErrorIs(t, testVM.Shutdown(), ErrNoVMLoaded, "Shutdown must reject a nil virtual machine")
+	assert.NotEqual(t, vmcount-1, VMSCount.Len(), "CompileAndRun should not decrement the virtual-machine count after nil reassignment")
 }
 
 func TestVMLoadNoFile(t *testing.T) {
@@ -112,7 +112,7 @@ func TestVMLoadNoFile(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	assert.ErrorIs(t, testVM.Load("missing file"), os.ErrNotExist)
+	assert.ErrorIs(t, testVM.Load("missing file"), os.ErrNotExist, "Load should return the missing-file error")
 }
 
 func TestVMCompile(t *testing.T) {
@@ -122,14 +122,10 @@ func TestVMCompile(t *testing.T) {
 	}
 	testVM := manager.New()
 	err := testVM.Load(testScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the valid script")
 
 	err = testVM.Compile()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Compile must compile the valid script")
 }
 
 func TestVMRun(t *testing.T) {
@@ -139,19 +135,13 @@ func TestVMRun(t *testing.T) {
 	}
 	testVM := manager.NewVM()
 	err := testVM.Load(testScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the valid script")
 
 	err = testVM.Compile()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Compile must compile the valid script")
 
 	err = testVM.RunCtx()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "RunCtx must run the compiled script")
 }
 
 func TestVMRunTX(t *testing.T) {
@@ -161,19 +151,13 @@ func TestVMRunTX(t *testing.T) {
 	}
 	testVM := manager.NewVM()
 	err := testVM.Load(testScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the valid script")
 
 	err = testVM.Compile()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Compile must compile the valid script")
 
 	err = testVM.RunCtx()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "RunCtx must run the compiled transaction script")
 }
 
 func TestVMWithRunner(t *testing.T) {
@@ -183,24 +167,14 @@ func TestVMWithRunner(t *testing.T) {
 	}
 	vmCount := VMSCount.Len()
 	VM := manager.New()
-	if VM == nil {
-		t.Fatal("Failed to allocate new VM exiting")
-	}
+	require.NotNil(t, VM, "New must allocate a virtual machine")
 	err := VM.Load(testScriptRunner)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if VMSCount.Len() == vmCount {
-		t.Fatal("expected VM count to increase")
-	}
+	require.NoError(t, err, "Load must accept the timer script")
+	require.NotEqual(t, vmCount, VMSCount.Len(), "New must increase the virtual-machine count")
 	VM.CompileAndRun()
 	err = VM.Shutdown()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if VMSCount.Len() == vmCount-1 {
-		t.Fatal("expected VM count to decrease")
-	}
+	require.NoError(t, err, "Shutdown must stop the timer script")
+	require.NotEqual(t, vmCount-1, VMSCount.Len(), "Shutdown must update the virtual-machine count")
 }
 
 func TestVMWithRunnerOnce(t *testing.T) {
@@ -210,21 +184,13 @@ func TestVMWithRunnerOnce(t *testing.T) {
 	}
 	vmCount := VMSCount.Len()
 	VM := manager.New()
-	if VM == nil {
-		t.Fatal("Failed to allocate new VM exiting")
-	}
+	require.NotNil(t, VM, "New must allocate a virtual machine")
 	err := VM.Load(testScript)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if VMSCount.Len() == vmCount {
-		t.Fatal("expected VM count to increase")
-	}
+	require.NoError(t, err, "Load must accept the run-once script")
+	require.NotEqual(t, vmCount, VMSCount.Len(), "New must increase the virtual-machine count")
 	VM.CompileAndRun()
 	err = VM.Shutdown()
-	if err == nil {
-		t.Fatal("VM should not be running with invalid timer")
-	}
+	require.Error(t, err, "Shutdown must report the completed run-once script")
 }
 
 func TestVMWithRunnerNegativeTimer(t *testing.T) {
@@ -234,24 +200,14 @@ func TestVMWithRunnerNegativeTimer(t *testing.T) {
 	}
 	vmCount := VMSCount.Len()
 	VM := manager.New()
-	if VM == nil {
-		t.Fatal("Failed to allocate new VM exiting")
-	}
+	require.NotNil(t, VM, "New must allocate a virtual machine")
 	err := VM.Load(testScriptRunnerNegative)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if VMSCount.Len() == vmCount {
-		t.Fatal("expected VM count to increase")
-	}
+	require.NoError(t, err, "Load must accept the negative-timer script")
+	require.NotEqual(t, vmCount, VMSCount.Len(), "New must increase the virtual-machine count")
 	VM.CompileAndRun()
 	err = VM.Shutdown()
-	if err == nil {
-		t.Fatal("VM should not be running with invalid timer")
-	}
-	if VMSCount.Len() == vmCount-1 {
-		t.Fatal("expected VM count to decrease")
-	}
+	require.Error(t, err, "Shutdown must report the negative timer")
+	require.NotEqual(t, vmCount-1, VMSCount.Len(), "Shutdown must update the virtual-machine count")
 }
 
 func TestVMWithRunnerInvalidTimer(t *testing.T) {
@@ -261,25 +217,14 @@ func TestVMWithRunnerInvalidTimer(t *testing.T) {
 	}
 	vmCount := VMSCount.Len()
 	VM := manager.New()
-	if VM == nil {
-		t.Fatal("Failed to allocate new VM exiting")
-	}
+	require.NotNil(t, VM, "New must allocate a virtual machine")
 	err := VM.Load(testScriptRunnerInvalid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if VMSCount.Len() == vmCount {
-		t.Fatal("expected VM count to increase")
-	}
+	require.NoError(t, err, "Load must accept the invalid-timer script")
+	require.NotEqual(t, vmCount, VMSCount.Len(), "New must increase the virtual-machine count")
 	VM.CompileAndRun()
 	err = VM.Shutdown()
-	if err == nil {
-		t.Fatal("VM should not be running with invalid timer")
-	}
-
-	if VMSCount.Len() == vmCount-1 {
-		t.Fatal("expected VM count to decrease")
-	}
+	require.Error(t, err, "Shutdown must report the invalid timer")
+	require.NotEqual(t, vmCount-1, VMSCount.Len(), "Shutdown must update the virtual-machine count")
 }
 
 func TestShutdownAll(t *testing.T) {
@@ -290,23 +235,15 @@ func TestShutdownAll(t *testing.T) {
 	vmCount := VMSCount.Len()
 	VM := manager.New()
 	err := VM.Load(testScriptRunner)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the timer script")
 
 	VM.CompileAndRun()
 
-	if VMSCount.Len() == vmCount {
-		t.Fatal("expected VM count to increase")
-	}
+	require.NotEqual(t, vmCount, VMSCount.Len(), "New must increase the virtual-machine count")
 	err = manager.ShutdownAll()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "ShutdownAll must stop every virtual machine")
 
-	if VMSCount.Len() == vmCount-1 {
-		t.Fatal("expected VM count to decrease")
-	}
+	require.NotEqual(t, vmCount-1, VMSCount.Len(), "ShutdownAll must update the virtual-machine count")
 }
 
 func TestRead(t *testing.T) {
@@ -316,18 +253,12 @@ func TestRead(t *testing.T) {
 	}
 	VM := manager.NewVM()
 	err := VM.Load(testScriptRunner)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the timer script")
 
 	ScriptPath = filepath.Join("..", "..", "testdata", "gctscript")
 	data, err := VM.Read()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(data) < 1 {
-		t.Fatal("expected data to be returned")
-	}
+	require.NoError(t, err, "Read must read the loaded script")
+	require.NotEmpty(t, data, "Read must return script data")
 	_ = VM.Shutdown()
 }
 
@@ -338,11 +269,7 @@ func TestRemoveVM(t *testing.T) {
 	}
 	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := manager.RemoveVM(id)
-	if err != nil {
-		if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
-			t.Fatal(err)
-		}
-	}
+	require.EqualError(t, err, "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found", "RemoveVM must reject an unknown virtual machine")
 }
 
 func TestError_Error(t *testing.T) {
@@ -352,9 +279,7 @@ func TestError_Error(t *testing.T) {
 		Cause:  errors.New("HELLO ERROR"),
 	}
 
-	if x.Error() != "GCT Script: (ACTION) test (SCRIPT) noscript.gct HELLO ERROR" {
-		t.Fatal(x.Error())
-	}
+	require.Equal(t, "GCT Script: (ACTION) test (SCRIPT) noscript.gct HELLO ERROR", x.Error(), "Error must format the script failure")
 }
 
 func TestVM_CompileInvalid(t *testing.T) {
@@ -364,46 +289,30 @@ func TestVM_CompileInvalid(t *testing.T) {
 	}
 	testVM := manager.New()
 	err := testVM.Load(testInvalidScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the invalid-runtime script")
 
 	err = testVM.Compile()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Compile must compile the invalid-runtime script")
 	err = testVM.RunCtx()
-	if err == nil {
-		t.Fatal("unexpected result broken script compiled successfully ")
-	}
+	require.Error(t, err, "RunCtx must reject the invalid-runtime script")
 
 	testVM = manager.New()
 	err = testVM.Load(testInvalidScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the invalid-runtime script on repeat")
 
 	err = testVM.Compile()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Compile must compile the invalid-runtime script on repeat")
 
 	err = testVM.RunCtx()
-	if err == nil {
-		t.Fatal("unexpected result broken script compiled successfully ")
-	}
+	require.Error(t, err, "RunCtx must reject the invalid-runtime script on repeat")
 
 	testVM = manager.New()
 	err = testVM.Load(testInvalidScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the invalid-runtime script for asynchronous execution")
 
 	testVM.CompileAndRun()
 	err = testVM.Shutdown()
-	if err == nil {
-		t.Fatal("Shutdown() passed successfully but expected to fail with invalid script")
-	}
+	require.Error(t, err, "Shutdown must report the invalid-runtime script")
 }
 
 func TestVM_CompileBroken(t *testing.T) {
@@ -413,14 +322,10 @@ func TestVM_CompileBroken(t *testing.T) {
 	}
 	testVM := manager.New()
 	err := testVM.Load(testBrokenScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the syntactically broken script")
 
 	err = testVM.Compile()
-	if err == nil {
-		t.Fatal("unexpected result broken script compiled successfully ")
-	}
+	require.Error(t, err, "Compile must reject the syntactically broken script")
 }
 
 func TestVM_CompileAndRunBroken(t *testing.T) {
@@ -430,15 +335,11 @@ func TestVM_CompileAndRunBroken(t *testing.T) {
 	}
 	testVM := manager.New()
 	err := testVM.Load(testBrokenScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Load must accept the syntactically broken script")
 
 	testVM.CompileAndRun()
 	err = testVM.Shutdown()
-	if err == nil {
-		t.Fatal("expect error on shutdown due to invalid VM")
-	}
+	require.Error(t, err, "Shutdown must report the broken virtual machine")
 }
 
 func TestValidate(t *testing.T) {
@@ -447,13 +348,9 @@ func TestValidate(t *testing.T) {
 		started: 1,
 	}
 	err := manager.Validate(testBrokenScript)
-	if err == nil {
-		t.Fatal(err)
-	}
+	require.Error(t, err, "Validate must reject the broken script")
 	err = manager.Validate(testScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Validate must accept the valid script")
 }
 
 func TestVMLimit(t *testing.T) {
@@ -461,9 +358,7 @@ func TestVMLimit(t *testing.T) {
 		config:  configHelper(true, false, 0),
 		started: 1,
 	}
-	if testVM := manager.New(); testVM != nil {
-		t.Fatal("expected nil but received pointer to VM")
-	}
+	require.Nil(t, manager.New(), "New must enforce the virtual-machine limit")
 }
 
 func TestAutoload(t *testing.T) {
@@ -479,33 +374,21 @@ func TestAutoload(t *testing.T) {
 
 	ScriptPath = filepath.Join("..", "..", "testdata", "gctscript")
 	err := manager.Autoload(scriptName, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Autoload must load the named script")
 	err = manager.Autoload(scriptName, true)
-	if err == nil {
-		t.Fatal("expected err to be script not found received nil")
-	}
+	require.Error(t, err, "Autoload must reject a duplicate named script")
 	err = manager.Autoload("once", false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Autoload must load the extensionless script")
 	err = manager.Autoload(scriptName, false)
-	if err == nil {
-		t.Fatal("expected err to be script not found received nil")
-	}
+	require.Error(t, err, "Autoload must reject the missing extensionless script")
 }
 
 func TestVMCount(t *testing.T) {
 	var c vmscount
 	c.add()
-	if c.Len() != 1 {
-		t.Fatalf("expect c len to be 1 instead received %v", c.Len())
-	}
+	require.Equal(t, uint64(1), c.Len(), "add must increment the virtual-machine count")
 	c.remove()
-	if c.Len() != 0 {
-		t.Fatalf("expect c len to be 0 instead received %v", c.Len())
-	}
+	require.Zero(t, c.Len(), "remove must decrement the virtual-machine count")
 }
 
 func configHelper(enabled, imports bool, maxVMs uint64) *Config {

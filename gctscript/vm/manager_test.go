@@ -1,22 +1,22 @@
 package vm
 
 import (
-	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestNewManager(t *testing.T) {
 	t.Parallel()
-	type args struct {
-		config *Config
-	}
 	sharedConf := &Config{
 		AllowImports: true,
 	}
-	tests := []struct {
+	for _, tc := range []struct {
 		name    string
-		args    args
+		config  *Config
 		want    *GctScriptManager
 		wantErr bool
 	}{
@@ -25,26 +25,23 @@ func TestNewManager(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "config is applied",
-			args: args{
-				config: sharedConf,
-			},
+			name:   "config is applied",
+			config: sharedConf,
 			want: &GctScriptManager{
 				config: sharedConf,
 			},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := NewManager(tt.args.config)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewManager() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := NewManager(tc.config)
+			if tc.wantErr {
+				require.Error(t, err, "NewManager must return an error for invalid configuration")
+				assert.Equal(t, tc.want, got, "NewManager should return the expected manager for invalid configuration")
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewManager() = %v, want %v", got, tt.want)
-			}
+			require.NoError(t, err, "NewManager must accept valid configuration")
+			assert.Equal(t, tc.want, got, "NewManager should return the configured manager")
 		})
 	}
 }
@@ -52,71 +49,67 @@ func TestNewManager(t *testing.T) {
 func TestGctScriptManagerStartStopNominal(t *testing.T) {
 	t.Parallel()
 	mgr, err := NewManager(&Config{AllowImports: true})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewManager must create the manager")
 	var wg sync.WaitGroup
 	err = mgr.Start(&wg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if mgr.started != 1 {
-		t.Errorf("Manager should be started (%v)", mgr.started)
-	}
+	require.NoError(t, err, "Start must start the manager")
+	assert.Equal(t, int32(1), mgr.started, "Start should mark the manager as started")
 	err = mgr.Stop()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Stop must stop the manager")
 	wg.Wait()
-	if mgr.started != 0 {
-		t.Errorf("Manager should be stopped, expected=%v, got %v", 0, mgr.started)
-	}
+	assert.Zero(t, mgr.started, "Stop should mark the manager as stopped")
+}
+
+func TestGctScriptManagerStartStopErrors(t *testing.T) {
+	mgr, err := NewManager(&Config{AllowImports: true})
+	require.NoError(t, err, "NewManager must create the manager")
+	require.ErrorIs(t, mgr.Start(nil), common.ErrNilPointer, "Start must reject a nil wait group")
+	require.EqualError(t, mgr.Stop(), "GCTScript not running", "Stop must reject a manager that is not running")
+
+	var wg sync.WaitGroup
+	require.NoError(t, mgr.Start(&wg), "Start must start the manager")
+	require.EqualError(t, mgr.Start(&wg), "GCTScript validation failed", "Start must reject an already running manager")
+	require.NoError(t, mgr.Stop(), "Stop must stop the manager")
+	wg.Wait()
+
+	var nilManager *GctScriptManager
+	require.ErrorIs(t, nilManager.Stop(), ErrNilSubsystem, "Stop must reject a nil manager")
 }
 
 func TestGctScriptManagerGetMaxVirtualMachines(t *testing.T) {
-	type fields struct {
+	var value uint64 = 6
+	for _, tc := range []struct {
+		name               string
 		config             *Config
 		started            int32
 		shutdown           chan struct{}
-		MaxVirtualMachines *uint64
-	}
-	var value uint64 = 6
-	tests := []struct {
-		name   string
-		fields fields
-		want   uint64
+		maxVirtualMachines *uint64
+		want               uint64
 	}{
 		{
 			name: "get from config",
-			fields: fields{
-				config: &Config{
-					MaxVirtualMachines: 7,
-				},
+			config: &Config{
+				MaxVirtualMachines: 7,
 			},
 			want: 7,
 		},
 		{
 			name: "get from manager",
-			fields: fields{
-				config: &Config{
-					MaxVirtualMachines: 7,
-				},
-				MaxVirtualMachines: &value,
+			config: &Config{
+				MaxVirtualMachines: 7,
 			},
-			want: 6,
+			maxVirtualMachines: &value,
+			want:               6,
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			g := &GctScriptManager{
-				config:             tt.fields.config,
-				started:            tt.fields.started,
-				shutdown:           tt.fields.shutdown,
-				MaxVirtualMachines: tt.fields.MaxVirtualMachines,
+				config:             tc.config,
+				started:            tc.started,
+				shutdown:           tc.shutdown,
+				MaxVirtualMachines: tc.maxVirtualMachines,
 			}
-			if got := g.GetMaxVirtualMachines(); got != tt.want {
-				t.Errorf("GctScriptManager.GetMaxVirtualMachines() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tc.want, g.GetMaxVirtualMachines(), "GetMaxVirtualMachines should return the configured limit")
 		})
 	}
 }
