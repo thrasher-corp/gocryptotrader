@@ -2,7 +2,7 @@ package mexc
 
 import (
 	"context"
-	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -1428,7 +1428,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		if err != nil {
 			return err
 		}
-		values.Set("signature", base64.StdEncoding.EncodeToString(hmac))
+		values.Set("signature", hex.EncodeToString(hmac))
 	}
 	var payload string
 	if arg != nil {

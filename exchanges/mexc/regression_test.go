@@ -2,14 +2,17 @@ package mexc
 
 import (
 	"context"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -33,6 +36,36 @@ func newSignedTestExchange(t *testing.T, handler http.Handler) *Exchange {
 		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(k, server.URL), "SetRunningURL must not error for %s", k)
 	}
 	return ex
+}
+
+// TestSignatureIsHexEncoded pins the encoding of the request signature. MEXC's spot API follows the
+// same scheme as Binance and expects the HMAC-SHA256 digest hex encoded; a base64 digest is rejected
+// as an invalid signature, so the encoding is part of the contract rather than a free choice.
+func TestSignatureIsHexEncoded(t *testing.T) {
+	t.Parallel()
+	var gotQuery url.Values
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.Query()
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	_, err := e.GetAccountInformation(t.Context())
+	require.NoError(t, err, "GetAccountInformation must not error")
+
+	signature := gotQuery.Get("signature")
+	require.NotEmpty(t, signature, "signature query parameter must be set on an authenticated request")
+	assert.Regexp(t, `^[0-9a-f]{64}$`, signature, "signature should be a hex encoded SHA256 digest, not base64")
+
+	// Recompute the digest over the transmitted parameters, proving both that the signature covers
+	// the request actually sent and that hex is the encoding applied to it.
+	signed := url.Values{}
+	for k, v := range gotQuery {
+		if k != "signature" {
+			signed[k] = v
+		}
+	}
+	expected, err := crypto.GetHMAC(crypto.HashSHA256, []byte(signed.Encode()), []byte(testCredentialSecret))
+	require.NoError(t, err, "GetHMAC must not error")
+	assert.Equal(t, hex.EncodeToString(expected), signature, "signature should be the hex encoded HMAC-SHA256 of the transmitted query")
 }
 
 func TestPrivateEndpointRequestConstruction(t *testing.T) {
