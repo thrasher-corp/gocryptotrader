@@ -64,53 +64,7 @@ const (
 	internalTransferEPL
 	getInternalTransferHistoryEPL
 	capitalWithdrawalEPL
-	contractsDetailEPL
-	getTransferableCurrenciesEPL
-	getContractDepthInfoEPL
-	getDepthSnapshotOfContractEPL
-	getContractIndexPriceEPL
-	getContractFairPriceEPL
-	getContractFundingPriceEPL
-	getContractsCandlestickEPL
-	getContractTransactionEPL
-	getContractTickersEPL
-	getAllContrRiskFundBalanceEPL
-	contractRiskFundBalanceEPL
-	contractFundingRateHistoryEPL
-	allUserAssetsInfoEPL
-	userSingleCurrencyAssetInfoEPL
-	userAssetTransferRecordsEPL
-	userPositionHistoryEPL
-	usersCurrentHoldingPositionsEPL
-	usersFundingRateDetailsEPL
-	userCurrentPendingOrderEPL
-	allUserHistoricalOrdersEPL
-	getOrderBasedOnExternalNumberEPL
-	orderByOrderNumberEPL
-	batchOrdersByOrderIDEPL
-	orderTransactionDetailsByOrderIDEPL
-	userOrderAllTransactionDetailsEPL
-	triggerOrderListEPL
-	futuresStopLimitOrderListEPL
-	futuresRiskLimitEPL
-	futuresCurrentTradingFeeRateEPL
-	increaseDecreaseMarginEPL
-	contractLeverageEPL
-	switchLeverageEPL
-	getPositionModeEPL
-	changePositionModeEPL
-	placeFuturesOrderEPL
 
-	cancelOrderByClientOrderIDEPL
-	cancelAllOpenOrdersEPL
-	placeFuturesTriggerOrderEPL
-	cancelAllTriggerOrdersEPL
-	cancelSLTriggerOrderEPL
-	cancelALlSLPriceTriggerOrdersEPL
-	switchSLPriceOfTriggerPriceEPL
-	switchSLLimitedOrderPriceEPL
-
-	universalTransferhistoryEPL
 	getUniversalTransferhistoryEPL
 	getUserRebateHistoryEPL
 	getRebateRecordsDetailEPL
@@ -183,53 +137,6 @@ func GetRateLimit() request.RateLimitDefinitions {
 		internalTransferEPL:               request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getInternalTransferHistoryEPL:     request.GetRateLimiterWithWeight(ipModeRate, 1),
 		capitalWithdrawalEPL:              request.GetRateLimiterWithWeight(ipModeRate, 1),
-
-		contractsDetailEPL:            request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
-		getTransferableCurrenciesEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getContractDepthInfoEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getDepthSnapshotOfContractEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getContractIndexPriceEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getContractFairPriceEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getContractFundingPriceEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getContractsCandlestickEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getContractTransactionEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getContractTickersEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getAllContrRiskFundBalanceEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		contractRiskFundBalanceEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		contractFundingRateHistoryEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		allUserAssetsInfoEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-
-		userSingleCurrencyAssetInfoEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		userAssetTransferRecordsEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		userPositionHistoryEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		usersCurrentHoldingPositionsEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		usersFundingRateDetailsEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		userCurrentPendingOrderEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		allUserHistoricalOrdersEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getOrderBasedOnExternalNumberEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		orderByOrderNumberEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		batchOrdersByOrderIDEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		orderTransactionDetailsByOrderIDEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		userOrderAllTransactionDetailsEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		triggerOrderListEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		futuresStopLimitOrderListEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		futuresRiskLimitEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		futuresCurrentTradingFeeRateEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		increaseDecreaseMarginEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		contractLeverageEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		switchLeverageEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getPositionModeEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		changePositionModeEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		placeFuturesOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-
-		cancelOrderByClientOrderIDEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAllOpenOrdersEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		placeFuturesTriggerOrderEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAllTriggerOrdersEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelSLTriggerOrderEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelALlSLPriceTriggerOrdersEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		switchSLPriceOfTriggerPriceEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		switchSLLimitedOrderPriceEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		getUniversalTransferhistoryEPL:  request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getUserRebateHistoryEPL:         request.GetRateLimiterWithWeight(ipModeRate, 1),

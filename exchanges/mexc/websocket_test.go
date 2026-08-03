@@ -34,37 +34,9 @@ func TestWsHandle(t *testing.T) {
 	}
 }
 
-func TestWsHandleFuturesData(t *testing.T) {
-	t.Parallel()
-	futuresWsPushDataMap := map[string]string{
-		"sub.tickers":                 `{"channel": "push.tickers", "data": [ { "fairPrice": 183.01, "lastPrice": 183, "riseFallRate": -0.0708, "symbol": "BSV_USDT", "volume24": 200 }, { "fairPrice": 220.22, "lastPrice": 220.4, "riseFallRate": -0.0686, "symbol": "BCH_USDT", "volume24": 200 } ], "ts": 1587442022003}`,
-		"push.ticker":                 `{"symbol":"LINK_USDT","data":{"symbol":"LINK_USDT","lastPrice":14.022,"riseFallRate":-0.0270,"fairPrice":14.022,"indexPrice":14.028,"volume24":104524120,"amount24":149228107.8277,"maxBidPrice":16.833,"minAskPrice":11.222,"lower24Price":13.967,"high24Price":14.518,"timestamp":1746351275382,"bid1":14.02,"ask1":14.021,"holdVol":14558875,"riseFallValue":-0.390,"fundingRate":-0.000045,"zone":"UTC+8","riseFallRates":[-0.0270,-0.0594,0.1172,-0.3674,0.3499,0.0065],"riseFallRatesOfTimezone":[-0.0238,-0.0153,-0.0270]},"channel":"push.ticker","ts":1746351275382}`,
-		"push.deal":                   `{"symbol":"IOTA_USDT","data":[{"p":0.1834,"v":97,"T":1,"O":1,"M":2,"t":1748810708074}],"channel":"push.deal","ts":1748810708074}`,
-		"sub.depth":                   `{"channel":"push.depth", "data":{ "asks":[ [ 6859.5, 3251, 1 ] ], "bids":[ ], "version":96801927 }, "symbol":"BTC_USDT", "ts":1587442022003}`,
-		"push.kline":                  `{"symbol":"CHEEMS_USDT","data":{"symbol":"CHEEMS_USDT","interval":"Min15","t":1746351000,"o":0.0000015036,"c":0.0000014988,"h":0.0000015036,"l":0.0000014962,"a":1183.078,"q":79,"ro":0.0000015021,"rc":0.0000014988,"rh":0.0000015021,"rl":0.0000014962},"channel":"push.kline","ts":1746351123147}`,
-		"sub.funding.rate":            `{"channel":"push.funding.rate", "data":{ "rate":0.001, "symbol":"BTC_USDT" }, "symbol":"BTC_USDT", "ts":1587442022003 }`,
-		"push.index.price":            `{"symbol":"BSV_USDT","data":{"symbol":"BSV_USDT","price":36.64},"channel":"push.index.price","ts":1746351370315}`,
-		"push.fair.price":             `{"symbol":"YZYSOL_USDT","data":{"symbol":"YZYSOL_USDT","price":0.00278},"channel":"push.fair.price","ts":1746351543720}`,
-		"push.personal.order":         `{"channel":"push.personal.order", "data":{ "category":1, "createTime":1610005069976, "dealAvgPrice":0.731, "dealVol":1, "errorCode":0, "externalOid":"_m_95bc2b72d3784bce8f9efecbdef9fe35", "feeCurrency":"USDT", "leverage":0, "makerFee":0, "openType":1, "orderId":"102067003631907840", "orderMargin":0, "orderType":5, "positionId":1397818, "price":0.707, "profit":-0.0005, "remainVol":0, "side":4, "state":3, "symbol":"CRV_USDT", "takerFee":0.00004386, "updateTime":1610005069983, "usedMargin":0, "version":2, "vol":1 }, "ts":1610005069989}`,
-		"push.personal.asset":         `{"channel":"push.personal.asset", "data":{ "availableBalance":0.7514236, "bonus":0, "currency":"USDT", "frozenBalance":0, "positionMargin":0 }, "ts":1610005070083}`,
-		"push.personal.position":      `{"channel":"push.personal.position", "data":{ "autoAddIm":false, "closeAvgPrice":0.731, "closeVol":1, "frozenVol":0, "holdAvgPrice":0.736, "holdFee":0, "holdVol":0, "im":0, "leverage":15, "liquidatePrice":0, "oim":0, "openAvgPrice":0.736, "openType":1, "positionId":1397818, "positionType":1, "realised":-0.0005, "state":3, "symbol":"CRV_USDT" },"ts":1610005070157}`,
-		"push.personal.adl.level":     `{"channel":"push.personal.adl.level", "data":{ "adlLevel":0, "positionId":1397818 }, "ts":1610005032231 }`,
-		"push.personal.position.mode": `{"channel":"push.personal.position.mode", "data":{ "positionMode": 1 }, "ts":1610005070157}`,
-		"push.fullDepth":              `{"symbol":"INIT_USDT","data":{"asks":[[0.7542,1484,1],[0.7543,4676,2],[0.7544,11626,2],[0.7545,8247,1],[0.7546,20469,1],[0.7547,10241,1],[0.7548,26518,1],[0.7549,10490,1],[0.755,21088,1],[0.7551,16653,1],[0.7552,22110,1],[0.7553,26518,1],[0.7554,26252,1],[0.7555,16962,1],[0.7556,26518,1],[0.7557,16926,1],[0.7558,18085,1],[0.7559,16484,1],[0.756,26518,1],[0.7561,9654,1]],"bids":[[0.7541,374,1],[0.754,3186,3],[0.7539,3995,1],[0.7538,10560,1],[0.7537,12689,1],[0.7536,14731,1],[0.7535,18077,1],[0.7534,11203,1],[0.7533,9609,1],[0.7532,20530,1],[0.7531,10936,1],[0.753,11492,1],[0.7529,13563,1],[0.7528,15658,1],[0.7527,10737,1],[0.7526,15113,1],[0.7525,20870,1],[0.7524,13257,1],[0.7523,16629,1],[0.7522,10854,1]],"version":197614550},"channel":"push.depth.full","ts":1748810839220}`,
-	}
-	for elem := range futuresWsPushDataMap {
-		t.Run(elem, func(t *testing.T) {
-			t.Parallel()
-			err := e.WsHandleFuturesData(context.Background(), nil, []byte(futuresWsPushDataMap[elem]))
-			assert.NoErrorf(t, err, "WsHandleFuturesData should not error for %s", elem)
-		})
-	}
-}
-
 func TestAssetTypeToString(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "spot", assetTypeToString(asset.Spot))
-	assert.Equal(t, "futures", assetTypeToString(asset.Futures))
 	assert.Empty(t, assetTypeToString(asset.Margin))
 }
 
@@ -75,12 +47,6 @@ func TestChannelName(t *testing.T) {
 		channel  string
 		expected string
 	}{
-		{asset.Futures, subscription.TickerChannel, channelFTicker},
-		{asset.Futures, subscription.OrderbookChannel, channelFDepthFull},
-		{asset.Futures, subscription.AllTradesChannel, channelFDeal},
-		{asset.Futures, subscription.CandlesChannel, channelFKline},
-		{asset.Futures, subscription.MyOrdersChannel, channelFPersonalOrder},
-		{asset.Futures, subscription.MyAccountChannel, channelFPersonalAssets},
 		{asset.Spot, subscription.TickerChannel, channelBookTiker},
 		{asset.Spot, subscription.OrderbookChannel, channelLimitDepthV3},
 		{asset.Spot, subscription.AllTradesChannel, channelAggreDealsV3},
@@ -92,8 +58,8 @@ func TestChannelName(t *testing.T) {
 	} {
 		assert.Equalf(t, tc.expected, channelName(&subscription.Subscription{Asset: tc.asset, Channel: tc.channel}), "channelName should return correct channel for %s %s", tc.asset, tc.channel)
 	}
-	assert.NotEqual(t, channelFTickers, channelName(&subscription.Subscription{Asset: asset.Futures, Channel: subscription.TickerChannel}),
-		"futures ticker must not resolve to the venue-wide broadcast channel")
+	assert.Equal(t, subscription.TickerChannel, channelName(&subscription.Subscription{Asset: asset.Margin, Channel: subscription.TickerChannel}),
+		"an unsupported asset should fall through to the raw channel name")
 }
 
 // wsPushFrame builds a protobuf push frame the way MEXC sends it: the qualified channel is the
@@ -222,12 +188,6 @@ func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {
 		assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, s.QualifiedChannel, "miniTicker should carry the mandatory timezone suffix; MEXC blocks the subscription without it")
 	}
 	assert.True(t, found, "the spot miniTicker channel should be subscribed")
-}
-
-func TestIsFutures(t *testing.T) {
-	t.Parallel()
-	assert.True(t, isFutures(&subscription.Subscription{Asset: asset.Futures}))
-	assert.False(t, isFutures(&subscription.Subscription{Asset: asset.Spot}))
 }
 
 func TestIsSymbolChannel(t *testing.T) {

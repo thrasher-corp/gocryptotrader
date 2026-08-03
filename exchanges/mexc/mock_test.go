@@ -27,11 +27,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	futuresTradablePair, err = currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
+	if err := e.setEnabledPairs(spotTradablePair); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())

@@ -95,34 +95,14 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, c
 }
 
 func assetTypeToString(assetType asset.Item) string {
-	switch assetType {
-	case asset.Spot, asset.Futures:
-		return strings.ToLower(assetType.String())
-	default:
+	if assetType != asset.Spot {
 		return ""
 	}
+	return strings.ToLower(assetType.String())
 }
 
 func channelName(s *subscription.Subscription) string {
-	switch s.Asset {
-	case asset.Futures:
-		switch s.Channel {
-		case subscription.TickerChannel:
-			// channelFTicker is per-symbol; channelFTickers is a broadcast of every
-			// contract on the venue and must not be used for a pair subscription.
-			return channelFTicker
-		case subscription.OrderbookChannel:
-			return channelFDepthFull
-		case subscription.AllTradesChannel:
-			return channelFDeal
-		case subscription.CandlesChannel:
-			return channelFKline
-		case subscription.MyOrdersChannel:
-			return channelFPersonalOrder
-		case subscription.MyAccountChannel:
-			return channelFPersonalAssets
-		}
-	case asset.Spot:
+	if s.Asset == asset.Spot {
 		switch s.Channel {
 		case subscription.TickerChannel:
 			return channelBookTiker
@@ -141,10 +121,6 @@ func channelName(s *subscription.Subscription) string {
 		}
 	}
 	return s.Channel
-}
-
-func isFutures(s *subscription.Subscription) bool {
-	return s.Asset == asset.Futures
 }
 
 var defaultSubscriptions = subscription.List{
@@ -176,7 +152,6 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 			"assetTypeToString": assetTypeToString,
 			"wsIntervalString":  wsIntervalString,
 			"isSymbolChannel":   isSymbolChannel,
-			"isFutures":         isFutures,
 			"formatPair":        e.FormatExchangeCurrency,
 		}).
 		Parse(subTplText)
@@ -844,10 +819,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 const subTplText = `
-{{- if isFutures $.S -}}
-	{{- channelName $.S -}}
-{{- else -}}
-	{{- with $name := channelName $.S }}
+{{- with $name := channelName $.S }}
 		{{- if isSymbolChannel $name -}}
 			{{- range $asset, $pairs := $.AssetPairs }}
 				{{- if (gt $.S.Interval 0) }}
@@ -872,9 +844,8 @@ const subTplText = `
 				{{- end }}
 				{{- $.AssetSeparator }}
 			{{- end }}
-		{{- else }}
-			{{- assetTypeToString $.S.Asset}}@{{- $name -}}
-		{{- end }}
+	{{- else }}
+		{{- assetTypeToString $.S.Asset}}@{{- $name -}}
 	{{- end }}
 {{- end }}
 `

@@ -30,8 +30,7 @@ type Exchange struct {
 }
 
 const (
-	spotAPIURL     = "https://api.mexc.com"
-	contractAPIURL = "https://contract.mexc.com"
+	spotAPIURL = "https://api.mexc.com"
 )
 
 var (
@@ -44,10 +43,6 @@ var (
 	errAccountTypeRequired        = errors.New("account type information required")
 	errTransactionIDRequired      = errors.New("missing transaction ID")
 	errPaginationLimitIsRequired  = errors.New("limit is required")
-	errPageSizeRequired           = errors.New("page size is required")
-	errPageNumberRequired         = errors.New("page number is required")
-	errMissingLeverage            = errors.New("leverage is required")
-	errPositionModeRequired       = errors.New("position mode is required")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -1408,11 +1403,8 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		return err
 	}
 	var versionStr string
-	switch ep {
-	case exchange.RestSpot:
+	if ep == exchange.RestSpot {
 		versionStr = "/api/v3/"
-	case exchange.RestFutures:
-		versionStr = "/api/v1/"
 	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"

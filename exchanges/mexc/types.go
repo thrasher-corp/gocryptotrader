@@ -1319,10 +1319,6 @@ type WsSubscriptionPayload struct {
 	ID     int64    `json:"id,omitempty"`
 	Method string   `json:"method"`
 	Params []string `json:"params"`
-
-	// useb with futures instruments subscriptions.
-	Param *FWebsocketReqParam `json:"param,omitempty"`
-	GZip  bool                `json:"gzip,omitempty"`
 }
 
 // WsSubscriptionResponse represents a websocket subscription status message response detail

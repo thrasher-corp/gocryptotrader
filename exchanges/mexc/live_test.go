@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 	if err := populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	if err := e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
+	if err := e.setEnabledPairs(spotTradablePair); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
@@ -47,13 +47,5 @@ func populateTradablePairs() error {
 		return err
 	}
 	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
-	if err != nil {
-		return err
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	futuresTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
 	return err
 }

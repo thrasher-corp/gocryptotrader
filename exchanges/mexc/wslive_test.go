@@ -87,7 +87,7 @@ collect:
 		}
 	}
 
-	t.Logf("за %s: тикеров %d (с ненулевыми Bid/Ask %d, с ненулевым Last %d), наблюдений стакана %d",
+	t.Logf("over %s: %d tickers (%d with a non-zero bid/ask, %d with a non-zero last), %d orderbook updates",
 		window, tickers, tickersWithBBO, tickersWithLast, bookUpdates)
 	assert.Positive(t, tickersWithBBO, "websocket ticker with a non-zero best bid/offer should arrive")
 	assert.Positive(t, tickersWithLast, "websocket ticker should carry a last price")
