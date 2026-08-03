@@ -20,8 +20,8 @@ func BenchmarkReverse(b *testing.B) {
 	}
 }
 
-// BenchmarkSortAsksDecending measures the full-sort path for asks.
-func BenchmarkSortAsksDecending(b *testing.B) {
+// BenchmarkSortAsksDescending measures the full-sort path for asks.
+func BenchmarkSortAsksDescending(b *testing.B) {
 	lvls := levelsFixture()
 	lvls.Reverse()
 	bucket := make(Levels, len(lvls))
