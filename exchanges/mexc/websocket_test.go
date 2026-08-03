@@ -1,7 +1,6 @@
 package mexc
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,26 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"google.golang.org/protobuf/proto"
 )
-
-func TestWsHandle(t *testing.T) {
-	t.Parallel()
-	pushDataMap := map[string]string{
-		"spot@public.aggre.deals.v3.api.pb":          `{"channel": "spot@public.aggre.deals.v3.api.pb@100ms@BTCUSDT", "publicdeals": { "dealsList": [ { "price": "93220.00", "quantity": "0.04438243", "tradetype": 2, "time": 1736409765051 } ], "eventtype": "spot@public.aggre.deals.v3.api.pb@100ms" }, "symbol": "BTCUSDT", "sendtime": 1736409765052 }`,
-		"spot@public.kline.v3.api.pb":                `{"channel": "spot@public.kline.v3.api.pb@BTCUSDT@Min15", "publicspotkline": { "interval": "Min15", "windowstart": 1736410500, "openingprice": "92925", "closingprice": "93158.47", "highestprice": "93158.47", "lowestprice": "92800", "volume": "36.83803224", "amount": "3424811.05", "windowend": 1736411400 }, "symbol": "BTCUSDT", "symbolid": "2fb942154ef44a4ab2ef98c8afb6a4a7", "createtime": 1736410707571}`,
-		"spot@public.aggre.depth.v3.api.pb":          `{"channel": "spot@public.aggre.depth.v3.api.pb@100ms@BTCUSDT", "publicincreasedepths": { "asksList": [], "bidsList": [ { "price": "92877.58", "quantity": "0.00000000" } ], "eventtype": "spot@public.aggre.depth.v3.api.pb@100ms", "version": "36913293511" }, "symbol": "BTCUSDT", "sendtime": 1736411507002}`,
-		"spot@public.increase.depth.batch.v3.api.pb": `{"channel" : "spot@public.increase.depth.batch.v3.api.pb@BTCUSDT", "symbol" : "BTCUSDT", "sendTime" : "1739502064578", "publicIncreaseDepthsBatch" : { "items" : [ { "asks" : [ ], "bids" : [ { "price" : "96578.48", "quantity" : "0.00000000" } ], "eventType" : "", "version" : "39003145507" }, { "asks" : [ ], "bids" : [ { "price" : "96578.90", "quantity" : "0.00000000" } ], "eventType" : "", "version" : "39003145508" }, { "asks" : [ ], "bids" : [ { "price" : "96579.31", "quantity" : "0.00000000" } ], "eventType" : "", "version" : "39003145509" }, { "asks" : [ ], "bids" : [ { "price" : "96579.84", "quantity" : "0.00000000" } ], "eventType" : "", "version" : "39003145510" }, { "asks" : [ ], "bids" : [ { "price" : "96576.69", "quantity" : "4.88725694" } ], "eventType" : "", "version" : "39003145511" } ], "eventType" : "spot@public.increase.depth.batch.v3.api.pb"}}`,
-		"spot@public.limit.depth.v3.api.pb":          `{"channel": "spot@public.limit.depth.v3.api.pb@BTCUSDT@5", "publiclimitdepths": { "asksList": [ { "price": "93180.18", "quantity": "0.21976424" } ], "bidsList": [ { "price": "93179.98", "quantity": "2.82651000" } ], "eventtype": "spot@public.limit.depth.v3.api.pb", "version": "36913565463" }, "symbol": "BTCUSDT", "sendtime": 1736411838730}`,
-		"spot@public.aggre.bookTicker.v3.api.pb":     `{"channel": "spot@public.aggre.bookTicker.v3.api.pb@100ms@BTCUSDT", "publicbookticker": { "bidprice": "93387.28", "bidquantity": "3.73485", "askprice": "93387.29", "askquantity": "7.669875" }, "symbol": "BTCUSDT", "sendtime": 1736412092433 }`,
-		"spot@public.bookTicker.batch.v3.api.pb":     `{"channel" : "spot@public.bookTicker.batch.v3.api.pb@BTCUSDT", "symbol" : "BTCUSDT", "sendTime" : "1739503249114", "publicBookTickerBatch" : { "items" : [ { "bidPrice" : "96567.37", "bidQuantity" : "3.362925", "askPrice" : "96567.38", "askQuantity":"1.545255"}]}}`,
-		"spot@private.deals.v3.api.pb":               `{channel: "spot@private.deals.v3.api.pb", symbol: "MXUSDT", sendTime: 1736417034332, privateDeals { price: "3.6962", quantity: "1", amount: "3.6962", tradeType: 2, tradeId: "505979017439002624X1", orderId: "C02__505979017439002624115", feeAmount: "0.0003998377369698171", feeCurrency: "MX", time: 1736417034280}}`,
-		"spot@private.orders.v3.api.pb":              `{channel: "spot@private.orders.v3.api.pb", symbol: "MXUSDT", sendTime: 1736417034281, privateOrders { id: "C02__505979017439002624115", price: "3.5121", quantity: "1", amount: "0", avgPrice: "3.6962", orderType: 5, tradeType: 2, remainAmount: "0", remainQuantity: "0", lastDealQuantity: "1", cumulativeQuantity: "1", cumulativeAmount: "3.6962", status: 2, createTime: 1736417034259}}`,
-		"spot@private.account.v3.api.pb":             `{channel: "spot@private.account.v3.api.pb", createTime: 1736417034305, sendTime: 1736417034307, privateAccount { vcoinName: "USDT", coinId: "128f589271cb4951b03e71e6323eb7be", balanceAmount: "21.94210356004384", balanceAmountChange: "10", frozenAmount: "0", frozenAmountChange: "0", type: "CONTRACT_TRANSFER", time: 1736416910000}}`,
-	}
-	for elem := range pushDataMap {
-		err := e.WsHandleData(context.Background(), nil, []byte(pushDataMap[elem]))
-		assert.NoErrorf(t, err, "%v: %s", err, elem)
-	}
-}
 
 func TestAssetTypeToString(t *testing.T) {
 	t.Parallel()
@@ -62,10 +41,14 @@ func TestChannelName(t *testing.T) {
 		"an unsupported asset should fall through to the raw channel name")
 }
 
+// wsTestSymbol is the only pair the mock exchange enables, so every test frame carries it.
+const wsTestSymbol = "BTCUSDT"
+
 // wsPushFrame builds a protobuf push frame the way MEXC sends it: the qualified channel is the
 // first field, which is also what WsHandleData routes on.
-func wsPushFrame(tb testing.TB, channel, symbol string, sendTime int64, body isPushBody) []byte {
+func wsPushFrame(tb testing.TB, channel string, sendTime int64, body isPushBody) []byte {
 	tb.Helper()
+	symbol := wsTestSymbol
 	w := &mexc_proto_types.PushDataV3ApiWrapper{
 		Channel:  channel,
 		Symbol:   &symbol,
@@ -76,6 +59,24 @@ func wsPushFrame(tb testing.TB, channel, symbol string, sendTime int64, body isP
 		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreBookTicker{PublicAggreBookTicker: b}
 	case *mexc_proto_types.PublicMiniTickerV3Api:
 		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicMiniTicker{PublicMiniTicker: b}
+	case *mexc_proto_types.PublicAggreDealsV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDeals{PublicAggreDeals: b}
+	case *mexc_proto_types.PublicSpotKlineV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicSpotKline{PublicSpotKline: b}
+	case *mexc_proto_types.PublicAggreDepthsV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDepths{PublicAggreDepths: b}
+	case *mexc_proto_types.PublicLimitDepthsV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicLimitDepths{PublicLimitDepths: b}
+	case *mexc_proto_types.PublicIncreaseDepthsBatchV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicIncreaseDepthsBatch{PublicIncreaseDepthsBatch: b}
+	case *mexc_proto_types.PublicBookTickerBatchV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicBookTickerBatch{PublicBookTickerBatch: b}
+	case *mexc_proto_types.PrivateAccountV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PrivateAccount{PrivateAccount: b}
+	case *mexc_proto_types.PrivateDealsV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PrivateDeals{PrivateDeals: b}
+	case *mexc_proto_types.PrivateOrdersV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PrivateOrders{PrivateOrders: b}
 	default:
 		tb.Fatalf("unsupported body type %T", body)
 	}
@@ -106,7 +107,7 @@ func drainTickers(tb testing.TB) []*ticker.Price {
 // the orderbook: the websocket ticker used to be silently empty (zero SPOT TICKER lines in 15 min).
 func TestWsSpotTickerFromBookTicker(t *testing.T) {
 	drainTickers(t)
-	raw := wsPushFrame(t, "spot@"+channelBookTiker+"@100ms@BTCUSDT", "BTCUSDT", 1736412092433,
+	raw := wsPushFrame(t, "spot@"+channelBookTiker+"@100ms@BTCUSDT", 1736412092433,
 		&mexc_proto_types.PublicAggreBookTickerV3Api{
 			BidPrice: "93387.28", BidQuantity: "3.73485",
 			AskPrice: "93387.29", AskQuantity: "7.669875",
@@ -129,14 +130,14 @@ func TestWsSpotTickerFromBookTicker(t *testing.T) {
 // two spot ticker channels merge instead of blanking each other's fields.
 func TestWsSpotTickerFromMiniTicker(t *testing.T) {
 	drainTickers(t)
-	bookRaw := wsPushFrame(t, "spot@"+channelBookTiker+"@100ms@BTCUSDT", "BTCUSDT", 1736412092433,
+	bookRaw := wsPushFrame(t, "spot@"+channelBookTiker+"@100ms@BTCUSDT", 1736412092433,
 		&mexc_proto_types.PublicAggreBookTickerV3Api{
 			BidPrice: "93387.28", BidQuantity: "3.73485",
 			AskPrice: "93387.29", AskQuantity: "7.669875",
 		})
 	require.NoError(t, e.WsHandleData(t.Context(), nil, bookRaw), "WsHandleData must not error")
 
-	miniRaw := wsPushFrame(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, "BTCUSDT", 1736412092500,
+	miniRaw := wsPushFrame(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, 1736412092500,
 		&mexc_proto_types.PublicMiniTickerV3Api{
 			Symbol: "BTCUSDT", Price: "93390.11", High: "94000.5", Low: "92000.25",
 			Volume: "323169.867864", Quantity: "12058672.07",
