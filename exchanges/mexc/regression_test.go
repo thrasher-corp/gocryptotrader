@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -135,6 +136,42 @@ func TestPrivateEndpointRequestConstruction(t *testing.T) {
 			assert.Truef(t, strings.HasPrefix(gotPath, "/api/v3/"), "spot and broker endpoints should be versioned under /api/v3/, got %s", gotPath)
 			assert.NotEmpty(t, gotAPIKey, "X-MEXC-APIKEY header should be set on an authenticated request")
 			assert.NotEmpty(t, gotSignature, "signature query parameter should be set on an authenticated request")
+		})
+	}
+}
+
+// TestBatchOrderCreationParamMarshalsNumbersAsStrings pins the wire format of the batch order
+// parameters. MEXC expects the numeric fields as quoted decimal strings; types.Number encodes them
+// that way (and, unlike a float64 with json:",string", never falls back to exponent notation),
+// while zero values stay omitted.
+func TestBatchOrderCreationParamMarshalsNumbersAsStrings(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		param    BatchOrderCreationParam
+		expected string
+	}{
+		{
+			name:     "populated",
+			param:    BatchOrderCreationParam{OrderType: "LIMIT", Price: 1.23, Quantity: 0.5, Symbol: currency.NewBTCUSDT(), Side: "BUY"},
+			expected: `{"type":"LIMIT","price":"1.23","quantity":"0.5","symbol":"BTCUSDT","side":"BUY"}`,
+		},
+		{
+			name:     "zero numbers omitted",
+			param:    BatchOrderCreationParam{OrderType: "LIMIT", QuoteOrderQty: 10, Symbol: currency.NewBTCUSDT(), Side: "BUY", NewClientOrderID: 7},
+			expected: `{"type":"LIMIT","quoteOrderQty":"10","symbol":"BTCUSDT","side":"BUY","newClientOrderId":7}`,
+		},
+		{
+			name:     "large value stays decimal",
+			param:    BatchOrderCreationParam{OrderType: "LIMIT", Price: 1e21, Quantity: 0.000001, Symbol: currency.NewBTCUSDT()},
+			expected: `{"type":"LIMIT","price":"1000000000000000000000","quantity":"0.000001","symbol":"BTCUSDT"}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := json.Marshal(tc.param)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, tc.expected, string(got), "batch order parameters should marshal numeric fields as quoted decimal strings")
 		})
 	}
 }
