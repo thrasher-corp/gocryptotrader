@@ -28,6 +28,9 @@ var (
 	errRateLimiterNotSet     = errors.New("rate limiter not set")
 )
 
+// requestNew allows direct coverage of SetDefaults' defensive requester error path.
+var requestNew = request.New
+
 // NewFromSettings returns a new coin market cap instance with supplied settings
 func NewFromSettings(cfg Settings) (*Coinmarketcap, error) {
 	c := &Coinmarketcap{}
@@ -44,18 +47,13 @@ func (c *Coinmarketcap) SetDefaults() {
 	c.Enabled = false
 	c.Verbose = false
 	c.APIUrl = baseURL
-	// SetDefaults cannot return the requester construction error; newRequester logs it.
-	c.Requester, _ = newRequester(c.Name,
+	var err error
+	c.Requester, err = requestNew(c.Name,
 		common.NewHTTPClientWithTimeout(defaultTimeOut),
-		getRateLimits())
-}
-
-func newRequester(name string, client *http.Client, limits request.RateLimitDefinitions) (*request.Requester, error) {
-	requester, err := request.New(name, client, request.WithLimiter(limits))
+		request.WithLimiter(getRateLimits()))
 	if err != nil {
 		log.Errorln(log.Global, err)
 	}
-	return requester, err
 }
 
 // Setup sets user configuration

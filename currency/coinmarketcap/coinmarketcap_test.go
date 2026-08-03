@@ -1,7 +1,6 @@
 package coinmarketcap
 
 import (
-	"errors"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -101,21 +100,16 @@ func TestSetDefaults(t *testing.T) {
 	})
 }
 
-func TestNewRequester(t *testing.T) {
-	t.Parallel()
+func TestSetDefaultsRequesterError(t *testing.T) {
+	original := requestNew
+	t.Cleanup(func() { requestNew = original })
+	requestNew = func(_ string, _ *http.Client, _ ...request.RequesterOption) (*request.Requester, error) {
+		return nil, common.ErrNilPointer
+	}
 
-	_, expectedErr := request.New("CoinMarketCap", nil)
-	require.Error(t, expectedErr, "request.New must reject a nil HTTP client")
-
-	requester, err := newRequester("CoinMarketCap", nil, getRateLimits())
-	require.Error(t, err, "newRequester must reject a nil HTTP client")
-	assert.ErrorIs(t, err, errors.Unwrap(expectedErr), "newRequester should preserve the requester construction error")
-	assert.Nil(t, requester, "newRequester should return nil for an invalid HTTP client")
-
-	requester, err = newRequester("CoinMarketCap", common.NewHTTPClientWithTimeout(defaultTimeOut), getRateLimits())
-	require.NoError(t, err, "newRequester must accept a valid HTTP client")
-	require.NotNil(t, requester, "newRequester must return a valid requester")
-	assert.Len(t, requester.GetRateLimiterDefinitions(), 6, "newRequester should configure all account-plan rate limits")
+	var c Coinmarketcap
+	c.SetDefaults()
+	assert.Nil(t, c.Requester, "SetDefaults should leave Requester nil when construction fails")
 }
 
 func TestSetup(t *testing.T) {
