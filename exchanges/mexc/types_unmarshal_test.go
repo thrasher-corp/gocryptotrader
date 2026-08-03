@@ -14,13 +14,13 @@ func TestFuturesContractsListUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var list FuturesContractsList
 	require.NoError(t, json.Unmarshal([]byte(`[{"symbol":"BTC_USDT"},{"symbol":"ETH_USDT"}]`), &list), "a list payload must decode")
-	require.Len(t, list, 2, "both contracts should be decoded")
+	require.Len(t, list, 2, "both contracts must be decoded")
 	assert.Equal(t, "BTC_USDT", list[0].Symbol, "the first symbol should be correct")
 	assert.Equal(t, "ETH_USDT", list[1].Symbol, "the second symbol should be correct")
 
 	var single FuturesContractsList
 	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTC_USDT"}`), &single), "a single object payload must decode")
-	require.Len(t, single, 1, "a bare object should decode to a single element list")
+	require.Len(t, single, 1, "a bare object must decode to a single element list")
 	assert.Equal(t, "BTC_USDT", single[0].Symbol, "the symbol should be correct")
 
 	var bad FuturesContractsList
@@ -32,12 +32,12 @@ func TestContractTickersListUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var list ContractTickersList
 	require.NoError(t, json.Unmarshal([]byte(`[{"symbol":"BTC_USDT"},{"symbol":"ETH_USDT"}]`), &list), "a list payload must decode")
-	require.Len(t, list, 2, "both tickers should be decoded")
+	require.Len(t, list, 2, "both tickers must be decoded")
 	assert.Equal(t, "BTC_USDT", list[0].Symbol, "the first symbol should be correct")
 
 	var single ContractTickersList
 	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTC_USDT"}`), &single), "a single object payload must decode")
-	require.Len(t, single, 1, "a bare object should decode to a single element list")
+	require.Len(t, single, 1, "a bare object must decode to a single element list")
 	assert.Equal(t, "BTC_USDT", single[0].Symbol, "the symbol should be correct")
 
 	var bad ContractTickersList

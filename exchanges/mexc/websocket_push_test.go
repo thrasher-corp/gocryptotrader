@@ -36,7 +36,7 @@ func requireOneOf[T any](tb testing.TB) T {
 	got := drainData(tb)
 	require.Lenf(tb, got, 1, "exactly one payload must be relayed, got %#v", got)
 	typed, ok := got[0].(T)
-	require.Truef(tb, ok, "payload should be %T, got %T", *new(T), got[0])
+	require.Truef(tb, ok, "payload must be %T, got %T", *new(T), got[0])
 	return typed
 }
 
@@ -136,14 +136,14 @@ func TestWsHandleAggreDepth(t *testing.T) {
 	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 }
 
-// TestWsHandleAggreDepthBadPrice asserts an unparseable level is reported rather than stored as zero.
+// TestWsHandleAggreDepthBadPrice asserts an unparsable level is reported rather than stored as zero.
 func TestWsHandleAggreDepthBadPrice(t *testing.T) {
 	drainData(t)
 	raw := wsPushFrame(t, "spot@"+channelAggregateDepthV3+"@100ms@BTCUSDT", 1736411507002,
 		&mexc_proto_types.PublicAggreDepthsV3Api{
 			Bids: []*mexc_proto_types.PublicAggreDepthV3ApiItem{{Price: "not-a-price", Quantity: "3.5"}},
 		})
-	assert.Error(t, e.WsHandleData(t.Context(), nil, raw), "an unparseable price should be reported")
+	assert.Error(t, e.WsHandleData(t.Context(), nil, raw), "an unparsable price should be reported")
 }
 
 // TestWsHandleIncreaseDepthBatch asserts every book in a batched depth frame is applied.
