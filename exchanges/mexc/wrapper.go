@@ -702,8 +702,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		return &order.Detail{
 			Price:                result.Price.Float64(),
-			Amount:               result.CummulativeQuoteQty.Float64(),
-			ContractAmount:       result.OrigQty.Float64(),
+			Amount:               result.OrigQty.Float64(),
+			QuoteAmount:          result.CummulativeQuoteQty.Float64(),
 			AverageExecutedPrice: result.Price.Float64(),
 			ExecutedAmount:       result.ExecutedQty.Float64(),
 			RemainingAmount:      result.OrigQty.Float64() - result.ExecutedQty.Float64(),

@@ -175,3 +175,20 @@ func TestBatchOrderCreationParamMarshalsNumbersAsStrings(t *testing.T) {
 		})
 	}
 }
+
+// TestGetOrderInfoAmountIsBaseQuantity pins the spot order amount mapping: origQty is the base
+// quantity and belongs in Amount, while cummulativeQuoteQty is a quote figure and belongs in
+// QuoteAmount. GetActiveOrders and GetOrderHistory already map the same payload this way.
+func TestGetOrderInfoAmountIsBaseQuantity(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"symbol":"BTCUSDT","orderId":"1","price":"20000","origQty":"0.5","executedQty":"0.2","cummulativeQuoteQty":"4000","status":"PARTIALLY_FILLED","type":"LIMIT","side":"BUY"}`))
+	}))
+	detail, err := e.GetOrderInfo(t.Context(), "1", spotTradablePair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, 0.5, detail.Amount, "Amount should carry origQty, the base quantity")
+	assert.Equal(t, 4000.0, detail.QuoteAmount, "QuoteAmount should carry cummulativeQuoteQty")
+	assert.Zero(t, detail.ContractAmount, "a spot order has no contract amount")
+	assert.Equal(t, 0.2, detail.ExecutedAmount, "ExecutedAmount should carry executedQty")
+	assert.InDelta(t, 0.3, detail.RemainingAmount, 1e-9, "RemainingAmount should be origQty minus executedQty")
+}
