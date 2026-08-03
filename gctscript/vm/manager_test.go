@@ -36,11 +36,11 @@ func TestNewManager(t *testing.T) {
 			t.Parallel()
 			got, err := NewManager(tc.config)
 			if tc.wantErr {
-				require.Error(t, err, "NewManager must return an error for invalid configuration")
+				assert.Error(t, err, "NewManager should return an error for invalid configuration")
 				assert.Equal(t, tc.want, got, "NewManager should return the expected manager for invalid configuration")
 				return
 			}
-			require.NoError(t, err, "NewManager must accept valid configuration")
+			assert.NoError(t, err, "NewManager should accept valid configuration")
 			assert.Equal(t, tc.want, got, "NewManager should return the configured manager")
 		})
 	}
@@ -63,17 +63,17 @@ func TestGctScriptManagerStartStopNominal(t *testing.T) {
 func TestGctScriptManagerStartStopErrors(t *testing.T) {
 	mgr, err := NewManager(&Config{AllowImports: true})
 	require.NoError(t, err, "NewManager must create the manager")
-	require.ErrorIs(t, mgr.Start(nil), common.ErrNilPointer, "Start must reject a nil wait group")
-	require.EqualError(t, mgr.Stop(), "GCTScript not running", "Stop must reject a manager that is not running")
+	assert.ErrorIs(t, mgr.Start(nil), common.ErrNilPointer, "Start should reject a nil wait group")
+	assert.EqualError(t, mgr.Stop(), "GCTScript not running", "Stop should reject a manager that is not running")
 
 	var wg sync.WaitGroup
 	require.NoError(t, mgr.Start(&wg), "Start must start the manager")
-	require.EqualError(t, mgr.Start(&wg), "GCTScript validation failed", "Start must reject an already running manager")
+	assert.EqualError(t, mgr.Start(&wg), "GCTScript validation failed", "Start should reject an already running manager")
 	require.NoError(t, mgr.Stop(), "Stop must stop the manager")
 	wg.Wait()
 
 	var nilManager *GctScriptManager
-	require.ErrorIs(t, nilManager.Stop(), ErrNilSubsystem, "Stop must reject a nil manager")
+	assert.ErrorIs(t, nilManager.Stop(), ErrNilSubsystem, "Stop should reject a nil manager")
 }
 
 func TestGctScriptManagerGetMaxVirtualMachines(t *testing.T) {
