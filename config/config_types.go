@@ -315,7 +315,7 @@ type APICredentialsConfig struct {
 
 // APICredentialsValidatorConfig stores the API credentials validator settings
 type APICredentialsValidatorConfig struct {
-	// For Huobi (optional)
+	// For HTX (optional)
 	RequiresPEM bool `json:"requiresPEM,omitempty"`
 
 	RequiresKey                bool `json:"requiresKey,omitempty"`

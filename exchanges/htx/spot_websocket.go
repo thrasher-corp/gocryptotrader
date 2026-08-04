@@ -1,4 +1,4 @@
-package huobi
+package htx
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -41,6 +40,7 @@ const (
 	wsOrderbookChannel    = "market.%s.depth"
 	wsTradesChannel       = "market.%s.trade.detail"
 	wsMarketDetailChannel = "market.%s.detail"
+	wsFundingRateChannel  = "public.%s.funding_rate"
 	wsMyOrdersChannel     = "orders#*"
 	wsMyTradesChannel     = "trade.clearing#*#1" // 0=Only trade events, 1=Trade and Cancellation events
 	wsMyAccountChannel    = "accounts.update#2"  // 0=Only balance, 1=Balance or Available, 2=Balance and Available when either change
@@ -61,7 +61,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
-	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -72,68 +72,60 @@ var subscriptionNames = map[string]string{
 	subscription.MyTradesChannel:  wsMyTradesChannel,
 	subscription.MyOrdersChannel:  wsMyOrdersChannel,
 	subscription.MyAccountChannel: wsMyAccountChannel,
+	wsFundingRateChannel:          wsFundingRateChannel,
 }
 
-// WsConnect initiates a new websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
-		return err
-	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadMsgs(ctx, e.Websocket.Conn)
-
-	if e.IsWebsocketAuthenticationSupported() {
-		if err := e.wsAuthConnect(ctx); err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return fmt.Errorf("error authenticating websocket: %w", err)
-		}
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		e.Websocket.Wg.Add(1)
-		go e.wsReadMsgs(ctx, e.Websocket.AuthConn)
-	}
-
-	return nil
-}
-
-// wsReadMsgs reads and processes messages from a websocket connection
-func (e *Exchange) wsReadMsgs(ctx context.Context, s websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		msg := s.ReadMessage()
-		if msg.Raw == nil {
-			return
-		}
-
-		if err := e.wsHandleData(ctx, msg.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
-		if e.Websocket.Match.IncomingWithData(id, respRaw) {
+		matched := e.Websocket.Match.IncomingWithData(id, respRaw)
+		if conn != nil {
+			matched = conn.IncomingWithData(id, respRaw)
+		}
+		if matched {
 			return nil
 		}
 	}
+	if cid, err := jsonparser.GetString(respRaw, "cid"); err == nil && conn != nil && conn.IncomingWithData(cid, respRaw) {
+		return nil
+	}
 
 	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		return e.wsHandleV1ping(ctx, int(pingValue))
+		return e.wsHandleV1ping(ctx, conn, int(pingValue))
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
 		switch action {
 		case "ping":
-			return e.wsHandleV2ping(ctx, respRaw)
+			return e.wsHandleV2ping(ctx, conn, respRaw)
 		case wsSubOp, wsUnsubOp:
-			return e.wsHandleV2subResp(action, respRaw)
+			return e.wsHandleV2subResp(conn, action, respRaw)
+		case wsRequestOp:
+			ch, err := jsonparser.GetString(respRaw, "ch")
+			if err != nil {
+				return fmt.Errorf("%w 'ch': %w", common.ErrParsingWSField, err)
+			}
+			return conn.RequireMatchWithData(ch, respRaw)
+		}
+	}
+
+	if operation, err := jsonparser.GetString(respRaw, "op"); err == nil {
+		switch operation {
+		case wsAuthChannel:
+			return conn.RequireMatchWithData(wsAuthChannel, respRaw)
+		case "ping":
+			return e.wsHandleFuturesPing(ctx, conn, respRaw)
+		case wsSubOp, wsUnsubOp:
+			return e.wsHandleFuturesOperationResponse(conn, operation, respRaw)
+		case "notify":
+			topic, err := jsonparser.GetString(respRaw, "topic")
+			if err != nil {
+				return fmt.Errorf("%w 'topic': %w", common.ErrParsingWSField, err)
+			}
+			s := e.getFuturesPrivateSubscription(conn, topic)
+			if s == nil {
+				return fmt.Errorf("%w: %q", subscription.ErrNotFound, topic)
+			}
+			return e.wsHandleChannelMsgs(ctx, s, respRaw)
 		}
 	}
 
@@ -143,6 +135,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		s := e.Websocket.GetSubscription(ch)
+		if conn != nil {
+			s = conn.Subscriptions().Get(ch)
+		}
 		if s == nil {
 			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
 		}
@@ -155,33 +150,45 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
-func (e *Exchange) wsHandleV1ping(ctx context.Context, pingValue int) error {
-	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
+func (e *Exchange) wsHandleV1ping(ctx context.Context, conn websocket.Connection, pingValue int) error {
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
+	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
 }
 
 // wsHandleV2ping handles v2 style pings, currently only used with private connections
-func (e *Exchange) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleV2ping(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
 	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
 	}
-	if err := e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.FormatInt(ts, 10)+`}}`)); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.FormatInt(ts, 10)+`}}`)); err != nil {
 		return fmt.Errorf("error sending auth pong response: %w", err)
 	}
 	return nil
 }
 
-func (e *Exchange) wsHandleV2subResp(action string, respRaw []byte) error {
+func (e *Exchange) wsHandleV2subResp(conn websocket.Connection, action string, respRaw []byte) error {
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
-		return e.Websocket.Match.RequireMatchWithData(action+":"+ch, respRaw)
+		return conn.RequireMatchWithData(action+":"+ch, respRaw)
 	}
 	return nil
 }
 
 func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
+	if s.Authenticated && s.Asset != asset.Spot {
+		return e.wsHandleFuturesPrivateMessage(ctx, s, respRaw)
+	}
 	switch s.Channel {
 	case subscription.TickerChannel:
 		return e.wsHandleTickerMsg(ctx, s, respRaw)
@@ -191,6 +198,8 @@ func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subs
 		return e.wsHandleCandleMsg(ctx, s, respRaw)
 	case subscription.AllTradesChannel:
 		return e.wsHandleAllTradesMsg(ctx, s, respRaw)
+	case wsFundingRateChannel:
+		return e.wsHandleFundingRateMsg(ctx, s, respRaw)
 	case subscription.MyAccountChannel:
 		return e.wsHandleMyAccountMsg(ctx, respRaw)
 	case subscription.MyOrdersChannel:
@@ -302,11 +311,11 @@ func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	for i := range update.Tick.Bids {
 		price, ok := update.Tick.Bids[i][0].(float64)
 		if !ok {
-			return errors.New("unable to type assert bid price")
+			return errBidPriceTypeAssertion
 		}
 		amount, ok := update.Tick.Bids[i][1].(float64)
 		if !ok {
-			return errors.New("unable to type assert bid amount")
+			return errBidAmountTypeAssertion
 		}
 		bids[i] = orderbook.Level{
 			Price:  price,
@@ -318,11 +327,11 @@ func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	for i := range update.Tick.Asks {
 		price, ok := update.Tick.Asks[i][0].(float64)
 		if !ok {
-			return errors.New("unable to type assert ask price")
+			return errAskPriceTypeAssertion
 		}
 		amount, ok := update.Tick.Asks[i][1].(float64)
 		if !ok {
-			return errors.New("unable to type assert ask amount")
+			return errAskAmountTypeAssertion
 		}
 		asks[i] = orderbook.Level{
 			Price:  price,
@@ -334,7 +343,7 @@ func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = s.Pairs[0]
-	newOrderBook.Asset = asset.Spot
+	newOrderBook.Asset = s.Asset
 	newOrderBook.Exchange = e.Name
 	newOrderBook.ValidateOrderbook = e.ValidateOrderbook
 	newOrderBook.LastUpdated = update.Timestamp.Time()
@@ -354,10 +363,10 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 	}
 	d := &order.Detail{
 		ClientOrderID:   o.ClientOrderID,
-		Price:           o.Price,
-		Amount:          o.Size,
-		ExecutedAmount:  o.ExecutedAmount,
-		RemainingAmount: o.RemainingAmount,
+		Price:           o.Price.Float64(),
+		Amount:          o.Size.Float64(),
+		ExecutedAmount:  o.ExecutedAmount.Float64(),
+		RemainingAmount: o.RemainingAmount.Float64(),
 		Exchange:        e.Name,
 		Side:            o.Side,
 		AssetType:       s.Asset,
@@ -422,8 +431,8 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 	}
 	d := &order.Detail{
 		ClientOrderID: t.ClientOrderID,
-		Price:         t.OrderPrice,
-		Amount:        t.OrderSize,
+		Price:         t.OrderPrice.Float64(),
+		Amount:        t.OrderSize.Float64(),
 		Exchange:      e.Name,
 		Side:          t.Side,
 		AssetType:     s.Asset,
@@ -461,9 +470,9 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 	}
 	d.Trades = []order.TradeHistory{
 		{
-			Price:     t.TradePrice,
-			Amount:    t.TradeVolume,
-			Fee:       t.TransactFee,
+			Price:     t.TradePrice.Float64(),
+			Amount:    t.TradeVolume.Float64(),
+			Fee:       t.TransactFee.Float64(),
 			Exchange:  e.Name,
 			TID:       strconv.FormatInt(t.TradeID, 10),
 			Type:      d.Type,
@@ -483,11 +492,6 @@ func (e *Exchange) wsHandleMyAccountMsg(ctx context.Context, respRaw []byte) err
 	return e.Websocket.DataHandler.Send(ctx, u.Data)
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
@@ -501,48 +505,70 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubOp, l) }, 1))
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		conn, err := e.getWebsocketConnection(l[0])
+		if err != nil {
+			return err
+		}
+		return e.manageSubs(ctx, conn, wsSubOp, l)
+	}, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubOp, l) }, 1))
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		conn, err := e.getWebsocketConnection(l[0])
+		if err != nil {
+			return err
+		}
+		return e.manageSubs(ctx, conn, wsUnsubOp, l)
+	}, 1))
 }
 
-func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
 	s := subs[0]
-	var c websocket.Connection
 	var req any
-	if s.Authenticated {
-		c = e.Websocket.AuthConn
+	switch {
+	case s.Authenticated && s.Asset == asset.Spot:
 		req = wsReq{Action: op, Channel: s.QualifiedChannel}
-	} else {
-		c = e.Websocket.Conn
+	case s.Authenticated && s.Asset == asset.USDTMarginedFutures:
+		contractCode := "*"
+		if s.Channel == subscription.MyAccountChannel {
+			contractCode = ""
+		}
+		req = wsV5FuturesSubscriptionRequest{
+			Operation:    op,
+			Topic:        s.QualifiedChannel,
+			ContractCode: contractCode,
+		}
+	case s.Authenticated:
+		req = wsFuturesSubscriptionRequest{Operation: op, Topic: s.QualifiedChannel}
+	default:
 		if op == wsSubOp {
 			// Set the id to the channel so that V1 errors can make it back to us
 			req = wsSubReq{ID: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
 		} else {
-			req = wsSubReq{Unsub: s.QualifiedChannel}
+			req = wsSubReq{ID: wsUnsubOp + ":" + s.QualifiedChannel, Unsub: s.QualifiedChannel}
 		}
 	}
 	if op == wsSubOp {
 		s.SetKey(s.QualifiedChannel)
-		if err := e.Websocket.AddSubscriptions(c, s); err != nil {
+		if err := conn.Subscriptions().Add(s); err != nil {
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
-	respRaw, err := c.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, op+":"+s.QualifiedChannel, req)
 	if err == nil {
 		err = getErrResp(respRaw)
 	}
 	if err != nil {
 		if op == wsSubOp {
-			_ = e.Websocket.RemoveSubscriptions(c, s)
+			_ = conn.Subscriptions().Remove(s)
 		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
@@ -552,39 +578,36 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", e.Name, s)
 		}
 	} else {
-		err = e.Websocket.RemoveSubscriptions(c, s)
+		err = conn.Subscriptions().Remove(s)
 	}
 	return err
 }
 
-func (e *Exchange) wsGenerateSignature(creds *accounts.Credentials, timestamp string) ([]byte, error) {
+func (e *Exchange) wsGenerateSignature(conn websocket.Connection, creds *accounts.Credentials, timestamp string) ([]byte, error) {
+	if err := common.NilGuard(conn, creds); err != nil {
+		return nil, err
+	}
+	signatureHost, err := getSignatureHost(conn.GetURL())
+	if err != nil {
+		return nil, err
+	}
 	values := url.Values{}
 	values.Set("accessKey", creds.Key)
 	values.Set("signatureMethod", signatureMethod)
 	values.Set("signatureVersion", signatureVersion)
 	values.Set("timestamp", timestamp)
-	payload := http.MethodGet + "\n" + wsSpotHost + "\n" + wsPrivatePath + "\n" + values.Encode()
+	payload := http.MethodGet + "\n" + signatureHost + "\n" + wsPrivatePath + "\n" + values.Encode()
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (e *Exchange) wsAuthConnect(ctx context.Context) error {
-	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
-		return fmt.Errorf("authenticated dial failed: %w", err)
-	}
-	if err := e.wsLogin(ctx); err != nil {
-		return fmt.Errorf("authentication failed: %w", err)
-	}
-	return nil
-}
-
-func (e *Exchange) wsLogin(ctx context.Context) error {
+func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 
 	ts := time.Now().UTC().Format(wsDateTimeFormatting)
-	hmac, err := e.wsGenerateSignature(creds, ts)
+	hmac, err := e.wsGenerateSignature(conn, creds, ts)
 	if err != nil {
 		return err
 	}
@@ -600,35 +623,11 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 			Timestamp:        ts,
 		},
 	}
-	c := e.Websocket.AuthConn
-	if err := c.SendJSONMessage(ctx, request.Unset, req); err != nil {
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsAuthChannel, req)
+	if err != nil {
 		return err
 	}
-	resp := c.ReadMessage()
-	if resp.Raw == nil {
-		return &gws.CloseError{Code: gws.CloseAbnormalClosure}
-	}
-
-	return getErrResp(resp.Raw)
-}
-
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "rejected":
-		return order.Rejected, nil
-	case "submitted":
-		return order.New, nil
-	case "partial-filled":
-		return order.PartiallyFilled, nil
-	case "filled":
-		return order.Filled, nil
-	case "partial-canceled":
-		return order.PartiallyCancelled, nil
-	case "canceled":
-		return order.Cancelled, nil
-	default:
-		return order.UnknownStatus, errors.New(status + " not recognised as order status")
-	}
+	return getErrResp(resp)
 }
 
 func stringToOrderSide(side string) (order.Side, error) {
@@ -639,7 +638,7 @@ func stringToOrderSide(side string) (order.Side, error) {
 		return order.Sell, nil
 	}
 
-	return order.UnknownSide, errors.New(side + " not recognised as order side")
+	return order.UnknownSide, fmt.Errorf("%w: %s", errUnrecognisedOrderSide, side)
 }
 
 func stringToOrderType(oType string) (order.Type, error) {
@@ -650,8 +649,7 @@ func stringToOrderType(oType string) (order.Type, error) {
 		return order.Market, nil
 	}
 
-	return order.UnknownType,
-		errors.New(oType + " not recognised as order type")
+	return order.UnknownType, fmt.Errorf("%w: %s", errUnrecognisedOrderType, oType)
 }
 
 /*
@@ -664,9 +662,15 @@ Errors are returned in the format of <message> (<code>)
 func getErrResp(msg []byte) error {
 	var errCode string
 	errMsg, _ := jsonparser.GetString(msg, "err-msg")
-	errCode, err := jsonparser.GetString(msg, "err-code")
+	value, valueType, _, err := jsonparser.Get(msg, "err-code")
 	switch err {
-	case nil: // Nothing to do
+	case nil:
+		switch valueType {
+		case jsonparser.String, jsonparser.Number:
+			errCode = string(value)
+		default:
+			return fmt.Errorf("%w 'err-code': unexpected JSON type %s from message: %s", common.ErrParsingWSField, valueType, msg)
+		}
 	case jsonparser.KeyPathNotFoundError: // Look for a V2 error
 		errCodeInt, err := jsonparser.GetInt(msg, "code")
 		if errCodeInt == 200 || errors.Is(err, jsonparser.KeyPathNotFoundError) {
@@ -678,7 +682,7 @@ func getErrResp(msg []byte) error {
 		errCode = strconv.Itoa(int(errCodeInt))
 		errMsg, _ = jsonparser.GetString(msg, "message")
 	}
-	if errCode != "" {
+	if errCode != "" && errCode != "0" {
 		return fmt.Errorf("%s (%v)", errMsg, errCode)
 	}
 	return nil
@@ -687,17 +691,57 @@ func getErrResp(msg []byte) error {
 // channelName converts global channel Names used in config of channel input into exchange channel names
 // returns the name unchanged if no match is found
 func channelName(s *subscription.Subscription, p ...currency.Pair) string {
-	if n, ok := subscriptionNames[s.Channel]; ok {
-		if strings.Contains(n, "%s") {
-			return fmt.Sprintf(n, p[0])
+	if s.Authenticated && s.Asset != asset.Spot {
+		if s.Asset == asset.USDTMarginedFutures {
+			switch s.Channel {
+			case subscription.MyOrdersChannel:
+				return "orders"
+			case wsTradeUpdatesChannel:
+				return "trade"
+			case wsExecutionDetailsChannel:
+				return "trade_detail"
+			case wsPositionsChannel:
+				return "positions"
+			case subscription.MyAccountChannel:
+				return "account"
+			case subscription.MyTradesChannel:
+				return "match_orders"
+			case wsTriggerOrdersChannel:
+				return "algo_orders"
+			default:
+				panic(subscription.ErrUseConstChannelName)
+			}
 		}
-		return n
+		switch s.Channel {
+		case subscription.MyOrdersChannel:
+			return "orders.*"
+		case subscription.MyTradesChannel:
+			return "matchOrders.*"
+		case subscription.MyAccountChannel:
+			return "accounts.*"
+		case wsPositionsChannel:
+			return "positions.*"
+		case wsTriggerOrdersChannel:
+			return "trigger_order.*"
+		default:
+			panic(subscription.ErrUseConstChannelName)
+		}
 	}
-	panic(subscription.ErrUseConstChannelName)
+	n, ok := subscriptionNames[s.Channel]
+	if !ok {
+		panic(subscription.ErrUseConstChannelName)
+	}
+	if strings.Contains(n, "%s") {
+		return fmt.Sprintf(n, p[0])
+	}
+	return n
 }
 
 func isWildcardChannel(s *subscription.Subscription) bool {
-	return s.Channel == subscription.MyTradesChannel || s.Channel == subscription.MyOrdersChannel
+	return s.Authenticated ||
+		s.Channel == subscription.MyTradesChannel ||
+		s.Channel == subscription.MyOrdersChannel ||
+		s.Channel == subscription.MyAccountChannel
 }
 
 const subTplText = `
