@@ -40,7 +40,7 @@ type ConnectionFixture struct {
 	sentRequests    []WsSubscriptionInput
 }
 
-func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any, _ ...request.RateLimitWithWeightOverride) ([]byte, error) {
+func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
 	if input, ok := req.(WsSubscriptionInput); ok {
 		c.sentRequests = append(c.sentRequests, input)
 	}
@@ -53,8 +53,8 @@ func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ reque
 	return []byte(c.messageResponse), nil
 }
 
-func (c *ConnectionFixture) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, _ request.Weight, signature, req any, additionalRateLimits ...request.RateLimitWithWeightOverride) ([]byte, error) {
-	return c.SendMessageReturnResponse(ctx, epl, signature, req, additionalRateLimits...)
+func (c *ConnectionFixture) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, _ request.Weight, signature, req any) ([]byte, error) {
+	return c.SendMessageReturnResponse(ctx, epl, signature, req)
 }
 
 func expectedPerPairSubscriptions(channel string, a asset.Item, pairs currency.Pairs, qualifiedPrefix string, interval kline.Interval, suffixFn func(currency.Pair) string) subscription.List {

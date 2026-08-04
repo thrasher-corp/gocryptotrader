@@ -62,12 +62,13 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) 
 	if err != nil {
 		return nil, err
 	}
-	requestScopedRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCounts)
+	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCounts)
 	if err != nil {
 		return nil, err
 	}
+	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp *OrderData
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest, requestScopedRateLimits...); err != nil {
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest); err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
@@ -94,12 +95,13 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 	if err != nil {
 		return nil, err
 	}
-	requestScopedRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCounts)
+	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCounts)
 	if err != nil {
 		return nil, err
 	}
+	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp []OrderData
-	if err := e.sendHTTPRequestWithRateLimitWeight(ctx, exchange.RestSpot, placeMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...); err != nil {
+	if err := e.sendHTTPRequestWithRateLimitWeight(requestContext, exchange.RestSpot, placeMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
@@ -127,12 +129,13 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 	if err != nil {
 		return nil, err
 	}
-	requestScopedRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCounts)
+	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCounts)
 	if err != nil {
 		return nil, err
 	}
+	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp *OrderData
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest, requestScopedRateLimits...); err != nil {
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest); err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
@@ -164,12 +167,13 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 	if err != nil {
 		return nil, err
 	}
-	requestScopedRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCounts)
+	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCounts)
 	if err != nil {
 		return nil, err
 	}
+	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp []*OrderData
-	if err := e.sendHTTPRequestWithRateLimitWeight(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...); err != nil {
+	if err := e.sendHTTPRequestWithRateLimitWeight(requestContext, exchange.RestSpot, cancelMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
@@ -202,12 +206,13 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 	if err != nil {
 		return nil, err
 	}
-	requestScopedRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCounts)
+	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCounts)
 	if err != nil {
 		return nil, err
 	}
+	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp *OrderData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
+	return resp, e.SendHTTPRequest(requestContext, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array
@@ -234,12 +239,13 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 	if err != nil {
 		return nil, err
 	}
-	requestScopedRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCounts)
+	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCounts)
 	if err != nil {
 		return nil, err
 	}
+	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp []OrderData
-	return resp, e.sendHTTPRequestWithRateLimitWeight(ctx, exchange.RestSpot, amendMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
+	return resp, e.sendHTTPRequestWithRateLimitWeight(requestContext, exchange.RestSpot, amendMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }
 
 // ClosePositions close all positions of an instrument via a market order
@@ -5938,11 +5944,11 @@ URL arguments must be encoded in the request path
 result must be a pointer
 The response data is unmarshalled directly into result first and then (if needed) from the first array element
 */
-func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType, additionalRateLimits ...request.RateLimitWithWeightOverride) (err error) {
-	return e.sendHTTPRequestWithRateLimitWeight(ctx, ep, f, 0, httpMethod, requestPath, data, result, requestType, additionalRateLimits...)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType) (err error) {
+	return e.sendHTTPRequestWithRateLimitWeight(ctx, ep, f, 0, httpMethod, requestPath, data, result, requestType)
 }
 
-func (e *Exchange) sendHTTPRequestWithRateLimitWeight(ctx context.Context, ep exchange.URL, f request.EndpointLimit, weight request.Weight, httpMethod, requestPath string, data, result any, requestType request.AuthType, additionalRateLimits ...request.RateLimitWithWeightOverride) (err error) {
+func (e *Exchange) sendHTTPRequestWithRateLimitWeight(ctx context.Context, ep exchange.URL, f request.EndpointLimit, weight request.Weight, httpMethod, requestPath string, data, result any, requestType request.AuthType) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -5993,7 +5999,7 @@ func (e *Exchange) sendHTTPRequestWithRateLimitWeight(ctx context.Context, ep ex
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	if err := e.SendPayloadWithRateLimitWeight(ctx, f, weight, newRequest, requestType, additionalRateLimits...); err != nil {
+	if err := e.SendPayloadWithRateLimitWeight(ctx, f, weight, newRequest, requestType); err != nil {
 		return err
 	}
 	if resp.Code.Int64() != 0 {

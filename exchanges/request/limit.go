@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"golang.org/x/time/rate"
 )
 
@@ -48,10 +49,11 @@ type RateLimiterWithWeight struct {
 	m       sync.Mutex
 }
 
-// RateLimitWithWeightOverride requests a limiter with an optional request-specific weight.
-type RateLimitWithWeightOverride struct {
+// AdditionalRateLimit describes an additional limiter, optional request-specific weight and non-sensitive diagnostic scope.
+type AdditionalRateLimit struct {
 	Limiter        *RateLimiterWithWeight
 	WeightOverride Weight
+	Scope          string
 }
 
 type rateLimitReservation struct {
@@ -100,17 +102,15 @@ func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateL
 // RateLimit throttles a request based on weight, delaying the request.
 // Errors if no delay is permitted via the context and a delay is required.
 func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
-	if err := common.NilGuard(r); err != nil {
-		return err
-	}
-	return r.rateLimit(ctx, r.weight)
+	return r.RateLimitWithWeight(ctx, 0)
 }
 
-// RateLimitWithWeight applies a request-specific endpoint weight and any additional request-scoped limits.
-func (r *RateLimiterWithWeight) RateLimitWithWeight(ctx context.Context, endpointWeightOverride Weight, additionalRateLimits ...RateLimitWithWeightOverride) error {
+// RateLimitWithWeight applies a request-specific endpoint weight and any additional rate limits carried by the context.
+func (r *RateLimiterWithWeight) RateLimitWithWeight(ctx context.Context, endpointWeightOverride Weight) error {
 	if err := common.NilGuard(r); err != nil {
 		return err
 	}
+	additionalRateLimits := additionalRateLimitsFromContext(ctx)
 	if len(additionalRateLimits) == 0 {
 		weight := endpointWeightOverride
 		if weight == 0 {
@@ -132,8 +132,15 @@ func (r *RateLimiterWithWeight) RateLimitWithWeight(ctx context.Context, endpoin
 		}
 	}
 
-	rateLimits := append([]RateLimitWithWeightOverride{{Limiter: r, WeightOverride: endpointWeightOverride}}, additionalRateLimits...)
+	rateLimits := make([]AdditionalRateLimit, 0, len(additionalRateLimits)+1)
+	rateLimits = append(rateLimits, AdditionalRateLimit{
+		Limiter:        r,
+		WeightOverride: endpointWeightOverride,
+		Scope:          "endpoint",
+	})
+	rateLimits = append(rateLimits, additionalRateLimits...)
 	var finalDelay time.Duration
+	var limitingScope string
 	for _, rateLimit := range rateLimits {
 		if err := common.NilGuard(rateLimit.Limiter); err != nil {
 			cancelReservations(tn)
@@ -159,24 +166,28 @@ func (r *RateLimiterWithWeight) RateLimitWithWeight(ctx context.Context, endpoin
 		reserved = append(reserved, rateLimitReservation{limiter: rateLimit.Limiter, reservations: reservations})
 		if finalDelay < delay {
 			finalDelay = delay
+			limitingScope = rateLimit.Scope
 		}
 	}
 
 	if hasDelayNotAllowed(ctx) {
 		if finalDelay > 0 {
 			cancelReservations(tn)
-			return ErrDelayNotAllowed
+			return fmt.Errorf("%w for rate-limit scope %q", ErrDelayNotAllowed, limitingScope)
 		}
 		return nil
 	}
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
 		cancelReservations(tn)
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
+		return fmt.Errorf("rate limit delay of %s for scope %q will exceed deadline: %w", finalDelay, limitingScope, context.DeadlineExceeded)
 	}
 
 	if finalDelay == 0 {
 		return nil
+	}
+	if IsVerbose(ctx, false) {
+		log.Debugf(log.RequestSys, "Rate limit scope %q requires a %s delay", limitingScope, finalDelay)
 	}
 
 	select {

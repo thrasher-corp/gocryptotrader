@@ -361,6 +361,7 @@ func TestTradeRateLimiterAdditionalTradeScopeRateLimits(t *testing.T) {
 		require.Len(t, additionalRateLimits, 1, "valid scope weight must return one additional rate limit")
 		assert.NotNil(t, additionalRateLimits[0].Limiter, "valid scope limit should include limiter")
 		assert.Equal(t, request.Weight(2), additionalRateLimits[0].WeightOverride, "valid scope weight should return one weight")
+		assert.Equal(t, "place-single:"+tradeRateLimitBTCUSDT, additionalRateLimits[0].Scope, "valid scope should identify its bucket")
 		assert.Equal(t, 2, orderCount, "order count should match the scope weight")
 	})
 
@@ -382,6 +383,7 @@ func TestTradeRateLimiterAdditionalTradeScopeRateLimits(t *testing.T) {
 			require.NoError(t, err, "one-order batch must not error")
 			require.Len(t, additionalRateLimits, 1, "one-order batch must return one scoped limiter")
 			assert.Equal(t, 1, orderCount, "one-order batch should return one order")
+			assert.Equal(t, string(tc.expectedClass)+":"+tradeRateLimitBTCUSDT, additionalRateLimits[0].Scope, "one-order batch scope should identify the single-order bucket")
 			assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tc.expectedClass, scope: tradeRateLimitBTCUSDT}, "one-order batch should use the single-order bucket")
 			assert.NotContains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tc.class, scope: tradeRateLimitBTCUSDT}, "one-order batch should not use the batch bucket")
 		})
@@ -437,6 +439,7 @@ func TestTradeRateLimiterAdditionalTradeRateLimits(t *testing.T) {
 		counts          map[string]int
 		expectedLimits  int
 		expectedWeights []request.Weight
+		expectedScopes  []string
 		expectedError   error
 	}{
 		{
@@ -445,6 +448,7 @@ func TestTradeRateLimiterAdditionalTradeRateLimits(t *testing.T) {
 			counts:          map[string]int{tradeRateLimitBTCUSDT: 2},
 			expectedLimits:  2,
 			expectedWeights: []request.Weight{2, 2},
+			expectedScopes:  []string{"place-single:" + tradeRateLimitBTCUSDT, "place-single:" + subAccountTradeRateLimitScope},
 		},
 		{
 			name:            "amend includes scoped and subaccount limits",
@@ -452,6 +456,7 @@ func TestTradeRateLimiterAdditionalTradeRateLimits(t *testing.T) {
 			counts:          map[string]int{tradeRateLimitBTCUSDT: 3},
 			expectedLimits:  2,
 			expectedWeights: []request.Weight{3, 3},
+			expectedScopes:  []string{"amend-batch:" + tradeRateLimitBTCUSDT, "amend-batch:" + subAccountTradeRateLimitScope},
 		},
 		{
 			name:            "cancel excludes subaccount limit",
@@ -459,6 +464,7 @@ func TestTradeRateLimiterAdditionalTradeRateLimits(t *testing.T) {
 			counts:          map[string]int{tradeRateLimitBTCUSDT: 1},
 			expectedLimits:  1,
 			expectedWeights: []request.Weight{1},
+			expectedScopes:  []string{"cancel-single:" + tradeRateLimitBTCUSDT},
 		},
 		{
 			name:          "invalid class",
@@ -484,6 +490,7 @@ func TestTradeRateLimiterAdditionalTradeRateLimits(t *testing.T) {
 			require.Len(t, additionalRateLimits, tc.expectedLimits, "additionalTradeRateLimits must return expected limits")
 			for i := range tc.expectedWeights {
 				assert.Equal(t, tc.expectedWeights[i], additionalRateLimits[i].WeightOverride, "rate-limit weight should match")
+				assert.Equal(t, tc.expectedScopes[i], additionalRateLimits[i].Scope, "rate-limit scope should match")
 			}
 		})
 	}

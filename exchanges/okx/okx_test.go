@@ -803,6 +803,37 @@ func TestGetTakerFlow(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("additional rate limits from context", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		require.NoError(t, ex.Requester.Shutdown(), "default requester must shut down")
+		var err error
+		ex.Requester, err = request.New(ex.Name, common.NewHTTPClientWithTimeout(time.Second), request.WithLimiter(request.RateLimitDefinitions{
+			placeOrderEPL: request.NewRateLimitWithWeight(0, 0, 1),
+		}))
+		require.NoError(t, err, "requester must initialise")
+		t.Cleanup(func() {
+			assert.NoError(t, ex.Requester.Shutdown(), "requester should shut down")
+		})
+
+		scopedLimiter, err := ex.tradeLimiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, mainPair.String())
+		require.NoError(t, err, "scoped limiter must initialise")
+		require.NoError(t, scopedLimiter.RateLimit(t.Context()), "first scoped reservation must not error")
+
+		_, err = ex.PlaceOrder(request.WithDelayNotAllowed(t.Context()), &PlaceOrderRequestParam{
+			InstrumentID: mainPair.String(),
+			TradeMode:    TradeModeCash,
+			Side:         order.Buy.String(),
+			OrderType:    orderMarket,
+			Amount:       1,
+		})
+		require.ErrorIs(t, err, request.ErrDelayNotAllowed, "PlaceOrder must enforce its context-carried scoped limiter")
+		assert.ErrorContains(t, err, "place-single:"+mainPair.String(), "PlaceOrder should identify the limiting scope")
+	})
+
 	_, err := e.PlaceOrder(contextGenerate(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 

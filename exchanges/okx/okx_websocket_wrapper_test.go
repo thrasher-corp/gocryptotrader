@@ -17,14 +17,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
+func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc, rateLimitDefinitions ...request.RateLimitDefinitions) *Exchange {
 	t.Helper()
+	var connectionRateLimits request.RateLimitDefinitions
+	if len(rateLimitDefinitions) > 0 {
+		connectionRateLimits = rateLimitDefinitions[0]
+	}
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
@@ -47,6 +52,7 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		ExchangeConfig:               exchCfg,
 		Features:                     &ex.Features.Supports.WebsocketCapabilities,
 		UseMultiConnectionManagement: true,
+		RateLimitDefinitions:         connectionRateLimits,
 	}))
 
 	require.NoError(t, ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{

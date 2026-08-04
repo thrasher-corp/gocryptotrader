@@ -2,8 +2,10 @@ package okx
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -39,6 +41,34 @@ func TestPlaceOrderRequestParamMarshalJSON(t *testing.T) {
 
 func TestWSPlaceOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("additional rate limits from context", func(t *testing.T) {
+		t.Parallel()
+
+		var requestSent atomic.Bool
+		ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, connection *gws.Conn) error {
+			tb.Helper()
+			requestSent.Store(true)
+			return okxOrderWsMock(tb, payload, connection)
+		}, request.RateLimitDefinitions{
+			placeOrderEPL: request.NewRateLimitWithWeight(0, 0, 1),
+		})
+		scopedLimiter, err := ex.tradeLimiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, mainPair.String())
+		require.NoError(t, err, "scoped limiter must initialise")
+		require.NoError(t, scopedLimiter.RateLimit(t.Context()), "first scoped reservation must not error")
+
+		_, err = ex.WSPlaceOrder(request.WithDelayNotAllowed(t.Context()), &PlaceOrderRequestParam{
+			InstrumentID:     mainPair.String(),
+			InstrumentIDCode: 1,
+			TradeMode:        TradeModeCash,
+			Side:             order.Buy.String(),
+			OrderType:        orderMarket,
+			Amount:           1,
+		})
+		require.ErrorIs(t, err, request.ErrDelayNotAllowed, "WSPlaceOrder must enforce its context-carried scoped limiter")
+		assert.ErrorContains(t, err, "place-single:"+mainPair.String(), "WSPlaceOrder should identify the limiting scope")
+		assert.False(t, requestSent.Load(), "WSPlaceOrder should reject the request before transmission")
+	})
 
 	_, err := e.WSPlaceOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
