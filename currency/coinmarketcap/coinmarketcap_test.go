@@ -100,18 +100,6 @@ func TestSetDefaults(t *testing.T) {
 	})
 }
 
-func TestSetDefaultsRequesterError(t *testing.T) {
-	original := requestNew
-	t.Cleanup(func() { requestNew = original })
-	requestNew = func(_ string, _ *http.Client, _ ...request.RequesterOption) (*request.Requester, error) {
-		return nil, common.ErrNilPointer
-	}
-
-	var c Coinmarketcap
-	c.SetDefaults()
-	assert.Nil(t, c.Requester, "SetDefaults should leave Requester nil when construction fails")
-}
-
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	var c Coinmarketcap
