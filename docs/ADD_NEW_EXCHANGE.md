@@ -6,7 +6,6 @@
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 ## This is still in active development
 
@@ -130,7 +129,6 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Bybit | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
-| Exmo | Yes | NA | NA |
 | Coinbase | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
@@ -160,7 +158,6 @@ var Exchanges = []string{
     "coinbase",
     "coinut",
     "deribit",
-    "exmo",
     "gateio",
     "gemini",
     "hitbtc",
@@ -176,13 +173,13 @@ var Exchanges = []string{
 #### Setup and run the [documentation tool](../cmd/documentation)
 
 - Create a new file named *exchangename*.tmpl
-- Copy contents of template from another exchange example here being Exmo
+- Copy contents of a template from another exchange, with Okx used here as an example
 - Replace names and variables as shown:
 
 ```go
-{{define "exchanges exmo" -}} // exmo -> binance
+{{define "exchanges okx" -}} // okx -> binance
 {{template "header" .}}
-## Exmo Exchange
+## Okx Exchange
 
 #### Current Features
 
@@ -190,11 +187,11 @@ var Exchanges = []string{
 ```
 
 ```go
-var e exchange.IBotExchange
+var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-  if bot.Exchanges[i].GetName() == "Exmo" { // Exmo -> Binance
-    e = bot.Exchanges[i]
+  if bot.Exchanges[i].GetName() == "Okx" { // Okx -> Binance
+    o = bot.Exchanges[i]
   }
 }
 
@@ -203,13 +200,13 @@ for i := range bot.Exchanges {
 pair := currency.NewBTCUSD()
 
 // Fetches current ticker information
-tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot)
+tick, err := o.GetCachedTicker(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := e.GetCachedOrderbook(context.Background(), pair, asset.Spot)
+ob, err := o.GetCachedOrderbook(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }

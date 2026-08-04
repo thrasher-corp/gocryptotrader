@@ -7,7 +7,6 @@
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/trade)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
 This trade package is part of the GoCryptoTrader codebase.
@@ -72,7 +71,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | No |
 | Deribit | Yes | Yes | Yes |
-| Exmo | Yes | NA | No |
 | GateIO | Yes | Yes | No |
 | Gemini | Yes | Yes | Yes |
 | HitBTC | Yes | Yes | Yes |
