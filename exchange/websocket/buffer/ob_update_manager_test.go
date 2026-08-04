@@ -407,7 +407,10 @@ func TestApplyPendingUpdates(t *testing.T) {
 	m := NewUpdateManager(&tp)
 	pair := currency.NewPair(currency.LTC, currency.USDT)
 
-	err := m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err := m.applyPendingUpdates(&updateCache{})
+	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "applyPendingUpdates must error when the pending-update queue is empty")
+
+	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Asset: asset.Spot}},
 	}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "applyPendingUpdates must error when the currency pair is empty")
@@ -499,6 +502,7 @@ func TestApplyPendingUpdatesKeyMismatch(t *testing.T) {
 			m := NewUpdateManager(&tp)
 			err := m.ob.LoadSnapshot(&orderbook.Book{Pair: tc.pendingPair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
 			require.NoError(t, err, "LoadSnapshot must not error for the pending-update key")
+			<-m.ob.dataHandler.C
 			cache := &updateCache{
 				state: cacheStateQueuing,
 				updates: []pendingUpdate{
@@ -510,6 +514,10 @@ func TestApplyPendingUpdatesKeyMismatch(t *testing.T) {
 			err = m.applyPendingUpdates(cache)
 			require.ErrorIs(t, err, errPendingUpdateKeyMismatch, "applyPendingUpdates must error when pending update keys differ")
 			assert.Contains(t, err.Error(), tc.wantContext, "applyPendingUpdates error should identify the mismatched pending-update key")
+			lastUpdateID, lastUpdateErr := m.ob.LastUpdateID(tc.pendingPair, asset.Spot)
+			require.NoError(t, lastUpdateErr, "LastUpdateID must not error after rejecting mismatched pending updates")
+			assert.Equal(t, int64(10), lastUpdateID, "applyPendingUpdates should reject a mismatched queue before applying an update")
+			assert.Empty(t, m.ob.dataHandler.C, "applyPendingUpdates should reject a mismatched queue before publishing an update")
 			assert.Equal(t, cacheStateQueuing, cache.state, "applyPendingUpdates should not sync pending updates with different keys")
 		})
 	}

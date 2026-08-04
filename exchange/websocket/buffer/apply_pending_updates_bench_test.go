@@ -13,6 +13,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+// BenchmarkLoadSnapshotExistingHolder guards the shared-lock fast path against accidental serialisation.
+func BenchmarkLoadSnapshotExistingHolder(b *testing.B) {
+	relay := stream.NewRelay(1)
+	pair := currency.NewBTCUSD()
+	book := &orderbook.Book{
+		Exchange:    "BenchmarkLoadSnapshotExistingHolder",
+		Pair:        pair,
+		Asset:       asset.Spot,
+		LastUpdated: time.Unix(1, 0),
+	}
+	ob := &Orderbook{
+		exchangeName: book.Exchange,
+		ob:           make(map[key.PairAsset]*orderbookHolder),
+		dataHandler:  relay,
+	}
+	if err := ob.LoadSnapshot(book); err != nil {
+		b.Fatal(err)
+	}
+	<-relay.C
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := ob.LoadSnapshot(book); err != nil {
+			b.Fatal(err)
+		}
+		<-relay.C
+	}
+}
+
 // Benchstat medians (20 counterbalanced fresh-process observations per revision).
 // The timed region includes LoadSnapshot, applyPendingUpdates, and relay drain.
 // 64 updates:
