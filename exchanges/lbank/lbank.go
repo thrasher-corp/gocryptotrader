@@ -27,6 +27,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Lbank
@@ -76,22 +77,27 @@ var (
 // GetTicker returns a ticker for the specified symbol
 // symbol: eth_btc
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (*TickerResponse, error) {
-	var t *TickerResponse
+	var t []TickerResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankTicker, params.Encode())
-	return t, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankTicker, params)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t); err != nil {
+		return nil, err
+	}
+	if len(t) != 1 {
+		return nil, fmt.Errorf("expected 1 ticker response, got %d", len(t))
+	}
+	return &t[0], nil
 }
 
 // GetTimestamp returns a timestamp
 func (e *Exchange) GetTimestamp(ctx context.Context) (time.Time, error) {
-	var resp TimestampResponse
-	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion2, lbankTimestamp)
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-	if err != nil {
+	var ts types.Time
+	path := "/v" + lbankAPIVersion2 + "/" + lbankTimestamp
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &ts); err != nil {
 		return time.Time{}, err
 	}
-	return resp.Timestamp.Time(), nil
+	return ts.Time(), nil
 }
 
 // GetTickers returns all tickers
@@ -99,14 +105,13 @@ func (e *Exchange) GetTickers(ctx context.Context) ([]TickerResponse, error) {
 	var t []TickerResponse
 	params := url.Values{}
 	params.Set("symbol", "all")
-	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankTicker, params.Encode())
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankTicker, params)
 	return t, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
 }
 
 // GetCurrencyPairs returns a list of supported currency pairs by the exchange
 func (e *Exchange) GetCurrencyPairs(ctx context.Context) ([]string, error) {
-	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion1,
-		lbankCurrencyPairs)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankCurrencyPairs
 	var result []string
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 }
@@ -117,7 +122,7 @@ func (e *Exchange) GetMarketDepths(ctx context.Context, symbol string, size uint
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("size", strconv.FormatUint(size, 10))
-	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion2, lbankMarketDepths, params.Encode())
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankMarketDepths, params)
 	return &m, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &m)
 }
 
@@ -133,7 +138,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string, limit uint64, t
 	if !tm.IsZero() {
 		params.Set("time", strconv.FormatInt(tm.Unix(), 10))
 	}
-	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankTrades, params.Encode())
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankTrades, params)
 	return g, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &g)
 }
 
@@ -145,7 +150,7 @@ func (e *Exchange) GetKlines(ctx context.Context, symbol, size, klineType string
 	params.Set("size", size)
 	params.Set("type", klineType)
 	params.Set("time", strconv.FormatInt(tm.Unix(), 10))
-	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankKlines, params.Encode())
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankKlines, params)
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &klineTemp)
 	if err != nil {
 		return nil, err
@@ -171,7 +176,7 @@ func (e *Exchange) GetKlines(ctx context.Context, symbol, size, klineType string
 // GetUserInfo gets users account info
 func (e *Exchange) GetUserInfo(ctx context.Context) (InfoFinalResponse, error) {
 	var resp InfoFinalResponse
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankUserInfo)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankUserInfo
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, nil, &resp)
 	if err != nil {
 		return resp, err
@@ -202,7 +207,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, pair, side string, amount, p
 	params.Set("type", strings.ToLower(side))
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankPlaceOrder)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankPlaceOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -221,7 +226,7 @@ func (e *Exchange) RemoveOrder(ctx context.Context, pair, orderID string) (Remov
 	params := url.Values{}
 	params.Set("symbol", pair)
 	params.Set("order_id", orderID)
-	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion1, lbankCancelOrder)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankCancelOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -242,7 +247,7 @@ func (e *Exchange) QueryOrder(ctx context.Context, pair, orderIDs string) (Query
 	params := url.Values{}
 	params.Set("symbol", pair)
 	params.Set("order_id", orderIDs)
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankQueryOrder)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankQueryOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &tempResp)
 	if err != nil {
 		return resp, err
@@ -278,7 +283,7 @@ func (e *Exchange) QueryOrderHistory(ctx context.Context, pair, pageNumber, page
 	params.Set("symbol", pair)
 	params.Set("current_page", pageNumber)
 	params.Set("page_length", pageLength)
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankQueryHistoryOrder)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankQueryHistoryOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &tempResp)
 	if err != nil {
 		return resp, err
@@ -306,7 +311,7 @@ func (e *Exchange) QueryOrderHistory(ctx context.Context, pair, pageNumber, page
 // GetPairInfo finds information about all trading pairs
 func (e *Exchange) GetPairInfo(ctx context.Context) ([]PairInfoResponse, error) {
 	var resp []PairInfoResponse
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankPairInfo)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankPairInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -316,7 +321,7 @@ func (e *Exchange) OrderTransactionDetails(ctx context.Context, symbol, orderID 
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("order_id", orderID)
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankOrderTransactionDetails)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankOrderTransactionDetails
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -340,7 +345,7 @@ func (e *Exchange) TransactionHistory(ctx context.Context, symbol, transactionTy
 	params.Set("from", from)
 	params.Set("direct", direct)
 	params.Set("size", size)
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankPastTransactions)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankPastTransactions
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -362,7 +367,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, pair, pageNumber, pageLeng
 	params.Set("symbol", pair)
 	params.Set("current_page", pageNumber)
 	params.Set("page_length", pageLength)
-	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion1, lbankOpeningOrders)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankOpeningOrders
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &tempResp)
 	if err != nil {
 		return resp, err
@@ -388,10 +393,10 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, pair, pageNumber, pageLeng
 }
 
 // USD2RMBRate finds USD-CNY Rate
-func (e *Exchange) USD2RMBRate(ctx context.Context) (ExchangeRateResponse, error) {
-	var resp ExchangeRateResponse
-	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion1, lbankUSD2CNYRate)
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+func (e *Exchange) USD2RMBRate(ctx context.Context) (float64, error) {
+	var rate types.Number
+	path := "/v" + lbankAPIVersion2 + "/" + lbankUSD2CNYRate
+	return rate.Float64(), e.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
 }
 
 // GetWithdrawConfig gets information about withdrawals
@@ -399,7 +404,7 @@ func (e *Exchange) GetWithdrawConfig(ctx context.Context, c currency.Code) ([]Wi
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
 	params.Set("assetCode", c.Lower().String())
-	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankWithdrawConfig, params.Encode())
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankWithdrawConfig, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -419,8 +424,7 @@ func (e *Exchange) Withdraw(ctx context.Context, account, assetCode, amount, mem
 	if withdrawType != "" {
 		params.Set("type", withdrawType)
 	}
-	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion1,
-		lbankWithdraw)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankWithdraw
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -440,7 +444,7 @@ func (e *Exchange) RevokeWithdraw(ctx context.Context, withdrawID string) (Revok
 	if withdrawID != "" {
 		params.Set("withdrawId", withdrawID)
 	}
-	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion1, lbankRevokeWithdraw)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankRevokeWithdraw
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -461,7 +465,7 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, assetCode string, p
 	params.Set("status", strconv.FormatInt(status, 10))
 	params.Set("pageNo", strconv.FormatInt(pageNo, 10))
 	params.Set("pageSize", strconv.FormatInt(pageSize, 10))
-	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion1, lbankWithdrawalRecords)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankWithdrawalRecords
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -490,19 +494,34 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 
+	var tempResp json.RawMessage
 	item := &request.Item{
 		Method:                 http.MethodGet,
 		Path:                   endpoint + path,
-		Result:                 result,
+		Result:                 &tempResp,
 		Verbose:                e.Verbose,
 		HTTPDebugging:          e.HTTPDebugging,
 		HTTPRecording:          e.HTTPRecording,
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
-	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
+	if err != nil {
+		return err
+	}
+
+	var v2Resp V2Response
+	if err := json.Unmarshal(tempResp, &v2Resp); err == nil {
+		if v2Resp.Result == "false" {
+			return fmt.Errorf("lbank: request failed: %s", v2Resp.Msg)
+		}
+		if v2Resp.Data != nil {
+			return json.Unmarshal(v2Resp.Data, result)
+		}
+	}
+	return json.Unmarshal(tempResp, result)
 }
 
 func (e *Exchange) loadPrivKey(ctx context.Context) error {

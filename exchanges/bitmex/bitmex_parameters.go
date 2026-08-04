@@ -109,7 +109,7 @@ func (p *APIKeyParams) ToURLVals(path string) (string, error) {
 	return common.EncodeURLValues(path, values), nil
 }
 
-// IsNil checks to see if any values has been set for the parameter
+// IsNil checks to see if any values have been set for the parameter
 func (p *APIKeyParams) IsNil() bool {
 	return (APIKeyParams{}) == *p
 }
@@ -270,7 +270,7 @@ type OrderNewParams struct {
 	// OneUpdatesTheOtherAbsolute, OneUpdatesTheOtherProportional.
 	ContingencyType string `json:"contingencyType,omitempty"`
 
-	// DisplayQuantity- [Optional] quantity to display in the book. Use 0 for a fully
+	// DisplayQuantity - [Optional] quantity to display in the book. Use 0 for a fully
 	// hidden order.
 	DisplayQuantity float64 `json:"displayQty,omitempty"`
 

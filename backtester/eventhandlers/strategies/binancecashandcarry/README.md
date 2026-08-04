@@ -7,7 +7,6 @@
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
 This binancecashandcarry package is part of the GoCryptoTrader codebase.
@@ -43,7 +42,7 @@ This strategy does support strategy customisation in the following ways:
 
 | Field | Description |  Example |
 | --- | ------- | --- |
-| openShortDistancePercentage | If there is no short position open, and the difference between FUTURES and SPOT pricing goes above this this percentage threshold, raise a SHORT order of the FUTURES contract | 10 |
+| openShortDistancePercentage | If there is no short position open, and the difference between FUTURES and SPOT pricing goes above this percentage threshold, raise a SHORT order of the FUTURES contract | 10 |
 | closeShortDistancePercentage | If there is an open SHORT position on a FUTURES contract, and the difference in FUTURES and SPOT pricing goes below this percentage threshold, close the SHORT position | 1 |
 
 ### External Resources

@@ -88,6 +88,17 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
     }
 ```
 
+- Prefer package-level sentinel errors for validation, parsing, and custom unmarshalling failures that produce deterministic, testable outcomes when callers or tests need stable `errors.Is` matching.
+- When returning additional context for a sentinel error, wrap the sentinel with `fmt.Errorf` and `%w` rather than replacing it with a new inline `errors.New(...)` value.
+
+```go
+    var errInvalidOrderSide = errors.New("invalid order side")
+
+    if side == "" {
+        return fmt.Errorf("%w: empty input", errInvalidOrderSide)
+    }
+```
+
 - Prefer meaningful and specific error messages that identify the operation being performed.
 - Always include enough context in errors to aid in debugging and traceability.
 - Do not use panic; always return and propagate errors cleanly.
@@ -131,6 +142,11 @@ Use `require` and `assert` appropriately:
     // Wrong — f variant used without format verbs:
     assert.ErrorIsf(t, err, errInvalidOrderSize, "validate should return expected error")
 ```
+
+#### Sentinel error coverage
+
+- When returning sentinel errors directly or wrapped, add direct `assert.ErrorIs` or `require.ErrorIs` coverage for that path.
+- For validation and custom unmarshalling helpers, prefer a focused test for the exact sentinel error path rather than relying only on indirect endpoint coverage.
 
 ### Test Coverage
 

@@ -986,7 +986,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 }
 
 // GetManagedOrders returns all orders from the Order Manager for the provided exchange,
-// asset type  and currency pair
+// asset type and currency pair
 func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
 	if r == nil {
 		return nil, errInvalidArguments

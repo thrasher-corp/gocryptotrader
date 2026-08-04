@@ -186,7 +186,7 @@ func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol cu
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesCompressedTrades+params.Encode(), cFuturesHistoricalTradesRate, &resp)
 }
 
-// GetIndexAndMarkPrice gets index and mark prices  for CoinMarginedFutures,
+// GetIndexAndMarkPrice gets index and mark prices for CoinMarginedFutures,
 func (e *Exchange) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string) ([]IndexMarkPrice, error) {
 	var resp []IndexMarkPrice
 	params := url.Values{}

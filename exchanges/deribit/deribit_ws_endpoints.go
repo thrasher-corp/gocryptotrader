@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -2025,7 +2024,7 @@ func (e *Exchange) UnsubscribeAllPrivateChannels(ctx context.Context) (string, e
 // WSExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (e *Exchange) WSExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+func (e *Exchange) WSExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) (*ExecutedBlockTradeCollection, error) {
 	if nonce == "" {
 		return nil, errMissingNonce
 	}
@@ -2069,8 +2068,8 @@ func (e *Exchange) WSExecuteBlockTrade(ctx context.Context, timestampMS time.Tim
 		Timestamp:             timestampMS.UnixMilli(),
 		Currency:              ccy.String(),
 	}
-	var resp []BlockTradeResponse
-	return resp, e.SendWSRequest(ctx, matchingEPL, executeBlockTrades, input, &resp, true)
+	var resp *ExecutedBlockTradeCollection
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/execute_block_trade", input, &resp, true)
 }
 
 // WSVerifyBlockTrade verifies and creates block trade signature through the websocket connection.
@@ -2119,7 +2118,7 @@ func (e *Exchange) WSVerifyBlockTrade(ctx context.Context, timestampMS time.Time
 	resp := &struct {
 		Signature string `json:"signature"`
 	}{}
-	return resp.Signature, e.SendWSRequest(ctx, matchingEPL, verifyBlockTrades, input, &resp, true)
+	return resp.Signature, e.SendWSRequest(ctx, matchingEPL, "private/verify_block_trade", input, &resp, true)
 }
 
 // WsInvalidateBlockTradeSignature user at any time (before the private/execute_block_trade is called) can invalidate its own signature effectively cancelling block trade through the websocket connection.
@@ -2127,10 +2126,8 @@ func (e *Exchange) WsInvalidateBlockTradeSignature(ctx context.Context, signatur
 	if signature == "" {
 		return errMissingSignature
 	}
-	params := url.Values{}
-	params.Set("signature", signature)
 	var resp string
-	err := e.SendWSRequest(ctx, nonMatchingEPL, invalidateBlockTradesSignature, params, &resp, true)
+	err := e.SendWSRequest(ctx, blockTradeWriteEPL, "private/invalidate_block_trade_signature", map[string]string{"signature": signature}, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -2141,12 +2138,459 @@ func (e *Exchange) WsInvalidateBlockTradeSignature(ctx context.Context, signatur
 }
 
 // WSRetrieveUserBlockTrade returns information about users block trade through the websocket connection.
-func (e *Exchange) WSRetrieveUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
+func (e *Exchange) WSRetrieveUserBlockTrade(ctx context.Context, id string) (*BlockTradeCollection, error) {
 	if id == "" {
 		return nil, errMissingBlockTradeID
 	}
-	var resp []BlockTradeData
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getBlockTrades, map[string]string{"id": id}, &resp, true)
+	var resp *BlockTradeCollection
+	return resp, e.SendWSRequest(ctx, blockTradeReadEPL, "private/get_block_trade", map[string]string{"id": id}, &resp, true)
+}
+
+// WSRetrieveBlockTradeRequests returns block trade requests through the websocket connection.
+func (e *Exchange) WSRetrieveBlockTradeRequests(ctx context.Context, brokerCode string) ([]PendingBlockTradeData, error) {
+	input := map[string]string{}
+	if brokerCode != "" {
+		input["broker_code"] = brokerCode
+	}
+	var resp []PendingBlockTradeData
+	return resp, e.SendWSRequest(ctx, blockTradeReadEPL, "private/get_block_trade_requests", input, &resp, true)
+}
+
+// WSApproveBlockTrade approves a pending block trade through the websocket connection.
+func (e *Exchange) WSApproveBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string) error {
+	if err := validatePendingBlockTradeAction(timestampMS, nonce, role); err != nil {
+		return err
+	}
+	input := map[string]any{
+		"timestamp": timestampMS.UnixMilli(),
+		"nonce":     nonce,
+		"role":      role,
+	}
+	var resp string
+	err := e.SendWSRequest(ctx, blockTradeWriteEPL, "private/approve_block_trade", input, &resp, true)
+	if err != nil {
+		return err
+	}
+	if resp != "ok" {
+		return fmt.Errorf("server response: %s", resp)
+	}
+	return nil
+}
+
+// WSRejectBlockTrade rejects a pending block trade through the websocket connection.
+func (e *Exchange) WSRejectBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string) error {
+	if err := validatePendingBlockTradeAction(timestampMS, nonce, role); err != nil {
+		return err
+	}
+	input := map[string]any{
+		"timestamp": timestampMS.UnixMilli(),
+		"nonce":     nonce,
+		"role":      role,
+	}
+	var resp string
+	err := e.SendWSRequest(ctx, blockTradeWriteEPL, "private/reject_block_trade", input, &resp, true)
+	if err != nil {
+		return err
+	}
+	if resp != "ok" {
+		return fmt.Errorf("server response: %s", resp)
+	}
+	return nil
+}
+
+// WSRetrieveBlockTrades returns a list of users block trades through the websocket connection.
+func (e *Exchange) WSRetrieveBlockTrades(ctx context.Context, req *GetBlockTradesRequest) ([]BlockTradeCollection, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	input := map[string]any{}
+	if !req.Currency.IsEmpty() {
+		input["currency"] = req.Currency.String()
+	}
+	if req.StartID != "" {
+		input["start_id"] = req.StartID
+	}
+	if req.EndID != "" {
+		input["end_id"] = req.EndID
+	}
+	if req.Count > 0 {
+		input["count"] = req.Count
+	}
+	if req.BlockRFQID > 0 {
+		input["block_rfq_id"] = req.BlockRFQID
+	}
+	if req.BrokerCode != "" {
+		input["broker_code"] = req.BrokerCode
+	}
+	var resp []BlockTradeCollection
+	return resp, e.SendWSRequest(ctx, blockTradeReadEPL, "private/get_block_trades", input, &resp, true)
+}
+
+// WSRetrieveBrokerTradeRequests retrieves broker trade requests through the websocket connection.
+func (e *Exchange) WSRetrieveBrokerTradeRequests(ctx context.Context) ([]BrokerTradeRequestItem, error) {
+	var resp []BrokerTradeRequestItem
+	return resp, e.SendWSRequest(ctx, blockTradeReadEPL, "private/get_broker_trade_requests", nil, &resp, true)
+}
+
+// WSRetrieveBrokerTrades retrieves broker trade history through the websocket connection.
+func (e *Exchange) WSRetrieveBrokerTrades(ctx context.Context, req *GetBrokerTradesRequest) (*BrokerTradeHistoryResponse, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	input := map[string]any{}
+	if !req.Currency.IsEmpty() {
+		input["currency"] = req.Currency.String()
+	}
+	if req.Count > 0 {
+		input["count"] = req.Count
+	}
+	if req.StartID != "" {
+		input["start_id"] = req.StartID
+	}
+	if req.EndID != "" {
+		input["end_id"] = req.EndID
+	}
+	var resp *BrokerTradeHistoryResponse
+	return resp, e.SendWSRequest(ctx, blockTradeReadEPL, "private/get_broker_trades", input, &resp, true)
+}
+
+// WSCreateBlockRFQ creates a new block RFQ through the websocket connection.
+func (e *Exchange) WSCreateBlockRFQ(ctx context.Context, req *CreateBlockRFQRequest) (*BlockRFQData, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	checkedLegs, err := validateCreateBlockRFQLegs(req.Legs)
+	if err != nil {
+		return nil, err
+	}
+	err = validateBlockRFQTradeAllocations(req.TradeAllocations)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	input := map[string]any{
+		"legs": checkedLegs,
+	}
+	if len(req.Makers) > 0 {
+		input["makers"] = req.Makers
+	}
+	if len(req.TradeAllocations) > 0 {
+		input["trade_allocations"] = req.TradeAllocations
+	}
+	if checkedHedge != nil {
+		input["hedge"] = checkedHedge
+	}
+	if req.Label != "" {
+		input["label"] = req.Label
+	}
+	if req.Disclosed {
+		input["disclosed"] = true
+	}
+	var resp *BlockRFQData
+	return resp, e.SendWSRequest(ctx, blockRFQWriteEPL, "private/create_block_rfq", input, &resp, true)
+}
+
+// WSAddBlockRFQQuote adds a quote to an existing block RFQ through the websocket connection.
+func (e *Exchange) WSAddBlockRFQQuote(ctx context.Context, req *AddBlockRFQQuoteRequest) (*BlockRFQQuote, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	if req.BlockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
+	}
+	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.Amount < 0 {
+		return nil, errInvalidAmount
+	}
+	if req.Price < 0 {
+		return nil, errInvalidPrice
+	}
+	input := map[string]any{
+		"block_rfq_id": req.BlockRFQID,
+	}
+	if req.Amount > 0 {
+		input["amount"] = req.Amount
+	}
+	if req.Price > 0 {
+		input["price"] = req.Price
+	}
+	if normalisedDirection != "" {
+		input["direction"] = normalisedDirection
+	}
+	if req.ExecutionInstruction != "" {
+		input["execution_instruction"] = req.ExecutionInstruction
+	}
+	if !req.ExpiresAt.IsZero() {
+		input["expires_at"] = req.ExpiresAt.UnixMilli()
+	}
+	if len(checkedLegs) > 0 {
+		input["legs"] = checkedLegs
+	}
+	if checkedHedge != nil {
+		input["hedge"] = checkedHedge
+	}
+	if req.Label != "" {
+		input["label"] = req.Label
+	}
+	var resp *BlockRFQQuote
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/add_block_rfq_quote", input, &resp, true)
+}
+
+// WSEditBlockRFQQuote edits an existing block RFQ quote through the websocket connection.
+func (e *Exchange) WSEditBlockRFQQuote(ctx context.Context, req *EditBlockRFQQuoteRequest) (*BlockRFQQuote, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	if req.BlockRFQQuoteID <= 0 && (req.BlockRFQID <= 0 || req.Label == "") {
+		return nil, errMissingBlockRFQQuoteIdentifier
+	}
+	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.Amount < 0 {
+		return nil, errInvalidAmount
+	}
+	if req.Price < 0 {
+		return nil, errInvalidPrice
+	}
+	input := map[string]any{}
+	if req.BlockRFQQuoteID > 0 {
+		input["block_rfq_quote_id"] = req.BlockRFQQuoteID
+	}
+	if req.BlockRFQID > 0 {
+		input["block_rfq_id"] = req.BlockRFQID
+	}
+	if req.Amount > 0 {
+		input["amount"] = req.Amount
+	}
+	if req.Price > 0 {
+		input["price"] = req.Price
+	}
+	if len(checkedLegs) > 0 {
+		input["legs"] = checkedLegs
+	}
+	if checkedHedge != nil {
+		input["hedge"] = checkedHedge
+	}
+	if req.Label != "" {
+		input["label"] = req.Label
+	}
+	var resp *BlockRFQQuote
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/edit_block_rfq_quote", input, &resp, true)
+}
+
+// WSCancelBlockRFQQuote cancels a block RFQ quote through the websocket connection.
+func (e *Exchange) WSCancelBlockRFQQuote(ctx context.Context, blockRFQQuoteID, blockRFQID uint64, label string) (*BlockRFQQuote, error) {
+	if blockRFQQuoteID <= 0 && (blockRFQID <= 0 || label == "") {
+		return nil, errMissingBlockRFQQuoteIdentifier
+	}
+	input := map[string]any{}
+	if blockRFQQuoteID > 0 {
+		input["block_rfq_quote_id"] = blockRFQQuoteID
+	}
+	if blockRFQID > 0 {
+		input["block_rfq_id"] = blockRFQID
+	}
+	if label != "" {
+		input["label"] = label
+	}
+	var resp *BlockRFQQuote
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/cancel_block_rfq_quote", input, &resp, true)
+}
+
+// WSCancelAllBlockRFQQuotes cancels all block RFQ quotes through the websocket connection.
+func (e *Exchange) WSCancelAllBlockRFQQuotes(ctx context.Context, blockRFQID uint64, detailed bool) (*BlockRFQQuoteCancelResponse, error) {
+	input := map[string]any{}
+	if blockRFQID > 0 {
+		input["block_rfq_id"] = blockRFQID
+	}
+	if detailed {
+		input["detailed"] = true
+	}
+	var resp *BlockRFQQuoteCancelResponse
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/cancel_all_block_rfq_quotes", input, &resp, true)
+}
+
+// WSCancelBlockRFQ cancels a block RFQ through the websocket connection.
+func (e *Exchange) WSCancelBlockRFQ(ctx context.Context, blockRFQID uint64) (*BlockRFQData, error) {
+	if blockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	var resp *BlockRFQData
+	return resp, e.SendWSRequest(ctx, blockRFQWriteEPL, "private/cancel_block_rfq", map[string]uint64{"block_rfq_id": blockRFQID}, &resp, true)
+}
+
+// WSCancelBlockRFQTrigger cancels a block RFQ trigger through the websocket connection.
+func (e *Exchange) WSCancelBlockRFQTrigger(ctx context.Context, blockRFQID uint64) (*BlockRFQData, error) {
+	if blockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	var resp *BlockRFQData
+	return resp, e.SendWSRequest(ctx, blockRFQWriteEPL, "private/cancel_block_rfq_trigger", map[string]uint64{"block_rfq_id": blockRFQID}, &resp, true)
+}
+
+// WSAcceptBlockRFQ accepts an existing block RFQ through the websocket connection.
+func (e *Exchange) WSAcceptBlockRFQ(ctx context.Context, req *AcceptBlockRFQRequest) (*BlockRFQAcceptResponse, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	if req.BlockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	if req.Amount < 0 {
+		return nil, errInvalidAmount
+	}
+	if req.Price < 0 {
+		return nil, errInvalidPrice
+	}
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
+	}
+	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	input := map[string]any{
+		"block_rfq_id": req.BlockRFQID,
+	}
+	if req.Price > 0 {
+		input["price"] = req.Price
+	}
+	if req.Amount > 0 {
+		input["amount"] = req.Amount
+	}
+	if normalisedDirection != "" {
+		input["direction"] = normalisedDirection
+	}
+	if checkedHedge != nil {
+		input["hedge"] = checkedHedge
+	}
+	if len(checkedLegs) > 0 {
+		input["legs"] = checkedLegs
+	}
+	if req.TimeInForce != "" {
+		input["time_in_force"] = req.TimeInForce
+	}
+	var resp *BlockRFQAcceptResponse
+	return resp, e.SendWSRequest(ctx, blockRFQWriteEPL, "private/accept_block_rfq", input, &resp, true)
+}
+
+// WSRetrieveBlockRFQs returns Block RFQs through the websocket connection.
+func (e *Exchange) WSRetrieveBlockRFQs(ctx context.Context, req *GetBlockRFQsRequest) (*BlockRFQListResponse, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	input := map[string]any{}
+	if !req.Currency.IsEmpty() {
+		input["currency"] = req.Currency.String()
+	}
+	if req.Count > 0 {
+		input["count"] = req.Count
+	}
+	if req.State != "" {
+		input["state"] = req.State
+	}
+	if req.Role != "" {
+		input["role"] = req.Role
+	}
+	if req.Continuation != "" {
+		input["continuation"] = req.Continuation
+	}
+	if req.BlockRFQID > 0 {
+		input["block_rfq_id"] = req.BlockRFQID
+	}
+	var resp *BlockRFQListResponse
+	return resp, e.SendWSRequest(ctx, blockRFQReadEPL, "private/get_block_rfqs", input, &resp, true)
+}
+
+// WSRetrieveBlockRFQQuotes retrieves open Block RFQ quotes through the websocket connection.
+func (e *Exchange) WSRetrieveBlockRFQQuotes(ctx context.Context, blockRFQID, blockRFQQuoteID uint64, label string) ([]BlockRFQQuote, error) {
+	input := map[string]any{}
+	if blockRFQID > 0 {
+		input["block_rfq_id"] = blockRFQID
+	}
+	if blockRFQQuoteID > 0 {
+		input["block_rfq_quote_id"] = blockRFQQuoteID
+	}
+	if label != "" {
+		input["label"] = label
+	}
+	var resp []BlockRFQQuote
+	return resp, e.SendWSRequest(ctx, blockRFQReadEPL, "private/get_block_rfq_quotes", input, &resp, true)
+}
+
+// WSRetrieveBlockRFQMakers retrieves available Block RFQ makers through the websocket connection.
+func (e *Exchange) WSRetrieveBlockRFQMakers(ctx context.Context) ([]string, error) {
+	var resp []string
+	return resp, e.SendWSRequest(ctx, blockRFQReadEPL, "private/get_block_rfq_makers", nil, &resp, true)
+}
+
+// WSRetrieveBlockRFQUserInfo retrieves block RFQ user identity info through the websocket connection.
+func (e *Exchange) WSRetrieveBlockRFQUserInfo(ctx context.Context) (*BlockRFQUserInfoResponse, error) {
+	var resp *BlockRFQUserInfoResponse
+	return resp, e.SendWSRequest(ctx, blockRFQReadEPL, "private/get_block_rfq_user_info", nil, &resp, true)
+}
+
+// WSRetrieveBlockRFQTrades retrieves recent public Block RFQ trades through the websocket connection.
+func (e *Exchange) WSRetrieveBlockRFQTrades(ctx context.Context, ccy currency.Code, continuation string, count uint64) (*BlockRFQTradeTapeResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	input := map[string]any{
+		"currency": ccy.String(),
+	}
+	if continuation != "" {
+		input["continuation"] = continuation
+	}
+	if count > 0 {
+		input["count"] = count
+	}
+	var resp *BlockRFQTradeTapeResponse
+	return resp, e.SendWSRequest(ctx, blockRFQReadEPL, "public/get_block_rfq_trades", input, &resp, false)
 }
 
 // WSRetrieveLastBlockTradesByCurrency returns list of last users block trades through the websocket connection.
@@ -2166,7 +2610,7 @@ func (e *Exchange) WSRetrieveLastBlockTradesByCurrency(ctx context.Context, ccy 
 		Count:    count,
 	}
 	var resp []BlockTradeData
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getLastBlockTradesByCurrency, input, &resp, true)
+	return resp, e.SendWSRequest(ctx, blockTradeReadEPL, "private/get_last_block_trades_by_currency", input, &resp, true)
 }
 
 // WSMovePositions moves positions from source subaccount to target subaccount through the websocket connection.
@@ -2203,7 +2647,7 @@ func (e *Exchange) WSMovePositions(ctx context.Context, ccy currency.Code, sourc
 		SourceUID: sourceSubAccountUID,
 	}
 	var resp []BlockTradeMoveResponse
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, movePositions, input, &resp, true)
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/move_positions", input, &resp, true)
 }
 
 // WsSimulateBlockTrade checks if a block trade can be executed through the websocket
@@ -2237,7 +2681,7 @@ func (e *Exchange) WsSimulateBlockTrade(ctx context.Context, role string, trades
 		Trades: trades,
 	}
 	var resp bool
-	return resp, e.SendWSRequest(ctx, matchingEPL, simulateBlockPosition, input, resp, true)
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/simulate_block_trade", input, &resp, true)
 }
 
 // SendWSRequest sends a request through the websocket connection.

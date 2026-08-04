@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -42,11 +43,12 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var e *Exchange
 
@@ -56,10 +58,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Gateio Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -486,8 +488,11 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 func TestGetMarginAccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMarginAccountList() error %v", e.Name, err)
+	result, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "GetMarginAccountList must not error")
+	for i := range result {
+		assert.NotEmpty(t, result[i].CurrencyPair, "CurrencyPair should not be empty")
+		assert.NotEmpty(t, result[i].AccountType, "AccountType should not be empty")
 	}
 }
 
@@ -588,6 +593,49 @@ func TestRepayALoan(t *testing.T) {
 	}
 }
 
+func TestUniLoanBorrowOrRepay(t *testing.T) {
+	t.Parallel()
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), nil), errNilArgument)
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		Currency: currency.BTC,
+		Type:     "borrow",
+		Amount:   1,
+	}), currency.ErrCurrencyPairEmpty)
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.NewBTCUSDT(),
+		Type:         "borrow",
+		Amount:       1,
+	}), currency.ErrCurrencyCodeEmpty)
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.NewBTCUSDT(),
+		Currency:     currency.BTC,
+		Type:         "invalid",
+		Amount:       1,
+	}), errInvalidUniLoanType)
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.NewBTCUSDT(),
+		Currency:     currency.BTC,
+		Type:         "borrow",
+		Amount:       0,
+	}), errInvalidAmount)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	assert.NoError(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
+		Currency:     currency.BTC,
+		Type:         "borrow",
+		Amount:       0.001,
+	}))
+}
+
+func TestGetUniLoanInterestRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 1, 100, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+	assert.NotNil(t, records)
+}
+
 func TestListLoanRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -652,18 +700,22 @@ func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 
 func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.EMPTYCODE, BTCUSDT)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMaxBorrowableAmountForSpecificMarginCurrency() error %v", e.Name, err)
-	}
+	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, BTCUSDT)
+	assert.NoError(t, err, "GetMaxBorrowableAmountForSpecificMarginCurrency should not error")
 }
 
 func TestCurrencySupportedByCrossMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.CurrencySupportedByCrossMargin(t.Context()); err != nil {
-		t.Errorf("%s CurrencySupportedByCrossMargin() error %v", e.Name, err)
-	}
+	got, err := e.CurrencySupportedByCrossMargin(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
 }
 
 func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
@@ -970,10 +1022,33 @@ func TestGetFuturesCandlesticks(t *testing.T) {
 
 func TestPremiumIndexKLine(t *testing.T) {
 	t.Parallel()
-	_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.NoError(t, err, "PremiumIndexKLine should not error for CoinMarginedFutures")
-	_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.NoError(t, err, "PremiumIndexKLine should not error for USDTMarginedFutures")
+	to := time.Now().UTC()
+	from := to.Add(-2 * kline.OneWeek.Duration())
+
+	t.Run("live request", func(t *testing.T) {
+		t.Parallel()
+		coinMarginedContract := getPair(t, asset.CoinMarginedFutures)
+		usdtMarginedContract := getPair(t, asset.USDTMarginedFutures)
+		_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, coinMarginedContract, from, to, 0, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error for CoinMarginedFutures")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, from, to, 0, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error for USDTMarginedFutures")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, time.Time{}, time.Time{}, 1, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error with supplied limit")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, from, to, 1, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error with supplied bounds and limit")
+	})
+
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		contract := currency.NewBTCUSDT()
+		_, err := e.PremiumIndexKLine(t.Context(), currency.Code{}, contract, time.Time{}, time.Time{}, 0, kline.OneWeek)
+		assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "empty settlement currency should return expected error")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, currency.Pair{}, time.Time{}, time.Time{}, 0, kline.OneWeek)
+		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty contract should return expected error")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 0, kline.FiveDay)
+		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "unsupported interval should return expected error")
+	})
 }
 
 func TestGetFutureTickers(t *testing.T) {
@@ -2729,7 +2804,7 @@ func TestListAllAPIKeyOfSubAccount(t *testing.T) {
 func TestUpdateAPIKeyOfSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if err := e.UpdateAPIKeyOfSubAccount(t.Context(), apiKey, CreateAPIKeySubAccountParams{
+	if err := e.UpdateAPIKeyOfSubAccount(t.Context(), apiCredentials.Key, CreateAPIKeySubAccountParams{
 		SubAccountUserID: 12345,
 		Body: &SubAccountKey{
 			APIKeyName: "12312mnfsndfsfjsdklfjsdlkfj",
@@ -2796,47 +2871,58 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			switch a {
-			case asset.CrossMargin, asset.Margin:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
-			default:
-				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.GetAvailablePairs(a)
-				require.NoError(t, err, "GetAvailablePairs must not error")
-				for _, p := range pairs {
-					l, err := e.GetOrderExecutionLimits(a, p)
-					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", p)
-					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", p)
-					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", p)
-					assert.Truef(t, p.Equal(l.Key.Pair()), "pair should equal for %s", p)
-					switch a {
-					case asset.Options:
-						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
-						assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
-						assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
-						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
-					case asset.USDTMarginedFutures:
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
-						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
-						fallthrough
-					case asset.CoinMarginedFutures:
-						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be non-negative for %s", p)
-						if !l.Delisted.IsZero() {
-							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
-						}
-						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
-					case asset.Spot:
-						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
-						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", p)
-						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
-						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
-					case asset.DeliveryFutures:
-						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
-						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
-						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.GetAvailablePairs(a)
+			require.NoError(t, err, "GetAvailablePairs must not error")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", p)
+				require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", p)
+				assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", p)
+				assert.Truef(t, p.Equal(l.Key.Pair()), "pair should equal for %s", p)
+				switch a {
+				case asset.Options:
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+					assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
+					assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+					assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
+				case asset.USDTMarginedFutures:
+					assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
+					assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
+					fallthrough
+				case asset.CoinMarginedFutures:
+					if !l.Delisted.IsZero() {
+						assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 					}
+					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+				case asset.Spot:
+					assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
+					if l.QuoteStepIncrementSize != 0 {
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s when set", p)
+					}
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+				case asset.Margin, asset.CrossMargin:
+					assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+					assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+					invalidPrice := l.PriceStepIncrementSize / 2
+					err = l.Validate(invalidPrice, l.MinimumBaseAmount, order.Limit)
+					assert.ErrorIsf(t, err, limits.ErrPriceExceedsStep, "Validate should reject an invalid price tick for %s", p)
+					if l.QuoteStepIncrementSize != 0 {
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s when set", p)
+					}
+					if l.AmountStepIncrementSize != 0 {
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s when set", p)
+					}
+					assert.Positivef(t, l.MinimumBorrowAmountBase, "MinimumBorrowAmountBase should be positive for %s", p)
+					assert.Positivef(t, l.MinimumBorrowAmountQuote, "MinimumBorrowAmountQuote should be positive for %s", p)
+				case asset.DeliveryFutures:
+					assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+					assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 				}
 			}
 		})
@@ -2972,7 +3058,8 @@ func TestGetOpenInterest(t *testing.T) {
 
 	coinPair := getPair(t, asset.CoinMarginedFutures)
 	usdtPair := getPair(t, asset.USDTMarginedFutures)
-	resp, err = e.GetOpenInterest(t.Context(),
+	resp, err = e.GetOpenInterest(
+		t.Context(),
 		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
 		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
 	)

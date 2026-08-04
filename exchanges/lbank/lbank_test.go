@@ -32,11 +32,12 @@ import (
 )
 
 // Please supply your own keys here for due diligence testing
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e        *Exchange
@@ -48,9 +49,9 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Lbank Setup error: %s", err)
 	}
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 	os.Exit(m.Run())
 }
@@ -86,7 +87,7 @@ func TestGetMarketDepths(t *testing.T) {
 	d, err := e.GetMarketDepths(t.Context(), testPair.String(), 4)
 	require.NoError(t, err, "GetMarketDepths must not error")
 	require.NotEmpty(t, d, "GetMarketDepths must return a non-empty response")
-	assert.Len(t, d.Data.Asks, 4, "GetMarketDepths should return 4 asks")
+	assert.Len(t, d.Asks, 4, "GetMarketDepths should return 4 asks")
 }
 
 func TestGetTrades(t *testing.T) {

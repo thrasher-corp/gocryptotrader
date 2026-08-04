@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -36,16 +37,21 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
+
+// Please supply your own credentials here to do authenticated endpoint testing
+var apiCredentials = &accounts.Credentials{
+	Key:      "",
+	Secret:   "",
+	ClientID: "", // passphrase
+}
 
 var (
 	e *Exchange
@@ -69,10 +75,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Okx Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" && passphrase != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" && apiCredentials.ClientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, passphrase, "", "", "")
+		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
@@ -409,7 +415,13 @@ func TestGetInstrument(t *testing.T) {
 		Underlying:     "SOL-USD",
 	})
 	require.NoError(t, err)
-	assert.Empty(t, resp, "Should get back no instruments for SOL-USD futures")
+	require.NotEmpty(t, resp, "GetInstruments must return live instruments for SOL-USD futures")
+	for i := range resp {
+		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
+		assert.Equal(t, "SOL-USD", resp[i].Underlying, "Underlying should be correct")
+		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
+		assert.NotEmpty(t, resp[i].State, "State should not be empty")
+	}
 
 	result, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
@@ -454,10 +466,13 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
-	uly, err := e.underlyingFromInstID(instTypeOption, p[0].String())
+	instrumentID := p[0].String()
+	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
+	require.NoError(t, err)
+	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, optionsPair.String(), p[0].String())
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2724,7 +2739,7 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := e.ResetSubAccountAPIKey(contextGenerate(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{APIKey: apiKey, APIKeyPermission: "trade"})
+	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{APIKey: apiCredentials.Key, APIKeyPermission: "trade"})
 	require.ErrorIs(t, err, errInvalidSubAccountName)
 	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{SubAccountName: "sam", APIKey: "", APIKeyPermission: "trade"})
 	require.ErrorIs(t, err, errInvalidAPIKey)
@@ -2741,14 +2756,14 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		SubAccountName:   "sam",
-		APIKey:           apiKey,
+		APIKey:           apiCredentials.Key,
 		APIKeyPermission: "trade",
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	result, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		SubAccountName: "sam",
-		APIKey:         apiKey,
+		APIKey:         apiCredentials.Key,
 		Permissions:    []string{"trade", "read"},
 	})
 	require.NoError(t, err)
@@ -3385,6 +3400,51 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Parallel()
 		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
 	})
+}
+
+func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
+	exch := &Exchange{}
+	exch.SetDefaults()
+	exch.Name = t.Name()
+
+	livePair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	inactivePair := currency.NewPairWithDelimiter("ETH", "USDT", "-")
+	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
+		{
+			InstrumentID:     livePair,
+			State:            instrumentStateLive,
+			TickSize:         types.Number(0.1),
+			MinimumOrderSize: types.Number(1),
+		},
+		{
+			InstrumentID:     inactivePair,
+			State:            "preopen",
+			TickSize:         types.Number(0.01),
+			MinimumOrderSize: types.Number(2),
+		},
+		{
+			InstrumentID:     currency.EMPTYPAIR,
+			State:            instrumentStateLive,
+			TickSize:         types.Number(0.01),
+			MinimumOrderSize: types.Number(2),
+		},
+	}), "loadInstrumentOrderExecutionLimits must load live instruments and skip inactive or empty instruments")
+
+	loadedLimit, err := exch.GetOrderExecutionLimits(asset.Futures, livePair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
+	assert.Equal(t, 0.1, loadedLimit.PriceStepIncrementSize, "PriceStepIncrementSize should be set from live instrument")
+	assert.Equal(t, 1.0, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should be set from live instrument")
+
+	_, err = exch.GetOrderExecutionLimits(asset.Futures, inactivePair)
+	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "inactive instruments must not be loaded")
+
+	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
+		{InstrumentID: inactivePair, State: "preopen"},
+		{InstrumentID: currency.EMPTYPAIR, State: instrumentStateLive},
+	}), common.ErrInvalidResponse, "all filtered instruments must return invalid response")
+
+	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
+		common.ErrNoResponse, "empty instrument slice must return no response")
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -4074,7 +4134,7 @@ func TestWsHandleData(t *testing.T) {
 		case "Balance And Position":
 			e.API.AuthenticatedSupport = true
 			e.API.AuthenticatedWebsocketSupport = true
-			e.SetCredentials("test", "test", "test", "", "", "")
+			e.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
 		default:
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
@@ -5762,7 +5822,8 @@ func TestGetOpenInterest(t *testing.T) {
 
 	cp1 := currency.NewPair(currency.DOGE, usdSwapCode)
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, e, asset.PerpetualSwap, cp1)
-	resp, err = e.GetOpenInterest(contextGenerate(),
+	resp, err = e.GetOpenInterest(
+		contextGenerate(),
 		key.PairAsset{
 			Base:  currency.BTC.Item,
 			Quote: usdSwapCode.Item,

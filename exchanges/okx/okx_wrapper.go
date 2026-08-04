@@ -41,6 +41,7 @@ import (
 
 const (
 	websocketResponseMaxLimit = time.Second * 3
+	instrumentStateLive       = "live"
 )
 
 var errContractAmountCanNotBeDecimal = errors.New("contract amount can not be decimal")
@@ -298,7 +299,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(insts))
 		for x := range insts {
-			if insts[x].State != "live" {
+			if insts[x].State != instrumentStateLive {
 				continue
 			}
 			pairs = append(pairs, insts[x].InstrumentID.Format(format))
@@ -309,7 +310,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
-		spreadInstruments, err := e.GetPublicSpreads(ctx, "", "", "", "live")
+		spreadInstruments, err := e.GetPublicSpreads(ctx, "", "", "", instrumentStateLive)
 		if err != nil {
 			return nil, fmt.Errorf("%w asset type: %v", err, a)
 		}
@@ -347,20 +348,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		if len(insts) == 0 {
-			return common.ErrNoResponse
-		}
-		l := make([]limits.MinMaxLevel, len(insts))
-		for i := range insts {
-			l[i] = limits.MinMaxLevel{
-				Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
-				PriceStepIncrementSize: insts[i].TickSize.Float64(),
-				MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
-			}
-		}
-		return limits.Load(l)
+		return e.loadInstrumentOrderExecutionLimits(a, insts)
 	case asset.Spread:
-		insts, err := e.GetPublicSpreads(ctx, "", "", "", "live")
+		insts, err := e.GetPublicSpreads(ctx, "", "", "", instrumentStateLive)
 		if err != nil {
 			return err
 		}
@@ -380,6 +370,27 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Instrument) error {
+	if len(insts) == 0 {
+		return common.ErrNoResponse
+	}
+	l := make([]limits.MinMaxLevel, 0, len(insts))
+	for i := range insts {
+		if insts[i].State != instrumentStateLive || insts[i].InstrumentID.IsEmpty() {
+			continue
+		}
+		l = append(l, limits.MinMaxLevel{
+			Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
+			PriceStepIncrementSize: insts[i].TickSize.Float64(),
+			MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
+		})
+	}
+	if len(l) == 0 {
+		return common.ErrInvalidResponse
+	}
+	return limits.Load(l)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

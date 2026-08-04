@@ -1416,6 +1416,7 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 	m.exchangeName = "test"
 	m.useMultiConnectionManagement = true
 	m.MaxSubscriptionsPerConnection = 1
+	m.trafficTimeout = time.Minute
 	m.setEnabled(true)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1466,6 +1467,7 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 	m.exchangeName = "test"
 	m.useMultiConnectionManagement = true
 	m.MaxSubscriptionsPerConnection = 2
+	m.trafficTimeout = time.Minute
 	m.setEnabled(true)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1537,6 +1539,7 @@ func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 	m.exchangeName = "test"
 	m.useMultiConnectionManagement = true
 	m.MaxSubscriptionsPerConnection = 2
+	m.trafficTimeout = time.Minute
 	m.setEnabled(true)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
