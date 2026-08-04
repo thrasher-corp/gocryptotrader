@@ -2,6 +2,7 @@ package engine
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -29,9 +30,9 @@ type currencyPairSyncAgent struct {
 
 // SyncManager stores the exchange currency pair syncer object
 type SyncManager struct {
-	initSyncCompleted              int32
-	initSyncStarted                int32
-	started                        int32
+	initSyncCompleted              atomic.Bool
+	initSyncStarted                atomic.Bool
+	started                        atomic.Bool
 	shutdown                       chan bool
 	format                         currency.PairFormat
 	initSyncStartTime              time.Time

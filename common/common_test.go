@@ -440,7 +440,7 @@ func TestErrors(t *testing.T) {
 	assert.Same(t, AppendError(e1, nil), e1, "Append nil to e1 should e1")
 	assert.Same(t, AppendError(nil, e2), e2, "Append e2 to nil should e2")
 
-	// Vanila error tests
+	// Vanilla error tests
 	err := AppendError(AppendError(AppendError(nil, e1), e2), e1)
 	assert.ErrorContains(t, err, "inconsistent gravity, barely marginal interest in your story, inconsistent gravity", "Should format consistently")
 	assert.ErrorIs(t, err, e1, "Should have inconsistent gravity")

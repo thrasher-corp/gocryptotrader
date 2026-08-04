@@ -487,7 +487,7 @@ type BatchOrderItemParam struct {
 	TriggerDirection int64         `json:"triggerDirection,omitempty"`
 	TriggerPrice     int64         `json:"triggerPrice,omitempty"`
 	OrderIv          int64         `json:"orderIv,omitempty,string"`
-	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values:  LastPrice, IndexPrice, and MarkPrice
+	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values: LastPrice, IndexPrice, and MarkPrice
 	TimeInForce      string        `json:"timeInForce,omitempty"`
 
 	// PositionIndex Used to identify positions in different position modes. Under hedge-mode,
@@ -1670,7 +1670,7 @@ type LoanOrderDetails struct {
 	ContractSymbols     []string     `json:"contractSymbols"`
 }
 
-// OrderRepayInfo represents repaid information information.
+// OrderRepayInfo represents repaid order information.
 type OrderRepayInfo struct {
 	RepayOrderID string     `json:"repayOrderId"`
 	RepaidTime   types.Time `json:"repaidTime"`

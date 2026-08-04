@@ -6,7 +6,6 @@
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
@@ -38,7 +37,7 @@ supplied meet the requirements to make an authenticated request.
 ## Public API Ticker Example
 
 ```go
-    var b bitstamp.Bitstamp
+    var b bitstamp.Exchange
     b.SetDefaults()
     ticker, err := b.GetCachedTicker(context.Background(), currency.NewBTCUSD(), asset.Spot)
     if err != nil {
@@ -50,22 +49,11 @@ supplied meet the requirements to make an authenticated request.
 ## Private API Submit Order Example
 
 ```go
-    var b bitstamp.Bitstamp
+    var b bitstamp.Exchange
     b.SetDefaults()
 
-    // Set default keys 
-    b.API.SetKey("your_key") 
-    b.API.SetSecret("your_secret") 
-    b.API.SetClientID("your_clientid")
-    b.API.SetPEMKey("your_PEM_key")
-    b.API.SetSubAccount("your_specific_subaccount")
-
-    // Set client/strategy/subsystem specific credentials that will override
-    // default credentials.
-    // Make a standard context and add credentials to it by using exchange 
-    // package helper function DeployCredentialsToContext
-    ctx := context.Background() 
-    ctx = exchange.DeployCredentialsToContext(ctx, &exchange.Credentials{
+    // Set default credentials
+    b.SetCredentials(&accounts.Credentials{
         Key:        "your_key",
         Secret:     "your_secret",
         ClientID:   "your_clientid",
@@ -73,6 +61,15 @@ supplied meet the requirements to make an authenticated request.
         SubAccount: "your_specific_subaccount",
     })
 
+    // Set client/strategy/subsystem-specific credentials that will override
+    // default credentials by deploying them to the request context.
+    ctx := accounts.DeployCredentialsToContext(context.Background(), &accounts.Credentials{
+        Key:        "your_key",
+        Secret:     "your_secret",
+        ClientID:   "your_clientid",
+        PEMKey:     "your_PEM_key",
+        SubAccount: "your_specific_subaccount",
+    })
 
     o := &order.Submit{
         Exchange:  b.Name, // or method GetName() if exchange.IBotInterface
@@ -84,7 +81,7 @@ supplied meet the requirements to make an authenticated request.
         AssetType: asset.Spot,
     }
 
-    // Context will be intercepted when sending an authenticated HTTP request. 
+    // Context will be intercepted when sending an authenticated HTTP request.
     resp, err := b.SubmitOrder(ctx, o)
     if err != nil {
         // Handle error

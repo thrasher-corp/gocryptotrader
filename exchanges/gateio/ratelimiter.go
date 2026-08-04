@@ -310,7 +310,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginGetAutoRepaySettingsEPL:       otherPrivateEndpointRateLimit(),
 	marginGetMaxTransferEPL:             otherPrivateEndpointRateLimit(),
 	marginGetMaxBorrowEPL:               otherPrivateEndpointRateLimit(),
-	marginSupportedCurrencyCrossListEPL: otherPrivateEndpointRateLimit(),
+	marginSupportedCurrencyCrossListEPL: standardRateLimit(),
 	marginSupportedCurrencyCrossEPL:     otherPrivateEndpointRateLimit(),
 	marginAccountsEPL:                   otherPrivateEndpointRateLimit(),
 	marginAccountHistoryEPL:             otherPrivateEndpointRateLimit(),

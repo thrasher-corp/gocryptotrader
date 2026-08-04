@@ -27,7 +27,7 @@ import (
 
 // Overriding functions
 // these are designed to override interface implementations
-// so there is less requirement gathering per test as the functions are
+// so there are fewer requirements to gather per test as the functions are
 // tested in their own package
 
 type fakeFolio struct{}

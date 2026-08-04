@@ -465,7 +465,7 @@ func TestAssetEnabled(t *testing.T) {
 	assert.NoError(t, err, "IsAssetEnabled should not error")
 }
 
-// TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
+// TestFullStoreUnmarshalMarshal tests JSON Marshal and Unmarshal
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	um := make(FullStore)

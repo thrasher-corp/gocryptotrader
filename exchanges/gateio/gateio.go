@@ -172,6 +172,7 @@ var (
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
+	errInvalidUniLoanType               = errors.New("invalid uni loan type: must be \"borrow\" or \"repay\"")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -903,6 +904,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	respHeaders := make(http.Header)
 	var intermediary json.RawMessage
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		headers := make(map[string]string)
@@ -946,22 +948,29 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+			HeaderResponse:         &respHeaders,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
+	}
+
+	if respHeaders.Get("Status") == "204" { // 204 No Content is returned with empty body, so intermediary will be empty but it is not an error
+		if len(intermediary) != 0 {
+			return fmt.Errorf("%s %w, expected empty response body but got %s", e.Name, request.ErrAuthRequestFailed, string(intermediary))
+		}
+		if result == nil {
+			return nil
+		}
+		return fmt.Errorf("%s %w, empty response body with non-nil result", e.Name, request.ErrAuthRequestFailed)
 	}
 	errCap := struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	}{}
-
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
-		return fmt.Errorf("%s auth request error, code: %s message: %s",
-			e.Name,
-			errCap.Label,
-			errCap.Message)
+		return fmt.Errorf("%s auth request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
 	}
 	if result == nil {
 		return nil
@@ -1343,22 +1352,52 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
 }
 
+// UniLoanBorrowOrRepay borrows or repays currency in a unified margin account
+// using the margin/uni/loans endpoint. Pass type="borrow" to open a loan or
+// type="repay" to close one. This replaces the deprecated POST margin/loans
+// endpoint which returned 403 "This API is no longer supported" for unified
+// margin accounts.
+func (e *Exchange) UniLoanBorrowOrRepay(ctx context.Context, arg *UniLoanBorrowRepayParam) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.CurrencyPair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Type != "borrow" && arg.Type != "repay" {
+		return errInvalidUniLoanType
+	}
+	if arg.Amount <= 0 {
+		return fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniLoanBorrowRepayEPL, http.MethodPost, gateioMarginUniLoans, nil, arg, nil)
+}
+
 // GetUniLoanInterestRecords retrieves interest deduction records for unified
-// margin loans. Filters by currency pair and optionally by currency code.
+// margin loans. Optionally filters by currency pair or by currency code.
 // Pagination: page starts at 1, limit defaults to 100 (max 100).
-func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, currencyPair currency.Pair, ccy currency.Code, page, limit int64) ([]UniLoanInterestRecord, error) {
+func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, pair currency.Pair, ccy currency.Code, page, limit uint64, from, to time.Time) ([]UniLoanInterestRecord, error) {
 	params := url.Values{}
-	if currencyPair.IsPopulated() {
-		params.Set("currency_pair", currencyPair.String())
+	if pair.IsPopulated() {
+		params.Set("currency_pair", pair.String())
 	}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
 	if page > 0 {
-		params.Set("page", strconv.FormatInt(page, 10))
+		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	var response []UniLoanInterestRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, gateioMarginUniInterestRecords, params, nil, &response)
@@ -1390,7 +1429,6 @@ func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.
 
 // GetMarginAccountList retrieves user's isolated margin account list.
 // Supports querying both risk-based and margin-based isolated margin accounts.
-// Uses the latest GET /margin/user/account interface.
 func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
@@ -1683,7 +1721,7 @@ func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxTransferEPL, http.MethodGet, gateioMarginTransfer, params, nil, &response)
 }
 
-// GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowble amount for specific currency
+// GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowable amount for specific currency
 func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, pair currency.Pair) (*MaxBorrowableAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1701,7 +1739,7 @@ func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.C
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
 func (e *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
 	var response []CrossMarginCurrencies
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, http.MethodGet, gateioCrossMarginCurrencies, nil, nil, &response)
+	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, gateioCrossMarginCurrencies, &response)
 }
 
 // GetCrossMarginSupportedCurrencyDetail retrieve detail of one single currency supported by cross margin
@@ -1963,20 +2001,20 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	intervalString, err := getIntervalString(interval)
+	if err != nil {
+		return nil, err
+	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
-	if from.IsZero() {
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
-	if to.IsZero() {
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	intervalString, err := getIntervalString(interval)
-	if err != nil {
-		return nil, err
 	}
 	params.Set("interval", intervalString)
 	var resp []FuturesPremiumIndexKLineResponse
@@ -3361,7 +3399,7 @@ func (e *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying st
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsTradingHistoryEPL, http.MethodGet, gateioOptionsMyTrades, params, nil, &resp)
 }
 
-// GetOptionsTickers lists  tickers of options contracts
+// GetOptionsTickers lists tickers of options contracts
 func (e *Exchange) GetOptionsTickers(ctx context.Context, underlying string) ([]OptionsTicker, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying

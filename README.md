@@ -4,7 +4,6 @@
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
@@ -31,7 +30,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | No |
-| Exmo | Yes | NA | NA |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
