@@ -40,11 +40,12 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var e *Exchange
 
@@ -54,10 +55,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Gateio Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -2756,7 +2757,7 @@ func TestListAllAPIKeyOfSubAccount(t *testing.T) {
 func TestUpdateAPIKeyOfSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if err := e.UpdateAPIKeyOfSubAccount(t.Context(), apiKey, CreateAPIKeySubAccountParams{
+	if err := e.UpdateAPIKeyOfSubAccount(t.Context(), apiCredentials.Key, CreateAPIKeySubAccountParams{
 		SubAccountUserID: 12345,
 		Body: &SubAccountKey{
 			APIKeyName: "12312mnfsndfsfjsdklfjsdlkfj",
@@ -3010,7 +3011,8 @@ func TestGetOpenInterest(t *testing.T) {
 
 	coinPair := getPair(t, asset.CoinMarginedFutures)
 	usdtPair := getPair(t, asset.USDTMarginedFutures)
-	resp, err = e.GetOpenInterest(t.Context(),
+	resp, err = e.GetOpenInterest(
+		t.Context(),
 		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
 		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
 	)

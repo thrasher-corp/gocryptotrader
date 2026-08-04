@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,11 +29,7 @@ import (
 )
 
 // Please enter sandbox API keys & assigned roles for better testing procedures
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
 
 const testCurrency = "btcusd"
 
@@ -547,7 +544,7 @@ func TestWsAuthConnect(t *testing.T) {
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.SetCredentials("key", "secret", "", "", "", "")
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.WebsocketSpotSupplementary.String(), geminiWebsocketSandboxEndpoint+geminiWsOrderEvents), "SetRunningURL must not error")
 		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)}
 
@@ -563,7 +560,7 @@ func TestWsAuthConnect(t *testing.T) {
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.SetCredentials("key", "secret", "", "", "", "")
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 		errDial := errors.New("dial failure")
 		conn := &websocketTestConnection{
 			Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents),
@@ -1351,7 +1348,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	_, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: kline.FourHour}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "ExpandTemplates should error on invalid interval")
 
-	assert.PanicsWithError(t,
+	assert.PanicsWithError(
+		t,
 		"subscription channel not supported: wibble",
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",

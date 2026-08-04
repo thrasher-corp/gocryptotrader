@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -34,11 +35,12 @@ import (
 )
 
 // Please supply API keys here or in config/testdata.json to test authenticated endpoints
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e          *Exchange
@@ -51,11 +53,11 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Bitfinex Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -1192,7 +1194,8 @@ func TestModifyOrder(t *testing.T) {
 			OrderID:   "1337",
 			AssetType: asset.Spot,
 			Pair:      currency.NewBTCUSD(),
-		})
+		},
+	)
 	if err != nil {
 		t.Error(err)
 	}

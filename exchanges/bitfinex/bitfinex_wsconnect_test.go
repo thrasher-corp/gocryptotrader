@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -228,7 +229,8 @@ func TestWsSendAuthConn(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("key", "secret", "", "", "", "")
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	conn := &wsConnectFixtureConnection{}
 
 	require.NoError(t, ex.wsSendAuthConn(t.Context(), conn), "wsSendAuthConn must not error")

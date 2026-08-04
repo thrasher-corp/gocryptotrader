@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -30,11 +31,12 @@ import (
 )
 
 // Please supply your own keys here for due diligence testing
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var e *Exchange
 
@@ -44,10 +46,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Bitmex Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -157,7 +159,7 @@ func TestUserMarginGETUsesQueryNotBody(t *testing.T) {
 	err := testexch.Setup(ex)
 	require.NoError(t, err, "Setup must not error")
 	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials("test-key", "test-secret", "", "", "", "")
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
 
 	call := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

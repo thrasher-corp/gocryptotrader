@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -40,14 +41,16 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey    = ""
-	apiSecret = ""
-
 	canManipulateRealOrders   = false
 	canManipulateAPIEndpoints = false
 	btcPerpInstrument         = "BTC-PERPETUAL"
 	useTestNet                = false
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e                                                                     *Exchange
@@ -111,10 +114,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Deribit Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	if useTestNet {
@@ -4118,7 +4121,7 @@ func TestWsAuthenticate(t *testing.T) {
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.SetCredentials("key", "secret", "", "", "", "")
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: []byte(`{"result":{"access_token":"token"}}`)}
 
 		require.NoError(t, ex.wsAuthenticate(t.Context(), conn), "wsAuthenticate must not error")
@@ -4131,7 +4134,7 @@ func TestWsAuthenticate(t *testing.T) {
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.SetCredentials("key", "secret", "", "", "", "")
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 		errSend := errors.New("send failure")
 		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), sendErr: errSend}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -31,11 +32,12 @@ var (
 )
 
 // Please supply your own APIKEYS here for due diligence testing
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var spotPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true})
 
@@ -45,10 +47,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("HitBTC Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	if err := e.UpdateTradablePairs(context.Background()); err != nil {
@@ -1169,19 +1171,20 @@ func TestSubToReq(t *testing.T) {
 	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
 	r := subToReq(&subscription.Subscription{Channel: subscription.TickerChannel}, p)
 	assert.Equal(t, "Ticker", r.Method)
-	assert.Equal(t, "BTC-USD", (r.Params.Symbol))
+	assert.Equal(t, "BTC-USD", r.Params.Symbol)
 
 	r = subToReq(&subscription.Subscription{Channel: subscription.CandlesChannel, Levels: 4, Interval: kline.OneHour}, p)
 	assert.Equal(t, "Candles", r.Method)
 	assert.Equal(t, "H1", r.Params.Period)
 	assert.Equal(t, 4, r.Params.Limit)
-	assert.Equal(t, "BTC-USD", (r.Params.Symbol))
+	assert.Equal(t, "BTC-USD", r.Params.Symbol)
 
 	r = subToReq(&subscription.Subscription{Channel: subscription.AllTradesChannel, Levels: 150})
 	assert.Equal(t, "Trades", r.Method)
 	assert.Equal(t, 150, r.Params.Limit)
 
-	assert.PanicsWithError(t,
+	assert.PanicsWithError(
+		t,
 		"subscription channel not supported: myTrades",
 		func() { subToReq(&subscription.Subscription{Channel: subscription.MyTradesChannel}, p) },
 		"should panic on invalid channel",
