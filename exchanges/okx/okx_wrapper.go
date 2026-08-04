@@ -44,7 +44,10 @@ const (
 	instrumentStateLive       = "live"
 )
 
-var errContractAmountCanNotBeDecimal = errors.New("contract amount can not be decimal")
+var (
+	errContractAmountCanNotBeDecimal = errors.New("contract amount cannot be decimal")
+	errInstrumentIDCodeNotFound      = errors.New("instrument ID code not found")
+)
 
 // SetDefaults sets the basic defaults for Okx
 func (e *Exchange) SetDefaults() {
@@ -1455,6 +1458,9 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
+	if !e.SupportsAsset(action.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
+	}
 	if action.AssetType == asset.Spread {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
@@ -1464,9 +1470,6 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	pairFormat, err := e.GetPairFormat(action.AssetType, true)
 	if err != nil {
 		return nil, err
-	}
-	if action.Pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
 	}
 	return &AmendOrderRequestParams{
 		InstrumentID:  pairFormat.Format(action.Pair),
@@ -1480,6 +1483,9 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRequestParam, error) {
 	if err := ord.Validate(); err != nil {
 		return nil, err
+	}
+	if !e.SupportsAsset(ord.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
 	if ord.AssetType == asset.Spread {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
@@ -1660,43 +1666,38 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 	if instrumentID == "" {
 		return 0, errMissingInstrumentID
 	}
-	instType := GetInstrumentTypeFromAssetItem(ai)
-	if instType == "" {
+	if !e.SupportsAsset(ai) {
 		return 0, fmt.Errorf("%w: %v", errInvalidInstrumentType, ai)
 	}
+	instType := GetInstrumentTypeFromAssetItem(ai)
 	fetchParams := make([]InstrumentsFetchParams, 0, 4)
 	if ai == asset.Options {
 		selector := optionInstrumentSelector(instrumentID)
-		if selector != "" {
-			fetchParams = append(fetchParams, InstrumentsFetchParams{
+		fetchParams = append(fetchParams,
+			InstrumentsFetchParams{
 				InstrumentType:   instType,
 				Underlying:       selector,
 				InstrumentFamily: selector,
 				InstrumentID:     instrumentID,
-			})
-		}
-		if selector != "" {
-			fetchParams = append(fetchParams, InstrumentsFetchParams{
+			},
+			InstrumentsFetchParams{
 				InstrumentType: instType,
 				Underlying:     selector,
 				InstrumentID:   instrumentID,
-			})
-		}
-		if selector != "" {
-			fetchParams = append(fetchParams, InstrumentsFetchParams{
+			},
+			InstrumentsFetchParams{
 				InstrumentType:   instType,
 				InstrumentFamily: selector,
 				InstrumentID:     instrumentID,
 			})
-		}
 	}
 	fetchParams = append(fetchParams, InstrumentsFetchParams{
 		InstrumentType: instType,
 		InstrumentID:   instrumentID,
 	})
 	var fetchErr error
-	for i := range fetchParams {
-		instruments, err := e.GetInstruments(ctx, &fetchParams[i])
+	for _, params := range fetchParams {
+		instruments, err := e.GetInstruments(ctx, &params)
 		if err != nil {
 			fetchErr = err
 			continue
@@ -1709,7 +1710,7 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 	if fetchErr != nil {
 		return 0, fetchErr
 	}
-	return 0, fmt.Errorf("instrument ID code not found for %s", instrumentID)
+	return 0, fmt.Errorf("%w: %s", errInstrumentIDCodeNotFound, instrumentID)
 }
 
 func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
@@ -1721,9 +1722,6 @@ func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64
 		if instrumentIDCode > 0 {
 			return instrumentIDCode
 		}
-	}
-	if len(instruments) == 1 {
-		return instruments[0].InstrumentIDCode.Int64()
 	}
 	return 0
 }

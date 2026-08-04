@@ -281,14 +281,14 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRequestEPL, "login-response", op)
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 	var intermediary struct {
 		Code    int64  `json:"code,string"`
 		Message string `json:"msg"`
 	}
 	if err := json.Unmarshal(resp, &intermediary); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 
 	if intermediary.Code != 0 {

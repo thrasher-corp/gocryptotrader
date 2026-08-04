@@ -3053,6 +3053,23 @@ func TestWSHandleData(t *testing.T) {
 			assert.NoError(t, err, "wsHandleData should not error")
 		}
 	}
+	t.Run("options ticker dispatches ticker and greeks", func(t *testing.T) {
+		t.Parallel()
+
+		ex := testInstance()
+		pairs, err := ex.GetEnabledPairs(asset.Options)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		require.NotEmpty(t, pairs, "options pairs must not be empty")
+		symbol := pairs[0].String()
+		payload := fmt.Sprintf(`{"topic":%q,"ts":1672304486868,"type":"snapshot","data":{"symbol":%q,"lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markIv":"0.13"}}`, "tickers."+symbol, symbol)
+		err = ex.wsHandleData(t.Context(), nil, asset.Options, []byte(payload))
+		require.NoError(t, err, "wsHandleData must process an options ticker")
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
+		greeks, ok := (<-ex.Websocket.DataHandler.C).Data.(*exchangeoptions.Greeks)
+		require.True(t, ok, "second dispatch must contain option greeks")
+		assert.Equal(t, 0.1, greeks.Delta, "Delta should be normalised")
+		assert.Equal(t, 0.13, greeks.MarkImpliedVolatility, "MarkImpliedVolatility should be normalised")
+	})
 	t.Run("returns send error when data handler is closed", func(t *testing.T) {
 		t.Parallel()
 

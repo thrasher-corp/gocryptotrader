@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -2428,12 +2429,14 @@ func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
 
 const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
 
-func TestOptionsContractTickerPushData(t *testing.T) {
+func TestProcessOptionsContractTickers(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	push, err := parseWSHeader([]byte(optionsContractTickerPushDataJSON))
+	require.NoError(t, err, "parseWSHeader must not error")
 	processingStarted := time.Now().UTC()
-	require.NoError(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractTickerPushDataJSON)))
+	require.NoError(t, ex.processOptionsContractTickers(t.Context(), push.Result, push.Time))
 	processingFinished := time.Now().UTC()
 
 	tickerMessage := <-ex.Websocket.DataHandler.C
@@ -2448,6 +2451,20 @@ func TestOptionsContractTickerPushData(t *testing.T) {
 	assert.Equal(t, 11728.7, greeks.AskPrice, "AskPrice should be normalised")
 	assert.False(t, greeks.ReceivedAt.Before(processingStarted), "ReceivedAt should not predate local receipt")
 	assert.False(t, greeks.ReceivedAt.After(processingFinished), "ReceivedAt should not postdate completed processing")
+
+	err = ex.processOptionsContractTickers(t.Context(), []byte("{"), push.Time)
+	assert.Error(t, err, "processOptionsContractTickers should reject malformed data")
+
+	ex.Websocket.DataHandler = stream.NewRelay(1)
+	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"), "DataHandler.Send must not error")
+	err = ex.processOptionsContractTickers(t.Context(), push.Result, push.Time)
+	assert.Error(t, err, "processOptionsContractTickers should return ticker dispatch errors")
+
+	ex = new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Websocket.DataHandler = stream.NewRelay(1)
+	err = ex.processOptionsContractTickers(t.Context(), push.Result, push.Time)
+	assert.Error(t, err, "processOptionsContractTickers should return greeks dispatch errors")
 }
 
 const optionsUnderlyingTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.ul_tickers",	"event": "update",	"result": {	   "trade_put": 800,	   "trade_call": 41700,	   "index_price": "50695.43",	   "name": "BTC_USDT"	}}`

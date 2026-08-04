@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -170,6 +171,18 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		AssetType:    asset.Spot,
 	})
 	assert.NoError(t, err)
+	err = m.websocketDataHandler(exchName, &options.Greeks{
+		Pair:      currency.NewBTCUSD(),
+		AssetType: asset.Options,
+	})
+	assert.NoError(t, err)
+	err = m.websocketDataHandler(exchName, []options.Greeks{{
+		Pair:      currency.NewBTCUSD(),
+		AssetType: asset.Options,
+	}})
+	assert.NoError(t, err)
+	err = m.websocketDataHandler(exchName, options.Greeks{})
+	assert.ErrorIs(t, err, errUseAPointer)
 
 	err = m.websocketDataHandler(exchName, kline.Item{})
 	require.NoError(t, err)

@@ -124,7 +124,43 @@ func gateioOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
 	return c.WriteMessage(gws.TextMessage, []byte(response))
 }
 
-func TestWebsocketSubmitOrderMocked(t *testing.T) {
+func gateioAmendStatusWsMock(status string) mockws.WsMockFunc {
+	return func(tb testing.TB, p []byte, c *gws.Conn) error {
+		tb.Helper()
+		var req struct {
+			Channel string `json:"channel"`
+			Payload struct {
+				RequestID string `json:"req_id"`
+			} `json:"payload"`
+		}
+		if err := json.Unmarshal(p, &req); err != nil {
+			return err
+		}
+		switch req.Channel {
+		case "spot.order_amend":
+			return c.WriteMessage(gws.TextMessage, []byte(`{"request_id":"`+req.Payload.RequestID+`","header":{"status":"200"},"data":{"result":{"id":"spot-amended","status":"`+status+`"}}}`))
+		case "futures.order_amend":
+			return c.WriteMessage(gws.TextMessage, []byte(`{"request_id":"`+req.Payload.RequestID+`","header":{"status":"200"},"data":{"result":{"id":999,"status":"`+status+`"}}}`))
+		default:
+			return gateioOrderWsMock(tb, p, c)
+		}
+	}
+}
+
+func gateioOrderWsErrorMock(_ testing.TB, p []byte, c *gws.Conn) error {
+	var req struct {
+		Channel string `json:"channel"`
+		Payload struct {
+			RequestID string `json:"req_id"`
+		} `json:"payload"`
+	}
+	if err := json.Unmarshal(p, &req); err != nil {
+		return err
+	}
+	return c.WriteMessage(gws.TextMessage, []byte(`{"request_id":"`+req.Payload.RequestID+`","header":{"status":"500"},"data":{"errs":{"label":"mock_error","message":"request failed"}}}`))
+}
+
+func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
@@ -153,6 +189,18 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "12345", futuresResp.OrderID)
 
+	deliveryResp, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+		Exchange:  ex.Name,
+		AssetType: asset.DeliveryFutures,
+		Pair:      getPair(t, asset.DeliveryFutures),
+		Side:      order.Long,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     100,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "12345", deliveryResp.OrderID)
+
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
 		Exchange:  ex.Name,
 		AssetType: asset.Options,
@@ -165,7 +213,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestWebsocketModifyOrderMocked(t *testing.T) {
+func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
@@ -190,6 +238,67 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "999", futuresResp.OrderID)
 
+	closed := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("cancelled"))
+	closedResp, err := closed.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "spot-closed",
+		AssetType: asset.Spot,
+		Pair:      getPair(t, asset.Spot),
+		Amount:    1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, order.Cancelled, closedResp.Status)
+	closedResp, err = closed.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "futures-closed",
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Amount:    1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, order.Cancelled, closedResp.Status)
+
+	invalidStatus := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("not-a-status"))
+	_, err = invalidStatus.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "spot-invalid-status",
+		AssetType: asset.Spot,
+		Pair:      getPair(t, asset.Spot),
+		Amount:    1,
+	})
+	require.Error(t, err)
+	_, err = invalidStatus.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "futures-invalid-status",
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Amount:    1,
+	})
+	require.Error(t, err)
+
+	wsError := connectGateioWithMockedWebsocket(t, gateioOrderWsErrorMock)
+	_, err = wsError.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "spot-error",
+		AssetType: asset.Spot,
+		Pair:      getPair(t, asset.Spot),
+		Amount:    1,
+	})
+	require.Error(t, err)
+	_, err = wsError.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "futures-error",
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Amount:    1,
+	})
+	require.Error(t, err)
+
+	badFormat := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
+	badFormat.CurrencyPairs.UseGlobalFormat = true
+	badFormat.CurrencyPairs.RequestFormat = nil
+	_, err = badFormat.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "bad-format",
+		AssetType: asset.Spot,
+		Pair:      getPair(t, asset.Spot),
+		Amount:    1,
+	})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
+
 	_, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{
 		OrderID:   "1",
 		AssetType: asset.Binary,
@@ -210,7 +319,7 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 }
 
-func TestWebsocketCancelOrderMocked(t *testing.T) {
+func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
@@ -228,6 +337,38 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 		Pair:      getPair(t, asset.USDTMarginedFutures),
 	})
 	require.NoError(t, err)
+
+	wsError := connectGateioWithMockedWebsocket(t, gateioOrderWsErrorMock)
+	err = wsError.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "spot-error",
+		AssetType: asset.Spot,
+		Pair:      getPair(t, asset.Spot),
+	})
+	require.Error(t, err)
+	err = wsError.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "futures-error",
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      getPair(t, asset.USDTMarginedFutures),
+	})
+	require.Error(t, err)
+
+	badFormat := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
+	spotPair := getPair(t, asset.Spot)
+	futuresPair := getPair(t, asset.USDTMarginedFutures)
+	badFormat.CurrencyPairs.UseGlobalFormat = true
+	badFormat.CurrencyPairs.RequestFormat = nil
+	err = badFormat.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "spot-bad-format",
+		AssetType: asset.Spot,
+		Pair:      spotPair,
+	})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
+	err = badFormat.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "futures-bad-format",
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      futuresPair,
+	})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
 	err = ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
 		OrderID:   "1",

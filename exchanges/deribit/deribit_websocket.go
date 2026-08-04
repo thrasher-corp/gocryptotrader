@@ -3,7 +3,6 @@ package deribit
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -185,12 +184,12 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, "public/auth", err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, "public/auth", err)
 	}
 	var response wsLoginResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, "public/auth", err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, "public/auth", err)
 	}
 	if response.Error != nil && (response.Error.Code > 0 || response.Error.Message != "") {
 		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, "public/auth", response.Error.Code, response.Error.Message)
@@ -933,12 +932,12 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 					errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
 				}
 			} else {
-				errs = common.AppendError(errs, errors.New(s.String()+" failed to "+method))
+				errs = common.AppendError(errs, fmt.Errorf("%w: %s failed to %s", errSubscriptionNotAcknowledged, s, method))
 			}
 		}
 
 		for key := range subAck {
-			errs = common.AppendError(errs, fmt.Errorf("unexpected channel %q in result", key))
+			errs = common.AppendError(errs, fmt.Errorf("%w: %q in result", errUnexpectedSubscriptionChannel, key))
 		}
 	}
 	return errs

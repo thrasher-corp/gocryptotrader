@@ -18,6 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/options"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -27,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -4450,6 +4453,75 @@ func TestProcessPushData(t *testing.T) {
 			require.NoError(t, err, "wsHandleData must not error")
 		})
 	}
+}
+
+func TestProcessIncrementalTicker(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid channel", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), nil, []string{"incremental_ticker"})
+		assert.ErrorIs(t, err, common.ErrMalformedData, "processIncrementalTicker should reject invalid channels")
+	})
+
+	t.Run("invalid instrument", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), nil, []string{"incremental_ticker", ""})
+		assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "processIncrementalTicker should reject an empty instrument")
+	})
+
+	t.Run("invalid payload", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte("{"), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		assert.Error(t, err, "processIncrementalTicker should reject invalid JSON")
+	})
+
+	t.Run("futures ticker", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		require.NoError(t, err)
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "processIncrementalTicker should dispatch a ticker")
+	})
+
+	t.Run("options ticker and greeks", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
+		require.NoError(t, err)
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
+		greeks, ok := (<-ex.Websocket.DataHandler.C).Data.(*options.Greeks)
+		require.True(t, ok, "second dispatch must contain option greeks")
+		assert.Equal(t, 0.1, greeks.Delta, "Delta should be normalised")
+		assert.Equal(t, 0.5, greeks.Rho, "Rho should be normalised")
+	})
+
+	t.Run("ticker dispatch error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"), "DataHandler.Send must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		assert.Error(t, err, "processIncrementalTicker should return ticker dispatch errors")
+	})
+
+	t.Run("greeks dispatch error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
+		assert.Error(t, err, "processIncrementalTicker should return greeks dispatch errors")
+	})
 }
 
 func TestProcessCandleChartIntervalMapping(t *testing.T) {

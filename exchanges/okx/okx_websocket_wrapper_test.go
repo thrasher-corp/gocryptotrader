@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -22,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
@@ -29,6 +31,16 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
+	instrumentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		instrumentID := r.URL.Query().Get("instId")
+		if instrumentID == "" {
+			instrumentID = mainPair.String()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"` + instrumentID + `","instIdCode":"42"}]}`))
+	}))
+	t.Cleanup(instrumentServer.Close)
+	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", instrumentServer.URL+"/"))
 
 	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
 	t.Cleanup(server.Close)
@@ -105,13 +117,30 @@ func okxOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
 		response = `{"id":"` + req.ID + `","op":"amend-order","code":"0","msg":"","data":[{"ordId":"amended-order","sCode":"0","sMsg":""}]}`
 	case "cancel-order":
 		response = `{"id":"` + req.ID + `","op":"cancel-order","code":"0","msg":"","data":[{"ordId":"cancelled-order","sCode":"0","sMsg":""}]}`
+	case "sprd-order":
+		response = `{"id":"` + req.ID + `","op":"sprd-order","code":"0","msg":"","data":[{"ordId":"spread-order","sCode":"0","sMsg":""}]}`
+	case "sprd-amend-order":
+		response = `{"id":"` + req.ID + `","op":"sprd-amend-order","code":"0","msg":"","data":[{"ordId":"spread-amended","sCode":"0","sMsg":""}]}`
+	case "sprd-cancel-order":
+		response = `{"id":"` + req.ID + `","op":"sprd-cancel-order","code":"0","msg":"","data":[{"ordId":"spread-cancelled","sCode":"0","sMsg":""}]}`
 	default:
 		response = `{"id":"` + req.ID + `","op":"` + req.Op + `","code":"1","msg":"operation failed","data":[{"sCode":"51000","sMsg":"failed"}]}`
 	}
 	return c.WriteMessage(gws.TextMessage, []byte(response))
 }
 
-func TestWebsocketSubmitOrderMocked(t *testing.T) {
+func okxOrderWsErrorMock(_ testing.TB, p []byte, c *gws.Conn) error {
+	var req struct {
+		ID string `json:"id"`
+		Op string `json:"op"`
+	}
+	if err := json.Unmarshal(p, &req); err != nil {
+		return err
+	}
+	return c.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"`+req.Op+`","code":"1","msg":"operation failed","data":[]}`))
+}
+
+func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
@@ -128,6 +157,68 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "submit-order", resp.OrderID)
 
+	resp, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+		Exchange:  ex.Name,
+		Pair:      spreadPair,
+		AssetType: asset.Spread,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "spread-order", resp.OrderID)
+
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+
+	wsError := connectOKXWithMockedWebsocket(t, okxOrderWsErrorMock)
+	_, err = wsError.WebsocketSubmitOrder(t.Context(), &order.Submit{
+		Exchange:  wsError.Name,
+		Pair:      mainPair,
+		AssetType: asset.Options,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.Error(t, err)
+	_, err = wsError.WebsocketSubmitOrder(t.Context(), &order.Submit{
+		Exchange:  wsError.Name,
+		Pair:      spreadPair,
+		AssetType: asset.Spread,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.Error(t, err)
+
+	badFormat := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+	badFormat.CurrencyPairs.UseGlobalFormat = true
+	badFormat.CurrencyPairs.RequestFormat = nil
+	_, err = badFormat.WebsocketSubmitOrder(t.Context(), &order.Submit{
+		Exchange:  badFormat.Name,
+		Pair:      spreadPair,
+		AssetType: asset.Spread,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
+
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+		Exchange:  ex.Name,
+		Pair:      mainPair,
+		AssetType: asset.Binary,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
 		Exchange:  ex.Name,
@@ -141,7 +232,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestWebsocketModifyOrderMocked(t *testing.T) {
+func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
@@ -157,13 +248,50 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "order-1", resp.OrderID)
 
+	resp, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "spread-1",
+		AssetType: asset.Spread,
+		Pair:      spreadPair,
+		Amount:    1,
+		Price:     1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "spread-1", resp.OrderID)
+
+	_, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{})
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
 	invalid := *modify
 	invalid.Amount = 1.5
 	_, err = ex.WebsocketModifyOrder(t.Context(), &invalid)
 	require.ErrorIs(t, err, errContractAmountCanNotBeDecimal)
+
+	wsError := connectOKXWithMockedWebsocket(t, okxOrderWsErrorMock)
+	_, err = wsError.WebsocketModifyOrder(t.Context(), modify)
+	require.Error(t, err)
+	_, err = wsError.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "spread-error",
+		AssetType: asset.Spread,
+		Pair:      spreadPair,
+		Amount:    1,
+		Price:     1,
+	})
+	require.Error(t, err)
+
+	_, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "unsupported",
+		AssetType: asset.Binary,
+		Pair:      mainPair,
+		Amount:    1,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	_, err = ex.WebsocketModifyOrder(t.Context(), modify)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestWebsocketCancelOrderMocked(t *testing.T) {
+func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
@@ -176,55 +304,37 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 	err := ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.NoError(t, err)
 
+	err = ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "spread-1",
+		AssetType: asset.Spread,
+	})
+	require.NoError(t, err)
+
+	err = ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		AssetType: asset.Options,
+		Pair:      mainPair,
+	})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	wsError := connectOKXWithMockedWebsocket(t, okxOrderWsErrorMock)
+	err = wsError.WebsocketCancelOrder(t.Context(), cancel)
+	require.Error(t, err)
+	err = wsError.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "spread-error",
+		AssetType: asset.Spread,
+	})
+	require.Error(t, err)
+
+	err = ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "unsupported",
+		AssetType: asset.Binary,
+		Pair:      mainPair,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	err = ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
-}
-
-func TestWebsocketSpreadRouting(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-
-	t.Run("submit spread does not fail as unsupported asset", func(t *testing.T) {
-		t.Parallel()
-		_, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
-			Exchange:  ex.Name,
-			Pair:      spreadPair,
-			AssetType: asset.Spread,
-			Side:      order.Buy,
-			Type:      order.Limit,
-			Amount:    1,
-			Price:     1,
-		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
-		require.NotErrorIs(t, err, asset.ErrNotSupported)
-	})
-
-	t.Run("modify spread does not fail as unsupported asset", func(t *testing.T) {
-		t.Parallel()
-		_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
-			OrderID:   "1",
-			AssetType: asset.Spread,
-			Pair:      spreadPair,
-			Amount:    1,
-			Price:     1,
-		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
-		require.NotErrorIs(t, err, asset.ErrNotSupported)
-	})
-
-	t.Run("cancel spread does not fail as unsupported asset", func(t *testing.T) {
-		t.Parallel()
-		err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
-			OrderID:   "1",
-			AssetType: asset.Spread,
-		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
-		require.NotErrorIs(t, err, asset.ErrNotSupported)
-	})
 }
 
 func TestDeriveSubmitOrderArguments(t *testing.T) {
@@ -232,6 +342,75 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{AssetType: asset.Binary, Amount: 1})
+		require.ErrorIs(t, err, asset.ErrNotSupported)
+	})
+
+	t.Run("amount below minimum", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{AssetType: asset.Spot})
+		require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+	})
+
+	t.Run("spread uses dedicated endpoint", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{AssetType: asset.Spread, Amount: 1})
+		require.ErrorIs(t, err, asset.ErrNotSupported)
+	})
+
+	t.Run("empty pair", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    1,
+		})
+		require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	})
+
+	t.Run("unsupported order type", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Trigger,
+			Amount:    1,
+		})
+		require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	})
+
+	t.Run("invalid order type", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.UnknownType,
+			Amount:    1,
+		})
+		require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+	})
+
+	t.Run("pair format unavailable", func(t *testing.T) {
+		t.Parallel()
+		badFormat := new(Exchange)
+		require.NoError(t, testexch.Setup(badFormat), "Setup must not error")
+		badFormat.CurrencyPairs.UseGlobalFormat = true
+		badFormat.CurrencyPairs.RequestFormat = nil
+		_, err := badFormat.deriveSubmitOrderArguments(&order.Submit{
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    1,
+		})
+		require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
+	})
 
 	t.Run("spot market quote amount", func(t *testing.T) {
 		t.Parallel()
@@ -471,12 +650,31 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	badFormat := new(Exchange)
+	require.NoError(t, testexch.Setup(badFormat), "Setup must not error")
+	badFormat.CurrencyPairs.UseGlobalFormat = true
+	badFormat.CurrencyPairs.RequestFormat = nil
+	_, err := badFormat.deriveAmendOrderArguments(&order.Modify{
+		OrderID:   "1",
+		AssetType: asset.Options,
+		Pair:      mainPair,
+		Amount:    1,
+	})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
-	_, err := ex.deriveAmendOrderArguments(&order.Modify{})
+	_, err = ex.deriveAmendOrderArguments(&order.Modify{})
 	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	_, err = ex.deriveAmendOrderArguments(nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil)
+
+	_, err = ex.deriveAmendOrderArguments(&order.Modify{
+		OrderID:   "1",
+		AssetType: asset.Binary,
+		Pair:      mainPair,
+		Amount:    1,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = ex.deriveAmendOrderArguments(&order.Modify{
 		OrderID:   "1",
@@ -515,8 +713,18 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	badFormat := new(Exchange)
+	require.NoError(t, testexch.Setup(badFormat), "Setup must not error")
+	badFormat.CurrencyPairs.UseGlobalFormat = true
+	badFormat.CurrencyPairs.RequestFormat = nil
+	_, err := badFormat.deriveCancelOrderArguments(&order.Cancel{
+		AssetType: asset.Options,
+		Pair:      mainPair,
+		OrderID:   "1",
+	})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
-	_, err := ex.deriveCancelOrderArguments(&order.Cancel{
+	_, err = ex.deriveCancelOrderArguments(&order.Cancel{
 		AssetType: asset.Options,
 		Pair:      mainPair,
 		OrderID:   "1",
@@ -525,6 +733,13 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 
 	_, err = ex.deriveCancelOrderArguments(nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
+	_, err = ex.deriveCancelOrderArguments(&order.Cancel{
+		AssetType: asset.Binary,
+		Pair:      mainPair,
+		OrderID:   "1",
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = ex.deriveCancelOrderArguments(&order.Cancel{
 		AssetType: asset.Spread,
@@ -570,7 +785,126 @@ func TestOptionInstrumentSelector(t *testing.T) {
 	}
 }
 
-func TestWSProcessOptionSummary(t *testing.T) {
+func TestIsInstFamilyChannel(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		sub  *subscription.Subscription
+		want bool
+	}{
+		{
+			name: "options trades",
+			sub:  &subscription.Subscription{Asset: asset.Options, Channel: subscription.AllTradesChannel},
+			want: true,
+		},
+		{
+			name: "options summary",
+			sub:  &subscription.Subscription{Asset: asset.Options, Channel: subscription.TickerChannel},
+			want: true,
+		},
+		{
+			name: "spot ticker",
+			sub:  &subscription.Subscription{Asset: asset.Spot, Channel: subscription.TickerChannel},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, isInstFamilyChannel(tc.sub), "isInstFamilyChannel should classify the subscription")
+		})
+	}
+}
+
+func TestSubscriptionForAsset(t *testing.T) {
+	t.Parallel()
+
+	original := &subscription.Subscription{Asset: asset.All, Channel: subscription.TickerChannel}
+	got := subscriptionForAsset(original, asset.Options)
+	assert.NotSame(t, original, got, "subscriptionForAsset should clone the subscription")
+	assert.Equal(t, asset.All, original.Asset, "subscriptionForAsset should not mutate the input")
+	assert.Equal(t, asset.Options, got.Asset, "subscriptionForAsset should set the expanded asset")
+}
+
+func TestLookupInstrumentIDCode(t *testing.T) {
+	t.Parallel()
+
+	instrumentID := "BTC-USDT-260101-100000-C"
+	testCases := []struct {
+		name        string
+		instruments []Instrument
+		want        int64
+	}{
+		{
+			name: "matching positive code",
+			instruments: []Instrument{{
+				InstrumentID:     currency.NewPairWithDelimiter("BTC", "USDT-260101-100000-C", currency.DashDelimiter),
+				InstrumentIDCode: types.Number(42),
+			}},
+			want: 42,
+		},
+		{
+			name: "matching zero code",
+			instruments: []Instrument{{
+				InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT-260101-100000-C", currency.DashDelimiter),
+			}},
+		},
+		{
+			name: "single mismatched instrument is not trusted",
+			instruments: []Instrument{{
+				InstrumentID:     currency.NewPair(currency.ETH, currency.USDT),
+				InstrumentIDCode: types.Number(99),
+			}},
+		},
+		{name: "empty response"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, lookupInstrumentIDCode(tc.instruments, instrumentID), "lookupInstrumentIDCode should return the matching positive code only")
+		})
+	}
+}
+
+func TestResolveInstrumentIDCode(t *testing.T) {
+	t.Parallel()
+
+	const instrumentID = "BTC-USDT-260101-100000-C"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("instId") {
+		case instrumentID:
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"BTC-USDT-260101-100000-C","instIdCode":"42"}]}`))
+		case "FAIL-USDT":
+			http.Error(w, "failed", http.StatusInternalServerError)
+		default:
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "SetRunningURL must not error")
+
+	code, err := ex.resolveInstrumentIDCode(t.Context(), asset.Options, instrumentID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(42), code, "resolveInstrumentIDCode should return the exchange code")
+
+	_, err = ex.resolveInstrumentIDCode(t.Context(), asset.Options, "")
+	assert.ErrorIs(t, err, errMissingInstrumentID, "resolveInstrumentIDCode should reject an empty instrument")
+
+	_, err = ex.resolveInstrumentIDCode(t.Context(), asset.Binary, instrumentID)
+	assert.ErrorIs(t, err, errInvalidInstrumentType, "resolveInstrumentIDCode should reject unsupported assets")
+
+	_, err = ex.resolveInstrumentIDCode(t.Context(), asset.Spot, "UNKNOWN-USDT")
+	assert.ErrorIs(t, err, errInstrumentIDCodeNotFound, "resolveInstrumentIDCode should report a missing code")
+
+	_, err = ex.resolveInstrumentIDCode(t.Context(), asset.Spot, "FAIL-USDT")
+	assert.Error(t, err, "resolveInstrumentIDCode should return instrument request errors")
+}
+
+func TestWsProcessOptionSummary(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)

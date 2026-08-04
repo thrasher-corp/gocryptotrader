@@ -50,7 +50,6 @@ const (
 	getFundingRateHistory            = "public/get_funding_rate_history"
 	getFundingRateValue              = "public/get_funding_rate_value"
 	getHistoricalVolatility          = "public/get_historical_volatility"
-	getCurrencyIndexPrice            = "public/get_index"
 	getIndexPrice                    = "public/get_index_price"
 	getIndexPriceNames               = "public/get_index_price_names"
 	getInstrument                    = "public/get_instrument"
@@ -281,17 +280,6 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, ccy currency.Cod
 	params.Set("currency", ccy.String())
 	var data []HistoricalVolatilityData
 	return data, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
-}
-
-// GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
-func (e *Exchange) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (*IndexPrice, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	var resp *IndexPrice
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getCurrencyIndexPrice, params), &resp)
 }
 
 // GetIndexPrice gets price data for the requested index

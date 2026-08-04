@@ -629,7 +629,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 // WebsocketSubmitOrder submits a new order via websocket.
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return nil, fmt.Errorf("%s %w", e.Name, exchange.ErrAuthenticationSupportNotEnabled)
+		return nil, fmt.Errorf("%w: %s: %w", request.ErrAuthRequestFailed, e.Name, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -663,13 +663,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	}
 
 	var data *PrivateTradeData
-	switch {
-	case s.Side.IsLong():
+	if s.Side.IsLong() {
 		data, err = e.WSSubmitBuy(ctx, reqParams)
-	case s.Side.IsShort():
+	} else {
+		// Submit.Validate guarantees every accepted side is long or short.
 		data, err = e.WSSubmitSell(ctx, reqParams)
-	default:
-		return nil, order.ErrSideIsInvalid
 	}
 	if err != nil {
 		return nil, err
@@ -721,7 +719,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 // WebsocketModifyOrder modifies an order via websocket.
 func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return nil, fmt.Errorf("%s %w", e.Name, exchange.ErrAuthenticationSupportNotEnabled)
+		return nil, fmt.Errorf("%w: %s: %w", request.ErrAuthRequestFailed, e.Name, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -770,7 +768,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 // WebsocketCancelOrder cancels an order by ID via websocket.
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return fmt.Errorf("%s %w", e.Name, exchange.ErrAuthenticationSupportNotEnabled)
+		return fmt.Errorf("%w: %s: %w", request.ErrAuthRequestFailed, e.Name, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err

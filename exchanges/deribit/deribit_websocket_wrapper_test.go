@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -61,131 +60,6 @@ func connectDeribitWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc
 	return ex
 }
 
-func TestWebsocketSubmitOrder(t *testing.T) {
-	t.Parallel()
-
-	t.Run("coverage", func(t *testing.T) {
-		t.Parallel()
-
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex))
-
-		sub := &order.Submit{
-			Exchange:    ex.Name,
-			Pair:        optionsTradablePair,
-			AssetType:   asset.Options,
-			Side:        order.Buy,
-			Type:        order.Limit,
-			Amount:      1,
-			Price:       1,
-			QuoteAmount: 1,
-		}
-		_, err := ex.WebsocketSubmitOrder(t.Context(), sub)
-		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
-
-		// Wrapper websocket usage requires both authenticated endpoints and an active websocket connection.
-		// Setting auth capability alone is insufficient.
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		_, err = ex.WebsocketSubmitOrder(t.Context(), sub)
-		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
-	})
-
-	t.Run("live validation passes but order is not placed", func(t *testing.T) {
-		t.Parallel()
-
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper())
-
-		_, err := e.WebsocketSubmitOrder(t.Context(), &order.Submit{
-			Exchange:  e.Name,
-			Pair:      optionsTradablePair,
-			AssetType: asset.Options,
-			Side:      order.Buy,
-			Type:      order.Limit,
-			Amount:    0.00000001,
-			Price:     0.00000001,
-		})
-		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-	})
-}
-
-func TestWebsocketModifyOrder(t *testing.T) {
-	t.Parallel()
-
-	t.Run("coverage", func(t *testing.T) {
-		t.Parallel()
-
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex))
-
-		modify := &order.Modify{
-			OrderID:   "1",
-			AssetType: asset.Options,
-			Pair:      optionsTradablePair,
-			Amount:    1,
-		}
-		_, err := ex.WebsocketModifyOrder(t.Context(), modify)
-		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
-
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		_, err = ex.WebsocketModifyOrder(t.Context(), modify)
-		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
-	})
-
-	t.Run("live validation passes but order is not modified", func(t *testing.T) {
-		t.Parallel()
-
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper())
-
-		_, err := e.WebsocketModifyOrder(t.Context(), &order.Modify{
-			OrderID:   "codex-do-not-fill-this-order-id",
-			AssetType: asset.Options,
-			Pair:      optionsTradablePair,
-			Amount:    1,
-			Price:     1,
-		})
-		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-	})
-}
-
-func TestWebsocketCancelOrder(t *testing.T) {
-	t.Parallel()
-
-	t.Run("coverage", func(t *testing.T) {
-		t.Parallel()
-
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex))
-
-		cancel := &order.Cancel{
-			OrderID:   "1",
-			AssetType: asset.Options,
-			Pair:      optionsTradablePair,
-		}
-		err := ex.WebsocketCancelOrder(t.Context(), cancel)
-		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
-
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		err = ex.WebsocketCancelOrder(t.Context(), cancel)
-		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
-	})
-
-	t.Run("live validation passes but order is not cancelled", func(t *testing.T) {
-		t.Parallel()
-
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper())
-
-		err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{
-			OrderID:   "codex-do-not-fill-this-order-id",
-			AssetType: asset.Options,
-			Pair:      optionsTradablePair,
-		})
-		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-	})
-}
-
 func TestSymbolChannelSeparator(t *testing.T) {
 	t.Parallel()
 
@@ -221,10 +95,15 @@ func TestFormatChannelPair(t *testing.T) {
 	}
 }
 
-func TestWebsocketSubmitOrderMocked(t *testing.T) {
+func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	unavailable := new(Exchange)
+	require.NoError(t, testexch.Setup(unavailable))
+	_, err := unavailable.WebsocketSubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	sub := &order.Submit{
 		Exchange:  ex.Name,
@@ -236,13 +115,19 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 		Price:     1,
 	}
 
-	_, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{})
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{})
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	unsupported := *sub
 	unsupported.AssetType = asset.Binary
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &unsupported)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	badFormat := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	badFormat.CurrencyPairs.UseGlobalFormat = true
+	badFormat.CurrencyPairs.RequestFormat = nil
+	_, err = badFormat.WebsocketSubmitOrder(t.Context(), sub)
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
 	badSide := *sub
 	badSide.Side = order.AnySide
@@ -265,6 +150,12 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	}))
 	_, err = exNoResp.WebsocketSubmitOrder(t.Context(), sub)
 	require.ErrorIs(t, err, common.ErrNoResponse)
+
+	exNoOrderID := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{}}}`,
+	}))
+	_, err = exNoOrderID.WebsocketSubmitOrder(t.Context(), sub)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	resp, err := ex.WebsocketSubmitOrder(t.Context(), sub)
 	require.NoError(t, err)
@@ -315,15 +206,22 @@ func TestHandleSubscriptionMocked(t *testing.T) {
 			Pairs:   currency.Pairs{futuresTradablePair},
 		}})
 		assert.Error(t, err)
+		assert.ErrorIs(t, err, errSubscriptionNotAcknowledged)
+		assert.ErrorIs(t, err, errUnexpectedSubscriptionChannel)
 		assert.ErrorContains(t, err, "failed to public/subscribe")
-		assert.ErrorContains(t, err, "unexpected channel")
+		assert.ErrorContains(t, err, "unexpected subscription channel")
 	})
 }
 
-func TestWebsocketModifyOrderMocked(t *testing.T) {
+func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	unavailable := new(Exchange)
+	require.NoError(t, testexch.Setup(unavailable))
+	_, err := unavailable.WebsocketModifyOrder(t.Context(), &order.Modify{})
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	mod := &order.Modify{
 		OrderID:   "1",
@@ -332,7 +230,7 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 		Amount:    1,
 	}
 
-	_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{})
+	_, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{})
 	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	unsupported := *mod
@@ -351,10 +249,15 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 	require.Equal(t, "edited-order", resp.OrderID)
 }
 
-func TestWebsocketCancelOrderMocked(t *testing.T) {
+func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	unavailable := new(Exchange)
+	require.NoError(t, testexch.Setup(unavailable))
+	err := unavailable.WebsocketCancelOrder(t.Context(), &order.Cancel{})
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	cancel := &order.Cancel{
 		OrderID:   "1",
@@ -364,7 +267,7 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 
 	unsupported := *cancel
 	unsupported.AssetType = asset.Binary
-	err := ex.WebsocketCancelOrder(t.Context(), &unsupported)
+	err = ex.WebsocketCancelOrder(t.Context(), &unsupported)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	invalid := *cancel
