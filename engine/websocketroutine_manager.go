@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
+	"github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -265,15 +265,15 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
 		}
-	case *exchangeoptions.Greeks:
+	case *options.Greeks:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s options updated %+v", exchName, m.FormatCurrency(d.Pair), d.AssetType, d)
 		}
-	case []exchangeoptions.Greeks:
+	case []options.Greeks:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket options updated %+v", exchName, d)
 		}
-	case order.Detail, ticker.Price, orderbook.Depth, exchangeoptions.Greeks:
+	case order.Detail, ticker.Price, orderbook.Depth, options.Greeks:
 		return errUseAPointer
 	case kline.Item:
 		if m.verbose {

@@ -136,12 +136,12 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	var inbound WebsocketAPIResponse
 	if err := json.Unmarshal(resp, &inbound); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	if inbound.Header.Status == http.StatusOK {
@@ -150,7 +150,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 
 	var wsErr WebsocketErrors
 	if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	return fmt.Errorf("%w %s %s code=%v message=%s", request.ErrAuthRequestFailed, e.Name, channel, wsErr.Errors.Label, wsErr.Errors.Message)
@@ -1038,11 +1038,11 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 
 	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, epl, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	if len(responses) == 0 {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, common.ErrNoResponse)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, channel, common.ErrNoResponse)
 	}
 
 	// responses may include an ack resp, which we skip
@@ -1050,19 +1050,19 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 
 	var inbound WebsocketAPIResponse
 	if err := json.Unmarshal(endResponse, &inbound); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	if inbound.Header.Status != http.StatusOK {
 		var wsErr WebsocketErrors
 		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
-			return fmt.Errorf("%w %s %s status=%d, %v", request.ErrAuthRequestFailed, e.Name, channel, inbound.Header.Status, err)
+			return fmt.Errorf("%w %s %s status=%d, %w", request.ErrAuthRequestFailed, e.Name, channel, inbound.Header.Status, err)
 		}
 		return fmt.Errorf("%w %s %s code=%v message=%s", request.ErrAuthRequestFailed, e.Name, channel, wsErr.Errors.Label, wsErr.Errors.Message)
 	}
 
 	if err := json.Unmarshal(inbound.Data, &resultHolder{Result: result}); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 	return nil
 }

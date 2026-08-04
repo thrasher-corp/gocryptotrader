@@ -3242,11 +3242,11 @@ func getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, err
 func getAssetFromInstrument(instrument string) (asset.Item, error) {
 	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
 	splitLen := len(splitCurrency)
-	hasUnderscore := strings.Contains(instrument, currency.UnderscoreDelimiter)
 	if splitLen == 0 {
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 	}
 	lastSplit := splitCurrency[splitLen-1]
+	hasUnderscore := strings.Contains(instrument, currency.UnderscoreDelimiter)
 	switch {
 	case splitLen == 1 && !hasUnderscore:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)

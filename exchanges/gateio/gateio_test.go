@@ -2743,7 +2743,7 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 
 				var count int
 				for i := range got {
-					if got[i] != nil && got[i].Channel == channel {
+					if got[i].Channel == channel {
 						count++
 					}
 				}
@@ -3332,21 +3332,6 @@ func TestHandleSubscriptions(t *testing.T) {
 		require.ErrorContains(t, err, "payload count mismatch", "error must mention payload count mismatch")
 	})
 
-	t.Run("manage-subs-nil-connection", func(t *testing.T) {
-		t.Parallel()
-
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-		subs := subscription.List{{
-			Channel: subscription.OrderbookChannel,
-			Asset:   asset.Spot,
-			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
-		}}
-
-		err := ex.manageSubs(t.Context(), subscribeEvent, nil, subs)
-		require.ErrorContains(t, err, "websocket connection", "error must mention websocket connection")
-	})
-
 	t.Run("handle-subscription-missing-message-id", func(t *testing.T) {
 		t.Parallel()
 
@@ -3380,8 +3365,27 @@ func TestHandleSubscriptions(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "subscription", "error must mention nil subscription")
 	})
+}
 
-	t.Run("manage-subs-nil-subscription", func(t *testing.T) {
+func TestManageSubs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil connection", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		subs := subscription.List{{
+			Channel: subscription.OrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+		}}
+
+		err := ex.manageSubs(t.Context(), subscribeEvent, nil, subs)
+		require.ErrorContains(t, err, "websocket connection", "error must mention websocket connection")
+	})
+
+	t.Run("nil subscription", func(t *testing.T) {
 		t.Parallel()
 
 		ex := new(Exchange)

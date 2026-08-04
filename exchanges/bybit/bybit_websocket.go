@@ -116,7 +116,7 @@ func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, c
 		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	if !response.Success {
-		return fmt.Errorf("%w %s %s request_id=%s, %v", request.ErrAuthRequestFailed, e.Name, response.Operation, response.RequestID, errors.New(response.ReturnMessage))
+		return fmt.Errorf("%w %s %s request_id=%s, %s", request.ErrAuthRequestFailed, e.Name, response.Operation, response.RequestID, response.ReturnMessage)
 	}
 	return nil
 }

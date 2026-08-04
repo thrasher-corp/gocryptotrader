@@ -503,11 +503,11 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 		Price:         3,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "BTC-USDT", arg.InstrumentID)
-	require.Equal(t, 2.0, arg.NewQuantity)
-	require.Equal(t, 3.0, arg.NewPrice)
-	require.Equal(t, "1", arg.OrderID)
-	require.Equal(t, "abc", arg.ClientOrderID)
+	assert.Equal(t, "BTC-USDT", arg.InstrumentID)
+	assert.Equal(t, 2.0, arg.NewQuantity)
+	assert.Equal(t, 3.0, arg.NewPrice)
+	assert.Equal(t, "1", arg.OrderID)
+	assert.Equal(t, "abc", arg.ClientOrderID)
 }
 
 func TestDeriveCancelOrderArguments(t *testing.T) {
@@ -546,9 +546,28 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 		ClientOrderID: "abc",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "BTC-USDT", arg.InstrumentID)
-	require.Equal(t, "1", arg.OrderID)
-	require.Equal(t, "abc", arg.ClientOrderID)
+	assert.Equal(t, "BTC-USDT", arg.InstrumentID)
+	assert.Equal(t, "1", arg.OrderID)
+	assert.Equal(t, "abc", arg.ClientOrderID)
+}
+
+func TestOptionInstrumentSelector(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name         string
+		instrumentID string
+		expected     string
+	}{
+		{name: "dash separator", instrumentID: "BTC-USDT-260101-100000-C", expected: "BTC-USDT"},
+		{name: "underscore separator", instrumentID: "BTC_USDT_260101_100000_C", expected: "BTC_USDT"},
+		{name: "single component", instrumentID: "BTC", expected: "BTC"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, optionInstrumentSelector(tc.instrumentID))
+		})
+	}
 }
 
 func TestWSProcessOptionSummary(t *testing.T) {

@@ -332,9 +332,9 @@ func TestHandleSubscriptionMocked(t *testing.T) {
 			Asset:   asset.Futures,
 			Pairs:   currency.Pairs{futuresTradablePair},
 		}})
-		require.Error(t, err)
-		require.ErrorContains(t, err, "failed to public/subscribe")
-		require.ErrorContains(t, err, "unexpected channel")
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "failed to public/subscribe")
+		assert.ErrorContains(t, err, "unexpected channel")
 	})
 }
 

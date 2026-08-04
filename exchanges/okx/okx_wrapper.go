@@ -1396,7 +1396,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		return nil, fmt.Errorf("%w: %s", order.ErrTypeIsInvalid, orderTypeString)
 	}
 
-	orderRequest := &PlaceOrderRequestParam{
+	return &PlaceOrderRequestParam{
 		InstrumentID:   pairString,
 		TradeMode:      tradeMode,
 		Side:           sideType,
@@ -1407,8 +1407,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		Price:          s.Price,
 		TargetCurrency: targetCurrency,
 		AssetType:      s.AssetType,
-	}
-	return orderRequest, nil
+	}, nil
 }
 
 func isSpotMarketOrder(s *order.Submit) bool {
@@ -1491,9 +1490,8 @@ func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRe
 	if ord.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	instrumentID := pairFormat.Format(ord.Pair)
 	return &CancelOrderRequestParam{
-		InstrumentID:  instrumentID,
+		InstrumentID:  pairFormat.Format(ord.Pair),
 		OrderID:       ord.OrderID,
 		ClientOrderID: ord.ClientOrderID,
 	}, nil
@@ -1667,26 +1665,26 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 	}
 	fetchParams := make([]InstrumentsFetchParams, 0, 4)
 	if ai == asset.Options {
-		underlying, family := optionInstrumentSelectors(instrumentID)
-		if underlying != "" || family != "" {
+		selector := optionInstrumentSelector(instrumentID)
+		if selector != "" {
 			fetchParams = append(fetchParams, InstrumentsFetchParams{
 				InstrumentType:   instType,
-				Underlying:       underlying,
-				InstrumentFamily: family,
+				Underlying:       selector,
+				InstrumentFamily: selector,
 				InstrumentID:     instrumentID,
 			})
 		}
-		if underlying != "" {
+		if selector != "" {
 			fetchParams = append(fetchParams, InstrumentsFetchParams{
 				InstrumentType: instType,
-				Underlying:     underlying,
+				Underlying:     selector,
 				InstrumentID:   instrumentID,
 			})
 		}
-		if family != "" {
+		if selector != "" {
 			fetchParams = append(fetchParams, InstrumentsFetchParams{
 				InstrumentType:   instType,
-				InstrumentFamily: family,
+				InstrumentFamily: selector,
 				InstrumentID:     instrumentID,
 			})
 		}
@@ -1729,7 +1727,7 @@ func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64
 	return 0
 }
 
-func optionInstrumentSelectors(instrumentID string) (string, string) {
+func optionInstrumentSelector(instrumentID string) string {
 	parts := strings.Split(instrumentID, currency.DashDelimiter)
 	delimiter := currency.DashDelimiter
 	if len(parts) < 2 {
@@ -1737,10 +1735,9 @@ func optionInstrumentSelectors(instrumentID string) (string, string) {
 		delimiter = currency.UnderscoreDelimiter
 	}
 	if len(parts) < 2 {
-		return instrumentID, instrumentID
+		return instrumentID
 	}
-	underlying := strings.Join(parts[:2], delimiter)
-	return underlying, underlying
+	return strings.Join(parts[:2], delimiter)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

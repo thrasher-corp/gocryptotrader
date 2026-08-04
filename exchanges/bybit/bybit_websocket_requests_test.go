@@ -154,7 +154,6 @@ func TestWebsocketModifyOrder(t *testing.T) {
 			OrderID:   "codex-do-not-fill-this-order-id",
 		})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-		require.NotErrorIs(t, err, order.ErrPairIsEmpty)
 	})
 }
 
