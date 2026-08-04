@@ -22,8 +22,8 @@ type Greeks struct {
 	Vega                  float64
 	Theta                 float64
 	Rho                   float64
-	Bid                   float64
-	Ask                   float64
+	BidPrice              float64
+	AskPrice              float64
 	BidSize               float64
 	AskSize               float64
 	MarkPrice             float64

@@ -1097,11 +1097,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 			Asset:    action.AssetType,
 		}
 		if action.Amount != 0 {
-			sizeFloat := math.Round(action.Amount)
-			if sizeFloat != action.Amount {
-				return nil, fmt.Errorf("%w: futures amend size must be a whole number", errInvalidAmount)
-			}
-			req.Size = int64(sizeFloat)
+			req.Size = action.Amount
 		}
 		if action.Price != 0 {
 			req.Price = strconv.FormatFloat(action.Price, 'f', -1, 64)

@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -34,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -2428,9 +2430,24 @@ const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "opti
 
 func TestOptionsContractTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractTickerPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options contract ticker push data failed with error %v", e.Name, err)
-	}
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	processingStarted := time.Now().UTC()
+	require.NoError(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractTickerPushDataJSON)))
+	processingFinished := time.Now().UTC()
+
+	tickerMessage := <-ex.Websocket.DataHandler.C
+	assert.IsType(t, &ticker.Price{}, tickerMessage.Data, "First message should contain the normalised ticker")
+
+	greeksMessage := <-ex.Websocket.DataHandler.C
+	greeks, ok := greeksMessage.Data.(*options.Greeks)
+	require.True(t, ok, "Second message must contain normalised option greeks")
+	assert.Equal(t, int64(1630576352), greeks.LastUpdated.Unix(), "LastUpdated should use the exchange message timestamp")
+	assert.Equal(t, int64(1630576352), greeks.ExchangeTimestamp.Unix(), "ExchangeTimestamp should use the exchange message timestamp")
+	assert.Equal(t, 10611.7, greeks.BidPrice, "BidPrice should be normalised")
+	assert.Equal(t, 11728.7, greeks.AskPrice, "AskPrice should be normalised")
+	assert.False(t, greeks.ReceivedAt.Before(processingStarted), "ReceivedAt should not predate local receipt")
+	assert.False(t, greeks.ReceivedAt.After(processingFinished), "ReceivedAt should not postdate completed processing")
 }
 
 const optionsUnderlyingTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.ul_tickers",	"event": "update",	"result": {	   "trade_put": 800,	   "trade_call": 41700,	   "index_price": "50695.43",	   "name": "BTC_USDT"	}}`

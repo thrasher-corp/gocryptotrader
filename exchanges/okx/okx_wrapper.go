@@ -1419,13 +1419,14 @@ func isSpotMarketBuyWithQuoteAmount(s *order.Submit) bool {
 }
 
 func deriveOrderSide(side order.Side) (string, error) {
-	if !side.IsLong() && !side.IsShort() {
+	switch {
+	case side.IsLong():
+		return order.Buy.Lower(), nil
+	case side.IsShort():
+		return order.Sell.Lower(), nil
+	default:
 		return "", fmt.Errorf("%w %s", order.ErrSideIsInvalid, side)
 	}
-	if side.IsLong() {
-		return order.Buy.Lower(), nil
-	}
-	return order.Sell.Lower(), nil
 }
 
 func derivePositionSide(s *order.Submit) string {

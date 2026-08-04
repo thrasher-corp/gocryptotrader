@@ -3416,6 +3416,8 @@ func TestWsTicker(t *testing.T) {
 			assert.Equal(t, 0.00003161, v.Gamma, "Gamma should be correct")
 			assert.Equal(t, 82.65324199, v.Vega, "Vega should be correct")
 			assert.Equal(t, -51.54651685, v.Theta, "Theta should be correct")
+			assert.Equal(t, 3475.00, v.BidPrice, "BidPrice should be correct")
+			assert.Equal(t, 3520.00, v.AskPrice, "AskPrice should be correct")
 			assert.Equal(t, 0.5479, v.BidImpliedVolatility, "BidImpliedVolatility should be correct")
 			assert.Equal(t, 0.5534, v.AskImpliedVolatility, "AskImpliedVolatility should be correct")
 			assert.Equal(t, 0.0, v.MarkImpliedVolatility, "MarkImpliedVolatility should be correct")

@@ -688,9 +688,6 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 
 	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
 		for _, s := range batch {
-			if err := common.NilGuard(s); err != nil {
-				return fmt.Errorf("%w: subscription", err)
-			}
 			if err := func() error {
 				msg, err := e.manageSubReq(ctx, event, s)
 				if err != nil {

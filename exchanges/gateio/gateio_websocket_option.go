@@ -139,10 +139,10 @@ getEnabledPairs:
 				if err != nil {
 					return nil, err
 				}
-				key := uly.String()
 				if seenUnderlyingByChannel[channelsToSubscribe[i]] == nil {
 					seenUnderlyingByChannel[channelsToSubscribe[i]] = make(map[string]struct{})
 				}
+				key := uly.String()
 				if _, exists := seenUnderlyingByChannel[channelsToSubscribe[i]][key]; exists {
 					continue
 				}
@@ -320,7 +320,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 
 	switch push.Channel {
 	case optionsContractTickersChannel:
-		return e.processOptionsContractTickers(ctx, push.Result)
+		return e.processOptionsContractTickers(ctx, push.Result, push.Time)
 	case optionsUnderlyingTickersChannel:
 		return e.processOptionsUnderlyingTicker(ctx, push.Result)
 	case optionsTradesChannel,
@@ -366,12 +366,13 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 	}
 }
 
-func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming []byte) error {
+func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming []byte, exchangeTimestamp time.Time) error {
 	var data OptionsTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
+	receivedAt := time.Now().UTC()
 	if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
@@ -396,8 +397,8 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		Vega:                  data.Vega.Float64(),
 		Theta:                 data.Theta.Float64(),
 		Rho:                   data.Rho.Float64(),
-		Bid:                   data.Bid1Price.Float64(),
-		Ask:                   data.Ask1Price.Float64(),
+		BidPrice:              data.Bid1Price.Float64(),
+		AskPrice:              data.Ask1Price.Float64(),
 		BidSize:               data.Bid1Size.Float64(),
 		AskSize:               data.Ask1Size.Float64(),
 		MarkPrice:             data.MarkPrice.Float64(),
@@ -407,9 +408,9 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		BidImpliedVolatility:  data.BidImpliedVolatility.Float64(),
 		AskImpliedVolatility:  data.AskImpliedVolatility.Float64(),
 		MarkImpliedVolatility: data.MarkImpliedVolatility.Float64(),
-		LastUpdated:           time.Now(),
-		ExchangeTimestamp:     time.Now(),
-		ReceivedAt:            time.Now().UTC(),
+		LastUpdated:           exchangeTimestamp,
+		ExchangeTimestamp:     exchangeTimestamp,
+		ReceivedAt:            receivedAt,
 	})
 }
 

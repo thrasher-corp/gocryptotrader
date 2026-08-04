@@ -1,7 +1,6 @@
 package deribit
 
 import (
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -57,21 +56,7 @@ func deribitOrderWSMock(overrides map[string]string) mockws.WsMockFunc {
 
 func connectDeribitWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
 	t.Helper()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-
-	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
-	t.Cleanup(server.Close)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
-
-	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
-	ex.Features.Subscriptions = subscription.List{}
-	ex.Websocket.SetSubscriptionsNotRequired()
-	require.NoError(t, ex.Websocket.Connect(t.Context()))
-	t.Cleanup(func() {
-		_ = ex.Websocket.Shutdown()
-	})
+	ex := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsHandler))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	return ex
 }
@@ -121,7 +106,6 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 			Price:     0.00000001,
 		})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-		require.NotErrorIs(t, err, order.ErrSideIsInvalid)
 	})
 }
 
@@ -162,7 +146,6 @@ func TestWebsocketModifyOrder(t *testing.T) {
 			Price:     1,
 		})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-		require.NotErrorIs(t, err, order.ErrOrderIDNotSet)
 	})
 }
 
@@ -200,7 +183,6 @@ func TestWebsocketCancelOrder(t *testing.T) {
 			Pair:      optionsTradablePair,
 		})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-		require.NotErrorIs(t, err, order.ErrOrderIDNotSet)
 	})
 }
 

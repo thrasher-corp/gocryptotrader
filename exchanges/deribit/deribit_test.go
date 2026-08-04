@@ -4515,6 +4515,21 @@ func TestOptionPairToString(t *testing.T) {
 	}
 }
 
+func TestOptionComboPairToString(t *testing.T) {
+	t.Parallel()
+	for pair, expected := range map[currency.Pair]string{
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("ICOND-7AUG26-62000_65000_67000_70000")}:  "BTC-ICOND-7AUG26-62000_65000_67000_70000",
+		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("USDC-PS-5AUG26-1780_1650")}:              "ETH_USDC-PS-5AUG26-1780_1650",
+		{Delimiter: currency.DashDelimiter, Base: currency.XRP, Quote: currency.NewCode("USDC-CBUT-26SEP25-2D9_3D2_3D4")}:         "XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4",
+		{Delimiter: currency.DashDelimiter, Base: currency.NewCode("PAXG"), Quote: currency.NewCode("USDC-CS-12SEP25-3550_3600")}: "PAXG_USDC-CS-12SEP25-3550_3600",
+	} {
+		t.Run(expected, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, expected, optionComboPairToString(pair), "optionComboPairToString should return correctly")
+		})
+	}
+}
+
 func TestFutureComboPairToString(t *testing.T) {
 	t.Parallel()
 	for pair, exp := range map[currency.Pair]string{

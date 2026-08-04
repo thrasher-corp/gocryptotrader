@@ -184,7 +184,7 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 		OrderID:   "futures-1",
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      getPair(t, asset.USDTMarginedFutures),
-		Amount:    1,
+		Amount:    0.5,
 		Price:     101,
 	})
 	require.NoError(t, err)

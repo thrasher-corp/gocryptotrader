@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -65,7 +64,6 @@ const (
 	getMarkPriceHistory              = "public/get_mark_price_history"
 	getOrderbook                     = "public/get_order_book"
 	getOrderbookByInstrumentID       = "public/get_order_book_by_instrument_id"
-	getRFQ                           = "public/get_rfqs"
 	getTradeVolumes                  = "public/get_trade_volumes"
 	getTradingViewChartData          = "public/get_tradingview_chart_data"
 	getVolatilityIndex               = "public/get_volatility_index_data"
@@ -116,7 +114,6 @@ const (
 	getUserTradesByInstrumentAndTime = "private/get_user_trades_by_instrument_and_time"
 	getUserTradesByOrder             = "private/get_user_trades_by_order"
 	resetMMP                         = "private/reset_mmp"
-	sendRFQ                          = "private/send_rfq"
 	setMMPConfig                     = "private/set_mmp_config"
 	getSettlementHistoryByInstrument = "private/get_settlement_history_by_instrument"
 	getSettlementHistoryByCurrency   = "private/get_settlement_history_by_currency"
@@ -557,20 +554,6 @@ func (e *Exchange) GetSupportedIndexNames(ctx context.Context, priceIndexType st
 	}
 	var resp []string
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, common.EncodeURLValues("public/get_supported_index_names", params), &resp)
-}
-
-// GetRequestForQuote retrieves RFQ information.
-func (e *Exchange) GetRequestForQuote(ctx context.Context, ccy currency.Code, kind string) ([]RequestForQuote, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	if kind != "" {
-		params.Set("kind", kind)
-	}
-	var resp []RequestForQuote
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getRFQ, params), &resp)
 }
 
 // GetTradeVolumes gets trade volumes' data of all instruments
@@ -2093,29 +2076,6 @@ func (e *Exchange) ResetMMP(ctx context.Context, ccy currency.Code) error {
 	return nil
 }
 
-// SendRequestForQuote sends RFQ on a given instrument.
-func (e *Exchange) SendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) error {
-	params, err := checkInstrument(instrumentName)
-	if err != nil {
-		return err
-	}
-	if amount > 0 {
-		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	}
-	if side != order.UnknownSide {
-		params.Set("side", side.String())
-	}
-	var resp string
-	err = e.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, sendRFQ, params, &resp)
-	if err != nil {
-		return err
-	}
-	if resp != "ok" {
-		return fmt.Errorf("rfq couldn't send for %v", instrumentName)
-	}
-	return nil
-}
-
 // SetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency
 func (e *Exchange) SetMMPConfig(ctx context.Context, ccy currency.Code, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
 	if ccy.IsEmpty() {
@@ -3239,6 +3199,7 @@ func getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, err
 	return item, cp, nil
 }
 
+// getAssetFromInstrument classifies Deribit instruments by the exchange's distinct spot, futures, options and combo delimiters.
 func getAssetFromInstrument(instrument string) (asset.Item, error) {
 	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
 	splitLen := len(splitCurrency)
@@ -3250,15 +3211,15 @@ func getAssetFromInstrument(instrument string) (asset.Item, error) {
 	switch {
 	case splitLen == 1 && !hasUnderscore:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
-	case splitLen == 1:
+	case splitLen == 1: // Spot instruments use an underscore without a dash, for example BTC_USDC.
 		return asset.Spot, nil
-	case splitLen == 2:
+	case splitLen == 2: // Futures use one dash, including linear instruments such as ETH_USDC-PERPETUAL.
 		return asset.Futures, nil
-	case strings.Contains(instrument, "-FS-"):
+	case strings.Contains(instrument, "-FS-"): // Futures combos identify the spread between their component legs with FS.
 		return asset.FutureCombo, nil
-	case lastSplit == "C" || lastSplit == "P":
+	case lastSplit == "C" || lastSplit == "P": // Options end with their call or put designation.
 		return asset.Options, nil
-	case splitLen >= 3 && hasUnderscore:
+	case splitLen >= 3 && hasUnderscore: // Option combos encode multiple strikes or expiries in the final underscore-delimited segment.
 		return asset.OptionCombo, nil
 	default:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
@@ -3347,17 +3308,13 @@ func optionPairToString(pair currency.Pair) string {
 
 // optionComboPairToString formats an option combo pair from dash to underscore between base and quote, e.g. PAXG-USDC-CS-12SEP25-3550_3600 -> PAXG_USDC-CS-12SEP25-3550_3600
 func optionComboPairToString(pair currency.Pair) string {
-	// Convert pair to string
-	pairStr := pair.String()
-	if !strings.Contains(pairStr, "-USDC-") {
-		return pairStr
+	parts := strings.Split(pair.String(), currency.DashDelimiter)
+	lastPart := len(parts) - 1
+	parts[lastPart] = strings.ReplaceAll(parts[lastPart], "D", "d")
+	if len(parts) < 3 || parts[1] != currency.USDC.String() {
+		return strings.Join(parts, currency.DashDelimiter)
 	}
-	// Find the first dash, replace with underscore.
-	before, after, found := strings.Cut(pairStr, "-")
-	if !found {
-		return pairStr // fallback, not a combo format
-	}
-	return before + "_" + after
+	return parts[0] + currency.UnderscoreDelimiter + strings.Join(parts[1:], currency.DashDelimiter)
 }
 
 // futureComboPairToString formats a futures combo pair from dash to underscore between base and quote.
