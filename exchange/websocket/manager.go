@@ -409,7 +409,6 @@ func (m *Manager) createConnectionFromSetup(c *ConnectionSetup) *connection {
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,
 		subscriptions:        subscription.NewStore(),
-		binaryMessageDecoder: c.BinaryMessageDecoder,
 	}
 }
 

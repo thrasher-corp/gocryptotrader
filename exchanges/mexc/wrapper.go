@@ -147,7 +147,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.generateSubscriptions,
 		Handler:               e.WsHandleData,
 		MessageFilter:         asset.Spot,
-		BinaryMessageDecoder:  decodeBinaryFrame,
 	})
 }
 
