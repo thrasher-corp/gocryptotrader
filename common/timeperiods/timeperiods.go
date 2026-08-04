@@ -125,13 +125,25 @@ func (t *TimePeriodCalculator) calculatePeriods() {
 // against calculated TimePeriods to determine whether
 // there is existing data within the time period
 func (t *TimePeriodCalculator) setTimePeriodExists() {
+	periodOffset := len(t.TimePeriods)
 	t.calculatePeriods()
-	for i := range t.TimePeriods {
-		for j := range t.comparisonTimes {
-			if t.comparisonTimes[j].Truncate(t.periodDuration).Equal(t.TimePeriods[i].Time) {
-				t.TimePeriods[i].dataInRange = true
-				break
+	if len(t.TimePeriods) == 0 {
+		return
+	}
+	newPeriods := t.TimePeriods[periodOffset:]
+	for i := range t.comparisonTimes {
+		comparisonTime := t.comparisonTimes[i].Truncate(t.periodDuration)
+		for j := range periodOffset {
+			if t.TimePeriods[j].Time.Equal(comparisonTime) {
+				t.TimePeriods[j].dataInRange = true
 			}
+		}
+		// calculatePeriods appends in ascending order; binary search also avoids duration overflow across long ranges.
+		periodIndex := sort.Search(len(newPeriods), func(j int) bool {
+			return !newPeriods[j].Time.Before(comparisonTime)
+		})
+		if periodIndex < len(newPeriods) && newPeriods[periodIndex].Time.Equal(comparisonTime) {
+			newPeriods[periodIndex].dataInRange = true
 		}
 	}
 }
