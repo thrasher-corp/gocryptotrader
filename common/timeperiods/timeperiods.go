@@ -33,7 +33,6 @@ func FindTimeRangesContainingData(start, end time.Time, period time.Duration, co
 	t.comparisonTimes = comparisonTimes
 
 	t.setTimePeriodExists()
-	t.Sort(false)
 	t.calculateRanges()
 
 	return t.TimeRanges, nil

@@ -82,6 +82,27 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 	assert.Len(t, ranges, 6, "ranges should have 6 time ranges")
 }
 
+func TestFindTimeRangesContainingDataOrderedRanges(t *testing.T) {
+	start := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	ranges, err := FindTimeRangesContainingData(
+		start,
+		start.Add(5*time.Minute),
+		time.Minute,
+		[]time.Time{
+			start.Add(3*time.Minute + 30*time.Second),
+			start.Add(30 * time.Second),
+		},
+	)
+	require.NoError(t, err, "FindTimeRangesContainingData must not error")
+	expected := []TimeRange{
+		{StartOfRange: start, EndOfRange: start.Add(time.Minute), HasDataInRange: true},
+		{StartOfRange: start.Add(time.Minute), EndOfRange: start.Add(3 * time.Minute)},
+		{StartOfRange: start.Add(3 * time.Minute), EndOfRange: start.Add(4 * time.Minute), HasDataInRange: true},
+		{StartOfRange: start.Add(4 * time.Minute), EndOfRange: start.Add(5 * time.Minute)},
+	}
+	assert.Equal(t, expected, ranges, "FindTimeRangesContainingData should return correctly ordered ranges")
+}
+
 func TestCalculateTimePeriodsInRange(t *testing.T) {
 	// validation issues
 	_, err := CalculateTimePeriodsInRange(time.Time{}, time.Time{}, 0)
@@ -262,6 +283,24 @@ func TestSetTimePeriodExistsReuse(t *testing.T) {
 		{Time: start},
 		{Time: start.Add(time.Minute), dataInRange: true},
 	}, calculator.TimePeriods, "setTimePeriodExists should preserve matches when reused")
+}
+
+func TestSetTimePeriodExistsReuseWithoutNewPeriods(t *testing.T) {
+	start := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	calculator := TimePeriodCalculator{
+		start:          start,
+		end:            start.Add(2 * time.Minute),
+		periodDuration: time.Minute,
+	}
+	calculator.setTimePeriodExists()
+	calculator.start = calculator.end
+	calculator.comparisonTimes = []time.Time{start.Add(time.Minute)}
+	calculator.setTimePeriodExists()
+	expected := []TimePeriod{
+		{Time: start},
+		{Time: start.Add(time.Minute), dataInRange: true},
+	}
+	assert.Equal(t, expected, calculator.TimePeriods, "setTimePeriodExists should match existing periods without calculating new periods")
 }
 
 func TestSort(t *testing.T) {
