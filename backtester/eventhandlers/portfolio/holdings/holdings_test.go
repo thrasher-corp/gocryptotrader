@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -23,51 +24,54 @@ const testExchange = "binance"
 func pair(t *testing.T) *funding.SpotPair {
 	t.Helper()
 	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for base funding")
 	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for quote funding")
 	p, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreatePair must not error")
 	return p
 }
 
 func collateral(t *testing.T) *funding.CollateralPair {
 	t.Helper()
 	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for contract funding")
 	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for collateral funding")
 	p, err := funding.CreateCollateral(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateCollateral must not error")
 	return p
 }
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
 	_, err := Create(nil, pair(t))
-	assert.ErrorIs(t, err, common.ErrNilEvent)
+	assert.ErrorIs(t, err, common.ErrNilEvent, "Create should error correctly for a nil event")
 
 	_, err = Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	assert.NoError(t, err)
+	assert.NoError(t, err, "Create should not error for spot funding")
 
 	_, err = Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Futures},
 	}, collateral(t))
-	assert.NoError(t, err)
+	assert.NoError(t, err, "Create should not error for futures funding")
+
+	_, err = Create(&fill.Fill{
+		Base: &event.Base{AssetType: asset.Spot},
+	}, collateral(t))
+	assert.ErrorIs(t, err, funding.ErrNotPair, "Create should error correctly when spot funding is collateral")
+
+	_, err = Create(&fill.Fill{
+		Base: &event.Base{AssetType: asset.Futures},
+	}, pair(t))
+	assert.ErrorIs(t, err, funding.ErrNotCollateral, "Create should error correctly when futures funding is a spot pair")
+
+	_, err = Create(&fill.Fill{
+		Base: &event.Base{AssetType: asset.Options},
+	}, pair(t))
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "Create should error correctly for an unsupported asset type")
 }
 
 func TestUpdate(t *testing.T) {
@@ -75,7 +79,7 @@ func TestUpdate(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	assert.NoError(t, err)
+	require.NoError(t, err, "Create must not error")
 
 	t1 := h.Timestamp
 	err = h.Update(&fill.Fill{
@@ -83,11 +87,8 @@ func TestUpdate(t *testing.T) {
 			Time: time.Now(),
 		},
 	}, pair(t))
-	assert.NoError(t, err)
-
-	if t1.Equal(h.Timestamp) {
-		t.Errorf("expected '%v' received '%v'", h.Timestamp, t1)
-	}
+	assert.NoError(t, err, "Update should not error")
+	assert.Falsef(t, t1.Equal(h.Timestamp), "Holding.Timestamp should be updated from %v to %v", t1, h.Timestamp)
 }
 
 func TestUpdateValue(t *testing.T) {
@@ -96,41 +97,75 @@ func TestUpdateValue(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: b,
 	}, pair(t))
-	assert.NoError(t, err)
+	require.NoError(t, err, "Create must not error")
 
 	err = h.UpdateValue(nil)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "UpdateValue should error correctly for a nil event")
 
 	h.BaseSize = decimal.NewFromInt(1)
 	err = h.UpdateValue(&kline.Kline{
 		Base:  b,
 		Close: decimal.NewFromInt(1337),
 	})
-	assert.NoError(t, err)
+	assert.NoError(t, err, "UpdateValue should not error")
+	assert.Truef(t, h.BaseValue.Equal(decimal.NewFromInt(1337)), "Holding.BaseValue should equal %v, actual %v", decimal.NewFromInt(1337), h.BaseValue)
+}
 
-	if !h.BaseValue.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("expected '%v' received '%v'", h.BaseSize, decimal.NewFromInt(1337))
-	}
+func TestUpdateAssetTypes(t *testing.T) {
+	t.Parallel()
+	err := new(Holding).update(&fill.Fill{
+		Base:  &event.Base{AssetType: asset.Spot},
+		Order: new(order.Detail),
+	}, collateral(t))
+	assert.ErrorIs(t, err, funding.ErrNotPair, "Holding.update should error correctly when spot funding is collateral")
+
+	err = new(Holding).update(&fill.Fill{
+		Base:  &event.Base{AssetType: asset.Futures},
+		Order: new(order.Detail),
+	}, pair(t))
+	assert.ErrorIs(t, err, funding.ErrNotCollateral, "Holding.update should error correctly when futures funding is a spot pair")
+
+	err = new(Holding).update(&fill.Fill{
+		Base:  &event.Base{AssetType: asset.Options},
+		Order: new(order.Detail),
+	}, pair(t))
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "Holding.update should error correctly for an unsupported asset type")
+
+	contract, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.NewFromInt(4), decimal.Zero)
+	require.NoError(t, err, "funding.CreateItem must not error for futures contract funding")
+	margin, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	require.NoError(t, err, "funding.CreateItem must not error for futures collateral funding")
+	funds, err := funding.CreateCollateral(contract, margin)
+	require.NoError(t, err, "funding.CreateCollateral must not error for futures funding")
+	h := new(Holding)
+	err = h.update(&fill.Fill{
+		Base: &event.Base{AssetType: asset.Futures},
+		Order: &order.Detail{
+			Price: 2,
+			Fee:   3,
+		},
+	}, funds)
+	assert.NoError(t, err, "Holding.update should not error for futures funding")
+	assert.Truef(t, h.BaseSize.Equal(decimal.NewFromInt(4)), "Holding.BaseSize should equal %v, actual %v", decimal.NewFromInt(4), h.BaseSize)
+	assert.Truef(t, h.QuoteSize.Equal(decimal.NewFromInt(1337)), "Holding.QuoteSize should equal %v, actual %v", decimal.NewFromInt(1337), h.QuoteSize)
+	assert.Truef(t, h.BaseValue.Equal(decimal.NewFromInt(8)), "Holding.BaseValue should equal %v, actual %v", decimal.NewFromInt(8), h.BaseValue)
+	assert.Truef(t, h.TotalFees.Equal(decimal.NewFromInt(3)), "Holding.TotalFees should equal %v, actual %v", decimal.NewFromInt(3), h.TotalFees)
+	assert.True(t, h.BoughtAmount.IsZero(), "Holding.BoughtAmount should be zero for futures funding")
+	assert.True(t, h.SoldAmount.IsZero(), "Holding.SoldAmount should be zero for futures funding")
 }
 
 func TestUpdateBuyStats(t *testing.T) {
 	t.Parallel()
 	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for base funding")
 	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for quote funding")
 	p, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreatePair must not error")
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	assert.NoError(t, err)
+	require.NoError(t, err, "Create must not error")
 
 	err = h.update(&fill.Fill{
 		Base: &event.Base{
@@ -162,29 +197,14 @@ func TestUpdateBuyStats(t *testing.T) {
 			Fee:         1,
 		},
 	}, p)
-	assert.NoError(t, err)
-
-	if !h.BaseSize.Equal(p.BaseAvailable()) {
-		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
-	}
-	if !h.BaseValue.Equal(p.BaseAvailable().Mul(decimal.NewFromInt(500))) {
-		t.Errorf("expected '%v' received '%v'", 500, h.BaseValue)
-	}
-	if !h.QuoteSize.Equal(decimal.NewFromInt(100)) {
-		t.Errorf("expected '%v' received '%v'", 100, h.QuoteSize)
-	}
-	if !h.TotalValue.Equal(decimal.NewFromInt(600)) {
-		t.Errorf("expected '%v' received '%v'", 999, h.TotalValue)
-	}
-	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
-	}
-	if !h.SoldAmount.IsZero() {
-		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
-	}
-	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
-	}
+	require.NoError(t, err, "Holding.update must not error for an initial buy")
+	assert.Truef(t, h.BaseSize.Equal(p.BaseAvailable()), "Holding.BaseSize should equal %v, actual %v", p.BaseAvailable(), h.BaseSize)
+	assert.Truef(t, h.BaseValue.Equal(p.BaseAvailable().Mul(decimal.NewFromInt(500))), "Holding.BaseValue should equal %v, actual %v", p.BaseAvailable().Mul(decimal.NewFromInt(500)), h.BaseValue)
+	assert.Truef(t, h.QuoteSize.Equal(decimal.NewFromInt(100)), "Holding.QuoteSize should equal %v, actual %v", decimal.NewFromInt(100), h.QuoteSize)
+	assert.Truef(t, h.TotalValue.Equal(decimal.NewFromInt(600)), "Holding.TotalValue should equal %v, actual %v", decimal.NewFromInt(600), h.TotalValue)
+	assert.Truef(t, h.BoughtAmount.Equal(decimal.NewFromInt(1)), "Holding.BoughtAmount should equal %v, actual %v", decimal.NewFromInt(1), h.BoughtAmount)
+	assert.True(t, h.SoldAmount.IsZero(), "Holding.SoldAmount should be zero")
+	assert.Truef(t, h.TotalFees.Equal(decimal.NewFromInt(1)), "Holding.TotalFees should equal %v, actual %v", decimal.NewFromInt(1), h.TotalFees)
 
 	err = h.update(&fill.Fill{
 		Base: &event.Base{
@@ -216,38 +236,25 @@ func TestUpdateBuyStats(t *testing.T) {
 			Fee:         0.5,
 		},
 	}, p)
-	assert.NoError(t, err)
-
-	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
-	}
-	if !h.SoldAmount.IsZero() {
-		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
-	}
-	if !h.TotalFees.Equal(decimal.NewFromFloat(1.5)) {
-		t.Errorf("expected '%v' received '%v'", 1.5, h.TotalFees)
-	}
+	require.NoError(t, err, "Holding.update must not error for an additional buy")
+	assert.Truef(t, h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)), "Holding.BoughtAmount should equal %v, actual %v", decimal.NewFromFloat(1.5), h.BoughtAmount)
+	assert.True(t, h.SoldAmount.IsZero(), "Holding.SoldAmount should be zero")
+	assert.Truef(t, h.TotalFees.Equal(decimal.NewFromFloat(1.5)), "Holding.TotalFees should equal %v, actual %v", decimal.NewFromFloat(1.5), h.TotalFees)
 }
 
 func TestUpdateSellStats(t *testing.T) {
 	t.Parallel()
 	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for base funding")
 	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreateItem must not error for quote funding")
 	p, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "funding.CreatePair must not error")
 
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, p)
-	assert.NoError(t, err)
+	require.NoError(t, err, "Create must not error")
 
 	err = h.update(&fill.Fill{
 		Base: &event.Base{
@@ -278,32 +285,15 @@ func TestUpdateSellStats(t *testing.T) {
 			Fee:         1,
 		},
 	}, p)
-	assert.NoError(t, err)
-
-	if !h.BaseSize.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
-	}
-	if !h.BaseValue.Equal(decimal.NewFromInt(500)) {
-		t.Errorf("expected '%v' received '%v'", 500, h.BaseValue)
-	}
-	if !h.QuoteInitialFunds.Equal(decimal.NewFromInt(100)) {
-		t.Errorf("expected '%v' received '%v'", 100, h.QuoteInitialFunds)
-	}
-	if !h.QuoteSize.Equal(decimal.NewFromInt(100)) {
-		t.Errorf("expected '%v' received '%v'", 100, h.QuoteSize)
-	}
-	if !h.TotalValue.Equal(decimal.NewFromInt(600)) {
-		t.Errorf("expected '%v' received '%v'", 600, h.TotalValue)
-	}
-	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
-	}
-	if !h.SoldAmount.IsZero() {
-		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
-	}
-	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
-	}
+	require.NoError(t, err, "Holding.update must not error for a buy")
+	assert.Truef(t, h.BaseSize.Equal(decimal.NewFromInt(1)), "Holding.BaseSize should equal %v, actual %v", decimal.NewFromInt(1), h.BaseSize)
+	assert.Truef(t, h.BaseValue.Equal(decimal.NewFromInt(500)), "Holding.BaseValue should equal %v, actual %v", decimal.NewFromInt(500), h.BaseValue)
+	assert.Truef(t, h.QuoteInitialFunds.Equal(decimal.NewFromInt(100)), "Holding.QuoteInitialFunds should equal %v, actual %v", decimal.NewFromInt(100), h.QuoteInitialFunds)
+	assert.Truef(t, h.QuoteSize.Equal(decimal.NewFromInt(100)), "Holding.QuoteSize should equal %v, actual %v", decimal.NewFromInt(100), h.QuoteSize)
+	assert.Truef(t, h.TotalValue.Equal(decimal.NewFromInt(600)), "Holding.TotalValue should equal %v, actual %v", decimal.NewFromInt(600), h.TotalValue)
+	assert.Truef(t, h.BoughtAmount.Equal(decimal.NewFromInt(1)), "Holding.BoughtAmount should equal %v, actual %v", decimal.NewFromInt(1), h.BoughtAmount)
+	assert.True(t, h.SoldAmount.IsZero(), "Holding.SoldAmount should be zero")
+	assert.Truef(t, h.TotalFees.Equal(decimal.NewFromInt(1)), "Holding.TotalFees should equal %v, actual %v", decimal.NewFromInt(1), h.TotalFees)
 
 	err = h.update(&fill.Fill{
 		Base: &event.Base{
@@ -335,15 +325,8 @@ func TestUpdateSellStats(t *testing.T) {
 			Fee:         1,
 		},
 	}, p)
-	assert.NoError(t, err)
-
-	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
-	}
-	if !h.SoldAmount.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("expected '%v' received '%v'", 1, h.SoldAmount)
-	}
-	if !h.TotalFees.Equal(decimal.NewFromInt(2)) {
-		t.Errorf("expected '%v' received '%v'", 2, h.TotalFees)
-	}
+	require.NoError(t, err, "Holding.update must not error for a sell")
+	assert.Truef(t, h.BoughtAmount.Equal(decimal.NewFromInt(1)), "Holding.BoughtAmount should equal %v, actual %v", decimal.NewFromInt(1), h.BoughtAmount)
+	assert.Truef(t, h.SoldAmount.Equal(decimal.NewFromInt(1)), "Holding.SoldAmount should equal %v, actual %v", decimal.NewFromInt(1), h.SoldAmount)
+	assert.Truef(t, h.TotalFees.Equal(decimal.NewFromInt(2)), "Holding.TotalFees should equal %v, actual %v", decimal.NewFromInt(2), h.TotalFees)
 }
