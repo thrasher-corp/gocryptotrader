@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -226,31 +227,25 @@ func (i Interval) Short() string {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for Intervals
-// It is retained alongside UnmarshalText because encoding/json rejects bare numbers for
-// types implementing encoding.TextUnmarshaler, and stored configs record intervals as a
-// nanosecond count
+// A bare number is a nanosecond count, which stored strategy configs record and which
+// encoding/json would otherwise reject for a type implementing encoding.TextUnmarshaler
+// A nanosecond count is not a valid exchange interval, so UnmarshalText deliberately does
+// not accept one: exchanges use bare numbers for their own interval codes, such as
+// Bybit's "60" for one hour
 func (i *Interval) UnmarshalJSON(text []byte) error {
+	if n, err := strconv.ParseInt(string(bytes.Trim(text, `"`)), 10, 64); err == nil {
+		*i = Interval(n)
+		return nil
+	}
 	return i.UnmarshalText(text)
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface for Intervals
 // It does not validate the duration is aligned, only that it is a parsable duration
-// A bare integer is interpreted as a nanosecond count, matching Interval's underlying type
 func (i *Interval) UnmarshalText(text []byte) error {
 	s := string(bytes.Trim(text, `"`))
 	if s == "raw" {
 		*i = Raw
-		return nil
-	}
-	if s == "" {
-		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
-	}
-	if strings.TrimLeft(s, `0123456789`) == "" { // Bare nanosecond count
-		n, err := strconv.ParseInt(s, 10, 64)
-		if err != nil {
-			return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
-		}
-		*i = Interval(n)
 		return nil
 	}
 	return i.parseDuration(s)
@@ -297,6 +292,10 @@ func (i *Interval) parseDuration(s string) error {
 		scale = OneMonth
 	default:
 		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+
+	if n > int64(math.MaxInt64)/int64(scale) { // Interval is int64 nanoseconds, so scaling must not wrap
+		return fmt.Errorf("%w: %q overflows", ErrInvalidInterval, s)
 	}
 
 	*i = Interval(n) * scale

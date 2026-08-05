@@ -1437,7 +1437,6 @@ func TestUnmarshalText(t *testing.T) {
 	}{
 		{`"3m"`, ThreeMin},
 		{`"15s"`, FifteenSecond},
-		{`720000000000`, OneMin * 12},
 		{`"-1ns"`, Raw},
 		{`"raw"`, Raw},
 		{`"1h"`, OneHour},
@@ -1459,11 +1458,44 @@ func TestUnmarshalText(t *testing.T) {
 
 func TestUnmarshalTextError(t *testing.T) {
 	t.Parallel()
-	for _, in := range []string{``, `""`, `"m"`, `"hedgehogs"`, `"6hedgehogs"`, `"1x"`, `"99999999999999999999"`} {
+	for _, in := range []string{
+		``, `""`, `"m"`, `"hedgehogs"`, `"6hedgehogs"`, `"1x"`, `"99999999999999999999"`,
+		// Bare counts are exchange interval codes, not nanoseconds; only UnmarshalJSON accepts them
+		`"60"`, `"720000000000"`,
+		// Scaling these would wrap int64 nanoseconds
+		`"106752d"`, `"2147483647d"`, `"15251w"`, `"9223372036854775807mo"`,
+	} {
 		var i Interval
 		err := i.UnmarshalText([]byte(in))
 		assert.ErrorIsf(t, err, ErrInvalidInterval, "UnmarshalText should error on %q", in)
 	}
+}
+
+// TestParseIntervalRejectsExchangeCodes covers bare exchange interval codes, which must not
+// be mistaken for a nanosecond count; Bybit uses "60" for one hour and "D"/"W"/"M" for the
+// longer intervals
+func TestParseIntervalRejectsExchangeCodes(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{"60", "120", "240", "D", "W"} {
+		_, err := ParseInterval(in)
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "ParseInterval should error on the bare exchange code %q", in)
+	}
+}
+
+// TestParseIntervalOverflow ensures unit scaling that would wrap int64 nanoseconds is
+// rejected rather than yielding a wrapped interval, which for some inputs stays positive
+// and so would pass the non-positive check
+func TestParseIntervalOverflow(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{"106752d", "2147483647d", "15251w", "3559mo", "9223372036854775807mo"} {
+		_, err := ParseInterval(in)
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "ParseInterval should error on overflowing input %q", in)
+	}
+
+	// The largest day count that still fits is accepted
+	i, err := ParseInterval("106751d")
+	require.NoError(t, err, "ParseInterval must not error on the largest representable day count")
+	assert.Equal(t, 106751*OneDay, i, "ParseInterval should parse the largest representable day count")
 }
 
 func TestParseInterval(t *testing.T) {
