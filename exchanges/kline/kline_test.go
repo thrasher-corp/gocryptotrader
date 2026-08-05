@@ -1437,6 +1437,8 @@ func TestUnmarshalText(t *testing.T) {
 	}{
 		{`"3m"`, ThreeMin},
 		{`"15s"`, FifteenSecond},
+		{`"30sec"`, ThirtySecond},
+		{`"10seconds"`, TenSecond},
 		{`"-1ns"`, Raw},
 		{`"raw"`, Raw},
 		{`"1h"`, OneHour},
@@ -1487,7 +1489,8 @@ func TestParseIntervalRejectsExchangeCodes(t *testing.T) {
 // and so would pass the non-positive check
 func TestParseIntervalOverflow(t *testing.T) {
 	t.Parallel()
-	for _, in := range []string{"106752d", "2147483647d", "15251w", "3559mo", "9223372036854775807mo"} {
+	// The last count exceeds int64 itself, failing before it reaches the scaling guard
+	for _, in := range []string{"106752d", "2147483647d", "15251w", "3559mo", "9223372036854775807mo", "99999999999999999999d"} {
 		_, err := ParseInterval(in)
 		assert.ErrorIsf(t, err, ErrInvalidInterval, "ParseInterval should error on overflowing input %q", in)
 	}
