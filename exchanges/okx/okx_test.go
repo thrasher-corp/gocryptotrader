@@ -4925,6 +4925,42 @@ func TestWsOrderbookItems(t *testing.T) {
 	assert.Equal(t, "2.25", items[0].StrAmount, "orderbook amount string should match")
 }
 
+func TestAppendWsOrderbookItems(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		entries  []WsOrderBookLevel
+		expected orderbook.Levels
+	}{
+		{
+			name:     "empty",
+			entries:  []WsOrderBookLevel{},
+			expected: orderbook.Levels{},
+		},
+		{
+			name: "multiple levels",
+			entries: []WsOrderBookLevel{
+				{Price: 1.25, Amount: 2.5, PriceString: "1.25", AmountString: "2.5"},
+				{Price: 3.75, Amount: 4.5, PriceString: "3.75", AmountString: "4.5"},
+			},
+			expected: orderbook.Levels{
+				{Price: 1.25, Amount: 2.5, StrPrice: "1.25", StrAmount: "2.5"},
+				{Price: 3.75, Amount: 4.5, StrPrice: "3.75", StrAmount: "4.5"},
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			items := make(orderbook.Levels, len(testCase.entries))
+			appendWsOrderbookItems(items, testCase.entries)
+			assert.Equal(t, testCase.expected, items, "orderbook levels should match")
+		})
+	}
+}
+
 func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
 	t.Parallel()
 

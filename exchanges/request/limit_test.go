@@ -79,6 +79,104 @@ func TestRateLimit(t *testing.T) {
 	})
 }
 
+func TestRateLimiterWithWeightRateLimit(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                      string
+		weight                    Weight
+		reserve                   bool
+		contextFactory            func(*testing.T) (context.Context, context.CancelFunc)
+		expectedError             error
+		expectedDelay             time.Duration
+		verifyReservationReleased bool
+	}{
+		{
+			name:          "invalid weight",
+			expectedError: errInvalidWeight,
+		},
+		{
+			name:   "immediate reservation",
+			weight: 1,
+		},
+		{
+			name:    "delay not allowed",
+			weight:  1,
+			reserve: true,
+			contextFactory: func(t *testing.T) (context.Context, context.CancelFunc) {
+				t.Helper()
+				return WithDelayNotAllowed(t.Context()), func() {}
+			},
+			expectedError:             ErrDelayNotAllowed,
+			verifyReservationReleased: true,
+		},
+		{
+			name:    "deadline exceeded",
+			weight:  1,
+			reserve: true,
+			contextFactory: func(t *testing.T) (context.Context, context.CancelFunc) {
+				t.Helper()
+				return context.WithTimeout(t.Context(), 50*time.Millisecond)
+			},
+			expectedError:             context.DeadlineExceeded,
+			verifyReservationReleased: true,
+		},
+		{
+			name:    "context cancelled",
+			weight:  1,
+			reserve: true,
+			contextFactory: func(t *testing.T) (context.Context, context.CancelFunc) {
+				t.Helper()
+				ctx, cancel := context.WithCancel(t.Context())
+				cancel()
+				return ctx, func() {}
+			},
+			expectedError:             context.Canceled,
+			verifyReservationReleased: true,
+		},
+		{
+			name:          "delayed reservation",
+			weight:        1,
+			reserve:       true,
+			expectedDelay: 100 * time.Millisecond,
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+				limiter := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
+				if testCase.reserve {
+					require.NoError(t, limiter.rateLimit(t.Context(), 1), "initial reservation must not error")
+				}
+				ctx := t.Context()
+				cancel := func() {}
+				if testCase.contextFactory != nil {
+					ctx, cancel = testCase.contextFactory(t)
+				}
+				defer cancel()
+
+				start := time.Now()
+				err := limiter.rateLimit(ctx, testCase.weight)
+				elapsed := time.Since(start)
+				if testCase.expectedError != nil {
+					require.ErrorIs(t, err, testCase.expectedError, "rateLimit must return expected error")
+				} else {
+					require.NoError(t, err, "rateLimit must not error")
+				}
+				assert.Equal(t, testCase.expectedDelay, elapsed, "elapsed time should match expected delay")
+
+				if testCase.verifyReservationReleased {
+					start = time.Now()
+					require.NoError(t, limiter.rateLimit(t.Context(), 1), "reservation after rollback must not error")
+					assert.Equal(t, 100*time.Millisecond, time.Since(start), "rolled back reservation should be reusable")
+				}
+			})
+		})
+	}
+}
+
 func TestRateLimitWithWeight(t *testing.T) {
 	t.Parallel()
 
