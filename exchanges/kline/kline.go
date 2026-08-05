@@ -226,32 +226,100 @@ func (i Interval) Short() string {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for Intervals
-// It does not validate the duration is aligned, only that it is a parsable duration
+// It is retained alongside UnmarshalText because encoding/json rejects bare numbers for
+// types implementing encoding.TextUnmarshaler, and stored configs record intervals as a
+// nanosecond count
 func (i *Interval) UnmarshalJSON(text []byte) error {
-	text = bytes.Trim(text, `"`)
-	if string(text) == "raw" {
+	return i.UnmarshalText(text)
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface for Intervals
+// It does not validate the duration is aligned, only that it is a parsable duration
+// A bare integer is interpreted as a nanosecond count, matching Interval's underlying type
+func (i *Interval) UnmarshalText(text []byte) error {
+	s := string(bytes.Trim(text, `"`))
+	if s == "raw" {
 		*i = Raw
 		return nil
 	}
-	if len(bytes.TrimLeft(text, `0123456789`)) > 0 { // contains non-numerics, ParseDuration can handle errors
-		d, err := time.ParseDuration(string(text))
+	if s == "" {
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+	if strings.TrimLeft(s, `0123456789`) == "" { // Bare nanosecond count
+		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			return err
-		}
-		*i = Interval(d)
-	} else {
-		n, err := strconv.ParseInt(string(text), 10, 64)
-		if err != nil {
-			return err
+			return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
 		}
 		*i = Interval(n)
+		return nil
 	}
+	return i.parseDuration(s)
+}
+
+// parseDuration parses an interval with a unit suffix, extending time.ParseDuration
+// with the day, week and month units that exchanges commonly use
+// Units are case-insensitive apart from a bare "M", which exchanges use for month to
+// distinguish it from "m" for minute
+func (i *Interval) parseDuration(s string) error {
+	if d, err := time.ParseDuration(s); err == nil {
+		*i = Interval(d)
+		return nil
+	}
+
+	split := strings.IndexFunc(s, func(r rune) bool { return r < '0' || r > '9' })
+	if split <= 0 { // No leading count, so there is nothing to scale the unit by
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+
+	n, err := strconv.ParseInt(s[:split], 10, 64)
+	if err != nil {
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+
+	unit := s[split:]
+	if unit == "M" { // Resolve month before folding case would make it ambiguous with minute
+		unit = "month"
+	}
+
+	var scale Interval
+	switch strings.ToLower(unit) {
+	case "s", "sec", "secs", "second", "seconds":
+		scale = Interval(time.Second)
+	case "m", "min", "mins", "minute", "minutes":
+		scale = OneMin
+	case "h", "hr", "hrs", "hour", "hours":
+		scale = OneHour
+	case "d", "day", "days":
+		scale = OneDay
+	case "w", "wk", "wks", "week", "weeks":
+		scale = OneWeek
+	case "mo", "month", "months":
+		scale = OneMonth
+	default:
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+
+	*i = Interval(n) * scale
+
 	return nil
 }
 
 // MarshalText implements the TextMarshaler interface for Intervals
 func (i Interval) MarshalText() ([]byte, error) {
 	return []byte(i.Short()), nil
+}
+
+// ParseInterval converts an exchange interval string into an Interval
+// Raw is rejected because callers requesting candles require a positive interval
+func ParseInterval(text string) (Interval, error) {
+	var i Interval
+	if err := i.UnmarshalText([]byte(text)); err != nil {
+		return 0, err
+	}
+	if i <= 0 {
+		return 0, fmt.Errorf("%w: %q", ErrInvalidInterval, text)
+	}
+	return i, nil
 }
 
 // addPadding inserts padding time aligned when exchanges do not supply all data

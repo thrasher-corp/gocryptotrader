@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -1428,16 +1429,81 @@ func TestGetIntervalResultLimit(t *testing.T) {
 	}
 }
 
-func TestUnmarshalJSON(t *testing.T) {
+func TestUnmarshalText(t *testing.T) {
 	t.Parallel()
-	var i Interval
 	for _, tt := range []struct {
 		in  string
 		exp Interval
-	}{{`"3m"`, ThreeMin}, {`"15s"`, FifteenSecond}, {`720000000000`, OneMin * 12}, {`"-1ns"`, Raw}, {`"raw"`, Raw}} {
-		err := i.UnmarshalJSON([]byte(tt.in))
-		assert.NoErrorf(t, err, "UnmarshalJSON should not error on %q", tt.in)
+	}{
+		{`"3m"`, ThreeMin},
+		{`"15s"`, FifteenSecond},
+		{`720000000000`, OneMin * 12},
+		{`"-1ns"`, Raw},
+		{`"raw"`, Raw},
+		{`"1h"`, OneHour},
+		{`"1h30m"`, OneHour + ThirtyMin},
+		{`"1d"`, OneDay},
+		{`"1w"`, OneWeek},
+		{`"7days"`, OneWeek},
+		{`"1M"`, OneMonth},
+		{`"2mo"`, 2 * OneMonth},
+		{`"1m"`, OneMin},
+		{`"5MIN"`, 5 * OneMin},
+		{`"12Hours"`, TwelveHour},
+	} {
+		var i Interval
+		require.NoErrorf(t, i.UnmarshalText([]byte(tt.in)), "UnmarshalText must not error on %q", tt.in)
+		assert.Equalf(t, tt.exp, i, "UnmarshalText should parse %q correctly", tt.in)
 	}
-	err := i.UnmarshalJSON([]byte(`"6hedgehogs"`))
-	assert.ErrorContains(t, err, "unknown unit", "UnmarshalJSON should error")
+}
+
+func TestUnmarshalTextError(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{``, `""`, `"m"`, `"hedgehogs"`, `"6hedgehogs"`, `"1x"`, `"99999999999999999999"`} {
+		var i Interval
+		err := i.UnmarshalText([]byte(in))
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "UnmarshalText should error on %q", in)
+	}
+}
+
+func TestParseInterval(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		in  string
+		exp Interval
+	}{{"1m", OneMin}, {"1M", OneMonth}, {"4h", FourHour}, {"1d", OneDay}} {
+		i, err := ParseInterval(tt.in)
+		require.NoErrorf(t, err, "ParseInterval must not error on %q", tt.in)
+		assert.Equalf(t, tt.exp, i, "ParseInterval should parse %q correctly", tt.in)
+	}
+
+	// Raw and other non-positive intervals are not valid candle intervals
+	for _, in := range []string{"raw", "-1ns", "0", "hedgehogs"} {
+		_, err := ParseInterval(in)
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "ParseInterval should error on %q", in)
+	}
+}
+
+// TestIntervalJSON ensures Interval still round-trips through encoding/json now that it
+// also implements TextUnmarshaler, in particular the bare nanosecond counts that stored
+// strategy configs record
+func TestIntervalJSON(t *testing.T) {
+	t.Parallel()
+	var s struct {
+		Interval Interval `json:"interval"`
+	}
+
+	require.NoError(t, json.Unmarshal([]byte(`{"interval":"1M"}`), &s), "Unmarshal must not error on a quoted interval")
+	assert.Equal(t, OneMonth, s.Interval, "Unmarshal should parse a quoted interval")
+
+	require.NoError(t, json.Unmarshal([]byte(`{"interval":720000000000}`), &s), "Unmarshal must not error on a bare nanosecond count")
+	assert.Equal(t, OneMin*12, s.Interval, "Unmarshal should parse a bare nanosecond count")
+
+	s.Interval = FourHour
+	b, err := json.Marshal(&s)
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, `{"interval":"4h"}`, string(b), "Marshal should emit the short form")
+
+	require.NoError(t, json.Unmarshal(b, &s), "Unmarshal must not error on marshalled output")
+	assert.Equal(t, FourHour, s.Interval, "Interval should round-trip through JSON")
 }
