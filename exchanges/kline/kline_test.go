@@ -1534,6 +1534,12 @@ func TestIntervalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"interval":720000000000}`), &s), "Unmarshal must not error on a bare nanosecond count")
 	assert.Equal(t, OneMin*12, s.Interval, "Unmarshal should parse a bare nanosecond count")
 
+	// Quoted values are interval text, never a nanosecond count; exchanges quote their own
+	// numeric interval codes, such as Bybit's "60" for one hour
+	for _, in := range []string{`{"interval":"60"}`, `{"interval":"5"}`, `{"interval":"720000000000"}`} {
+		assert.ErrorIsf(t, json.Unmarshal([]byte(in), &s), ErrInvalidInterval, "Unmarshal should error on the quoted numeric code in %s", in)
+	}
+
 	s.Interval = FourHour
 	b, err := json.Marshal(&s)
 	require.NoError(t, err, "Marshal must not error")

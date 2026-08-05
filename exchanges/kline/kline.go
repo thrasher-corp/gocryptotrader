@@ -227,13 +227,14 @@ func (i Interval) Short() string {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for Intervals
-// A bare number is a nanosecond count, which stored strategy configs record and which
-// encoding/json would otherwise reject for a type implementing encoding.TextUnmarshaler
-// A nanosecond count is not a valid exchange interval, so UnmarshalText deliberately does
-// not accept one: exchanges use bare numbers for their own interval codes, such as
-// Bybit's "60" for one hour
+// An unquoted JSON number is a nanosecond count, which stored strategy configs record and
+// which encoding/json would otherwise reject for a type implementing
+// encoding.TextUnmarshaler
+// A quoted value is interval text and is never read as a nanosecond count, because
+// exchanges quote their own numeric interval codes: Bybit sends "60" for one hour and "5"
+// for five minutes, which as nanoseconds would be silently wrong
 func (i *Interval) UnmarshalJSON(text []byte) error {
-	if n, err := strconv.ParseInt(string(bytes.Trim(text, `"`)), 10, 64); err == nil {
+	if n, err := strconv.ParseInt(string(text), 10, 64); err == nil {
 		*i = Interval(n)
 		return nil
 	}
