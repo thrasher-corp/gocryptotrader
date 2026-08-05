@@ -61,6 +61,21 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 			expected:     0,
 		},
 		{
+			name: "matching instrument with zero code returns zero",
+			instruments: []Instrument{
+				{
+					InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+				},
+			},
+			instrumentID: "BTC-USDT",
+			expected:     0,
+		},
+		{
+			name:         "empty instruments returns zero",
+			instrumentID: "BTC-USDT",
+			expected:     0,
+		},
+		{
 			name: "no match in multiple entries",
 			instruments: []Instrument{
 				{

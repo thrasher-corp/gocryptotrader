@@ -107,6 +107,7 @@ func TestSetDefaultsEndpoints(t *testing.T) {
 	businessURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	require.NoError(t, err, "GetURL must not fail for OKX business websocket")
 	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/business", businessURL)
+	assert.Equal(t, uint64(100), ex.Features.Enabled.Kline.GlobalResultLimit, "global kline result limit should match the most restrictive OKX candle endpoint")
 }
 
 func syncLeadTraderUniqueID(t *testing.T) error {

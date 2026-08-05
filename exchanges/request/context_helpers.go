@@ -1,8 +1,6 @@
 package request
 
-import (
-	"context"
-)
+import "context"
 
 const contextVerboseFlag verbosity = "verbose"
 

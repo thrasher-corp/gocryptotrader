@@ -11,7 +11,6 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -145,7 +144,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 		t.Parallel()
 
 		_, err := new(Exchange).WebsocketSubmitOrder(t.Context(), nil)
-		require.ErrorIs(t, err, common.ErrNilPointer, "nil submission must return the common nil error")
+		require.ErrorIs(t, err, order.ErrSubmissionIsNil, "nil submission must return the order validation error")
 	})
 
 	t.Run("valid submission", func(t *testing.T) {
@@ -188,7 +187,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 		require.ErrorIs(t, err, errMissingInstrumentIDCode, "missing cached instrument code must return the expected error")
 	})
 
-	t.Run("authenticated websocket unavailable", func(t *testing.T) {
+	t.Run("wrapper preference does not block explicit websocket", func(t *testing.T) {
 		t.Parallel()
 
 		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
@@ -202,7 +201,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 			Amount:    1,
 			Price:     1,
 		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported, "unavailable authenticated websocket must return unsupported")
+		require.NoError(t, err, "explicit websocket submission must ignore the wrapper routing preference")
 	})
 }
 
@@ -213,7 +212,22 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 		t.Parallel()
 
 		_, err := new(Exchange).WebsocketModifyOrder(t.Context(), nil)
-		require.ErrorIs(t, err, common.ErrNilPointer, "nil modification must return the common nil error")
+		require.ErrorIs(t, err, order.ErrModifyOrderIsNil, "nil modification must return the order validation error")
+	})
+
+	t.Run("wrapper preference does not block explicit websocket", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "order-1",
+			AssetType: asset.Options,
+			Pair:      mainPair,
+			Amount:    1,
+			Price:     1,
+		})
+		require.NoError(t, err, "explicit websocket modification must ignore the wrapper routing preference")
 	})
 
 	t.Run("valid modification", func(t *testing.T) {
@@ -268,7 +282,7 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 		t.Parallel()
 
 		err := new(Exchange).WebsocketCancelOrder(t.Context(), nil)
-		require.ErrorIs(t, err, common.ErrNilPointer, "nil cancellation must return the common nil error")
+		require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "nil cancellation must return the order validation error")
 	})
 
 	t.Run("valid cancellation", func(t *testing.T) {
@@ -296,7 +310,7 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 		require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "algorithmic cancellation must not use the regular websocket endpoint")
 	})
 
-	t.Run("authenticated websocket unavailable", func(t *testing.T) {
+	t.Run("wrapper preference does not block explicit websocket", func(t *testing.T) {
 		t.Parallel()
 
 		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
@@ -306,7 +320,7 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 			AssetType: asset.Options,
 			Pair:      mainPair,
 		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported, "unavailable authenticated websocket must return unsupported")
+		require.NoError(t, err, "explicit websocket cancellation must ignore the wrapper routing preference")
 	})
 }
 
@@ -328,7 +342,7 @@ func TestWebsocketSpreadRouting(t *testing.T) {
 			Amount:    1,
 			Price:     1,
 		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "disconnected websocket must return an authenticated request error")
 		require.NotErrorIs(t, err, asset.ErrNotSupported)
 	})
 
@@ -341,7 +355,7 @@ func TestWebsocketSpreadRouting(t *testing.T) {
 			Amount:    1,
 			Price:     1,
 		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "disconnected websocket must return an authenticated request error")
 		require.NotErrorIs(t, err, asset.ErrNotSupported)
 	})
 
@@ -351,7 +365,7 @@ func TestWebsocketSpreadRouting(t *testing.T) {
 			OrderID:   "1",
 			AssetType: asset.Spread,
 		})
-		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "disconnected websocket must return an authenticated request error")
 		require.NotErrorIs(t, err, asset.ErrNotSupported)
 	})
 }

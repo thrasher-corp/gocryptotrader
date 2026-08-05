@@ -92,7 +92,7 @@ func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item,
 		return nil, errMissingInstrumentID
 	}
 	var candidates []asset.Item
-	const swapSuffixLength = len("-SWAP")
+	const swapSuffixLength = 5
 	if len(instrumentID) > swapSuffixLength {
 		suffix := instrumentID[len(instrumentID)-swapSuffixLength:]
 		if strings.EqualFold(suffix, "-SWAP") {

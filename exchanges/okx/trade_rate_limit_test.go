@@ -202,29 +202,13 @@ func TestTradeScopeCounts(t *testing.T) {
 	assert.Equal(t, 1, counts["ETH-USDT"], "tradeScopeCounts should retain distinct scopes")
 }
 
-func TestBatchOrderWeight(t *testing.T) {
-	t.Parallel()
-
-	t.Run("maximum", func(t *testing.T) {
-		t.Parallel()
-		weight, err := batchOrderWeight(maxBatchOrders)
-		require.NoError(t, err, "maximum batch order count must be valid")
-		assert.Equal(t, request.Weight(maxBatchOrders), weight, "batch weight should match order count")
-	})
-
-	t.Run("over maximum", func(t *testing.T) {
-		t.Parallel()
-		_, err := batchOrderWeight(maxBatchOrders + 1)
-		require.ErrorIs(t, err, errExceedLimit, "oversized batch order count must return limit error")
-	})
-}
-
 func TestRateLimitWeight(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		name          string
 		count         int
+		isBatched     bool
 		expected      request.Weight
 		expectedError error
 	}{
@@ -233,12 +217,14 @@ func TestRateLimitWeight(t *testing.T) {
 		{name: "valid", count: 20, expected: 20},
 		{name: "maximum", count: 255, expected: 255},
 		{name: "over maximum", count: 256, expectedError: errInvalidTradeRateLimitWeight},
+		{name: "batch maximum", count: maxBatchOrders, isBatched: true, expected: maxBatchOrders},
+		{name: "batch over maximum", count: maxBatchOrders + 1, isBatched: true, expectedError: errExceedLimit},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			weight, err := rateLimitWeight(tc.count)
+			weight, err := rateLimitWeight(tc.count, tc.isBatched)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError, "rateLimitWeight must return expected error")
 				return

@@ -53,7 +53,7 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	batchWeight, err := batchOrderWeight(len(args))
+	batchWeight, err := rateLimitWeight(len(args), true)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	batchWeight, err := batchOrderWeight(len(args))
+	batchWeight, err := rateLimitWeight(len(args), true)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	batchWeight, err := batchOrderWeight(len(args))
+	batchWeight, err := rateLimitWeight(len(args), true)
 	if err != nil {
 		return nil, err
 	}

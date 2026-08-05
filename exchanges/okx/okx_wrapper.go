@@ -169,7 +169,7 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.SixMonth},
 					kline.IntervalCapacity{Interval: kline.OneYear},
 				),
-				GlobalResultLimit: 200, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
+				GlobalResultLimit: 100,
 			},
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
@@ -353,16 +353,16 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		return e.loadInstrumentOrderExecutionLimits(a, insts)
 	case asset.Spread:
-		format, err := e.GetPairFormat(a, true)
-		if err != nil {
-			return err
-		}
 		insts, err := e.GetPublicSpreads(ctx, "", "", "", stateLive)
 		if err != nil {
 			return err
 		}
 		if len(insts) == 0 {
 			return common.ErrNoResponse
+		}
+		format, err := e.GetPairFormat(a, true)
+		if err != nil {
+			return err
 		}
 		l := make([]limits.MinMaxLevel, 0, len(insts))
 		for i := range insts {
@@ -1252,16 +1252,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 
 // WebsocketModifyOrder modifies an OKX order through websocket when available.
 func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if err := common.NilGuard(action); err != nil {
+	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return nil, common.ErrFunctionNotSupported
-	}
 	if action.AssetType == asset.Spread {
-		if err := action.Validate(); err != nil {
-			return nil, err
-		}
 		if math.Trunc(action.Amount) != action.Amount {
 			return nil, errContractAmountCanNotBeDecimal
 		}
@@ -1303,11 +1297,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	var err error
 	if ord.AssetType == asset.Spread {
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-		} else {
-			_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-		}
+		_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		return err
 	}
 	pairFormat, err := e.GetPairFormat(ord.AssetType, true)
@@ -1325,16 +1315,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			OrderID:       ord.OrderID,
 			ClientOrderID: ord.ClientOrderID,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(ord.AssetType, req.InstrumentID)
-			if codeErr != nil {
-				return codeErr
-			}
-			req.InstrumentIDCode = instrumentIDCode
-			_, err = e.WSCancelOrder(ctx, &req)
-		} else {
-			_, err = e.CancelSingleOrder(ctx, &req)
-		}
+		_, err = e.CancelSingleOrder(ctx, &req)
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
 		var response *AlgoOrder
 		response, err = e.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
@@ -1399,7 +1380,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		return nil, fmt.Errorf("%w: %s", order.ErrTypeIsInvalid, orderTypeString)
 	}
 
-	orderRequest := &PlaceOrderRequestParam{
+	return &PlaceOrderRequestParam{
 		InstrumentID:   pairString,
 		TradeMode:      tradeMode,
 		Side:           sideType,
@@ -1411,8 +1392,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		TargetCurrency: targetCurrency,
 		AssetType:      s.AssetType,
 		ReduceOnly:     s.ReduceOnly,
-	}
-	return orderRequest, nil
+	}, nil
 }
 
 func isSpotMarketOrder(s *order.Submit) bool {
@@ -1510,11 +1490,8 @@ func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRe
 
 // WebsocketCancelOrder cancels an OKX order through websocket when available.
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
-	if err := common.NilGuard(ord); err != nil {
+	if err := ord.Validate(); err != nil {
 		return err
-	}
-	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return common.ErrFunctionNotSupported
 	}
 	if ord.AssetType == asset.Spread {
 		_, err := e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
@@ -1568,19 +1545,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if o[x].ClientID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
-			cancelOrder := CancelOrderRequestParam{
+			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
 				InstrumentID:  pairFormat.Format(ord.Pair),
 				OrderID:       ord.OrderID,
 				ClientOrderID: ord.ClientOrderID,
-			}
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				instrumentIDCode, codeErr := e.cachedInstrumentIDCode(ord.AssetType, cancelOrder.InstrumentID)
-				if codeErr != nil {
-					return nil, codeErr
-				}
-				cancelOrder.InstrumentIDCode = instrumentIDCode
-			}
-			cancelOrderParams = append(cancelOrderParams, cancelOrder)
+			})
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
 			if o[x].OrderID == "" {
@@ -1596,12 +1565,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	if len(cancelOrderParams) > 0 {
-		var canceledOrders []*OrderData
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			canceledOrders, err = e.WSCancelMultipleOrders(ctx, cancelOrderParams)
-		} else {
-			canceledOrders, err = e.CancelMultipleOrders(ctx, cancelOrderParams)
-		}
+		canceledOrders, err := e.CancelMultipleOrders(ctx, cancelOrderParams)
 		if err != nil {
 			return nil, err
 		}
@@ -1636,12 +1600,6 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 
 // WebsocketSubmitOrder submits the order through OKX websocket when available.
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := common.NilGuard(s); err != nil {
-		return nil, err
-	}
-	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return nil, common.ErrFunctionNotSupported
-	}
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
@@ -1714,12 +1672,8 @@ func (e *Exchange) cachedInstrumentIDCode(ai asset.Item, instrumentID string) (i
 
 func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
 	for i := range instruments {
-		if instruments[i].InstrumentID.String() != instrumentID {
-			continue
-		}
-		instrumentIDCode := instruments[i].InstrumentIDCode.Int64()
-		if instrumentIDCode > 0 {
-			return instrumentIDCode
+		if instruments[i].InstrumentID.String() == instrumentID {
+			return instruments[i].InstrumentIDCode.Int64()
 		}
 	}
 	return 0
@@ -1805,34 +1759,14 @@ ordersLoop:
 		}
 	}
 	remaining := cancelAllOrdersRequestParams
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid() {
-		for i := range remaining {
-			if remaining[i].InstrumentID == "" {
-				continue
-			}
-			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(orderCancellation.AssetType, remaining[i].InstrumentID)
-			if codeErr != nil {
-				return order.CancelAllResponse{}, codeErr
-			}
-			remaining[i].InstrumentIDCode = instrumentIDCode
-		}
-	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for range loop {
 		var response []*OrderData
 		if len(remaining) > 20 {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining[:20])
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining[:20])
-			}
+			response, err = e.CancelMultipleOrders(ctx, remaining[:20])
 			remaining = remaining[20:]
 		} else {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining)
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining)
-			}
+			response, err = e.CancelMultipleOrders(ctx, remaining)
 		}
 		if err != nil {
 			if len(cancelAllResponse.Status) == 0 {
@@ -2355,9 +2289,11 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	}
 
 	var timeSeries []kline.Candle
+	resultLimit := min(e.Features.Enabled.Kline.GlobalResultLimit, uint64(math.MaxInt64))
+	signedResultLimit := int64(resultLimit) //nolint:gosec // G115: resultLimit is clamped to math.MaxInt64 above.
 	switch a {
 	case asset.Spread:
-		candles, err := e.GetSpreadCandlesticksHistory(ctx, req.RequestFormatted.String(), req.ExchangeInterval, start.Add(-time.Nanosecond), end, 100)
+		candles, err := e.GetSpreadCandlesticksHistory(ctx, req.RequestFormatted.String(), req.ExchangeInterval, start.Add(-time.Nanosecond), end, resultLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -2378,7 +2314,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			req.ExchangeInterval,
 			start.Add(-time.Nanosecond), // Start time not inclusive of candle.
 			end,
-			100)
+			signedResultLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -2418,6 +2354,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
+	resultLimit := min(e.Features.Enabled.Kline.GlobalResultLimit, uint64(math.MaxInt64))
+	signedResultLimit := int64(resultLimit) //nolint:gosec // G115: resultLimit is clamped to math.MaxInt64 above.
 	for y := range req.RangeHolder.Ranges {
 		switch a {
 		case asset.Spread:
@@ -2426,7 +2364,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				req.ExchangeInterval,
 				req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
 				req.RangeHolder.Ranges[y].End.Time,
-				200)
+				resultLimit)
 			if err != nil {
 				return nil, err
 			}
@@ -2446,7 +2384,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				req.ExchangeInterval,
 				req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
 				req.RangeHolder.Ranges[y].End.Time,
-				200)
+				signedResultLimit)
 			if err != nil {
 				return nil, err
 			}

@@ -55,14 +55,10 @@ var tradeRateLimitActions = map[tradeRateLimitClass]int{
 	tradeRateLimitAmendBatch:   batchTradeRateLimitActions,
 }
 
-func batchOrderWeight(count int) (request.Weight, error) {
-	if count > maxBatchOrders {
+func rateLimitWeight(count int, isBatched bool) (request.Weight, error) {
+	if isBatched && count > maxBatchOrders {
 		return 0, fmt.Errorf("%w, cannot process more than %d orders", errExceedLimit, maxBatchOrders)
 	}
-	return rateLimitWeight(count)
-}
-
-func rateLimitWeight(count int) (request.Weight, error) {
 	if count < 1 || count > math.MaxUint8 {
 		return 0, errInvalidTradeRateLimitWeight
 	}
@@ -130,7 +126,7 @@ func (l *tradeRateLimiter) additionalTradeScopeRateLimits(class tradeRateLimitCl
 	weights := make(map[string]request.Weight, len(counts))
 	orderCount := 0
 	for scope, count := range counts {
-		weight, err := rateLimitWeight(count)
+		weight, err := rateLimitWeight(count, false)
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w: %s", err, scope)
 		}
@@ -169,7 +165,7 @@ func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.Addition
 	if orderCount < 1 {
 		return request.AdditionalRateLimit{}, false, nil
 	}
-	weightOverride, err := rateLimitWeight(orderCount)
+	weightOverride, err := rateLimitWeight(orderCount, false)
 	if err != nil {
 		return request.AdditionalRateLimit{}, false, fmt.Errorf("%w: subaccount order count %d", err, orderCount)
 	}
