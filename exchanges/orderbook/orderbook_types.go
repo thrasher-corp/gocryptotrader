@@ -102,10 +102,10 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
-	// ReachedGCTAt marks when the update first reaches GoCryptoTrader code,
+	// ReceivedAt marks when the update first reaches GoCryptoTrader code,
 	// before orderbook processing begins (typically set with time.Now() at the
 	// start of websocket message handling).
-	ReachedGCTAt time.Time
+	ReceivedAt time.Time
 
 	// ChecksumCompletedAt marks when checksum computation completed for this
 	// update in the caller path. It is not the point when checksum validation
@@ -149,7 +149,7 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	lastPushed             time.Time
-	reachedGCTAt           time.Time
+	receivedAt             time.Time
 	checksumCompletedAt    time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64

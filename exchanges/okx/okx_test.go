@@ -4254,7 +4254,7 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 			require.NoError(t, err, "GetOrderbook must not error")
 			require.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
 			assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
-			assert.False(t, book.ReachedGCTAt.IsZero(), "ReachedGCTAt should be set")
+			assert.False(t, book.ReceivedAt.IsZero(), "ReceivedAt should be set")
 			assert.Equal(t, tc.checksumCompletedAtIsSet, !book.ChecksumCompletedAt.IsZero(), "ChecksumCompletedAt should match checksum usage")
 		})
 	}

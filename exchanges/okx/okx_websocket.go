@@ -816,7 +816,7 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 
 // wsProcessSpreadOrderbook process spread orderbook data.
 func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
-	reachedGCTAt := time.Now()
+	receivedAt := time.Now()
 	var resp WsSpreadOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -838,7 +838,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 			Bids:              extractedResponse.Data[x].Bids,
 			LastUpdated:       lastUpdated,
 			LastPushed:        lastUpdated,
-			ReachedGCTAt:      reachedGCTAt,
+			ReceivedAt:        receivedAt,
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -852,7 +852,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 
 // wsProcessOrderbook5 processes orderbook data
 func (e *Exchange) wsProcessOrderbook5(data []byte) error {
-	reachedGCTAt := time.Now()
+	receivedAt := time.Now()
 	var resp WsOrderbook5
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -886,7 +886,7 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 			Asset:             assets[x],
 			Asks:              asks,
 			Bids:              bids,
-			ReachedGCTAt:      reachedGCTAt,
+			ReceivedAt:        receivedAt,
 			LastUpdated:       lastUpdated,
 			LastPushed:        lastUpdated,
 			Pair:              resp.Argument.InstrumentID,
@@ -990,7 +990,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	reachedGCTAt := time.Now()
+	receivedAt := time.Now()
 	var checksumCompletedAt time.Time
 	if data.Checksum != 0 {
 		signedChecksum, err := e.CalculateOrderbookChecksum(data)
@@ -1014,7 +1014,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 			Bids:                bids,
 			LastUpdated:         lastUpdated,
 			LastPushed:          lastUpdated,
-			ReachedGCTAt:        reachedGCTAt,
+			ReceivedAt:          receivedAt,
 			ChecksumCompletedAt: checksumCompletedAt,
 			Pair:                pair,
 			Exchange:            e.Name,
@@ -1030,7 +1030,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // OKX can reset sequence IDs to a lower value while retaining continuity through
 // prevSeqId; see https://app.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	reachedGCTAt := time.Now()
+	receivedAt := time.Now()
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
 	defer putWsOrderbookLevels(asksPoolItem)
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
@@ -1056,15 +1056,15 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			}
 		}
 		obu := &orderbook.Update{
-			UpdateID:     data.SequenceID,
-			Pair:         pair,
-			Asset:        assets[i],
-			UpdateTime:   updateTime,
-			LastPushed:   updateTime,
-			Asks:         asks,
-			Bids:         bids,
-			ReachedGCTAt: reachedGCTAt,
-			AllowEmpty:   true, // Allow empty levels to push forward sequence ID
+			UpdateID:   data.SequenceID,
+			Pair:       pair,
+			Asset:      assets[i],
+			UpdateTime: updateTime,
+			LastPushed: updateTime,
+			Asks:       asks,
+			Bids:       bids,
+			ReceivedAt: receivedAt,
+			AllowEmpty: true, // Allow empty levels to push forward sequence ID
 		}
 		if data.Checksum != 0 {
 			obu.GenerateChecksum = generateOrderbookChecksum

@@ -77,7 +77,7 @@ func (d *Depth) Retrieve() (*Book, error) {
 		Pair:                   d.pair,
 		LastUpdated:            d.lastUpdated,
 		LastPushed:             d.lastPushed,
-		ReachedGCTAt:           d.reachedGCTAt,
+		ReceivedAt:             d.receivedAt,
 		ChecksumCompletedAt:    d.checksumCompletedAt,
 		InsertedAt:             d.insertedAt,
 		LastUpdateID:           d.lastUpdateID,
@@ -101,7 +101,7 @@ func (d *Depth) LoadSnapshot(incoming *Book) error {
 	d.lastUpdateID = incoming.LastUpdateID
 	d.lastUpdated = incoming.LastUpdated
 	d.lastPushed = incoming.LastPushed
-	d.reachedGCTAt = incoming.ReachedGCTAt
+	d.receivedAt = incoming.ReceivedAt
 	d.checksumCompletedAt = incoming.ChecksumCompletedAt
 	d.insertedAt = time.Now()
 	d.restSnapshot = incoming.RestSnapshot
@@ -147,7 +147,7 @@ func (d *Depth) AssignOptions(b *Book) {
 		asset:                  b.Asset,
 		lastUpdated:            b.LastUpdated,
 		lastPushed:             b.LastPushed,
-		reachedGCTAt:           b.ReachedGCTAt,
+		receivedAt:             b.ReceivedAt,
 		checksumCompletedAt:    b.ChecksumCompletedAt,
 		lastUpdateID:           b.LastUpdateID,
 		priceDuplication:       b.PriceDuplication,
@@ -252,7 +252,7 @@ func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
 	d.lastPushed = update.LastPushed
-	d.reachedGCTAt = update.ReachedGCTAt
+	d.receivedAt = update.ReceivedAt
 	d.checksumCompletedAt = update.ChecksumCompletedAt
 	d.insertedAt = time.Now()
 	d.Alert()
