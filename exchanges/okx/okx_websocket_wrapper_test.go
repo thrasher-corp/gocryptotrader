@@ -575,6 +575,47 @@ func TestDerivePositionSide(t *testing.T) {
 			},
 			want: "",
 		},
+		{
+			name: "futures bid",
+			sub: &order.Submit{
+				AssetType: asset.Futures,
+				Side:      order.Bid,
+			},
+			want: positionSideLong,
+		},
+		{
+			name: "futures reduce only bid",
+			sub: &order.Submit{
+				AssetType:  asset.Futures,
+				Side:       order.Bid,
+				ReduceOnly: true,
+			},
+			want: positionSideShort,
+		},
+		{
+			name: "futures ask",
+			sub: &order.Submit{
+				AssetType: asset.Futures,
+				Side:      order.Ask,
+			},
+			want: positionSideShort,
+		},
+		{
+			name: "futures reduce only ask",
+			sub: &order.Submit{
+				AssetType:  asset.Futures,
+				Side:       order.Ask,
+				ReduceOnly: true,
+			},
+			want: positionSideLong,
+		},
+		{
+			name: "futures unknown side",
+			sub: &order.Submit{
+				AssetType: asset.Futures,
+			},
+			want: "",
+		},
 	}
 
 	for _, tc := range testCases {

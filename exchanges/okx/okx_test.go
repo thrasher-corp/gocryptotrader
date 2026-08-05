@@ -4317,6 +4317,14 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 	require.Equal(t, int64(5), book.LastUpdateID, "LastUpdateID must advance from the reset sequence")
 
 	update.PreviousSequenceID = 3
+	update.SequenceID = 4
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must discard updates from a stale sequence chain")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(5), book.LastUpdateID, "LastUpdateID must remain unchanged after a stale sequence-chain update")
+
+	update.PreviousSequenceID = 3
 	update.SequenceID = 6
 	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
 	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject sequence gaps")

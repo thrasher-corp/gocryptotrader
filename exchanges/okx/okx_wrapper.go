@@ -1417,27 +1417,32 @@ func derivePositionSide(s *order.Submit) string {
 	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
 		return ""
 	}
-	if s.Side == order.Buy || s.Side == order.Sell {
+	switch s.Side {
+	case order.Buy, order.Sell:
 		// In one-way/net mode, plain buy/sell futures orders must not force
 		// a directional posSide, including reduce-only closes.
 		return ""
-	}
-	switch s.Side {
 	case order.Long:
+		// Long and Short explicitly identify the hedge-mode position, so
+		// reduce-only does not reverse their position side.
 		return positionSideLong
 	case order.Short:
 		return positionSideShort
-	}
-	if s.ReduceOnly {
-		if s.Side.IsLong() {
+	case order.Bid:
+		// Bid and Ask express order direction only. A reduce-only order closes
+		// the opposing position, so its position side is reversed.
+		if s.ReduceOnly {
 			return positionSideShort
 		}
 		return positionSideLong
+	case order.Ask:
+		if s.ReduceOnly {
+			return positionSideLong
+		}
+		return positionSideShort
+	default:
+		return ""
 	}
-	if s.Side.IsLong() {
-		return positionSideLong
-	}
-	return positionSideShort
 }
 
 func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderRequestParams, error) {

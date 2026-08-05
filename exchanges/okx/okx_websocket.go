@@ -1042,14 +1042,16 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			if err != nil {
 				return err
 			}
-			// Equal sequence IDs contain no book change. Older updates from a
-			// superseded sequence chain are stale, but a lower sequence ID whose
-			// prevSeqId matches our current sequence is a documented OKX reset.
-			if data.SequenceID != 0 && data.SequenceID <= lastUpdateID &&
-				(data.SequenceID == lastUpdateID || data.PreviousSequenceID != lastUpdateID) {
+			hasSequenceID := data.SequenceID != 0
+			continuesCurrentSequence := data.PreviousSequenceID == lastUpdateID
+			isDuplicate := hasSequenceID && data.SequenceID == lastUpdateID
+			isStale := hasSequenceID && data.SequenceID < lastUpdateID && !continuesCurrentSequence
+			if isDuplicate || isStale {
 				continue
 			}
-			if lastUpdateID != data.PreviousSequenceID {
+			// A lower sequence ID that continues from the current sequence is a
+			// documented OKX reset and must be processed rather than discarded.
+			if !continuesCurrentSequence {
 				return fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
 			}
 		}
