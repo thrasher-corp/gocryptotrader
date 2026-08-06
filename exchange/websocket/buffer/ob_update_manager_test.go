@@ -3,7 +3,6 @@ package buffer
 import (
 	"context"
 	"errors"
-	"expvar"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,10 +10,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/metrics"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -144,15 +143,6 @@ func TestScheduleInitialSnapshot(t *testing.T) {
 			return err == nil && id == 1336
 		}, time.Second, time.Millisecond)
 		require.Equal(t, int64(1), fetches.Load(), "duplicate schedules must not duplicate REST snapshots")
-
-		stats := manager.BootstrapStats()[asset.Spot]
-		assert.Equal(t, 1, stats.Subscribed)
-		assert.Zero(t, stats.FirstUpdateSeen)
-		assert.Equal(t, 1, stats.SnapshotStarted)
-		assert.Equal(t, 1, stats.SnapshotSucceeded)
-		assert.Zero(t, stats.SnapshotFailed)
-		assert.Zero(t, stats.WaitingForFirstUpdate)
-		assert.Equal(t, 1, stats.FallbackStarted)
 	})
 
 	t.Run("first_update_wins", func(t *testing.T) {
@@ -197,11 +187,6 @@ func TestScheduleInitialSnapshot(t *testing.T) {
 		}, time.Second, time.Millisecond)
 		time.Sleep(50 * time.Millisecond)
 		require.Equal(t, int64(1), fetches.Load(), "fallback must not fetch after websocket bootstrap succeeds")
-
-		stats := manager.BootstrapStats()[asset.Spot]
-		assert.Equal(t, 1, stats.FirstUpdateSeen)
-		assert.Equal(t, 1, stats.SnapshotSucceeded)
-		assert.Zero(t, stats.FallbackStarted)
 	})
 
 	t.Run("fallback_retries_after_failure", func(t *testing.T) {
@@ -237,9 +222,6 @@ func TestScheduleInitialSnapshot(t *testing.T) {
 			return err == nil && id == 1336
 		}, time.Second, time.Millisecond)
 		assert.Equal(t, int64(2), fetches.Load())
-		stats := manager.BootstrapStats()[asset.Spot]
-		assert.Equal(t, 1, stats.SnapshotFailed)
-		assert.Equal(t, 1, stats.SnapshotSucceeded)
 	})
 
 	t.Run("cancelled_before_fallback", func(t *testing.T) {
@@ -249,52 +231,34 @@ func TestScheduleInitialSnapshot(t *testing.T) {
 		params.InitialSnapshotFallbackDelay = 10 * time.Millisecond
 		params.InitialSnapshotFallbackLimit = 1
 		var fetches atomic.Int64
-		params.FetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+		params.FetchOrderbook = func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 			fetches.Add(1)
-			return nil, errTestDesyncReason
+			return &orderbook.Book{
+				Exchange:     params.BufferInstance.exchangeName,
+				Pair:         p,
+				Asset:        a,
+				Bids:         orderbook.Levels{{Price: 1, Amount: 1}},
+				Asks:         orderbook.Levels{{Price: 2, Amount: 1}},
+				LastUpdated:  time.Now(),
+				LastPushed:   time.Now(),
+				LastUpdateID: 1336,
+			}, nil
 		}
 		manager := NewUpdateManager(&params)
 		ctx, cancel := context.WithCancel(t.Context())
-		require.NoError(t, manager.ScheduleInitialSnapshot(ctx, currency.NewBTCUSDT(), asset.Spot))
+		pair := currency.NewBTCUSDT()
+		require.NoError(t, manager.ScheduleInitialSnapshot(ctx, pair, asset.Spot))
 		cancel()
 		time.Sleep(30 * time.Millisecond)
 		assert.Zero(t, fetches.Load())
+
+		require.NoError(t, manager.ScheduleInitialSnapshot(t.Context(), pair, asset.Spot))
+		require.Eventually(t, func() bool {
+			id, err := params.BufferInstance.LastUpdateID(pair, asset.Spot)
+			return err == nil && id == 1336
+		}, time.Second, time.Millisecond, "a cancelled fallback must be schedulable again")
+		assert.Equal(t, int64(1), fetches.Load())
 	})
-}
-
-func TestBootstrapStats(t *testing.T) {
-	t.Parallel()
-	manager := NewUpdateManager(func() *UpdateManagerParams {
-		params := newTestParams()
-		return &params
-	}())
-	spotCache, err := manager.loadCache(currency.NewBTCUSDT(), asset.Spot)
-	require.NoError(t, err)
-	spotCache.fallbackScheduled = true
-	spotCache.firstUpdateSeen = true
-	spotCache.snapshotStarted = true
-	spotCache.snapshotSucceeded = true
-
-	futuresCache, err := manager.loadCache(currency.NewPair(currency.ETH, currency.USDT), asset.Futures)
-	require.NoError(t, err)
-	futuresCache.fallbackScheduled = true
-	futuresCache.snapshotStarted = true
-	futuresCache.snapshotFailures = 2
-	futuresCache.fallbackStarted = true
-
-	stats := manager.BootstrapStats()
-	assert.Equal(t, OrderbookBootstrapStats{
-		Subscribed:        1,
-		FirstUpdateSeen:   1,
-		SnapshotStarted:   1,
-		SnapshotSucceeded: 1,
-	}, stats[asset.Spot])
-	assert.Equal(t, OrderbookBootstrapStats{
-		Subscribed:      1,
-		SnapshotStarted: 1,
-		SnapshotFailed:  2,
-		FallbackStarted: 1,
-	}, stats[asset.Futures])
 }
 
 func TestProcessOrderbookUpdate(t *testing.T) {
@@ -315,7 +279,10 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	}
 
 	m := NewUpdateManager(&tp)
-	err := m.ProcessOrderbookUpdate(t.Context(), 1337, &orderbook.Update{})
+	err := m.ProcessOrderbookUpdate(t.Context(), 1337, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "ProcessOrderbookUpdate must reject a nil update")
+
+	err = m.ProcessOrderbookUpdate(t.Context(), 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "should error on loadcache method")
 
 	cache, err := m.loadCache(pair, asset.USDTMarginedFutures)
@@ -389,6 +356,36 @@ func TestLoadCache(t *testing.T) {
 	cache2, err := m.loadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "LoadCache must not error")
 	assert.Equal(t, cache, cache2, "should be the same cache instance")
+
+	const concurrentLoads = 100
+	type loadResult struct {
+		cache *updateCache
+		err   error
+	}
+	concurrentManager := NewUpdateManager(&tp)
+	loadedCaches := make(chan loadResult, concurrentLoads)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range concurrentLoads {
+		wg.Go(func() {
+			<-start
+			loadedCache, loadErr := concurrentManager.loadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+			loadedCaches <- loadResult{cache: loadedCache, err: loadErr}
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(loadedCaches)
+	var firstLoadedCache *updateCache
+	for result := range loadedCaches {
+		require.NoError(t, result.err, "LoadCache must not error during concurrent access")
+		if firstLoadedCache == nil {
+			firstLoadedCache = result.cache
+			continue
+		}
+		assert.Same(t, firstLoadedCache, result.cache, "concurrent loads should return the same cache instance")
+	}
+	assert.Len(t, concurrentManager.lookup, 1, "concurrent loads should create one cache entry")
 }
 
 func TestApplyUpdate(t *testing.T) {
@@ -579,11 +576,10 @@ func TestCloneOrderbookUpdate(t *testing.T) {
 	assert.Equal(t, 5.0, update.Asks[0].Amount, "source asks should not change when clone asks mutate")
 }
 
-func TestApplyUpdatePanicOnDesync(t *testing.T) {
+func TestHandleDesync(t *testing.T) {
 	t.Parallel()
 
 	tp := newTestParams()
-	tp.PanicOnDesync = true
 	m := NewUpdateManager(&tp)
 	pair := currency.NewBTCUSDT()
 	require.NoError(t, m.ob.LoadSnapshot(&orderbook.Book{
@@ -596,222 +592,17 @@ func TestApplyUpdatePanicOnDesync(t *testing.T) {
 		LastPushed:   time.Now(),
 		LastUpdateID: 1337,
 	}), "LoadSnapshot must not error")
-
 	cache, err := m.loadCache(pair, asset.Spot)
 	require.NoError(t, err, "loadCache must not error")
 
-	cache.m.Lock()
-	defer cache.m.Unlock()
-	require.PanicsWithValue(t,
-		"TestExchange websocket orderbook manager desync for BTCUSDT spot: last update ID 1337, first update ID 1339, update ID 1340",
-		func() {
-			_ = m.applyUpdate(t.Context(), cache, 1339, &orderbook.Update{
-				Pair:       pair,
-				Asset:      asset.Spot,
-				UpdateID:   1340,
-				UpdateTime: time.Now(),
-				Bids:       orderbook.Levels{{Price: 1, Amount: 2}},
-			})
-		},
-		"applyUpdate must panic with desync details when diagnostic mode is enabled")
-}
-
-func TestHandleDesync(t *testing.T) {
-	t.Parallel()
-
-	tp := newTestParams()
-	tp.PanicOnDesync = true
-	m := NewUpdateManager(&tp)
-	pair := currency.NewBTCUSDT()
-	cache, err := m.loadCache(pair, asset.Spot)
-	require.NoError(t, err, "loadCache must not error")
-
-	require.PanicsWithValue(t,
-		"TestExchange websocket orderbook manager desync for BTCUSDT spot: last update ID 1337, first update ID 1339, update ID 1340: orderbook snapshot is outdated",
-		func() {
-			_ = m.handleDesync(t.Context(), cache, 1339, &orderbook.Update{
-				Pair:     pair,
-				Asset:    asset.Spot,
-				UpdateID: 1340,
-			}, 1337, ErrOrderbookSnapshotOutdated)
-		},
-		"handleDesync must panic with desync details when diagnostic mode is enabled")
-}
-
-func TestOrderbookDesyncReason(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name   string
-		err    error
-		reason string
-	}{
-		{
-			name:   "snapshot_outdated",
-			err:    ErrOrderbookSnapshotOutdated,
-			reason: "snapshot_outdated",
-		},
-		{
-			name:   "generic_desync",
-			err:    errTestDesyncReason,
-			reason: "desync",
-		},
-		{
-			name:   "sequence_gap",
-			reason: "sequence_gap",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t, tc.reason, orderbookDesyncReason(tc.err), "reason should match desync input")
-		})
-	}
-}
-
-func TestRecordResyncResult(t *testing.T) {
-	t.Parallel()
-
-	tp := newTestParams()
-	tp.RecordMetrics = true
-	m := NewUpdateManager(&tp)
-	pair := currency.NewPair(currency.XRP, currency.USDT)
-	timing := orderbookSyncTiming{
-		started:         time.Now().Add(-time.Millisecond),
-		permitWait:      time.Microsecond,
-		fetchDelay:      2 * time.Microsecond,
-		snapshotFetch:   3 * time.Microsecond,
-		retryWait:       4 * time.Microsecond,
-		snapshotLoad:    5 * time.Microsecond,
-		cacheLockWait:   6 * time.Microsecond,
-		pendingApply:    7 * time.Microsecond,
-		fetchAttempts:   2,
-		queuedUpdates:   3,
-		snapshotID:      100,
-		pendingFirstID:  101,
-		pendingUpdateID: 103,
-	}
-
-	m.recordResyncResult(pair, asset.Spot, "succeeded", &timing)
-
-	got := expvar.Get("gct_websocket_orderbook_resync_total").String()
-	assert.Contains(t, got, `"exchange=TestExchange,asset=spot,pair=XRPUSDT,channel=orderbook,result=succeeded": 1`, "resync result metric should be recorded")
-	summary := metrics.SnapshotOrderbookSyncSummary()
-	for _, item := range summary.Items {
-		if item.Exchange != "TestExchange" || item.Pair != pair.String() || item.Asset != asset.Spot.String() {
-			continue
-		}
-		assert.Positive(t, item.ResyncTime, "resync time should be recorded")
-		assert.Positive(t, item.ResyncTimed, "resync timed count should be recorded")
-		assert.Equal(t, timing.permitWait, item.PermitWait)
-		assert.Equal(t, timing.fetchDelay, item.FetchDelay)
-		assert.Equal(t, timing.snapshotFetch, item.SnapshotFetch)
-		assert.Equal(t, timing.retryWait, item.RetryWait)
-		assert.Equal(t, timing.snapshotLoad, item.SnapshotLoad)
-		assert.Equal(t, timing.cacheLockWait, item.CacheLockWait)
-		assert.Equal(t, timing.pendingApply, item.PendingApply)
-		assert.Equal(t, timing.fetchAttempts, item.FetchAttempts)
-		assert.Equal(t, timing.queuedUpdates, item.QueuedUpdates)
-		assert.Equal(t, timing.queuedUpdates, item.MaxQueuedUpdates)
-		assert.Equal(t, timing.snapshotID, item.LastSnapshotUpdateID)
-		assert.Equal(t, timing.pendingFirstID, item.LastPendingFirstUpdateID)
-		assert.Equal(t, timing.pendingUpdateID, item.LastPendingUpdateID)
-		return
-	}
-	require.Fail(t, "summary must include recorded resync result")
-}
-
-func TestSyncOrderbookRecordsResyncPhases(t *testing.T) {
-	t.Parallel()
-
-	pair, err := currency.NewPairFromStrings("RESYNCPHASE", "USDT")
-	require.NoError(t, err)
-	tp := newTestParams()
-	tp.BufferInstance.exchangeName = "TestExchangeResyncPhases"
-	tp.FetchDelay = time.Millisecond
-	tp.FetchOrderbook = fetchOrderbookMock
-	tp.RecordMetrics = true
-	m := NewUpdateManager(&tp)
-	cache := &updateCache{
-		updates: []pendingUpdate{{
-			firstUpdateID: 1337,
-			update: &orderbook.Update{
-				Pair:       pair,
-				Asset:      asset.Spot,
-				UpdateID:   1337,
-				AllowEmpty: true,
-				UpdateTime: time.Now(),
-			},
-		}},
-		state: cacheStateQueuing,
-	}
-
-	require.NoError(t, m.syncOrderbook(t.Context(), cache, pair, asset.Spot, true))
-
-	summary := metrics.SnapshotOrderbookSyncSummary()
-	for _, item := range summary.Items {
-		if item.Exchange != tp.BufferInstance.exchangeName || item.Pair != pair.String() {
-			continue
-		}
-		assert.Equal(t, int64(1), item.ResyncSucceeded)
-		assert.Equal(t, int64(1), item.ResyncTimed)
-		assert.Positive(t, item.ResyncTime)
-		assert.Positive(t, item.FetchDelay)
-		assert.GreaterOrEqual(t, item.SnapshotFetch, time.Duration(0))
-		assert.GreaterOrEqual(t, item.SnapshotLoad, time.Duration(0))
-		assert.GreaterOrEqual(t, item.CacheLockWait, time.Duration(0))
-		assert.GreaterOrEqual(t, item.PendingApply, time.Duration(0))
-		assert.Equal(t, int64(1), item.FetchAttempts)
-		assert.Equal(t, int64(1), item.QueuedUpdates)
-		assert.Equal(t, int64(1), item.MaxQueuedUpdates)
-		assert.Equal(t, int64(1336), item.LastSnapshotUpdateID)
-		assert.Equal(t, int64(1337), item.LastPendingFirstUpdateID)
-		assert.Equal(t, int64(1337), item.LastPendingUpdateID)
-		return
-	}
-	require.Fail(t, "summary must include recorded resync phases")
-}
-
-func TestSyncOrderbookRecordsEmptySnapshot(t *testing.T) {
-	t.Parallel()
-
-	pair, err := currency.NewPairFromStrings("EMPTYSNAPSHOT", "USDT")
-	require.NoError(t, err)
-	book := &orderbook.Book{
-		Exchange:          "TestExchangeEmptySnapshot",
-		Pair:              pair,
-		Asset:             asset.Spot,
-		LastUpdated:       time.Now(),
-		LastUpdateID:      1336,
-		ValidateOrderbook: true,
-	}
-	tp := newTestParams()
-	tp.BufferInstance.exchangeName = book.Exchange
-	tp.FetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
-		return book, nil
-	}
-	tp.RecordMetrics = true
-	tp.AcceptSnapshotWhenUpdatesCovered = true
-	m := NewUpdateManager(&tp)
-	cache := &updateCache{
-		updates: []pendingUpdate{{
-			firstUpdateID: 1335,
-			update: &orderbook.Update{
-				Pair:       pair,
-				Asset:      asset.Spot,
-				UpdateID:   1336,
-				AllowEmpty: true,
-				UpdateTime: time.Now(),
-			},
-		}},
-		state: cacheStateQueuing,
-	}
-
-	require.NoError(t, m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false))
-	assert.True(t, book.SuppressEmptyBookWarning, "empty snapshot warning should be represented by aggregate metrics")
-	assert.Positive(t, metrics.SnapshotOrderbookSyncSummary().TotalEmptyOrderbooks)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err = m.handleDesync(ctx, cache, 1339, &orderbook.Update{
+		Pair:     pair,
+		Asset:    asset.Spot,
+		UpdateID: 1340,
+	})
+	require.NoError(t, err, "handleDesync must invalidate the stale orderbook")
 }
 
 func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
@@ -851,8 +642,8 @@ func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
 	require.Eventually(t, func() bool {
 		cache.m.Lock()
 		defer cache.m.Unlock()
-		return cache.state == cacheStateQueuing && len(cache.updates) == 0
-	}, time.Second, time.Millisecond*50, "cache must preserve queuing state and clear pending updates after cancellation")
+		return cache.state == cacheStateInitialised && len(cache.updates) == 0
+	}, time.Second, time.Millisecond*50, "cache must reset after cancellation so a later update can restart synchronisation")
 }
 
 func TestInitialiseOrderbookCache(t *testing.T) {
@@ -862,7 +653,7 @@ func TestInitialiseOrderbookCache(t *testing.T) {
 	m := NewUpdateManager(&tp)
 	m.delay = time.Second
 	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
+	defer cancel()
 	update := &orderbook.Update{
 		Pair:       currency.NewBTCUSDT(),
 		Asset:      asset.Spot,
@@ -871,18 +662,19 @@ func TestInitialiseOrderbookCache(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	cache := &updateCache{}
-	m.initialiseOrderbookCache(ctx, 1337, update, cache, false)
+	m.initialiseOrderbookCache(ctx, 1337, update, cache)
 	cache.m.Lock()
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be queuing")
 	require.NotEmpty(t, cache.updates, "updates must have queued update")
 	cache.m.Unlock()
+	cancel()
 
 	eventuallyCondition := func() bool {
 		cache.m.Lock()
 		defer cache.m.Unlock()
-		return cache.state == cacheStateQueuing && len(cache.updates) == 0
+		return cache.state == cacheStateInitialised && len(cache.updates) == 0
 	}
-	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state must be queuing and updates cleared after syncOrderbook completes when it fails on context cancellation")
+	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state must reset and updates must clear after syncOrderbook is cancelled")
 }
 
 func TestInvalidateCache(t *testing.T) {
@@ -907,7 +699,7 @@ func TestInvalidateCache(t *testing.T) {
 		AllowEmpty: true,
 		UpdateID:   1338,
 		UpdateTime: time.Now(),
-	}, cache, "test")
+	}, cache)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "invalidateCache must error but still trigger syncOrderbook")
 
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be uninitialised after invalidateCache")
@@ -919,9 +711,9 @@ func TestInvalidateCache(t *testing.T) {
 	eventuallyCondition := func() bool {
 		cache.m.Lock()
 		defer cache.m.Unlock()
-		return cache.state == cacheStateQueuing && len(cache.updates) == 0
+		return cache.state == cacheStateInitialised && len(cache.updates) == 0
 	}
-	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state must be queuing and updates cleared after syncOrderbook completes when it fails on context cancellation")
+	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state must reset and updates must clear after syncOrderbook is cancelled")
 }
 
 func TestSyncOrderbook(t *testing.T) {
@@ -935,26 +727,32 @@ func TestSyncOrderbook(t *testing.T) {
 	ctxCancel, cancel := context.WithCancel(t.Context())
 	cancel()
 	m.delay = time.Millisecond * 10
-	err := m.syncOrderbook(ctxCancel, cache, pair, asset.Spot, false)
+	err := m.syncOrderbook(ctxCancel, cache, pair, asset.Spot)
 	require.ErrorIs(t, err, context.Canceled, "must error due to context cancellation on select case")
 
 	m.fetchOrderbook = fetchOrderbookNotFoundError
-	err = m.syncOrderbook(t.Context(), cache, currency.NewBTCUSD(), asset.Spot, false)
+	err = m.syncOrderbook(t.Context(), cache, currency.NewBTCUSD(), asset.Spot)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "must error due to depth not found when calling fetch orderbook")
+
+	m.fetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+		return nil, nil
+	}
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot)
+	require.ErrorIs(t, err, common.ErrNilPointer, "must error when the snapshot fetch returns a nil book")
 
 	m.deadline = time.Millisecond * 10
 	m.fetchOrderbook = fetchOrderbookFailure
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot)
 	require.ErrorIs(t, err, context.DeadlineExceeded, "must error due to deadline exceeded when waiting for update")
 
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1337}}}
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot)
 	require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet, "must error due to orderbook invalid when loading snapshot")
 
 	m.fetchOrderbook = fetchOrderbookMock
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: 1337, AllowEmpty: true, UpdateTime: time.Now()}}}
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures, false)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures)
 	require.NoError(t, err)
 }
 
@@ -980,7 +778,7 @@ func TestSyncOrderbookSnapshotSyncLimit(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	err := m.syncOrderbook(ctx, cache, pair, asset.Spot, false)
+	err := m.syncOrderbook(ctx, cache, pair, asset.Spot)
 	require.ErrorIs(t,
 		err,
 		context.Canceled,
@@ -988,6 +786,10 @@ func TestSyncOrderbookSnapshotSyncLimit(t *testing.T) {
 	assert.Empty(t,
 		cache.updates,
 		"pending updates should be cleared after cancellation while waiting for a sync slot")
+	assert.Equal(t,
+		cacheStateInitialised,
+		cache.state,
+		"cache should reset after cancellation while waiting for a sync slot")
 }
 
 func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
@@ -1009,7 +811,7 @@ func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
 		state: cacheStateQueuing,
 	}
 
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures, false)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures)
 	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "syncOrderbook must surface applyPendingUpdates errors")
 	assert.Equal(t, cacheStateInitialised, cache.state, "syncOrderbook should reset cache state on pending update failures")
 	assert.Empty(t, cache.updates, "syncOrderbook should clear pending updates after failure")
@@ -1068,7 +870,7 @@ func TestSyncOrderbookAcceptSnapshotWhenUpdatesCovered(t *testing.T) {
 				state: cacheStateQueuing,
 			}
 
-			err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false)
+			err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot)
 			require.NoError(t, err, "syncOrderbook must accept a usable snapshot")
 			assert.Equal(t, cacheStateSynced, cache.state, "cache should be synced")
 			assert.Empty(t, cache.updates, "pending updates should be cleared")
@@ -1158,6 +960,14 @@ func TestWaitForUpdate(t *testing.T) {
 	err = cache.waitForUpdate(ctx, 1338)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 
+	emptyCache := &updateCache{}
+	err = emptyCache.waitForUpdate(ctx, 1338)
+	require.ErrorIs(t, err, context.DeadlineExceeded, "an empty cache must wait safely until its context expires")
+
+	nilUpdateCache := &updateCache{updates: []pendingUpdate{{}}}
+	err = nilUpdateCache.waitForUpdate(ctx, 1338)
+	require.ErrorIs(t, err, context.DeadlineExceeded, "a nil pending update must wait safely until its context expires")
+
 	cache.ch = make(chan int64, 1) // Reset channel to avoid deadlock
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -1173,17 +983,6 @@ func TestClearWithLock(t *testing.T) {
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}
 	cache.clearWithLock()
 	require.Empty(t, cache.updates)
-}
-
-func TestClearPendingUpdatesWithLock(t *testing.T) {
-	t.Parallel()
-	cache := &updateCache{
-		updates: []pendingUpdate{{update: &orderbook.Update{}}},
-		state:   cacheStateQueuing,
-	}
-	cache.clearPendingUpdatesWithLock()
-	require.Empty(t, cache.updates)
-	assert.Equal(t, cacheStateQueuing, cache.state)
 }
 
 func TestClearNoLock(t *testing.T) {

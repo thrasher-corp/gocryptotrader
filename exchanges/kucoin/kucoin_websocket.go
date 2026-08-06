@@ -118,8 +118,11 @@ var defaultSubscriptions = subscription.List{
 // WsConnect creates a new websocket connection.
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	var instances *WSInstanceServers
-	var err error
-	futuresConnection := conn.GetURL() == kucoinWebsocketFuturesURL
+	futuresEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketFutures)
+	if err != nil {
+		return err
+	}
+	futuresConnection := conn.GetURL() == futuresEndpoint
 	switch {
 	case e.Websocket.CanUseAuthenticatedEndpoints() && futuresConnection:
 		instances, err = e.GetAuthenticatedFuturesInstanceServers(ctx)
@@ -165,7 +168,7 @@ func (e *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, 
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	return &(response.Data), e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return &response.Data, e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 		if err != nil {
 			return nil, err
@@ -188,7 +191,7 @@ func (e *Exchange) GetFuturesInstanceServers(ctx context.Context) (*WSInstanceSe
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	return &(response.Data), e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return &response.Data, e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		endpointPath, err := e.API.Endpoints.GetURL(exchange.RestFutures)
 		if err != nil {
 			return nil, err
@@ -495,7 +498,6 @@ func (e *Exchange) processFuturesMarkPriceAndIndexPrice(ctx context.Context, res
 
 // processFuturesOrderbookSnapshot processes a futures account orderbook websocket update.
 func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
-	reachedGCTAt := time.Now()
 	var resp WsFuturesOrderbookLevelResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -512,7 +514,6 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 		LastUpdateID: resp.Sequence,
 		LastUpdated:  resp.Timestamp.Time(),
 		LastPushed:   resp.PushTimestamp.Time(),
-		ReachedGCTAt: reachedGCTAt,
 		Asset:        asset.Futures,
 		Bids:         bids,
 		Asks:         asks,
@@ -522,7 +523,6 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 
 // processFuturesOrderbookLevel2 processes a V2 futures account orderbook data
 func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData []byte, instrument string) error {
-	reachedGCTAt := time.Now()
 	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
@@ -559,14 +559,13 @@ func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData [
 	}
 
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Sequence, &orderbook.Update{
-		UpdateTime:   resp.Timestamp.Time(),
-		LastPushed:   resp.Timestamp.Time(),
-		ReachedGCTAt: reachedGCTAt,
-		UpdateID:     resp.Sequence,
-		Pair:         pair,
-		Asset:        asset.Futures,
-		Asks:         asks,
-		Bids:         bids,
+		UpdateTime: resp.Timestamp.Time(),
+		LastPushed: resp.Timestamp.Time(),
+		UpdateID:   resp.Sequence,
+		Pair:       pair,
+		Asset:      asset.Futures,
+		Asks:       asks,
+		Bids:       bids,
 	})
 }
 
@@ -867,7 +866,6 @@ func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, ins
 
 // processSpotOrderbookWithDepth processes order book data with a specified depth for a particular symbol.
 func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData []byte, instrument string) error {
-	reachedGCTAt := time.Now()
 	var resp struct {
 		Result WsOrderbook `json:"data"`
 	}
@@ -902,20 +900,18 @@ func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData [
 	}
 
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Result.SequenceStart, &orderbook.Update{
-		UpdateID:     resp.Result.SequenceEnd,
-		UpdateTime:   resp.Result.TimeMS.Time(),
-		LastPushed:   resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
-		ReachedGCTAt: reachedGCTAt,
-		Asset:        asset.Spot,
-		Bids:         bids,
-		Asks:         asks,
-		Pair:         pair,
+		UpdateID:   resp.Result.SequenceEnd,
+		UpdateTime: resp.Result.TimeMS.Time(),
+		LastPushed: resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
+		Asset:      asset.Spot,
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       pair,
 	})
 }
 
 // processOrderbook processes orderbook data for a specific symbol.
 func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error {
-	reachedGCTAt := time.Now()
 	var resp Level2Depth5Or20
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -939,14 +935,13 @@ func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error
 	bids := mergeRoundedOrderbookLevels(resp.Bids.Levels())
 	for x := range assets {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Exchange:     e.Name,
-			Asks:         asks,
-			Bids:         bids,
-			Pair:         pair,
-			Asset:        assets[x],
-			LastUpdated:  lastUpdatedTime,
-			LastPushed:   lastUpdatedTime,
-			ReachedGCTAt: reachedGCTAt,
+			Exchange:    e.Name,
+			Asks:        asks,
+			Bids:        bids,
+			Pair:        pair,
+			Asset:       assets[x],
+			LastUpdated: lastUpdatedTime,
+			LastPushed:  lastUpdatedTime,
 		})
 		if err != nil {
 			return err
@@ -1128,6 +1123,9 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 
 func splitWebsocketSubscriptions(subs subscription.List) (spot, futures subscription.List) {
 	for _, sub := range subs {
+		if sub == nil {
+			continue
+		}
 		if sub.Asset == asset.Futures || strings.HasPrefix(channelName(sub, sub.Asset), "/contract") {
 			futures = append(futures, sub)
 			continue

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -229,6 +230,7 @@ func TestSplitWebsocketSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	subs := subscription.List{
+		nil,
 		{Channel: subscription.TickerChannel, Asset: asset.Spot},
 		{Channel: subscription.TickerChannel, Asset: asset.Futures},
 		{Channel: subscription.TickerChannel, Asset: asset.Margin},
@@ -257,13 +259,14 @@ func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
 	t.Parallel()
 
 	for _, tt := range []struct {
-		name            string
-		authenticated   bool
-		connectionURL   string
-		wantSpotHits    int
-		wantFuturesHits int
-		wantToken       string
-		wantEndpoint    string
+		name                      string
+		authenticated             bool
+		connectionURL             string
+		configureFuturesWebsocket bool
+		wantSpotHits              int
+		wantFuturesHits           int
+		wantToken                 string
+		wantEndpoint              string
 	}{
 		{
 			name:          "public_spot",
@@ -278,6 +281,14 @@ func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
 			wantFuturesHits: 1,
 			wantToken:       "futures-public-token",
 			wantEndpoint:    "wss://futures-public.example.test/endpoint",
+		},
+		{
+			name:                      "public_futures_custom_endpoint",
+			connectionURL:             "wss://custom-futures.example.test",
+			configureFuturesWebsocket: true,
+			wantFuturesHits:           1,
+			wantToken:                 "futures-public-token",
+			wantEndpoint:              "wss://futures-public.example.test/endpoint",
 		},
 		{
 			name:          "authenticated_spot",
@@ -311,6 +322,9 @@ func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
 			require.NoError(t, ku.SetHTTPClient(spotServer.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), spotServer.URL+"/api"), "SetRunningURL must not error for spot REST")
 			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), futuresServer.URL+"/api"), "SetRunningURL must not error for futures REST")
+			if tt.configureFuturesWebsocket {
+				require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.WebsocketFutures.String(), tt.connectionURL), "SetRunningURL must not error for futures websocket")
+			}
 
 			conn := &ConnectionFixture{endpointURL: tt.connectionURL}
 			err := ku.WsConnect(t.Context(), conn)
@@ -549,9 +563,7 @@ func TestProcessOrderbook(t *testing.T) {
 		require.NoError(t, err, "CalculateAssets must not error")
 		require.NotEmpty(t, assets, "must resolve at least one asset for the orderbook pair")
 
-		before := time.Now()
 		err = ku.processOrderbook([]byte(`{"asks":[["0.0500","1.5"],["0.0500","0.5"],["0.0600","2"]],"bids":[["0.0400","3"],["0.0400","1"],["0.0300","4"]],"timestamp":1700555340197}`), pair.String(), marketOrderbookDepth50Channel)
-		after := time.Now()
 		require.NoError(t, err, "processOrderbook must not error")
 
 		for _, a := range assets {
@@ -561,8 +573,6 @@ func TestProcessOrderbook(t *testing.T) {
 			require.Len(t, book.Bids, 2, "must collapse duplicate bid levels")
 			assert.Equal(t, time.UnixMilli(1700555340197), book.LastUpdated, "LastUpdated should match the snapshot timestamp")
 			assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match the snapshot timestamp")
-			assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the snapshot")
-			assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the message was received")
 			assert.Equal(t, pair, book.Pair, "Pair should match the processed orderbook symbol")
 			assert.Equal(t, a, book.Asset, "Asset should match the calculated asset")
 			assert.Equal(t, 0.05, book.Asks[0].Price, "First ask price should match payload")
@@ -571,9 +581,7 @@ func TestProcessOrderbook(t *testing.T) {
 			assert.InDelta(t, 4.0, book.Bids[0].Amount, 1e-12, "First bid amount should merge duplicate rounded levels")
 		}
 
-		before = time.Now()
 		err = ku.wsHandleData(t.Context(), nil, []byte(`{"type":"message","topic":"/spotMarket/level2Depth50:ETH-BTC","subject":"level2","data":{"asks":[["0.0700","1.25"]],"bids":[["0.0200","2.5"]],"timestamp":1700555342007}}`))
-		after = time.Now()
 		require.NoError(t, err, "wsHandleData must not error for orderbook payloads")
 
 		for _, a := range assets {
@@ -583,8 +591,6 @@ func TestProcessOrderbook(t *testing.T) {
 			require.Len(t, book.Bids, 1, "must replace bids on snapshot reload")
 			assert.Equal(t, time.UnixMilli(1700555342007), book.LastUpdated, "LastUpdated should update from websocket dispatch")
 			assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should update from websocket dispatch")
-			assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should update from websocket dispatch")
-			assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the websocket dispatch reached GCT")
 			assert.Equal(t, 0.07, book.Asks[0].Price, "Ask price should match websocket dispatch payload")
 			assert.InDelta(t, 1.25, book.Asks[0].Amount, 1e-12, "Ask amount should match websocket dispatch payload")
 			assert.Equal(t, 0.02, book.Bids[0].Price, "Bid price should match websocket dispatch payload")
@@ -613,7 +619,6 @@ func TestProcessOrderbook(t *testing.T) {
 			assert.False(t, book.LastUpdated.Before(before), "LastUpdated should not be before the fallback window")
 			assert.False(t, book.LastUpdated.After(after), "LastUpdated should not be after the fallback window")
 			assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match fallback LastUpdated")
-			assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set in the fallback window")
 		}
 	})
 
@@ -687,9 +692,7 @@ func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 			BufferInstance:     &ku.Websocket.Orderbook,
 		})
 
-		before := time.Now()
 		err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"BTC-USDT","time":1663747970273}}`), "BTC-USDT,ETH-USDT")
-		after := time.Now()
 		require.NoError(t, err, "processSpotOrderbookWithDepth must not error")
 
 		require.Eventually(t, func() bool {
@@ -702,8 +705,6 @@ func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 		assert.Equal(t, sequenceEnd, book.LastUpdateID, "LastUpdateID should match sequenceEnd")
 		assert.Equal(t, updateTime, book.LastUpdated, "LastUpdated should match the websocket time field")
 		assert.Equal(t, updateTime, book.LastPushed, "LastPushed should match the websocket time field")
-		assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set before orderbook processing")
-		assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the update reached GCT")
 		require.NotEmpty(t, book.Bids, "bids must not be empty after processing a spot update")
 		require.NotEmpty(t, book.Asks, "asks must not be empty after processing a spot update")
 		assert.Equal(t, 18891.9, book.Bids[0].Price, "bid price should match websocket update")
@@ -736,9 +737,7 @@ func TestProcessFuturesOrderbookSnapshot(t *testing.T) {
 	ku := testInstance(t)
 	require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
 
-	before := time.Now()
 	err := ku.processFuturesOrderbookSnapshot([]byte(`{"sequence":18,"bids":[["5000","83"]],"asks":[["5010","1"]],"ts":1551770400100,"timestamp":1551770400000}`), futuresTradablePair.String())
-	after := time.Now()
 	require.NoError(t, err, "processFuturesOrderbookSnapshot must not error")
 
 	book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair, asset.Futures)
@@ -748,8 +747,6 @@ func TestProcessFuturesOrderbookSnapshot(t *testing.T) {
 	assert.Equal(t, int64(18), book.LastUpdateID, "LastUpdateID should match the futures snapshot sequence")
 	assert.Equal(t, time.UnixMilli(1551770400000), book.LastUpdated, "LastUpdated should match the futures snapshot timestamp")
 	assert.Equal(t, time.UnixMilli(1551770400100), book.LastPushed, "LastPushed should match the futures snapshot push timestamp")
-	assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the futures snapshot")
-	assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the futures snapshot reached GCT")
 }
 
 func TestProcessFuturesOrderbookLevel2(t *testing.T) {
@@ -789,9 +786,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			BufferInstance:     &ku.Websocket.Orderbook,
 		})
 
-		before := time.Now()
 		err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, futuresTradablePair.String())
-		after := time.Now()
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for buy updates")
 
 		require.Eventually(t, func() bool {
@@ -805,8 +800,6 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
 		assert.Equal(t, time.UnixMilli(1551770400000), book.LastUpdated, "LastUpdated should match the websocket update timestamp")
 		assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match the websocket update timestamp")
-		assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the buy update")
-		assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the buy update reached GCT")
 		assert.Equal(t, 5000.0, book.Bids[0].Price, "Highest bid price should match the buy update")
 		assert.InDelta(t, 83.0, book.Bids[0].Amount, 1e-12, "Highest bid amount should match the buy update")
 	})
@@ -843,9 +836,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			BufferInstance:     &ku.Websocket.Orderbook,
 		})
 
-		before := time.Now()
 		err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,sell,83","timestamp":1551770400000}`), futuresTradablePair.String())
-		after := time.Now()
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for sell updates")
 
 		require.Eventually(t, func() bool {
@@ -859,8 +850,6 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
 		assert.Equal(t, time.UnixMilli(1551770400000), book.LastUpdated, "LastUpdated should match the websocket update timestamp")
 		assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match the websocket update timestamp")
-		assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the sell update")
-		assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the sell update reached GCT")
 		assert.Equal(t, 5000.0, book.Asks[0].Price, "Lowest ask price should match the sell update")
 		assert.InDelta(t, 83.0, book.Asks[0].Amount, 1e-12, "Lowest ask amount should match the sell update")
 	})
@@ -1235,29 +1224,50 @@ func TestScheduleOrderbookSnapshotFallback(t *testing.T) {
 	t.Run("registers_only_full_depth_orderbooks", func(t *testing.T) {
 		t.Parallel()
 		ku := testInstance(t)
-		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-			FetchDeadline: time.Second,
-			FetchOrderbook: func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
-				return nil, orderbook.ErrDepthNotFound
-			},
-			CheckPendingUpdate:           checkPendingUpdate,
-			InitialSnapshotFallbackDelay: time.Hour,
-			InitialSnapshotFallbackLimit: 1,
-			BufferInstance:               &ku.Websocket.Orderbook,
-		})
 		spotPair := currency.NewBTCUSDT()
 		futuresPair := currency.NewPair(currency.ETH, currency.USDT)
+		tickerPair := currency.NewPair(currency.LTC, currency.USDT)
+		var spotFetches, futuresFetches, tickerFetches atomic.Int64
+		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+			FetchDeadline: time.Second,
+			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				switch p.String() {
+				case spotPair.String():
+					spotFetches.Add(1)
+				case futuresPair.String():
+					futuresFetches.Add(1)
+				case tickerPair.String():
+					tickerFetches.Add(1)
+				}
+				return &orderbook.Book{
+					Exchange:     ku.Name,
+					Pair:         p,
+					Asset:        a,
+					Bids:         orderbook.Levels{{Price: 1, Amount: 1}},
+					Asks:         orderbook.Levels{{Price: 2, Amount: 1}},
+					LastUpdated:  time.Now(),
+					LastPushed:   time.Now(),
+					LastUpdateID: 1,
+				}, nil
+			},
+			CheckPendingUpdate:               checkPendingUpdate,
+			AcceptSnapshotWhenUpdatesCovered: true,
+			InitialSnapshotFallbackDelay:     time.Millisecond,
+			InitialSnapshotFallbackLimit:     2,
+			BufferInstance:                   &ku.Websocket.Orderbook,
+		})
 		subs := subscription.List{
 			{Channel: marketOrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
 			{Channel: futuresOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresPair}},
-			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
+			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{tickerPair}},
 			nil,
 		}
 
 		require.NoError(t, ku.scheduleOrderbookSnapshotFallback(t.Context(), subs))
-		stats := ku.wsOBUpdateMgr.BootstrapStats()
-		assert.Equal(t, 1, stats[asset.Spot].Subscribed)
-		assert.Equal(t, 1, stats[asset.Futures].Subscribed)
+		require.Eventually(t, func() bool {
+			return spotFetches.Load() == 1 && futuresFetches.Load() == 1
+		}, time.Second, time.Millisecond, "full-depth subscriptions must schedule snapshots")
+		assert.Zero(t, tickerFetches.Load(), "non-orderbook subscriptions should not schedule snapshots")
 	})
 
 	t.Run("returns_invalid_pair", func(t *testing.T) {

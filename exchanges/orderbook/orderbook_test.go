@@ -60,9 +60,6 @@ func TestValidate(t *testing.T) {
 	}
 
 	require.NoError(t, b.Validate())
-	b.SuppressEmptyBookWarning = true
-	require.NoError(t, b.Validate(), "empty book warning suppression must not disable validation")
-	b.SuppressEmptyBookWarning = false
 
 	b.Asks = []Level{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
 	err := b.Validate()

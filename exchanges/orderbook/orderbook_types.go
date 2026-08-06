@@ -102,10 +102,6 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
-	// ReachedGCTAt records when an exchange adapter started handling the update,
-	// before it entered the orderbook package.
-	ReachedGCTAt time.Time
-
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
 	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
@@ -121,9 +117,6 @@ type Book struct {
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
 	ValidateOrderbook bool
-	// SuppressEmptyBookWarning prevents validation from logging an individual
-	// warning when empty snapshots are reported through aggregate metrics.
-	SuppressEmptyBookWarning bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -146,7 +139,6 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	lastPushed             time.Time
-	reachedGCTAt           time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool

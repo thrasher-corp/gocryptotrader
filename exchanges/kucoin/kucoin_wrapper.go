@@ -183,7 +183,6 @@ func (e *Exchange) SetDefaults() {
 		InitialSnapshotFallbackLimit:      kucoinWSOrderbookFallbackSyncLimit,
 		CheckPendingUpdate:                checkPendingUpdate,
 		CheckLiveUpdates:                  true,
-		RecordMetrics:                     true,
 		BufferInstance:                    &e.Websocket.Orderbook,
 	})
 }
