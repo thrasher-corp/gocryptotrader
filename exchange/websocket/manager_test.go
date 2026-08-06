@@ -2,9 +2,9 @@ package websocket
 
 import (
 	"bytes"
-	"compress/flate"
 	"compress/gzip"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -1231,38 +1231,49 @@ func TestSetupPingHandler(t *testing.T) {
 func TestParseBinaryResponse(t *testing.T) {
 	t.Parallel()
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
-
-	wc := &connection{
-		URL:              "ws" + mock.URL[len("http"):] + "/ws",
-		ResponseMaxLimit: time.Second * 5,
-		Match:            NewMatch(),
-	}
-
-	var b bytes.Buffer
-	g := gzip.NewWriter(&b)
+	var gzipBuffer bytes.Buffer
+	g := gzip.NewWriter(&gzipBuffer)
 	_, err := g.Write([]byte("hello"))
 	require.NoError(t, err, "gzip.Write must not error")
-	assert.NoError(t, g.Close(), "Close should not error")
+	require.NoError(t, g.Close(), "gzip.Close must not error")
+	corruptGZIPPayload := bytes.Clone(gzipBuffer.Bytes())
+	corruptGZIPPayload[len(corruptGZIPPayload)-1] ^= 0xff
 
-	resp, err := wc.parseBinaryResponse(b.Bytes())
-	assert.NoError(t, err, "parseBinaryResponse should not error parsing gzip")
-	assert.EqualValues(t, "hello", resp, "parseBinaryResponse should decode gzip")
+	// Captured from MEXC's public spot websocket for
+	// spot@public.aggre.bookTicker.v3.api.pb@100ms@KASUSDT.
+	mexcFrame, err := hex.DecodeString("0a3473706f74407075626c69632e61676772652e626f6f6b5469636b657" +
+		"22e76332e6170692e7062403130306d73404b4153555344541a074b41535553445430d4d882c2fc33da1335" +
+		"0a08302e3032363239331204313430371a08302e30323633353722053237372e352a0b3133303438393134" +
+		"3133393090d482c2fc33")
+	require.NoError(t, err, "captured MEXC frame must decode")
 
-	b.Reset()
-	f, err := flate.NewWriter(&b, 1)
-	require.NoError(t, err, "flate.NewWriter must not error")
-	_, err = f.Write([]byte("goodbye"))
-	require.NoError(t, err, "flate.Write must not error")
-	assert.NoError(t, f.Close(), "Close should not error")
+	testCases := []struct {
+		name    string
+		input   []byte
+		expect  []byte
+		wantErr bool
+	}{
+		{name: "gzip", input: gzipBuffer.Bytes(), expect: []byte("hello")},
+		{name: "uncompressed MEXC protobuf", input: mexcFrame, expect: mexcFrame},
+		{name: "unrecognised binary", input: []byte{0x01, 0x02, 0x03}, expect: []byte{0x01, 0x02, 0x03}},
+		{name: "empty"},
+		{name: "corrupt gzip header", input: []byte{0x1f, 0x8b, 0x08}, wantErr: true},
+		{name: "corrupt gzip payload", input: corruptGZIPPayload, wantErr: true},
+	}
 
-	resp, err = wc.parseBinaryResponse(b.Bytes())
-	assert.NoError(t, err, "parseBinaryResponse should not error parsing inflate")
-	assert.EqualValues(t, "goodbye", resp, "parseBinaryResponse should deflate")
-
-	_, err = wc.parseBinaryResponse([]byte{})
-	assert.ErrorContains(t, err, "unexpected EOF", "parseBinaryResponse should error on empty input")
+	wc := &connection{}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			resp, err := wc.parseBinaryResponse(tc.input)
+			if tc.wantErr {
+				assert.Error(t, err, "parseBinaryResponse should return an error")
+				return
+			}
+			require.NoError(t, err, "parseBinaryResponse must not error")
+			assert.Equal(t, tc.expect, resp, "parseBinaryResponse should return the expected response")
+		})
+	}
 }
 
 // TestCanUseAuthenticatedWebsocketForWrapper logic test
