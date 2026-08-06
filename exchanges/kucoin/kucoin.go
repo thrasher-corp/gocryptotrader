@@ -1399,24 +1399,33 @@ func (e *Exchange) PlaceMarginHFOrderTest(ctx context.Context, arg *PlaceMarginH
 
 // SendPlaceMarginHFOrder applies a high-frequency margin order placement or tests the order placement process.
 func (e *Exchange) SendPlaceMarginHFOrder(ctx context.Context, arg *PlaceMarginHFOrderParam, path string) (*MarginHFOrderResponse, error) {
-	if *arg == (PlaceMarginHFOrderParam{}) {
+	if arg == nil || *arg == (PlaceMarginHFOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.ClientOrderID == "" {
-		return nil, order.ErrClientOrderIDNotSupported
-	}
-	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
+		return nil, order.ErrClientOrderIDMustBeSet
 	}
 	arg.Side = strings.ToLower(arg.Side)
+	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
+		return nil, order.ErrSideIsInvalid
+	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Price <= 0 {
-		return nil, limits.ErrPriceBelowMin
-	}
-	if arg.Size <= 0 {
-		return nil, limits.ErrAmountBelowMin
+	switch {
+	case arg.OrderType == order.Limit.Lower():
+		if arg.Price <= 0 {
+			return nil, limits.ErrPriceBelowMin
+		}
+		if arg.Size <= 0 {
+			return nil, limits.ErrAmountBelowMin
+		}
+	case arg.OrderType == order.Market.Lower():
+		if arg.Size <= 0 && arg.Funds == "" {
+			return nil, errSizeOrFundIsRequired
+		}
+	default:
+		return nil, fmt.Errorf("%w: %s", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	var resp *MarginHFOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrderEPL, http.MethodPost, path, arg, &resp)
@@ -2587,7 +2596,7 @@ func (e *Exchange) AccountToTradeTypeString(a asset.Item, marginMode string) str
 	case asset.Spot:
 		return SpotTradeType
 	case asset.Margin:
-		if strings.EqualFold(marginMode, "isolated") {
+		if strings.EqualFold(marginMode, kucoinIsolated) {
 			return IsolatedMarginTradeType
 		}
 		return CrossMarginTradeType

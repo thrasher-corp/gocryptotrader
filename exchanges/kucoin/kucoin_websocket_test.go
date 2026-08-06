@@ -144,6 +144,73 @@ func TestPushData(t *testing.T) {
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
 
+func TestWsHandleData(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+	ku.API.AuthenticatedSupport = true
+	payload := []byte(`{"topic":"/account/balance","type":"message","subject":"account.balance","id":"2806792994029696","channelType":"private","data":{"available":"0","currency":"KITE","hold":"30","relationEvent":"trade.hold","time":"1784868353683","total":"30"}}`)
+
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, payload), "wsHandleData must route identified push messages by topic")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "DataHandler must receive the account balance change")
+}
+
+func TestProcessAccountBalanceChange(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+	ku.API.AuthenticatedSupport = true
+	payload := []byte(`{"available":"50.17067692","currency":"USDT","hold":"0","relationEvent":"trade.setted","time":"1784868353688","total":"50.17067692"}`)
+
+	require.NoError(t, ku.processAccountBalanceChange(t.Context(), payload), "processAccountBalanceChange must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "DataHandler must receive the account balance change")
+	item := <-ku.Websocket.DataHandler.C
+	subAccounts, ok := item.Data.(accounts.SubAccounts)
+	require.True(t, ok, "DataHandler item must contain sub-accounts")
+	require.Len(t, subAccounts, 1, "account balance change must contain one sub-account")
+	require.Equal(t, asset.Spot, subAccounts[0].AssetType, "account balance change must update the spot account")
+
+	creds, err := ku.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	balance, err := ku.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+	require.NoError(t, err, "GetBalance must find the stored spot balance")
+	require.InDelta(t, 50.17067692, balance.Total, 1e-12, "stored spot total must match the update")
+	require.InDelta(t, 50.17067692, balance.Free, 1e-12, "stored spot free balance must match the update")
+	require.Zero(t, balance.Hold, "stored spot hold balance must match the update")
+}
+
+func TestAccountBalanceAsset(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		relationEvent string
+		expected      asset.Item
+	}{
+		{name: "classic spot", relationEvent: "trade.setted", expected: asset.Spot},
+		{name: "high frequency spot", relationEvent: "trade_hf.hold", expected: asset.Spot},
+		{name: "classic margin", relationEvent: "margin.transfer", expected: asset.Margin},
+		{name: "high frequency margin", relationEvent: "marginV2.other", expected: asset.Margin},
+		{name: "REST high frequency margin", relationEvent: "margin_v2", expected: asset.Margin},
+		{name: "REST isolated margin", relationEvent: kucoinIsolated, expected: asset.Margin},
+		{name: "REST isolated high frequency margin", relationEvent: "isolated_v2", expected: asset.Margin},
+		{name: "isolated margin", relationEvent: "isolated_BTC-USDT.setted", expected: asset.Margin},
+		{name: "isolated high frequency margin", relationEvent: "isolatedV2_BTC-USDT.hold", expected: asset.Margin},
+		{name: "funding account", relationEvent: "main.transfer", expected: asset.Empty},
+		{name: "unknown", relationEvent: "other", expected: asset.Empty},
+		{name: "similar isolated prefix", relationEvent: "isolatedOther.hold", expected: asset.Empty},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.expected, accountBalanceAsset(tc.relationEvent), "accountBalanceAsset must classify the account family")
+		})
+	}
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 

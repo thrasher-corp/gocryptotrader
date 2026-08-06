@@ -445,16 +445,16 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			return nil, err
 		}
 		for i := range resp {
-			if resp[i].AccountType == "margin" && assetType == asset.Spot {
-				continue
-			} else if resp[i].AccountType == "trade" && assetType == asset.Margin {
+			if accountBalanceAsset(resp[i].AccountType) != assetType {
 				continue
 			}
-			subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
+			if err := subAccts[0].Balances.Add(resp[i].Currency, accounts.Balance{
 				Total: resp[i].Balance.Float64(),
 				Hold:  resp[i].Holds.Float64(),
 				Free:  resp[i].Available.Float64(),
-			})
+			}); err != nil {
+				return nil, err
+			}
 		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
@@ -615,6 +615,18 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if s.Leverage == 0 {
 			s.Leverage = 1
 		}
+		marginMode := strings.ToUpper(MarginModeToString(s.MarginType))
+		if marginMode == "" {
+			return nil, fmt.Errorf("%w: KuCoin futures orders require isolated or cross margin", margin.ErrInvalidMarginType)
+		}
+		positionMode, err := e.GetFuturesPositionMode(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting KuCoin futures position mode: %w", err)
+		}
+		positionSide, err := futuresPositionSide(positionMode, s.Side, s.ReduceOnly)
+		if err != nil {
+			return nil, err
+		}
 		var orderType, stopOrderType, stopOrderBoundary string
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
@@ -661,6 +673,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          s.Amount,
 			Price:         s.Price,
 			Leverage:      s.Leverage,
+			MarginMode:    marginMode,
+			PositionSide:  positionSide,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),
@@ -776,22 +790,33 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, order.ErrUnsupportedOrderType
 		}
 	case asset.Margin:
-		o, err := e.PostMarginOrder(ctx,
-			&MarginOrderParam{
-				ClientOrderID: s.ClientOrderID,
-				Side:          sideString,
-				Symbol:        s.Pair,
-				OrderType:     s.Type.Lower(),
-				MarginModel:   MarginModeToString(s.MarginType),
-				Price:         s.Price,
-				Size:          s.Amount,
-				VisibleSize:   s.Amount,
-				PostOnly:      s.TimeInForce.Is(order.PostOnly),
-				Hidden:        s.Hidden,
-				AutoBorrow:    s.AutoBorrow,
-				AutoRepay:     s.AutoBorrow,
-				Iceberg:       s.Iceberg,
-			})
+		if !s.Type.Is(order.Limit) && !s.Type.Is(order.Market) {
+			return nil, order.ErrUnsupportedOrderType
+		}
+		var timeInForce string
+		if s.Type.Is(order.Limit) {
+			switch {
+			case s.TimeInForce.Is(order.FillOrKill), s.TimeInForce.Is(order.ImmediateOrCancel):
+				timeInForce = s.TimeInForce.String()
+			default:
+				timeInForce = order.GoodTillCancel.String()
+			}
+		}
+		o, err := e.PlaceMarginHFOrder(ctx, &PlaceMarginHFOrderParam{
+			ClientOrderID: s.ClientOrderID,
+			Side:          sideString,
+			Symbol:        s.Pair,
+			OrderType:     s.Type.Lower(),
+			IsIsolated:    s.MarginType == margin.Isolated,
+			AutoBorrow:    s.AutoBorrow,
+			AutoRepay:     s.AutoRepay,
+			Price:         s.Price,
+			Size:          s.Amount,
+			TimeInForce:   timeInForce,
+			PostOnly:      s.TimeInForce.Is(order.PostOnly),
+			Hidden:        s.Hidden,
+			Iceberg:       s.Iceberg,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -807,11 +832,33 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 }
 
+// futuresPositionSide derives the position affected by a futures order. Hedge
+// reductions act on the opposite directional position to the order side.
+func futuresPositionSide(mode FuturesPositionMode, side order.Side, reduceOnly bool) (string, error) {
+	if !side.IsLong() && !side.IsShort() {
+		return "", fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
+	}
+	if mode == FuturesPositionModeOneWay {
+		return kucoinBothPositionSide, nil
+	}
+	if mode != FuturesPositionModeHedge {
+		return "", fmt.Errorf("%w: %s", errInvalidFuturesPositionMode, mode)
+	}
+	isLong := side.IsLong()
+	if reduceOnly {
+		isLong = !isLong
+	}
+	if isLong {
+		return kucoinLongPositionSide, nil
+	}
+	return kucoinShortPositionSide, nil
+}
+
 // MarginModeToString returns a string representation of a MarginMode
 func MarginModeToString(mType margin.Type) string {
 	switch mType {
 	case margin.Isolated:
-		return mType.String()
+		return kucoinIsolated
 	case margin.Multi:
 		return "cross"
 	default:

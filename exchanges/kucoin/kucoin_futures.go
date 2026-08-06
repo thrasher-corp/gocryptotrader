@@ -28,7 +28,39 @@ const (
 
 	kucoinFuturesOrder     = "/v1/orders"
 	kucoinFuturesStopOrder = "/v1/stopOrders"
+
+	kucoinOneWayPositionMode = 0
+	kucoinHedgePositionMode  = 1
 )
+
+// GetFuturesPositionMode returns the account-level KuCoin futures position
+// mode. It deliberately avoids caching because credentials and account mode can
+// change independently of an Exchange instance.
+func (e *Exchange) GetFuturesPositionMode(ctx context.Context) (FuturesPositionMode, error) {
+	var resp *FuturesPositionModeResponse
+	if err := e.SendAuthHTTPRequest(
+		ctx,
+		exchange.RestFutures,
+		futuresPositionModeEPL,
+		http.MethodGet,
+		"/v2/position/getPositionMode",
+		nil,
+		&resp,
+	); err != nil {
+		return FuturesPositionModeUnknown, err
+	}
+	if resp == nil {
+		return FuturesPositionModeUnknown, common.ErrNoResponse
+	}
+	switch resp.PositionMode.Int64() {
+	case kucoinOneWayPositionMode:
+		return FuturesPositionModeOneWay, nil
+	case kucoinHedgePositionMode:
+		return FuturesPositionModeHedge, nil
+	default:
+		return FuturesPositionModeUnknown, fmt.Errorf("%w: %s", errInvalidFuturesPositionMode, resp.PositionMode)
+	}
+}
 
 // GetFuturesOpenContracts gets all open futures contract with its details
 func (e *Exchange) GetFuturesOpenContracts(ctx context.Context) ([]Contract, error) {
@@ -390,6 +422,16 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 		}
 	default:
 		return fmt.Errorf("%w, order type= %s", order.ErrTypeIsInvalid, arg.OrderType)
+	}
+	switch arg.MarginMode {
+	case kucoinIsolatedMarginMode, kucoinCrossMarginMode:
+	default:
+		return fmt.Errorf("%w: %s", errInvalidFuturesMarginMode, arg.MarginMode)
+	}
+	switch arg.PositionSide {
+	case kucoinBothPositionSide, kucoinLongPositionSide, kucoinShortPositionSide:
+	default:
+		return fmt.Errorf("%w: %s", errInvalidFuturesPositionSide, arg.PositionSide)
 	}
 	return nil
 }

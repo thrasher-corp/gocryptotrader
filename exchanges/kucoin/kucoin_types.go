@@ -56,7 +56,42 @@ var (
 	errPageSizeRequired           = errors.New("pageSize is required")
 	errCurrentPageRequired        = errors.New("current page value is required")
 	errTimeoutRequired            = errors.New("timeout value required")
+	errInvalidFuturesPositionMode = errors.New("invalid futures position mode")
+	errInvalidFuturesMarginMode   = errors.New("invalid futures margin mode")
+	errInvalidFuturesPositionSide = errors.New("invalid futures position side")
 )
+
+// FuturesPositionMode identifies how a KuCoin futures account represents
+// directional positions.
+type FuturesPositionMode uint8
+
+const (
+	// FuturesPositionModeUnknown indicates that the position mode is unavailable.
+	FuturesPositionModeUnknown FuturesPositionMode = iota
+	// FuturesPositionModeOneWay uses a single net position and positionSide BOTH.
+	FuturesPositionModeOneWay
+	// FuturesPositionModeHedge keeps independent LONG and SHORT positions.
+	FuturesPositionModeHedge
+
+	kucoinIsolatedMarginMode = "ISOLATED"
+	kucoinCrossMarginMode    = "CROSS"
+	kucoinBothPositionSide   = "BOTH"
+	kucoinLongPositionSide   = "LONG"
+	kucoinShortPositionSide  = "SHORT"
+	kucoinIsolated           = "isolated"
+)
+
+// String returns a human-readable futures position mode.
+func (m FuturesPositionMode) String() string {
+	switch m {
+	case FuturesPositionModeOneWay:
+		return "one-way"
+	case FuturesPositionModeHedge:
+		return "hedge"
+	default:
+		return "unknown"
+	}
+}
 
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
@@ -775,7 +810,7 @@ type StopOrder struct {
 type AccountInfo struct {
 	ID          string        `json:"id"`
 	Currency    currency.Code `json:"currency"`
-	AccountType string        `json:"type"` // Account type: main, trade, trade_hf, margin
+	AccountType string        `json:"type"` // Account type: main, trade, trade_hf, margin, margin_v2, isolated, isolated_v2
 	Balance     types.Number  `json:"balance"`
 	Available   types.Number  `json:"available"`
 	Holds       types.Number  `json:"holds"`
@@ -1867,12 +1902,19 @@ type FuturesFundingHistoryResponse struct {
 	HasMore  bool                    `json:"hasMore"`
 }
 
-// FuturesOrderParam represents a query parameter for placing future oorder
+// FuturesPositionModeResponse represents the account-level futures position mode.
+type FuturesPositionModeResponse struct {
+	PositionMode types.Number `json:"positionMode"`
+}
+
+// FuturesOrderParam represents a query parameter for placing a futures order
 type FuturesOrderParam struct {
 	ClientOrderID string        `json:"clientOid"`
 	Side          string        `json:"side"`
 	Symbol        currency.Pair `json:"symbol"`
 	Leverage      float64       `json:"leverage,string"`
+	MarginMode    string        `json:"marginMode"`
+	PositionSide  string        `json:"positionSide"`
 
 	Size  float64 `json:"size,omitempty,string"`
 	Price float64 `json:"price,string,omitempty"`
@@ -2026,13 +2068,13 @@ type PlaceMarginHFOrderParam struct {
 	IsIsolated          bool          `json:"isIsolated,omitempty"`
 	AutoBorrow          bool          `json:"autoBorrow,omitempty"`
 	AutoRepay           bool          `json:"autoRepay,omitempty"`
-	Price               float64       `json:"price,string"`
-	Size                float64       `json:"size,string"`
-	TimeInForce         string        `json:"timeInForce,omitempty,string"`
-	CancelAfter         int64         `json:"cancelAfter,omitempty,string"`
-	PostOnly            bool          `json:"postOnly,omitempty,string"`
-	Hidden              bool          `json:"hidden,omitempty,string"`
-	Iceberg             bool          `json:"iceberg,omitempty,string"`
+	Price               float64       `json:"price,omitempty,string"`
+	Size                float64       `json:"size,omitempty,string"`
+	TimeInForce         string        `json:"timeInForce,omitempty"`
+	CancelAfter         int64         `json:"cancelAfter,omitempty"`
+	PostOnly            bool          `json:"postOnly,omitempty"`
+	Hidden              bool          `json:"hidden,omitempty"`
+	Iceberg             bool          `json:"iceberg,omitempty"`
 	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               string        `json:"funds,omitempty"`
 }

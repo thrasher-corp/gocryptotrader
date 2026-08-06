@@ -172,6 +172,7 @@ const (
 	futuresOpenOrderStatsEPL
 	futuresPositionEPL
 	futuresPositionListEPL
+	futuresPositionModeEPL
 	setAutoDepositMarginEPL
 	maxWithdrawMarginEPL
 	removeMarginManuallyEPL
@@ -383,6 +384,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		futuresOpenOrderStatsEPL:                      request.GetRateLimiterWithWeight(futuresRate, 10),
 		futuresPositionEPL:                            request.GetRateLimiterWithWeight(futuresRate, 2),
 		futuresPositionListEPL:                        request.GetRateLimiterWithWeight(futuresRate, 2),
+		futuresPositionModeEPL:                        request.GetRateLimiterWithWeight(futuresRate, 2),
 		setAutoDepositMarginEPL:                       request.GetRateLimiterWithWeight(futuresRate, 4),
 		maxWithdrawMarginEPL:                          request.GetRateLimiterWithWeight(futuresRate, 10),
 		removeMarginManuallyEPL:                       request.GetRateLimiterWithWeight(futuresRate, 10),

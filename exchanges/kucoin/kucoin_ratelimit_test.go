@@ -164,6 +164,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"futures Open Order Stats":                         futuresOpenOrderStatsEPL,
 		"futures Position":                                 futuresPositionEPL,
 		"futures Position List":                            futuresPositionListEPL,
+		"futures Position Mode":                            futuresPositionModeEPL,
 		"set Auto Deposit Margin":                          setAutoDepositMarginEPL,
 		"max Withdraw Margin":                              maxWithdrawMarginEPL,
 		"remove Margin Manually":                           removeMarginManuallyEPL,

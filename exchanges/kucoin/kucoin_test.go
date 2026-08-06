@@ -3,7 +3,10 @@ package kucoin
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -35,7 +38,12 @@ import (
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
-const canManipulateRealOrders = false
+const (
+	canManipulateRealOrders = false
+	mockAPIKey              = "key"
+	mockAPISecret           = "secret"
+	mockAPIPassphrase       = "passphrase"
+)
 
 // Please supply your own credentials here to do authenticated endpoint testing
 var apiCredentials = &accounts.Credentials{
@@ -1623,7 +1631,8 @@ func TestPostFuturesOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PostFuturesOrder(t.Context(), &FuturesOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
-		Stop: "up", StopPriceType: "TP", StopPrice: 123456, TimeInForce: "", Size: 1, Price: 1000, Leverage: 1, VisibleSize: 0,
+		Stop: "up", StopPriceType: "TP", StopPrice: 123456, TimeInForce: "", Size: 1, Price: 1000, Leverage: 1,
+		MarginMode: kucoinIsolatedMarginMode, PositionSide: kucoinBothPositionSide,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1638,7 +1647,7 @@ func TestPostFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	result, err = e.PostFuturesOrder(t.Context(), &FuturesOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
-		Size: 1, Price: 1000, Leverage: 1, VisibleSize: 0,
+		Size: 1, Price: 1000, Leverage: 1, MarginMode: kucoinIsolatedMarginMode, PositionSide: kucoinBothPositionSide,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1668,7 +1677,8 @@ func TestPostFuturesOrder(t *testing.T) {
 		Price:         1000,
 		StopPrice:     0,
 		Leverage:      1,
-		VisibleSize:   0,
+		MarginMode:    kucoinIsolatedMarginMode,
+		PositionSide:  kucoinBothPositionSide,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1700,7 +1710,8 @@ func TestFillFuturesPostOrderArgumentFilter(t *testing.T) {
 
 	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
-		Stop: "up", StopPriceType: "TP", StopPrice: 123456, TimeInForce: "", Size: 1, Price: 1000, Leverage: 1, VisibleSize: 0,
+		Stop: "up", StopPriceType: "TP", StopPrice: 123456, TimeInForce: "", Size: 1, Price: 1000, Leverage: 1,
+		MarginMode: kucoinIsolatedMarginMode, PositionSide: kucoinBothPositionSide,
 	})
 	assert.NoError(t, err)
 
@@ -1714,9 +1725,15 @@ func TestFillFuturesPostOrderArgumentFilter(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10",
-		Size: 1, Price: 1000, Leverage: 1, VisibleSize: 0,
+		Size: 1, Price: 1000, Leverage: 1,
 	})
-	assert.NoError(t, err)
+	require.ErrorIs(t, err, errInvalidFuturesMarginMode)
+
+	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit",
+		Size: 1, Price: 1000, Leverage: 1, MarginMode: kucoinIsolatedMarginMode,
+	})
+	require.ErrorIs(t, err, errInvalidFuturesPositionSide)
 
 	// Market Orders
 	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
@@ -1743,7 +1760,8 @@ func TestFillFuturesPostOrderArgumentFilter(t *testing.T) {
 		Price:         1000,
 		StopPrice:     0,
 		Leverage:      1,
-		VisibleSize:   0,
+		MarginMode:    kucoinIsolatedMarginMode,
+		PositionSide:  kucoinBothPositionSide,
 	})
 	assert.NoError(t, err)
 }
@@ -1763,7 +1781,8 @@ func TestPostFuturesOrderTest(t *testing.T) {
 		Size:          1,
 		StopPrice:     0,
 		Leverage:      1,
-		VisibleSize:   0,
+		MarginMode:    kucoinIsolatedMarginMode,
+		PositionSide:  kucoinBothPositionSide,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
@@ -1784,6 +1803,8 @@ func TestPlaceMultipleFuturesOrders(t *testing.T) {
 			Price:         2150,
 			Size:          2,
 			Leverage:      1,
+			MarginMode:    kucoinIsolatedMarginMode,
+			PositionSide:  kucoinBothPositionSide,
 		},
 		{
 			ClientOrderID: "5c52e11203aa677f33e492",
@@ -1793,6 +1814,8 @@ func TestPlaceMultipleFuturesOrders(t *testing.T) {
 			Price:         32150,
 			Size:          2,
 			Leverage:      1,
+			MarginMode:    kucoinIsolatedMarginMode,
+			PositionSide:  kucoinBothPositionSide,
 		},
 	})
 	assert.NoError(t, err)
@@ -2518,9 +2541,13 @@ func TestSubmitOrder(t *testing.T) {
 	_, err := e.SubmitOrder(t.Context(), orderSubmission)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderSubmission.AssetType = asset.Futures
 	orderSubmission.Pair = futuresTradablePair
+	_, err = e.SubmitOrder(t.Context(), orderSubmission)
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	orderSubmission.MarginType = margin.Isolated
 	result, err := e.SubmitOrder(t.Context(), orderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2590,6 +2617,198 @@ func TestSubmitOrder(t *testing.T) {
 	result, err = e.SubmitOrder(t.Context(), marginOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestGetFuturesPositionMode(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		response    string
+		expected    FuturesPositionMode
+		expectedErr error
+		anyError    bool
+	}{
+		{name: "one-way", response: `{"code":"200000","data":{"positionMode":0}}`, expected: FuturesPositionModeOneWay},
+		{name: "hedge", response: `{"code":"200000","data":{"positionMode":1}}`, expected: FuturesPositionModeHedge},
+		{name: "invalid", response: `{"code":"200000","data":{"positionMode":2}}`, expectedErr: errInvalidFuturesPositionMode},
+		{name: "no response", response: `{"code":"200000","data":null}`, expectedErr: common.ErrNoResponse},
+		{name: "malformed response", response: `{`, anyError: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ku := testInstance(t)
+			ku.SkipAuthCheck = true
+			ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method, "position mode request method should be correct")
+				assert.Equal(t, "/api/v2/position/getPositionMode", r.URL.Path, "position mode request path should be correct")
+				_, err := w.Write([]byte(tc.response))
+				assert.NoError(t, err, "writing position mode response should not error")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+			mode, err := ku.GetFuturesPositionMode(t.Context())
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "GetFuturesPositionMode must return the expected error")
+				require.Equal(t, FuturesPositionModeUnknown, mode, "invalid responses must not return a position mode")
+				return
+			}
+			if tc.anyError {
+				require.Error(t, err, "GetFuturesPositionMode must return an error")
+				require.Equal(t, FuturesPositionModeUnknown, mode, "invalid responses must not return a position mode")
+				return
+			}
+			require.NoError(t, err, "GetFuturesPositionMode must not error")
+			require.Equal(t, tc.expected, mode, "GetFuturesPositionMode must return the API position mode")
+		})
+	}
+}
+
+func TestFuturesPositionModeString(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		mode     FuturesPositionMode
+		expected string
+	}{
+		{name: "unknown", mode: FuturesPositionModeUnknown, expected: "unknown"},
+		{name: "one-way", mode: FuturesPositionModeOneWay, expected: "one-way"},
+		{name: "hedge", mode: FuturesPositionModeHedge, expected: "hedge"},
+		{name: "invalid", mode: FuturesPositionMode(99), expected: "unknown"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.expected, tc.mode.String(), "String must return the expected position mode")
+		})
+	}
+}
+
+func TestFuturesPositionSide(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		mode        FuturesPositionMode
+		side        order.Side
+		reduceOnly  bool
+		expected    string
+		expectedErr error
+	}{
+		{name: "one-way short", mode: FuturesPositionModeOneWay, side: order.Short, expected: kucoinBothPositionSide},
+		{name: "hedge increase short", mode: FuturesPositionModeHedge, side: order.Short, expected: kucoinShortPositionSide},
+		{name: "hedge increase long", mode: FuturesPositionModeHedge, side: order.Long, expected: kucoinLongPositionSide},
+		{name: "hedge reduce short", mode: FuturesPositionModeHedge, side: order.Long, reduceOnly: true, expected: kucoinShortPositionSide},
+		{name: "hedge reduce long", mode: FuturesPositionModeHedge, side: order.Short, reduceOnly: true, expected: kucoinLongPositionSide},
+		{name: "unknown mode", mode: FuturesPositionModeUnknown, side: order.Short, expectedErr: errInvalidFuturesPositionMode},
+		{name: "invalid side", mode: FuturesPositionModeHedge, side: order.AnySide, expectedErr: order.ErrSideIsInvalid},
+		{name: "one-way invalid side", mode: FuturesPositionModeOneWay, side: order.AnySide, expectedErr: order.ErrSideIsInvalid},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			actual, err := futuresPositionSide(tc.mode, tc.side, tc.reduceOnly)
+			require.ErrorIs(t, err, tc.expectedErr, "futuresPositionSide must return the expected error")
+			require.Equal(t, tc.expected, actual, "futuresPositionSide must return the expected side")
+		})
+	}
+}
+
+func TestSubmitFuturesOrder(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SkipAuthCheck = true
+	ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var response string
+		switch r.URL.Path {
+		case "/api/v2/position/getPositionMode":
+			assert.Equal(t, http.MethodGet, r.Method, "position mode request method should be correct")
+			response = `{"code":"200000","data":{"positionMode":0}}`
+		case "/api/v1/orders":
+			assert.Equal(t, http.MethodPost, r.Method, "futures order request method should be correct")
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "ReadAll should not error")
+			assert.NoError(t, json.Unmarshal(body, &payload), "Unmarshal should not error")
+			response = `{"code":"200000","data":{"orderId":"order-id"}}`
+		default:
+			assert.Fail(t, "unexpected request path", r.URL.Path)
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "writing futures order response should not error")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+	result, err := ku.SubmitOrder(t.Context(), &order.Submit{
+		Side:          order.Short,
+		AssetType:     asset.Futures,
+		Pair:          futuresTradablePair,
+		Type:          order.Market,
+		Amount:        3,
+		Leverage:      1,
+		MarginType:    margin.Isolated,
+		ClientOrderID: "client-order-id",
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	require.NotNil(t, result, "SubmitOrder must return a response")
+	require.Equal(t, "order-id", result.OrderID, "OrderID must be correct")
+	require.Equal(t, kucoinIsolatedMarginMode, payload["marginMode"], "payload must select isolated margin")
+	require.Equal(t, kucoinBothPositionSide, payload["positionSide"], "payload must select one-way position mode")
+}
+
+func TestSubmitMarginOrder(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SkipAuthCheck = true
+	ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method, "margin order request method should be correct")
+		assert.Equal(t, "/api/v3/hf/margin/order", r.URL.Path, "margin order request path should use the supported HF endpoint")
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "ReadAll should not error")
+		assert.NoError(t, json.Unmarshal(body, &payload), "Unmarshal should not error")
+		_, err = w.Write([]byte(`{"code":"200000","data":{"orderId":"order-id","borrowSize":0,"loanApplyId":"loan-id"}}`))
+		assert.NoError(t, err, "writing margin order response should not error")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+	result, err := ku.SubmitOrder(t.Context(), &order.Submit{
+		Side:          order.Buy,
+		AssetType:     asset.Margin,
+		Pair:          marginTradablePair,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        1,
+		MarginType:    margin.Isolated,
+		ClientOrderID: "client-order-id",
+		AutoRepay:     true,
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	require.NotNil(t, result, "SubmitOrder must return a response")
+	require.Equal(t, "order-id", result.OrderID, "OrderID must be correct")
+	require.Equal(t, true, payload["autoRepay"], "payload must auto-repay when AutoRepay is true")
+	require.NotContains(t, payload, "autoBorrow", "payload must not auto-borrow when AutoBorrow is false")
+	require.Equal(t, true, payload["isIsolated"], "payload must select isolated margin")
+	require.Equal(t, order.GoodTillCancel.String(), payload["timeInForce"], "timeInForce must be a plain API string")
+	require.Equal(t, "1", payload["price"], "price must be encoded as a decimal string")
+	require.Equal(t, "1", payload["size"], "size must be encoded as a decimal string")
 }
 
 func TestCancelOrder(t *testing.T) {
@@ -2854,6 +3073,50 @@ func getFirstTradablePairOfAssets(ctx context.Context) {
 
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
+	testCases := []struct {
+		name          string
+		assetType     asset.Item
+		expectedFree  float64
+		expectedHold  float64
+		expectedTotal float64
+	}{
+		{name: "spot", assetType: asset.Spot, expectedFree: 11, expectedHold: 2, expectedTotal: 13},
+		{name: "margin", assetType: asset.Margin, expectedFree: 12.5, expectedHold: 2.5, expectedTotal: 15},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name+" account families", func(t *testing.T) {
+			t.Parallel()
+
+			ku := testInstance(t)
+			ku.SkipAuthCheck = true
+			ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/v1/accounts", r.URL.Path, "account request path should be correct")
+				_, err := w.Write([]byte(`{"code":"200000","data":[` +
+					`{"currency":"USDT","type":"main","balance":"100","available":"100","holds":"0"},` +
+					`{"currency":"USDT","type":"trade","balance":"10","available":"8","holds":"2"},` +
+					`{"currency":"USDT","type":"trade_hf","balance":"3","available":"3","holds":"0"},` +
+					`{"currency":"USDT","type":"margin","balance":"5","available":"4","holds":"1"},` +
+					`{"currency":"USDT","type":"margin_v2","balance":"7","available":"6","holds":"1"},` +
+					`{"currency":"USDT","type":"isolated","balance":"2","available":"1.5","holds":"0.5"},` +
+					`{"currency":"USDT","type":"isolated_v2","balance":"1","available":"1","holds":"0"}]}`))
+				assert.NoError(t, err, "writing account response should not error")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+			result, err := ku.UpdateAccountBalances(t.Context(), tc.assetType)
+			require.NoError(t, err, "UpdateAccountBalances must not error")
+			require.Len(t, result, 1, "UpdateAccountBalances must return one sub-account")
+			balance, ok := result[0].Balances[currency.USDT]
+			require.True(t, ok, "UpdateAccountBalances must return the USDT balance")
+			require.InDelta(t, tc.expectedTotal, balance.Total, 1e-12, "total must aggregate matching account families")
+			require.InDelta(t, tc.expectedFree, balance.Free, 1e-12, "free must aggregate matching account families")
+			require.InDelta(t, tc.expectedHold, balance.Hold, 1e-12, "hold must aggregate matching account families")
+		})
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	assetTypes := e.GetAssetTypes(true)
 	for _, assetType := range assetTypes {
@@ -3525,12 +3788,15 @@ func TestGetOCOOrderList(t *testing.T) {
 
 func TestSendPlaceMarginHFOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.SendPlaceMarginHFOrder(t.Context(), &PlaceMarginHFOrderParam{}, "")
+	_, err := e.SendPlaceMarginHFOrder(t.Context(), nil, "")
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.SendPlaceMarginHFOrder(t.Context(), &PlaceMarginHFOrderParam{}, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &PlaceMarginHFOrderParam{PostOnly: true}
 	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
-	require.ErrorIs(t, err, order.ErrClientOrderIDNotSupported)
+	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
 	arg.ClientOrderID = "first-order"
 	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
@@ -3542,11 +3808,20 @@ func TestSendPlaceMarginHFOrder(t *testing.T) {
 
 	arg.Symbol = marginTradablePair
 	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.OrderType = order.Limit.Lower()
+	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 1000
 	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.OrderType = order.Market.Lower()
+	arg.Price = 0
+	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
+	require.ErrorIs(t, err, errSizeOrFundIsRequired)
 }
 
 func TestPlaceMarginHFOrder(t *testing.T) {
@@ -4039,7 +4314,7 @@ func TestMarginModeToString(t *testing.T) {
 		MarginMode margin.Type
 		Result     string
 	}{
-		{MarginMode: margin.Isolated, Result: "isolated"},
+		{MarginMode: margin.Isolated, Result: kucoinIsolated},
 		{MarginMode: margin.Multi, Result: "cross"},
 		{MarginMode: margin.Unknown, Result: ""},
 	}
@@ -4057,11 +4332,11 @@ func TestAccountToTradeTypeString(t *testing.T) {
 		Result      string
 	}{
 		{AccountType: asset.Margin, MarginMode: "cross", Result: "MARGIN_TRADE"},
-		{AccountType: asset.Margin, MarginMode: "isolated", Result: "MARGIN_ISOLATED_TRADE"},
+		{AccountType: asset.Margin, MarginMode: kucoinIsolated, Result: "MARGIN_ISOLATED_TRADE"},
 		{AccountType: asset.Spot, MarginMode: "cross", Result: SpotTradeType},
-		{AccountType: asset.Spot, MarginMode: "isolated", Result: SpotTradeType},
-		{AccountType: asset.Futures, MarginMode: "isolated", Result: ""},
-		{AccountType: asset.Futures, MarginMode: "isolated", Result: ""},
+		{AccountType: asset.Spot, MarginMode: kucoinIsolated, Result: SpotTradeType},
+		{AccountType: asset.Futures, MarginMode: kucoinIsolated, Result: ""},
+		{AccountType: asset.Futures, MarginMode: kucoinIsolated, Result: ""},
 	}
 	for a := range accountToTradeTypeResults {
 		result := e.AccountToTradeTypeString(accountToTradeTypeResults[a].AccountType, accountToTradeTypeResults[a].MarginMode)

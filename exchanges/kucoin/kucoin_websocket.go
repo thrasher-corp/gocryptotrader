@@ -186,7 +186,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if resp.Type == "pong" || resp.Type == "welcome" {
 		return nil
 	}
-	if resp.ID != "" {
+	if resp.ID != "" && resp.Topic == "" {
 		return conn.RequireMatchWithData(resp.ID, respData)
 	}
 
@@ -630,7 +630,11 @@ func (e *Exchange) processAccountBalanceChange(ctx context.Context, respData []b
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
+	accountAsset := accountBalanceAsset(resp.RelationEvent)
+	if accountAsset == asset.Empty {
+		return e.Websocket.DataHandler.Send(ctx, &resp)
+	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(accountAsset, "")}
 	subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
 		Total:     resp.Total,
 		Hold:      resp.Hold,
@@ -641,6 +645,22 @@ func (e *Exchange) processAccountBalanceChange(ctx context.Context, respData []b
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, subAccts)
+}
+
+// accountBalanceAsset maps KuCoin account families to GCT assets while leaving
+// funding and unknown accounts unclassified so their raw events remain visible.
+func accountBalanceAsset(accountTypeOrEvent string) asset.Item {
+	accountType, _, _ := strings.Cut(accountTypeOrEvent, ".")
+	switch {
+	case accountType == "trade", accountType == "trade_hf":
+		return asset.Spot
+	case accountType == "margin", accountType == "marginV2", accountType == "margin_v2",
+		accountType == kucoinIsolated, accountType == "isolated_v2",
+		strings.HasPrefix(accountType, "isolated_"), strings.HasPrefix(accountType, "isolatedV2_"):
+		return asset.Margin
+	default:
+		return asset.Empty
+	}
 }
 
 // processOrderChangeEvent processes order update events.
