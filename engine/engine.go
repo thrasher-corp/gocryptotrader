@@ -349,19 +349,8 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	if bot.Settings.EnableNTPClient {
-		if bot.Config.NTPClient.Level == 0 {
-			responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
-			if err != nil {
-				return fmt.Errorf("unable to set NTP check: %w", err)
-			}
-			gctlog.Infoln(gctlog.TimeMgr, responseMessage)
-		}
-		if n, err := setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
-			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
-		} else {
-			bot.ntpManager = n
-		}
+	if err := bot.setupNTPClient(runtimeCtx, os.Stdin); err != nil {
+		return err
 	}
 
 	bot.uptime = time.Now()

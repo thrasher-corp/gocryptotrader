@@ -21,7 +21,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -35,7 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var testExchange = "Bitstamp"
@@ -148,7 +146,7 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		},
 		{
 			Subsystem:    NTPManagerName,
-			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: convert.BoolPtr(false)}}},
+			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  errNilNTPConfigValues,
 			DisableError: ErrNilSubsystem,
 		},
@@ -206,6 +204,33 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			require.ErrorIs(t, err, tt.DisableError)
 		})
 	}
+}
+
+func TestSetSubsystemNTPManagerRoundTrip(t *testing.T) {
+	cfg := &config.Config{NTPClient: config.NTPClientConfig{Level: config.NTPClientPeriodic}}
+	cfg.CheckNTPConfig()
+	bot := &Engine{Config: cfg}
+
+	status, ok := bot.GetSubsystemsStatus()["ntp_timekeeper"]
+	require.True(t, ok, "subsystem status must retain the ntp_timekeeper key")
+	assert.False(t, status, "NTP manager should initially be stopped")
+
+	require.NoError(t, bot.SetSubsystem(NTPManagerName, true), "NTP manager subsystem must start")
+	registerNTPManagerCleanup(t, bot.ntpManager)
+	assert.True(t, bot.GetSubsystemsStatus()["ntp_timekeeper"], "ntp_timekeeper status should report running")
+
+	require.NoError(t, bot.SetSubsystem(NTPManagerName, false), "NTP manager subsystem must stop")
+	assert.False(t, bot.GetSubsystemsStatus()["ntp_timekeeper"], "ntp_timekeeper status should report stopped")
+}
+
+func TestSetSubsystemNTPManagerRejectsNonPeriodicLevel(t *testing.T) {
+	cfg := &config.Config{NTPClient: config.NTPClientConfig{Level: config.NTPClientStartup}}
+	cfg.CheckNTPConfig()
+	bot := &Engine{Config: cfg}
+
+	err := bot.SetSubsystem("ntp_timekeeper", true)
+	assert.ErrorIs(t, err, errNTPManagerDisabled, "non-periodic subsystem enable should return errNTPManagerDisabled")
+	assert.False(t, bot.GetSubsystemsStatus()["ntp_timekeeper"], "non-periodic NTP manager should remain stopped")
 }
 
 func TestSetSubsystemEnableDeniedAfterShutdownRequest(t *testing.T) {
