@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	wsmetrics "github.com/thrasher-corp/gocryptotrader/exchange/websocket/metrics"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -772,6 +773,9 @@ func (bot *Engine) Stop() {
 
 	// Wait for services to gracefully shutdown
 	bot.ServicesWG.Wait()
+	for _, line := range wsmetrics.OrderbookSyncSummaryLines() {
+		gctlog.Infof(gctlog.Global, "%s", line)
+	}
 	gctlog.Infoln(gctlog.Global, "Exiting.")
 	if err := gctlog.CloseLogger(); err != nil {
 		log.Printf("Failed to close logger. Error: %v\n", err)

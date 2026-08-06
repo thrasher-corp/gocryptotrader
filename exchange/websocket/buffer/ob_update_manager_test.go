@@ -3,6 +3,7 @@ package buffer
 import (
 	"context"
 	"errors"
+	"expvar"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
+
+var errTestDesyncReason = errors.New("test desync")
 
 func newTestParams() UpdateManagerParams {
 	return UpdateManagerParams{
@@ -421,6 +424,55 @@ func TestHandleDesync(t *testing.T) {
 		"handleDesync must panic with desync details when diagnostic mode is enabled")
 }
 
+func TestOrderbookDesyncReason(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		err    error
+		reason string
+	}{
+		{
+			name:   "snapshot_outdated",
+			err:    ErrOrderbookSnapshotOutdated,
+			reason: "snapshot_outdated",
+		},
+		{
+			name:   "generic_desync",
+			err:    errTestDesyncReason,
+			reason: "desync",
+		},
+		{
+			name:   "sequence_gap",
+			reason: "sequence_gap",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.reason, orderbookDesyncReason(tc.err), "reason should match desync input")
+		})
+	}
+}
+
+func TestRecordResyncResult(t *testing.T) {
+	t.Parallel()
+
+	tp := newTestParams()
+	tp.RecordMetrics = true
+	m := NewUpdateManager(&tp)
+	pair := currency.NewPair(currency.XRP, currency.USDT)
+
+	m.recordResyncResult(true, pair, asset.Spot, "succeeded")
+	m.recordResyncResult(false, pair, asset.Spot, "ignored")
+
+	got := expvar.Get("gct_websocket_orderbook_resync_total").String()
+	assert.Contains(t, got, `"exchange=TestExchange,asset=spot,pair=XRPUSDT,channel=orderbook,result=succeeded": 1`, "resync result metric should be recorded")
+	assert.NotContains(t, got, `"exchange=TestExchange,asset=spot,pair=XRPUSDT,channel=orderbook,result=ignored"`, "resync result metric should not be recorded when resync is false")
+}
+
 func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
 	t.Parallel()
 
@@ -478,8 +530,8 @@ func TestInitialiseOrderbookCache(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	cache := &updateCache{}
+	m.initialiseOrderbookCache(ctx, 1337, update, cache, false)
 	cache.m.Lock()
-	m.initialiseOrderbookCache(ctx, 1337, update, cache)
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be queuing")
 	require.NotEmpty(t, cache.updates, "updates must have queued update")
 	cache.m.Unlock()
@@ -514,9 +566,10 @@ func TestInvalidateCache(t *testing.T) {
 		AllowEmpty: true,
 		UpdateID:   1338,
 		UpdateTime: time.Now(),
-	}, cache)
+	}, cache, "test")
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "invalidateCache must error but still trigger syncOrderbook")
 
+	cache.m.Lock()
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be uninitialised after invalidateCache")
 	require.NotEmpty(t, cache.updates, "updates must not be empty after invalidateCache")
 	cache.m.Unlock()
@@ -542,26 +595,26 @@ func TestSyncOrderbook(t *testing.T) {
 	ctxCancel, cancel := context.WithCancel(t.Context())
 	cancel()
 	m.delay = time.Millisecond * 10
-	err := m.syncOrderbook(ctxCancel, cache, pair, asset.Spot)
+	err := m.syncOrderbook(ctxCancel, cache, pair, asset.Spot, false)
 	require.ErrorIs(t, err, context.Canceled, "must error due to context cancellation on select case")
 
 	m.fetchOrderbook = fetchOrderbookNotFoundError
-	err = m.syncOrderbook(t.Context(), cache, currency.NewBTCUSD(), asset.Spot)
+	err = m.syncOrderbook(t.Context(), cache, currency.NewBTCUSD(), asset.Spot, false)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "must error due to depth not found when calling fetch orderbook")
 
 	m.deadline = time.Millisecond * 10
 	m.fetchOrderbook = fetchOrderbookFailure
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false)
 	require.ErrorIs(t, err, context.DeadlineExceeded, "must error due to deadline exceeded when waiting for update")
 
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1337}}}
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false)
 	require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet, "must error due to orderbook invalid when loading snapshot")
 
 	m.fetchOrderbook = fetchOrderbookMock
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: 1337, AllowEmpty: true, UpdateTime: time.Now()}}}
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures, false)
 	require.NoError(t, err)
 }
 
@@ -584,7 +637,7 @@ func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
 		state: cacheStateQueuing,
 	}
 
-	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures)
+	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures, false)
 	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "syncOrderbook must surface applyPendingUpdates errors")
 	assert.Equal(t, cacheStateInitialised, cache.state, "syncOrderbook should reset cache state on pending update failures")
 	assert.Empty(t, cache.updates, "syncOrderbook should clear pending updates after failure")

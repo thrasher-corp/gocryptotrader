@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/metrics"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -800,6 +801,9 @@ func (m *Manager) shutdown() error {
 
 	if m.verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", m.exchangeName)
+	}
+	for _, line := range metrics.OrderbookSyncSummaryLinesForExchange(m.exchangeName) {
+		log.Infof(log.Global, "%s", line)
 	}
 
 	// Drain residual error in the single buffered channel, this mitigates

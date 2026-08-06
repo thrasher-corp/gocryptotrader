@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/metrics"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -45,6 +46,7 @@ type UpdateManager struct {
 	checkPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
 	checkLiveUpdates   bool
 	panicOnDesync      bool
+	recordMetrics      bool
 	ob                 *Orderbook
 }
 
@@ -90,7 +92,9 @@ type UpdateManagerParams struct {
 	CheckLiveUpdates bool
 	// PanicOnDesync intentionally crashes on live sequence gaps so short-lived investigations can capture the exact
 	// exchange, pair, asset and sequence IDs causing an orderbook resync.
-	PanicOnDesync  bool
+	PanicOnDesync bool
+	// RecordMetrics emits expvar counters for orderbook desyncs and resync outcomes.
+	RecordMetrics  bool
 	BufferInstance *Orderbook // TODO: Integrate directly with orderbook struct
 }
 
@@ -120,6 +124,7 @@ func NewUpdateManager(params *UpdateManagerParams) *UpdateManager {
 		checkPendingUpdate: params.CheckPendingUpdate,
 		checkLiveUpdates:   params.CheckLiveUpdates,
 		panicOnDesync:      params.PanicOnDesync,
+		recordMetrics:      params.RecordMetrics,
 		ob:                 params.BufferInstance,
 	}
 }
@@ -137,7 +142,7 @@ func (m *UpdateManager) ProcessOrderbookUpdate(ctx context.Context, firstUpdateI
 	case cacheStateSynced:
 		return m.applyUpdate(ctx, cache, firstUpdateID, update)
 	case cacheStateInitialised:
-		m.initialiseOrderbookCache(ctx, firstUpdateID, update, cache)
+		m.initialiseOrderbookCache(ctx, firstUpdateID, update, cache, false)
 	case cacheStateQueuing:
 		cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
 		select {
@@ -177,7 +182,7 @@ func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, fir
 	lastUpdateID, err := m.ob.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
-		return m.invalidateCache(ctx, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, "last_update_id")
 	}
 	if m.checkLiveUpdates {
 		skip, err := m.checkPendingUpdate(lastUpdateID, firstUpdateID, update)
@@ -192,12 +197,25 @@ func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, fir
 	}
 	if err := m.ob.Update(update); err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
-		return m.invalidateCache(ctx, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, "update_failed")
 	}
 	return nil
 }
 
 func (m *UpdateManager) handleDesync(ctx context.Context, cache *updateCache, firstUpdateID int64, update *orderbook.Update, lastUpdateID int64, reason error) error {
+	metricReason := orderbookDesyncReason(reason)
+	if m.recordMetrics {
+		metrics.RecordOrderbookDesync(&metrics.OrderbookSyncEvent{
+			Exchange:      m.ob.exchangeName,
+			Pair:          update.Pair,
+			Asset:         update.Asset,
+			Channel:       "orderbook",
+			Reason:        metricReason,
+			LastUpdateID:  lastUpdateID,
+			FirstUpdateID: firstUpdateID,
+			UpdateID:      update.UpdateID,
+		})
+	}
 	if m.panicOnDesync {
 		if reason != nil {
 			panic(fmt.Sprintf("%s websocket orderbook manager desync for %v %v: last update ID %d, first update ID %d, update ID %d: %v", m.ob.exchangeName, update.Pair, update.Asset, lastUpdateID, firstUpdateID, update.UpdateID, reason))
@@ -207,17 +225,27 @@ func (m *UpdateManager) handleDesync(ctx context.Context, cache *updateCache, fi
 	if m.ob.verbose { // disconnection will pollute logs
 		log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: desync detected", m.ob.exchangeName, update.Pair, update.Asset)
 	}
-	return m.invalidateCache(ctx, firstUpdateID, update, cache)
+	return m.invalidateCache(ctx, firstUpdateID, update, cache, metricReason)
+}
+
+func orderbookDesyncReason(reason error) string {
+	if errors.Is(reason, ErrOrderbookSnapshotOutdated) {
+		return "snapshot_outdated"
+	}
+	if reason != nil {
+		return "desync"
+	}
+	return "sequence_gap"
 }
 
 // initialiseOrderbookCache sets the cache state to queuing, appends the update to the cache and spawns a goroutine
 // to fetch and synchronise the orderbook snapshot
 // assumes lock already active on cache
-func (m *UpdateManager) initialiseOrderbookCache(ctx context.Context, firstUpdateID int64, update *orderbook.Update, cache *updateCache) {
+func (m *UpdateManager) initialiseOrderbookCache(ctx context.Context, firstUpdateID int64, update *orderbook.Update, cache *updateCache, resync bool) {
 	cache.state = cacheStateQueuing
 	cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
 	go func() {
-		if err := m.syncOrderbook(ctx, cache, update.Pair, update.Asset); err != nil {
+		if err := m.syncOrderbook(ctx, cache, update.Pair, update.Asset, resync); err != nil {
 			log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
 		}
 	}()
@@ -225,19 +253,30 @@ func (m *UpdateManager) initialiseOrderbookCache(ctx context.Context, firstUpdat
 
 // invalidateCache invalidates the existing orderbook, clears the update queue and reinitialises the orderbook cache
 // assumes lock already active on cache
-func (m *UpdateManager) invalidateCache(ctx context.Context, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
+func (m *UpdateManager) invalidateCache(ctx context.Context, firstUpdateID int64, update *orderbook.Update, cache *updateCache, reason string) error {
 	err := m.ob.InvalidateOrderbook(update.Pair, update.Asset)
-	m.initialiseOrderbookCache(ctx, firstUpdateID, update, cache)
+	if m.recordMetrics {
+		metrics.RecordOrderbookResync(&metrics.OrderbookSyncEvent{
+			Exchange: m.ob.exchangeName,
+			Pair:     update.Pair,
+			Asset:    update.Asset,
+			Channel:  "orderbook",
+			Reason:   reason,
+			Result:   "started",
+		})
+	}
+	m.initialiseOrderbookCache(ctx, firstUpdateID, update, cache, true)
 	return err
 }
 
 // syncOrderbook fetches and synchronises an orderbook snapshot so that pending updates can be applied to the orderbook.
-func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, pair currency.Pair, a asset.Item) error {
+func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, pair currency.Pair, a asset.Item, resync bool) error {
 	// REST requests can be behind websocket updates by a large margin, so we wait here to allow the cache to fill with
 	// updates before we fetch the orderbook snapshot.
 	select {
 	case <-ctx.Done():
 		cache.clearPendingUpdatesWithLock()
+		m.recordResyncResult(resync, pair, a, "failed")
 		return ctx.Err()
 	case <-time.After(m.delay):
 	}
@@ -253,22 +292,26 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		book, err = m.fetchOrderbook(ctx, pair, a)
 		if err != nil {
 			cache.clearWithLock()
+			m.recordResyncResult(resync, pair, a, "failed")
 			return err
 		}
 
 		if err := cache.waitForUpdate(ctx, book.LastUpdateID+1); err != nil {
 			cache.clearWithLock()
+			m.recordResyncResult(resync, pair, a, "failed")
 			return err
 		}
 
 		if err := m.checkSnapshotCanApply(cache, book.LastUpdateID); err != nil {
 			if !errors.Is(err, ErrOrderbookSnapshotOutdated) {
 				cache.clearWithLock()
+				m.recordResyncResult(resync, pair, a, "failed")
 				return err
 			}
 			select {
 			case <-ctx.Done():
 				cache.clearWithLock()
+				m.recordResyncResult(resync, pair, a, "failed")
 				return ctx.Err()
 			case <-time.After(m.retryDelay):
 				continue
@@ -279,6 +322,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 
 	if err := m.ob.LoadSnapshot(book); err != nil {
 		cache.clearWithLock()
+		m.recordResyncResult(resync, pair, a, "failed")
 		return err
 	}
 
@@ -290,10 +334,25 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 
 	if err := m.applyPendingUpdates(cache); err != nil {
 		cache.resetStateNoLock()
+		m.recordResyncResult(resync, pair, a, "failed")
 		return common.AppendError(err, m.ob.InvalidateOrderbook(pair, a))
 	}
 
+	m.recordResyncResult(resync, pair, a, "succeeded")
 	return nil
+}
+
+func (m *UpdateManager) recordResyncResult(resync bool, pair currency.Pair, a asset.Item, result string) {
+	if !m.recordMetrics || !resync {
+		return
+	}
+	metrics.RecordOrderbookResync(&metrics.OrderbookSyncEvent{
+		Exchange: m.ob.exchangeName,
+		Pair:     pair,
+		Asset:    a,
+		Channel:  "orderbook",
+		Result:   result,
+	})
 }
 
 func (m *UpdateManager) checkSnapshotCanApply(cache *updateCache, lastUpdateID int64) error {

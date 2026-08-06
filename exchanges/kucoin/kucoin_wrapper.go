@@ -179,7 +179,7 @@ func (e *Exchange) SetDefaults() {
 		OutdatedSnapshotRetryDelay: buffer.DefaultWSOrderbookOutdatedSnapshotRetryWait,
 		CheckPendingUpdate:         checkPendingUpdate,
 		CheckLiveUpdates:           true,
-		PanicOnDesync:              true,
+		RecordMetrics:              true,
 		BufferInstance:             &e.Websocket.Orderbook,
 	})
 }
@@ -495,16 +495,15 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			})
 		}
 	case asset.Spot, asset.Margin:
-		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, "")
+		accountType, err := spotMarginBalanceAccountType(assetType)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, accountType)
 		if err != nil {
 			return nil, err
 		}
 		for i := range resp {
-			if resp[i].AccountType == "margin" && assetType == asset.Spot {
-				continue
-			} else if resp[i].AccountType == "trade" && assetType == asset.Margin {
-				continue
-			}
 			subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
 				Total: resp[i].Balance.Float64(),
 				Hold:  resp[i].Holds.Float64(),
@@ -515,6 +514,17 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+}
+
+func spotMarginBalanceAccountType(assetType asset.Item) (string, error) {
+	switch assetType {
+	case asset.Spot:
+		return "trade", nil
+	case asset.Margin:
+		return "margin", nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

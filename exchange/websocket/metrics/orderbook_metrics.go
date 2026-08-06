@@ -1,0 +1,366 @@
+package metrics
+
+import (
+	"expvar"
+	"fmt"
+	"maps"
+	"sort"
+	"strings"
+	"sync"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+var (
+	orderbookDesyncMetric    = expvar.NewMap("gct_websocket_orderbook_desync_total")
+	orderbookDesyncGapMetric = expvar.NewMap("gct_websocket_orderbook_desync_gap_total")
+	orderbookResyncMetric    = expvar.NewMap("gct_websocket_orderbook_resync_total")
+)
+
+var orderbookSyncStats = orderbookSyncStore{
+	lookup: make(map[orderbookSyncKey]*orderbookSyncCounts),
+}
+
+type orderbookSyncStore struct {
+	sync.Mutex
+	lookup map[orderbookSyncKey]*orderbookSyncCounts
+}
+
+type orderbookSyncKey struct {
+	exchange string
+	pair     string
+	asset    string
+	channel  string
+}
+
+type orderbookSyncCounts struct {
+	desyncs             int64
+	sequenceGapTotal    int64
+	resyncStarted       int64
+	resyncRequested     int64
+	resyncSucceeded     int64
+	resyncFailed        int64
+	resyncRequestFailed int64
+	reasons             map[string]int64
+}
+
+// OrderbookSyncSummary contains aggregated orderbook desync and resync metrics.
+type OrderbookSyncSummary struct {
+	Items              []OrderbookSyncSummaryItem
+	TotalDesyncs       int64
+	TotalSequenceGap   int64
+	TotalDroppedBooks  int64
+	TotalResyncSuccess int64
+	TotalResyncFailure int64
+	WorstOffender      *OrderbookSyncSummaryItem
+}
+
+// OrderbookSyncSummaryItem contains orderbook desync and resync metrics for one exchange/pair/asset/channel.
+type OrderbookSyncSummaryItem struct {
+	Exchange            string
+	Pair                string
+	Asset               string
+	Channel             string
+	Desyncs             int64
+	SequenceGapTotal    int64
+	DroppedOrderbooks   int64
+	ResyncStarted       int64
+	ResyncRequested     int64
+	ResyncSucceeded     int64
+	ResyncFailed        int64
+	ResyncRequestFailed int64
+	Reasons             map[string]int64
+}
+
+// OrderbookSyncEvent identifies an orderbook desync or resync metric event.
+type OrderbookSyncEvent struct {
+	Exchange      string
+	Pair          currency.Pair
+	Asset         asset.Item
+	Channel       string
+	Reason        string
+	Result        string
+	LastUpdateID  int64
+	FirstUpdateID int64
+	UpdateID      int64
+}
+
+// RecordOrderbookDesync increments the websocket orderbook desync metric.
+func RecordOrderbookDesync(event *OrderbookSyncEvent) {
+	if event == nil {
+		return
+	}
+	orderbookDesyncMetric.Add(formatOrderbookSyncMetricKey(event), 1)
+	gap := event.FirstUpdateID - event.LastUpdateID - 1
+	if gap > 0 {
+		orderbookDesyncGapMetric.Add(formatOrderbookSyncMetricKey(event), gap)
+	}
+	recordOrderbookSyncDesync(event, gap)
+}
+
+// RecordOrderbookResync increments the websocket orderbook resync metric.
+func RecordOrderbookResync(event *OrderbookSyncEvent) {
+	if event == nil {
+		return
+	}
+	orderbookResyncMetric.Add(formatOrderbookSyncMetricKey(event), 1)
+	recordOrderbookSyncResync(event)
+}
+
+// SnapshotOrderbookSyncSummary returns a stable snapshot of websocket orderbook sync metrics.
+func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
+	orderbookSyncStats.Lock()
+	defer orderbookSyncStats.Unlock()
+
+	items := make([]OrderbookSyncSummaryItem, 0, len(orderbookSyncStats.lookup))
+	for key, counts := range orderbookSyncStats.lookup {
+		item := OrderbookSyncSummaryItem{
+			Exchange:            key.exchange,
+			Pair:                key.pair,
+			Asset:               key.asset,
+			Channel:             key.channel,
+			Desyncs:             counts.desyncs,
+			SequenceGapTotal:    counts.sequenceGapTotal,
+			DroppedOrderbooks:   counts.resyncStarted + counts.resyncRequested + counts.resyncRequestFailed,
+			ResyncStarted:       counts.resyncStarted,
+			ResyncRequested:     counts.resyncRequested,
+			ResyncSucceeded:     counts.resyncSucceeded,
+			ResyncFailed:        counts.resyncFailed,
+			ResyncRequestFailed: counts.resyncRequestFailed,
+			Reasons:             make(map[string]int64, len(counts.reasons)),
+		}
+		maps.Copy(item.Reasons, counts.reasons)
+		items = append(items, item)
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].DroppedOrderbooks != items[j].DroppedOrderbooks {
+			return items[i].DroppedOrderbooks > items[j].DroppedOrderbooks
+		}
+		if items[i].Desyncs != items[j].Desyncs {
+			return items[i].Desyncs > items[j].Desyncs
+		}
+		if items[i].SequenceGapTotal != items[j].SequenceGapTotal {
+			return items[i].SequenceGapTotal > items[j].SequenceGapTotal
+		}
+		return items[i].label() < items[j].label()
+	})
+
+	summary := OrderbookSyncSummary{Items: items}
+	for i := range items {
+		summary.TotalDesyncs += items[i].Desyncs
+		summary.TotalSequenceGap += items[i].SequenceGapTotal
+		summary.TotalDroppedBooks += items[i].DroppedOrderbooks
+		summary.TotalResyncSuccess += items[i].ResyncSucceeded
+		summary.TotalResyncFailure += items[i].ResyncFailed + items[i].ResyncRequestFailed
+	}
+	if len(items) != 0 {
+		summary.WorstOffender = &summary.Items[0]
+	}
+	return summary
+}
+
+// OrderbookSyncSummaryLines returns a readable shutdown summary of orderbook sync metrics.
+func OrderbookSyncSummaryLines() []string {
+	summary := SnapshotOrderbookSyncSummary()
+	if len(summary.Items) == 0 {
+		return []string{"Websocket orderbook sync summary: dropped_orderbooks=0 desyncs=0 sequence_gap_total=0 resync_success=0 resync_failure=0"}
+	}
+
+	lines := []string{fmt.Sprintf(
+		"Websocket orderbook sync summary: dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d resync_success=%d resync_failure=%d",
+		summary.TotalDroppedBooks,
+		summary.TotalDesyncs,
+		summary.TotalSequenceGap,
+		summary.TotalResyncSuccess,
+		summary.TotalResyncFailure,
+	)}
+	if summary.WorstOffender != nil {
+		lines = append(lines, fmt.Sprintf(
+			"Worst dropped orderbook offender: %s dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d top_reason=%s",
+			summary.WorstOffender.label(),
+			summary.WorstOffender.DroppedOrderbooks,
+			summary.WorstOffender.Desyncs,
+			summary.WorstOffender.SequenceGapTotal,
+			summary.WorstOffender.topReason(),
+		))
+	}
+
+	limit := min(len(summary.Items), 5)
+	for i := range limit {
+		item := summary.Items[i]
+		lines = append(lines, fmt.Sprintf(
+			"Orderbook sync #%d: %s dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d resync[started=%d requested=%d succeeded=%d failed=%d request_failed=%d] reasons=%s",
+			i+1,
+			item.label(),
+			item.DroppedOrderbooks,
+			item.Desyncs,
+			item.SequenceGapTotal,
+			item.ResyncStarted,
+			item.ResyncRequested,
+			item.ResyncSucceeded,
+			item.ResyncFailed,
+			item.ResyncRequestFailed,
+			item.reasonSummary(),
+		))
+	}
+	return lines
+}
+
+// OrderbookSyncSummaryLinesForExchange returns a readable shutdown summary for one exchange.
+func OrderbookSyncSummaryLinesForExchange(exchangeName string) []string {
+	if exchangeName == "" {
+		return OrderbookSyncSummaryLines()
+	}
+	summary := SnapshotOrderbookSyncSummary()
+	var items []OrderbookSyncSummaryItem
+	for i := range summary.Items {
+		if summary.Items[i].Exchange == exchangeName {
+			items = append(items, summary.Items[i])
+		}
+	}
+	if len(items) == 0 {
+		return []string{fmt.Sprintf("Websocket orderbook sync summary for %s: dropped_orderbooks=0 desyncs=0 sequence_gap_total=0 resync_success=0 resync_failure=0", exchangeName)}
+	}
+
+	var totalDesyncs, totalSequenceGap, totalDroppedBooks, totalResyncSuccess, totalResyncFailure int64
+	for i := range items {
+		totalDesyncs += items[i].Desyncs
+		totalSequenceGap += items[i].SequenceGapTotal
+		totalDroppedBooks += items[i].DroppedOrderbooks
+		totalResyncSuccess += items[i].ResyncSucceeded
+		totalResyncFailure += items[i].ResyncFailed + items[i].ResyncRequestFailed
+	}
+
+	lines := []string{fmt.Sprintf(
+		"Websocket orderbook sync summary for %s: dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d resync_success=%d resync_failure=%d",
+		exchangeName,
+		totalDroppedBooks,
+		totalDesyncs,
+		totalSequenceGap,
+		totalResyncSuccess,
+		totalResyncFailure,
+	)}
+	limit := min(len(items), 3)
+	for i := range limit {
+		item := items[i]
+		lines = append(lines, fmt.Sprintf(
+			"Orderbook sync %s #%d: pair=%s asset=%s channel=%s dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d resync[started=%d requested=%d succeeded=%d failed=%d request_failed=%d] reasons=%s",
+			exchangeName,
+			i+1,
+			item.Pair,
+			item.Asset,
+			item.Channel,
+			item.DroppedOrderbooks,
+			item.Desyncs,
+			item.SequenceGapTotal,
+			item.ResyncStarted,
+			item.ResyncRequested,
+			item.ResyncSucceeded,
+			item.ResyncFailed,
+			item.ResyncRequestFailed,
+			item.reasonSummary(),
+		))
+	}
+	return lines
+}
+
+func recordOrderbookSyncDesync(event *OrderbookSyncEvent, gap int64) {
+	orderbookSyncStats.Lock()
+	defer orderbookSyncStats.Unlock()
+
+	counts := orderbookSyncStats.load(event)
+	counts.desyncs++
+	if gap > 0 {
+		counts.sequenceGapTotal += gap
+	}
+	reason := event.Reason
+	if reason == "" {
+		reason = "unknown"
+	}
+	counts.reasons[reason]++
+}
+
+func recordOrderbookSyncResync(event *OrderbookSyncEvent) {
+	orderbookSyncStats.Lock()
+	defer orderbookSyncStats.Unlock()
+
+	counts := orderbookSyncStats.load(event)
+	switch event.Result {
+	case "started":
+		counts.resyncStarted++
+	case "requested":
+		counts.resyncRequested++
+	case "succeeded":
+		counts.resyncSucceeded++
+	case "failed":
+		counts.resyncFailed++
+	case "request_failed":
+		counts.resyncRequestFailed++
+	}
+}
+
+func (s *orderbookSyncStore) load(event *OrderbookSyncEvent) *orderbookSyncCounts {
+	key := orderbookSyncKey{
+		exchange: event.Exchange,
+		pair:     event.Pair.String(),
+		asset:    event.Asset.String(),
+		channel:  event.Channel,
+	}
+	counts, ok := s.lookup[key]
+	if !ok {
+		counts = &orderbookSyncCounts{reasons: make(map[string]int64)}
+		s.lookup[key] = counts
+	}
+	return counts
+}
+
+func (i *OrderbookSyncSummaryItem) label() string {
+	return fmt.Sprintf("exchange=%s pair=%s asset=%s channel=%s", i.Exchange, i.Pair, i.Asset, i.Channel)
+}
+
+func (i *OrderbookSyncSummaryItem) topReason() string {
+	var reason string
+	var count int64
+	for r, c := range i.Reasons {
+		if c > count || c == count && r < reason {
+			reason = r
+			count = c
+		}
+	}
+	if reason == "" {
+		return "none"
+	}
+	return fmt.Sprintf("%s:%d", reason, count)
+}
+
+func (i *OrderbookSyncSummaryItem) reasonSummary() string {
+	if len(i.Reasons) == 0 {
+		return "none"
+	}
+	reasons := make([]string, 0, len(i.Reasons))
+	for reason, count := range i.Reasons {
+		reasons = append(reasons, fmt.Sprintf("%s:%d", reason, count))
+	}
+	sort.Strings(reasons)
+	return strings.Join(reasons, ",")
+}
+
+func formatOrderbookSyncMetricKey(event *OrderbookSyncEvent) string {
+	parts := []string{
+		"exchange=" + event.Exchange,
+		"asset=" + event.Asset.String(),
+		"pair=" + event.Pair.String(),
+	}
+	if event.Channel != "" {
+		parts = append(parts, "channel="+event.Channel)
+	}
+	if event.Reason != "" {
+		parts = append(parts, "reason="+event.Reason)
+	}
+	if event.Result != "" {
+		parts = append(parts, "result="+event.Result)
+	}
+	return strings.Join(parts, ",")
+}
