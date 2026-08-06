@@ -40,6 +40,11 @@ func TestCrossExchangeSymbolIdentifier(t *testing.T) {
 			symbol:   newCrossExchangeSymbol("OKX", asset.Futures, currency.NewPair(currency.ETH, currency.USDT)),
 			expected: "OKX_FUTURE_ETH_USDT",
 		},
+		{
+			name:     "venue listed after this was written",
+			symbol:   newCrossExchangeSymbol("newvenue", asset.Spot, currency.NewBTCUSDT()),
+			expected: "NEWVENUE_SPOT_BTC_USDT",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -57,48 +62,75 @@ func TestCrossExchangeSymbolIdentifier(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		symbol      CrossExchangeSymbolIdentifier
+		rendered    string
 		expectedErr error
 	}{
-		{name: "missing exchange", symbol: CrossExchangeSymbolIdentifier{Asset: asset.Spot, Pair: currency.NewBTCUSDT()}, expectedErr: errCrossExchangeExchangeTypeRequired},
-		{name: "unsupported exchange", symbol: newCrossExchangeSymbol("UNSUPPORTED", asset.Spot, currency.NewBTCUSDT()), expectedErr: errCrossExchangeExchangeTypeInvalid},
-		{name: "missing pair", symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Spot}, expectedErr: currency.ErrCurrencyPairEmpty},
-		{name: "unsupported asset", symbol: newCrossExchangeSymbol("BINANCE", asset.Options, currency.NewBTCUSDT()), expectedErr: asset.ErrNotSupported},
-		{name: "Bybit margin", symbol: newCrossExchangeSymbol("BYBIT", asset.Margin, currency.NewBTCUSDT()), expectedErr: asset.ErrNotSupported},
-		{name: "Kraken spot", symbol: newCrossExchangeSymbol("KRAKEN", asset.Spot, currency.NewBTCUSDT()), expectedErr: asset.ErrNotSupported},
+		{name: "missing exchange", symbol: CrossExchangeSymbolIdentifier{Asset: asset.Spot, Pair: currency.NewBTCUSDT()}, rendered: "_SPOT_BTC_USDT", expectedErr: errCrossExchangeExchangeTypeRequired},
+		{name: "missing pair", symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Spot}, rendered: "BINANCE_SPOT__", expectedErr: currency.ErrCurrencyPairEmpty},
+		{name: "unsupported asset", symbol: newCrossExchangeSymbol("BINANCE", asset.Options, currency.NewBTCUSDT()), rendered: "BINANCE_OPTIONS_BTC_USDT", expectedErr: asset.ErrNotSupported},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.ErrorIs(t, tc.symbol.Validate(), tc.expectedErr, "Validate must return the expected error")
 			_, err := tc.symbol.Format()
 			require.ErrorIs(t, err, tc.expectedErr, "Format must return the expected error")
+			_, err = json.Marshal(tc.symbol)
+			require.ErrorIs(t, err, tc.expectedErr, "Marshal must return the expected error")
+			assert.Equal(t, tc.rendered, tc.symbol.String(), "String should render the fields that are set rather than hide them")
 		})
 	}
 }
 
-func TestFormatCrossExchangeSymbol(t *testing.T) {
+func TestCrossExchangeSymbolIdentifierIsEmpty(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		symbol   CrossExchangeSymbolIdentifier
+		expected bool
+	}{
+		{name: "zero value", symbol: CrossExchangeSymbolIdentifier{}, expected: true},
+		{name: "whitespace exchange", symbol: CrossExchangeSymbolIdentifier{Exchange: "   "}, expected: true},
+		{name: "exchange only", symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE"}},
+		{name: "asset only", symbol: CrossExchangeSymbolIdentifier{Asset: asset.Spot}},
+		{name: "pair only", symbol: CrossExchangeSymbolIdentifier{Pair: currency.NewBTCUSDT()}},
+		// A half-populated pair must count as present so it reaches Format and is rejected there, rather than being skipped as absent.
+		{name: "pair base only", symbol: CrossExchangeSymbolIdentifier{Pair: currency.Pair{Base: currency.BTC}}},
+		{name: "pair quote only", symbol: CrossExchangeSymbolIdentifier{Pair: currency.Pair{Quote: currency.USDT}}},
+		{name: "fully populated", symbol: newCrossExchangeSymbol("BINANCE", asset.Spot, currency.NewBTCUSDT())},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, tc.symbol.IsEmpty(), "IsEmpty should return the expected result")
+		})
+	}
+}
+
+func TestFormatCrossExchangeSymbols(t *testing.T) {
 	t.Parallel()
 	futureSymbol := newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())
 
-	formatted, err := formatCrossExchangeSymbol(CrossExchangeSymbolIdentifier{}, "OKX", "SPOT")
-	require.NoError(t, err, "formatCrossExchangeSymbol must allow independent filters without a symbol")
-	assert.Empty(t, formatted, "formatted symbol should be empty")
+	formatted, err := formatCrossExchangeSymbols(nil)
+	require.NoError(t, err, "formatCrossExchangeSymbols must not error without symbols")
+	assert.Empty(t, formatted, "formatted symbols should be empty")
 
-	_, err = formatCrossExchangeSymbol(futureSymbol, "OKX", "FUTURE")
-	require.ErrorIs(t, err, errCrossExchangeExchangeTypeMismatch, "formatCrossExchangeSymbol must reject a conflicting exchange filter")
+	_, err = formatCrossExchangeSymbols([]CrossExchangeSymbolIdentifier{futureSymbol, {}})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "formatCrossExchangeSymbols must reject an empty symbol")
+	assert.ErrorContains(t, err, "index 1", "error should identify the offending symbol")
 
-	_, err = formatCrossExchangeSymbol(futureSymbol, "BINANCE", "SPOT")
-	require.ErrorIs(t, err, errCrossExchangeBusinessTypeMismatch, "formatCrossExchangeSymbol must reject a conflicting business filter")
+	_, err = formatCrossExchangeSymbols([]CrossExchangeSymbolIdentifier{futureSymbol, {Exchange: "BINANCE", Asset: asset.Spot}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "formatCrossExchangeSymbols must reject a symbol it cannot format")
+	assert.ErrorContains(t, err, "index 1", "error should identify the offending symbol")
 
-	_, err = formatCrossExchangeSymbol(futureSymbol, "BINANCE", "FUTURE", asset.Margin)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "formatCrossExchangeSymbol must reject an unsupported endpoint asset")
-
-	formatted, err = formatCrossExchangeSymbol(futureSymbol, "binance", "future", asset.Futures)
-	require.NoError(t, err, "formatCrossExchangeSymbol must accept matching case-insensitive filters")
-	assert.Equal(t, "BINANCE_FUTURE_BTC_USDT", formatted, "formatted symbol should match")
+	formatted, err = formatCrossExchangeSymbols([]CrossExchangeSymbolIdentifier{futureSymbol, newCrossExchangeSymbol("okx", asset.Spot, currency.NewPair(currency.ETH, currency.USDT))})
+	require.NoError(t, err, "formatCrossExchangeSymbols must not error")
+	assert.Equal(t, "BINANCE_FUTURE_BTC_USDT,OKX_SPOT_ETH_USDT", formatted, "formatted symbols should match")
 }
 
 func TestGetCrossExchangeSymbols(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeSymbols(t.Context(), []CrossExchangeSymbolIdentifier{{Exchange: "BINANCE", Asset: asset.Spot}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeSymbols must reject a symbol it cannot format")
+
 	result, err := e.GetCrossExchangeSymbols(t.Context(), []CrossExchangeSymbolIdentifier{
 		newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()),
 	})
@@ -137,9 +169,18 @@ func TestGetCrossExchangeTransferHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossExchangeTransferHistory(t.Context(), nil)
-	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+	result, err := e.GetCrossExchangeTransferHistory(t.Context(), &GetCrossExchangeTransferHistoryRequest{
+		Coin:       currency.USDT,
+		OrderID:    "transfer-001",
+		From:       1744103854,
+		To:         1744190254,
+		PageNumber: 1,
+		Limit:      10,
+	})
+	require.NoError(t, err, "GetCrossExchangeTransferHistory must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeTransferHistory should return transfer records")
+	}
 }
 
 func TestCrossExchangeFundTransfer(t *testing.T) {
@@ -159,7 +200,9 @@ func TestCrossExchangeFundTransfer(t *testing.T) {
 	_, err = e.CrossExchangeFundTransfer(t.Context(), &CrossExchangeTransferRequest{Coin: currency.BTC, Amount: 0.001, From: "spot"})
 	require.ErrorIs(t, err, errCrossExchangeToAccountRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.CrossExchangeFundTransfer(t.Context(), &CrossExchangeTransferRequest{
 		Coin: currency.BTC, Amount: 0.001, From: "spot", To: "crossex",
 	})
@@ -226,7 +269,9 @@ func TestModifyCrossExchangeOrder(t *testing.T) {
 	_, err = e.ModifyCrossExchangeOrder(t.Context(), "20491522002333905922", nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.ModifyCrossExchangeOrder(t.Context(), "20491522002333905922", &CrossExchangeOrderUpdateRequest{Price: 64000})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.OrderID)
@@ -237,7 +282,9 @@ func TestCancelCrossExchangeOrder(t *testing.T) {
 	_, err := e.CancelCrossExchangeOrder(t.Context(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.CancelCrossExchangeOrder(t.Context(), "20491522002333905922")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.OrderID)
@@ -343,7 +390,9 @@ func TestUpdateCrossExchangeAccount(t *testing.T) {
 	_, err := e.UpdateCrossExchangeAccount(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.UpdateCrossExchangeAccount(t.Context(), &CrossExchangeAccountUpdateRequest{
 		PositionMode: "SINGLE",
 		AccountMode:  "CROSS_EXCHANGE",
@@ -355,6 +404,9 @@ func TestUpdateCrossExchangeAccount(t *testing.T) {
 
 func TestGetCrossExchangeContractLeverage(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeContractLeverage(t.Context(), []CrossExchangeSymbolIdentifier{{Exchange: "BINANCE", Asset: asset.Futures}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeContractLeverage must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -400,6 +452,9 @@ func TestSetCrossExchangeContractLeverage(t *testing.T) {
 
 func TestGetCrossExchangeMarginLeverage(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeMarginLeverage(t.Context(), []CrossExchangeSymbolIdentifier{{Exchange: "BINANCE", Asset: asset.Margin}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeMarginLeverage must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -496,6 +551,9 @@ func TestGetCrossExchangeUserFeeRates(t *testing.T) {
 
 func TestGetCrossExchangeContractPositions(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeContractPositions(t.Context(), CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeContractPositions must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -516,6 +574,9 @@ func TestGetCrossExchangeContractPositions(t *testing.T) {
 
 func TestGetCrossExchangeMarginPositions(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeMarginPositions(t.Context(), CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Margin}, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeMarginPositions must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -539,6 +600,9 @@ func TestGetCrossExchangeADLRank(t *testing.T) {
 	_, err := e.GetCrossExchangeADLRank(t.Context(), CrossExchangeSymbolIdentifier{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
+	_, err = e.GetCrossExchangeADLRank(t.Context(), CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeADLRank must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -551,110 +615,127 @@ func TestGetCrossExchangeADLRank(t *testing.T) {
 
 func TestGetCrossExchangeOpenOrders(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeOpenOrders(t.Context(), &GetCrossExchangeOpenOrdersRequest{Symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeOpenOrders must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, arg := range []*GetCrossExchangeOpenOrdersRequest{
-		nil,
-		{
-			Symbol:       newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()),
-			ExchangeType: "BINANCE",
-			BusinessType: "FUTURE",
-		},
-	} {
-		result, err := e.GetCrossExchangeOpenOrders(t.Context(), arg)
-		require.NoError(t, err, "GetCrossExchangeOpenOrders must not error")
-		if mockTests {
-			assert.NotEmpty(t, result, "GetCrossExchangeOpenOrders should return orders")
-		}
+	result, err := e.GetCrossExchangeOpenOrders(t.Context(), &GetCrossExchangeOpenOrdersRequest{
+		Symbol:       newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()),
+		ExchangeType: "BINANCE",
+		BusinessType: "FUTURE",
+	})
+	require.NoError(t, err, "GetCrossExchangeOpenOrders must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeOpenOrders should return orders")
 	}
 }
 
 func TestGetCrossExchangeOrderHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeOrderHistory(t.Context(), &GetCrossExchangeOrderHistoryRequest{Symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeOrderHistory must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, arg := range []*GetCrossExchangeOrderHistoryRequest{
-		nil,
-		{Symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())},
-	} {
-		result, err := e.GetCrossExchangeOrderHistory(t.Context(), arg)
-		require.NoError(t, err, "GetCrossExchangeOrderHistory must not error")
-		if mockTests {
-			assert.NotEmpty(t, result, "GetCrossExchangeOrderHistory should return orders")
-		}
+	result, err := e.GetCrossExchangeOrderHistory(t.Context(), &GetCrossExchangeOrderHistoryRequest{
+		Page:      1,
+		Limit:     10,
+		Symbol:    newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()),
+		From:      1744103854,
+		To:        1744190254,
+		Attribute: "COMMON",
+	})
+	require.NoError(t, err, "GetCrossExchangeOrderHistory must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeOrderHistory should return orders")
 	}
 }
 
 func TestGetCrossExchangeContractPositionHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeContractPositionHistory(t.Context(), &GetCrossExchangePositionHistoryRequest{Symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeContractPositionHistory must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, arg := range []*GetCrossExchangePositionHistoryRequest{
-		nil,
-		{Symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())},
-	} {
-		result, err := e.GetCrossExchangeContractPositionHistory(t.Context(), arg)
-		require.NoError(t, err, "GetCrossExchangeContractPositionHistory must not error")
-		if mockTests {
-			assert.NotEmpty(t, result, "GetCrossExchangeContractPositionHistory should return positions")
-		}
+	result, err := e.GetCrossExchangeContractPositionHistory(t.Context(), &GetCrossExchangePositionHistoryRequest{
+		Page:   1,
+		Limit:  10,
+		Symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()),
+		From:   1744103854,
+		To:     1744190254,
+	})
+	require.NoError(t, err, "GetCrossExchangeContractPositionHistory must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeContractPositionHistory should return positions")
 	}
 }
 
 func TestGetCrossExchangeMarginPositionHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeMarginPositionHistory(t.Context(), &GetCrossExchangePositionHistoryRequest{Symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Margin}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeMarginPositionHistory must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, arg := range []*GetCrossExchangePositionHistoryRequest{
-		nil,
-		{Symbol: newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT())},
-	} {
-		result, err := e.GetCrossExchangeMarginPositionHistory(t.Context(), arg)
-		require.NoError(t, err, "GetCrossExchangeMarginPositionHistory must not error")
-		if mockTests {
-			assert.NotEmpty(t, result, "GetCrossExchangeMarginPositionHistory should return positions")
-		}
+	result, err := e.GetCrossExchangeMarginPositionHistory(t.Context(), &GetCrossExchangePositionHistoryRequest{
+		Page:   1,
+		Limit:  10,
+		Symbol: newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT()),
+		From:   1744103854,
+		To:     1744190254,
+	})
+	require.NoError(t, err, "GetCrossExchangeMarginPositionHistory must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeMarginPositionHistory should return positions")
 	}
 }
 
 func TestGetCrossExchangeMarginInterestHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeMarginInterestHistory(t.Context(), &GetCrossExchangeMarginInterestHistoryRequest{Symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Margin}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeMarginInterestHistory must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, arg := range []*GetCrossExchangeMarginInterestHistoryRequest{
-		nil,
-		{
-			Symbol:       newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT()),
-			ExchangeType: "BINANCE",
-		},
-	} {
-		result, err := e.GetCrossExchangeMarginInterestHistory(t.Context(), arg)
-		require.NoError(t, err, "GetCrossExchangeMarginInterestHistory must not error")
-		if mockTests {
-			assert.NotEmpty(t, result, "GetCrossExchangeMarginInterestHistory should return interest records")
-		}
+	result, err := e.GetCrossExchangeMarginInterestHistory(t.Context(), &GetCrossExchangeMarginInterestHistoryRequest{
+		Symbol:       newCrossExchangeSymbol("BINANCE", asset.Margin, currency.NewBTCUSDT()),
+		From:         1744103854,
+		To:           1744190254,
+		Page:         1,
+		Limit:        10,
+		ExchangeType: "BINANCE",
+	})
+	require.NoError(t, err, "GetCrossExchangeMarginInterestHistory must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeMarginInterestHistory should return interest records")
 	}
 }
 
 func TestGetCrossExchangeTradeHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossExchangeTradeHistory(t.Context(), &GetCrossExchangeTradeHistoryRequest{Symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeTradeHistory must reject a symbol it cannot format")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, arg := range []*GetCrossExchangeTradeHistoryRequest{
-		nil,
-		{Symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())},
-	} {
-		result, err := e.GetCrossExchangeTradeHistory(t.Context(), arg)
-		require.NoError(t, err, "GetCrossExchangeTradeHistory must not error")
-		if mockTests {
-			assert.NotEmpty(t, result, "GetCrossExchangeTradeHistory should return trades")
-		}
+	result, err := e.GetCrossExchangeTradeHistory(t.Context(), &GetCrossExchangeTradeHistoryRequest{
+		Page:   1,
+		Limit:  10,
+		Symbol: newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT()),
+		From:   1744103854,
+		To:     1744190254,
+	})
+	require.NoError(t, err, "GetCrossExchangeTradeHistory must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeTradeHistory should return trades")
 	}
 }
 
@@ -663,9 +744,18 @@ func TestGetCrossExchangeAccountBook(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossExchangeAccountBook(t.Context(), nil)
-	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+	result, err := e.GetCrossExchangeAccountBook(t.Context(), &GetCrossExchangeAccountBookRequest{
+		Page:          1,
+		Limit:         10,
+		Coin:          currency.USDT,
+		StatementType: "TRADE_FEE",
+		From:          1744103854,
+		To:            1744190254,
+	})
+	require.NoError(t, err, "GetCrossExchangeAccountBook must not error")
+	if mockTests {
+		assert.NotEmpty(t, result, "GetCrossExchangeAccountBook should return account book records")
+	}
 }
 
 func TestGetCrossExchangeCoinDiscountRates(t *testing.T) {
@@ -673,54 +763,88 @@ func TestGetCrossExchangeCoinDiscountRates(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossExchangeCoinDiscountRates(t.Context(), currency.ETH, "")
-	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+	for _, exchangeType := range []string{"", "BINANCE"} {
+		result, err := e.GetCrossExchangeCoinDiscountRates(t.Context(), currency.ETH, exchangeType)
+		require.NoError(t, err, "GetCrossExchangeCoinDiscountRates must not error")
+		if mockTests {
+			assert.NotEmpty(t, result, "GetCrossExchangeCoinDiscountRates should return discount rates")
+		}
+	}
 }
 
 func TestCrossExchangeOrderCreateRequestMarshalJSON(t *testing.T) {
 	t.Parallel()
+	symbol := newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewBTCUSDT())
 	for _, tc := range []struct {
 		name        string
 		req         *CrossExchangeOrderCreateRequest
+		expected    string
 		contains    []string
 		notContains []string
+		expectedErr error
 	}{
 		{
+			// Pins the exact bytes sent to Gate; the crossex/orders fixture records this same payload.
+			name: "full payload",
+			req: &CrossExchangeOrderCreateRequest{
+				Symbol:       symbol,
+				Side:         order.Buy,
+				OrderType:    order.Limit,
+				TimeInForce:  order.GoodTillCancel,
+				Quantity:     1,
+				Price:        65000,
+				ReduceOnly:   true,
+				PositionSide: order.Short,
+			},
+			expected: `{"type":"LIMIT","time_in_force":"GTC","symbol":"BINANCE_FUTURE_BTC_USDT","side":"BUY","qty":"1","price":"65000","reduce_only":"true","position_side":"SHORT"}`,
+		},
+		{
 			name:     "limit GTC",
-			req:      &CrossExchangeOrderCreateRequest{Side: order.Buy, OrderType: order.Limit, TimeInForce: order.GoodTillCancel},
-			contains: []string{`"type":"LIMIT"`, `"time_in_force":"GTC"`, `"side":"BUY"`},
+			req:      &CrossExchangeOrderCreateRequest{Symbol: symbol, Side: order.Buy, OrderType: order.Limit, TimeInForce: order.GoodTillCancel},
+			contains: []string{`"symbol":"BINANCE_FUTURE_BTC_USDT"`, `"type":"LIMIT"`, `"time_in_force":"GTC"`, `"side":"BUY"`},
 		},
 		{
 			name:     "post only maps to POC",
-			req:      &CrossExchangeOrderCreateRequest{TimeInForce: order.PostOnly},
+			req:      &CrossExchangeOrderCreateRequest{Symbol: symbol, TimeInForce: order.PostOnly},
 			contains: []string{`"time_in_force":"POC"`},
 		},
 		{
 			name:     "position side",
-			req:      &CrossExchangeOrderCreateRequest{PositionSide: order.Long},
+			req:      &CrossExchangeOrderCreateRequest{Symbol: symbol, PositionSide: order.Long},
 			contains: []string{`"position_side":"LONG"`},
 		},
 		{
 			name:     "reduce only",
-			req:      &CrossExchangeOrderCreateRequest{ReduceOnly: true},
+			req:      &CrossExchangeOrderCreateRequest{Symbol: symbol, ReduceOnly: true},
 			contains: []string{`"reduce_only":"true"`},
 		},
 		{
 			name:        "reduce only false is omitted",
-			req:         &CrossExchangeOrderCreateRequest{ReduceOnly: false},
+			req:         &CrossExchangeOrderCreateRequest{Symbol: symbol, ReduceOnly: false},
 			notContains: []string{`"reduce_only"`},
 		},
 		{
 			name:        "unset optional values are omitted",
-			req:         &CrossExchangeOrderCreateRequest{},
+			req:         &CrossExchangeOrderCreateRequest{Symbol: symbol},
 			notContains: []string{`"type"`, `"time_in_force"`, `"position_side"`, `"reduce_only"`},
+		},
+		{
+			name:        "unformattable symbol is surfaced",
+			req:         &CrossExchangeOrderCreateRequest{Symbol: CrossExchangeSymbolIdentifier{Exchange: "BINANCE", Asset: asset.Futures}},
+			expectedErr: currency.ErrCurrencyPairEmpty,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := json.Marshal(tc.req)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "Marshal must return the expected error")
+				return
+			}
 			require.NoError(t, err, "Marshal must not error")
+			if tc.expected != "" {
+				assert.Equal(t, tc.expected, string(got), "payload should match exactly")
+			}
 			for _, exp := range tc.contains {
 				assert.Containsf(t, string(got), exp, "payload should contain %s", exp)
 			}

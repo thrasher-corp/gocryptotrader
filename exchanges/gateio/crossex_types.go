@@ -20,16 +20,11 @@ type CrossExchangeSymbolIdentifier struct {
 	Pair     currency.Pair
 }
 
-// Validate ensures the identifier can be represented by Gate's CrossEx symbol format.
+// Validate ensures the identifier holds everything needed to render a CrossEx symbol. Which venues and markets Gate
+// actually lists is left for Gate to reject, as that set changes without notice.
 func (c CrossExchangeSymbolIdentifier) Validate() error {
-	exchangeName := strings.ToUpper(strings.TrimSpace(c.Exchange))
-	switch exchangeName {
-	case "BINANCE", "OKX", "GATE", "BYBIT", "KRAKEN", "HYPERLIQUID", "DERIBIT":
-	default:
-		if strings.TrimSpace(c.Exchange) == "" {
-			return errCrossExchangeExchangeTypeRequired
-		}
-		return errCrossExchangeExchangeTypeInvalid
+	if strings.TrimSpace(c.Exchange) == "" {
+		return errCrossExchangeExchangeTypeRequired
 	}
 	if !c.Pair.IsPopulated() {
 		return currency.ErrCurrencyPairEmpty
@@ -39,32 +34,23 @@ func (c CrossExchangeSymbolIdentifier) Validate() error {
 	default:
 		return asset.ErrNotSupported
 	}
-	switch exchangeName {
-	case "BYBIT", "DERIBIT":
-		if c.Asset == asset.Margin {
-			return asset.ErrNotSupported
-		}
-	case "KRAKEN", "HYPERLIQUID":
-		if c.Asset != asset.Futures {
-			return asset.ErrNotSupported
-		}
-	}
 	return nil
 }
 
-// Format returns the identifier in Gate's {Exchange}_{Business}_{Base}_{Counter} format.
+// Format returns the identifier in Gate's {Exchange}_{Business}_{Base}_{Counter} format, erroring when it cannot be
+// rendered as a whole symbol.
 func (c CrossExchangeSymbolIdentifier) Format() (string, error) {
 	if err := c.Validate(); err != nil {
 		return "", err
 	}
-	pair := c.Pair.Format(currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true})
-	return strings.ToUpper(strings.TrimSpace(c.Exchange)) + "_" + c.businessType() + "_" + pair.String(), nil
+	return c.String(), nil
 }
 
-// String returns the formatted CrossEx symbol, or an empty string when the identifier is invalid.
+// String renders the identifier in Gate's {Exchange}_{Business}_{Base}_{Counter} format from whatever fields are set.
+// Use Validate or Format when the result must be a symbol Gate can act on.
 func (c CrossExchangeSymbolIdentifier) String() string {
-	formatted, _ := c.Format()
-	return formatted
+	pair := c.Pair.Format(currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true})
+	return strings.ToUpper(strings.TrimSpace(c.Exchange)) + "_" + c.businessType() + "_" + pair.String()
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -76,7 +62,8 @@ func (c CrossExchangeSymbolIdentifier) MarshalJSON() ([]byte, error) {
 	return json.Marshal(formatted)
 }
 
-func (c CrossExchangeSymbolIdentifier) isEmpty() bool {
+// IsEmpty returns whether no part of the identifier has been set.
+func (c CrossExchangeSymbolIdentifier) IsEmpty() bool {
 	return strings.TrimSpace(c.Exchange) == "" && c.Asset == asset.Empty && c.Pair.IsEmpty()
 }
 
@@ -174,7 +161,7 @@ type CrossExchangeTransferResponse struct {
 // CrossExchangeOrderCreateRequest is the request body for creating a CrossEx order.
 type CrossExchangeOrderCreateRequest struct {
 	Text          string                        `json:"text,omitempty"`
-	Symbol        CrossExchangeSymbolIdentifier `json:"-"`
+	Symbol        CrossExchangeSymbolIdentifier `json:"symbol"`
 	Side          order.Side                    `json:"side"`
 	OrderType     order.Type                    `json:"type,omitempty"`
 	TimeInForce   order.TimeInForce             `json:"time_in_force,omitempty"`
@@ -189,18 +176,10 @@ type CrossExchangeOrderCreateRequest struct {
 func (c *CrossExchangeOrderCreateRequest) MarshalJSON() ([]byte, error) {
 	type Alias CrossExchangeOrderCreateRequest
 	aux := &struct {
-		Symbol      string `json:"symbol,omitempty"`
 		OrderType   string `json:"type,omitempty"`
 		TimeInForce string `json:"time_in_force,omitempty"`
 		*Alias
 	}{Alias: (*Alias)(c)}
-	if !c.Symbol.isEmpty() {
-		var err error
-		aux.Symbol, err = c.Symbol.Format()
-		if err != nil {
-			return nil, err
-		}
-	}
 	if c.OrderType != order.UnknownType {
 		aux.OrderType = c.OrderType.String()
 	}
