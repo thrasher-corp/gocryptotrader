@@ -292,6 +292,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	var errs error
 	switch assetType {
 	case asset.Futures:
 		ticks, err := e.GetFuturesOpenContracts(ctx)
@@ -310,7 +311,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				ExchangeName: e.Name,
 				AssetType:    assetType,
 			}); err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	case asset.Spot, asset.Margin:
@@ -339,13 +340,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				AssetType:    assetType,
 				LastUpdated:  ticks.Time.Time(),
 			}); err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return fmt.Errorf("%w: %s", asset.ErrNotSupported, assetType)
 	}
-	return nil
+	return errs
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -446,7 +447,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, assetType)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
@@ -817,7 +818,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		ret.LoanApplyID = o.LoanApplyID
 		return ret, nil
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
 	}
 }
 

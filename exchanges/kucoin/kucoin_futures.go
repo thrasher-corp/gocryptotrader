@@ -52,7 +52,7 @@ func (e *Exchange) GetFuturesPositionMode(ctx context.Context) (FuturesPositionM
 	if resp == nil {
 		return FuturesPositionModeUnknown, common.ErrNoResponse
 	}
-	switch resp.PositionMode.Int64() {
+	switch resp.PositionMode {
 	case kucoinOneWayPositionMode:
 		return FuturesPositionModeOneWay, nil
 	case kucoinHedgePositionMode:

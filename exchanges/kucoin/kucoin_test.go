@@ -2196,25 +2196,58 @@ func TestMergeRoundedOrderbookLevels(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	for _, a := range e.GetAssetTypes(true) {
-		err := e.UpdateTickers(t.Context(), a)
-		assert.NoError(t, err)
 
-		pairs, err := e.GetEnabledPairs(a)
-		assert.NoError(t, err)
-		assert.NotEmpty(t, pairs)
+	t.Run("enabled pairs", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range e.GetAssetTypes(true) {
+			err := e.UpdateTickers(t.Context(), a)
+			assert.NoError(t, err)
 
-		for _, p := range pairs {
-			tick, err := ticker.GetTicker(e.Name, p, a)
-			if assert.NoError(t, err) {
-				assert.Positivef(t, tick.Last, "%s %s Tick Last should be positive", a, p)
-				assert.NotEmptyf(t, tick.Pair, "%s %s Tick Pair should not be empty", a, p)
-				assert.Equalf(t, e.Name, tick.ExchangeName, "ExchangeName should be correct")
-				assert.Equalf(t, a, tick.AssetType, "AssetType should be correct")
-				assert.NotEmptyf(t, tick.LastUpdated, "%s %s Tick LastUpdated should not be empty", a, p)
+			pairs, err := e.GetEnabledPairs(a)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, pairs)
+
+			for _, p := range pairs {
+				tick, err := ticker.GetTicker(e.Name, p, a)
+				if assert.NoError(t, err) {
+					assert.Positivef(t, tick.Last, "%s %s Tick Last should be positive", a, p)
+					assert.NotEmptyf(t, tick.Pair, "%s %s Tick Pair should not be empty", a, p)
+					assert.Equalf(t, e.Name, tick.ExchangeName, "ExchangeName should be correct")
+					assert.Equalf(t, a, tick.AssetType, "AssetType should be correct")
+					assert.NotEmptyf(t, tick.LastUpdated, "%s %s Tick LastUpdated should not be empty", a, p)
+				}
 			}
 		}
-	}
+	})
+
+	t.Run("available pairs", func(t *testing.T) {
+		t.Parallel()
+
+		ku := testInstance(t)
+		ku.Name += "-AvailableTickers"
+		availablePair := currency.NewBTCUSDT()
+		enabledPair := currency.NewPair(currency.ETH, currency.USDT)
+		require.NoError(t, ku.UpdatePairs(currency.Pairs{availablePair, enabledPair}, asset.Spot, false), "UpdatePairs must set available pairs")
+		require.NoError(t, ku.UpdatePairs(currency.Pairs{enabledPair}, asset.Spot, true), "UpdatePairs must set enabled pairs")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v1/market/allTickers", r.URL.Path, "ticker request path should be correct")
+			_, err := w.Write([]byte(`{"code":"200000","data":{"time":1784868353683,"ticker":[` +
+				`{"symbol":"BTC-USDT","symbolName":"BTC-USDT","buy":"99","sell":"101","high":"110","low":"90","vol":"12","last":"100"},` +
+				`{"symbol":"DOGE-USDT","symbolName":"DOGE-USDT","buy":"0.1","sell":"0.2","high":"0.3","low":"0.05","vol":"20","last":"0.15"}]}}`))
+			assert.NoError(t, err, "writing ticker response should not error")
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+		require.NoError(t, ku.UpdateTickers(t.Context(), asset.Spot), "UpdateTickers must process all available pairs")
+		price, err := ticker.GetTicker(ku.Name, availablePair, asset.Spot)
+		require.NoError(t, err, "GetTicker must return a disabled but available pair")
+		assert.Equal(t, float64(100), price.Last, "available pair ticker price should match")
+		_, err = ticker.GetTicker(ku.Name, currency.NewPair(currency.DOGE, currency.USDT), asset.Spot)
+		assert.Error(t, err, "unavailable pair should not be cached")
+	})
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -2632,6 +2665,7 @@ func TestGetFuturesPositionMode(t *testing.T) {
 		{name: "one-way", response: `{"code":"200000","data":{"positionMode":0}}`, expected: FuturesPositionModeOneWay},
 		{name: "hedge", response: `{"code":"200000","data":{"positionMode":1}}`, expected: FuturesPositionModeHedge},
 		{name: "invalid", response: `{"code":"200000","data":{"positionMode":2}}`, expectedErr: errInvalidFuturesPositionMode},
+		{name: "fractional", response: `{"code":"200000","data":{"positionMode":0.5}}`, expectedErr: errInvalidFuturesPositionMode},
 		{name: "no response", response: `{"code":"200000","data":null}`, expectedErr: common.ErrNoResponse},
 		{name: "malformed response", response: `{`, anyError: true},
 	}
@@ -2715,7 +2749,11 @@ func TestFuturesPositionSide(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			actual, err := futuresPositionSide(tc.mode, tc.side, tc.reduceOnly)
-			require.ErrorIs(t, err, tc.expectedErr, "futuresPositionSide must return the expected error")
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "futuresPositionSide must return the expected error")
+			} else {
+				require.NoError(t, err, "futuresPositionSide must not error")
+			}
 			require.Equal(t, tc.expected, actual, "futuresPositionSide must return the expected side")
 		})
 	}
