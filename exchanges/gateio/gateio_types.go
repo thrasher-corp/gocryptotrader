@@ -1279,7 +1279,7 @@ type MarginAccountItem struct {
 	Locked   bool         `json:"locked"`
 	// Risk is the current risk rate (returned for risk-rate accounts).
 	Risk string `json:"risk"`
-	// Mmr is the current maintenance margin rate (returned for mmr accounts).
+	// MaintenanceMarginRate is the current maintenance margin rate (returned for mmr accounts).
 	MaintenanceMarginRate types.Number              `json:"mmr"`
 	Base                  AccountBalanceInformation `json:"base"`
 	Quote                 AccountBalanceInformation `json:"quote"`

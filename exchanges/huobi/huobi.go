@@ -86,8 +86,8 @@ type Exchange struct {
 	futureContractCodes      map[string]currency.Code
 }
 
-// GetMarginRates gets margin rates
-func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesData, error) {
+// GetLoanMarginRates gets loan margin rate data.
+func (e *Exchange) GetLoanMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesData, error) {
 	var resp MarginRatesData
 	vals := url.Values{}
 	if !symbol.IsEmpty() {
