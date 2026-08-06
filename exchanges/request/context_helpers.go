@@ -1,10 +1,21 @@
 package request
 
-import "context"
+import (
+	"context"
+	"net/http"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+)
 
 const contextVerboseFlag verbosity = "verbose"
 
 type verbosity string
+
+type headersKey struct{}
+
+func init() {
+	common.RegisterContextKey(headersKey{})
+}
 
 // WithVerbose adds verbosity to a request context so that specific requests
 // can have distinct verbosity without impacting all requests.
@@ -19,6 +30,19 @@ func IsVerbose(ctx context.Context, verbose bool) bool {
 		verbose, _ = ctx.Value(contextVerboseFlag).(bool)
 	}
 	return verbose
+}
+
+// WithHeaders adds outbound HTTP header overrides to the context.
+func WithHeaders(ctx context.Context, headers http.Header) context.Context {
+	if len(headers) == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, headersKey{}, headers.Clone())
+}
+
+func headersFromContext(ctx context.Context) http.Header {
+	headers, _ := ctx.Value(headersKey{}).(http.Header)
+	return headers
 }
 
 type delayNotAllowedKey struct{}

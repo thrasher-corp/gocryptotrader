@@ -134,6 +134,12 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	if r.userAgent != "" && req.Header.Get(userAgent) == "" {
 		req.Header.Add(userAgent, r.userAgent)
 	}
+	for key, values := range headersFromContext(ctx) {
+		req.Header.Del(key)
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
 
 	return req, nil
 }
