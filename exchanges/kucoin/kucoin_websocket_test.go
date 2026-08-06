@@ -332,7 +332,7 @@ func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
 
 			ku := testInstance(t)
 			ku.SkipAuthCheck = true
-			ku.SetCredentials("key", "secret", "passphrase", "", "", "")
+			ku.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(tt.authenticated)
 
 			spotHits := 0

@@ -500,15 +500,16 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			})
 		}
 	case asset.Spot, asset.Margin:
-		accountType, err := spotMarginBalanceAccountType(assetType)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, accountType)
+		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, "")
 		if err != nil {
 			return nil, err
 		}
 		for i := range resp {
+			if resp[i].AccountType == "margin" && assetType == asset.Spot {
+				continue
+			} else if resp[i].AccountType == "trade" && assetType == asset.Margin {
+				continue
+			}
 			subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
 				Total: resp[i].Balance.Float64(),
 				Hold:  resp[i].Holds.Float64(),
@@ -519,17 +520,6 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
-}
-
-func spotMarginBalanceAccountType(assetType asset.Item) (string, error) {
-	switch assetType {
-	case asset.Spot:
-		return "trade", nil
-	case asset.Margin:
-		return "margin", nil
-	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
-	}
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -688,7 +678,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		var orderType, stopOrderType, stopOrderBoundary string
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
-			orderType = kucoinLimit
+			orderType = "limit"
 			if s.TriggerPrice == 0 {
 				break
 			}
@@ -859,7 +849,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				Hidden:        s.Hidden,
 				AutoBorrow:    s.AutoBorrow,
-				AutoRepay:     s.AutoRepay,
+				AutoRepay:     s.AutoBorrow,
 				Iceberg:       s.Iceberg,
 			})
 		if err != nil {
@@ -883,7 +873,7 @@ func MarginModeToString(mType margin.Type) string {
 	case margin.Isolated:
 		return mType.String()
 	case margin.Multi:
-		return kucoinCross
+		return "cross"
 	default:
 		return ""
 	}
@@ -1243,9 +1233,9 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wi
 func OrderTypeToString(oType order.Type) (string, error) {
 	switch oType {
 	case order.Limit:
-		return kucoinLimit, nil
+		return "limit", nil
 	case order.Market:
-		return kucoinMarket, nil
+		return "market", nil
 	case order.StopLimit:
 		return "limit_stop", nil
 	case order.StopMarket:

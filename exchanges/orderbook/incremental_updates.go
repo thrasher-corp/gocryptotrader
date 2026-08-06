@@ -41,10 +41,12 @@ type Update struct {
 	UpdateID   int64
 	UpdateTime time.Time
 	LastPushed time.Time
-	Asset      asset.Item
-	Bids       Levels
-	Asks       Levels
-	Pair       currency.Pair
+	// ReachedGCTAt records when an exchange adapter started handling the update.
+	ReachedGCTAt time.Time
+	Asset        asset.Item
+	Bids         Levels
+	Asks         Levels
+	Pair         currency.Pair
 
 	// ExpectedChecksum defines the expected value when the books have been verified
 	ExpectedChecksum uint32

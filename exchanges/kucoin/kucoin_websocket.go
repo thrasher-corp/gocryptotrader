@@ -103,8 +103,8 @@ var subscriptionNames = map[asset.Item]map[string]string{
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: false, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-	{Enabled: true, Asset: asset.Spot, Channel: marketOrderbookChannel},     // Full orderbook depth requires REST snapshot which is an authenticated request.
-	{Enabled: true, Asset: asset.Futures, Channel: futuresOrderbookChannel}, // Full orderbook depth requires REST snapshot which is an authenticated request.
+	{Enabled: true, Asset: asset.Spot, Channel: marketOrderbookChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: futuresOrderbookChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Margin, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},

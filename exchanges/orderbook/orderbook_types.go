@@ -102,6 +102,10 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
+	// ReachedGCTAt records when an exchange adapter started handling the update,
+	// before it entered the orderbook package.
+	ReachedGCTAt time.Time
+
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
 	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
@@ -142,6 +146,7 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	lastPushed             time.Time
+	reachedGCTAt           time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
