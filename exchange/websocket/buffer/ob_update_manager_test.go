@@ -910,7 +910,6 @@ func TestInvalidateCache(t *testing.T) {
 	}, cache, "test")
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "invalidateCache must error but still trigger syncOrderbook")
 
-	cache.m.Lock()
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be uninitialised after invalidateCache")
 	require.NotEmpty(t, cache.updates, "updates must not be empty after invalidateCache")
 	cache.m.Unlock()

@@ -60,6 +60,7 @@ func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ reque
 	}
 	return []byte(c.messageResponse), nil
 }
+
 func (c *ConnectionFixture) Dial(_ context.Context, _ *gws.Dialer, _ http.Header, values url.Values) error {
 	c.dialValues = values
 	c.dialled = true
