@@ -1126,16 +1126,6 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
-func spotWebsocketSubscriptions(subs subscription.List) subscription.List {
-	spot, _ := splitWebsocketSubscriptions(subs)
-	return spot
-}
-
-func futuresWebsocketSubscriptions(subs subscription.List) subscription.List {
-	_, futures := splitWebsocketSubscriptions(subs)
-	return futures
-}
-
 func splitWebsocketSubscriptions(subs subscription.List) (spot, futures subscription.List) {
 	for _, sub := range subs {
 		if sub.Asset == asset.Futures || strings.HasPrefix(channelName(sub, sub.Asset), "/contract") {

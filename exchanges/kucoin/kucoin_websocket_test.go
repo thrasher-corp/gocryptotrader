@@ -225,22 +225,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
-func TestSpotWebsocketSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	got := spotWebsocketSubscriptions(subs)
-	require.NotEmpty(t, got, "spotWebsocketSubscriptions must return subscriptions")
-	for _, sub := range got {
-		require.NotEqual(t, asset.Futures, sub.Asset, "spot subscription generator must exclude futures assets")
-		require.False(t, strings.HasPrefix(channelName(sub, sub.Asset), "/contract"), "spot subscription generator must exclude futures topics")
-	}
-}
-
 func TestSplitWebsocketSubscriptions(t *testing.T) {
 	t.Parallel()
 
@@ -267,21 +251,6 @@ func TestKucoinWebsocketRateLimiter(t *testing.T) {
 	t.Parallel()
 
 	require.NotNil(t, kucoinWebsocketRateLimiter(), "kucoinWebsocketRateLimiter must return a limiter")
-}
-
-func TestFuturesWebsocketSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	got := futuresWebsocketSubscriptions(subs)
-	require.NotEmpty(t, got, "futuresWebsocketSubscriptions must return subscriptions")
-	for _, sub := range got {
-		require.True(t, sub.Asset == asset.Futures || strings.HasPrefix(channelName(sub, sub.Asset), "/contract"), "futures subscription generator must exclude spot and margin topics")
-	}
 }
 
 func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
@@ -357,11 +326,49 @@ func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
 	}
 }
 
+func TestGetFuturesInstanceServers(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	hits := 0
+	server := newKucoinBulletServer(t, "futures", &hits)
+	require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+	instances, err := ku.GetFuturesInstanceServers(t.Context())
+	require.NoError(t, err, "GetFuturesInstanceServers must not error")
+	require.NotNil(t, instances, "GetFuturesInstanceServers must return instance server details")
+	assert.Equal(t, "futures-public-token", instances.Token, "public futures token should match")
+	require.Len(t, instances.InstanceServers, 1, "public futures response must contain one instance server")
+	assert.Equal(t, "wss://futures-public.example.test/endpoint", instances.InstanceServers[0].Endpoint, "public futures endpoint should match")
+	assert.Equal(t, 1, hits, "public futures bullet endpoint should be called once")
+}
+
+func TestGetAuthenticatedFuturesInstanceServers(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SkipAuthCheck = true
+	ku.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+	hits := 0
+	server := newKucoinBulletServer(t, "futures", &hits)
+	require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+	instances, err := ku.GetAuthenticatedFuturesInstanceServers(t.Context())
+	require.NoError(t, err, "GetAuthenticatedFuturesInstanceServers must not error")
+	require.NotNil(t, instances, "GetAuthenticatedFuturesInstanceServers must return instance server details")
+	assert.Equal(t, "futures-private-token", instances.Token, "authenticated futures token should match")
+	require.Len(t, instances.InstanceServers, 1, "authenticated futures response must contain one instance server")
+	assert.Equal(t, "wss://futures-private.example.test/endpoint", instances.InstanceServers[0].Endpoint, "authenticated futures endpoint should match")
+	assert.Equal(t, 1, hits, "authenticated futures bullet endpoint should be called once")
+}
+
 func newKucoinBulletServer(t *testing.T, family string, hits *int) *httptest.Server {
 	t.Helper()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		*hits++
+		(*hits)++
 		assert.Equal(t, http.MethodPost, r.Method, "bullet request method should be correct")
 		endpointType := "public"
 		if strings.HasSuffix(r.URL.Path, privateBullets) {

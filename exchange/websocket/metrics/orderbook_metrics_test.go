@@ -201,6 +201,56 @@ func TestOrderbookSyncSummaryLines(t *testing.T) {
 	assert.Contains(t, strings.Join(lines, "\n"), "reasons=checksum:20", "summary should include readable reason counts")
 }
 
+func TestOrderbookSyncSummaryLinesForExchange(t *testing.T) {
+	const exchangeName = "MetricExchangeSummary"
+	pair := currency.NewPair(currency.AVAX, currency.USDT)
+	RecordOrderbookDesync(&OrderbookSyncEvent{
+		Exchange:      exchangeName,
+		Pair:          pair,
+		Asset:         asset.Spot,
+		Channel:       "books",
+		Reason:        "sequence_gap",
+		LastUpdateID:  40,
+		FirstUpdateID: 43,
+	})
+	RecordOrderbookResync(&OrderbookSyncEvent{
+		Exchange: exchangeName,
+		Pair:     pair,
+		Asset:    asset.Spot,
+		Channel:  "books",
+		Result:   "started",
+	})
+	RecordOrderbookResync(&OrderbookSyncEvent{
+		Exchange: exchangeName,
+		Pair:     pair,
+		Asset:    asset.Spot,
+		Channel:  "books",
+		Result:   "succeeded",
+		Duration: 20 * time.Millisecond,
+	})
+
+	t.Run("all exchanges", func(t *testing.T) {
+		lines := OrderbookSyncSummaryLinesForExchange("")
+		require.NotEmpty(t, lines, "global summary must return lines")
+		assert.Contains(t, lines[0], "Websocket orderbook sync summary:", "empty exchange name should return the global summary")
+	})
+
+	t.Run("no observations", func(t *testing.T) {
+		lines := OrderbookSyncSummaryLinesForExchange("MetricUnobservedExchange")
+		require.Len(t, lines, 1, "empty exchange summary must return one line")
+		assert.Contains(t, lines[0], "dropped_orderbooks=0 desyncs=0", "empty exchange summary should report zero observations")
+	})
+
+	t.Run("exchange observations", func(t *testing.T) {
+		lines := OrderbookSyncSummaryLinesForExchange(exchangeName)
+		require.Len(t, lines, 2, "observed exchange summary must contain totals and book details")
+		assert.Contains(t, lines[0], "dropped_orderbooks=1 desyncs=1 sequence_gap_total=2 resync_success=1", "exchange totals should match recorded observations")
+		assert.Contains(t, lines[0], "resync_time_avg=20ms", "exchange totals should include average resync time")
+		assert.Contains(t, lines[1], "pair=AVAXUSDT asset=spot channel=books", "book details should identify the observed market")
+		assert.Contains(t, lines[1], "reasons=sequence_gap:1", "book details should identify the desync reason")
+	})
+}
+
 func TestFormatOrderbookSyncMetricKey(t *testing.T) {
 	t.Parallel()
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -219,29 +218,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	var (
-		websocketSubscriptionsMu       sync.Mutex
-		websocketSpotSubscriptions     subscription.List
-		websocketFuturesSubscriptions  subscription.List
-		websocketSubscriptionConsumers int
-	)
-	generateWebsocketSubscriptions := func() (subscription.List, subscription.List, error) {
-		websocketSubscriptionsMu.Lock()
-		defer websocketSubscriptionsMu.Unlock()
-
-		if websocketSubscriptionConsumers == 0 {
-			subs, err := e.generateSubscriptions()
-			if err != nil {
-				return nil, nil, err
-			}
-			websocketSpotSubscriptions = spotWebsocketSubscriptions(subs)
-			websocketFuturesSubscriptions = futuresWebsocketSubscriptions(subs)
-			websocketSubscriptionConsumers = 2
-		}
-		websocketSubscriptionConsumers--
-		return websocketSpotSubscriptions, websocketFuturesSubscriptions, nil
-	}
-
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -249,8 +225,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsSpotEndpoint,
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: func() (subscription.List, error) {
-			spot, _, err := generateWebsocketSubscriptions()
-			return spot, err
+			subs, err := e.generateSubscriptions()
+			if err != nil {
+				return nil, err
+			}
+			spot, _ := splitWebsocketSubscriptions(subs)
+			return spot, nil
 		},
 		Subscriber:    e.Subscribe,
 		Unsubscriber:  e.Unsubscribe,
@@ -271,8 +251,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsFuturesEndpoint,
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: func() (subscription.List, error) {
-			_, futuresSubs, err := generateWebsocketSubscriptions()
-			return futuresSubs, err
+			subs, err := e.generateSubscriptions()
+			if err != nil {
+				return nil, err
+			}
+			_, futuresSubs := splitWebsocketSubscriptions(subs)
+			return futuresSubs, nil
 		},
 		Subscriber:    e.Subscribe,
 		Unsubscriber:  e.Unsubscribe,
