@@ -57,8 +57,8 @@ updates:
 			if updts[x].ID != l[y].ID { // Filter IDs that don't match
 				continue
 			}
+			// Preserve the existing price when an amount-only update supplies a zero price.
 			if updts[x].Price > 0 {
-				// Preserve the existing price for amount-only updates.
 				l[y].Price = updts[x].Price
 				l[y].StrPrice = updts[x].StrPrice
 			}

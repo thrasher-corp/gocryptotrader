@@ -12,7 +12,7 @@ func BenchmarkProcessUpdateUpdateOrInsertDelete(b *testing.B) {
 	}
 
 	updateTime := time.Unix(1, 0)
-	insertUpdate := &Update{
+	updateOrInsertUpdate := &Update{
 		UpdateTime: updateTime,
 		Asks:       Levels{{Price: 1465.5, Amount: 2, ID: 1000}},
 		Action:     UpdateOrInsertAction,
@@ -23,7 +23,7 @@ func BenchmarkProcessUpdateUpdateOrInsertDelete(b *testing.B) {
 		Action:     DeleteAction,
 	}
 	for b.Loop() {
-		if err := depth.ProcessUpdate(insertUpdate); err != nil {
+		if err := depth.ProcessUpdate(updateOrInsertUpdate); err != nil {
 			b.Fatal(err)
 		}
 		if err := depth.ProcessUpdate(deleteUpdate); err != nil {
