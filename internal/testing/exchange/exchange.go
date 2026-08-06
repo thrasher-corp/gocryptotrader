@@ -255,3 +255,10 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	cache.Load(&b.CurrencyPairs)
 	updatePairsOnce[e.GetName()] = cache
 }
+
+// GetMockConn returns an isolated websocket connection for handler tests without
+// connecting to a real websocket server.
+func GetMockConn(tb testing.TB, e exchange.IBotExchange, u string) websocket.Connection {
+	tb.Helper()
+	return e.GetBase().Websocket.CreateUnmanagedTestConnection(u)
+}

@@ -140,3 +140,18 @@ func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {
 	assert.NotNil(t, conn, "GetConnection should return a connection after SetupWs on a multi-connection manager")
 	assert.Empty(t, conn.Subscriptions().List(), "Connection subscriptions should remain empty when subscriptions are not required")
 }
+
+func TestGetMockConn(t *testing.T) {
+	t.Parallel()
+
+	e := new(multiConnectionSetupExchange)
+	e.Base.Websocket = websocket.NewManager()
+	conn := GetMockConn(t, e, "wss://isolated.example/ws")
+
+	assert.Equal(t, "wss://isolated.example/ws", conn.GetURL(), "connection should retain the requested URL")
+	require.NotNil(t, conn.Subscriptions(), "connection must have an isolated subscription store")
+	_, err := e.Base.Websocket.Match.Set("manager request", 1)
+	require.NoError(t, err, "manager matcher setup must not error")
+	t.Cleanup(func() { e.Base.Websocket.Match.RemoveSignature("manager request") })
+	assert.False(t, conn.IncomingWithData("manager request", []byte("response")), "connection should not use manager-global matcher state")
+}

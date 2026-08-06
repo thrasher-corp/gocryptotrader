@@ -19,8 +19,6 @@ var (
 	errMassCancelFailed            = errors.New("mass cancel failed")
 	errCancelAllSpreadOrdersFailed = errors.New("cancel all spread orders failed")
 	errMultipleItemsReturned       = errors.New("multiple items returned")
-
-	privateConnection = "private"
 )
 
 // WSPlaceOrder submits an order
@@ -255,7 +253,7 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 		return errInvalidWebsocketRequest
 	}
 
-	conn, err := e.Websocket.GetConnection(privateConnection)
+	conn, err := e.Websocket.GetConnection(wsPrivateConnectionFilter)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -66,12 +67,26 @@ func (m *Manager) CreateTestConnection(messageFilter any) (Connection, error) {
 	return m.createConnectionFromSetup(ws.setup), nil
 }
 
+// CreateUnmanagedTestConnection returns an isolated connection for handler tests.
+// It deliberately has its own matcher and subscription store and is registered
+// only for connection-specific subscription lookup; it is not added to the
+// manager's connect or shutdown lifecycle.
+func (m *Manager) CreateUnmanagedTestConnection(u string) Connection {
+	conn := m.createConnectionFromSetup(&ConnectionSetup{URL: u, ResponseMaxLimit: time.Second})
+	conn.Match = NewMatch()
+	m.connectionManagerMu.Lock()
+	m.connections[conn] = &websocket{subscriptions: conn.subscriptions}
+	m.connectionManagerMu.Unlock()
+	return conn
+}
+
 // TrackTestConnection registers a test connection against the managed
 // websocket matching the supplied message filter.
 //
 // This exported helper exists for cross-package test harnesses only. It is
 // intended for tests that wrap a manager-created connection with custom
-// send/receive behaviour while still needing multi-connection bookkeeping.
+// send/receive behaviour while still needing multi-connection bookkeeping and
+// GetConnection routing without starting a live connection lifecycle.
 func (m *Manager) TrackTestConnection(messageFilter any, conn Connection) error {
 	if err := common.NilGuard(conn); err != nil {
 		return err
@@ -81,6 +96,7 @@ func (m *Manager) TrackTestConnection(messageFilter any, conn Connection) error 
 		return err
 	}
 	m.trackConnection(conn, ws)
+	m.setState(connectedState)
 	return nil
 }
 
