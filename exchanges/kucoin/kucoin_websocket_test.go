@@ -165,8 +165,8 @@ func TestProcessAccountBalanceChange(t *testing.T) {
 		expectedAsset asset.Item
 		expectedRaw   bool
 	}{
-		{name: "spot", relationEvent: "trade.setted", expectedAsset: asset.Spot},
-		{name: "margin", relationEvent: "marginV2.setted", expectedAsset: asset.Margin},
+		{name: "spot", relationEvent: "trade.balance", expectedAsset: asset.Spot},
+		{name: "margin", relationEvent: "marginV2.balance", expectedAsset: asset.Margin},
 		{name: "unclassified funding account", relationEvent: "main.transfer", expectedRaw: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -209,12 +209,38 @@ func TestProcessAccountBalanceChange(t *testing.T) {
 		require.Error(t, ku.processAccountBalanceChange(t.Context(), []byte(`{"total":`)), "processAccountBalanceChange must reject malformed JSON")
 	})
 
+	t.Run("component delta preserves aggregate", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+		ku.API.AuthenticatedSupport = true
+		initial := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+		initial[0].Balances.Set(currency.USDT, accounts.Balance{
+			Total:     13,
+			Hold:      2,
+			Free:      11,
+			UpdatedAt: time.UnixMilli(1),
+		})
+		require.NoError(t, ku.Accounts.Save(t.Context(), initial, true), "initial aggregate balance must be stored")
+
+		payload := []byte(`{"available":"4","availableChange":"1","currency":"USDT","hold":"0","holdChange":"0","relationEvent":"trade_hf.balance","time":"4102444800000","total":"4"}`)
+		require.NoError(t, ku.processAccountBalanceChange(t.Context(), payload), "processAccountBalanceChange must not error")
+
+		creds, err := ku.GetCredentials(t.Context())
+		require.NoError(t, err, "GetCredentials must not error")
+		balance, err := ku.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+		require.NoError(t, err, "GetBalance must find the stored aggregate")
+		assert.InDelta(t, 14.0, balance.Total, 1e-12, "component total change should update the aggregate total")
+		assert.InDelta(t, 12.0, balance.Free, 1e-12, "component available change should update aggregate free funds")
+		assert.InDelta(t, 2.0, balance.Hold, 1e-12, "an unchanged component hold should preserve aggregate held funds")
+	})
+
 	t.Run("account store unavailable", func(t *testing.T) {
 		t.Parallel()
 		ku := testInstance(t)
 		ku.Accounts = nil
 		err := ku.processAccountBalanceChange(t.Context(), []byte(
-			`{"available":"1","currency":"USDT","hold":"0","relationEvent":"trade.setted","time":"1784868353688","total":"1"}`))
+			`{"available":"1","currency":"USDT","hold":"0","relationEvent":"trade.balance","time":"1784868353688","total":"1"}`))
 		require.Error(t, err, "processAccountBalanceChange must return account storage errors")
 	})
 }
@@ -227,14 +253,14 @@ func TestAccountBalanceAsset(t *testing.T) {
 		relationEvent string
 		expected      asset.Item
 	}{
-		{name: "classic spot", relationEvent: "trade.setted", expected: asset.Spot},
+		{name: "classic spot", relationEvent: "trade.balance", expected: asset.Spot},
 		{name: "high frequency spot", relationEvent: "trade_hf.hold", expected: asset.Spot},
 		{name: "classic margin", relationEvent: "margin.transfer", expected: asset.Margin},
 		{name: "high frequency margin", relationEvent: "marginV2.other", expected: asset.Margin},
 		{name: "REST high frequency margin", relationEvent: "margin_v2", expected: asset.Margin},
 		{name: "REST isolated margin", relationEvent: kucoinIsolated, expected: asset.Margin},
 		{name: "REST isolated high frequency margin", relationEvent: "isolated_v2", expected: asset.Margin},
-		{name: "isolated margin", relationEvent: "isolated_BTC-USDT.setted", expected: asset.Margin},
+		{name: "isolated margin", relationEvent: "isolated_BTC-USDT.balance", expected: asset.Margin},
 		{name: "isolated high frequency margin", relationEvent: "isolatedV2_BTC-USDT.hold", expected: asset.Margin},
 		{name: "funding account", relationEvent: "main.transfer", expected: asset.Empty},
 		{name: "unknown", relationEvent: "other", expected: asset.Empty},

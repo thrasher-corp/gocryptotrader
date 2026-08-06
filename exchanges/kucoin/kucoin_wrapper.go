@@ -609,14 +609,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if marginMode == "" {
 			return nil, fmt.Errorf("%w: KuCoin futures orders require isolated or cross margin", margin.ErrInvalidMarginType)
 		}
-		positionMode, err := e.GetFuturesPositionMode(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("getting KuCoin futures position mode: %w", err)
-		}
-		positionSide, err := futuresPositionSide(positionMode, s.Side, s.ReduceOnly)
-		if err != nil {
-			return nil, err
-		}
 		var orderType, stopOrderType, stopOrderBoundary string
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
@@ -655,7 +647,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		default:
 			return nil, order.ErrUnsupportedOrderType
 		}
-		o, err = e.PostFuturesOrder(ctx, &FuturesOrderParam{
+		orderParams := &FuturesOrderParam{
 			ClientOrderID: s.ClientOrderID,
 			Side:          sideString,
 			Symbol:        s.Pair,
@@ -664,7 +656,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Price:         s.Price,
 			Leverage:      s.Leverage,
 			MarginMode:    marginMode,
-			PositionSide:  positionSide,
+			PositionSide:  kucoinBothPositionSide,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),
@@ -673,7 +665,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			StopPrice:     s.TriggerPrice,
 			StopPriceType: stopOrderType,
 			Iceberg:       s.Iceberg,
-		})
+		}
+		if err := e.FillFuturesPostOrderArgumentFilter(orderParams); err != nil {
+			return nil, err
+		}
+		positionMode, err := e.getCachedFuturesPositionMode(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting KuCoin futures position mode: %w", err)
+		}
+		orderParams.PositionSide, err = futuresPositionSide(positionMode, s.Side, s.ReduceOnly)
+		if err != nil {
+			return nil, err
+		}
+		orderParams.ReduceOnly = s.ReduceOnly && positionMode == FuturesPositionModeOneWay
+		o, err = e.PostFuturesOrder(ctx, orderParams)
 		if err != nil {
 			return nil, err
 		}

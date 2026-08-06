@@ -31,11 +31,17 @@ const (
 
 	kucoinOneWayPositionMode = 0
 	kucoinHedgePositionMode  = 1
+
+	futuresPositionModeCacheDuration = 30 * time.Second
 )
 
+type cachedFuturesPositionMode struct {
+	mode      FuturesPositionMode
+	expiresAt time.Time
+}
+
 // GetFuturesPositionMode returns the account-level KuCoin futures position
-// mode. It deliberately avoids caching because credentials and account mode can
-// change independently of an Exchange instance.
+// mode directly from KuCoin.
 func (e *Exchange) GetFuturesPositionMode(ctx context.Context) (FuturesPositionMode, error) {
 	var resp *FuturesPositionModeResponse
 	if err := e.SendAuthHTTPRequest(
@@ -60,6 +66,34 @@ func (e *Exchange) GetFuturesPositionMode(ctx context.Context) (FuturesPositionM
 	default:
 		return FuturesPositionModeUnknown, fmt.Errorf("%w: %s", errInvalidFuturesPositionMode, resp.PositionMode)
 	}
+}
+
+// getCachedFuturesPositionMode bounds order-submission latency while keeping
+// mode changes and context-carried credentials isolated to a short cache window.
+func (e *Exchange) getCachedFuturesPositionMode(ctx context.Context) (FuturesPositionMode, error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return FuturesPositionModeUnknown, err
+	}
+
+	e.futuresPositionModeMtx.Lock()
+	defer e.futuresPositionModeMtx.Unlock()
+	if cached, ok := e.futuresPositionModeCache[creds.Key]; ok && time.Now().Before(cached.expiresAt) {
+		return cached.mode, nil
+	}
+
+	mode, err := e.GetFuturesPositionMode(ctx)
+	if err != nil {
+		return FuturesPositionModeUnknown, err
+	}
+	if e.futuresPositionModeCache == nil {
+		e.futuresPositionModeCache = make(map[string]cachedFuturesPositionMode)
+	}
+	e.futuresPositionModeCache[creds.Key] = cachedFuturesPositionMode{
+		mode:      mode,
+		expiresAt: time.Now().Add(futuresPositionModeCacheDuration),
+	}
+	return mode, nil
 }
 
 // GetFuturesOpenContracts gets all open futures contract with its details

@@ -634,13 +634,26 @@ func (e *Exchange) processAccountBalanceChange(ctx context.Context, respData []b
 	if accountAsset == asset.Empty {
 		return e.Websocket.DataHandler.Send(ctx, &resp)
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(accountAsset, "")}
-	subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
+	balance := accounts.Balance{
 		Total:     resp.Total,
 		Hold:      resp.Hold,
 		Free:      resp.Available,
 		UpdatedAt: resp.Time.Time(),
-	})
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	current, err := e.Accounts.GetBalance("", creds, accountAsset, resp.Currency)
+	if err == nil {
+		balance.Total = current.Total + resp.AvailableChange + resp.HoldChange
+		balance.Hold = current.Hold + resp.HoldChange
+		balance.Free = current.Free + resp.AvailableChange
+	} else if !errors.Is(err, accounts.ErrNoBalances) && !errors.Is(err, common.ErrNilPointer) {
+		return err
+	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(accountAsset, "")}
+	subAccts[0].Balances.Set(resp.Currency, balance)
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}

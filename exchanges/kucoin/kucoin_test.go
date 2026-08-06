@@ -3,11 +3,13 @@ package kucoin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2716,6 +2718,43 @@ func TestGetFuturesPositionMode(t *testing.T) {
 	}
 }
 
+func TestGetCachedFuturesPositionMode(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SkipAuthCheck = true
+	ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+	var requestCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestCount.Add(1)
+		_, err := w.Write([]byte(`{"code":"200000","data":{"positionMode":0}}`))
+		assert.NoError(t, err, "writing position mode response should not error")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+	for range 2 {
+		mode, err := ku.getCachedFuturesPositionMode(t.Context())
+		require.NoError(t, err, "getCachedFuturesPositionMode must not error")
+		require.Equal(t, FuturesPositionModeOneWay, mode, "getCachedFuturesPositionMode must return the API position mode")
+	}
+	require.Equal(t, int32(1), requestCount.Load(), "a valid cached mode must prevent a duplicate API request")
+
+	ku.futuresPositionModeCache[mockAPIKey] = cachedFuturesPositionMode{
+		mode:      FuturesPositionModeOneWay,
+		expiresAt: time.Now().Add(-time.Second),
+	}
+	_, err := ku.getCachedFuturesPositionMode(t.Context())
+	require.NoError(t, err, "an expired position mode must be refreshed without error")
+	require.Equal(t, int32(2), requestCount.Load(), "an expired position mode must trigger a new API request")
+
+	ku.SetCredentials(&accounts.Credentials{Key: "another-key", Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+	_, err = ku.getCachedFuturesPositionMode(t.Context())
+	require.NoError(t, err, "a different credential must retrieve its own position mode")
+	require.Equal(t, int32(3), requestCount.Load(), "position modes must be cached per API key")
+}
+
 func TestFuturesPositionModeString(t *testing.T) {
 	t.Parallel()
 
@@ -2774,48 +2813,97 @@ func TestFuturesPositionSide(t *testing.T) {
 func TestSubmitFuturesOrder(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t)
-	ku.SkipAuthCheck = true
-	ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+	testCases := []struct {
+		name                 string
+		positionMode         int
+		reduceOnly           bool
+		expectedPositionSide string
+		expectedReduceOnly   bool
+	}{
+		{name: "one-way reduction", positionMode: kucoinOneWayPositionMode, reduceOnly: true, expectedPositionSide: kucoinBothPositionSide, expectedReduceOnly: true},
+		{name: "hedge reduction", positionMode: kucoinHedgePositionMode, reduceOnly: true, expectedPositionSide: kucoinLongPositionSide},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	var payload map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var response string
-		switch r.URL.Path {
-		case "/api/v2/position/getPositionMode":
-			assert.Equal(t, http.MethodGet, r.Method, "position mode request method should be correct")
-			response = `{"code":"200000","data":{"positionMode":0}}`
-		case "/api/v1/orders":
-			assert.Equal(t, http.MethodPost, r.Method, "futures order request method should be correct")
-			body, err := io.ReadAll(r.Body)
-			assert.NoError(t, err, "ReadAll should not error")
-			assert.NoError(t, json.Unmarshal(body, &payload), "Unmarshal should not error")
-			response = `{"code":"200000","data":{"orderId":"order-id"}}`
-		default:
-			assert.Fail(t, "unexpected request path", r.URL.Path)
-		}
-		_, err := w.Write([]byte(response))
-		assert.NoError(t, err, "writing futures order response should not error")
-	}))
-	t.Cleanup(server.Close)
-	require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+			ku := testInstance(t)
+			ku.SkipAuthCheck = true
+			ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+			var payload map[string]any
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var response string
+				switch r.URL.Path {
+				case "/api/v2/position/getPositionMode":
+					assert.Equal(t, http.MethodGet, r.Method, "position mode request method should be correct")
+					response = fmt.Sprintf(`{"code":"200000","data":{"positionMode":%d}}`, tc.positionMode)
+				case "/api/v1/orders":
+					assert.Equal(t, http.MethodPost, r.Method, "futures order request method should be correct")
+					body, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "ReadAll should not error")
+					assert.NoError(t, json.Unmarshal(body, &payload), "Unmarshal should not error")
+					response = `{"code":"200000","data":{"orderId":"order-id"}}`
+				default:
+					assert.Fail(t, "unexpected request path", r.URL.Path)
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "writing futures order response should not error")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
 
-	result, err := ku.SubmitOrder(t.Context(), &order.Submit{
-		Side:          order.Short,
-		AssetType:     asset.Futures,
-		Pair:          futuresTradablePair,
-		Type:          order.Market,
-		Amount:        3,
-		Leverage:      1,
-		MarginType:    margin.Isolated,
-		ClientOrderID: "client-order-id",
+			result, err := ku.SubmitOrder(t.Context(), &order.Submit{
+				Side:          order.Short,
+				AssetType:     asset.Futures,
+				Pair:          futuresTradablePair,
+				Type:          order.Market,
+				Amount:        3,
+				Leverage:      1,
+				MarginType:    margin.Isolated,
+				ClientOrderID: "client-order-id",
+				ReduceOnly:    tc.reduceOnly,
+			})
+			require.NoError(t, err, "SubmitOrder must not error")
+			require.NotNil(t, result, "SubmitOrder must return a response")
+			require.Equal(t, "order-id", result.OrderID, "OrderID must be correct")
+			require.Equal(t, kucoinIsolatedMarginMode, payload["marginMode"], "payload must select isolated margin")
+			require.Equal(t, tc.expectedPositionSide, payload["positionSide"], "payload must select the expected position side")
+			if tc.expectedReduceOnly {
+				require.Equal(t, true, payload["reduceOnly"], "payload must retain reduceOnly in one-way mode")
+			} else {
+				require.NotContains(t, payload, "reduceOnly", "payload must omit reduceOnly in hedge mode")
+			}
+		})
+	}
+
+	t.Run("invalid order avoids position mode request", func(t *testing.T) {
+		t.Parallel()
+
+		ku := testInstance(t)
+		ku.SkipAuthCheck = true
+		ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+		var requestCount atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			requestCount.Add(1)
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+		_, err := ku.SubmitOrder(t.Context(), &order.Submit{
+			Side:          order.Short,
+			AssetType:     asset.Futures,
+			Pair:          futuresTradablePair,
+			Type:          order.ConditionalStop,
+			Amount:        3,
+			Leverage:      1,
+			MarginType:    margin.Isolated,
+			ClientOrderID: "client-order-id",
+		})
+		require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "SubmitOrder must reject the unsupported order type")
+		require.Zero(t, requestCount.Load(), "invalid orders must not request the account position mode")
 	})
-	require.NoError(t, err, "SubmitOrder must not error")
-	require.NotNil(t, result, "SubmitOrder must return a response")
-	require.Equal(t, "order-id", result.OrderID, "OrderID must be correct")
-	require.Equal(t, kucoinIsolatedMarginMode, payload["marginMode"], "payload must select isolated margin")
-	require.Equal(t, kucoinBothPositionSide, payload["positionSide"], "payload must select one-way position mode")
 }
 
 func TestSubmitMarginOrder(t *testing.T) {
@@ -3890,6 +3978,15 @@ func TestSendPlaceMarginHFOrder(t *testing.T) {
 
 	arg.OrderType = order.Market.Lower()
 	arg.Price = 0
+	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
+	require.ErrorIs(t, err, errSizeOrFundIsRequired)
+
+	arg.Size = -1
+	arg.Funds = "1"
+	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.Size = 1
 	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
 	require.ErrorIs(t, err, errSizeOrFundIsRequired)
 }

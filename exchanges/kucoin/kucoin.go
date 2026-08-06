@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -31,7 +32,9 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Kucoin
 type Exchange struct {
 	exchange.Base
-	wsOBUpdateMgr *buffer.UpdateManager
+	wsOBUpdateMgr            *buffer.UpdateManager
+	futuresPositionModeMtx   sync.Mutex
+	futuresPositionModeCache map[string]cachedFuturesPositionMode
 }
 
 const (
@@ -1421,8 +1424,11 @@ func (e *Exchange) SendPlaceMarginHFOrder(ctx context.Context, arg *PlaceMarginH
 			return nil, limits.ErrAmountBelowMin
 		}
 	case arg.OrderType == order.Market.Lower():
-		if arg.Size <= 0 && arg.Funds == "" {
-			return nil, errSizeOrFundIsRequired
+		switch {
+		case arg.Size < 0:
+			return nil, limits.ErrAmountBelowMin
+		case arg.Size == 0 && arg.Funds == "", arg.Size > 0 && arg.Funds != "":
+			return nil, fmt.Errorf("%w: either size or funds must be set, but not both", errSizeOrFundIsRequired)
 		}
 	default:
 		return nil, fmt.Errorf("%w: %s", order.ErrTypeIsInvalid, arg.OrderType)
