@@ -54,8 +54,8 @@ func TestProcessUpdate(t *testing.T) {
 	assert.ErrorIs(t, err, ErrLastUpdatedNotSet)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err = d.ProcessUpdate(&Update{Action: InsertAction, Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}})
-	assert.ErrorIs(t, err, ErrLastUpdatedNotSet)
+	err = d.ProcessUpdate(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}})
+	assert.ErrorIs(t, err, errInvalidAction, "ProcessUpdate should reject the removed insert action")
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	d.validateOrderbook = true
@@ -113,16 +113,6 @@ func TestUpdate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, 21, ob.Asks[0].ID, "Ask element should be deleted")
 	assert.Len(t, ob.Asks, 19, "Asks length should be correct")
-
-	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err = d.update(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Levels{{Price: 1338, Amount: 1, ID: 21}}})
-	assert.ErrorIs(t, err, errUpdateFailed, "update should error correctly")
-	assert.ErrorContains(t, err, "Insert")
-	err = d.update(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 1, ID: 69420}}})
-	assert.NoError(t, err, "update should not error")
-	ob, err = d.Retrieve()
-	require.NoError(t, err)
-	assert.Equal(t, int64(69420), ob.Asks[0].ID, "First ask ID should be correct")
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.update(&Update{Action: UpdateOrInsertAction, UpdateTime: time.Now(), Asks: Levels{{Price: 1338, Amount: 0, ID: 21}}})
@@ -217,51 +207,6 @@ func TestDelete(t *testing.T) {
 	}
 	err = d.delete(updates, true)
 	assert.NoError(t, err, "delete should not error")
-}
-
-func TestInsert(t *testing.T) {
-	t.Parallel()
-	d := NewDepth(id)
-	err := d.LoadSnapshot(&Book{Bids: Levels{{Price: 1337, Amount: 1, ID: 1}}, Asks: Levels{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
-	assert.NoError(t, err, "LoadSnapshot should not error")
-
-	updates := &Update{
-		Asks: Levels{{Price: 1337, Amount: 2, ID: 3}},
-	}
-	err = d.insert(updates)
-	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "insert should error correctly")
-
-	updates.UpdateTime = time.Now()
-
-	err = d.insert(updates)
-	assert.ErrorIs(t, err, errCollisionDetected, "insert should error correctly on collision")
-
-	err = d.LoadSnapshot(&Book{Bids: Levels{{Price: 1337, Amount: 1, ID: 1}}, Asks: Levels{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
-	assert.NoError(t, err, "LoadSnapshot should not error")
-
-	updates = &Update{
-		Bids:       Levels{{Price: 1337, Amount: 2, ID: 3}},
-		UpdateTime: time.Now(),
-	}
-
-	err = d.insert(updates)
-	assert.ErrorIs(t, err, errCollisionDetected, "insert should error correctly on collision")
-
-	err = d.LoadSnapshot(&Book{Bids: Levels{{Price: 1337, Amount: 1, ID: 1}}, Asks: Levels{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
-	assert.NoError(t, err, "LoadSnapshot should not error")
-
-	updates = &Update{
-		Bids:       Levels{{Price: 1338, Amount: 2, ID: 3}},
-		Asks:       Levels{{Price: 1336, Amount: 2, ID: 4}},
-		UpdateTime: time.Now(),
-	}
-	err = d.insert(updates)
-	assert.NoError(t, err, "InsertBidAskByID should not error")
-
-	ob, err := d.Retrieve()
-	assert.NoError(t, err, "Retrieve should not error")
-	assert.Len(t, ob.Asks, 2, "Should have correct Asks")
-	assert.Len(t, ob.Bids, 2, "Should have correct Bids")
 }
 
 func TestUpdateOrInsert(t *testing.T) {
@@ -360,10 +305,10 @@ func TestString(t *testing.T) {
 		expected string
 	}{
 		{action: UpdateAction, expected: "Update"},
-		{action: InsertAction, expected: "Insert"},
 		{action: UpdateOrInsertAction, expected: "UpdateOrInsert"},
 		{action: DeleteAction, expected: "Delete"},
 		{action: UnknownAction, expected: "Unknown"},
+		{action: InsertAction, expected: "Insert"},
 		{action: ActionType(69), expected: "Unknown(69)"},
 	} {
 		t.Run(tc.expected, func(t *testing.T) {
@@ -371,4 +316,12 @@ func TestString(t *testing.T) {
 			assert.Equal(t, tc.expected, tc.action.String(), "String representation should match")
 		})
 	}
+}
+
+func TestActionTypeValues(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, InsertAction, ActionType(1), "InsertAction should preserve its numeric value")
+	assert.Equal(t, UpdateOrInsertAction, ActionType(2), "UpdateOrInsertAction should preserve its numeric value")
+	assert.Equal(t, UpdateAction, ActionType(3), "UpdateAction should preserve its numeric value")
+	assert.Equal(t, DeleteAction, ActionType(4), "DeleteAction should preserve its numeric value")
 }
