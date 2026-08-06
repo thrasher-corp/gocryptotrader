@@ -139,6 +139,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 		enabled := (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
 			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
 			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
+			(settings.ForexProviders[i].Name == "FXMacroData" && overrides.FXMacroData) ||
 			(settings.ForexProviders[i].Name == "OpenExchangeRates" && overrides.OpenExchangeRates) ||
 			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates)
 
@@ -546,8 +547,7 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
-	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
-		s.defaultBaseCurrency.String(),
+	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.defaultBaseCurrency.String(),
 		s.defaultFiatCurrencies.Strings())
 	if err != nil {
 		return err
