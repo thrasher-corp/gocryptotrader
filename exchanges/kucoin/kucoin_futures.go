@@ -382,7 +382,7 @@ func (e *Exchange) PostFuturesOrderTest(ctx context.Context, arg *FuturesOrderPa
 
 // FillFuturesPostOrderArgumentFilter verifies futures order request parameters
 func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) error {
-	if *arg == (FuturesOrderParam{}) {
+	if arg == nil || *arg == (FuturesOrderParam{}) {
 		return common.ErrNilPointer
 	}
 	if arg.Leverage <= 0 {

@@ -159,26 +159,64 @@ func TestWsHandleData(t *testing.T) {
 func TestProcessAccountBalanceChange(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t)
-	ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
-	ku.API.AuthenticatedSupport = true
-	payload := []byte(`{"available":"50.17067692","currency":"USDT","hold":"0","relationEvent":"trade.setted","time":"1784868353688","total":"50.17067692"}`)
+	for _, tc := range []struct {
+		name          string
+		relationEvent string
+		expectedAsset asset.Item
+		expectedRaw   bool
+	}{
+		{name: "spot", relationEvent: "trade.setted", expectedAsset: asset.Spot},
+		{name: "margin", relationEvent: "marginV2.setted", expectedAsset: asset.Margin},
+		{name: "unclassified funding account", relationEvent: "main.transfer", expectedRaw: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.SetCredentials(&accounts.Credentials{Key: mockAPIKey, Secret: mockAPISecret, ClientID: mockAPIPassphrase})
+			ku.API.AuthenticatedSupport = true
+			payload := fmt.Appendf(nil,
+				`{"available":"50.17067692","currency":"USDT","hold":"0","relationEvent":%q,"time":"1784868353688","total":"50.17067692"}`,
+				tc.relationEvent)
 
-	require.NoError(t, ku.processAccountBalanceChange(t.Context(), payload), "processAccountBalanceChange must not error")
-	require.Len(t, ku.Websocket.DataHandler.C, 1, "DataHandler must receive the account balance change")
-	item := <-ku.Websocket.DataHandler.C
-	subAccounts, ok := item.Data.(accounts.SubAccounts)
-	require.True(t, ok, "DataHandler item must contain sub-accounts")
-	require.Len(t, subAccounts, 1, "account balance change must contain one sub-account")
-	require.Equal(t, asset.Spot, subAccounts[0].AssetType, "account balance change must update the spot account")
+			require.NoError(t, ku.processAccountBalanceChange(t.Context(), payload), "processAccountBalanceChange must not error")
+			require.Len(t, ku.Websocket.DataHandler.C, 1, "DataHandler must receive the account balance change")
+			item := <-ku.Websocket.DataHandler.C
+			if tc.expectedRaw {
+				raw, ok := item.Data.(*WsAccountBalance)
+				require.True(t, ok, "unclassified account changes must remain raw websocket events")
+				assert.Equal(t, tc.relationEvent, raw.RelationEvent, "raw relation event should be preserved")
+				return
+			}
 
-	creds, err := ku.GetCredentials(t.Context())
-	require.NoError(t, err, "GetCredentials must not error")
-	balance, err := ku.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
-	require.NoError(t, err, "GetBalance must find the stored spot balance")
-	require.InDelta(t, 50.17067692, balance.Total, 1e-12, "stored spot total must match the update")
-	require.InDelta(t, 50.17067692, balance.Free, 1e-12, "stored spot free balance must match the update")
-	require.Zero(t, balance.Hold, "stored spot hold balance must match the update")
+			subAccounts, ok := item.Data.(accounts.SubAccounts)
+			require.True(t, ok, "classified account changes must contain sub-accounts")
+			require.Len(t, subAccounts, 1, "account balance change must contain one sub-account")
+			require.Equal(t, tc.expectedAsset, subAccounts[0].AssetType, "account balance change must update the expected account")
+
+			creds, err := ku.GetCredentials(t.Context())
+			require.NoError(t, err, "GetCredentials must not error")
+			balance, err := ku.Accounts.GetBalance("", creds, tc.expectedAsset, currency.USDT)
+			require.NoError(t, err, "GetBalance must find the stored balance")
+			assert.InDelta(t, 50.17067692, balance.Total, 1e-12, "stored total should match the update")
+			assert.InDelta(t, 50.17067692, balance.Free, 1e-12, "stored free balance should match the update")
+			assert.Zero(t, balance.Hold, "stored hold balance should match the update")
+		})
+	}
+
+	t.Run("malformed payload", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		require.Error(t, ku.processAccountBalanceChange(t.Context(), []byte(`{"total":`)), "processAccountBalanceChange must reject malformed JSON")
+	})
+
+	t.Run("account store unavailable", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.Accounts = nil
+		err := ku.processAccountBalanceChange(t.Context(), []byte(
+			`{"available":"1","currency":"USDT","hold":"0","relationEvent":"trade.setted","time":"1784868353688","total":"1"}`))
+		require.Error(t, err, "processAccountBalanceChange must return account storage errors")
+	})
 }
 
 func TestAccountBalanceAsset(t *testing.T) {

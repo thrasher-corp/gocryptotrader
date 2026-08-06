@@ -1686,7 +1686,9 @@ func TestPostFuturesOrder(t *testing.T) {
 
 func TestFillFuturesPostOrderArgumentFilter(t *testing.T) {
 	t.Parallel()
-	err := e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy"})
+	err := e.FillFuturesPostOrderArgumentFilter(nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy"})
 	require.ErrorIs(t, err, errInvalidLeverage)
 	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{Side: "buy", Leverage: 1})
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
@@ -1728,6 +1730,16 @@ func TestFillFuturesPostOrderArgumentFilter(t *testing.T) {
 		Size: 1, Price: 1000, Leverage: 1,
 	})
 	require.ErrorIs(t, err, errInvalidFuturesMarginMode)
+	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit",
+		Size: 1, Price: 1000, Leverage: 1, VisibleSize: -1,
+	})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "unsupported",
+		Size: 1, Price: 1000, Leverage: 1,
+	})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit",
@@ -2847,6 +2859,26 @@ func TestSubmitMarginOrder(t *testing.T) {
 	require.Equal(t, order.GoodTillCancel.String(), payload["timeInForce"], "timeInForce must be a plain API string")
 	require.Equal(t, "1", payload["price"], "price must be encoded as a decimal string")
 	require.Equal(t, "1", payload["size"], "size must be encoded as a decimal string")
+
+	payload = nil
+	result, err = ku.SubmitOrder(t.Context(), &order.Submit{
+		Side:          order.Sell,
+		AssetType:     asset.Margin,
+		Pair:          marginTradablePair,
+		Type:          order.Market,
+		Amount:        2,
+		MarginType:    margin.Multi,
+		ClientOrderID: "market-order-id",
+		AutoBorrow:    true,
+	})
+	require.NoError(t, err, "SubmitOrder must support margin market orders")
+	require.NotNil(t, result, "SubmitOrder must return a market order response")
+	assert.Equal(t, true, payload["autoBorrow"], "market order should auto-borrow when requested")
+	assert.NotContains(t, payload, "autoRepay", "market order should omit disabled auto-repay")
+	assert.NotContains(t, payload, "isIsolated", "cross-margin order should omit isolated mode")
+	assert.NotContains(t, payload, "price", "market order should omit price")
+	assert.NotContains(t, payload, "timeInForce", "market order should omit time in force")
+	assert.Equal(t, "2", payload["size"], "market order size should be encoded as a decimal string")
 }
 
 func TestCancelOrder(t *testing.T) {
