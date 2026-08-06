@@ -15,8 +15,9 @@ type ActionType uint8
 // ActionType constants for use with ProcessUpdate
 const (
 	UnknownAction ActionType = iota
-	// Deprecated: insertion-only orderbook updates are no longer supported.
-	InsertAction
+	// The former insertion-only action value remains reserved so the surviving
+	// action values stay stable.
+	_
 	UpdateOrInsertAction
 	UpdateAction
 	DeleteAction
@@ -217,8 +218,6 @@ func (a ActionType) String() string {
 	switch a {
 	case UnknownAction:
 		return "Unknown"
-	case InsertAction:
-		return "Insert"
 	case UpdateOrInsertAction:
 		return "UpdateOrInsert"
 	case UpdateAction:

@@ -54,8 +54,8 @@ func TestProcessUpdate(t *testing.T) {
 	assert.ErrorIs(t, err, ErrLastUpdatedNotSet)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err = d.ProcessUpdate(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}})
-	assert.ErrorIs(t, err, errInvalidAction, "ProcessUpdate should reject the removed insert action")
+	err = d.ProcessUpdate(&Update{Action: ActionType(1), UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}})
+	assert.ErrorIs(t, err, errInvalidAction, "ProcessUpdate should reject the retired insert action value")
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	d.validateOrderbook = true
@@ -94,8 +94,8 @@ func TestUpdate(t *testing.T) {
 	err := d.update(&Update{})
 	assert.ErrorIs(t, err, errInvalidAction, "update should error correctly")
 
-	err = d.update(&Update{Action: InsertAction})
-	assert.ErrorIs(t, err, errInvalidAction, "Depth.update should reject InsertAction")
+	err = d.update(&Update{Action: ActionType(1)})
+	assert.ErrorIs(t, err, errInvalidAction, "Depth.update should reject the retired insert action value")
 
 	err = d.update(&Update{Action: UpdateAction, UpdateTime: time.Now(), Asks: Levels{{Price: 1338, Amount: 69420, ID: 69420}}})
 	assert.ErrorIs(t, err, errUpdateFailed, "update should error correctly")
@@ -311,7 +311,7 @@ func TestString(t *testing.T) {
 		{action: UpdateOrInsertAction, expected: "UpdateOrInsert"},
 		{action: DeleteAction, expected: "Delete"},
 		{action: UnknownAction, expected: "Unknown"},
-		{action: InsertAction, expected: "Insert"},
+		{action: ActionType(1), expected: "Unknown(1)"},
 		{action: ActionType(69), expected: "Unknown(69)"},
 	} {
 		t.Run(tc.expected, func(t *testing.T) {
@@ -323,7 +323,6 @@ func TestString(t *testing.T) {
 
 func TestActionTypeValues(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, InsertAction, ActionType(1), "InsertAction should preserve its numeric value")
 	assert.Equal(t, UpdateOrInsertAction, ActionType(2), "UpdateOrInsertAction should preserve its numeric value")
 	assert.Equal(t, UpdateAction, ActionType(3), "UpdateAction should preserve its numeric value")
 	assert.Equal(t, DeleteAction, ActionType(4), "DeleteAction should preserve its numeric value")
