@@ -29,17 +29,17 @@ func TestUnmarshalJSONCollateralType(t *testing.T) {
 	var alien martian
 	jason := []byte(`{"collateral":"single"}`)
 	err := json.Unmarshal(jason, &alien)
-	assert.NoError(t, err, "json.Unmarshal should not error for SingleMode")
+	require.NoError(t, err, "json.Unmarshal must not error for SingleMode")
 	assert.Equal(t, SingleMode, alien.M, "json.Unmarshal should set Mode to SingleMode")
 
 	jason = []byte(`{"collateral":"multi"}`)
 	err = json.Unmarshal(jason, &alien)
-	assert.NoError(t, err, "json.Unmarshal should not error for MultiMode")
+	require.NoError(t, err, "json.Unmarshal must not error for MultiMode")
 	assert.Equal(t, MultiMode, alien.M, "json.Unmarshal should set Mode to MultiMode")
 
 	jason = []byte(`{"collateral":"portfolio"}`)
 	err = json.Unmarshal(jason, &alien)
-	assert.NoError(t, err, "json.Unmarshal should not error for PortfolioMode")
+	require.NoError(t, err, "json.Unmarshal must not error for PortfolioMode")
 	assert.Equal(t, PortfolioMode, alien.M, "json.Unmarshal should set Mode to PortfolioMode")
 
 	jason = []byte(`{"collateral":"hello moto"}`)
@@ -91,18 +91,18 @@ func TestStringToCollateralType(t *testing.T) {
 	assert.Equal(t, UnknownMode, resp, "StringToMode should return UnknownMode for an invalid value")
 
 	resp, err = StringToMode("")
-	assert.NoError(t, err, "StringToMode should not error for an empty value")
+	require.NoError(t, err, "StringToMode must not error for an empty value")
 	assert.Equal(t, UnsetMode, resp, "StringToMode should return UnsetMode for an empty value")
 
 	resp, err = StringToMode("single")
-	assert.NoError(t, err, "StringToMode should not error for single")
+	require.NoError(t, err, "StringToMode must not error for single")
 	assert.Equal(t, SingleMode, resp, "StringToMode should return SingleMode for single")
 
 	resp, err = StringToMode("multi")
-	assert.NoError(t, err, "StringToMode should not error for multi")
+	require.NoError(t, err, "StringToMode must not error for multi")
 	assert.Equal(t, MultiMode, resp, "StringToMode should return MultiMode for multi")
 
 	resp, err = StringToMode("portfolio")
-	assert.NoError(t, err, "StringToMode should not error for portfolio")
+	require.NoError(t, err, "StringToMode must not error for portfolio")
 	assert.Equal(t, PortfolioMode, resp, "StringToMode should return PortfolioMode for portfolio")
 }
