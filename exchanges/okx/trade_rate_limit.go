@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -11,6 +12,10 @@ import (
 )
 
 type tradeRateLimitClass string
+
+type tradeRateLimitRequest interface {
+	tradeRateLimitInstrumentID() string
+}
 
 type tradeRateLimitKey struct {
 	class tradeRateLimitClass
@@ -46,13 +51,47 @@ const (
 	subAccountTradeRateLimitScope = "subaccount"
 )
 
-var tradeRateLimitActions = map[tradeRateLimitClass]int{
-	tradeRateLimitPlaceSingle:  singleTradeRateLimitActions,
-	tradeRateLimitPlaceBatch:   batchTradeRateLimitActions,
-	tradeRateLimitCancelSingle: singleTradeRateLimitActions,
-	tradeRateLimitCancelBatch:  batchTradeRateLimitActions,
-	tradeRateLimitAmendSingle:  singleTradeRateLimitActions,
-	tradeRateLimitAmendBatch:   batchTradeRateLimitActions,
+func tradeRateLimitActions(class tradeRateLimitClass) (int, error) {
+	switch class {
+	case tradeRateLimitPlaceSingle, tradeRateLimitCancelSingle, tradeRateLimitAmendSingle:
+		return singleTradeRateLimitActions, nil
+	case tradeRateLimitPlaceBatch, tradeRateLimitCancelBatch, tradeRateLimitAmendBatch:
+		return batchTradeRateLimitActions, nil
+	default:
+		return 0, fmt.Errorf("%w: %s", errInvalidTradeRateLimitClass, class)
+	}
+}
+
+func (p PlaceOrderRequestParam) tradeRateLimitInstrumentID() string { return p.InstrumentID }
+
+func (p CancelOrderRequestParam) tradeRateLimitInstrumentID() string { return p.InstrumentID }
+
+func (p AmendOrderRequestParams) tradeRateLimitInstrumentID() string { return p.InstrumentID }
+
+// tradeRateLimitContext decorates ctx with the instrument or option-family and
+// subaccount limits required by OKX. Batch classes also carry an endpoint
+// weight matching the number of orders for request-time rate limiting.
+func tradeRateLimitContext[T tradeRateLimitRequest](ctx context.Context, limiter *tradeRateLimiter, class tradeRateLimitClass, args []T) (context.Context, error) {
+	var endpointWeight request.Weight
+	switch class {
+	case tradeRateLimitPlaceBatch, tradeRateLimitCancelBatch, tradeRateLimitAmendBatch:
+		var err error
+		endpointWeight, err = rateLimitWeight(len(args), true)
+		if err != nil {
+			return nil, err
+		}
+	}
+	counts, err := tradeScopeCounts(args, func(arg T) string { return arg.tradeRateLimitInstrumentID() })
+	if err != nil {
+		return nil, err
+	}
+	additionalRateLimits, err := limiter.additionalTradeRateLimits(class, counts)
+	if err != nil {
+		return nil, err
+	}
+	ctx = request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
+	ctx = request.WithEndpointRateLimitWeight(ctx, endpointWeight)
+	return ctx, nil
 }
 
 func rateLimitWeight(count int, isBatched bool) (request.Weight, error) {
@@ -69,9 +108,9 @@ func (l *tradeRateLimiter) getOrCreateScopedLimiter(class tradeRateLimitClass, s
 	if scope == "" {
 		return nil, errMissingTradeRateLimitScope
 	}
-	actions, ok := tradeRateLimitActions[class]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", errInvalidTradeRateLimitClass, class)
+	actions, err := tradeRateLimitActions(class)
+	if err != nil {
+		return nil, err
 	}
 	key := tradeRateLimitKey{
 		class: class,
@@ -119,8 +158,8 @@ func (l *tradeRateLimiter) additionalTradeScopeRateLimits(class tradeRateLimitCl
 	if len(counts) == 0 {
 		return nil, 0, errMissingTradeRateLimitScope
 	}
-	if _, ok := tradeRateLimitActions[class]; !ok {
-		return nil, 0, fmt.Errorf("%w: %s", errInvalidTradeRateLimitClass, class)
+	if _, err := tradeRateLimitActions(class); err != nil {
+		return nil, 0, err
 	}
 
 	weights := make(map[string]request.Weight, len(counts))
@@ -203,18 +242,6 @@ func optionInstrumentFamily(instrumentID string) (string, error) {
 
 func isOptionInstrumentID(instrumentID string) bool {
 	return strings.Count(instrumentID, "-") >= 4 || strings.Count(instrumentID, "_") >= 4
-}
-
-func tradeScopeCountsFromPlaceOrders(args []PlaceOrderRequestParam) (map[string]int, error) {
-	return tradeScopeCounts(args, func(arg PlaceOrderRequestParam) string { return arg.InstrumentID })
-}
-
-func tradeScopeCountsFromCancelOrders(args []CancelOrderRequestParam) (map[string]int, error) {
-	return tradeScopeCounts(args, func(arg CancelOrderRequestParam) string { return arg.InstrumentID })
-}
-
-func tradeScopeCountsFromAmendOrders(args []AmendOrderRequestParams) (map[string]int, error) {
-	return tradeScopeCounts(args, func(arg AmendOrderRequestParams) string { return arg.InstrumentID })
 }
 
 func tradeScopeCounts[T any](args []T, instrumentID func(T) string) (map[string]int, error) {

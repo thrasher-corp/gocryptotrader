@@ -58,15 +58,10 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) 
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	tradeScopeCounts, err := tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg})
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitPlaceSingle, []PlaceOrderRequestParam{*arg})
 	if err != nil {
 		return nil, err
 	}
-	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCounts)
-	if err != nil {
-		return nil, err
-	}
-	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp *OrderData
 	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest); err != nil {
 		if resp != nil && resp.StatusMessage != "" {
@@ -82,25 +77,15 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
 	}
-	batchWeight, err := rateLimitWeight(len(args), true)
-	if err != nil {
-		return nil, err
-	}
 	for x := range args {
 		if err := args[x].Validate(); err != nil {
 			return nil, err
 		}
 	}
-	tradeScopeCounts, err := tradeScopeCountsFromPlaceOrders(args)
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitPlaceBatch, args)
 	if err != nil {
 		return nil, err
 	}
-	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCounts)
-	if err != nil {
-		return nil, err
-	}
-	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
-	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 	var resp []OrderData
 	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
@@ -126,15 +111,10 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	tradeScopeCounts, err := tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg})
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitCancelSingle, []CancelOrderRequestParam{*arg})
 	if err != nil {
 		return nil, err
 	}
-	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCounts)
-	if err != nil {
-		return nil, err
-	}
-	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp *OrderData
 	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest); err != nil {
 		if resp != nil && resp.StatusMessage != "" {
@@ -151,10 +131,6 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	batchWeight, err := rateLimitWeight(len(args), true)
-	if err != nil {
-		return nil, err
-	}
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -164,16 +140,10 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	tradeScopeCounts, err := tradeScopeCountsFromCancelOrders(args)
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitCancelBatch, args)
 	if err != nil {
 		return nil, err
 	}
-	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCounts)
-	if err != nil {
-		return nil, err
-	}
-	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
-	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 	var resp []*OrderData
 	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
@@ -204,15 +174,10 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
-	tradeScopeCounts, err := tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg})
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitAmendSingle, []AmendOrderRequestParams{*arg})
 	if err != nil {
 		return nil, err
 	}
-	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCounts)
-	if err != nil {
-		return nil, err
-	}
-	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
 	var resp *OrderData
 	return resp, e.SendHTTPRequest(requestContext, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
 }
@@ -221,10 +186,6 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
-	}
-	batchWeight, err := rateLimitWeight(len(args), true)
-	if err != nil {
-		return nil, err
 	}
 	for x := range args {
 		if args[x].InstrumentID == "" {
@@ -237,16 +198,10 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
-	tradeScopeCounts, err := tradeScopeCountsFromAmendOrders(args)
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitAmendBatch, args)
 	if err != nil {
 		return nil, err
 	}
-	additionalRateLimits, err := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCounts)
-	if err != nil {
-		return nil, err
-	}
-	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
-	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 	var resp []OrderData
 	return resp, e.SendHTTPRequest(requestContext, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }

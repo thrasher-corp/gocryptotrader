@@ -114,10 +114,16 @@ func TestIsOptionInstrumentID(t *testing.T) {
 	}
 }
 
-func TestTradeScopeCountsFromPlaceOrders(t *testing.T) {
+func TestTradeRateLimitContext(t *testing.T) {
 	t.Parallel()
 
-	t.Run("valid orders", func(t *testing.T) {
+	newLimiter := func() *tradeRateLimiter {
+		return &tradeRateLimiter{
+			scopedLimiters:    make(map[tradeRateLimitKey]*request.RateLimiterWithWeight),
+			subAccountLimiter: request.NewRateLimitWithWeight(twoSecondsInterval, subAccountTradeRateLimitActions, 1),
+		}
+	}
+	t.Run("place orders", func(t *testing.T) {
 		t.Parallel()
 
 		args := []PlaceOrderRequestParam{
@@ -127,25 +133,17 @@ func TestTradeScopeCountsFromPlaceOrders(t *testing.T) {
 			{InstrumentID: tradeRateLimitBTCUSDOptionCall},
 			{InstrumentID: tradeRateLimitBTCUSDOptionPut},
 		}
-		got, err := tradeScopeCountsFromPlaceOrders(args)
-		require.NoError(t, err, "tradeScopeCountsFromPlaceOrders must not error")
-		assert.Equal(t, 2, got[tradeRateLimitBTCUSDT], "BTC-USDT count should match")
-		assert.Equal(t, 1, got["ETH-USDT"], "ETH-USDT count should match")
-		assert.Equal(t, 2, got["BTC-USD"], "BTC-USD option family count should match")
+		limiter := newLimiter()
+		parent := t.Context()
+		ctx, err := tradeRateLimitContext(parent, limiter, tradeRateLimitPlaceBatch, args)
+		require.NoError(t, err, "tradeRateLimitContext must not error")
+		assert.NotEqual(t, parent, ctx, "tradeRateLimitContext should return a decorated context")
+		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitPlaceBatch, scope: tradeRateLimitBTCUSDT}, "place orders should create the instrument limiter")
+		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitPlaceBatch, scope: "ETH-USDT"}, "place orders should create each instrument limiter")
+		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitPlaceBatch, scope: "BTC-USD"}, "options should share the family limiter")
 	})
 
-	t.Run("missing instrument ID", func(t *testing.T) {
-		t.Parallel()
-
-		_, err := tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{{}})
-		require.ErrorIs(t, err, errMissingTradeRateLimitScope, "empty instrument ID must return missing scope error")
-	})
-}
-
-func TestTradeScopeCountsFromCancelOrders(t *testing.T) {
-	t.Parallel()
-
-	t.Run("valid orders", func(t *testing.T) {
+	t.Run("cancel orders", func(t *testing.T) {
 		t.Parallel()
 
 		args := []CancelOrderRequestParam{
@@ -153,24 +151,14 @@ func TestTradeScopeCountsFromCancelOrders(t *testing.T) {
 			{InstrumentID: "SOL-USDT"},
 			{InstrumentID: "SOL-USD-241227-100-P"},
 		}
-		got, err := tradeScopeCountsFromCancelOrders(args)
-		require.NoError(t, err, "tradeScopeCountsFromCancelOrders must not error")
-		assert.Equal(t, 2, got["SOL-USDT"], "SOL-USDT count should match")
-		assert.Equal(t, 1, got["SOL-USD"], "SOL-USD option family count should match")
+		limiter := newLimiter()
+		_, err := tradeRateLimitContext(t.Context(), limiter, tradeRateLimitCancelBatch, args)
+		require.NoError(t, err, "tradeRateLimitContext must not error")
+		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitCancelBatch, scope: "SOL-USDT"}, "cancel orders should create the instrument limiter")
+		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitCancelBatch, scope: "SOL-USD"}, "cancel options should use the family limiter")
 	})
 
-	t.Run("missing instrument ID", func(t *testing.T) {
-		t.Parallel()
-
-		_, err := tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{{}})
-		require.ErrorIs(t, err, errMissingTradeRateLimitScope, "empty instrument ID must return missing scope error")
-	})
-}
-
-func TestTradeScopeCountsFromAmendOrders(t *testing.T) {
-	t.Parallel()
-
-	t.Run("valid orders", func(t *testing.T) {
+	t.Run("amend orders", func(t *testing.T) {
 		t.Parallel()
 
 		args := []AmendOrderRequestParams{
@@ -178,16 +166,24 @@ func TestTradeScopeCountsFromAmendOrders(t *testing.T) {
 			{InstrumentID: "XRP-USDT"},
 			{InstrumentID: "XRP-USDT"},
 		}
-		got, err := tradeScopeCountsFromAmendOrders(args)
-		require.NoError(t, err, "tradeScopeCountsFromAmendOrders must not error")
-		assert.Equal(t, 3, got["XRP-USDT"], "XRP-USDT count should match")
+		limiter := newLimiter()
+		_, err := tradeRateLimitContext(t.Context(), limiter, tradeRateLimitAmendBatch, args)
+		require.NoError(t, err, "tradeRateLimitContext must not error")
+		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitAmendBatch, scope: "XRP-USDT"}, "amend orders should create the instrument limiter")
 	})
 
 	t.Run("missing instrument ID", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{{}})
+		_, err := tradeRateLimitContext(t.Context(), newLimiter(), tradeRateLimitPlaceSingle, []PlaceOrderRequestParam{{}})
 		require.ErrorIs(t, err, errMissingTradeRateLimitScope, "empty instrument ID must return missing scope error")
+	})
+
+	t.Run("batch over maximum", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := tradeRateLimitContext(t.Context(), newLimiter(), tradeRateLimitPlaceBatch, make([]PlaceOrderRequestParam, maxBatchOrders+1))
+		require.ErrorIs(t, err, errExceedLimit, "oversized batch must return expected error")
 	})
 }
 
