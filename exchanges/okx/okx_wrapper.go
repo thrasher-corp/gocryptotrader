@@ -44,6 +44,11 @@ const (
 	instrumentStateLive       = "live"
 )
 
+var (
+	errContractAmountCanNotBeDecimal = errors.New("contract amount cannot be decimal")
+	errInstrumentIDCodeNotFound      = errors.New("instrument ID code not found")
+)
+
 // SetDefaults sets the basic defaults for Okx
 func (e *Exchange) SetDefaults() {
 	e.Name = "Okx"
@@ -1140,7 +1145,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	}
 	var err error
 	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
+		return nil, errContractAmountCanNotBeDecimal
 	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
@@ -1178,6 +1183,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			ClientOrderID: action.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, action.AssetType, amendRequest.InstrumentID)
+			if resolveErr == nil {
+				amendRequest.InstrumentIDCode = instrumentIDCode
+			}
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
 		} else {
 			_, err = e.AmendOrder(ctx, &amendRequest)
@@ -1251,6 +1260,43 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	return action.DeriveModifyResponse()
 }
 
+// WebsocketModifyOrder modifies an OKX order through websocket when available.
+func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrFunctionNotSupported
+	}
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	if math.Trunc(action.Amount) != action.Amount {
+		return nil, errContractAmountCanNotBeDecimal
+	}
+	if action.AssetType == asset.Spread {
+		_, err := e.WSAmendSpreadOrder(ctx, &AmendSpreadOrderParam{
+			OrderID:       action.OrderID,
+			ClientOrderID: action.ClientOrderID,
+			NewSize:       action.Amount,
+			NewPrice:      action.Price,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return action.DeriveModifyResponse()
+	}
+	arg, err := e.deriveAmendOrderArguments(action)
+	if err != nil {
+		return nil, err
+	}
+	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, action.AssetType, arg.InstrumentID)
+	if resolveErr == nil {
+		arg.InstrumentIDCode = instrumentIDCode
+	}
+	if _, err = e.WSAmendOrder(ctx, arg); err != nil {
+		return nil, err
+	}
+	return action.DeriveModifyResponse()
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !e.SupportsAsset(ord.AssetType) {
@@ -1281,6 +1327,10 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			ClientOrderID: ord.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, req.InstrumentID)
+			if resolveErr == nil {
+				req.InstrumentIDCode = instrumentIDCode
+			}
 			_, err = e.WSCancelOrder(ctx, &req)
 		} else {
 			_, err = e.CancelSingleOrder(ctx, &req)
@@ -1300,6 +1350,178 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	default:
 		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
 	}
+	return err
+}
+
+func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderRequestParam, error) {
+	if !e.SupportsAsset(s.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
+	}
+	if s.Amount <= 0 && !isSpotMarketBuyWithQuoteAmount(s) {
+		return nil, limits.ErrAmountBelowMin
+	}
+	if s.AssetType == asset.Spread {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
+	}
+	if s.AssetType.IsFutures() && s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
+	pairFormat, err := e.GetPairFormat(s.AssetType, true)
+	if err != nil {
+		return nil, err
+	}
+	if s.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	pairString := pairFormat.Format(s.Pair)
+	tradeMode := e.marginTypeToString(s.MarginType)
+	sideType, err := deriveOrderSide(s.Side)
+	if err != nil {
+		return nil, err
+	}
+	positionSide := derivePositionSide(s)
+	amount := s.Amount
+	var targetCurrency string
+	if isSpotMarketOrder(s) {
+		targetCurrency = "base_ccy"
+		if s.QuoteAmount > 0 {
+			amount = s.QuoteAmount
+			targetCurrency = "quote_ccy"
+		}
+	}
+	orderTypeString, err := orderTypeString(s.Type, s.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
+	switch orderTypeString {
+	case orderLimit, orderMarket, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only":
+	default:
+		return nil, fmt.Errorf("%w: %s", order.ErrTypeIsInvalid, orderTypeString)
+	}
+
+	return &PlaceOrderRequestParam{
+		InstrumentID:   pairString,
+		TradeMode:      tradeMode,
+		Side:           sideType,
+		PositionSide:   positionSide,
+		OrderType:      orderTypeString,
+		Amount:         amount,
+		ClientOrderID:  s.ClientOrderID,
+		Price:          s.Price,
+		TargetCurrency: targetCurrency,
+		AssetType:      s.AssetType,
+	}, nil
+}
+
+func isSpotMarketOrder(s *order.Submit) bool {
+	return s.AssetType == asset.Spot && s.Type == order.Market
+}
+
+func isSpotMarketBuyWithQuoteAmount(s *order.Submit) bool {
+	return isSpotMarketOrder(s) && s.Side.IsLong() && s.QuoteAmount > 0
+}
+
+func deriveOrderSide(side order.Side) (string, error) {
+	switch {
+	case side.IsLong():
+		return order.Buy.Lower(), nil
+	case side.IsShort():
+		return order.Sell.Lower(), nil
+	default:
+		return "", fmt.Errorf("%w %s", order.ErrSideIsInvalid, side)
+	}
+}
+
+func derivePositionSide(s *order.Submit) string {
+	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
+		return ""
+	}
+	switch s.Side {
+	case order.Long:
+		return positionSideLong
+	case order.Short:
+		return positionSideShort
+	}
+	if s.ReduceOnly {
+		if s.Side.IsLong() {
+			return positionSideShort
+		}
+		return positionSideLong
+	}
+	if s.Side.IsLong() {
+		return positionSideLong
+	}
+	return positionSideShort
+}
+
+func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderRequestParams, error) {
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(action.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
+	}
+	if action.AssetType == asset.Spread {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
+	}
+	if math.Trunc(action.Amount) != action.Amount {
+		return nil, errContractAmountCanNotBeDecimal
+	}
+	pairFormat, err := e.GetPairFormat(action.AssetType, true)
+	if err != nil {
+		return nil, err
+	}
+	return &AmendOrderRequestParams{
+		InstrumentID:  pairFormat.Format(action.Pair),
+		NewQuantity:   action.Amount,
+		OrderID:       action.OrderID,
+		ClientOrderID: action.ClientOrderID,
+		NewPrice:      action.Price,
+	}, nil
+}
+
+func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRequestParam, error) {
+	if err := ord.Validate(); err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(ord.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
+	}
+	if ord.AssetType == asset.Spread {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
+	}
+	pairFormat, err := e.GetPairFormat(ord.AssetType, true)
+	if err != nil {
+		return nil, err
+	}
+	if ord.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	return &CancelOrderRequestParam{
+		InstrumentID:  pairFormat.Format(ord.Pair),
+		OrderID:       ord.OrderID,
+		ClientOrderID: ord.ClientOrderID,
+	}, nil
+}
+
+// WebsocketCancelOrder cancels an OKX order through websocket when available.
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return common.ErrFunctionNotSupported
+	}
+	if ord.AssetType == asset.Spread {
+		_, err := e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		return err
+	}
+	arg, err := e.deriveCancelOrderArguments(ord)
+	if err != nil {
+		return err
+	}
+	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, arg.InstrumentID)
+	if resolveErr == nil {
+		arg.InstrumentIDCode = instrumentIDCode
+	}
+	_, err = e.WSCancelOrder(ctx, arg)
 	return err
 }
 
@@ -1336,6 +1558,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				OrderID:       ord.OrderID,
 				ClientOrderID: ord.ClientOrderID,
 			})
+			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, cancelOrderParams[len(cancelOrderParams)-1].InstrumentID)
+				if resolveErr == nil {
+					cancelOrderParams[len(cancelOrderParams)-1].InstrumentIDCode = instrumentIDCode
+				}
+			}
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
 			if o[x].OrderID == "" {
@@ -1387,6 +1615,128 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 	}
 	return resp, nil
+}
+
+// WebsocketSubmitOrder submits the order through OKX websocket when available.
+func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrFunctionNotSupported
+	}
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
+		return nil, err
+	}
+	if s.AssetType == asset.Spread {
+		pairFormat, err := e.GetPairFormat(s.AssetType, true)
+		if err != nil {
+			return nil, err
+		}
+		side, err := deriveOrderSide(s.Side)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := e.WSPlaceSpreadOrder(ctx, &SpreadOrderParam{
+			SpreadID:      pairFormat.Format(s.Pair),
+			ClientOrderID: s.ClientOrderID,
+			Side:          side,
+			OrderType:     s.Type.Lower(),
+			Size:          s.Amount,
+			Price:         s.Price,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return s.DeriveSubmitResponse(resp.OrderID)
+	}
+	arg, err := e.deriveSubmitOrderArguments(s)
+	if err != nil {
+		return nil, err
+	}
+	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, s.AssetType, arg.InstrumentID)
+	if resolveErr == nil {
+		arg.InstrumentIDCode = instrumentIDCode
+	}
+	resp, err := e.WSPlaceOrder(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	return s.DeriveSubmitResponse(resp.OrderID)
+}
+
+func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, instrumentID string) (int64, error) {
+	if instrumentID == "" {
+		return 0, errMissingInstrumentID
+	}
+	if !e.SupportsAsset(ai) {
+		return 0, fmt.Errorf("%w: %v", errInvalidInstrumentType, ai)
+	}
+	instType := GetInstrumentTypeFromAssetItem(ai)
+	fetchParams := make([]InstrumentsFetchParams, 0, 4)
+	if ai == asset.Options {
+		selector := optionInstrumentSelector(instrumentID)
+		fetchParams = append(fetchParams,
+			InstrumentsFetchParams{
+				InstrumentType:   instType,
+				Underlying:       selector,
+				InstrumentFamily: selector,
+				InstrumentID:     instrumentID,
+			},
+			InstrumentsFetchParams{
+				InstrumentType: instType,
+				Underlying:     selector,
+				InstrumentID:   instrumentID,
+			},
+			InstrumentsFetchParams{
+				InstrumentType:   instType,
+				InstrumentFamily: selector,
+				InstrumentID:     instrumentID,
+			})
+	}
+	fetchParams = append(fetchParams, InstrumentsFetchParams{
+		InstrumentType: instType,
+		InstrumentID:   instrumentID,
+	})
+	var fetchErr error
+	for _, params := range fetchParams {
+		instruments, err := e.GetInstruments(ctx, &params)
+		if err != nil {
+			fetchErr = err
+			continue
+		}
+		instrumentIDCode := lookupInstrumentIDCode(instruments, instrumentID)
+		if instrumentIDCode > 0 {
+			return instrumentIDCode, nil
+		}
+	}
+	if fetchErr != nil {
+		return 0, fetchErr
+	}
+	return 0, fmt.Errorf("%w: %s", errInstrumentIDCodeNotFound, instrumentID)
+}
+
+func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
+	for i := range instruments {
+		if !strings.EqualFold(instruments[i].InstrumentID.String(), instrumentID) {
+			continue
+		}
+		instrumentIDCode := instruments[i].InstrumentIDCode.Int64()
+		if instrumentIDCode > 0 {
+			return instrumentIDCode
+		}
+	}
+	return 0
+}
+
+func optionInstrumentSelector(instrumentID string) string {
+	parts := strings.Split(instrumentID, currency.DashDelimiter)
+	delimiter := currency.DashDelimiter
+	if len(parts) < 2 {
+		parts = strings.Split(instrumentID, currency.UnderscoreDelimiter)
+		delimiter = currency.UnderscoreDelimiter
+	}
+	if len(parts) < 2 {
+		return instrumentID
+	}
+	return strings.Join(parts[:2], delimiter)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -1445,6 +1795,7 @@ ordersLoop:
 			if myOrders[x].OrderID == orderCancellation.OrderID ||
 				myOrders[x].ClientOrderID == orderCancellation.ClientOrderID {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
 					OrderID:       myOrders[x].OrderID,
 					ClientOrderID: myOrders[x].ClientOrderID,
 				}
@@ -1453,6 +1804,7 @@ ordersLoop:
 		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
 			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
 					OrderID:       myOrders[x].OrderID,
 					ClientOrderID: myOrders[x].ClientOrderID,
 				}
@@ -1460,12 +1812,24 @@ ordersLoop:
 			}
 		default:
 			cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+				InstrumentID:  myOrders[x].InstrumentID,
 				OrderID:       myOrders[x].OrderID,
 				ClientOrderID: myOrders[x].ClientOrderID,
 			}
 		}
 	}
 	remaining := cancelAllOrdersRequestParams
+	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid() {
+		for i := range remaining {
+			if remaining[i].InstrumentID == "" {
+				continue
+			}
+			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, orderCancellation.AssetType, remaining[i].InstrumentID)
+			if resolveErr == nil {
+				remaining[i].InstrumentIDCode = instrumentIDCode
+			}
+		}
+	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for range loop {
 		var response []*OrderData

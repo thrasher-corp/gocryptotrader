@@ -113,6 +113,7 @@ func MockWsInstance[T any, PT interface {
 	require.NoError(tb, Setup(e, verbose...), "Test exchange Setup must not error")
 
 	s := httptest.NewServer(h)
+	tb.Cleanup(s.Close)
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
@@ -130,6 +131,11 @@ func MockWsInstance[T any, PT interface {
 
 	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
+	tb.Cleanup(func() {
+		if b.Websocket.IsConnected() {
+			require.NoError(tb, b.Websocket.Shutdown(), "Websocket shutdown must not error")
+		}
+	})
 
 	return e
 }
