@@ -470,7 +470,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -808,28 +808,48 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	if err := req.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 	switch req.AssetType {
 	case asset.Spot:
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			cancel, err := e.wsCancelAllOrders(ctx)
 			if err != nil {
-				return resp, err
+				if len(resp.Status) > 0 {
+					return &resp, err
+				}
+				return nil, err
 			}
 			for i := range cancel.Count {
 				resp.Add(fmt.Sprintf("Unknown:%d", i+1), "cancelled")
 			}
-			return resp, err
+			return &resp, nil
+		}
+		if !req.Pair.IsPopulated() {
+			return nil, order.ErrPairRequiredForCancelAllFanout
+		}
+		fPair, err := e.FormatExchangeCurrency(req.Pair, asset.Spot)
+		if err != nil {
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		openOrders, err := e.GetOpenOrders(ctx, OrderInfoOptions{})
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for orderID := range openOrders.Open {
+			// Kraken REST does not expose a pair-scoped cancel-all endpoint, so only cancel orders that match the explicit pair.
+			if !strings.EqualFold(openOrders.Open[orderID].Description.Pair, fPair.String()) {
+				continue
+			}
 			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				err = e.wsCancelOrders(ctx, []string{orderID})
 			} else {
@@ -844,18 +864,21 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 	case asset.Futures:
 		cancelData, err := e.FuturesCancelAllOrders(ctx, req.Pair)
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for x := range cancelData.CancelStatus.CancelledOrders {
 			resp.Add(cancelData.CancelStatus.CancelledOrders[x].OrderID, "cancelled")
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetOrderInfo returns information on a current open order
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -1679,12 +1702,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 	resp := make([]futures.OpenInterest, 0, len(futuresTickersData.Tickers))
 	for i := range futuresTickersData.Tickers {
 		var p currency.Pair
-		var isEnabled bool
-		p, isEnabled, err = e.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
+		p, err = e.MatchSymbolWithAvailablePairs(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		if !isEnabled {
+		if err != nil {
 			continue
 		}
 		var appendData bool
@@ -1707,7 +1729,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

@@ -4911,6 +4911,12 @@
       "properties": {
         "exchange": {
           "type": "string"
+        },
+        "assetType": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
         }
       }
     },
