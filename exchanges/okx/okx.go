@@ -100,8 +100,9 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 		return nil, err
 	}
 	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
+	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 	var resp []OrderData
-	if err := e.sendHTTPRequestWithRateLimitWeight(requestContext, exchange.RestSpot, placeMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest); err != nil {
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
@@ -172,8 +173,9 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 		return nil, err
 	}
 	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
+	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 	var resp []*OrderData
-	if err := e.sendHTTPRequestWithRateLimitWeight(requestContext, exchange.RestSpot, cancelMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest); err != nil {
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
@@ -244,8 +246,9 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 		return nil, err
 	}
 	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
+	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 	var resp []OrderData
-	return resp, e.sendHTTPRequestWithRateLimitWeight(requestContext, exchange.RestSpot, amendMultipleOrdersEPL, batchWeight, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(requestContext, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }
 
 // ClosePositions close all positions of an instrument via a market order
@@ -5945,10 +5948,6 @@ result must be a pointer
 The response data is unmarshalled directly into result first and then (if needed) from the first array element
 */
 func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType) (err error) {
-	return e.sendHTTPRequestWithRateLimitWeight(ctx, ep, f, 0, httpMethod, requestPath, data, result, requestType)
-}
-
-func (e *Exchange) sendHTTPRequestWithRateLimitWeight(ctx context.Context, ep exchange.URL, f request.EndpointLimit, weight request.Weight, httpMethod, requestPath string, data, result any, requestType request.AuthType) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -5999,7 +5998,7 @@ func (e *Exchange) sendHTTPRequestWithRateLimitWeight(ctx context.Context, ep ex
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	if err := e.SendPayloadWithRateLimitWeight(ctx, f, weight, newRequest, requestType); err != nil {
+	if err := e.SendPayload(ctx, f, newRequest, requestType); err != nil {
 		return err
 	}
 	if resp.Code.Int64() != 0 {

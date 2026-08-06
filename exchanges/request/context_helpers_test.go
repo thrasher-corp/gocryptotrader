@@ -60,6 +60,24 @@ func TestAdditionalRateLimitsFromContext(t *testing.T) {
 	assert.Empty(t, additionalRateLimitsFromContext(invalidContext), "an invalid context value should return no limits")
 }
 
+func TestWithEndpointRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	parent := t.Context()
+	assert.Equal(t, parent, WithEndpointRateLimitWeight(parent, 0), "zero weight should preserve the parent context")
+	ctx := WithEndpointRateLimitWeight(parent, 3)
+	assert.Zero(t, endpointRateLimitWeightFromContext(parent), "the parent context should remain unchanged")
+	assert.Equal(t, Weight(3), endpointRateLimitWeightFromContext(ctx), "the child context should contain the endpoint weight")
+}
+
+func TestEndpointRateLimitWeightFromContext(t *testing.T) {
+	t.Parallel()
+
+	assert.Zero(t, endpointRateLimitWeightFromContext(t.Context()), "a context without a weight should return zero")
+	invalidContext := context.WithValue(t.Context(), endpointRateLimitWeightKey{}, "invalid")
+	assert.Zero(t, endpointRateLimitWeightFromContext(invalidContext), "an invalid context value should return zero")
+}
+
 func TestWithRetryNotAllowed(t *testing.T) {
 	t.Parallel()
 	assert.True(t, hasRetryNotAllowed(WithRetryNotAllowed(t.Context())))

@@ -76,15 +76,6 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 
 // SendPayload handles sending HTTP/HTTPS requests.
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
-	return r.sendPayload(ctx, ep, 0, newRequest, requestType)
-}
-
-// SendPayloadWithRateLimitWeight handles sending HTTP/HTTPS requests with a request-specific endpoint rate-limit weight.
-func (r *Requester) SendPayloadWithRateLimitWeight(ctx context.Context, ep EndpointLimit, weight Weight, newRequest Generate, requestType AuthType) error {
-	return r.sendPayload(ctx, ep, weight, newRequest, requestType)
-}
-
-func (r *Requester) sendPayload(ctx context.Context, ep EndpointLimit, weight Weight, newRequest Generate, requestType AuthType) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -102,7 +93,7 @@ func (r *Requester) sendPayload(ctx context.Context, ep EndpointLimit, weight We
 		return errRequestFunctionIsNil
 	}
 
-	err := r.doRequest(ctx, ep, weight, newRequest)
+	err := r.doRequest(ctx, ep, newRequest)
 	if err != nil && requestType == AuthenticatedRequest {
 		err = common.AppendError(err, ErrAuthRequestFailed)
 	}
@@ -149,7 +140,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 }
 
 // doRequest performs a HTTP/HTTPS request with the supplied params.
-func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, weight Weight, newRequest Generate) error {
+func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
 	for attempt := 1; ; attempt++ {
 		// Check if context has finished before executing new attempt.
 		select {
@@ -160,7 +151,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, weigh
 
 		if r.limiter != nil {
 			// Initiate a rate limit reservation and sleep on requested endpoint
-			if err := r.initiateRateLimit(ctx, endpoint, weight); err != nil {
+			if err := r.InitiateRateLimit(ctx, endpoint); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
 		}
@@ -400,10 +391,6 @@ func (r *Requester) Shutdown() error {
 
 // InitiateRateLimit sleeps for designated endpoint rate limits.
 func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
-	return r.initiateRateLimit(ctx, e, 0)
-}
-
-func (r *Requester) initiateRateLimit(ctx context.Context, e EndpointLimit, endpointWeightOverride Weight) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -413,13 +400,7 @@ func (r *Requester) initiateRateLimit(ctx context.Context, e EndpointLimit, endp
 	if err := common.NilGuard(r.limiter); err != nil {
 		return err
 	}
-	var err error
-	if endpointWeightOverride > 0 {
-		err = r.limiter[e].RateLimitWithWeight(ctx, endpointWeightOverride)
-	} else {
-		err = r.limiter[e].RateLimit(ctx)
-	}
-	if err != nil {
+	if err := r.limiter[e].RateLimit(ctx); err != nil {
 		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
 	}
 	return nil

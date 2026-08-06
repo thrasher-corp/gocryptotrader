@@ -75,9 +75,10 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 		return nil, err
 	}
 	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
+	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequestWithRateLimitWeight(requestContext, placeMultipleOrdersEPL, batchWeight, e.MessageID(), "batch-orders", args, &resp)
+	return resp, e.sendAuthenticatedWebsocketRequest(requestContext, placeMultipleOrdersEPL, e.MessageID(), "batch-orders", args, &resp)
 }
 
 // WSCancelOrder cancels an order
@@ -142,9 +143,10 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 		return nil, err
 	}
 	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
+	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequestWithRateLimitWeight(requestContext, cancelMultipleOrdersEPL, batchWeight, e.MessageID(), "batch-cancel-orders", args, &resp)
+	return resp, e.sendAuthenticatedWebsocketRequest(requestContext, cancelMultipleOrdersEPL, e.MessageID(), "batch-cancel-orders", args, &resp)
 }
 
 // WSAmendOrder amends an order
@@ -214,9 +216,10 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 		return nil, err
 	}
 	requestContext := request.WithAdditionalRateLimits(ctx, additionalRateLimits...)
+	requestContext = request.WithEndpointRateLimitWeight(requestContext, batchWeight)
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequestWithRateLimitWeight(requestContext, amendMultipleOrdersEPL, batchWeight, e.MessageID(), "batch-amend-orders", args, &resp)
+	return resp, e.sendAuthenticatedWebsocketRequest(requestContext, amendMultipleOrdersEPL, e.MessageID(), "batch-amend-orders", args, &resp)
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
@@ -339,10 +342,6 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 }
 
 func (e *Exchange) sendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
-	return e.sendAuthenticatedWebsocketRequestWithRateLimitWeight(ctx, epl, 0, id, operation, payload, result)
-}
-
-func (e *Exchange) sendAuthenticatedWebsocketRequestWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, weight request.Weight, id, operation string, payload, result any) error {
 	if operation == "" || payload == nil {
 		return errInvalidWebsocketRequest
 	}
@@ -365,7 +364,7 @@ func (e *Exchange) sendAuthenticatedWebsocketRequestWithRateLimitWeight(ctx cont
 		Arguments: payload,
 	}
 
-	incoming, err := conn.SendMessageReturnResponseWithRateLimitWeight(ctx, epl, weight, id, outbound)
+	incoming, err := conn.SendMessageReturnResponse(ctx, epl, id, outbound)
 	if err != nil {
 		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}

@@ -349,10 +349,6 @@ func (a *authConnectionStub) SendMessageReturnResponse(_ context.Context, _ requ
 	return a.response, a.err
 }
 
-func (a *authConnectionStub) SendMessageReturnResponseWithRateLimitWeight(_ context.Context, _ request.EndpointLimit, _ request.Weight, _, _ any) ([]byte, error) {
-	return a.response, a.err
-}
-
 func TestWSAuthenticateConnection(t *testing.T) {
 	t.Parallel()
 

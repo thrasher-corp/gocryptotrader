@@ -3594,15 +3594,6 @@ func TestUpdateTickers(t *testing.T) {
 	})
 }
 
-func TestSendHTTPRequestWithRateLimitWeight(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	ex.SetDefaults()
-	err := ex.sendHTTPRequestWithRateLimitWeight(t.Context(), exchange.URL(^uint16(0)), request.Unset, 1, "", "", nil, nil, request.UnauthenticatedRequest)
-	require.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "sendHTTPRequestWithRateLimitWeight must return an invalid endpoint error")
-}
-
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)

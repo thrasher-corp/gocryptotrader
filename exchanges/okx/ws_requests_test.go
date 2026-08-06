@@ -391,13 +391,6 @@ func TestSendAuthenticatedWebsocketRequest(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidWebsocketRequest, "sendAuthenticatedWebsocketRequest must validate the request")
 }
 
-func TestSendAuthenticatedWebsocketRequestWithRateLimitWeight(t *testing.T) {
-	t.Parallel()
-
-	err := new(Exchange).sendAuthenticatedWebsocketRequestWithRateLimitWeight(t.Context(), request.Unset, 1, "id", "", nil, nil)
-	require.ErrorIs(t, err, errInvalidWebsocketRequest, "sendAuthenticatedWebsocketRequestWithRateLimitWeight must validate the request")
-}
-
 func TestSingleItem(t *testing.T) {
 	t.Parallel()
 
