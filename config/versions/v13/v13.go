@@ -1,65 +1,69 @@
+// Package v13 migrates deprecated CoinMarketCap account plan names.
 package v13
 
 import (
 	"context"
-	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/buger/jsonparser"
 )
 
-const bitmex = "Bitmex"
+const (
+	accountPlanPath       = "currencyConfig.cryptocurrencyProvider.accountPlan"
+	basic                 = "basic"
+	builder               = "builder"
+	growth                = "growth"
+	hobbyist              = "hobbyist"
+	legacyPlanPlaceholder = "accountplan"
+	standard              = "standard"
+)
 
-// Version implements ConfigVersion to remove the decommissioned BitMEX exchange.
+// Version implements ConfigVersion to migrate CoinMarketCap account plan names.
 type Version struct{}
 
-// UpgradeConfig removes all BitMEX configurations while preserving every other exchange.
+// UpgradeConfig replaces deprecated account plan names with their current
+// CoinMarketCap equivalents.
 func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	exchangesJSON, valueType, _, err := jsonparser.Get(config, "exchanges")
+	return replaceAccountPlan(config, map[string]string{
+		"":                    basic,
+		hobbyist:              builder,
+		legacyPlanPlaceholder: basic,
+		standard:              growth,
+	})
+}
+
+// DowngradeConfig restores the deprecated account plan names understood by
+// configurations predating v13.
+func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return replaceAccountPlan(config, map[string]string{
+		builder: hobbyist,
+		growth:  standard,
+	})
+}
+
+func replaceAccountPlan(config []byte, replacements map[string]string) ([]byte, error) {
+	_, valueType, _, err := jsonparser.Get(config, "currencyConfig", "cryptocurrencyProvider", "accountPlan")
 	switch {
 	case errors.Is(err, jsonparser.KeyPathNotFoundError):
 		return config, nil
 	case err != nil:
-		return config, err
-	case valueType != jsonparser.Array:
+		return config, fmt.Errorf("error getting %s: %w", accountPlanPath, err)
+	case valueType != jsonparser.String:
 		return config, nil
 	}
 
-	var exchanges []json.RawMessage
-	if err := json.Unmarshal(exchangesJSON, &exchanges); err != nil {
-		return config, err
+	accountPlan, err := jsonparser.GetString(config, "currencyConfig", "cryptocurrencyProvider", "accountPlan")
+	if err != nil {
+		return config, fmt.Errorf("error getting %s: %w", accountPlanPath, err)
 	}
 
-	filtered := exchanges[:0]
-	for i := range exchanges {
-		var exchange struct {
-			Name string `json:"name"`
-		}
-		if err := json.Unmarshal(exchanges[i], &exchange); err != nil {
-			return config, err
-		}
-		if !strings.EqualFold(exchange.Name, bitmex) {
-			filtered = append(filtered, exchanges[i])
-		}
-	}
-
-	if len(filtered) == len(exchanges) {
+	replacement, found := replacements[strings.ToLower(strings.TrimSpace(accountPlan))]
+	if !found {
 		return config, nil
 	}
 
-	exchangesJSON = []byte{'['}
-	for i := range filtered {
-		if i != 0 {
-			exchangesJSON = append(exchangesJSON, ',')
-		}
-		exchangesJSON = append(exchangesJSON, filtered[i]...)
-	}
-	exchangesJSON = append(exchangesJSON, ']')
-	return jsonparser.Set(config, exchangesJSON, "exchanges")
-}
-
-// DowngradeConfig is a no-op because removed BitMEX configuration and credentials cannot be reconstructed.
-func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	return config, nil
+	return jsonparser.Set(config, []byte(strconv.Quote(replacement)), "currencyConfig", "cryptocurrencyProvider", "accountPlan")
 }

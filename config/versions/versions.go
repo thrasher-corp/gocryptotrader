@@ -56,13 +56,13 @@ type ExchangeVersion interface {
 	DowngradeExchange(context.Context, []byte) ([]byte, error)
 }
 
-// manager contains registered config versions.
+// manager contains versions registered during construction
 type manager struct {
 	m        sync.RWMutex
 	versions []any
 }
 
-// Manager is a public instance of the config version manager.
+// Manager is a public instance of the config version manager
 var Manager = newManager()
 
 // Deploy upgrades or downgrades the config between versions
@@ -223,7 +223,7 @@ func (m *manager) registerVersion(ver uint16, v any) {
 	m.versions[ver] = v
 }
 
-// Version returns a registered version or nil if nothing has been registered with that version number.
+// Version returns a registered version or nil if nothing has been registered with that version number
 func (m *manager) Version(version uint16) any {
 	m.m.RLock()
 	defer m.m.RUnlock()

@@ -2,7 +2,16 @@ package coinbase
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -27,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -263,6 +273,44 @@ func TestCancelOrders(t *testing.T) {
 	resp, err := e.CancelOrders(t.Context(), orderSlice)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestClassifyOrderNotFound(t *testing.T) {
+	t.Parallel()
+	body := json.RawMessage(`{"error":"NOT_FOUND","message":"fixture"}`)
+	err := classifyOrderNotFound(parseResponseError(fmt.Errorf("%w raw response: %s", request.ErrBadStatus, body), body))
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "error should wrap order not found")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "error should preserve the request failure")
+	assert.ErrorContains(t, err, string(body), "error should preserve the raw Coinbase response")
+
+	body = json.RawMessage(`{"error":"INVALID_ARGUMENT","message":"fixture"}`)
+	err = classifyOrderNotFound(parseResponseError(fmt.Errorf("%w raw response: %s", request.ErrBadStatus, body), body))
+	assert.NotErrorIs(t, err, order.ErrOrderNotFound, "invalid argument should not prove order absence")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "error should preserve the request failure")
+	assert.ErrorContains(t, err, string(body), "error should preserve the raw Coinbase response")
+}
+
+func TestParseResponseError(t *testing.T) {
+	t.Parallel()
+	unrelatedErr := errors.New("unrelated error")
+	assert.Same(t, unrelatedErr, parseResponseError(unrelatedErr, nil), "unrelated errors should be returned unchanged")
+
+	badStatusErr := fmt.Errorf("%w: fixture", request.ErrBadStatus)
+	assert.Same(t, badStatusErr, parseResponseError(badStatusErr, json.RawMessage(`{`)), "invalid JSON should return the original error")
+	assert.Same(t, badStatusErr, parseResponseError(badStatusErr, json.RawMessage(`{"message":"fixture"}`)), "a missing error type should return the original error")
+
+	err := parseResponseError(badStatusErr, json.RawMessage(`{"error":"NOT_FOUND","message":"fixture"}`))
+	responseErr, ok := errors.AsType[*responseError](err)
+	require.True(t, ok, "a structured error response must be wrapped")
+	assert.Equal(t, ErrorResponse{ErrorType: "NOT_FOUND", Message: "fixture"}, responseErr.response, "parsed response should match")
+	assert.ErrorIs(t, err, badStatusErr, "wrapped response should preserve the original error")
+}
+
+func TestCancelOrderResultError(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, cancelOrderResultError(OrderCancelDetail{Success: true}, "order-id"), "successful cancellation should not error")
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: unknownCancelOrderFailure}, "order-id"), order.ErrOrderNotFound, "unknown order should return order not found")
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: "INVALID_CANCEL_REQUEST"}, "order-id"), errOrderFailedToCancel, "other cancellation failures should return the generic cancellation error")
 }
 
 func TestClosePosition(t *testing.T) {
@@ -1733,6 +1781,76 @@ func TestGetJWT(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, _, err := e.GetJWT(t.Context(), "a")
 	assert.NoError(t, err)
+}
+
+func TestParseSigningKey(t *testing.T) {
+	t.Parallel()
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	sec1, err := x509.MarshalECPrivateKey(ecKey)
+	require.NoError(t, err)
+	ecPKCS8, err := x509.MarshalPKCS8PrivateKey(ecKey)
+	require.NoError(t, err)
+	_, edKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	edPKCS8, err := x509.MarshalPKCS8PrivateKey(edKey)
+	require.NoError(t, err)
+	toPEM := func(blockType string, der []byte) string {
+		return string(pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: der}))
+	}
+	for _, tc := range []struct {
+		name    string
+		secret  string
+		wantAlg string
+		wantKey crypto.PrivateKey
+	}{
+		{name: "SEC1 PEM ECDSA", secret: toPEM("EC PRIVATE KEY", sec1), wantAlg: "ES256", wantKey: ecKey},
+		{name: "PKCS#8 PEM ECDSA", secret: toPEM("PRIVATE KEY", ecPKCS8), wantAlg: "ES256", wantKey: ecKey},
+		{name: "PKCS#8 PEM Ed25519", secret: toPEM("PRIVATE KEY", edPKCS8), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "base64 Ed25519 private key", secret: base64.StdEncoding.EncodeToString(edKey), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "base64 Ed25519 seed", secret: base64.StdEncoding.EncodeToString(edKey.Seed()), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "not base64 or PEM", secret: "not a key"},
+		{name: "base64 of wrong length", secret: base64.StdEncoding.EncodeToString([]byte("short"))},
+		{name: "PEM with invalid DER", secret: toPEM("PRIVATE KEY", []byte("garbage"))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			key, alg, err := parseSigningKey(tc.secret)
+			if tc.wantKey == nil {
+				require.Nil(t, key)
+				assert.ErrorIs(t, err, errDecodingPrivateKey)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantAlg, alg)
+			eq, ok := key.(interface{ Equal(crypto.PrivateKey) bool })
+			require.True(t, ok, "parsed key must support Equal")
+			assert.True(t, eq.Equal(tc.wantKey), "parsed key should equal the generated key")
+		})
+	}
+}
+
+func TestSignJWT(t *testing.T) {
+	t.Parallel()
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	sig, err := signJWT(ecKey, "input")
+	require.NoError(t, err)
+	assert.Len(t, sig, 64, "ECDSA signature should be raw R||S")
+
+	p384Key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+	_, err = signJWT(p384Key, "input")
+	assert.ErrorIs(t, err, errDecodingPrivateKey, "signJWT should reject non-P-256 ECDSA keys")
+
+	pub, edKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	sig, err = signJWT(edKey, "input")
+	require.NoError(t, err)
+	assert.True(t, ed25519.Verify(pub, []byte("input"), sig), "Ed25519 signature should verify against the public key")
+
+	_, err = signJWT("not a key", "input")
+	assert.ErrorIs(t, err, common.ErrTypeAssertFailure)
 }
 
 func TestEncodeDateRange(t *testing.T) {
