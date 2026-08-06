@@ -763,14 +763,19 @@ func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	require.NoErrorf(t, err, "GetInstruments for options (underlying: %s) must not error", optionsPair)
 	require.NotEmptyf(t, instruments, "GetInstruments for options (underlying: %s) must return at least one instrument", optionsPair)
 	var selectedExpTime time.Time
+	now := time.Now()
+	today := now.UTC().Truncate(24 * time.Hour)
 	for _, inst := range instruments {
-		if inst.ExpTime.Time().IsZero() {
+		expTime := inst.ExpTime.Time()
+		listTime := inst.ListTime.Time()
+		if !strings.EqualFold(inst.State, "live") || expTime.IsZero() || !expTime.After(now) ||
+			!expTime.UTC().Truncate(24*time.Hour).After(today) || listTime.IsZero() || listTime.After(now) {
 			continue
 		}
-		selectedExpTime = inst.ExpTime.Time()
+		selectedExpTime = expTime
 		break
 	}
-	require.NotZero(t, selectedExpTime, "GetInstruments must return an instrument with a non-zero expiry time")
+	require.NotZero(t, selectedExpTime, "GetInstruments must return a live, listed instrument with a later expiry date")
 	result, err := e.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, selectedExpTime, kline.OneDay)
 	require.NoErrorf(t, err, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s must not error", selectedExpTime, currency.BTC)
 	assert.NotNilf(t, result, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s should return a non-nil result", selectedExpTime, currency.BTC)
