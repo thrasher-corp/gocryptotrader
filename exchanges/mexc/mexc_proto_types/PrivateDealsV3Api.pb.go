@@ -37,7 +37,7 @@ type PrivateDealsV3Api struct {
 	OrderId       string                 `protobuf:"bytes,9,opt,name=orderId,proto3" json:"orderId,omitempty"`
 	FeeAmount     string                 `protobuf:"bytes,10,opt,name=feeAmount,proto3" json:"feeAmount,omitempty"`
 	FeeCurrency   string                 `protobuf:"bytes,11,opt,name=feeCurrency,proto3" json:"feeCurrency,omitempty"`
-	Time          string                 `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
+	Time          int64                  `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,11 +149,11 @@ func (x *PrivateDealsV3Api) GetFeeCurrency() string {
 	return ""
 }
 
-func (x *PrivateDealsV3Api) GetTime() string {
+func (x *PrivateDealsV3Api) GetTime() int64 {
 	if x != nil {
 		return x.Time
 	}
-	return ""
+	return 0
 }
 
 var File_PrivateDealsV3Api_proto protoreflect.FileDescriptor

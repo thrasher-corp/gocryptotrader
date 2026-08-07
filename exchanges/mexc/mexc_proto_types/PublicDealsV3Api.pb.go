@@ -13,7 +13,6 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
-	"github.com/thrasher-corp/gocryptotrader/types"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -82,7 +81,7 @@ type PublicDealsV3ApiItem struct {
 	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
 	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	TradeType     int32                  `protobuf:"varint,3,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
-	Time          types.Time             `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
+	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -138,11 +137,11 @@ func (x *PublicDealsV3ApiItem) GetTradeType() int32 {
 	return 0
 }
 
-func (x *PublicDealsV3ApiItem) GetTime() types.Time {
+func (x *PublicDealsV3ApiItem) GetTime() int64 {
 	if x != nil {
 		return x.Time
 	}
-	return types.Time{}
+	return 0
 }
 
 var File_PublicDealsV3Api_proto protoreflect.FileDescriptor

@@ -13,7 +13,6 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
-	"github.com/thrasher-corp/gocryptotrader/types"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -29,20 +28,20 @@ type PrivateOrdersV3Api struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ClientId           string                 `protobuf:"bytes,2,opt,name=clientId,proto3" json:"clientId,omitempty"`
-	Price              types.Number           `protobuf:"bytes,3,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity           types.Number           `protobuf:"bytes,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	Amount             types.Number           `protobuf:"bytes,5,opt,name=amount,proto3" json:"amount,omitempty"`
-	AvgPrice           types.Number           `protobuf:"bytes,6,opt,name=avgPrice,proto3" json:"avgPrice,omitempty"`
+	Price              string                 `protobuf:"bytes,3,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity           string                 `protobuf:"bytes,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Amount             string                 `protobuf:"bytes,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	AvgPrice           string                 `protobuf:"bytes,6,opt,name=avgPrice,proto3" json:"avgPrice,omitempty"`
 	OrderType          int32                  `protobuf:"varint,7,opt,name=orderType,proto3" json:"orderType,omitempty"`
 	TradeType          int32                  `protobuf:"varint,8,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
 	IsMaker            bool                   `protobuf:"varint,9,opt,name=isMaker,proto3" json:"isMaker,omitempty"`
-	RemainAmount       types.Number           `protobuf:"bytes,10,opt,name=remainAmount,proto3" json:"remainAmount,omitempty"`
-	RemainQuantity     types.Number           `protobuf:"bytes,11,opt,name=remainQuantity,proto3" json:"remainQuantity,omitempty"`
+	RemainAmount       string                 `protobuf:"bytes,10,opt,name=remainAmount,proto3" json:"remainAmount,omitempty"`
+	RemainQuantity     string                 `protobuf:"bytes,11,opt,name=remainQuantity,proto3" json:"remainQuantity,omitempty"`
 	LastDealQuantity   *string                `protobuf:"bytes,12,opt,name=lastDealQuantity,proto3,oneof" json:"lastDealQuantity,omitempty"`
-	CumulativeQuantity types.Number           `protobuf:"bytes,13,opt,name=cumulativeQuantity,proto3" json:"cumulativeQuantity,omitempty"`
-	CumulativeAmount   types.Number           `protobuf:"bytes,14,opt,name=cumulativeAmount,proto3" json:"cumulativeAmount,omitempty"`
+	CumulativeQuantity string                 `protobuf:"bytes,13,opt,name=cumulativeQuantity,proto3" json:"cumulativeQuantity,omitempty"`
+	CumulativeAmount   string                 `protobuf:"bytes,14,opt,name=cumulativeAmount,proto3" json:"cumulativeAmount,omitempty"`
 	Status             int32                  `protobuf:"varint,15,opt,name=status,proto3" json:"status,omitempty"`
-	CreateTime         types.Time             `protobuf:"varint,16,opt,name=createTime,proto3" json:"createTime,omitempty"`
+	CreateTime         int64                  `protobuf:"varint,16,opt,name=createTime,proto3" json:"createTime,omitempty"`
 	Market             *string                `protobuf:"bytes,17,opt,name=market,proto3,oneof" json:"market,omitempty"`
 	TriggerType        *int32                 `protobuf:"varint,18,opt,name=triggerType,proto3,oneof" json:"triggerType,omitempty"`
 	TriggerPrice       *string                `protobuf:"bytes,19,opt,name=triggerPrice,proto3,oneof" json:"triggerPrice,omitempty"`
@@ -101,32 +100,32 @@ func (x *PrivateOrdersV3Api) GetClientId() string {
 	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetPrice() types.Number {
+func (x *PrivateOrdersV3Api) GetPrice() string {
 	if x != nil {
 		return x.Price
 	}
-	return 0
+	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetQuantity() types.Number {
+func (x *PrivateOrdersV3Api) GetQuantity() string {
 	if x != nil {
 		return x.Quantity
 	}
-	return 0
+	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetAmount() types.Number {
+func (x *PrivateOrdersV3Api) GetAmount() string {
 	if x != nil {
 		return x.Amount
 	}
-	return 0
+	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetAvgPrice() types.Number {
+func (x *PrivateOrdersV3Api) GetAvgPrice() string {
 	if x != nil {
 		return x.AvgPrice
 	}
-	return 0
+	return ""
 }
 
 func (x *PrivateOrdersV3Api) GetOrderType() int32 {
@@ -150,18 +149,18 @@ func (x *PrivateOrdersV3Api) GetIsMaker() bool {
 	return false
 }
 
-func (x *PrivateOrdersV3Api) GetRemainAmount() types.Number {
+func (x *PrivateOrdersV3Api) GetRemainAmount() string {
 	if x != nil {
 		return x.RemainAmount
 	}
-	return 0
+	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetRemainQuantity() types.Number {
+func (x *PrivateOrdersV3Api) GetRemainQuantity() string {
 	if x != nil {
 		return x.RemainQuantity
 	}
-	return 0
+	return ""
 }
 
 func (x *PrivateOrdersV3Api) GetLastDealQuantity() string {
@@ -171,18 +170,18 @@ func (x *PrivateOrdersV3Api) GetLastDealQuantity() string {
 	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetCumulativeQuantity() types.Number {
+func (x *PrivateOrdersV3Api) GetCumulativeQuantity() string {
 	if x != nil {
 		return x.CumulativeQuantity
 	}
-	return 0
+	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetCumulativeAmount() types.Number {
+func (x *PrivateOrdersV3Api) GetCumulativeAmount() string {
 	if x != nil {
 		return x.CumulativeAmount
 	}
-	return 0
+	return ""
 }
 
 func (x *PrivateOrdersV3Api) GetStatus() int32 {
@@ -192,11 +191,11 @@ func (x *PrivateOrdersV3Api) GetStatus() int32 {
 	return 0
 }
 
-func (x *PrivateOrdersV3Api) GetCreateTime() types.Time {
+func (x *PrivateOrdersV3Api) GetCreateTime() int64 {
 	if x != nil {
 		return x.CreateTime
 	}
-	return types.Time{}
+	return 0
 }
 
 func (x *PrivateOrdersV3Api) GetMarket() string {

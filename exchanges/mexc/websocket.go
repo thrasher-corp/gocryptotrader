@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -262,6 +263,36 @@ func wsSendTime(w *mexc_proto_types.PushDataV3ApiWrapper) time.Time {
 func isSpotPongMessage(respRaw []byte) bool {
 	msg, err := jsonparser.GetString(respRaw, "msg")
 	return err == nil && strings.EqualFold(msg, wsPongMessage)
+}
+
+// privateOrderNumbers holds the decoded numeric fields of a private order push
+type privateOrderNumbers struct {
+	price, avgPrice, quantity, amount float64
+	remainAmount, cumulativeAmount    float64
+}
+
+// parse decodes the numeric fields of a private order push, which the exchange sends as strings and
+// omits when they do not apply
+func (n *privateOrderNumbers) parse(body *mexc_proto_types.PrivateOrdersV3Api) error {
+	for _, f := range []struct {
+		name string
+		raw  string
+		dst  *float64
+	}{
+		{"price", body.Price, &n.price},
+		{"avgPrice", body.AvgPrice, &n.avgPrice},
+		{"quantity", body.Quantity, &n.quantity},
+		{"amount", body.Amount, &n.amount},
+		{"remainAmount", body.RemainAmount, &n.remainAmount},
+		{"cumulativeAmount", body.CumulativeAmount, &n.cumulativeAmount},
+	} {
+		v, err := parseOptionalFloat(f.raw)
+		if err != nil {
+			return fmt.Errorf("private order field %s: %w", f.name, err)
+		}
+		*f.dst = v
+	}
+	return nil
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
@@ -720,10 +751,6 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		dealTimeMilli, err := strconv.ParseInt(body.Time, 10, 64)
-		if err != nil {
-			return err
-		}
 		return e.Websocket.DataHandler.Send(ctx, []trade.Data{
 			{
 				TID:          body.OrderId,
@@ -732,7 +759,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 				AssetType:    asset.Spot,
 				Price:        price,
 				Amount:       amount,
-				Timestamp:    time.UnixMilli(dealTimeMilli),
+				Timestamp:    time.UnixMilli(body.Time),
 				Side: func() order.Side {
 					if body.TradeType == 1 {
 						return order.Buy
@@ -786,15 +813,19 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
+		var nums privateOrderNumbers
+		if err := nums.parse(body); err != nil {
+			return err
+		}
 		return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 			Exchange:             e.Name,
-			Price:                body.Price.Float64(),
-			Amount:               body.Amount.Float64(),
-			ContractAmount:       body.Quantity.Float64(),
-			AverageExecutedPrice: body.AvgPrice.Float64(),
-			QuoteAmount:          body.Amount.Float64(),
-			ExecutedAmount:       body.CumulativeAmount.Float64() - body.RemainAmount.Float64(),
-			RemainingAmount:      body.RemainAmount.Float64(),
+			Price:                nums.price,
+			Amount:               nums.amount,
+			ContractAmount:       nums.quantity,
+			AverageExecutedPrice: nums.avgPrice,
+			QuoteAmount:          nums.amount,
+			ExecutedAmount:       nums.cumulativeAmount - nums.remainAmount,
+			RemainingAmount:      nums.remainAmount,
 			OrderID:              body.Id,
 			ClientID:             body.ClientId,
 			Type:                 oType,
@@ -806,7 +837,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			}(),
 			Status:      oStatus,
 			AssetType:   asset.Spot,
-			LastUpdated: body.CreateTime.Time(),
+			LastUpdated: time.UnixMilli(body.CreateTime),
 			Pair:        cp,
 			TimeInForce: tif,
 		})
