@@ -53,7 +53,10 @@ func populateTradablePairs() error {
 	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		return err
 	}
-	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
+	// Availability, not the enabled set: the enabled set is whatever survived the last config
+	// reconciliation, and BTC-USDT is routinely dropped from it, which left the live run on an
+	// arbitrary pair while the websocket tests are written against wsTestSymbol.
+	tradablePairs, err := e.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		return err
 	}

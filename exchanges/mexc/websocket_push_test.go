@@ -300,11 +300,29 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 func TestWsBookTickerFeedsTickerNotOrderbook(t *testing.T) {
 	drainData(t)
 	second := currency.NewPair(currency.ETH, currency.USDT)
-	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTradablePair, second}, false), "StorePairs must not error")
-	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTradablePair, second}, true), "StorePairs must not error")
+	// Add to the pair sets rather than replacing them, and restore exactly what was there. Replacing
+	// available pairs with just these two wiped the live catalogue out from under the tests running
+	// in parallel, which is why they failed only in a full run and passed on their own.
+	origAvailable, err := e.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	origEnabled, err := e.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
 	t.Cleanup(func() {
-		require.NoError(t, e.setEnabledPairs(spotTradablePair), "restoring the enabled pairs must not error")
+		require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, origAvailable, false), "restoring the available pairs must not error")
+		require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, origEnabled, true), "restoring the enabled pairs must not error")
 	})
+	for _, pairs := range []struct {
+		list    currency.Pairs
+		enabled bool
+	}{{origAvailable, false}, {origEnabled, true}} {
+		list := pairs.list
+		for _, want := range []currency.Pair{spotTradablePair, second} {
+			if !list.Contains(want, true) {
+				list = append(list, want)
+			}
+		}
+		require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, list, pairs.enabled), "StorePairs must not error")
+	}
 
 	syncOrderbookPairsLock.Lock()
 	clear(orderbookSnapshotLoadedPairs)

@@ -30,10 +30,21 @@ func TestLiveSpotTickerFlow(t *testing.T) {
 		window = time.Duration(s) * time.Second
 	}
 
-	// TestMain narrows the pair set to a single arbitrary pair; pin a liquid one instead
+	// Pin the pair rather than taking whatever TestMain settled on: the candle assertions want a
+	// liquid market, and BTC-USDT is the same pair the rest of the suite is written against.
 	pairFormat, err := e.GetPairFormat(asset.Spot, false)
 	require.NoError(t, err, "GetPairFormat must not error")
-	pair := currency.NewPair(currency.NewCode("KAS"), currency.USDT).Format(pairFormat)
+	pair := currency.NewBTCUSDT().Format(pairFormat)
+	// Restore the pair sets afterwards: narrowing them to this one pair and leaving it that way
+	// broke the tests running in parallel, which then failed only in a full run.
+	origAvailable, err := e.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	origEnabled, err := e.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	t.Cleanup(func() {
+		require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, origAvailable, false), "restoring the available pairs must not error")
+		require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, origEnabled, true), "restoring the enabled pairs must not error")
+	})
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "StorePairs must not error")
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
 
