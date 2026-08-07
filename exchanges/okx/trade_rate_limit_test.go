@@ -2,11 +2,45 @@ package okx
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
+
+func TestTradeRateLimitActions(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		class         tradeRateLimitClass
+		expected      int
+		expectedError error
+	}{
+		{name: "place single", class: tradeRateLimitPlaceSingle, expected: singleTradeRateLimitActions},
+		{name: "cancel single", class: tradeRateLimitCancelSingle, expected: singleTradeRateLimitActions},
+		{name: "amend single", class: tradeRateLimitAmendSingle, expected: singleTradeRateLimitActions},
+		{name: "place batch", class: tradeRateLimitPlaceBatch, expected: batchTradeRateLimitActions},
+		{name: "cancel batch", class: tradeRateLimitCancelBatch, expected: batchTradeRateLimitActions},
+		{name: "amend batch", class: tradeRateLimitAmendBatch, expected: batchTradeRateLimitActions},
+		{name: "invalid", class: "invalid", expectedError: errInvalidTradeRateLimitClass},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			actions, err := tradeRateLimitActions(tc.class)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError, "tradeRateLimitActions must return the expected error")
+				assert.Zero(t, actions, "tradeRateLimitActions should not return actions for an invalid class")
+				return
+			}
+			require.NoError(t, err, "tradeRateLimitActions must not error")
+			assert.Equal(t, tc.expected, actions, "tradeRateLimitActions should return the expected action count")
+		})
+	}
+}
 
 const (
 	tradeRateLimitBTCUSDT          = "BTC-USDT"
@@ -152,10 +186,15 @@ func TestTradeRateLimitContext(t *testing.T) {
 			{InstrumentID: "SOL-USD-241227-100-P"},
 		}
 		limiter := newLimiter()
-		_, err := tradeRateLimitContext(t.Context(), limiter, tradeRateLimitCancelBatch, args)
+		ctx, err := tradeRateLimitContext(t.Context(), limiter, tradeRateLimitCancelBatch, args)
 		require.NoError(t, err, "tradeRateLimitContext must not error")
 		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitCancelBatch, scope: "SOL-USDT"}, "cancel orders should create the instrument limiter")
 		assert.Contains(t, limiter.scopedLimiters, tradeRateLimitKey{class: tradeRateLimitCancelBatch, scope: "SOL-USD"}, "cancel options should use the family limiter")
+
+		endpointLimiter := request.NewRateLimitWithWeight(time.Hour, 1, 1)
+		err = endpointLimiter.RateLimit(request.WithDelayNotAllowed(ctx))
+		require.ErrorIs(t, err, request.ErrDelayNotAllowed, "batch endpoint weight must be applied")
+		assert.ErrorContains(t, err, "endpoint", "batch endpoint weight should identify the limiting scope")
 	})
 
 	t.Run("amend orders", func(t *testing.T) {
@@ -184,6 +223,13 @@ func TestTradeRateLimitContext(t *testing.T) {
 
 		_, err := tradeRateLimitContext(t.Context(), newLimiter(), tradeRateLimitPlaceBatch, make([]PlaceOrderRequestParam, maxBatchOrders+1))
 		require.ErrorIs(t, err, errExceedLimit, "oversized batch must return expected error")
+	})
+
+	t.Run("uninitialised limiter", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := tradeRateLimitContext(t.Context(), new(tradeRateLimiter), tradeRateLimitPlaceSingle, []PlaceOrderRequestParam{{InstrumentID: tradeRateLimitBTCUSDT}})
+		require.ErrorIs(t, err, errTradeRateLimiterNotInitialised, "uninitialised limiter must return expected error")
 	})
 }
 

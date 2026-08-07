@@ -62,11 +62,13 @@ func tradeRateLimitActions(class tradeRateLimitClass) (int, error) {
 	}
 }
 
-func (p PlaceOrderRequestParam) tradeRateLimitInstrumentID() string { return p.InstrumentID }
+//nolint:gocritic // The value receiver allows value slices to satisfy tradeRateLimitRequest without conversion.
+func (arg PlaceOrderRequestParam) tradeRateLimitInstrumentID() string { return arg.InstrumentID }
 
-func (p CancelOrderRequestParam) tradeRateLimitInstrumentID() string { return p.InstrumentID }
+func (arg CancelOrderRequestParam) tradeRateLimitInstrumentID() string { return arg.InstrumentID }
 
-func (p AmendOrderRequestParams) tradeRateLimitInstrumentID() string { return p.InstrumentID }
+//nolint:gocritic // The value receiver allows value slices to satisfy tradeRateLimitRequest without conversion.
+func (arg AmendOrderRequestParams) tradeRateLimitInstrumentID() string { return arg.InstrumentID }
 
 // tradeRateLimitContext decorates ctx with the instrument or option-family and
 // subaccount limits required by OKX. Batch classes also carry an endpoint

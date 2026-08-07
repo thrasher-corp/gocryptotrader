@@ -48,6 +48,9 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
+	}
 	for i := range args {
 		if err := args[i].Validate(); err != nil {
 			return nil, err
@@ -96,6 +99,9 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
+	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
 	}
 	for i := range args {
 		if args[i].InstrumentID == "" {
@@ -150,6 +156,9 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
+	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
 	}
 	for x := range args {
 		if args[x].InstrumentID == "" {

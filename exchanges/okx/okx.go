@@ -77,6 +77,9 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
 	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
+	}
 	for x := range args {
 		if err := args[x].Validate(); err != nil {
 			return nil, err
@@ -130,6 +133,9 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
+	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
 	}
 	for x := range args {
 		arg := args[x]
@@ -186,6 +192,9 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
+	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
 	}
 	for x := range args {
 		if args[x].InstrumentID == "" {
