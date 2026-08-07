@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -38,6 +39,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// populateTradablePairs pins the pair the live tests run against. It used to take whichever pair
+// happened to be first in the enabled set, which varies between runs: the candle tests ask for a
+// fixed historic window, and an illiquid pair has no candles in it, so they failed at random.
 func populateTradablePairs() error {
 	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		return err
@@ -46,6 +50,13 @@ func populateTradablePairs() error {
 	if err != nil {
 		return err
 	}
-	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
+	if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	pair := tradablePairs[0]
+	if btc := currency.NewBTCUSDT(); tradablePairs.Contains(btc, true) {
+		pair = btc
+	}
+	spotTradablePair, err = e.FormatExchangeCurrency(pair, asset.Spot)
 	return err
 }
