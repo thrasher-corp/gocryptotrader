@@ -363,31 +363,10 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		if ok := orderbookSnapshotLoadedPairs[result.GetSymbol()]; !ok {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:    e.Name,
-				Asset:       asset.Spot,
-				Asks:        []orderbook.Level{ask},
-				Bids:        []orderbook.Level{bid},
-				Pair:        cp,
-				LastUpdated: time.Now(),
-			}); err != nil {
-				return err
-			}
-			syncOrderbookPairsLock.Lock()
-			orderbookSnapshotLoadedPairs[result.GetSymbol()] = true
-			syncOrderbookPairsLock.Unlock()
-		} else if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       cp,
-			Asset:      asset.Spot,
-			Asks:       []orderbook.Level{ask},
-			Bids:       []orderbook.Level{bid},
-			UpdateTime: time.Now(),
-		}); err != nil {
-			return err
-		}
-		// The best bid/offer is a ticker fact as much as an orderbook one: publishing it only as an
-		// orderbook update left the websocket ticker empty and the REST poll the sole ticker path.
+		// The best bid/offer is published as a ticker fact only. It deliberately does not write to
+		// the orderbook: the depth channel owns that book, and a one-level update against a
+		// multi-level snapshot would insert a level the exchange never sent. Other exchanges in this
+		// repository keep the same separation by never enabling a BBO channel alongside a depth one.
 		return e.wsUpdateSpotTicker(ctx, cp, wsSendTime(result), func(t *ticker.Price) {
 			t.Bid, t.BidSize = bid.Price, bid.Amount
 			t.Ask, t.AskSize = ask.Price, ask.Amount

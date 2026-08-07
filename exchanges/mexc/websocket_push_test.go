@@ -293,11 +293,11 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 	assert.Equal(t, asset.Spot, detail.AssetType, "AssetType should be correct")
 }
 
-// TestWsBookTickerSnapshotIsPerPair asserts each pair gets its own orderbook snapshot. The
-// aggregated book ticker is qualified as "spot@<name>@<interval>@<symbol>", so keying the
-// "snapshot already loaded" map by the channel's third element keyed it by the interval, a value
-// shared by every pair, which left the second pair updating a book that was never loaded.
-func TestWsBookTickerSnapshotIsPerPair(t *testing.T) {
+// TestWsBookTickerFeedsTickerNotOrderbook asserts the book ticker updates each pair's ticker and
+// leaves the orderbook alone. The channel is subscribed as subscription.TickerChannel, and the book
+// belongs to subscription.OrderbookChannel (public.limit.depth): a one-level update applied to that
+// multi-level snapshot would insert a level the exchange never sent.
+func TestWsBookTickerFeedsTickerNotOrderbook(t *testing.T) {
 	drainData(t)
 	second := currency.NewPair(currency.ETH, currency.USDT)
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTradablePair, second}, false), "StorePairs must not error")
@@ -310,16 +310,35 @@ func TestWsBookTickerSnapshotIsPerPair(t *testing.T) {
 	clear(orderbookSnapshotLoadedPairs)
 	syncOrderbookPairsLock.Unlock()
 
+	pairs := []currency.Pair{spotTradablePair, second}
+	// Earlier tests in this package populate the shared orderbook store, so "no book exists" is not
+	// a claim this test can make. What it can claim is that the book ticker leaves it untouched.
+	booksBefore := make(map[currency.Pair]*orderbook.Book, len(pairs))
+	for _, pair := range pairs {
+		if book, err := orderbook.Get(e.Name, pair, asset.Spot); err == nil {
+			booksBefore[pair] = book
+		}
+	}
+
 	for _, symbol := range []string{wsTestSymbol, "ETHUSDT"} {
 		raw := wsPushFrameForSymbol(t, symbol, "spot@"+channelBookTiker+"@100ms@"+symbol, 1736409765052,
 			&mexc_proto_types.PublicAggreBookTickerV3Api{BidPrice: "1", BidQuantity: "2", AskPrice: "3", AskQuantity: "4"})
 		require.NoErrorf(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error for %s", symbol)
 	}
 
-	for _, pair := range []currency.Pair{spotTradablePair, second} {
+	for _, pair := range pairs {
+		tick, err := ticker.GetTicker(e.Name, pair, asset.Spot)
+		require.NoErrorf(t, err, "each pair must have its own ticker, %s does not", pair)
+		assert.Equalf(t, 1.0, tick.Bid, "%s bid price should be correct", pair)
+		assert.Equalf(t, 3.0, tick.Ask, "%s ask price should be correct", pair)
+
 		book, err := orderbook.Get(e.Name, pair, asset.Spot)
-		require.NoErrorf(t, err, "each pair must have its own orderbook, %s does not", pair)
-		require.NotEmptyf(t, book.Bids, "%s must carry a bid", pair)
-		assert.Equalf(t, 1.0, book.Bids[0].Price, "%s bid price should be correct", pair)
+		if before, existed := booksBefore[pair]; existed {
+			require.NoErrorf(t, err, "%s orderbook must still be retrievable", pair)
+			assert.Equalf(t, before.LastUpdated, book.LastUpdated, "the book ticker must not touch the %s orderbook", pair)
+			assert.Equalf(t, before.Bids, book.Bids, "the book ticker must not touch the %s bids", pair)
+		} else {
+			assert.Errorf(t, err, "the book ticker must not create an orderbook for %s", pair)
+		}
 	}
 }
