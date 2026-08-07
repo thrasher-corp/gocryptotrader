@@ -3,6 +3,7 @@ package mexc
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -341,12 +342,20 @@ func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.I
 }
 
 // UpdateAccountBalances retrieves currency balances
+// accountTypeMatches reports whether the account type the exchange returned is the one asked for.
+// The comparison is case-insensitive: the exchange reports "SPOT" while asset.Item renders "spot",
+// so a direct comparison never matched and every spot balance request returned ErrNotSupported
+// instead of the balances.
+func accountTypeMatches(reported string, assetType asset.Item) bool {
+	return assetType == asset.Empty || strings.EqualFold(reported, assetType.String())
+}
+
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	accountInfo, err := e.GetAccountInformation(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if assetType != asset.Empty && accountInfo.AccountType != assetType.String() {
+	if !accountTypeMatches(accountInfo.AccountType, assetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 

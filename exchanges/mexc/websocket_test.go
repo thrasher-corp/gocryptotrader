@@ -215,3 +215,14 @@ func TestWsIntervalString(t *testing.T) {
 	assert.Equal(t, "Min15", wsIntervalString(&subscription.Subscription{Interval: kline.FifteenMin}))
 	assert.Empty(t, wsIntervalString(&subscription.Subscription{Interval: kline.SixMonth}))
 }
+
+// TestAccountTypeMatches covers the case-insensitive account type comparison without credentials.
+// The live test that caught the original defect skips when no keys are set, so the regression it
+// guards against would otherwise be invisible to the standard run.
+func TestAccountTypeMatches(t *testing.T) {
+	t.Parallel()
+	assert.True(t, accountTypeMatches("SPOT", asset.Spot), "the exchange's upper-case SPOT must match asset.Spot")
+	assert.True(t, accountTypeMatches("spot", asset.Spot), "an already lower-case value must still match")
+	assert.True(t, accountTypeMatches("SPOT", asset.Empty), "an empty asset must match anything")
+	assert.False(t, accountTypeMatches("SPOT", asset.Futures), "a different account type must not match")
+}

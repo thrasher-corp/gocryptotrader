@@ -354,6 +354,13 @@ func (e *Exchange) DeleteAPIKeySubAccount(ctx context.Context, subAccountName st
 	return resp.SubAccount, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSubAccountAPIKeyEPL, http.MethodDelete, "sub-account/apiKey", params, nil, &resp, true)
 }
 
+// accountTypeParam renders an asset for the transfer endpoints. They accept SPOT and FUTURES in
+// upper case only and reject asset.Item's own lower-case rendering with
+// "Illegal characters found in parameter 'fromAccountType'".
+func accountTypeParam(a asset.Item) string {
+	return strings.ToUpper(a.String())
+}
+
 // SubAccountUniversalTransfer requires SPOT_TRANSFER_WRITE permission
 func (e *Exchange) SubAccountUniversalTransfer(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) (*AssetTransferResponse, error) {
 	if !e.SupportsAsset(fromAccountType) {
@@ -369,8 +376,8 @@ func (e *Exchange) SubAccountUniversalTransfer(ctx context.Context, fromAccount,
 		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("fromAccountType", fromAccountType.String())
-	params.Set("toAccountType", toAccountType.String())
+	params.Set("fromAccountType", accountTypeParam(fromAccountType))
+	params.Set("toAccountType", accountTypeParam(toAccountType))
 	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if fromAccount != "" {
@@ -404,8 +411,8 @@ func (e *Exchange) GetSubAccountUnversalTransferHistory(ctx context.Context, fro
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 
-	params.Set("fromAccountType", fromAccountType.String())
-	params.Set("toAccountType", toAccountType.String())
+	params.Set("fromAccountType", accountTypeParam(fromAccountType))
+	params.Set("toAccountType", accountTypeParam(toAccountType))
 	if fromAccount != "" {
 		params.Set("fromAccount", fromAccount)
 	}
@@ -432,7 +439,7 @@ func (e *Exchange) GetSubAccountAsset(ctx context.Context, subAccount string, ac
 	}
 	params := url.Values{}
 	params.Set("subAccount", subAccount)
-	params.Set("accountType", accountType.String())
+	params.Set("accountType", accountTypeParam(accountType))
 	var resp *SubAccountAssetBalances
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountAssetEPL, http.MethodGet, "sub-account/asset", params, nil, &resp, true)
 }
@@ -620,8 +627,8 @@ func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, t
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	params.Set("fromAccountType", fromAccountType.String())
-	params.Set("toAccountType", toAccountType.String())
+	params.Set("fromAccountType", accountTypeParam(fromAccountType))
+	params.Set("toAccountType", accountTypeParam(toAccountType))
 	params.Set("asset", ccy.String())
 	var resp []*UserUniversalTransferResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, userUniversalTransferEPL, http.MethodPost, "capital/transfer", params, nil, &resp, true)
@@ -641,8 +648,8 @@ func (e *Exchange) GetUniversalTransferHistory(ctx context.Context, fromAccountT
 		}
 	}
 	params := url.Values{}
-	params.Set("fromAccountType", fromAccountType.String())
-	params.Set("toAccountType", toAccountType.String())
+	params.Set("fromAccountType", accountTypeParam(fromAccountType))
+	params.Set("toAccountType", accountTypeParam(toAccountType))
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}

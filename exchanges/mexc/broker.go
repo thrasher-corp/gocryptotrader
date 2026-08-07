@@ -30,8 +30,8 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 		}
 	}
 	params := url.Values{}
-	params.Set("fromAccountType", fromAccountType.String())
-	params.Set("toAccountType", toAccountType.String())
+	params.Set("fromAccountType", accountTypeParam(fromAccountType))
+	params.Set("toAccountType", accountTypeParam(toAccountType))
 	if fromAccount != "" {
 		params.Set("fromAccount", fromAccount)
 	}
