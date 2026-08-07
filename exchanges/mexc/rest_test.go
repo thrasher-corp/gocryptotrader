@@ -521,8 +521,14 @@ func TestGetOrderByID(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// Order "1234" belongs to nobody, and the tests may not create one (canManipulateRealOrders),
+	// so "Order does not exist" is the expected answer from any account. What is asserted is that
+	// the request reaches the exchange and comes back with that answer rather than anything else.
 	result, err := e.GetOrderByID(t.Context(), spotTradablePair, "1234", "")
-	require.NoError(t, err)
+	if err != nil {
+		assert.ErrorContains(t, err, "Order does not exist", "the only acceptable failure is the order being absent")
+		return
+	}
 	assert.NotNil(t, result)
 }
 
@@ -542,7 +548,9 @@ func TestGetAllOrders(t *testing.T) {
 	_, err := e.GetAllOrders(t.Context(), currency.EMPTYPAIR, time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	// Relative to now: the endpoint answers "Only 7 day's data can be queried", so a window pinned
+	// to a fixed date falls outside the queryable range as soon as that date is a week old.
+	endTime, startTime := time.Now(), time.Now().AddDate(0, 0, -6)
 	_, err = e.GetAllOrders(t.Context(), spotTradablePair, endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -565,7 +573,9 @@ func TestGetAccountTradeList(t *testing.T) {
 	_, err := e.GetAccountTradeList(t.Context(), currency.EMPTYPAIR, "", time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	// Relative to now: the endpoint answers "Exceeded the queryable time range" for a window that
+	// has aged out, which a fixed date does within a week of being written.
+	endTime, startTime := time.Now(), time.Now().AddDate(0, 0, -6)
 	_, err = e.GetAccountTradeList(t.Context(), spotTradablePair, "", endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -1315,11 +1325,14 @@ func TestGetOrderInfo(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetOrderInfo(t.Context(), "12342", spotTradablePair, asset.Spot)
-	assert.NoError(t, err)
+	// See TestGetOrderByID: the order does not exist and the tests may not create one.
+	if _, err = e.GetOrderInfo(t.Context(), "12342", spotTradablePair, asset.Spot); err != nil {
+		assert.ErrorContains(t, err, "Order does not exist", "the only acceptable failure is the order being absent")
+	}
 
+	// Not ErrAssetNotSet: the asset is set, it is futures, which this exchange does not support.
 	_, err = e.GetOrderInfo(t.Context(), "12342", spotTradablePair, asset.Futures)
-	assert.ErrorIs(t, err, order.ErrAssetNotSet)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestSubmitOrder(t *testing.T) {
