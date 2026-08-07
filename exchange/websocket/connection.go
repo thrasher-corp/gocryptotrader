@@ -181,7 +181,7 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 	})
 }
 
-// SendRawMessage sends a message over the connection without JSON encoding it
+// SendRawMessage sends a message over the connection without JSON encoding it.
 func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
 	return c.writeToConn(ctx, epl, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
@@ -361,7 +361,7 @@ func (c *connection) GetURL() string {
 	return c.URL
 }
 
-// SendMessageReturnResponse will send a WS message to the connection and wait for response
+// SendMessageReturnResponse will send a WS message to the connection and wait for response.
 func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
 	resps, err := c.SendMessageReturnResponses(ctx, epl, signature, payload, 1)
 	if err != nil {
@@ -390,8 +390,7 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 	}
 
 	start := time.Now()
-	err = c.SendRawMessage(ctx, epl, gws.TextMessage, outbound)
-	if err != nil {
+	if err := c.SendRawMessage(ctx, epl, gws.TextMessage, outbound); err != nil {
 		return nil, err
 	}
 

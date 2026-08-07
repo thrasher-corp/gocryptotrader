@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -308,6 +309,44 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
+}
+
+func TestSendPayload_AdditionalRateLimits(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
+		extra := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
+		requestErr := errors.New("request generation failed")
+		newRequest := func() (*Item, error) {
+			return nil, requestErr
+		}
+
+		additionalRateLimits := []AdditionalRateLimit{{Limiter: extra, WeightOverride: 1}}
+		ctx := WithAdditionalRateLimits(t.Context(), additionalRateLimits...)
+		ctx = WithEndpointRateLimitWeight(ctx, 3)
+		start := time.Now()
+		err = r.SendPayload(ctx, Unset, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
+		assert.Equal(t, 200*time.Millisecond, time.Since(start), "endpoint weight should apply only with additional limits")
+
+		ctx = WithAdditionalRateLimits(WithDelayNotAllowed(t.Context()), additionalRateLimits...)
+		err = r.SendPayload(ctx, Unset, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply additional request-scoped rate limit")
+	})
+}
+
+func TestRequesterDoRequest(t *testing.T) {
+	t.Parallel()
+
+	r, err := New("test", new(http.Client))
+	require.NoError(t, err, "New requester must not error")
+	requestErr := errors.New("request generation failed")
+	err = r.doRequest(t.Context(), Unset, func() (*Item, error) {
+		return nil, requestErr
+	})
+	require.ErrorIs(t, err, requestErr, "doRequest must return the request generation error")
 }
 
 func TestDoRequest_NoContent(t *testing.T) {

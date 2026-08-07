@@ -33,8 +33,11 @@ import (
 type Exchange struct {
 	exchange.Base
 
-	instrumentsInfoMapLock sync.Mutex
+	// instrumentsInfoMapLock allows concurrent websocket order lookups while instrument refreshes retain exclusive access.
+	instrumentsInfoMapLock sync.RWMutex
 	instrumentsInfoMap     map[string][]Instrument
+
+	tradeLimiter tradeRateLimiter
 }
 
 const (
@@ -55,9 +58,12 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) 
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	var resp *OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest)
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitPlaceSingle, []PlaceOrderRequestParam{*arg})
 	if err != nil {
+		return nil, err
+	}
+	var resp *OrderData
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest); err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
@@ -71,14 +77,20 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
 	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
+	}
 	for x := range args {
 		if err := args[x].Validate(); err != nil {
 			return nil, err
 		}
 	}
-	var resp []OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitPlaceBatch, args)
 	if err != nil {
+		return nil, err
+	}
+	var resp []OrderData
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
@@ -102,9 +114,12 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp *OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitCancelSingle, []CancelOrderRequestParam{*arg})
 	if err != nil {
+		return nil, err
+	}
+	var resp *OrderData
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest); err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
@@ -119,6 +134,9 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
+	}
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -128,9 +146,12 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	var resp []*OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitCancelBatch, args)
 	if err != nil {
+		return nil, err
+	}
+	var resp []*OrderData
+	if err := e.SendHTTPRequest(requestContext, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest); err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
@@ -159,14 +180,21 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitAmendSingle, []AmendOrderRequestParams{*arg})
+	if err != nil {
+		return nil, err
+	}
 	var resp *OrderData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(requestContext, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array
 func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
+	}
+	if _, err := rateLimitWeight(len(args), true); err != nil {
+		return nil, err
 	}
 	for x := range args {
 		if args[x].InstrumentID == "" {
@@ -179,8 +207,12 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
+	requestContext, err := tradeRateLimitContext(ctx, &e.tradeLimiter, tradeRateLimitAmendBatch, args)
+	if err != nil {
+		return nil, err
+	}
 	var resp []OrderData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(requestContext, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }
 
 // ClosePositions close all positions of an instrument via a market order
@@ -3162,7 +3194,7 @@ func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algo
 	if algoID == "" {
 		return nil, errAlgoIDRequired
 	}
-	if subOrderType != "live" && subOrderType != order.Filled.String() {
+	if subOrderType != stateLive && subOrderType != order.Filled.String() {
 		return nil, errMissingSubOrderType
 	}
 	params := url.Values{}
