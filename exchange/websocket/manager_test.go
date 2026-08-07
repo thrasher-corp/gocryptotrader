@@ -1122,8 +1122,8 @@ func TestSendMessageReturnResponses(t *testing.T) {
 		t.Parallel()
 
 		wc := &connection{Match: NewMatch()}
-		_, err := wc.sendMessageReturnResponses(t.Context(), request.Unset, "signature", make(chan struct{}), 1, nil)
-		require.Error(t, err, "sendMessageReturnResponses must return a JSON encoding error")
+		_, err := wc.SendMessageReturnResponses(t.Context(), request.Unset, "signature", make(chan struct{}), 1)
+		require.Error(t, err, "SendMessageReturnResponses must return a JSON encoding error")
 	})
 
 	t.Run("public response wrapper", func(t *testing.T) {

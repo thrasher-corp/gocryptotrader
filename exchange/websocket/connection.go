@@ -363,7 +363,7 @@ func (c *connection) GetURL() string {
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response.
 func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
-	resps, err := c.sendMessageReturnResponses(ctx, epl, signature, payload, 1, nil)
+	resps, err := c.SendMessageReturnResponses(ctx, epl, signature, payload, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -373,16 +373,12 @@ func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
-	return c.sendMessageReturnResponses(ctx, epl, signature, payload, expected, nil)
+	return c.SendMessageReturnResponsesWithInspector(ctx, epl, signature, payload, expected, nil)
 }
 
 // SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
-	return c.sendMessageReturnResponses(ctx, epl, signature, payload, expected, messageInspector)
-}
-
-func (c *connection) sendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
