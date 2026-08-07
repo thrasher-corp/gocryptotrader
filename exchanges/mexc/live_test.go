@@ -24,10 +24,17 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	// Credentials come from the constants above or, when those are empty, from the environment.
+	// The environment path exists so a live run needs no edit to a tracked file: a key pasted into
+	// rest_test.go is one forgotten `git add` away from being published.
+	key, secret := apiKey, apiSecret
+	if key == "" && secret == "" {
+		key, secret = os.Getenv("MEXC_API_KEY"), os.Getenv("MEXC_API_SECRET")
+	}
+	if key != "" && secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(&accounts.Credentials{Key: apiKey, Secret: apiSecret})
+		e.SetCredentials(&accounts.Credentials{Key: key, Secret: secret})
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	if err := populateTradablePairs(); err != nil {
