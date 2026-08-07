@@ -166,6 +166,26 @@ func wsIntervalString(s *subscription.Subscription) string {
 	return intervalString
 }
 
+// wsChannelName returns the channel name of a qualified push channel. MEXC qualifies a channel as
+// "spot@<name>[@<extra>...]": a public channel carries an interval and/or a symbol after the name,
+// a private channel carries nothing. The name must be read from the decoded frame — splitting the
+// raw protobuf bytes on "@" returns the name glued to the binary body whenever nothing follows it,
+// which matched no case and made every private channel unroutable.
+func wsChannelName(qualifiedChannel string) string {
+	parts := strings.Split(qualifiedChannel, "@")
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[1]
+}
+
+// wsUnhandled reports a frame the handler has no mapping for
+func (e *Exchange) wsUnhandled(ctx context.Context, respRaw []byte) error {
+	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
+		Message: string(respRaw) + websocket.UnhandledMessage,
+	})
+}
+
 func isSymbolChannel(channel string) bool {
 	return !slices.Contains([]string{channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI}, channel)
 }
@@ -303,29 +323,22 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 			if !conn.IncomingWithData(id, respRaw) {
-				return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
-					Message: string(respRaw) + websocket.UnhandledMessage,
-				})
+				return e.wsUnhandled(ctx, respRaw)
 			}
 		}
 		// Ignore json messages which doesn't have an ID.
 		return nil
 	}
-	dataSplit := strings.Split(string(respRaw), "@")
-	if len(dataSplit) < 3 {
-		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
-			Message: string(respRaw) + websocket.UnhandledMessage,
-		})
+	result := &mexc_proto_types.PushDataV3ApiWrapper{}
+	if err := proto.Unmarshal(respRaw, result); err != nil {
+		return err
 	}
-	switch dataSplit[1] {
+	switch wsChannelName(result.GetChannel()) {
 	case channelBookTiker:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreBookTicker{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
 		body := result.GetPublicAggreBookTicker()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		ask := orderbook.Level{}
 		var err error
 		ask.Price, err = strconv.ParseFloat(body.AskPrice, 64)
@@ -345,11 +358,11 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}
-		if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
+		if ok := orderbookSnapshotLoadedPairs[result.GetSymbol()]; !ok {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    e.Name,
 				Asset:       asset.Spot,
@@ -361,7 +374,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 				return err
 			}
 			syncOrderbookPairsLock.Lock()
-			orderbookSnapshotLoadedPairs[dataSplit[2]] = true
+			orderbookSnapshotLoadedPairs[result.GetSymbol()] = true
 			syncOrderbookPairsLock.Unlock()
 		} else if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       cp,
@@ -379,13 +392,10 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			t.Ask, t.AskSize = ask.Price, ask.Amount
 		})
 	case channelMiniTickerV3:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicMiniTicker{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
 		body := result.GetPublicMiniTicker()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		cp, err := e.MatchSymbolWithAvailablePairs(body.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
@@ -420,14 +430,11 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			setIfNonZero(&t.QuoteVolume, quoteVolume)
 		})
 	case channelAggregateDepthV3:
-		result := mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDepths{},
-		}
-		if err := proto.Unmarshal(respRaw, &result); err != nil {
-			return err
-		}
 		depths := result.GetPublicAggreDepths()
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		if depths == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -458,7 +465,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			}
 		}
 
-		if !orderbookSnapshotLoadedPairs[*result.Symbol] {
+		if !orderbookSnapshotLoadedPairs[result.GetSymbol()] {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    e.Name,
 				Asset:       asset.Spot,
@@ -470,7 +477,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 				return err
 			}
 			syncOrderbookPairsLock.Lock()
-			orderbookSnapshotLoadedPairs[*result.Symbol] = true
+			orderbookSnapshotLoadedPairs[result.GetSymbol()] = true
 			syncOrderbookPairsLock.Unlock()
 		}
 		return e.Websocket.Orderbook.Update(&orderbook.Update{
@@ -481,17 +488,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			UpdateTime: time.Now(),
 		})
 	case channelAggreDealsV3:
-		result := mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDeals{},
-		}
-		if err := proto.Unmarshal(respRaw, &result); err != nil {
-			return err
-		}
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}
 		body := result.GetPublicAggreDeals()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		tradesDetail := make([]trade.Data, len(body.Deals))
 		for t := range body.Deals {
 			price, err := strconv.ParseFloat(body.Deals[t].Price, 64)
@@ -519,14 +523,11 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		return e.Websocket.DataHandler.Send(ctx, tradesDetail)
 	case channelKlineV3:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicSpotKline{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
 		body := result.GetPublicSpotKline()
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -568,17 +569,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			Candles:  []kline.Candle{klineData},
 		})
 	case channelIncreaseDepthBatchV3:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicIncreaseDepthsBatch{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, true)
 		if err != nil {
 			return err
 		}
 		body := result.GetPublicIncreaseDepthsBatch()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		for ob := range body.Items {
 			asks := make(orderbook.Levels, len(body.Items[ob].Asks))
 			for a := range body.Items[ob].Asks {
@@ -602,7 +600,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 					return err
 				}
 			}
-			if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
+			if ok := orderbookSnapshotLoadedPairs[result.GetSymbol()]; !ok {
 				if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 					Exchange:    e.Name,
 					Pair:        cp,
@@ -614,7 +612,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 					return err
 				}
 				syncOrderbookPairsLock.Lock()
-				orderbookSnapshotLoadedPairs[dataSplit[2]] = true
+				orderbookSnapshotLoadedPairs[result.GetSymbol()] = true
 				syncOrderbookPairsLock.Unlock()
 			}
 			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
@@ -628,17 +626,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			}
 		}
 	case channelLimitDepthV3:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicLimitDepths{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}
 		body := result.GetPublicLimitDepths()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		asks := make(orderbook.Levels, len(body.Asks))
 		for a := range body.Asks {
 			asks[a].Price, err = strconv.ParseFloat(body.Asks[a].Price, 64)
@@ -670,17 +665,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			LastUpdated: time.Now(),
 		})
 	case channelBookTickerBatch:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicBookTickerBatch{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, true)
 		if err != nil {
 			return err
 		}
 		body := result.GetPublicBookTickerBatch()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		tickersDetail := make([]ticker.Price, len(body.Items))
 		for a := range body.Items {
 			tickersDetail[a] = ticker.Price{
@@ -707,13 +699,10 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		return e.Websocket.DataHandler.Send(ctx, tickersDetail)
 	case channelAccountV3:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateAccount{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
 		body := result.GetPrivateAccount()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		balanceAmount, err := strconv.ParseFloat(body.BalanceAmount, 64)
 		if err != nil {
 			return err
@@ -732,17 +721,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			},
 		})
 	case channelPrivateDealsV3:
-		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateDeals{},
-		}
-		if err := proto.Unmarshal(respRaw, result); err != nil {
-			return err
-		}
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}
 		body := result.GetPrivateDeals()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		price, err := strconv.ParseFloat(body.Price, 64)
 		if err != nil {
 			return err
@@ -769,15 +755,12 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			},
 		})
 	case channelPrivateOrdersAPI:
-		result := mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateOrders{},
-		}
-		if err := proto.Unmarshal(respRaw, &result); err != nil {
-			return err
-		}
 		var oType order.Type
 		var tif order.TimeInForce
 		body := result.GetPrivateOrders()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
+		}
 		switch body.OrderType {
 		case 1:
 			tif = order.GoodTillCancel
@@ -809,7 +792,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		case 5:
 			oStatus = order.PartiallyCancelled
 		}
-		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -842,9 +825,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			TimeInForce: tif,
 		})
 	default:
-		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
-			Message: string(respRaw) + websocket.UnhandledMessage,
-		})
+		return e.wsUnhandled(ctx, respRaw)
 	}
 	return nil
 }

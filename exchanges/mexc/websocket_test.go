@@ -48,7 +48,13 @@ const wsTestSymbol = "BTCUSDT"
 // first field, which is also what WsHandleData routes on.
 func wsPushFrame(tb testing.TB, channel string, sendTime int64, body isPushBody) []byte {
 	tb.Helper()
-	symbol := wsTestSymbol
+	return wsPushFrameForSymbol(tb, wsTestSymbol, channel, sendTime, body)
+}
+
+// wsPushFrameForSymbol builds a push frame for an explicit symbol, for the cases where the symbol
+// itself is the subject of the test.
+func wsPushFrameForSymbol(tb testing.TB, symbol, channel string, sendTime int64, body isPushBody) []byte {
+	tb.Helper()
 	w := &mexc_proto_types.PushDataV3ApiWrapper{
 		Channel:  channel,
 		Symbol:   &symbol,
@@ -157,9 +163,14 @@ func TestWsSpotTickerFromMiniTicker(t *testing.T) {
 	assert.Equal(t, int64(1736412092500), got.LastUpdated.UnixMilli(), "LastUpdated should come from the exchange send time")
 }
 
-func TestWsHandleDataShortChannel(t *testing.T) {
+// TestWsHandleDataUndecodableFrame asserts a binary frame that is not a valid push frame is
+// reported rather than silently dropped. It used to be answered with an unhandled-message warning,
+// because the handler routed on the raw bytes and merely failed to find a separator in them; a
+// frame that cannot be decoded and a frame whose channel has no mapping are different faults, and
+// reporting both as "unhandled" is what kept the unroutable private channels invisible.
+func TestWsHandleDataUndecodableFrame(t *testing.T) {
 	t.Parallel()
-	assert.NoError(t, e.WsHandleData(t.Context(), nil, []byte("no-separator-here")), "a frame without channel separators should not panic")
+	assert.Error(t, e.WsHandleData(t.Context(), nil, []byte("no-separator-here")), "an undecodable frame should be reported as a decode error")
 }
 
 func TestChannelSuffix(t *testing.T) {

@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -204,4 +206,114 @@ func TestWsHandleJSONWithoutID(t *testing.T) {
 	drainData(t)
 	require.NoError(t, e.WsHandleData(t.Context(), nil, []byte(`{"code":0,"msg":"no id here"}`)), "an id-less frame must not error")
 	assert.Empty(t, drainData(t), "an id-less JSON frame should not be relayed")
+}
+
+// TestWsChannelName asserts the channel name is taken from the decoded channel field. A private
+// channel is qualified as "spot@<name>" with nothing after the name, so the name has to survive
+// being the last element.
+func TestWsChannelName(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ qualified, expected string }{
+		{"spot@" + channelBookTiker + "@100ms@BTCUSDT", channelBookTiker},
+		{"spot@" + channelKlineV3 + "@BTCUSDT@Min15", channelKlineV3},
+		{"spot@" + channelLimitDepthV3 + "@BTCUSDT@5", channelLimitDepthV3},
+		{"spot@" + channelMiniTickerV3 + "@BTCUSDT@UTC+8", channelMiniTickerV3},
+		{"spot@" + channelAccountV3, channelAccountV3},
+		{"spot@" + channelPrivateDealsV3, channelPrivateDealsV3},
+		{"spot@" + channelPrivateOrdersAPI, channelPrivateOrdersAPI},
+		{"spot", ""},
+		{"", ""},
+	} {
+		assert.Equalf(t, tc.expected, wsChannelName(tc.qualified), "wsChannelName should return the channel name of %q", tc.qualified)
+	}
+}
+
+// TestWsHandlePrivateAccount asserts a private account frame is routed and decoded. The private
+// channels carry no symbol after the channel name, so routing on the raw bytes never reached them.
+func TestWsHandlePrivateAccount(t *testing.T) {
+	drainData(t)
+	raw := wsPushFrame(t, "spot@"+channelAccountV3, 1736409765052,
+		&mexc_proto_types.PrivateAccountV3Api{VcoinName: "USDT", BalanceAmount: "100.5", FrozenAmount: "0.5"})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+
+	change := requireOneOf[accounts.Change](t)
+	assert.Equal(t, currency.USDT, change.Balance.Currency, "Currency should be correct")
+	assert.Equal(t, 100.5, change.Balance.Total, "Total should be the balance amount")
+	assert.Equal(t, 0.5, change.Balance.Hold, "Hold should be the frozen amount")
+	assert.Equal(t, 100.0, change.Balance.Free, "Free should be the balance less the frozen amount")
+	assert.Equal(t, asset.Spot, change.AssetType, "AssetType should be correct")
+}
+
+// TestWsHandlePrivateDeals asserts a private trade frame is routed and decoded.
+func TestWsHandlePrivateDeals(t *testing.T) {
+	drainData(t)
+	raw := wsPushFrame(t, "spot@"+channelPrivateDealsV3, 1736409765052,
+		&mexc_proto_types.PrivateDealsV3Api{
+			Price: "93220.00", Amount: "0.044", OrderId: "o-1", TradeType: 1, Time: 1736409765051,
+		})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+
+	trades := requireOneOf[[]trade.Data](t)
+	require.Len(t, trades, 1, "one trade must be relayed")
+	assert.Equal(t, "o-1", trades[0].TID, "TID should be the order id")
+	assert.Equal(t, 93220.00, trades[0].Price, "Price should be correct")
+	assert.Equal(t, 0.044, trades[0].Amount, "Amount should be correct")
+	assert.Equal(t, order.Buy, trades[0].Side, "tradeType 1 should map to Buy")
+	assert.Equal(t, int64(1736409765051), trades[0].Timestamp.UnixMilli(), "Timestamp should come from the deal time")
+}
+
+// TestWsHandlePrivateOrders asserts a private order frame is routed and decoded.
+func TestWsHandlePrivateOrders(t *testing.T) {
+	drainData(t)
+	raw := wsPushFrame(t, "spot@"+channelPrivateOrdersAPI, 1736409765052,
+		&mexc_proto_types.PrivateOrdersV3Api{
+			Id: "o-2", ClientId: "c-2", Price: "100", AvgPrice: "101",
+			Quantity: "10", RemainQuantity: "6", CumulativeQuantity: "4",
+			Amount: "1000", RemainAmount: "600", CumulativeAmount: "404",
+			OrderType: 1, TradeType: 1, Status: 3, CreateTime: 1736409765000,
+		})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+
+	detail := requireOneOf[*order.Detail](t)
+	assert.Equal(t, "o-2", detail.OrderID, "OrderID should be correct")
+	assert.Equal(t, "c-2", detail.ClientID, "ClientID should be correct")
+	assert.Equal(t, 100.0, detail.Price, "Price should be correct")
+	assert.Equal(t, 101.0, detail.AverageExecutedPrice, "AverageExecutedPrice should be correct")
+	assert.Equal(t, order.Limit, detail.Type, "orderType 1 should map to a limit order")
+	assert.Equal(t, order.GoodTillCancel, detail.TimeInForce, "orderType 1 should map to GoodTillCancel")
+	assert.Equal(t, order.PartiallyFilled, detail.Status, "status 3 should map to PartiallyFilled")
+	assert.Equal(t, order.Buy, detail.Side, "tradeType 1 should map to Buy")
+	assert.Equal(t, int64(1736409765000), detail.LastUpdated.UnixMilli(), "LastUpdated should come from createTime")
+	assert.Equal(t, asset.Spot, detail.AssetType, "AssetType should be correct")
+}
+
+// TestWsBookTickerSnapshotIsPerPair asserts each pair gets its own orderbook snapshot. The
+// aggregated book ticker is qualified as "spot@<name>@<interval>@<symbol>", so keying the
+// "snapshot already loaded" map by the channel's third element keyed it by the interval, a value
+// shared by every pair, which left the second pair updating a book that was never loaded.
+func TestWsBookTickerSnapshotIsPerPair(t *testing.T) {
+	drainData(t)
+	second := currency.NewPair(currency.ETH, currency.USDT)
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTradablePair, second}, false), "StorePairs must not error")
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTradablePair, second}, true), "StorePairs must not error")
+	t.Cleanup(func() {
+		require.NoError(t, e.setEnabledPairs(spotTradablePair), "restoring the enabled pairs must not error")
+	})
+
+	syncOrderbookPairsLock.Lock()
+	clear(orderbookSnapshotLoadedPairs)
+	syncOrderbookPairsLock.Unlock()
+
+	for _, symbol := range []string{wsTestSymbol, "ETHUSDT"} {
+		raw := wsPushFrameForSymbol(t, symbol, "spot@"+channelBookTiker+"@100ms@"+symbol, 1736409765052,
+			&mexc_proto_types.PublicAggreBookTickerV3Api{BidPrice: "1", BidQuantity: "2", AskPrice: "3", AskQuantity: "4"})
+		require.NoErrorf(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error for %s", symbol)
+	}
+
+	for _, pair := range []currency.Pair{spotTradablePair, second} {
+		book, err := orderbook.Get(e.Name, pair, asset.Spot)
+		require.NoErrorf(t, err, "each pair must have its own orderbook, %s does not", pair)
+		require.NotEmptyf(t, book.Bids, "%s must carry a bid", pair)
+		assert.Equalf(t, 1.0, book.Bids[0].Price, "%s bid price should be correct", pair)
+	}
 }
