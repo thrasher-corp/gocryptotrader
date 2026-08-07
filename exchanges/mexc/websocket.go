@@ -287,8 +287,9 @@ func isSpotPongMessage(respRaw []byte) bool {
 
 // privateOrderNumbers holds the decoded numeric fields of a private order push
 type privateOrderNumbers struct {
-	price, avgPrice, quantity, amount float64
-	remainAmount, cumulativeAmount    float64
+	price, avgPrice            float64
+	quantity, remainQuantity   float64
+	amount, cumulativeQuantity float64
 }
 
 // parse decodes the numeric fields of a private order push, which the exchange sends as strings and
@@ -302,9 +303,9 @@ func (n *privateOrderNumbers) parse(body *mexc_proto_types.PrivateOrdersV3Api) e
 		{"price", body.Price, &n.price},
 		{"avgPrice", body.AvgPrice, &n.avgPrice},
 		{"quantity", body.Quantity, &n.quantity},
+		{"remainQuantity", body.RemainQuantity, &n.remainQuantity},
 		{"amount", body.Amount, &n.amount},
-		{"remainAmount", body.RemainAmount, &n.remainAmount},
-		{"cumulativeAmount", body.CumulativeAmount, &n.cumulativeAmount},
+		{"cumulativeQuantity", body.CumulativeQuantity, &n.cumulativeQuantity},
 	} {
 		v, err := parseOptionalFloat(f.raw)
 		if err != nil {
@@ -796,6 +797,11 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
+		// MEXC reports two parallel sets of figures: quantity/remainQuantity/cumulativeQuantity are
+		// base terms and amount/remainAmount/cumulativeAmount are quote terms. order.Detail.Amount,
+		// ExecutedAmount and RemainingAmount are base terms, so they must come from the quantity
+		// fields; mixing the two reported the same order in different units depending on the source,
+		// the same defect GetOrderInfo carried on the REST side.
 		var nums privateOrderNumbers
 		if err := nums.parse(body); err != nil {
 			return err
@@ -803,12 +809,11 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 			Exchange:             e.Name,
 			Price:                nums.price,
-			Amount:               nums.amount,
-			ContractAmount:       nums.quantity,
+			Amount:               nums.quantity,
 			AverageExecutedPrice: nums.avgPrice,
 			QuoteAmount:          nums.amount,
-			ExecutedAmount:       nums.cumulativeAmount - nums.remainAmount,
-			RemainingAmount:      nums.remainAmount,
+			ExecutedAmount:       nums.cumulativeQuantity,
+			RemainingAmount:      nums.remainQuantity,
 			OrderID:              body.Id,
 			ClientID:             body.ClientId,
 			Type:                 oType,

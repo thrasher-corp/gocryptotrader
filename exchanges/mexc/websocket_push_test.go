@@ -262,7 +262,9 @@ func TestWsHandlePrivateDeals(t *testing.T) {
 	assert.Equal(t, int64(1736409765051), trades[0].Timestamp.UnixMilli(), "Timestamp should come from the deal time")
 }
 
-// TestWsHandlePrivateOrders asserts a private order frame is routed and decoded.
+// TestWsHandlePrivateOrders asserts a private order frame is routed and that the base and quote
+// figures land in the matching order.Detail fields: MEXC sends quantity/remainQuantity/
+// cumulativeQuantity in base terms and amount/remainAmount/cumulativeAmount in quote terms.
 func TestWsHandlePrivateOrders(t *testing.T) {
 	drainData(t)
 	raw := wsPushFrame(t, "spot@"+channelPrivateOrdersAPI, 1736409765052,
@@ -279,6 +281,10 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 	assert.Equal(t, "c-2", detail.ClientID, "ClientID should be correct")
 	assert.Equal(t, 100.0, detail.Price, "Price should be correct")
 	assert.Equal(t, 101.0, detail.AverageExecutedPrice, "AverageExecutedPrice should be correct")
+	assert.Equal(t, 10.0, detail.Amount, "Amount should be the base quantity")
+	assert.Equal(t, 1000.0, detail.QuoteAmount, "QuoteAmount should be the quote amount")
+	assert.Equal(t, 4.0, detail.ExecutedAmount, "ExecutedAmount should be the base cumulative quantity")
+	assert.Equal(t, 6.0, detail.RemainingAmount, "RemainingAmount should be the base remaining quantity")
 	assert.Equal(t, order.Limit, detail.Type, "orderType 1 should map to a limit order")
 	assert.Equal(t, order.GoodTillCancel, detail.TimeInForce, "orderType 1 should map to GoodTillCancel")
 	assert.Equal(t, order.PartiallyFilled, detail.Status, "status 3 should map to PartiallyFilled")
