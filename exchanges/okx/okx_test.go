@@ -3694,6 +3694,30 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err, "SubmitOrder must send reduce-only net orders over authenticated websocket")
 	require.Equal(t, "submit-order", result.OrderID, "SubmitOrder must return the websocket order ID")
 
+	t.Run("spot market buy with quote amount", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.instrumentsInfoMapLock.Lock()
+		ex.instrumentsInfoMap[instTypeSpot] = []Instrument{
+			{
+				InstrumentID:     mainPair,
+				InstrumentIDCode: types.Number(789),
+			},
+		}
+		ex.instrumentsInfoMapLock.Unlock()
+		quoteAmountResult, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:    ex.Name,
+			Pair:        mainPair,
+			AssetType:   asset.Spot,
+			Side:        order.Buy,
+			Type:        order.Market,
+			QuoteAmount: 10,
+		})
+		require.NoError(t, err, "SubmitOrder must accept a quote amount for a spot market buy")
+		require.Equal(t, "submit-order", quoteAmountResult.OrderID, "SubmitOrder must return the websocket order ID")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{
 		Pair: currency.Pair{

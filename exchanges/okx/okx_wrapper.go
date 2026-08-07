@@ -895,7 +895,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	if s.Amount <= 0 {
+	if s.Amount <= 0 && !isSpotMarketBuyWithQuoteAmount(s) {
 		return nil, limits.ErrAmountBelowMin
 	}
 	pairFormat, err := e.GetPairFormat(s.AssetType, true)

@@ -37,7 +37,7 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 	}
 
 	var resp []*OrderData
-	if err := e.sendAuthenticatedWebsocketRequest(requestContext, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(requestContext, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
@@ -65,7 +65,7 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	}
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequest(requestContext, placeMultipleOrdersEPL, e.MessageID(), "batch-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(requestContext, placeMultipleOrdersEPL, e.MessageID(), "batch-orders", args, &resp)
 }
 
 // WSCancelOrder cancels an order
@@ -88,7 +88,7 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	}
 
 	var resp []*OrderData
-	if err := e.sendAuthenticatedWebsocketRequest(requestContext, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(requestContext, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 	}
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequest(requestContext, cancelMultipleOrdersEPL, e.MessageID(), "batch-cancel-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(requestContext, cancelMultipleOrdersEPL, e.MessageID(), "batch-cancel-orders", args, &resp)
 }
 
 // WSAmendOrder amends an order
@@ -146,7 +146,7 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	}
 
 	var resp []*OrderData
-	if err := e.sendAuthenticatedWebsocketRequest(requestContext, amendOrderEPL, e.MessageID(), "amend-order", []AmendOrderRequestParams{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(requestContext, amendOrderEPL, e.MessageID(), "amend-order", []AmendOrderRequestParams{*arg}, &resp); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
@@ -180,7 +180,7 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 	}
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequest(requestContext, amendMultipleOrdersEPL, e.MessageID(), "batch-amend-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(requestContext, amendMultipleOrdersEPL, e.MessageID(), "batch-amend-orders", args, &resp)
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
@@ -299,10 +299,6 @@ func (e *Exchange) WSCancelAllSpreadOrders(ctx context.Context, spreadID string)
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
 func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
-	return e.sendAuthenticatedWebsocketRequest(ctx, epl, id, operation, payload, result)
-}
-
-func (e *Exchange) sendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
 	if operation == "" || payload == nil {
 		return errInvalidWebsocketRequest
 	}
