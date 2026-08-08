@@ -341,7 +341,6 @@ func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.I
 	return e.CheckTransientError(err)
 }
 
-// UpdateAccountBalances retrieves currency balances
 // accountTypeMatches reports whether the account type the exchange returned is the one asked for.
 // The comparison is case-insensitive: the exchange reports "SPOT" while asset.Item renders "spot",
 // so a direct comparison never matched and every spot balance request returned ErrNotSupported
@@ -350,6 +349,7 @@ func accountTypeMatches(reported string, assetType asset.Item) bool {
 	return assetType == asset.Empty || strings.EqualFold(reported, assetType.String())
 }
 
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	accountInfo, err := e.GetAccountInformation(ctx)
 	if err != nil {

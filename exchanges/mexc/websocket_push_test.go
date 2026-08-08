@@ -353,10 +353,10 @@ func TestWsBookTickerFeedsTickerNotOrderbook(t *testing.T) {
 		book, err := orderbook.Get(e.Name, pair, asset.Spot)
 		if before, existed := booksBefore[pair]; existed {
 			require.NoErrorf(t, err, "%s orderbook must still be retrievable", pair)
-			assert.Equalf(t, before.LastUpdated, book.LastUpdated, "the book ticker must not touch the %s orderbook", pair)
-			assert.Equalf(t, before.Bids, book.Bids, "the book ticker must not touch the %s bids", pair)
+			assert.Equalf(t, before.LastUpdated, book.LastUpdated, "the book ticker should not touch the %s orderbook", pair)
+			assert.Equalf(t, before.Bids, book.Bids, "the book ticker should not touch the %s bids", pair)
 		} else {
-			assert.Errorf(t, err, "the book ticker must not create an orderbook for %s", pair)
+			assert.Errorf(t, err, "the book ticker should not create an orderbook for %s", pair)
 		}
 	}
 }

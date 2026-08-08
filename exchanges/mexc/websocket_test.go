@@ -221,8 +221,8 @@ func TestWsIntervalString(t *testing.T) {
 // guards against would otherwise be invisible to the standard run.
 func TestAccountTypeMatches(t *testing.T) {
 	t.Parallel()
-	assert.True(t, accountTypeMatches("SPOT", asset.Spot), "the exchange's upper-case SPOT must match asset.Spot")
-	assert.True(t, accountTypeMatches("spot", asset.Spot), "an already lower-case value must still match")
-	assert.True(t, accountTypeMatches("SPOT", asset.Empty), "an empty asset must match anything")
-	assert.False(t, accountTypeMatches("SPOT", asset.Futures), "a different account type must not match")
+	assert.True(t, accountTypeMatches("SPOT", asset.Spot), "the exchange's upper-case SPOT should match asset.Spot")
+	assert.True(t, accountTypeMatches("spot", asset.Spot), "an already lower-case value should still match")
+	assert.True(t, accountTypeMatches("SPOT", asset.Empty), "an empty asset should match anything")
+	assert.False(t, accountTypeMatches("SPOT", asset.Futures), "a different account type should not match")
 }

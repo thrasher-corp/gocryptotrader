@@ -34,10 +34,10 @@ func TestProtoTypesAreUsable(t *testing.T) {
 			checked++
 			assert.NotPanicsf(t, func() {
 				_, err := proto.Marshal(mt.New().Interface())
-				assert.NoErrorf(t, err, "%s must marshal", name)
+				assert.NoErrorf(t, err, "%s should marshal", name)
 			}, "%s must not panic: its Go field types must match its descriptor", name)
 		}
 		return true
 	})
-	assert.GreaterOrEqual(t, checked, 20, "the generated MEXC messages must actually be discovered; a scan over nothing proves nothing")
+	assert.GreaterOrEqual(t, checked, 20, "the generated MEXC messages should actually be discovered; a scan over nothing proves nothing")
 }
