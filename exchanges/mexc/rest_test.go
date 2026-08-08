@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,43 @@ var (
 
 	spotTradablePair currency.Pair
 )
+
+// recentWindow returns a query window that stays inside the history endpoints' limits. Several of
+// them accept only recent data - "Only 7 day's data can be queried", "The start time must be within
+// 90 days from now", "Exceeded the queryable time range" - so a window pinned to a fixed date works
+// when it is written and fails once that date has aged out.
+// It stays short as well as recent, because the same window feeds the candle and trade endpoints,
+// where a multi-day span would ask for more bars than a single response carries.
+//
+// Under the mock the window is the recorded one instead: mock responses are matched on the full
+// request URL, so a moving window matches nothing.
+func recentWindow() (start, end time.Time) {
+	if mockTests {
+		return time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	}
+	now := time.Now()
+	return now.Add(-2 * time.Hour), now.Add(-time.Hour)
+}
+
+// skipIfAccountCannot skips when the exchange refused because of what the account is rather than
+// what the code sent. Broker endpoints need a broker account, sub-account endpoints need
+// sub-accounts to exist, and a lookup by a made-up id finds no record - none of which a plain spot
+// key can satisfy. Skipping names the reason; passing would claim a coverage that never happened.
+func skipIfAccountCannot(tb testing.TB, err error) {
+	tb.Helper()
+	if err == nil {
+		return
+	}
+	for _, refusal := range []string{
+		"No permission to access the endpoint",
+		"subAccount not exist",
+		"Record does not exist",
+	} {
+		if strings.Contains(err.Error(), refusal) {
+			tb.Skipf("this account cannot exercise the endpoint: %s", refusal)
+		}
+	}
+}
 
 func (e *Exchange) setEnabledPairs(spotTradablePair currency.Pair) error {
 	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false); err != nil {
@@ -91,7 +129,7 @@ func TestGetRecentTradesList(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetAggregatedTrades(t.Context(), currency.EMPTYPAIR, endTime, startTime, 0)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
@@ -132,7 +170,7 @@ func TestGetCandlestick(t *testing.T) {
 	intervalString, err := intervalToString(kline.FiveMin)
 	require.NoError(t, err)
 
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err = e.GetCandlestick(t.Context(), currency.EMPTYPAIR, intervalString, startTime, endTime, 0)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
@@ -304,6 +342,7 @@ func TestGetSubAccountAsset(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSubAccountAsset(t.Context(), "thesubaccount@test.com", asset.Spot)
+	skipIfAccountCannot(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -550,7 +589,7 @@ func TestGetAllOrders(t *testing.T) {
 
 	// Relative to now: the endpoint answers "Only 7 day's data can be queried", so a window pinned
 	// to a fixed date falls outside the queryable range as soon as that date is a week old.
-	endTime, startTime := time.Now(), time.Now().AddDate(0, 0, -6)
+	startTime, endTime := recentWindow()
 	_, err = e.GetAllOrders(t.Context(), spotTradablePair, endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -575,7 +614,7 @@ func TestGetAccountTradeList(t *testing.T) {
 
 	// Relative to now: the endpoint answers "Exceeded the queryable time range" for a window that
 	// has aged out, which a fixed date does within a week of being written.
-	endTime, startTime := time.Now(), time.Now().AddDate(0, 0, -6)
+	startTime, endTime := recentWindow()
 	_, err = e.GetAccountTradeList(t.Context(), spotTradablePair, "", endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -645,7 +684,7 @@ func TestCancelWithdrawal(t *testing.T) {
 
 func TestFundDepositHistory(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetFundDepositHistory(t.Context(), currency.BTC, "", endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -657,7 +696,7 @@ func TestFundDepositHistory(t *testing.T) {
 
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetWithdrawalHistory(t.Context(), currency.USDT, endTime, startTime, 0, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -718,7 +757,7 @@ func TestUserUniversalTransfer(t *testing.T) {
 
 func TestGetUnversalTransferHistory(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetUniversalTransferHistory(t.Context(), asset.Empty, asset.Futures, startTime, endTime, 0, 10)
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 	_, err = e.GetUniversalTransferHistory(t.Context(), asset.Spot, asset.Empty, startTime, endTime, 0, 10)
@@ -739,6 +778,7 @@ func TestGetUniversalTransferDetailByID(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetUniversalTransferDetailByID(t.Context(), "12345678")
+	skipIfAccountCannot(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -766,7 +806,7 @@ func TestDustTransfer(t *testing.T) {
 
 func TestDustLog(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.DustLog(t.Context(), endTime, startTime, 0, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 	_, err = e.DustLog(t.Context(), startTime, endTime, 0, 0)
@@ -797,7 +837,7 @@ func TestInternalTransfer(t *testing.T) {
 
 func TestGetInternalTransferHistory(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetInternalTransferHistory(t.Context(), "11945860693", endTime, startTime, 0, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -824,7 +864,7 @@ func TestCapitalWithdrawal(t *testing.T) {
 
 func TestGetRebateHistoryRecords(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetRebateHistoryRecords(t.Context(), endTime, startTime, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -836,7 +876,7 @@ func TestGetRebateHistoryRecords(t *testing.T) {
 
 func TestGetRebateRecordsDetail(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetRebateRecordsDetail(t.Context(), endTime, startTime, 1000)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -848,7 +888,7 @@ func TestGetRebateRecordsDetail(t *testing.T) {
 
 func TestGetSelfRebateRecordsDetail(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetSelfRebateRecordsDetail(t.Context(), endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -868,7 +908,7 @@ func TestGetReferCode(t *testing.T) {
 
 func TestGetAffiliateCommissionRecord(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetAffiliateCommissionRecord(t.Context(), endTime, startTime, "abcdef", 1, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -880,7 +920,7 @@ func TestGetAffiliateCommissionRecord(t *testing.T) {
 
 func TestGetAffiliateWithdrawRecord(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetAffiliateWithdrawRecord(t.Context(), endTime, startTime, 0, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -892,7 +932,7 @@ func TestGetAffiliateWithdrawRecord(t *testing.T) {
 
 func TestGetAffiliateCommissionDetailRecord(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetAffiliateCommissionDetailRecord(t.Context(), endTime, startTime, "", "1", 0, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -904,7 +944,7 @@ func TestGetAffiliateCommissionDetailRecord(t *testing.T) {
 
 func TestGetAffiliateCampaignData(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetAffiliateCampaignData(t.Context(), endTime, startTime, 0, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -916,7 +956,7 @@ func TestGetAffiliateCampaignData(t *testing.T) {
 
 func TestGetAffiliateReferralData(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetAffiliateReferralData(t.Context(), endTime, startTime, "", "", 1, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -928,7 +968,7 @@ func TestGetAffiliateReferralData(t *testing.T) {
 
 func TestGetSubAffiliateData(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetSubAffiliateData(t.Context(), endTime, startTime, "", 1, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -945,7 +985,7 @@ func TestGetBrokerUniversalTransferHistory(t *testing.T) {
 	_, err = e.GetBrokerUniversalTransferHistory(t.Context(), asset.Empty, asset.Empty, "test1@thrasher.io", "test2@thrasher.io", time.Time{}, time.Time{}, 0, 10)
 	require.ErrorIs(t, err, errAddressRequired)
 
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err = e.GetBrokerUniversalTransferHistory(t.Context(), asset.Futures, asset.Empty, "test1@thrasher.io", "test2@thrasher.io", startTime, endTime, 0, 10)
 	require.ErrorIs(t, err, errAddressRequired)
 	_, err = e.GetBrokerUniversalTransferHistory(t.Context(), asset.Futures, asset.Spot, "test1@thrasher.io", "test2@thrasher.io", endTime, startTime, 1, 100)
@@ -953,6 +993,7 @@ func TestGetBrokerUniversalTransferHistory(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetBrokerUniversalTransferHistory(t.Context(), asset.Spot, asset.Futures, "test1@thrasher.io", "test2@thrasher.io", startTime, endTime, 1, 10)
+	skipIfAccountCannot(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1073,25 +1114,27 @@ func TestGetBrokerSubAccountDepositAddress(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetBrokerSubAccountDepositAddress(t.Context(), currency.BTC)
+	skipIfAccountCannot(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetSubAccountDepositHistory(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetSubAccountDepositHistory(t.Context(), currency.ETH, "1", endTime, startTime, 0, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSubAccountDepositHistory(t.Context(), currency.ETH, "1", startTime, endTime, 1, 10)
+	skipIfAccountCannot(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetAllRecentSubAccountDepositHistory(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetAllRecentSubAccountDepositHistory(t.Context(), currency.ETH, "1", endTime, startTime, 1, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -1157,7 +1200,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetHistoricCandles(t.Context(), currency.EMPTYPAIR, asset.Spot, kline.FiveMin, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -1180,7 +1223,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	_, err := e.GetHistoricCandlesExtended(t.Context(), currency.EMPTYPAIR, asset.Spot, kline.FiveMin, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.TenMin, startTime, endTime)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
@@ -1270,7 +1313,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := time.UnixMilli(1767204283384), time.UnixMilli(1767204403384)
+	startTime, endTime := recentWindow()
 	_, err := e.GetHistoricTrades(t.Context(), currency.EMPTYPAIR, asset.Options, startTime, endTime)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.GetHistoricTrades(t.Context(), spotTradablePair, asset.Options, startTime, endTime)

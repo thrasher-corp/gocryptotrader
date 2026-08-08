@@ -13,6 +13,8 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
+var mockTests = true
+
 func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {

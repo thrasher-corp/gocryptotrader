@@ -16,7 +16,7 @@ import (
 )
 
 // GetBrokerUniversalTransferHistory retrieves universal transfer history for broker users
-func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType asset.Item, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]*BrokerAssetTransfer, error) {
+func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType asset.Item, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) (*BrokerUniversalTransferHistory, error) {
 	if !fromAccountType.IsValid() {
 		return nil, fmt.Errorf("%w: FronAccountType is required", errAddressRequired)
 	}
@@ -50,7 +50,7 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []*BrokerAssetTransfer
+	var resp *BrokerUniversalTransferHistory
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "broker/sub-account/universalTransfer", params, nil, &resp, true)
 }
 
