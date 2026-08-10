@@ -193,8 +193,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 				return false, bodyErr
 			}
 			payload, bodyErr := io.ReadAll(bodyCopy)
-			closeErr := bodyCopy.Close()
-			if closeErr != nil {
+			if closeErr := bodyCopy.Close(); closeErr != nil {
 				log.Errorf(log.RequestSys, "%s failed to close request body %s", r.name, closeErr)
 			}
 			if bodyErr != nil {
@@ -219,8 +218,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	}
 
 	contents, readErr := io.ReadAll(resp.Body)
-	closeErr := resp.Body.Close()
-	if closeErr != nil {
+	if closeErr := resp.Body.Close(); closeErr != nil {
 		log.Errorf(log.RequestSys, "%s failed to close response body %s", r.name, closeErr)
 	}
 	if readErr != nil {
@@ -236,8 +234,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 
 	if p.HTTPRecording {
 		// This dumps http responses for future mocking implementations
-		err := mock.HTTPRecord(resp, r.name, contents, p.HTTPMockDataSliceLimit)
-		if err != nil {
+		if err := mock.HTTPRecord(resp, r.name, contents, p.HTTPMockDataSliceLimit); err != nil {
 			return false, fmt.Errorf("mock recording failure %w, request %v: resp: %v", err, req, resp)
 		}
 	}
@@ -273,8 +270,9 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 }
 
 // evaluateRetry checks whether a request should be retried based on the retry
-// policy and context. It drains and closes response bodies before retrying or
-// returning a retry-decision error.
+// policy and context. It propagates incoming request errors when retrying is
+// declined and drains and closes response bodies before retrying or returning
+// a retry-decision error.
 func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, incomingErr error, attempt int, verbose bool) (bool, error) {
 	if hasRetryNotAllowed(ctx) {
 		return false, incomingErr
@@ -289,7 +287,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 	}
 
 	if !retry {
-		return false, nil
+		return false, incomingErr
 	}
 
 	if incomingErr == nil {
