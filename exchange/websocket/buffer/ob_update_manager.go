@@ -29,6 +29,7 @@ const (
 var (
 	errPendingUpdateKeyMismatch = errors.New("pending update key mismatch")
 	errPendingUpdatesNotApplied = errors.New("pending updates not applied")
+	errUpdatesNotSupplied       = errors.New("updates not supplied")
 	errUnhandledCacheState      = errors.New("unhandled cache state")
 )
 
@@ -242,7 +243,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 // assumes lock already active on cache
 func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 	if len(cache.updates) == 0 {
-		return errPendingUpdatesNotApplied
+		return errUpdatesNotSupplied
 	}
 
 	firstUpdate := cache.updates[0].update

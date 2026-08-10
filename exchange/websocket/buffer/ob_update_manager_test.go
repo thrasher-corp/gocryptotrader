@@ -408,7 +408,7 @@ func TestApplyPendingUpdates(t *testing.T) {
 	pair := currency.NewPair(currency.LTC, currency.USDT)
 
 	err := m.applyPendingUpdates(&updateCache{})
-	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "applyPendingUpdates must error when the pending-update queue is empty")
+	require.ErrorIs(t, err, errUpdatesNotSupplied, "applyPendingUpdates must error when the pending-update queue is empty")
 
 	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Asset: asset.Spot}},
