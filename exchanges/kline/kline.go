@@ -230,9 +230,9 @@ func (i Interval) Short() string {
 // An unquoted JSON number is a nanosecond count, which stored strategy configs record and
 // which encoding/json would otherwise reject for a type implementing
 // encoding.TextUnmarshaler
-// A quoted value is interval text and is never read as a nanosecond count, because
-// exchanges quote their own numeric interval codes: Bybit sends "60" for one hour and "5"
-// for five minutes, which as nanoseconds would be silently wrong
+// A quoted value is treated as duration text. Bare numeric exchange codes,
+// such as Bybit's "60" for one hour, are rejected rather than interpreted as nanoseconds 
+// and must be mapped by the exchange implementation.
 func (i *Interval) UnmarshalJSON(text []byte) error {
 	if n, err := strconv.ParseInt(string(text), 10, 64); err == nil {
 		*i = Interval(n)
