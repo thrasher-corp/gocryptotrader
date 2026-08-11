@@ -52,20 +52,24 @@ func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 		return err
 	}
 
+	bookKey := key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}
 	o.m.RLock()
-	holder, ok := o.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
+	holder, ok := o.ob[bookKey]
 	o.m.RUnlock()
 	if !ok {
 		o.m.Lock()
-		// Associate orderbook pointer with local exchange depth map
-		depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
-		if err != nil {
-			o.m.Unlock()
-			return err
+		holder, ok = o.ob[bookKey]
+		if !ok {
+			// Associate orderbook pointer with local exchange depth map
+			depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
+			if err != nil {
+				o.m.Unlock()
+				return err
+			}
+			depth.AssignOptions(book)
+			holder = &orderbookHolder{ob: depth, buffer: make([]orderbook.Update, 0, o.obBufferLimit)}
+			o.ob[bookKey] = holder
 		}
-		depth.AssignOptions(book)
-		holder = &orderbookHolder{ob: depth, buffer: make([]orderbook.Update, 0, o.obBufferLimit)}
-		o.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
 		o.m.Unlock()
 	}
 
@@ -87,7 +91,11 @@ func (o *Orderbook) Update(u *orderbook.Update) error {
 	if !ok {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s", orderbook.ErrDepthNotFound, o.exchangeName, u.Pair, u.Asset)
 	}
+	return o.updateHolder(holder, u)
+}
 
+// updateHolder avoids repeating the map lookup when the caller already has the holder for the update key.
+func (o *Orderbook) updateHolder(holder *orderbookHolder, u *orderbook.Update) error {
 	if o.bufferEnabled {
 		if processed, err := o.processBufferUpdate(holder, u); err != nil || !processed {
 			return err
