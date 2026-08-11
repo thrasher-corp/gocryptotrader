@@ -819,7 +819,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg == nil {
 		return fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
-	if arg.InstrumentID == "" && arg.InstrumentIDCode == 0 {
+	if arg.InstrumentID == "" {
 		return errMissingInstrumentID
 	}
 	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {

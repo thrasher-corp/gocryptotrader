@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
@@ -3923,6 +3926,74 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	for _, tc := range []struct {
+		name           string
+		orderID        string
+		clientOrderID  string
+		side           order.Side
+		expectedOrders []string
+	}{
+		{name: "order ID", orderID: "2", expectedOrders: []string{"2"}},
+		{name: "client order ID", clientOrderID: "client-3", expectedOrders: []string{"3"}},
+		{name: "buy side", side: order.Buy, expectedOrders: []string{"1", "3"}},
+		{name: "sell side", side: order.Sell, expectedOrders: []string{"2"}},
+		{name: "all", expectedOrders: []string{"1", "2", "3"}},
+		{name: "no matches", orderID: "missing"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan []CancelOrderRequestParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v5/trade/orders-pending":
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"BTC-USDT","ordId":"1","clOrdId":"client-1","side":"buy"},{"instId":"BTC-USDT","ordId":"2","clOrdId":"client-2","side":"sell"},{"instId":"ETH-USDT","ordId":"3","clOrdId":"client-3","side":"buy"}]}`))
+				case "/api/v5/trade/cancel-batch-orders":
+					body, readErr := io.ReadAll(r.Body)
+					if readErr != nil {
+						http.Error(w, readErr.Error(), http.StatusInternalServerError)
+						return
+					}
+					var got []CancelOrderRequestParam
+					if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+						http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+						return
+					}
+					requests <- got
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType:     asset.Spot,
+				OrderID:       tc.orderID,
+				ClientOrderID: tc.clientOrderID,
+				Side:          tc.side,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error")
+			if len(tc.expectedOrders) == 0 {
+				assert.Empty(t, requests, "CancelAllOrders should not send an empty cancellation batch")
+				return
+			}
+			got := <-requests
+			require.Len(t, got, len(tc.expectedOrders), "Cancellation request must contain only matching orders")
+			for i := range got {
+				assert.Equal(t, tc.expectedOrders[i], got[i].OrderID, "Cancellation request should preserve matching order IDs")
+				assert.NotEmpty(t, got[i].InstrumentID, "Cancellation request should include the instrument ID")
+			}
+		})
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
 	assert.NoError(t, err)
@@ -4215,6 +4286,18 @@ func TestCalculateOrderbookChecksum(t *testing.T) {
 		},
 	}
 	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must match generateOrderbookChecksum for equivalent book data")
+
+	for i := range data.Bids {
+		data.Bids[i].PriceString = ""
+		data.Bids[i].AmountString = ""
+	}
+	for i := range data.Asks {
+		data.Asks[i].PriceString = ""
+		data.Asks[i].AmountString = ""
+	}
+	checksum, err = e.CalculateOrderbookChecksum(data)
+	require.NoError(t, err, "CalculateOrderbookChecksum must not error without raw strings")
+	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must fall back to numeric values")
 }
 
 func TestWsProcessSnapshotOrderBook(t *testing.T) {
@@ -6794,6 +6877,10 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
+	for _, sub := range defaultSubscriptions {
+		assert.NotEqual(t, channelBalanceAndPosition, sub.Channel, "Balance and position should require explicit configuration")
+		assert.NotEqual(t, channelAccountGreeks, sub.Channel, "Account Greeks should require explicit configuration")
+	}
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
@@ -7078,6 +7165,8 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	var p *PlaceOrderRequestParam
 	require.ErrorIs(t, p.Validate(), common.ErrNilPointer)
 	p = &PlaceOrderRequestParam{}
+	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
+	p.InstrumentIDCode = 1
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
 	p.InstrumentID = mainPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)

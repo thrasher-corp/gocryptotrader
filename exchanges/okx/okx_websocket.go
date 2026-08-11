@@ -232,8 +232,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
-	{Enabled: true, Channel: channelBalanceAndPosition, Authenticated: true},
-	{Enabled: true, Channel: channelAccountGreeks, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -1031,7 +1029,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data.
 // OKX can reset sequence IDs to a lower value while retaining continuity through
-// prevSeqId; see https://app.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
+// prevSeqId; see https://www.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	receivedAt := time.Now()
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
@@ -1146,16 +1144,20 @@ func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (u
 	checksum := checksumBuffer[:0]
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
-			checksum = append(checksum, orderbookData.Bids[i].PriceString...)
-			checksum = append(checksum, ':')
-			checksum = append(checksum, orderbookData.Bids[i].AmountString...)
-			checksum = append(checksum, ':')
+			checksum = appendOrderbookChecksumLevel(checksum, &orderbook.Level{
+				Price:     orderbookData.Bids[i].Price.Float64(),
+				Amount:    orderbookData.Bids[i].Amount.Float64(),
+				StrPrice:  orderbookData.Bids[i].PriceString,
+				StrAmount: orderbookData.Bids[i].AmountString,
+			})
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			checksum = append(checksum, orderbookData.Asks[i].PriceString...)
-			checksum = append(checksum, ':')
-			checksum = append(checksum, orderbookData.Asks[i].AmountString...)
-			checksum = append(checksum, ':')
+			checksum = appendOrderbookChecksumLevel(checksum, &orderbook.Level{
+				Price:     orderbookData.Asks[i].Price.Float64(),
+				Amount:    orderbookData.Asks[i].Amount.Float64(),
+				StrPrice:  orderbookData.Asks[i].PriceString,
+				StrAmount: orderbookData.Asks[i].AmountString,
+			})
 		}
 	}
 	if len(checksum) > 0 {
