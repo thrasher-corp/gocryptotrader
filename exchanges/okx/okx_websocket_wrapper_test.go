@@ -131,6 +131,8 @@ func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
 		require.Len(tb, req.Arguments, 1, "cancel request must contain one argument")
 		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "cancel request must contain instIdCode")
 		response = `{"id":"` + req.ID + `","op":"cancel-order","code":"0","msg":"","data":[{"ordId":"cancelled-order","sCode":"0","sMsg":""}]}`
+	case "mass-cancel":
+		response = `{"id":"` + req.ID + `","op":"mass-cancel","code":"0","msg":"","data":[{"result":true}]}`
 	default:
 		response = `{"id":"` + req.ID + `","op":"` + req.Op + `","code":"1","msg":"operation failed","data":[{"sCode":"51000","sMsg":"failed"}]}`
 	}

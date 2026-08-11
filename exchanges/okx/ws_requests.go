@@ -201,7 +201,7 @@ func (e *Exchange) WSMassCancelOrders(ctx context.Context, args []CancelMassReqP
 	var resps []*struct {
 		Result bool `json:"result"`
 	}
-	if err := e.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, e.MessageID(), "mass-cancel", args, &resps); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, massCancelMMPOrderEPL, e.MessageID(), "mass-cancel", args, &resps); err != nil {
 		return err
 	}
 

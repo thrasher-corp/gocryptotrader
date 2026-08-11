@@ -17,6 +17,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -967,14 +968,16 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) || errors.Is(err, errInvalidOrderbookSequence) {
-				err = e.Subscribe(ctx, conn, subscription.List{
-					{
-						Channel: response.Argument.Channel,
-						Asset:   assets[0],
+				tracked := e.Websocket.GetSubscription(subscription.IgnoringAssetKey{
+					Subscription: &subscription.Subscription{
+						Channel: subscription.OrderbookChannel,
 						Pairs:   currency.Pairs{response.Argument.InstrumentID},
 					},
 				})
-				if err != nil {
+				if tracked == nil {
+					return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, subscription.OrderbookChannel, response.Argument.InstrumentID)
+				}
+				if err := e.Websocket.ResubscribeToChannel(ctx, conn, tracked); err != nil {
 					return err
 				}
 			} else {
@@ -1037,23 +1040,22 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 	defer putWsOrderbookLevels(bidsPoolItem)
 	updateTime := data.Timestamp.Time()
 	for i := range assets {
-		if data.PreviousSequenceID != 0 {
-			lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i])
-			if err != nil {
-				return err
+		lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i])
+		if err != nil {
+			return err
+		}
+		continuesCurrentSequence := data.PreviousSequenceID == lastUpdateID
+		if data.SequenceID == lastUpdateID {
+			continue
+		}
+		// A lower sequence ID that continues from the current sequence is a
+		// documented OKX reset and must be processed rather than discarded.
+		if !continuesCurrentSequence {
+			sequenceErr := fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
+			for j := range assets {
+				sequenceErr = common.AppendError(sequenceErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
 			}
-			hasSequenceID := data.SequenceID != 0
-			continuesCurrentSequence := data.PreviousSequenceID == lastUpdateID
-			isDuplicate := hasSequenceID && data.SequenceID == lastUpdateID
-			isStale := hasSequenceID && data.SequenceID < lastUpdateID && !continuesCurrentSequence
-			if isDuplicate || isStale {
-				continue
-			}
-			// A lower sequence ID that continues from the current sequence is a
-			// documented OKX reset and must be processed rather than discarded.
-			if !continuesCurrentSequence {
-				return fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
-			}
+			return sequenceErr
 		}
 		obu := &orderbook.Update{
 			UpdateID:   data.SequenceID,

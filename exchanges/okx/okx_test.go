@@ -4334,15 +4334,60 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 	update.PreviousSequenceID = 3
 	update.SequenceID = 4
 	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must discard updates from a stale sequence chain")
-	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(5), book.LastUpdateID, "LastUpdateID must remain unchanged after a stale sequence-chain update")
+	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject updates from a stale sequence chain")
+	_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "A stale sequence chain must invalidate the orderbook")
 
-	update.PreviousSequenceID = 3
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		err = tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     tracked.Name,
+			Pair:         pair,
+			Asset:        a,
+			LastUpdateID: 5,
+			LastUpdated:  time.UnixMilli(1659792392540),
+			LastPushed:   time.UnixMilli(1659792392540),
+			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+		})
+		require.NoErrorf(t, err, "LoadSnapshot must not error for %s", a)
+	}
+
+	update.PreviousSequenceID = 0
 	update.SequenceID = 6
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject sequence gaps")
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot, asset.Margin})
+	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must treat zero as a sequence value and reject the gap")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, a)
+		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "A sequence gap must invalidate the %s orderbook", a)
+	}
+}
+
+func TestWsProcessOrderBooks(t *testing.T) {
+	t.Parallel()
+
+	tracked := new(Exchange)
+	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+	conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+	require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
+	pair := currency.NewPairWithDelimiter("REC", "USDT", "-")
+	sub := &subscription.Subscription{
+		Asset:            asset.Spot,
+		Pairs:            currency.Pairs{pair},
+		Channel:          subscription.OrderbookChannel,
+		QualifiedChannel: `{"channel":"books","instId":"REC-USDT"}`,
+	}
+	require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+
+	snapshot := []byte(`{"arg":{"channel":"books","instId":"REC-USDT","instType":"SPOT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","checksum":0,"prevSeqId":-1,"seqId":10}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load the snapshot")
+
+	gap := []byte(`{"arg":{"channel":"books","instId":"REC-USDT","instType":"SPOT"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1659792392640","checksum":0,"prevSeqId":12,"seqId":13}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover from a sequence gap")
+	_, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "The orderbook must remain invalid until a new snapshot arrives")
+	require.Len(t, conn.requests, 2, "Recovery must send an unsubscribe and subscribe request")
+	assert.Equal(t, operationUnsubscribe, conn.requests[0].Operation, "Recovery should unsubscribe the tracked channel first")
+	assert.Equal(t, operationSubscribe, conn.requests[1].Operation, "Recovery should resubscribe the tracked channel")
 }
 
 func TestOrderPushData(t *testing.T) {

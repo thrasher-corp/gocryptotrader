@@ -289,6 +289,16 @@ func TestWSMassCancelOrders(t *testing.T) {
 	err = e.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{InstrumentType: "OPTION"}})
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
+	t.Run("rate limit", func(t *testing.T) {
+		t.Parallel()
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock, request.RateLimitDefinitions{
+			massCancelMMPOrderEPL: request.NewRateLimitWithWeight(0, 0, 1),
+		})
+
+		err := ex.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{InstrumentType: "OPTION", InstrumentFamily: "BTC-USD"}})
+		require.NoError(t, err, "WSMassCancelOrders must not error")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
 	err = e.WSMassCancelOrders(request.WithVerbose(t.Context()), []CancelMassReqParam{
