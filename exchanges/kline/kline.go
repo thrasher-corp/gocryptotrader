@@ -231,7 +231,7 @@ func (i Interval) Short() string {
 // which encoding/json would otherwise reject for a type implementing
 // encoding.TextUnmarshaler
 // A quoted value is treated as duration text. Bare numeric exchange codes,
-// such as Bybit's "60" for one hour, are rejected rather than interpreted as nanoseconds 
+// such as Bybit's "60" for one hour, are rejected rather than interpreted as nanoseconds
 // and must be mapped by the exchange implementation.
 func (i *Interval) UnmarshalJSON(text []byte) error {
 	if n, err := strconv.ParseInt(string(text), 10, 64); err == nil {
