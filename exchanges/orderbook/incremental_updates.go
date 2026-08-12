@@ -44,12 +44,10 @@ type Update struct {
 	// ReceivedAt marks when the exchange adapter starts handling this
 	// update before it is applied to depth. This mirrors Book.ReceivedAt.
 	ReceivedAt time.Time
-	// ChecksumCompletedAt marks when upstream checksum computation finished.
-	ChecksumCompletedAt time.Time
-	Asset               asset.Item
-	Bids                Levels
-	Asks                Levels
-	Pair                currency.Pair
+	Asset      asset.Item
+	Bids       Levels
+	Asks       Levels
+	Pair       currency.Pair
 
 	// ExpectedChecksum defines the expected value when the books have been verified
 	ExpectedChecksum uint32
@@ -113,10 +111,6 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 		if checksum := u.GenerateChecksum(d.snapshot()); checksum != u.ExpectedChecksum {
 			return d.invalidate(fmt.Errorf("%s %s %s %w: expected '%d', got '%d'", d.exchange, d.pair, d.asset, errChecksumMismatch, u.ExpectedChecksum, checksum))
 		}
-		if u.ChecksumCompletedAt.IsZero() {
-			u.ChecksumCompletedAt = time.Now()
-		}
-		d.checksumCompletedAt = u.ChecksumCompletedAt
 	}
 
 	if err := validate(d.snapshot()); err != nil {

@@ -107,11 +107,6 @@ type Book struct {
 	// start of websocket message handling).
 	ReceivedAt time.Time
 
-	// ChecksumCompletedAt marks when checksum computation completed for this
-	// update in the caller path. It is not the point when checksum validation
-	// completes inside the orderbook package.
-	ChecksumCompletedAt time.Time
-
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
 	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
@@ -150,7 +145,6 @@ type options struct {
 	lastUpdated            time.Time
 	lastPushed             time.Time
 	receivedAt             time.Time
-	checksumCompletedAt    time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
