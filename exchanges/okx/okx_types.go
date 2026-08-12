@@ -771,18 +771,18 @@ func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
 
 // PlaceOrderRequestParam requesting parameter for placing an order
 type PlaceOrderRequestParam struct {
-	AssetType        asset.Item `json:"-"`
-	InstrumentID     string     `json:"instId"`
-	InstrumentIDCode int64      `json:"instIdCode,omitempty"`
-	TradeMode        string     `json:"tdMode"` // cash isolated
-	ClientOrderID    string     `json:"clOrdId,omitempty"`
-	Currency         string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
-	OrderTag         string     `json:"tag,omitempty"`
-	Side             string     `json:"side"`
-	PositionSide     string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
-	OrderType        string     `json:"ordType"`           // Time in force for the order
-	Amount           float64    `json:"sz,string"`
-	Price            float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
+	AssetType        asset.Item   `json:"-"`
+	InstrumentID     string       `json:"instId"`
+	InstrumentIDCode int64        `json:"instIdCode,omitempty"`
+	TradeMode        string       `json:"tdMode"` // cash isolated
+	ClientOrderID    string       `json:"clOrdId,omitempty"`
+	Currency         string       `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
+	OrderTag         string       `json:"tag,omitempty"`
+	Side             string       `json:"side"`
+	PositionSide     string       `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
+	OrderType        string       `json:"ordType"`           // Time in force for the order
+	Amount           types.Number `json:"sz"`
+	Price            types.Number `json:"px,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
 	// Options orders
 	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"` // Place options orders in USD
 	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"` // Place options orders based on implied volatility, where 1 represents 100%
@@ -792,25 +792,6 @@ type PlaceOrderRequestParam struct {
 	SelfTradePreventionMode string `json:"stpMode,omitempty"` // Default to cancel maker, `cancel_maker`,`cancel_taker`, `cancel_both``
 	// Added in the websocket requests
 	BanAmend bool `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
-}
-
-type placeOrderRequestParam PlaceOrderRequestParam
-
-// MarshalJSON ensures small numeric values are sent as plain decimal strings
-// instead of scientific notation for websocket order submission.
-func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
-	out := struct {
-		*placeOrderRequestParam
-		Amount string `json:"sz"`
-		Price  string `json:"px,omitempty"`
-	}{
-		placeOrderRequestParam: (*placeOrderRequestParam)(arg),
-		Amount:                 strconv.FormatFloat(arg.Amount, 'f', -1, 64),
-	}
-	if arg.Price > 0 {
-		out.Price = strconv.FormatFloat(arg.Price, 'f', -1, 64)
-	}
-	return json.Marshal(out)
 }
 
 // Validate validates the PlaceOrderRequestParam
@@ -891,37 +872,37 @@ type CancelMassReqParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
-	InstrumentID     string  `json:"instId"`
-	InstrumentIDCode int64   `json:"instIdCode,omitempty"`
-	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
-	OrderID          string  `json:"ordId,omitempty"`
-	ClientOrderID    string  `json:"clOrdId,omitempty"`
-	ClientRequestID  string  `json:"reqId,omitempty"`
-	NewQuantity      float64 `json:"newSz,omitempty,string"`
-	NewPrice         float64 `json:"newPx,omitempty,string"`
+	InstrumentID     string       `json:"instId"`
+	InstrumentIDCode int64        `json:"instIdCode,omitempty"`
+	CancelOnFail     bool         `json:"cxlOnFail,omitempty"`
+	OrderID          string       `json:"ordId,omitempty"`
+	ClientOrderID    string       `json:"clOrdId,omitempty"`
+	ClientRequestID  string       `json:"reqId,omitempty"`
+	NewQuantity      types.Number `json:"newSz,omitempty"`
+	NewPrice         types.Number `json:"newPx,omitempty"`
 
 	// Modify options orders using USD prices
 	// Only applicable to options.
 	// When modifying options orders, users can only fill in one of the following: newPx, newPxUsd, or newPxVol.
-	NewPriceInUSD float64 `json:"newPxUsd,omitempty,string"`
+	NewPriceInUSD types.Number `json:"newPxUsd,omitempty"`
 
-	NewPriceVolatility float64       `json:"newPxVol,omitempty"` // Modify options orders based on implied volatility, where 1 represents 100%. Only applicable to options.
+	NewPriceVolatility types.Number  `json:"newPxVol,omitempty"` // Modify options orders based on implied volatility, where 1 represents 100%. Only applicable to options.
 	AttachAlgoOrders   []AlgoOrdInfo `json:"attachAlgoOrds,omitempty"`
 }
 
 // AlgoOrdInfo represents TP/SL info attached when placing an order
 type AlgoOrdInfo struct {
-	AttachAlgoID                   string  `json:"attachAlgoId,omitempty"`
-	AttachAlgoClientOrderID        string  `json:"attachAlgoClOrdId,omitempty"`
-	NewTakeProfitTriggerPrice      float64 `json:"newTpTriggerPx,omitempty"`
-	NewTakeProfitOrderPrice        float64 `json:"newTpOrdPx,omitempty"`
-	NewTakeProfitOrderKind         string  `json:"newTpOrdKind,omitempty"` // possible values are 'condition' and 'limit'
-	NewStopLossTriggerPrice        float64 `json:"newSlTriggerPx,omitempty"`
-	NewStopLossOrderPrice          float64 `json:"newSlOrdPx,omitempty"`
-	NewTakkeProfitTriggerPriceType string  `json:"newTpTriggerPxType,omitempty"`
-	NewStopLossTriggerPriceType    string  `json:"newSlTriggerPxType,omitempty"` // possible values are 'last', 'index', and 'mark'
-	NewSize                        float64 `json:"sz,omitempty"`
-	AmendPriceOnTriggerType        string  `json:"amendPxOnTriggerType,omitempty"` // Whether to enable Cost-price SL. Only applicable to SL order of split TPs. '0': disable, the default value '1': Enable
+	AttachAlgoID                   string       `json:"attachAlgoId,omitempty"`
+	AttachAlgoClientOrderID        string       `json:"attachAlgoClOrdId,omitempty"`
+	NewTakeProfitTriggerPrice      types.Number `json:"newTpTriggerPx,omitempty"`
+	NewTakeProfitOrderPrice        types.Number `json:"newTpOrdPx,omitempty"`
+	NewTakeProfitOrderKind         string       `json:"newTpOrdKind,omitempty"` // possible values are 'condition' and 'limit'
+	NewStopLossTriggerPrice        types.Number `json:"newSlTriggerPx,omitempty"`
+	NewStopLossOrderPrice          types.Number `json:"newSlOrdPx,omitempty"`
+	NewTakkeProfitTriggerPriceType string       `json:"newTpTriggerPxType,omitempty"`
+	NewStopLossTriggerPriceType    string       `json:"newSlTriggerPxType,omitempty"` // possible values are 'last', 'index', and 'mark'
+	NewSize                        types.Number `json:"sz,omitempty"`
+	AmendPriceOnTriggerType        string       `json:"amendPxOnTriggerType,omitempty"` // Whether to enable Cost-price SL. Only applicable to SL order of split TPs. '0': disable, the default value '1': Enable
 }
 
 // ClosePositionsRequestParams input parameters for close position endpoints
@@ -1123,51 +1104,51 @@ type TransactionDetail struct {
 
 // AlgoOrderParams holds algo order information
 type AlgoOrderParams struct {
-	InstrumentID      string  `json:"instId"` // Required
-	TradeMode         string  `json:"tdMode"` // Required
-	Currency          string  `json:"ccy,omitempty"`
-	Side              string  `json:"side"` // Required
-	PositionSide      string  `json:"posSide,omitempty"`
-	OrderType         string  `json:"ordType"`   // Required
-	Size              float64 `json:"sz,string"` // Required
-	ReduceOnly        bool    `json:"reduceOnly,omitempty"`
-	OrderTag          string  `json:"tag,omitempty"`
-	QuantityType      string  `json:"tgtCcy,omitempty"`
-	AlgoClientOrderID string  `json:"algoClOrdId,omitempty"`
+	InstrumentID      string       `json:"instId"` // Required
+	TradeMode         string       `json:"tdMode"` // Required
+	Currency          string       `json:"ccy,omitempty"`
+	Side              string       `json:"side"` // Required
+	PositionSide      string       `json:"posSide,omitempty"`
+	OrderType         string       `json:"ordType"` // Required
+	Size              types.Number `json:"sz"`      // Required
+	ReduceOnly        bool         `json:"reduceOnly,omitempty"`
+	OrderTag          string       `json:"tag,omitempty"`
+	QuantityType      string       `json:"tgtCcy,omitempty"`
+	AlgoClientOrderID string       `json:"algoClOrdId,omitempty"`
 
 	// Place Stop Order params
-	TakeProfitOrderPrice       float64 `json:"tpOrdPx,string,omitempty"`
-	TakeProfitTriggerPrice     float64 `json:"tpTriggerPx,string,omitempty"`
-	TakeProfitTriggerPriceType string  `json:"tpTriggerPxType,omitempty"`
-	StopLossTriggerPrice       float64 `json:"slTriggerPx,string,omitempty"`
-	StopLossOrderPrice         float64 `json:"slOrdPx,string,omitempty"`
-	StopLossTriggerPriceType   string  `json:"slTriggerPxType,omitempty"`
-	CancelOnClosePosition      bool    `json:"cxlOnClosePos,omitempty"`
+	TakeProfitOrderPrice       types.Number `json:"tpOrdPx,omitempty"`
+	TakeProfitTriggerPrice     types.Number `json:"tpTriggerPx,omitempty"`
+	TakeProfitTriggerPriceType string       `json:"tpTriggerPxType,omitempty"`
+	StopLossTriggerPrice       types.Number `json:"slTriggerPx,omitempty"`
+	StopLossOrderPrice         types.Number `json:"slOrdPx,omitempty"`
+	StopLossTriggerPriceType   string       `json:"slTriggerPxType,omitempty"`
+	CancelOnClosePosition      bool         `json:"cxlOnClosePos,omitempty"`
 
 	// For trigger and trailing stop order
-	CallbackRatio          float64 `json:"callbackRatio,omitempty,string"`
-	ActivePrice            float64 `json:"activePx,omitempty,string"`
-	CallbackSpreadVariance float64 `json:"callbackSpread,omitempty,string"`
+	CallbackRatio          types.Number `json:"callbackRatio,omitempty"`
+	ActivePrice            types.Number `json:"activePx,omitempty"`
+	CallbackSpreadVariance types.Number `json:"callbackSpread,omitempty"`
 
 	// trigger algo orders params.
 	// notice: Trigger orders are not available in the net mode of futures and perpetual swaps
-	TriggerPrice     float64 `json:"triggerPx,string,omitempty"`
-	OrderPrice       float64 `json:"orderPx,string,omitempty"` // if the price i -1, then the order will be executed on the market.
-	TriggerPriceType string  `json:"triggerPxType,omitempty"`  // last, index, and mark
+	TriggerPrice     types.Number `json:"triggerPx,omitempty"`
+	OrderPrice       types.Number `json:"orderPx,omitempty"`       // if the price i -1, then the order will be executed on the market.
+	TriggerPriceType string       `json:"triggerPxType,omitempty"` // last, index, and mark
 
-	PriceVariance float64 `json:"pxVar,omitempty,string"`    // Optional
-	PriceSpread   float64 `json:"pxSpread,omitempty,string"` // Optional
-	SizeLimit     float64 `json:"szLimit,string,omitempty"`  // Required
-	LimitPrice    float64 `json:"pxLimit,string,omitempty"`  // Required
+	PriceVariance types.Number `json:"pxVar,omitempty"`    // Optional
+	PriceSpread   types.Number `json:"pxSpread,omitempty"` // Optional
+	SizeLimit     types.Number `json:"szLimit,omitempty"`  // Required
+	LimitPrice    types.Number `json:"pxLimit,omitempty"`  // Required
 
 	// TWAPOrder
 	TimeInterval kline.Interval `json:"interval,omitempty"` // Required
 
 	// Chase order
-	ChaseType     string  `json:"chaseType,omitempty"` // Possible values: "distance" and "ratio"
-	ChaseValue    float64 `json:"chaseVal,omitempty,string"`
-	MaxChaseType  string  `json:"maxChaseType,omitempty"`
-	MaxChaseValue float64 `json:"maxChaseVal,omitempty,string"`
+	ChaseType     string       `json:"chaseType,omitempty"` // Possible values: "distance" and "ratio"
+	ChaseValue    types.Number `json:"chaseVal,omitempty"`
+	MaxChaseType  string       `json:"maxChaseType,omitempty"`
+	MaxChaseValue types.Number `json:"maxChaseVal,omitempty"`
 }
 
 // AlgoOrder algo order requests response
@@ -1182,37 +1163,37 @@ type AlgoOrder struct {
 
 // AmendAlgoOrderParam request parameter to amend an algo order
 type AmendAlgoOrderParam struct {
-	InstrumentID              string  `json:"instId"`
-	AlgoID                    string  `json:"algoId,omitempty"`
-	ClientSuppliedAlgoOrderID string  `json:"algoClOrdId,omitempty"`
-	CancelOrderWhenFail       bool    `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically cancelled when the order amendment fails Valid options: false or true, the default is false.
-	RequestID                 string  `json:"reqId,omitempty"`
-	NewSize                   float64 `json:"newSz,omitempty,string"`
+	InstrumentID              string       `json:"instId"`
+	AlgoID                    string       `json:"algoId,omitempty"`
+	ClientSuppliedAlgoOrderID string       `json:"algoClOrdId,omitempty"`
+	CancelOrderWhenFail       bool         `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically cancelled when the order amendment fails Valid options: false or true, the default is false.
+	RequestID                 string       `json:"reqId,omitempty"`
+	NewSize                   types.Number `json:"newSz,omitempty"`
 
 	// Take Profit Stop Loss Orders
-	NewTakeProfitTriggerPrice     float64 `json:"newTpTriggerPx,omitempty,string"`
-	NewTakeProfitOrderPrice       float64 `json:"newTpOrdPx,omitempty,string"`
-	NewStopLossTriggerPrice       float64 `json:"newSlTriggerPx,omitempty,string"`
-	NewStopLossOrderPrice         float64 `json:"newSlOrdPx,omitempty,string"`  // Stop-loss order price If the price is -1, stop-loss will be executed at the market price.
-	NewTakeProfitTriggerPriceType string  `json:"newTpTriggerPxType,omitempty"` // Take-profit trigger price type'last': last price 'index': index price 'mark': mark price
-	NewStopLossTriggerPriceType   string  `json:"newSlTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
+	NewTakeProfitTriggerPrice     types.Number `json:"newTpTriggerPx,omitempty"`
+	NewTakeProfitOrderPrice       types.Number `json:"newTpOrdPx,omitempty"`
+	NewStopLossTriggerPrice       types.Number `json:"newSlTriggerPx,omitempty"`
+	NewStopLossOrderPrice         types.Number `json:"newSlOrdPx,omitempty"`         // Stop-loss order price If the price is -1, stop-loss will be executed at the market price.
+	NewTakeProfitTriggerPriceType string       `json:"newTpTriggerPxType,omitempty"` // Take-profit trigger price type'last': last price 'index': index price 'mark': mark price
+	NewStopLossTriggerPriceType   string       `json:"newSlTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
 
 	// Trigger Order parameters
-	NewTriggerPrice     float64 `json:"newTriggerPx,omitempty"`
-	NewOrderPrice       float64 `json:"newOrdPx,omitempty"`
-	NewTriggerPriceType string  `json:"newTriggerPxType,omitempty"`
+	NewTriggerPrice     types.Number `json:"newTriggerPx,omitempty"`
+	NewOrderPrice       types.Number `json:"newOrdPx,omitempty"`
+	NewTriggerPriceType string       `json:"newTriggerPxType,omitempty"`
 
 	AttachAlgoOrders []SubTPSLParams `json:"attachAlgoOrds,omitempty"`
 }
 
 // SubTPSLParams represents take-profit and stop-loss price parameters to be used by algo orders
 type SubTPSLParams struct {
-	NewTakeProfitTriggerPrice     float64 `json:"newTpTriggerPx,omitempty,string"`
-	NewTakeProfitOrderPrice       float64 `json:"newTpOrdPx,omitempty,string"`
-	NewStopLossTriggerPrice       float64 `json:"newSlTriggerPx,omitempty,string"`
-	NewStopLossOrderPrice         float64 `json:"newSlOrdPx,omitempty,string"`  // Stop-loss order price If the price is -1, stop-loss will be executed at the market price.
-	NewTakeProfitTriggerPriceType string  `json:"newTpTriggerPxType,omitempty"` // Take-profit trigger price type'last': last price 'index': index price 'mark': mark price
-	NewStopLossTriggerPriceType   string  `json:"newSlTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
+	NewTakeProfitTriggerPrice     types.Number `json:"newTpTriggerPx,omitempty"`
+	NewTakeProfitOrderPrice       types.Number `json:"newTpOrdPx,omitempty"`
+	NewStopLossTriggerPrice       types.Number `json:"newSlTriggerPx,omitempty"`
+	NewStopLossOrderPrice         types.Number `json:"newSlOrdPx,omitempty"`         // Stop-loss order price If the price is -1, stop-loss will be executed at the market price.
+	NewTakeProfitTriggerPriceType string       `json:"newTpTriggerPxType,omitempty"` // Take-profit trigger price type'last': last price 'index': index price 'mark': mark price
+	NewStopLossTriggerPriceType   string       `json:"newSlTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
 }
 
 // AmendAlgoResponse holds response information of amending an algo order
@@ -2982,14 +2963,14 @@ type BlockTrade struct {
 
 // SpreadOrderParam holds parameters for spread orders
 type SpreadOrderParam struct {
-	InstrumentID  string  `json:"instId"`
-	SpreadID      string  `json:"sprdId,omitempty"`
-	ClientOrderID string  `json:"clOrdId,omitempty"`
-	Side          string  `json:"side"`    // Order side, buy sell
-	OrderType     string  `json:"ordType"` // Order type  'limit': Limit order  'post_only': Post-only order 'ioc': Immediate-or-cancel order
-	Size          float64 `json:"sz,string"`
-	Price         float64 `json:"px,string"`
-	Tag           string  `json:"tag,omitempty"`
+	InstrumentID  string       `json:"instId"`
+	SpreadID      string       `json:"sprdId,omitempty"`
+	ClientOrderID string       `json:"clOrdId,omitempty"`
+	Side          string       `json:"side"`    // Order side, buy sell
+	OrderType     string       `json:"ordType"` // Order type  'limit': Limit order  'post_only': Post-only order 'ioc': Immediate-or-cancel order
+	Size          types.Number `json:"sz"`
+	Price         types.Number `json:"px"`
+	Tag           string       `json:"tag,omitempty"`
 }
 
 // Validate checks if the parameters are valid
@@ -3036,11 +3017,11 @@ func (arg *SpreadOrderResponse) Error() error {
 
 // AmendSpreadOrderParam holds amend parameters for spread order
 type AmendSpreadOrderParam struct {
-	OrderID       string  `json:"ordId"`
-	ClientOrderID string  `json:"clOrdId"`
-	RequestID     string  `json:"reqId"`
-	NewSize       float64 `json:"newSz,omitempty,string"`
-	NewPrice      float64 `json:"newPx,omitempty,string"`
+	OrderID       string       `json:"ordId"`
+	ClientOrderID string       `json:"clOrdId"`
+	RequestID     string       `json:"reqId"`
+	NewSize       types.Number `json:"newSz,omitempty"`
+	NewPrice      types.Number `json:"newPx,omitempty"`
 }
 
 // SpreadOrder holds spread order details

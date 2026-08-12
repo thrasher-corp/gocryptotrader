@@ -37,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -924,8 +925,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			ClientOrderID: s.ClientOrderID,
 			Side:          sideType,
 			OrderType:     s.Type.Lower(),
-			Size:          s.Amount,
-			Price:         s.Price,
+			Size:          types.Number(s.Amount),
+			Price:         types.Number(s.Price),
 		}
 		var placeSpreadOrderResponse *SpreadOrderResponse
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -985,9 +986,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:             s.Side.Lower(),
 			PositionSide:     positionSide,
 			OrderType:        orderTypeString,
-			Size:             s.Amount,
+			Size:             types.Number(s.Amount),
 			ReduceOnly:       s.ReduceOnly,
-			TriggerPrice:     s.TriggerPrice,
+			TriggerPrice:     types.Number(s.TriggerPrice),
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	case orderConditional:
@@ -998,10 +999,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:                     s.Side.Lower(),
 			PositionSide:             positionSide,
 			OrderType:                orderTypeString,
-			Size:                     s.Amount,
+			Size:                     types.Number(s.Amount),
 			ReduceOnly:               s.ReduceOnly,
-			StopLossTriggerPrice:     s.TriggerPrice,
-			StopLossOrderPrice:       s.Price,
+			StopLossTriggerPrice:     types.Number(s.TriggerPrice),
+			StopLossOrderPrice:       types.Number(s.Price),
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	case orderChase:
@@ -1017,10 +1018,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:          s.Side.Lower(),
 			PositionSide:  positionSide,
 			OrderType:     orderTypeString,
-			Size:          s.Amount,
+			Size:          types.Number(s.Amount),
 			ReduceOnly:    s.ReduceOnly,
 			MaxChaseType:  s.TrackingMode.String(),
-			MaxChaseValue: s.TrackingValue,
+			MaxChaseValue: types.Number(s.TrackingValue),
 		})
 	case orderMoveOrderStop:
 		if s.TrackingMode == order.UnknownTrackingMode {
@@ -1039,11 +1040,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:                   sideType,
 			PositionSide:           positionSide,
 			OrderType:              orderTypeString,
-			Size:                   s.Amount,
+			Size:                   types.Number(s.Amount),
 			ReduceOnly:             s.ReduceOnly,
-			CallbackRatio:          callbackRatio,
-			CallbackSpreadVariance: callbackSpread,
-			ActivePrice:            s.TriggerPrice,
+			CallbackRatio:          types.Number(callbackRatio),
+			CallbackSpreadVariance: types.Number(callbackSpread),
+			ActivePrice:            types.Number(s.TriggerPrice),
 		})
 	case orderTWAP:
 		if s.TrackingMode == order.UnknownTrackingMode {
@@ -1062,12 +1063,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:          sideType,
 			PositionSide:  positionSide,
 			OrderType:     orderTypeString,
-			Size:          s.Amount,
+			Size:          types.Number(s.Amount),
 			ReduceOnly:    s.ReduceOnly,
-			PriceVariance: priceVar,
-			PriceSpread:   priceSpread,
-			SizeLimit:     s.Amount,
-			LimitPrice:    s.Price,
+			PriceVariance: types.Number(priceVar),
+			PriceSpread:   types.Number(priceSpread),
+			SizeLimit:     types.Number(s.Amount),
+			LimitPrice:    types.Number(s.Price),
 			TimeInterval:  kline.FifteenMin,
 		})
 	case orderOCO:
@@ -1083,15 +1084,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:         sideType,
 			PositionSide: positionSide,
 			OrderType:    orderTypeString,
-			Size:         s.Amount,
+			Size:         types.Number(s.Amount),
 			ReduceOnly:   s.ReduceOnly,
 
-			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
-			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
+			TakeProfitTriggerPrice:     types.Number(s.RiskManagementModes.TakeProfit.Price),
+			TakeProfitOrderPrice:       types.Number(s.RiskManagementModes.TakeProfit.LimitPrice),
 			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
 
-			StopLossTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
-			StopLossOrderPrice:       s.RiskManagementModes.StopLoss.LimitPrice,
+			StopLossTriggerPrice:     types.Number(s.RiskManagementModes.TakeProfit.Price),
+			StopLossOrderPrice:       types.Number(s.RiskManagementModes.StopLoss.LimitPrice),
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	default:
@@ -1141,8 +1142,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		amendSpreadOrder := &AmendSpreadOrderParam{
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
-			NewSize:       action.Amount,
-			NewPrice:      action.Price,
+			NewSize:       types.Number(action.Amount),
+			NewPrice:      types.Number(action.Price),
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			_, err = e.WSAmendSpreadOrder(ctx, amendSpreadOrder)
@@ -1167,7 +1168,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
-			NewQuantity:   action.Amount,
+			NewQuantity:   types.Number(action.Amount),
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
 		}
@@ -1192,10 +1193,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if action.RiskManagementModes.StopLoss.Price > 0 && action.RiskManagementModes.TakeProfit.Price > 0 {
 			postTriggerTPSLOrders = []SubTPSLParams{
 				{
-					NewTakeProfitTriggerPrice:     action.RiskManagementModes.TakeProfit.Price,
-					NewTakeProfitOrderPrice:       action.RiskManagementModes.TakeProfit.LimitPrice,
-					NewStopLossTriggerPrice:       action.RiskManagementModes.StopLoss.Price,
-					NewStopLossOrderPrice:         action.RiskManagementModes.StopLoss.Price,
+					NewTakeProfitTriggerPrice:     types.Number(action.RiskManagementModes.TakeProfit.Price),
+					NewTakeProfitOrderPrice:       types.Number(action.RiskManagementModes.TakeProfit.LimitPrice),
+					NewStopLossTriggerPrice:       types.Number(action.RiskManagementModes.StopLoss.Price),
+					NewStopLossOrderPrice:         types.Number(action.RiskManagementModes.StopLoss.Price),
 					NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
 					NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
 				},
@@ -1205,10 +1206,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			InstrumentID:              pairFormat.Format(action.Pair),
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
-			NewSize:                   action.Amount,
+			NewSize:                   types.Number(action.Amount),
 
-			NewTriggerPrice:     action.TriggerPrice,
-			NewOrderPrice:       action.Price,
+			NewTriggerPrice:     types.Number(action.TriggerPrice),
+			NewOrderPrice:       types.Number(action.Price),
 			NewTriggerPriceType: priceTypeString(action.TriggerPriceType),
 
 			// An one-cancel-other order to be placed after executing the trigger order
@@ -1230,13 +1231,13 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			InstrumentID:              pairFormat.Format(action.Pair),
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
-			NewSize:                   action.Amount,
+			NewSize:                   types.Number(action.Amount),
 
-			NewTakeProfitTriggerPrice: action.RiskManagementModes.TakeProfit.Price,
-			NewTakeProfitOrderPrice:   action.RiskManagementModes.TakeProfit.LimitPrice,
+			NewTakeProfitTriggerPrice: types.Number(action.RiskManagementModes.TakeProfit.Price),
+			NewTakeProfitOrderPrice:   types.Number(action.RiskManagementModes.TakeProfit.LimitPrice),
 
-			NewStopLossTriggerPrice: action.RiskManagementModes.StopLoss.Price,
-			NewStopLossOrderPrice:   action.RiskManagementModes.StopEntry.LimitPrice,
+			NewStopLossTriggerPrice: types.Number(action.RiskManagementModes.StopLoss.Price),
+			NewStopLossOrderPrice:   types.Number(action.RiskManagementModes.StopEntry.LimitPrice),
 
 			NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
 			NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
@@ -1262,8 +1263,8 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		_, err := e.WSAmendSpreadOrder(ctx, &AmendSpreadOrderParam{
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
-			NewSize:       action.Amount,
-			NewPrice:      action.Price,
+			NewSize:       types.Number(action.Amount),
+			NewPrice:      types.Number(action.Price),
 		})
 		if err != nil {
 			return nil, err
@@ -1386,9 +1387,9 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		Side:           sideType,
 		PositionSide:   positionSide,
 		OrderType:      orderTypeString,
-		Amount:         amount,
+		Amount:         types.Number(amount),
 		ClientOrderID:  s.ClientOrderID,
-		Price:          s.Price,
+		Price:          types.Number(s.Price),
 		TargetCurrency: targetCurrency,
 		AssetType:      s.AssetType,
 		ReduceOnly:     s.ReduceOnly,
@@ -1464,10 +1465,10 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	}
 	return &AmendOrderRequestParams{
 		InstrumentID:  pairFormat.Format(action.Pair),
-		NewQuantity:   action.Amount,
+		NewQuantity:   types.Number(action.Amount),
 		OrderID:       action.OrderID,
 		ClientOrderID: action.ClientOrderID,
-		NewPrice:      action.Price,
+		NewPrice:      types.Number(action.Price),
 	}, nil
 }
 
@@ -1622,8 +1623,8 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 			ClientOrderID: s.ClientOrderID,
 			Side:          side,
 			OrderType:     s.Type.Lower(),
-			Size:          s.Amount,
-			Price:         s.Price,
+			Size:          types.Number(s.Amount),
+			Price:         types.Number(s.Price),
 		})
 		if err != nil {
 			return nil, err

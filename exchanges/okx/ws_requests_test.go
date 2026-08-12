@@ -17,26 +17,132 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestPlaceOrderRequestParamMarshalJSON(t *testing.T) {
+func TestOrderRequestNumberMarshalling(t *testing.T) {
 	t.Parallel()
 
-	arg := PlaceOrderRequestParam{
-		InstrumentID: "SATS-USDT",
-		TradeMode:    TradeModeCross,
-		Side:         "buy",
-		OrderType:    orderFOK,
-		Amount:       170000000,
-		Price:        1.555e-8,
-		ReduceOnly:   true,
+	const smallNumber = 1.555e-8
+	const expectedNumber = `"0.00000001555"`
+	testCases := []struct {
+		name           string
+		request        any
+		expectedFields []string
+		expected       []string
+		omittedFields  []string
+	}{
+		{
+			name: "place order",
+			request: &PlaceOrderRequestParam{
+				Amount: smallNumber,
+				Price:  smallNumber,
+			},
+			expectedFields: []string{"sz", "px"},
+		},
+		{
+			name: "amend order",
+			request: &AmendOrderRequestParams{
+				NewQuantity:        smallNumber,
+				NewPrice:           smallNumber,
+				NewPriceInUSD:      smallNumber,
+				NewPriceVolatility: smallNumber,
+			},
+			expectedFields: []string{"newSz", "newPx", "newPxUsd", "newPxVol"},
+		},
+		{
+			name: "amend order attached TP/SL",
+			request: &AlgoOrdInfo{
+				NewTakeProfitTriggerPrice: smallNumber,
+				NewTakeProfitOrderPrice:   smallNumber,
+				NewStopLossTriggerPrice:   smallNumber,
+				NewStopLossOrderPrice:     smallNumber,
+				NewSize:                   smallNumber,
+			},
+			expectedFields: []string{"newTpTriggerPx", "newTpOrdPx", "newSlTriggerPx", "newSlOrdPx", "sz"},
+		},
+		{
+			name: "place algo order",
+			request: &AlgoOrderParams{
+				Size:                   smallNumber,
+				TakeProfitOrderPrice:   smallNumber,
+				TakeProfitTriggerPrice: smallNumber,
+				StopLossTriggerPrice:   smallNumber,
+				StopLossOrderPrice:     smallNumber,
+				CallbackRatio:          smallNumber,
+				ActivePrice:            smallNumber,
+				CallbackSpreadVariance: smallNumber,
+				TriggerPrice:           smallNumber,
+				OrderPrice:             smallNumber,
+				PriceVariance:          smallNumber,
+				PriceSpread:            smallNumber,
+				SizeLimit:              smallNumber,
+				LimitPrice:             smallNumber,
+				ChaseValue:             smallNumber,
+				MaxChaseValue:          smallNumber,
+			},
+			expectedFields: []string{
+				"sz", "tpOrdPx", "tpTriggerPx", "slTriggerPx", "slOrdPx", "callbackRatio", "activePx", "callbackSpread",
+				"triggerPx", "orderPx", "pxVar", "pxSpread", "szLimit", "pxLimit", "chaseVal", "maxChaseVal",
+			},
+		},
+		{
+			name: "amend algo order",
+			request: &AmendAlgoOrderParam{
+				NewSize:                   smallNumber,
+				NewTakeProfitTriggerPrice: smallNumber,
+				NewTakeProfitOrderPrice:   smallNumber,
+				NewStopLossTriggerPrice:   smallNumber,
+				NewStopLossOrderPrice:     smallNumber,
+				NewTriggerPrice:           smallNumber,
+				NewOrderPrice:             smallNumber,
+			},
+			expectedFields: []string{"newSz", "newTpTriggerPx", "newTpOrdPx", "newSlTriggerPx", "newSlOrdPx", "newTriggerPx", "newOrdPx"},
+		},
+		{
+			name: "amend algo attached TP/SL",
+			request: &SubTPSLParams{
+				NewTakeProfitTriggerPrice: smallNumber,
+				NewTakeProfitOrderPrice:   smallNumber,
+				NewStopLossTriggerPrice:   smallNumber,
+				NewStopLossOrderPrice:     smallNumber,
+			},
+			expectedFields: []string{"newTpTriggerPx", "newTpOrdPx", "newSlTriggerPx", "newSlOrdPx"},
+		},
+		{
+			name:           "place spread order",
+			request:        &SpreadOrderParam{Size: smallNumber, Price: smallNumber},
+			expectedFields: []string{"sz", "px"},
+		},
+		{
+			name:           "amend spread order",
+			request:        &AmendSpreadOrderParam{NewSize: smallNumber, NewPrice: smallNumber},
+			expectedFields: []string{"newSz", "newPx"},
+		},
+		{
+			name:          "zero optional price",
+			request:       &PlaceOrderRequestParam{},
+			expected:      []string{`"sz":""`},
+			omittedFields: []string{"px"},
+		},
 	}
 
-	raw, err := json.Marshal(&arg)
-	require.NoError(t, err)
-	assert.Contains(t, string(raw), `"px":"0.00000001555"`)
-	assert.Contains(t, string(raw), `"sz":"170000000"`)
-	assert.Contains(t, string(raw), `"reduceOnly":true`)
-	assert.NotContains(t, string(raw), "e-")
-	assert.NotContains(t, string(raw), "E-")
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			raw, err := json.Marshal(testCase.request)
+			require.NoError(t, err, "Order request must marshal")
+			for _, field := range testCase.expectedFields {
+				assert.Containsf(t, string(raw), `"`+field+`":`+expectedNumber, "Order request should encode %s as a plain decimal string", field)
+			}
+			for _, expected := range testCase.expected {
+				assert.Contains(t, string(raw), expected, "Order request should contain expected JSON")
+			}
+			for _, field := range testCase.omittedFields {
+				assert.NotContainsf(t, string(raw), `"`+field+`"`, "Order request should omit zero-valued field %s", field)
+			}
+			assert.NotContains(t, string(raw), "e-", "Order request should not contain lowercase scientific notation")
+			assert.NotContains(t, string(raw), "E-", "Order request should not contain uppercase scientific notation")
+		})
+	}
 }
 
 func TestWSPlaceOrder(t *testing.T) {

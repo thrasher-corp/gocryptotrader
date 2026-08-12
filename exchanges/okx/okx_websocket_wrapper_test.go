@@ -389,7 +389,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, order.Buy.Lower(), arg.Side)
 	assert.Equal(t, "quote_ccy", arg.TargetCurrency)
-	assert.Equal(t, 10.0, arg.Amount)
+	assert.Equal(t, 10.0, arg.Amount.Float64())
 
 	t.Run("futures leverage guard", func(t *testing.T) {
 		t.Parallel()
@@ -703,8 +703,8 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "BTC-USDT", arg.InstrumentID)
-	require.Equal(t, 2.0, arg.NewQuantity)
-	require.Equal(t, 3.0, arg.NewPrice)
+	require.Equal(t, 2.0, arg.NewQuantity.Float64())
+	require.Equal(t, 3.0, arg.NewPrice.Float64())
 	require.Equal(t, "1", arg.OrderID)
 	require.Equal(t, "abc", arg.ClientOrderID)
 }
