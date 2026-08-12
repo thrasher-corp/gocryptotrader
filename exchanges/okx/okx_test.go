@@ -908,10 +908,8 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 const (
-	instrumentJSON                                = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
-	placeOrderArgs                                = `[{"side": "buy","instId": "BTC-USDT","tdMode": "cash","ordType": "market","sz": "100"},{"side": "buy","instId": "LTC-USDT","tdMode": "cash","ordType": "market","sz": "1"}]`
-	calculateOrderbookChecksumUpdateOrderbookJSON = `{"Bids":[{"Amount":56,"Price":0.07014,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":608,"Price":0.07011,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07009,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.07006,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2347,"Price":0.07004,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":279,"Price":0.07003,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":52,"Price":0.07001,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":91,"Price":0.06997,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4242,"Price":0.06996,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":486,"Price":0.06995,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.06992,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.06991,"ID":0,"Period":0,"LiquidationOrders":0,
-	"OrderCount":0},{"Amount":7518,"Price":0.06988,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.06976,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":71,"Price":0.06975,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1086,"Price":0.06973,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":513,"Price":0.06961,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4603,"Price":0.06959,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.0695,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3043,"Price":0.06946,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":103,"Price":0.06939,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5053,"Price":0.0693,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5039,"Price":0.06909,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5037,"Price":0.06888,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06886,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5008,"Price":0.06867,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5065,"Price":0.06846,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1572,"Price":0.06826,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1565,"Price":0.06801,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":67,"Price":0.06748,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":111,"Price":0.0674,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10038,"Price":0.0672,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.06652,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06625,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10924,"Price":0.06619,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05986,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05387,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04848,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04363,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Asks":[{"Amount":5,"Price":0.07026,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":765,"Price":0.07027,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07028,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.0703,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":280,"Price":0.07034,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2255,"Price":0.07035,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":28,"Price":0.07036,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.07037,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":137,"Price":0.07039,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":48,"Price":0.0704,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":32,"Price":0.07041,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3985,"Price":0.07043,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":257,"Price":0.07057,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":7870,"Price":0.07058,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.07059,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4539,"Price":0.07061,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1438,"Price":0.07068,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3162,"Price":0.07088,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":99,"Price":0.07104,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5018,"Price":0.07108,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1540,"Price":0.07115,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5080,"Price":0.07129,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1512,"Price":0.07145,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5016,"Price":0.0715,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5026,"Price":0.07171,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5062,"Price":0.07192,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1517,"Price":0.07197,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1511,"Price":0.0726,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10376,"Price":0.07314,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.07354,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10277,"Price":0.07466,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07626,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07636,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.0809,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.08899,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.09789,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.10768,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Exchange":"Okx","Pair":"BTC-USDT","Asset":"spot","LastUpdated":"0001-01-01T00:00:00Z","LastUpdateID":0,"PriceDuplication":false,"IsFundingRate":false,"RestSnapshot":false,"IDAlignment":false}`
+	instrumentJSON               = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
+	placeOrderArgs               = `[{"side": "buy","instId": "BTC-USDT","tdMode": "cash","ordType": "market","sz": "100"},{"side": "buy","instId": "LTC-USDT","tdMode": "cash","ordType": "market","sz": "1"}]`
 	placeMultipleOrderParamsJSON = `[{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b159","side":"buy","ordType":"limit","px":"2.15","sz":"2"},{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b15","side":"buy","ordType":"limit","px":"2.15","sz":"2"}]`
 )
 
@@ -4250,112 +4248,42 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGenerateOrderbookChecksum(t *testing.T) {
-	t.Parallel()
-	var orderbookBase orderbook.Book
-	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateOrderbookJSON), &orderbookBase)
-	require.NoError(t, err)
-	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
-}
-
-func TestCalculateOrderbookChecksum(t *testing.T) {
-	t.Parallel()
-
-	data := &WsOrderBookData{
-		Bids: []WsOrderBookLevel{
-			{Price: 100.5, Amount: 1.25, PriceString: "100.5", AmountString: "1.25"},
-			{Price: 100.4, Amount: 2.5, PriceString: "100.4", AmountString: "2.5"},
-		},
-		Asks: []WsOrderBookLevel{
-			{Price: 100.6, Amount: 0.75, PriceString: "100.6", AmountString: "0.75"},
-			{Price: 100.7, Amount: 3.5, PriceString: "100.7", AmountString: "3.5"},
-		},
-	}
-
-	checksum, err := e.CalculateOrderbookChecksum(data)
-	require.NoError(t, err, "CalculateOrderbookChecksum must not error")
-
-	book := &orderbook.Book{
-		Bids: orderbook.Levels{
-			{Price: 100.5, Amount: 1.25, StrPrice: "100.5", StrAmount: "1.25"},
-			{Price: 100.4, Amount: 2.5, StrPrice: "100.4", StrAmount: "2.5"},
-		},
-		Asks: orderbook.Levels{
-			{Price: 100.6, Amount: 0.75, StrPrice: "100.6", StrAmount: "0.75"},
-			{Price: 100.7, Amount: 3.5, StrPrice: "100.7", StrAmount: "3.5"},
-		},
-	}
-	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must match generateOrderbookChecksum for equivalent book data")
-
-	for i := range data.Bids {
-		data.Bids[i].PriceString = ""
-		data.Bids[i].AmountString = ""
-	}
-	for i := range data.Asks {
-		data.Asks[i].PriceString = ""
-		data.Asks[i].AmountString = ""
-	}
-	checksum, err = e.CalculateOrderbookChecksum(data)
-	require.NoError(t, err, "CalculateOrderbookChecksum must not error without raw strings")
-	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must fall back to numeric values")
-}
-
 func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
-		name                     string
-		pairSuffix               string
-		useChecksum              bool
-		checksumCompletedAtIsSet bool
-	}{
-		{
-			name:                     "legacy_checksum",
-			pairSuffix:               "CHECKSUM",
-			useChecksum:              true,
-			checksumCompletedAtIsSet: true,
-		},
-		{
-			name:       "zero_checksum",
-			pairSuffix: "ZERO",
-		},
+	tracked := new(Exchange)
+	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+	data := &WsOrderBookData{
+		Bids: []WsOrderBookLevel{{
+			Price:        100.5,
+			Amount:       1.25,
+			PriceString:  "100.50",
+			AmountString: "1.250",
+		}},
+		Asks: []WsOrderBookLevel{{
+			Price:        100.6,
+			Amount:       0.75,
+			PriceString:  "100.60",
+			AmountString: "0.750",
+		}},
+		Timestamp:  types.Time(time.UnixMilli(1659792392540)),
+		SequenceID: 42,
 	}
+	pair := currency.NewPairWithDelimiter("SNAP", "USDT", "-")
+	require.NoError(t, tracked.WsProcessSnapshotOrderBook(data, pair, []asset.Item{asset.Spot}), "WsProcessSnapshotOrderBook must not error")
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			tracked := new(Exchange)
-			require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
-
-			data := &WsOrderBookData{
-				Bids: []WsOrderBookLevel{
-					{Price: 100.5, Amount: 1.25, PriceString: "100.5", AmountString: "1.25"},
-				},
-				Asks: []WsOrderBookLevel{
-					{Price: 100.6, Amount: 0.75, PriceString: "100.6", AmountString: "0.75"},
-				},
-				Timestamp:  types.Time(time.UnixMilli(1659792392540)),
-				SequenceID: 42,
-			}
-			if tc.useChecksum {
-				checksum, err := tracked.CalculateOrderbookChecksum(data)
-				require.NoError(t, err, "CalculateOrderbookChecksum must not error")
-				data.Checksum = int32(checksum) //nolint:gosec // OKX checksum is signed on the wire.
-			}
-
-			pair := currency.NewPairWithDelimiter("SNAP"+tc.pairSuffix, "USDT", "-")
-			err := tracked.WsProcessSnapshotOrderBook(data, pair, []asset.Item{asset.Spot})
-			require.NoError(t, err, "WsProcessSnapshotOrderBook must not error")
-
-			book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-			require.NoError(t, err, "GetOrderbook must not error")
-			require.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
-			assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
-			assert.False(t, book.ReceivedAt.IsZero(), "ReceivedAt should be set")
-			assert.Equal(t, tc.checksumCompletedAtIsSet, !book.ChecksumCompletedAt.IsZero(), "ChecksumCompletedAt should match checksum usage")
-		})
-	}
+	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
+	assert.False(t, book.ReceivedAt.IsZero(), "ReceivedAt should be set")
+	assert.Equal(t, int64(42), book.LastUpdateID, "LastUpdateID should match the snapshot sequence ID")
+	require.Len(t, book.Bids, 1, "Snapshot must contain one bid")
+	require.Len(t, book.Asks, 1, "Snapshot must contain one ask")
+	assert.Equal(t, "100.50", book.Bids[0].StrPrice, "Bid price string should retain the wire representation")
+	assert.Equal(t, "1.250", book.Bids[0].StrAmount, "Bid amount string should retain the wire representation")
+	assert.Equal(t, "100.60", book.Asks[0].StrPrice, "Ask price string should retain the wire representation")
+	assert.Equal(t, "0.750", book.Asks[0].StrAmount, "Ask amount string should retain the wire representation")
 }
 
 func TestWsProcessUpdateOrderbook(t *testing.T) {
@@ -4390,6 +4318,17 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 	require.Equal(t, update.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
 	assert.Equal(t, update.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
 
+	heartbeatTime := time.UnixMilli(1659792392740)
+	update.Timestamp = types.Time(heartbeatTime)
+	update.PreviousSequenceID = 11
+	update.SequenceID = 11
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must process a documented heartbeat")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(11), book.LastUpdateID, "A heartbeat must retain its sequence ID")
+	require.Equal(t, heartbeatTime, book.LastUpdated, "A heartbeat must update the generation timestamp")
+
 	update.PreviousSequenceID = 10
 	update.SequenceID = 11
 	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
@@ -4397,6 +4336,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
 	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must remain unchanged after stale update")
+	require.Equal(t, heartbeatTime, book.LastUpdated, "A stale update must not change the generation timestamp")
 
 	update.PreviousSequenceID = 11
 	update.SequenceID = 3
@@ -4471,6 +4411,23 @@ func TestWsProcessOrderBooks(t *testing.T) {
 	require.Len(t, conn.requests, 2, "Recovery must send an unsubscribe and subscribe request")
 	assert.Equal(t, operationUnsubscribe, conn.requests[0].Operation, "Recovery should unsubscribe the tracked channel first")
 	assert.Equal(t, operationSubscribe, conn.requests[1].Operation, "Recovery should resubscribe the tracked channel")
+
+	bboTracked := new(Exchange)
+	require.NoError(t, testexch.Setup(bboTracked), "BBO test instance Setup must not error")
+	bboPair := currency.NewPairWithDelimiter("BBO", "USDT", "-")
+	bboSnapshot := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BBO-USDT","instType":"SPOT"},"data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","seqId":20}]}`)
+	require.NoError(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, bboSnapshot), "wsProcessOrderBooks must load bbo-tbt data as a snapshot")
+	bboBook, err := bboTracked.Websocket.Orderbook.GetOrderbook(bboPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must return the BBO snapshot")
+	require.Len(t, bboBook.Bids, 1, "BBO snapshot must contain one bid")
+	require.Len(t, bboBook.Asks, 1, "BBO snapshot must contain one ask")
+	assert.Equal(t, float64(100), bboBook.Bids[0].Price, "BBO bid should match the snapshot")
+	assert.Equal(t, int64(20), bboBook.LastUpdateID, "BBO LastUpdateID should match seqId")
+
+	invalidBBOAction := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BBO-USDT","instType":"SPOT"},"action":"update","data":[]}`)
+	require.ErrorIs(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, invalidBBOAction), orderbook.ErrInvalidAction, "bbo-tbt must reject incremental actions")
+	invalidIncrementalAction := []byte(`{"arg":{"channel":"books-l2-tbt","instId":"BBO-USDT","instType":"SPOT"},"action":"partial","data":[]}`)
+	require.ErrorIs(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, invalidIncrementalAction), orderbook.ErrInvalidAction, "incremental channels must reject unknown actions")
 }
 
 func TestOrderPushData(t *testing.T) {
@@ -5016,12 +4973,12 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 		expectedError        error
 	}{
 		{
-			name:                 "quoted values",
-			data:                 []byte(`["0.07026","5","0","1"]`),
+			name:                 "quoted values retain trailing zeroes",
+			data:                 []byte(`["0.0702600","5.00","0","1"]`),
 			expectedPrice:        0.07026,
 			expectedAmount:       5,
-			expectedPriceString:  "0.07026",
-			expectedAmountString: "5",
+			expectedPriceString:  "0.0702600",
+			expectedAmountString: "5.00",
 		},
 		{
 			name:                 "numeric values",
@@ -5030,6 +4987,11 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 			expectedAmount:       5,
 			expectedPriceString:  "0.07026",
 			expectedAmountString: "5",
+		},
+		{
+			name:          "missing amount",
+			data:          []byte(`["1"]`),
+			expectedError: errInvalidOrderBookLevel,
 		},
 		{
 			name:          "malformed",
@@ -5045,15 +5007,15 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 			var level WsOrderBookLevel
 			err := json.Unmarshal(testCase.data, &level)
 			if testCase.expectedError != nil {
-				require.ErrorIs(t, err, testCase.expectedError, "UnmarshalJSON must return expected error")
+				require.ErrorIs(t, err, testCase.expectedError, "UnmarshalJSON must return the expected error")
 				return
 			}
 
 			require.NoError(t, err, "UnmarshalJSON must not error")
 			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
 			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
-			assert.Equal(t, testCase.expectedPriceString, level.PriceString, "PriceString should match")
-			assert.Equal(t, testCase.expectedAmountString, level.AmountString, "AmountString should match")
+			assert.Equal(t, testCase.expectedPriceString, level.PriceString, "PriceString should retain its wire representation")
+			assert.Equal(t, testCase.expectedAmountString, level.AmountString, "AmountString should retain its wire representation")
 		})
 	}
 }
@@ -5061,20 +5023,18 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 func TestWsOrderbookItems(t *testing.T) {
 	t.Parallel()
 
-	entries := []WsOrderBookLevel{
-		{
-			Price:        100.5,
-			Amount:       2.25,
-			PriceString:  "100.5",
-			AmountString: "2.25",
-		},
-	}
+	entries := []WsOrderBookLevel{{
+		Price:        100.5,
+		Amount:       2.25,
+		PriceString:  "100.50",
+		AmountString: "2.250",
+	}}
 	items := wsOrderbookItems(entries)
 	require.Len(t, items, 1, "wsOrderbookItems must return one orderbook item")
 	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
 	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
-	assert.Equal(t, "100.5", items[0].StrPrice, "orderbook price string should match")
-	assert.Equal(t, "2.25", items[0].StrAmount, "orderbook amount string should match")
+	assert.Equal(t, "100.50", items[0].StrPrice, "orderbook price string should match")
+	assert.Equal(t, "2.250", items[0].StrAmount, "orderbook amount string should match")
 }
 
 func TestAppendWsOrderbookItems(t *testing.T) {
@@ -5093,12 +5053,12 @@ func TestAppendWsOrderbookItems(t *testing.T) {
 		{
 			name: "multiple levels",
 			entries: []WsOrderBookLevel{
-				{Price: 1.25, Amount: 2.5, PriceString: "1.25", AmountString: "2.5"},
-				{Price: 3.75, Amount: 4.5, PriceString: "3.75", AmountString: "4.5"},
+				{Price: 1.25, Amount: 2.5, PriceString: "1.250", AmountString: "2.50"},
+				{Price: 3.75, Amount: 4.5, PriceString: "3.750", AmountString: "4.50"},
 			},
 			expected: orderbook.Levels{
-				{Price: 1.25, Amount: 2.5, StrPrice: "1.25", StrAmount: "2.5"},
-				{Price: 3.75, Amount: 4.5, StrPrice: "3.75", StrAmount: "4.5"},
+				{Price: 1.25, Amount: 2.5, StrPrice: "1.250", StrAmount: "2.50"},
+				{Price: 3.75, Amount: 4.5, StrPrice: "3.750", StrAmount: "4.50"},
 			},
 		},
 	}
@@ -5117,8 +5077,8 @@ func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
 	t.Parallel()
 
 	entries := []WsOrderBookLevel{
-		{Price: 1, Amount: 2, PriceString: "1", AmountString: "2"},
-		{Price: 3, Amount: 4, PriceString: "3", AmountString: "4"},
+		{Price: 1, Amount: 2, PriceString: "1.0", AmountString: "2.0"},
+		{Price: 3, Amount: 4, PriceString: "3.0", AmountString: "4.0"},
 	}
 	items, pooled := appendWsOrderbookItemsFromPool(entries)
 	t.Cleanup(func() {
@@ -5126,8 +5086,10 @@ func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
 	})
 
 	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
-	assert.Equal(t, "1", items[0].StrPrice, "first price string should match")
-	assert.Equal(t, "4", items[1].StrAmount, "second amount string should match")
+	assert.Equal(t, float64(1), items[0].Price, "first price should match")
+	assert.Equal(t, float64(4), items[1].Amount, "second amount should match")
+	assert.Equal(t, "1.0", items[0].StrPrice, "first price string should match")
+	assert.Equal(t, "4.0", items[1].StrAmount, "second amount string should match")
 }
 
 func TestPutWsOrderbookLevels(t *testing.T) {
@@ -5136,17 +5098,6 @@ func TestPutWsOrderbookLevels(t *testing.T) {
 	items := orderbook.Levels{{Price: 1}, {Price: 2}}
 	putWsOrderbookLevels(&items)
 	require.Empty(t, items, "putWsOrderbookLevels must reset pooled slice length")
-}
-
-func TestAppendOrderbookChecksumLevel(t *testing.T) {
-	t.Parallel()
-
-	level := &orderbook.Level{
-		StrPrice:  "100.01",
-		StrAmount: "0.25",
-	}
-	checksum := appendOrderbookChecksumLevel(nil, level)
-	require.Equal(t, "100.01:0.25:", string(checksum), "appendOrderbookChecksumLevel must append colon-delimited level values")
 }
 
 func TestSetMarginType(t *testing.T) {

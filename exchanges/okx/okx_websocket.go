@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"net/http"
 	"slices"
 	"strconv"
@@ -56,8 +55,6 @@ var (
 const wsOrderbookLevelsPoolCapacity = 400
 
 const (
-	// allowableIterations use the first 25 bids and asks in the full load to form a string
-	allowableIterations = 25
 	// wsOrderbookSnapshot orderbook push data type 'snapshot'
 	wsOrderbookSnapshot = "snapshot"
 	// wsOrderbookUpdate orderbook push data type 'update'
@@ -938,7 +935,9 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	if err != nil {
 		return err
 	}
-	if response.Argument.Channel == channelOrderBooks && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot {
+	isSnapshotOnly := response.Argument.Channel == channelBBOTBT
+	if (isSnapshotOnly && response.Action != "" && response.Action != wsOrderbookSnapshot) ||
+		(!isSnapshotOnly && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot) {
 		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
 	}
 	if !response.Argument.InstrumentID.IsPopulated() {
@@ -959,13 +958,13 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	}
 	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
-		if response.Action == wsOrderbookSnapshot {
+		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
 		if err != nil {
-			if errors.Is(err, errInvalidChecksum) || errors.Is(err, errInvalidOrderbookSequence) {
+			if errors.Is(err, errInvalidOrderbookSequence) {
 				tracked := e.Websocket.GetSubscription(subscription.IgnoringAssetKey{
 					Subscription: &subscription.Subscription{
 						Channel: subscription.OrderbookChannel,
@@ -984,7 +983,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		}
 	}
 	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "%s passed checksum for pair %s", e.Name, response.Argument.InstrumentID)
+		log.Debugf(log.ExchangeSys, "%s processed orderbook data for pair %s", e.Name, response.Argument.InstrumentID)
 	}
 	return nil
 }
@@ -992,34 +991,21 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	receivedAt := time.Now()
-	var checksumCompletedAt time.Time
-	if data.Checksum != 0 {
-		signedChecksum, err := e.CalculateOrderbookChecksum(data)
-		if err != nil {
-			return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %w", errInvalidChecksum, pair, err)
-		}
-		if signedChecksum != uint32(data.Checksum) {
-			return fmt.Errorf("%w %v", errInvalidChecksum, pair)
-		}
-		checksumCompletedAt = time.Now()
-	}
-
 	asks := wsOrderbookItems(data.Asks)
 	bids := wsOrderbookItems(data.Bids)
 	lastUpdated := data.Timestamp.Time()
 	for i := range assets {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			LastUpdateID:        data.SequenceID,
-			Asset:               assets[i],
-			Asks:                asks,
-			Bids:                bids,
-			LastUpdated:         lastUpdated,
-			LastPushed:          lastUpdated,
-			ReceivedAt:          receivedAt,
-			ChecksumCompletedAt: checksumCompletedAt,
-			Pair:                pair,
-			Exchange:            e.Name,
-			ValidateOrderbook:   e.ValidateOrderbook,
+			LastUpdateID:      data.SequenceID,
+			Asset:             assets[i],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       lastUpdated,
+			LastPushed:        lastUpdated,
+			ReceivedAt:        receivedAt,
+			Pair:              pair,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}); err != nil {
 			return err
 		}
@@ -1042,20 +1028,19 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 		if err != nil {
 			return err
 		}
-		continuesCurrentSequence := data.PreviousSequenceID == lastUpdateID
-		if data.SequenceID == lastUpdateID {
+		if data.SequenceID == lastUpdateID && data.PreviousSequenceID < lastUpdateID {
 			continue
 		}
 		// A lower sequence ID that continues from the current sequence is a
 		// documented OKX reset and must be processed rather than discarded.
-		if !continuesCurrentSequence {
+		if data.PreviousSequenceID != lastUpdateID {
 			sequenceErr := fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
 			for j := range assets {
 				sequenceErr = common.AppendError(sequenceErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
 			}
 			return sequenceErr
 		}
-		obu := &orderbook.Update{
+		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 			UpdateID:   data.SequenceID,
 			Pair:       pair,
 			Asset:      assets[i],
@@ -1065,12 +1050,7 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			Bids:       bids,
 			ReceivedAt: receivedAt,
 			AllowEmpty: true, // Allow empty levels to push forward sequence ID
-		}
-		if data.Checksum != 0 {
-			obu.GenerateChecksum = generateOrderbookChecksum
-			obu.ExpectedChecksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
-		}
-		if err := e.Websocket.Orderbook.Update(obu); err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -1114,72 +1094,6 @@ func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook
 func putWsOrderbookLevels(items *orderbook.Levels) {
 	*items = (*items)[:0]
 	wsOrderbookLevelsPool.Put(items)
-}
-
-// generateOrderbookChecksum alternates over the first 25 bid and ask
-// entries of a merged orderbook. The checksum is made up of the price and the
-// quantity with a semicolon (:) deliminating them. This will also work when
-// there are less than 25 entries (for whatever reason)
-// eg Bid:Ask:Bid:Ask:Ask:Ask
-func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
-	var checksumBuffer [1024]byte
-	checksum := checksumBuffer[:0]
-	for i := range allowableIterations {
-		if len(orderbookData.Bids)-1 >= i {
-			checksum = appendOrderbookChecksumLevel(checksum, &orderbookData.Bids[i])
-		}
-		if len(orderbookData.Asks)-1 >= i {
-			checksum = appendOrderbookChecksumLevel(checksum, &orderbookData.Asks[i])
-		}
-	}
-	if len(checksum) > 0 {
-		checksum = checksum[:len(checksum)-1]
-	}
-	return crc32.ChecksumIEEE(checksum)
-}
-
-// CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
-	var checksumBuffer [1024]byte
-	checksum := checksumBuffer[:0]
-	for i := range allowableIterations {
-		if len(orderbookData.Bids)-1 >= i {
-			checksum = appendOrderbookChecksumLevel(checksum, &orderbook.Level{
-				Price:     orderbookData.Bids[i].Price.Float64(),
-				Amount:    orderbookData.Bids[i].Amount.Float64(),
-				StrPrice:  orderbookData.Bids[i].PriceString,
-				StrAmount: orderbookData.Bids[i].AmountString,
-			})
-		}
-		if len(orderbookData.Asks)-1 >= i {
-			checksum = appendOrderbookChecksumLevel(checksum, &orderbook.Level{
-				Price:     orderbookData.Asks[i].Price.Float64(),
-				Amount:    orderbookData.Asks[i].Amount.Float64(),
-				StrPrice:  orderbookData.Asks[i].PriceString,
-				StrAmount: orderbookData.Asks[i].AmountString,
-			})
-		}
-	}
-	if len(checksum) > 0 {
-		checksum = checksum[:len(checksum)-1]
-	}
-	return crc32.ChecksumIEEE(checksum), nil
-}
-
-// appendOrderbookChecksumLevel appends one price and amount pair to checksum bytes.
-func appendOrderbookChecksumLevel(checksum []byte, level *orderbook.Level) []byte {
-	if level.StrPrice != "" {
-		checksum = append(checksum, level.StrPrice...)
-	} else {
-		checksum = strconv.AppendFloat(checksum, level.Price, 'f', -1, 64)
-	}
-	checksum = append(checksum, ':')
-	if level.StrAmount != "" {
-		checksum = append(checksum, level.StrAmount...)
-	} else {
-		checksum = strconv.AppendFloat(checksum, level.Amount, 'f', -1, 64)
-	}
-	return append(checksum, ':')
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
