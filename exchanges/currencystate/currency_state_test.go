@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -16,25 +17,59 @@ func TestNewCurrencyStates(t *testing.T) {
 	}
 }
 
-func TestGetSnapshot(t *testing.T) {
+func TestGetCurrencyStateSnapshot(t *testing.T) {
 	t.Parallel()
-	_, err := (*States)(nil).GetCurrencyStateSnapshot()
-	require.ErrorIs(t, err, errNilStates)
+	snapshots, err := (*States)(nil).GetCurrencyStateSnapshot()
+	require.ErrorIs(t, err, errNilStates, "GetCurrencyStateSnapshot must error correctly for nil states")
+	assert.Nil(t, snapshots, "GetCurrencyStateSnapshot should return nil snapshots for nil states")
 
-	o, err := (&States{
+	snapshots, err = NewCurrencyStates().GetCurrencyStateSnapshot()
+	require.NoError(t, err, "GetCurrencyStateSnapshot must not error for empty states")
+	assert.Nil(t, snapshots, "GetCurrencyStateSnapshot should preserve a nil snapshot for empty states")
+
+	states := &States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
-			asset.Spot: {currency.BTC.Item: {
+			asset.Spot: {currency.BTC.Item: &Currency{
 				withdrawals: true,
 				deposits:    true,
+				trading:     false,
+			}},
+			asset.Futures: {currency.BTC.Item: &Currency{
+				withdrawals: true,
+				deposits:    false,
 				trading:     true,
 			}},
 		},
-	}).GetCurrencyStateSnapshot()
-	require.NoError(t, err)
-
-	if o == nil {
-		t.Fatal("unexpected value")
 	}
+	snapshots, err = states.GetCurrencyStateSnapshot()
+	require.NoError(t, err, "GetCurrencyStateSnapshot must not error for populated states")
+	require.Len(t, snapshots, 2, "GetCurrencyStateSnapshot must return every state")
+
+	type snapshotKey struct {
+		asset asset.Item
+		code  *currency.Item
+	}
+	snapshotByKey := make(map[snapshotKey]Snapshot, len(snapshots))
+	for i := range snapshots {
+		snapshotByKey[snapshotKey{asset: snapshots[i].Asset, code: snapshots[i].Code.Item}] = snapshots[i]
+	}
+	spotBTC, ok := snapshotByKey[snapshotKey{asset: asset.Spot, code: currency.BTC.Item}]
+	require.True(t, ok, "GetCurrencyStateSnapshot must include spot BTC")
+	assert.True(t, *spotBTC.Withdraw, "GetCurrencyStateSnapshot should preserve spot BTC withdrawals")
+	assert.True(t, *spotBTC.Deposit, "GetCurrencyStateSnapshot should preserve spot BTC deposits")
+	assert.False(t, *spotBTC.Trade, "GetCurrencyStateSnapshot should preserve spot BTC trading")
+	futuresBTC, ok := snapshotByKey[snapshotKey{asset: asset.Futures, code: currency.BTC.Item}]
+	require.True(t, ok, "GetCurrencyStateSnapshot must include futures BTC")
+	assert.True(t, *futuresBTC.Withdraw, "GetCurrencyStateSnapshot should preserve futures BTC withdrawals")
+	assert.False(t, *futuresBTC.Deposit, "GetCurrencyStateSnapshot should preserve futures BTC deposits")
+	assert.True(t, *futuresBTC.Trade, "GetCurrencyStateSnapshot should preserve futures BTC trading")
+
+	*spotBTC.Withdraw = false
+	assert.True(t, *spotBTC.Deposit, "GetCurrencyStateSnapshot should return independent option fields")
+	assert.False(t, *spotBTC.Trade, "GetCurrencyStateSnapshot should return independent option fields")
+	assert.True(t, *futuresBTC.Withdraw, "GetCurrencyStateSnapshot should return independent snapshots")
+	btcState := states.m[asset.Spot][currency.BTC.Item].GetState()
+	assert.True(t, *btcState.Withdraw, "GetCurrencyStateSnapshot should not expose internal state pointers")
 }
 
 func TestCanTradePair(t *testing.T) {
