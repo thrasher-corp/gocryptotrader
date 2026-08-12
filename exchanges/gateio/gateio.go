@@ -79,7 +79,6 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	gateioMarginCurrencyPairs     = "margin/currency_pairs"
 	gateioMarginFundingBook       = "margin/funding_book"
 	gateioMarginLoans             = "margin/loans"
 	gateioMarginMergedLoans       = "margin/merged_loans"
@@ -170,6 +169,7 @@ var (
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
+	errInvalidLoanType                  = errors.New("invalid loan type")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -190,6 +190,8 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 }
 
+// setUnixTimeRangeParams validates fully populated ranges, rejecting equal
+// bounds and future start times, before setting Unix timestamp parameters.
 func setUnixTimeRangeParams(params *url.Values, from, to time.Time) error {
 	if !from.IsZero() && !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
@@ -1145,6 +1147,7 @@ func (e *Exchange) assetTypeToString(acc asset.Item) string {
 }
 
 func isSpotOrderAccount(account string) bool {
+	account = strings.ToLower(account)
 	return account == spotAccount || account == marginAccount || account == crossMarginAccount
 }
 
@@ -1342,40 +1345,32 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 // ********************************* Margin *******************************************
 
 // QueryInterestDeductionRecords retrieves unified interest deduction records.
-func (e *Exchange) QueryInterestDeductionRecords(ctx context.Context, ccy currency.Code, page, limit int64, from, to time.Time, loanType string) ([]LoanInterestDeductionRecord, error) {
+// Loan type can be either "platform" or "margin". If loan type is not specified, margin is default.
+func (e *Exchange) QueryInterestDeductionRecords(ctx context.Context, ccy currency.Code, page, limit uint64, from, to time.Time, loanType string) ([]LoanInterestDeductionRecord, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
 	if page > 0 {
-		params.Set("page", strconv.FormatInt(page, 10))
+		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		if limit > 100 {
+			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
+		}
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
 	if loanType != "" {
+		if loanType != "platform" && loanType != "margin" {
+			return nil, fmt.Errorf("%w: only 'platform' and 'margin' are supported", errInvalidLoanType)
+		}
 		params.Set("type", loanType)
 	}
 	var response []LoanInterestDeductionRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedInterestRecordsEPL, http.MethodGet, "unified/interest_records", params, nil, &response)
-}
-
-// GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
-func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
-	var currenciePairsInfo []MarginCurrencyPairInfo
-	return currenciePairsInfo, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, gateioMarginCurrencyPairs, &currenciePairsInfo)
-}
-
-// GetSingleMarginSupportedCurrencyPair retrieves margin supported currency pair detail given the currency pair.
-func (e *Exchange) GetSingleMarginSupportedCurrencyPair(ctx context.Context, market currency.Pair) (*MarginCurrencyPairInfo, error) {
-	if market.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	var currencyPairInfo *MarginCurrencyPairInfo
-	return currencyPairInfo, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairDetailMarginEPL, gateioMarginCurrencyPairs+"/"+market.String(), &currencyPairInfo)
 }
 
 // GetOrderbookOfLendingLoans retrieves order book of lending loans for specific currency

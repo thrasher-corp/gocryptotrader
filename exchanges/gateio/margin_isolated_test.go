@@ -17,7 +17,7 @@ import (
 func TestTransferCollateralToIsolatedMargin(t *testing.T) {
 	t.Parallel()
 	_, err := e.TransferCollateralToIsolatedMargin(t.Context(), BTCUSDT, currency.EMPTYCODE, 10)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty currency code must return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.TransferCollateralToIsolatedMargin(t.Context(), BTCUSDT, currency.USDT, -10)
@@ -27,7 +27,7 @@ func TestTransferCollateralToIsolatedMargin(t *testing.T) {
 func TestTransferCollateralFromIsolatedMargin(t *testing.T) {
 	t.Parallel()
 	_, err := e.TransferCollateralFromIsolatedMargin(t.Context(), BTCUSDT, currency.EMPTYCODE, 10)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty currency code must return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.TransferCollateralFromIsolatedMargin(t.Context(), BTCUSDT, currency.USDT, -1)
@@ -37,11 +37,14 @@ func TestTransferCollateralFromIsolatedMargin(t *testing.T) {
 func TestGetIsolatedMarginAccountBalanceChangeHistory(t *testing.T) {
 	t.Parallel()
 	tn := time.Now()
-	_, err := e.GetIsolatedMarginAccountBalanceChangeHistory(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, tn.Add(time.Hour), tn, 0, 0)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+	_, err := e.GetIsolatedMarginAccountBalanceChangeHistory(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, tn.Add(time.Hour), tn, 0, 0, "")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "start time after end time must return the expected error")
+
+	_, err = e.GetIsolatedMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, BTCUSDT, time.Time{}, time.Time{}, 1, 100, "invalid")
+	require.ErrorIs(t, err, errInvalidIsolatedMarginAccountType, "invalid account type must return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetIsolatedMarginAccountBalanceChangeHistory(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 0)
+	_, err = e.GetIsolatedMarginAccountBalanceChangeHistory(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 0, "margin_out")
 	require.NoError(t, err, "GetIsolatedMarginAccountBalanceChangeHistory must not error")
 }
 
@@ -69,7 +72,7 @@ func TestUpdateIsolatedMarginUsersAutoRepaymentSetting(t *testing.T) {
 func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair must return the expected error")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, BTCUSDT)
 	require.NoError(t, err, "GetIsolatedMarginMaxTransferableAmount must not error")
@@ -85,7 +88,7 @@ func TestGetIsolatedMarginLendingMarkets(t *testing.T) {
 func TestGetIsolatedMarginLendingMarketDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginLendingMarketDetails(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair must return the expected error")
 
 	market, err := e.GetIsolatedMarginLendingMarketDetails(t.Context(), BTCUSDT)
 	require.NoError(t, err, "GetIsolatedMarginLendingMarketDetails must not error")
@@ -95,10 +98,10 @@ func TestGetIsolatedMarginLendingMarketDetails(t *testing.T) {
 func TestGetIsolatedMarginEstimatedInterestRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginEstimatedInterestRate(t.Context(), nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty, "nil currencies must return the expected error")
 
 	_, err = e.GetIsolatedMarginEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty currency code must return the expected error")
 
 	_, err = e.GetIsolatedMarginEstimatedInterestRate(t.Context(), currency.Currencies{
 		currency.USDT,
@@ -113,11 +116,11 @@ func TestGetIsolatedMarginEstimatedInterestRate(t *testing.T) {
 		currency.DOT,
 		currency.MATIC,
 	})
-	require.ErrorIs(t, err, errTooManyCurrencyCodes)
+	require.ErrorIs(t, err, errTooManyCurrencyCodes, "too many currency codes must return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	got, err := e.GetIsolatedMarginEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC, currency.USDT})
-	require.NoError(t, err)
+	require.NoError(t, err, "GetIsolatedMarginEstimatedInterestRate must not error")
 	val, ok := got["BTC"]
 	require.True(t, ok, "result map must contain BTC key")
 	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
@@ -125,49 +128,52 @@ func TestGetIsolatedMarginEstimatedInterestRate(t *testing.T) {
 
 func TestGetIsolatedMarginLoans(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetIsolatedMarginLoans(t.Context(), currency.BTC, currency.NewBTCUSD(), 0, 101)
+	require.ErrorIs(t, err, errInvalidLimit, "limit above maximum must return the expected error")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetIsolatedMarginLoans(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0)
-	require.NoError(t, err)
+	_, err = e.GetIsolatedMarginLoans(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0)
+	require.NoError(t, err, "GetIsolatedMarginLoans must not error")
 }
 
 func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), nil), errNilArgument)
+	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), nil), errNilArgument, "nil request should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		Currency: currency.BTC,
 		Type:     "borrow",
 		Amount:   1,
-	}), currency.ErrCurrencyPairEmpty)
+	}), currency.ErrCurrencyPairEmpty, "empty currency pair should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Type:         "borrow",
 		Amount:       1,
-	}), currency.ErrCurrencyCodeEmpty)
+	}), currency.ErrCurrencyCodeEmpty, "empty currency code should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
 		Type:         "invalid",
 		Amount:       1,
-	}), errInvalidIsolatedMarginLoanType)
+	}), errInvalidIsolatedMarginLoanType, "invalid loan type should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
 		Type:         "borrow",
 		Amount:       0,
-	}), errInvalidAmount)
+	}), errInvalidAmount, "zero amount should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
 		Type:         "repay",
 		Amount:       1,
 		RepaidAll:    true,
-	}), errAmountOverriddenByRepaidAll)
+	}), errAmountOverriddenByRepaidAll, "amount with full repayment should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
 		Type:         "borrow",
 		RepaidAll:    true,
-	}), errInvalidRepaidAllOperation)
+	}), errInvalidRepaidAllOperation, "full repayment on a borrow should return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	assert.NoError(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
@@ -175,7 +181,7 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 		Currency:     currency.BTC,
 		Type:         "repay",
 		Amount:       0.00004,
-	}))
+	}), "IsolatedMarginBorrowOrRepay should not error")
 }
 
 func TestIsolatedBorrowRepayRequestFullRepayment(t *testing.T) {
@@ -193,31 +199,34 @@ func TestIsolatedBorrowRepayRequestFullRepayment(t *testing.T) {
 
 func TestGetIsolatedMarginLoanRecords(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetIsolatedMarginLoanRecords(t.Context(), currency.BTC, currency.NewBTCUSDT(), 0, 101, "")
+	require.ErrorIs(t, err, errInvalidLimit, "limit above maximum must return the expected error")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetIsolatedMarginLoanRecords(t.Context(), "", currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0)
-	require.NoError(t, err)
+	_, err = e.GetIsolatedMarginLoanRecords(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0, "")
+	require.NoError(t, err, "GetIsolatedMarginLoanRecords must not error")
 }
 
 func TestGetIsolatedMarginInterestDeductionRecords(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), BTCUSDT, currency.BTC, 0, 101, time.Time{}, time.Time{})
-	require.ErrorIs(t, err, errInvalidLimit)
+	_, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 101, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errInvalidLimit, "limit above maximum must return the expected error")
 	tn := time.Now()
-	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), BTCUSDT, currency.BTC, 0, 0, tn.Add(time.Hour), tn)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 0, tn.Add(time.Hour), tn)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "start time after end time must return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.EMPTYPAIR, currency.EMPTYCODE, 0, 0, time.Time{}, time.Time{})
-	require.NoError(t, err)
+	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
+	require.NoError(t, err, "GetIsolatedMarginInterestDeductionRecords must not error")
 }
 
 func TestGetIsolatedMarginMaxBorrowableAmount(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginMaxBorrowableAmount(t.Context(), currency.EMPTYCODE, BTCUSDT)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty currency code must return the expected error")
 
 	_, err = e.GetIsolatedMarginMaxBorrowableAmount(t.Context(), currency.BTC, currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair must return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetIsolatedMarginMaxBorrowableAmount(t.Context(), currency.BTC, BTCUSDT)
@@ -227,7 +236,7 @@ func TestGetIsolatedMarginMaxBorrowableAmount(t *testing.T) {
 func TestGetIsolatedMarginUserLeverageTiers(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginUserLeverageTiers(t.Context(), currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair should return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	tiers, err := e.GetIsolatedMarginUserLeverageTiers(t.Context(), BTCUSDT)
@@ -238,9 +247,8 @@ func TestGetIsolatedMarginUserLeverageTiers(t *testing.T) {
 func TestGetIsolatedMarginMarketLeverageTiers(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginMarketLeverageTiers(t.Context(), currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair should return the expected error")
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	tiers, err := e.GetIsolatedMarginMarketLeverageTiers(t.Context(), BTCUSDT)
 	require.NoError(t, err, "GetIsolatedMarginMarketLeverageTiers must not error")
 	require.NotEmpty(t, tiers, "GetIsolatedMarginMarketLeverageTiers must return some tiers")
@@ -249,12 +257,12 @@ func TestGetIsolatedMarginMarketLeverageTiers(t *testing.T) {
 func TestSetUserMarketLeverageMultiplier(t *testing.T) {
 	t.Parallel()
 	err := e.SetUserMarketLeverageMultiplier(t.Context(), currency.EMPTYPAIR, 0)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair must return the expected error")
 	err = e.SetUserMarketLeverageMultiplier(t.Context(), BTCUSDT, 0)
-	require.ErrorIs(t, err, errInvalidLeverage)
+	require.ErrorIs(t, err, errInvalidLeverage, "zero leverage must return the expected error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.SetUserMarketLeverageMultiplier(t.Context(), BTCUSDT, 20)
+	err = e.SetUserMarketLeverageMultiplier(t.Context(), BTCUSDT, 1)
 	require.NoError(t, err, "SetUserMarketLeverageMultiplier must not error")
 }
 
@@ -267,25 +275,16 @@ func TestGetIsolatedMarginAccountList(t *testing.T) {
 
 func TestGetIsolatedMarginPoolLoans(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetIsolatedMarginPoolLoans(t.Context(), currency.BTC, 1, 101)
-	require.ErrorIs(t, err, errInvalidLimit)
-
 	ctx := request.WithHeaders(t.Context(), http.Header{
-		"User-Agent":                {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"},
-		"Accept":                    {"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"},
-		"Accept-Language":           {"en-US,en;q=0.9"},
-		"Sec-Ch-Ua":                 {`"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"`},
-		"Sec-Ch-Ua-Mobile":          {"?0"},
-		"Sec-Ch-Ua-Platform":        {`"Windows"`},
-		"Sec-Fetch-Dest":            {"document"},
-		"Sec-Fetch-Mode":            {"navigate"},
-		"Sec-Fetch-Site":            {"none"},
-		"Sec-Fetch-User":            {"?1"},
-		"Upgrade-Insecure-Requests": {"1"},
+		"User-Agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"},
+		"Accept":     {"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"},
 	})
-	got, err := e.GetIsolatedMarginPoolLoans(request.WithVerbose(ctx), currency.BTC, 0, 100)
+	_, err := e.GetIsolatedMarginPoolLoans(ctx, currency.BTC, 18446744073709551615, 100)
+	require.ErrorContains(t, err, "Type mismatch", "page value above the API range must return a type mismatch")
+
+	got, err := e.GetIsolatedMarginPoolLoans(ctx, currency.BTC, 0, 100)
 	if err != nil {
-		require.ErrorContains(t, err, "504")
+		require.ErrorContains(t, err, "504", "pool loan request failure must be a gateway timeout")
 		return
 	}
 	require.NoError(t, err, "GetIsolatedMarginPoolLoans must not error")

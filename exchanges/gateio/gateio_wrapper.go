@@ -434,16 +434,13 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return pairs, nil
 	case asset.Margin:
-		tradables, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		tradables, err := e.GetIsolatedMarginLendingMarkets(ctx)
 		if err != nil {
 			return nil, err
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
-			if tradables[x].Status == 0 || tradables[x].BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
-				continue
-			}
-			pairs = append(pairs, tradables[x].ID)
+			pairs = append(pairs, tradables[x].Pair)
 		}
 		return pairs, nil
 	case asset.CrossMargin:
@@ -791,6 +788,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 
 func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItem) error {
 	for i := range response {
+		if response[i].AccountType == "inactive" && response[i].Base.Currency.IsEmpty() && response[i].Quote.Currency.IsEmpty() {
+			continue
+		}
 		if err := addIsolatedMarginAccountBalance(balances, response[i].Base); err != nil {
 			return err
 		}
@@ -2031,17 +2031,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			})
 		}
 	case asset.Margin:
-		marginPairs, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		marginPairs, err := e.GetIsolatedMarginLendingMarkets(ctx)
 		if err != nil {
 			return err
 		}
 
-		supported := make(map[currency.Pair]*MarginCurrencyPairInfo, len(marginPairs))
+		supported := make(map[currency.Pair]*IsolatedMarginLendingMarket, len(marginPairs))
 		for i := range marginPairs {
-			if marginPairs[i].Status == 0 || marginPairs[i].BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
-				continue
-			}
-			supported[marginPairs[i].ID] = &marginPairs[i]
+			supported[marginPairs[i].Pair] = &marginPairs[i]
 		}
 
 		// Required for spot trading limits

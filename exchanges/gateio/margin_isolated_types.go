@@ -7,12 +7,13 @@ import (
 
 // IsolatedMarginAccountBalanceChangeInfo represents margin account balance
 type IsolatedMarginAccountBalanceChangeInfo struct {
-	ID            string     `json:"id"`
-	Time          types.Time `json:"time_ms"`
-	Currency      string     `json:"currency"`
-	CurrencyPair  string     `json:"currency_pair"`
-	AmountChanged string     `json:"change"`
-	Balance       string     `json:"balance"`
+	ID            string        `json:"id"`
+	Time          types.Time    `json:"time_ms"`
+	Currency      currency.Code `json:"currency"`
+	CurrencyPair  currency.Pair `json:"currency_pair"`
+	AmountChanged types.Number  `json:"change"`
+	Balance       types.Number  `json:"balance"`
+	Type          string        `json:"type"`
 }
 
 // MarginFundingAccountItem represents funding account list item.
@@ -121,6 +122,7 @@ type Loan struct {
 	MoneyLastTimeLoanRateYear   types.Number  `json:"money_last_time_loan_rate_year"`
 	MoneyTotalLendAvailable     types.Number  `json:"money_total_lend_available"`
 	MoneyUserMaxBorrowAmount    types.Number  `json:"money_user_max_borrow_amount"`
+	MoneyTotalLendAvailableFiat types.Number  `json:"money_total_lend_available_fiat"`
 	StockLastTimeLoanRateHour   types.Number  `json:"stock_last_time_loan_rate_hour"`
 	StockLastTimeLoanRateYear   types.Number  `json:"stock_last_time_loan_rate_year"`
 	StockTotalLendAvailable     types.Number  `json:"stock_total_lend_available"`

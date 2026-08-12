@@ -68,17 +68,74 @@ func TestSetUnixTimeRangeParams(t *testing.T) {
 	t.Parallel()
 	from := time.Unix(1710000000, 0)
 	to := from.Add(time.Hour)
-	params := url.Values{}
-	require.NoError(t, setUnixTimeRangeParams(&params, from, to), "setUnixTimeRangeParams must not error")
-	assert.Equal(t, strconv.FormatInt(from.Unix(), 10), params.Get("from"), "from should match unix timestamp")
-	assert.Equal(t, strconv.FormatInt(to.Unix(), 10), params.Get("to"), "to should match unix timestamp")
-
-	params = url.Values{}
-	require.NoError(t, setUnixTimeRangeParams(&params, from, time.Time{}), "setUnixTimeRangeParams must not error when end time is empty")
-	assert.Equal(t, strconv.FormatInt(from.Unix(), 10), params.Get("from"), "from should match unix timestamp")
-	assert.Empty(t, params.Get("to"), "to should not be set")
-
-	require.ErrorIs(t, setUnixTimeRangeParams(&url.Values{}, to, from), common.ErrStartAfterEnd)
+	for _, tc := range []struct {
+		name           string
+		from           time.Time
+		to             time.Time
+		expectedParams url.Values
+		expectedErr    error
+	}{
+		{
+			name:           "both set",
+			from:           from,
+			to:             to,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:           "from only",
+			from:           from,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}},
+		},
+		{
+			name:           "to only",
+			to:             to,
+			expectedParams: url.Values{"to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:           "both zero",
+			expectedParams: url.Values{},
+		},
+		{
+			name:           "start after end",
+			from:           to,
+			to:             from,
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterEnd,
+		},
+		{
+			name:           "start equals end",
+			from:           from,
+			to:             from,
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartEqualsEnd,
+		},
+		{
+			name:           "start after current time",
+			from:           time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			to:             time.Date(2222, 1, 2, 0, 0, 0, 0, time.UTC),
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterTimeNow,
+		},
+		{
+			name:           "unix epoch",
+			from:           time.Unix(0, 0),
+			to:             to,
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrDateUnset,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := url.Values{}
+			err := setUnixTimeRangeParams(&params, tc.from, tc.to)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "setUnixTimeRangeParams must return the expected error")
+			} else {
+				require.NoError(t, err, "setUnixTimeRangeParams must not error")
+			}
+			assert.Equal(t, tc.expectedParams, params, "params should match expected values")
+		})
+	}
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
@@ -120,7 +177,10 @@ func TestGetAccountBalances(t *testing.T) {
 
 func TestSetCrossMarginAccountBalances(t *testing.T) {
 	t.Parallel()
+
 	balances := accounts.CurrencyBalances{}
+	setCrossMarginAccountBalances(&balances, nil)
+
 	setCrossMarginAccountBalances(&balances, &CrossMarginAccount{
 		Balances: map[string]CrossMarginCurrencyBalance{
 			"BTC": {
@@ -142,8 +202,17 @@ func TestSetCrossMarginAccountBalances(t *testing.T) {
 
 func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 	t.Parallel()
+
+	err := setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		Base: AccountBalanceInformation{Currency: currency.BTC},
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	balances := accounts.CurrencyBalances{}
-	err := setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
+	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
 		{
 			Base: AccountBalanceInformation{
 				Currency:     currency.BTC,
@@ -182,6 +251,15 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 				Currency:     currency.USDT,
 				Available:    types.Number(20),
 				LockedAmount: types.Number(4),
+			},
+		},
+		{
+			AccountType: "inactive",
+			Base: AccountBalanceInformation{
+				Currency: currency.EMPTYCODE,
+			},
+			Quote: AccountBalanceInformation{
+				Currency: currency.EMPTYCODE,
 			},
 		},
 	})
@@ -724,9 +802,16 @@ func TestModifyALoanRecord(t *testing.T) {
 
 func TestQueryInterestDeductionRecords(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 101, time.Time{}, time.Time{}, "")
+	require.ErrorIs(t, err, errInvalidLimit)
+
 	tn := time.Now()
-	_, err := e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, tn.Add(time.Hour), tn, "")
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, tn.Add(time.Hour), tn, "")
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, time.Time{}, time.Time{}, "invalid")
+	require.ErrorIs(t, err, errInvalidLoanType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.EMPTYCODE, 0, 0, time.Time{}, time.Time{}, "")
@@ -913,8 +998,8 @@ func TestIsSpotOrderAccount(t *testing.T) {
 		{name: "empty", account: "", expected: false},
 		{name: "options", account: optionsAccount, expected: false},
 		{name: "futures", account: futuresAccount, expected: false},
-		{name: "spot uppercase", account: "SPOT", expected: false},
-		{name: "margin mixed case", account: "Margin", expected: false},
+		{name: "spot uppercase", account: "SPOT", expected: true},
+		{name: "margin mixed case", account: "Margin", expected: true},
 	}
 
 	for _, tc := range tests {
@@ -1025,20 +1110,6 @@ func TestGetUsersTotalBalance(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if _, err := e.GetUsersTotalBalance(t.Context(), currency.BTC); err != nil {
 		t.Errorf("%s GetUsersTotalBalance() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginSupportedCurrencyPairs(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GetMarginSupportedCurrencyPairs(t.Context()); err != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginSupportedCurrencyPair(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GetSingleMarginSupportedCurrencyPair(t.Context(), getPair(t, asset.Margin)); err != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", e.Name, err)
 	}
 }
 

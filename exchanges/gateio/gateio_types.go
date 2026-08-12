@@ -633,18 +633,6 @@ type CurrencyChain struct {
 	IsWithdrawDisabled int64  `json:"is_withdraw_disabled"` // Is withdrawal disabled. 0 means not
 }
 
-// MarginCurrencyPairInfo represents margin currency pair detailed info.
-type MarginCurrencyPairInfo struct {
-	ID                       currency.Pair `json:"id"`
-	Base                     currency.Code `json:"base"`
-	Quote                    currency.Code `json:"quote"`
-	Leverage                 types.Number  `json:"leverage"`
-	BaseMinimumBorrowAmount  types.Number  `json:"min_base_amount"`
-	QuoteMinimumBorrowAmount types.Number  `json:"min_quote_amount"`
-	QuoteMaximumBorrowAmount types.Number  `json:"max_quote_amount"`
-	Status                   int32         `json:"status"`
-}
-
 // OrderbookOfLendingLoan represents order book of lending loans
 type OrderbookOfLendingLoan struct {
 	Rate   types.Number `json:"rate"`

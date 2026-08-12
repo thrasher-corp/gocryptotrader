@@ -32,7 +32,8 @@ func IsVerbose(ctx context.Context, verbose bool) bool {
 	return verbose
 }
 
-// WithHeaders adds outbound HTTP header overrides to the context.
+// WithHeaders adds outbound HTTP header overrides to the context. These values
+// replace matching generated headers, including authentication headers.
 func WithHeaders(ctx context.Context, headers http.Header) context.Context {
 	if len(headers) == 0 {
 		return ctx
