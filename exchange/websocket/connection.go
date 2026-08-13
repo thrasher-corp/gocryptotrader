@@ -303,7 +303,7 @@ func (c *connection) ReadMessage() Response {
 	case gws.TextMessage:
 		standardMessage = resp
 	case gws.BinaryMessage:
-		standardMessage, err = c.parseBinaryResponse(resp)
+		standardMessage, err = parseBinaryResponse(resp)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", c.ExchangeName, removeURLQueryString(c.URL), err)
 			return Response{Raw: []byte(``)} // Non-nil response to avoid the reader returning on this case.
@@ -316,7 +316,7 @@ func (c *connection) ReadMessage() Response {
 }
 
 // parseBinaryResponse parses a websocket binary response into a usable byte array
-func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
+func parseBinaryResponse(resp []byte) ([]byte, error) {
 	if len(resp) < 2 || resp[0] != 0x1f || resp[1] != 0x8b {
 		return resp, nil // non-GZIP response, return as-is
 	}

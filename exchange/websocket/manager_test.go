@@ -1261,11 +1261,10 @@ func TestParseBinaryResponse(t *testing.T) {
 		{name: "corrupt gzip payload", input: corruptGZIPPayload, wantErr: true},
 	}
 
-	wc := &connection{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			resp, err := wc.parseBinaryResponse(tc.input)
+			resp, err := parseBinaryResponse(tc.input)
 			if tc.wantErr {
 				assert.Error(t, err, "parseBinaryResponse should return an error")
 				return
