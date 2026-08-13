@@ -4392,25 +4392,56 @@ func TestWsProcessOrderBooks(t *testing.T) {
 	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
 	conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
 	require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
-	pair := currency.NewPairWithDelimiter("REC", "USDT", "-")
-	sub := &subscription.Subscription{
-		Asset:            asset.Spot,
-		Pairs:            currency.Pairs{pair},
-		Channel:          subscription.OrderbookChannel,
-		QualifiedChannel: `{"channel":"books","instId":"REC-USDT"}`,
+	subs := subscription.List{
+		{
+			Asset:            asset.Spot,
+			Pairs:            currency.Pairs{mainPair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
+			Levels:           400,
+		},
+		{
+			Asset:            asset.Margin,
+			Pairs:            currency.Pairs{mainPair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
+			Levels:           400,
+		},
 	}
-	require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+	require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, subs...), "AddSuccessfulSubscriptions must not error")
+	for _, sub := range subs {
+		require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
+	}
 
-	snapshot := []byte(`{"arg":{"channel":"books","instId":"REC-USDT","instType":"SPOT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","checksum":0,"prevSeqId":-1,"seqId":10}]}`)
+	snapshot := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","checksum":0,"prevSeqId":-1,"seqId":10}]}`)
 	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load the snapshot")
 
-	gap := []byte(`{"arg":{"channel":"books","instId":"REC-USDT","instType":"SPOT"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1659792392640","checksum":0,"prevSeqId":12,"seqId":13}]}`)
+	gap := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1659792392640","checksum":0,"prevSeqId":12,"seqId":13}]}`)
 	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover from a sequence gap")
-	_, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "The orderbook must remain invalid until a new snapshot arrives")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must remain invalid until a new snapshot arrives", a)
+	}
 	require.Len(t, conn.requests, 2, "Recovery must send an unsubscribe and subscribe request")
 	assert.Equal(t, operationUnsubscribe, conn.requests[0].Operation, "Recovery should unsubscribe the tracked channel first")
+	require.Len(t, conn.requests[0].Arguments, 1, "Recovery must deduplicate the spot and margin unsubscribe arguments")
 	assert.Equal(t, operationSubscribe, conn.requests[1].Operation, "Recovery should resubscribe the tracked channel")
+	require.Len(t, conn.requests[1].Arguments, 1, "Recovery must deduplicate the spot and margin subscribe arguments")
+	recoveredSubs := conn.Subscriptions().List()
+	require.Len(t, recoveredSubs, 2, "Recovery must retain both spot and margin subscriptions")
+	for _, sub := range recoveredSubs {
+		assert.Equal(t, 400, sub.Levels, "Recovery should retain the subscription depth")
+	}
+
+	freshSnapshot := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392740","checksum":0,"prevSeqId":-1,"seqId":50}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, freshSnapshot), "wsProcessOrderBooks must load a fresh snapshot after recovery")
+	validUpdate := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[["100","2","0","1"]],"ts":"1659792392840","checksum":0,"prevSeqId":50,"seqId":51}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, validUpdate), "wsProcessOrderBooks must process updates after recovery")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+		require.NoErrorf(t, err, "GetOrderbook must return the recovered %s orderbook", a)
+		assert.Equalf(t, int64(51), book.LastUpdateID, "The recovered %s orderbook should accept subsequent updates", a)
+	}
 
 	bboTracked := new(Exchange)
 	require.NoError(t, testexch.Setup(bboTracked), "BBO test instance Setup must not error")

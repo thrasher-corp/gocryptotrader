@@ -30,7 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -949,41 +948,41 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if err != nil {
 			return err
 		}
-		assets = append(assets, assetType)
+		assets = []asset.Item{assetType}
 	} else {
 		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
 	}
-	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
-		if err != nil {
-			if errors.Is(err, errInvalidOrderbookSequence) {
-				tracked := e.Websocket.GetSubscription(subscription.IgnoringAssetKey{
-					Subscription: &subscription.Subscription{
-						Channel: subscription.OrderbookChannel,
-						Pairs:   currency.Pairs{response.Argument.InstrumentID},
-					},
-				})
-				if tracked == nil {
-					return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, subscription.OrderbookChannel, response.Argument.InstrumentID)
-				}
-				if err := e.Websocket.ResubscribeToChannel(ctx, conn, tracked); err != nil {
-					return err
-				}
-			} else {
-				return err
+		if err == nil {
+			continue
+		}
+		if !errors.Is(err, errInvalidOrderbookSequence) {
+			return err
+		}
+		var tracked subscription.List
+		for _, sub := range conn.Subscriptions().List() {
+			if sub.Channel == subscription.OrderbookChannel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
+				tracked = append(tracked, sub)
 			}
 		}
-	}
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "%s processed orderbook data for pair %s", e.Name, response.Argument.InstrumentID)
+		if len(tracked) == 0 {
+			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, subscription.OrderbookChannel, response.Argument.InstrumentID)
+		}
+		if err := tracked.SetStates(subscription.ResubscribingState); err != nil {
+			return err
+		}
+		if err := e.Websocket.UnsubscribeChannels(ctx, conn, tracked); err != nil {
+			return err
+		}
+		return e.Websocket.SubscribeToChannels(ctx, conn, tracked)
 	}
 	return nil
 }
@@ -1031,8 +1030,8 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 		if data.SequenceID == lastUpdateID && data.PreviousSequenceID < lastUpdateID {
 			continue
 		}
-		// A lower sequence ID that continues from the current sequence is a
-		// documented OKX reset and must be processed rather than discarded.
+		// Continuity is determined by prevSeqId because OKX may reset seqId
+		// to a lower value while continuing from the current sequence.
 		if data.PreviousSequenceID != lastUpdateID {
 			sequenceErr := fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
 			for j := range assets {

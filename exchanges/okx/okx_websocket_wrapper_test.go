@@ -90,7 +90,8 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc, ra
 	}, time.Second, 10*time.Millisecond, "private websocket connection was not ready")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	t.Cleanup(func() {
-		_ = ex.Websocket.Shutdown()
+		require.NoError(t, ex.Websocket.Disable(), "mock websocket manager must disable")
+		require.NoError(t, ex.Websocket.Shutdown(), "mock websocket manager must shut down")
 	})
 	return ex
 }
