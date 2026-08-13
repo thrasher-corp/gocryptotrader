@@ -2528,8 +2528,7 @@ func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p
 	if err != nil {
 		return 0, err
 	}
-	// GateIO returns an empty response for a limit of one despite current stats
-	// being available. Request two rows and select the most recent one below.
+	// Request two rows and select the most recent returned statistic below.
 	stats, err := e.GetFutureStats(ctx, settle, p, time.Time{}, 0, 2)
 	if err != nil {
 		return 0, err

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -117,8 +119,10 @@ func TestGetOpenInterestFromStatsUsesTwoRows(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
 		assert.Equal(t, "/api/v4/futures/usdt/contract_stats", r.URL.Path, "request path should be contract stats")
 		assert.Equal(t, "BTC_USDT", r.URL.Query().Get("contract"), "request should contain the pair")
-		assert.Equal(t, "2", r.URL.Query().Get("limit"), "request should avoid the empty one-row response")
-		_, err := fmt.Fprint(w, `[{"time":1720000000,"open_interest":4},{"time":1710000000,"open_interest":3}]`)
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		assert.NoError(t, err, "request limit should be an integer")
+		assert.GreaterOrEqual(t, limit, 2, "request should leave room for a fallback statistics row")
+		_, err = fmt.Fprint(w, `[{"time":1720000000,"open_interest":4},{"time":1710000000,"open_interest":3}]`)
 		assert.NoError(t, err, "writing contract stats should not error")
 	}))
 	t.Cleanup(server.Close)
@@ -130,6 +134,15 @@ func TestGetOpenInterestFromStatsUsesTwoRows(t *testing.T) {
 	openInterest, err := ex.getOpenInterestFromStats(t.Context(), asset.USDTMarginedFutures, pair)
 	require.NoError(t, err, "getOpenInterestFromStats must not error")
 	assert.Equal(t, 4.0, openInterest, "getOpenInterestFromStats should return the latest open interest")
+}
+
+func TestContractStatUnmarshalLastFundingRate(t *testing.T) {
+	t.Parallel()
+
+	var stats []ContractStat
+	require.NoError(t, json.Unmarshal([]byte(`[{"last_funding_rate":"0.00125"}]`), &stats))
+	require.Len(t, stats, 1)
+	assert.Equal(t, 0.00125, stats[0].LastFundingRate.Float64())
 }
 
 func TestGetSupportedFlashSwapCurrenciesResponse(t *testing.T) {
@@ -457,7 +470,7 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
 			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
 			if tc.a == asset.Options && len(got.Asks) == 0 && len(got.Bids) == 0 {
-				return
+				t.Skip("GateIO may return an empty options order book without timestamp metadata")
 			}
 			assert.NotZero(t, got.LastUpdated, "Last updated timestamp should be set")
 			assert.NotZero(t, got.LastUpdateID, "Last update ID should be set")

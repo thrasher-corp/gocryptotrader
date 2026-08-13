@@ -1675,6 +1675,8 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 }
 
 func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
+	t.Parallel()
+
 	if _, err := e.GetSupportedFlashSwapCurrencies(t.Context()); err != nil {
 		if strings.Contains(err.Error(), `status "429`) {
 			t.Skipf("%s GetSupportedFlashSwapCurrencies() rate limited: %v", e.Name, err)
@@ -3633,14 +3635,24 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 
 func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futures.OpenInterest) {
 	t.Helper()
+	var lastErr error
+	var receivedResponse bool
 	for _, pair := range getPairs(t, a) {
 		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
 		response, err := e.GetOpenInterest(t.Context(), pairAsset)
-		if err == nil && len(response) == 1 && response[0].OpenInterest > 0 {
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		receivedResponse = true
+		if len(response) == 1 && response[0].OpenInterest > 0 {
 			return pairAsset, response
 		}
 	}
-	t.Fatalf("GetOpenInterest must find a live pair for %s asset", a)
+	if !receivedResponse && lastErr != nil {
+		t.Fatalf("GetOpenInterest must find a live pair for %s asset: last request error: %v", a, lastErr)
+	}
+	t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset", a)
 	return key.PairAsset{}, nil
 }
 
