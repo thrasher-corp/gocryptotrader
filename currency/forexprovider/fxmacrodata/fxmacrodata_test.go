@@ -2,10 +2,8 @@ package fxmacrodata
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -23,7 +21,7 @@ func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData,
 	err := provider.Setup(base.Settings{
 		Name:            "FXMacroData",
 		Enabled:         true,
-		APIKey:          "test-key",
+		APIKey:          "placeholder",
 		PrimaryProvider: true,
 	})
 	if err != nil {
@@ -40,7 +38,7 @@ func TestGetRates(t *testing.T) {
 	var requestCount atomic.Int64
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount.Add(1)
-		if r.Header.Get("X-API-Key") != "test-key" {
+		if r.Header.Get("X-API-Key") != "placeholder" {
 			t.Errorf("expected X-API-Key header auth")
 			http.Error(w, "missing API key", http.StatusUnauthorized)
 			return
@@ -138,7 +136,7 @@ func TestGetRatesUnsupportedTargetsOnly(t *testing.T) {
 func TestGetRatesPropagatesLatestRateError(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v1/forex/usd/aud", r.URL.Path, "GetRates should request the expected FX pair")
-		_, _ = w.Write([]byte(`{"data":[]}`))
+		_, _ = w.Write([]byte(`{"inflation":{"name":"Inflation (CPI)","unit":"%YoY","frequency":"Monthly","source":"BLS"}}`))
 	}))
 	defer closeServer()
 
@@ -181,124 +179,25 @@ func TestGetLatestForexRateHTTPError(t *testing.T) {
 	assert.Zero(t, rate, "rate should be zero when the request fails")
 }
 
-func TestServiceStatusEndpoints(t *testing.T) {
+func TestPing(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("X-API-Key"), "public status requests should not include an API key")
-		switch r.URL.Path {
-		case "/api/v1/health", "/api/v1/ping":
-			_, _ = w.Write([]byte(`{"status":"ok","service":"fxmacrodata-api"}`))
-		default:
-			t.Errorf("unexpected path %s", r.URL.Path)
-			http.NotFound(w, r)
-		}
+		assert.Equal(t, "/api/v1/ping", r.URL.Path, "Ping should use the documented endpoint")
+		_, _ = w.Write([]byte(`{"status":"ok","service":"fxmacrodata-api"}`))
 	}))
 	defer closeServer()
 
-	health, err := provider.Health(context.Background())
-	require.NoError(t, err, "Health must not error")
-	assert.Equal(t, "ok", health.Status, "Health should decode the service status")
-
-	ping, err := provider.Ping(context.Background())
+	ping, err := provider.Ping(t.Context())
 	require.NoError(t, err, "Ping must not error")
+	assert.Equal(t, "ok", ping.Status, "Ping should decode the status")
 	assert.Equal(t, "fxmacrodata-api", ping.Service, "Ping should decode the service name")
-}
-
-func TestReadEndpointHelpers(t *testing.T) {
-	seen := make([]string, 0)
-	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen = append(seen, r.URL.Path)
-		_, _ = w.Write([]byte(`{"data":[]}`))
-	}))
-	defer closeServer()
-
-	values := url.Values{"limit": []string{"1"}}
-	ctx := context.Background()
-	helpers := []struct {
-		name string
-		fn   func() error
-	}{
-		{"DataCatalogue", func() error { _, err := provider.DataCatalogue(ctx, "usd"); return err }},
-		{"Announcements", func() error { _, err := provider.Announcements(ctx, "usd", "cpi", values); return err }},
-		{"LatestAnnouncements", func() error { _, err := provider.LatestAnnouncements(ctx, "usd", values); return err }},
-		{"AnnouncementChanges", func() error { _, err := provider.AnnouncementChanges(ctx, values); return err }},
-		{"Calendar", func() error { _, err := provider.Calendar(ctx, "usd", values); return err }},
-		{"Predictions", func() error { _, err := provider.Predictions(ctx, "usd", "cpi", values); return err }},
-		{"COT", func() error { _, err := provider.COT(ctx, "jpy", values); return err }},
-		{"Commodity", func() error { _, err := provider.Commodity(ctx, "brent", values); return err }},
-		{"CommoditiesLatest", func() error { _, err := provider.CommoditiesLatest(ctx, values); return err }},
-		{"Curves", func() error { _, err := provider.Curves(ctx, "usd", values); return err }},
-		{"CurveProxies", func() error { _, err := provider.CurveProxies(ctx, "usd", values); return err }},
-		{"ForwardCurves", func() error { _, err := provider.ForwardCurves(ctx, "usd", values); return err }},
-		{"RateDifferentials", func() error { _, err := provider.RateDifferentials(ctx, "eur", "usd", values); return err }},
-		{"ForwardDifferentials", func() error { _, err := provider.ForwardDifferentials(ctx, "eur", "usd", values); return err }},
-		{"MarketSessions", func() error { _, err := provider.MarketSessions(ctx, values); return err }},
-		{"RiskSentiment", func() error { _, err := provider.RiskSentiment(ctx, values); return err }},
-		{"News", func() error { _, err := provider.News(ctx, "usd", values); return err }},
-		{"PressReleases", func() error { _, err := provider.PressReleases(ctx, "usd", values); return err }},
-	}
-	for _, tc := range helpers {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.fn()
-			require.NoErrorf(t, err, "%s must not error", tc.name)
-		})
-	}
-
-	expected := []string{
-		"/api/v1/data_catalogue/usd",
-		"/api/v1/announcements/usd/cpi",
-		"/api/v1/announcements/usd/latest",
-		"/api/v1/announcements/changes",
-		"/api/v1/calendar/usd",
-		"/api/v1/predictions/usd/cpi",
-		"/api/v1/cot/jpy",
-		"/api/v1/commodities/brent",
-		"/api/v1/commodities/latest",
-		"/api/v1/curves/usd",
-		"/api/v1/curve_proxies/usd",
-		"/api/v1/forward_curves/usd",
-		"/api/v1/rate_differentials/eur/usd",
-		"/api/v1/forward_differentials/eur/usd",
-		"/api/v1/market_sessions",
-		"/api/v1/risk_sentiment",
-		"/api/v1/news/usd",
-		"/api/v1/press-releases/usd",
-	}
-	require.Len(t, seen, len(expected), "seen requests must match expected request count")
-	for i := range expected {
-		assert.Equal(t, expected[i], seen[i], "request path should match expected order")
-	}
-	assert.Empty(t, values.Get("api_key"), "request helpers should not mutate caller query values")
-}
-
-func TestGraphQL(t *testing.T) {
-	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method, "GraphQL should use POST")
-		assert.Equal(t, "/api/v1/graphql", r.URL.Path, "GraphQL should use graphql endpoint")
-		assert.Equal(t, "test-key", r.Header.Get("X-API-Key"), "GraphQL should pass header auth")
-		assert.Empty(t, r.URL.Query().Get("api_key"), "GraphQL should not pass query auth")
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "GraphQL should send JSON content type")
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Errorf("request body must be readable: %v", err)
-			http.Error(w, "body read failed", http.StatusBadRequest)
-			return
-		}
-		assert.JSONEq(t, `{"query":"{ viewer }"}`, string(body), "GraphQL should forward JSON payload")
-		_, _ = w.Write([]byte(`{"ok":true}`))
-	}))
-	defer closeServer()
-
-	var result map[string]bool
-	err := provider.GraphQL(context.Background(), `{"query":"{ viewer }"}`, &result)
-	require.NoError(t, err, "GraphQL must not error")
-	assert.True(t, result["ok"], "GraphQL should decode response")
 }
 
 func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("X-API-Key"), "public requests should not include an API key")
 		assert.Equal(t, "/api/v1/data_catalogue/usd", r.URL.Path, "public request should use the requested endpoint")
-		_, _ = w.Write([]byte(`{"data":[]}`))
+		_, _ = w.Write([]byte(`{"inflation":{"name":"Inflation (CPI)","unit":"%YoY","frequency":"Monthly","source":"BLS"}}`))
 	}))
 	defer server.Close()
 
@@ -321,9 +220,9 @@ func TestPublicEndpointsLive(t *testing.T) {
 	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}),
 		"Setup must configure the public endpoint client")
 
-	health, err := provider.Health(t.Context())
-	require.NoError(t, err, "Health must not error")
-	assert.NotEmpty(t, health.Status, "Health should return a status")
+	ping, err := provider.Ping(t.Context())
+	require.NoError(t, err, "Ping must not error")
+	assert.NotEmpty(t, ping.Status, "Ping should return a status")
 
 	catalogue, err := provider.DataCatalogue(t.Context(), "usd")
 	require.NoError(t, err, "DataCatalogue must not error")
@@ -357,48 +256,4 @@ func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {
 
 	_, err := provider.GetLatestForexRate(context.Background(), "USD", "AUD")
 	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "forex requests should require a configured API key")
-
-	err = provider.GraphQL(context.Background(), `{"query":"{ viewer }"}`, new(map[string]bool))
-	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "GraphQL requests should require a configured API key")
-}
-
-func TestTypedEndpointResponses(t *testing.T) {
-	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/market_sessions":
-			assert.Empty(t, r.Header.Get("X-API-Key"), "public market-session requests should not include an API key")
-			_, _ = w.Write([]byte(`{"now_utc":"2026-07-20T00:00:00Z","now_unix":1784505600,"is_market_day":true,"sessions":[{"name":"London","currencies":["GBP","EUR"],"is_open":true}],"overlaps":[{"name":"London / New York","sessions":["London","New York"],"duration_hours":4}]}`))
-		case "/api/v1/risk_sentiment":
-			assert.Empty(t, r.Header.Get("X-API-Key"), "public risk-sentiment requests should not include an API key")
-			_, _ = w.Write([]byte(`{"start_date":"2026-07-01","end_date":"2026-07-20","data_quality":{},"component_metadata":{"aliases":{"score":"alias for val"}},"pagination":{"limit":1,"offset":0,"returned_count":1,"total_count":1,"has_more":false,"next_offset":null},"data":[{"components":{"ofr_fsi":0.5},"val":0.5,"date":"2026-07-20","regime":"risk_on","component_coverage":{"ofr_fsi":true}}]}`))
-		case "/api/v1/news/usd", "/api/v1/press-releases/usd":
-			assert.Equal(t, "test-key", r.Header.Get("X-API-Key"), "configured API key should be sent to currency-scoped requests")
-			_, _ = w.Write([]byte(`{"currency":"USD","source":"Federal Reserve","source_url":"https://www.federalreserve.gov","limit":1,"offset":0,"count":1,"pagination":{"limit":1,"offset":0,"returned_count":1,"total_count":1,"has_more":false,"next_offset":null},"data":[{"title":"Policy statement","url":"https://example.test/release","date":"2026-07-20","summary":"Held rates","sentiment":0,"topics":["policy"],"category":"monetary_policy","relevance":0.9,"rate_path":{"score":0,"label":"Neutral","bias_action":"hold","confidence":"low","raw_score":0,"matches":[{"phrase":"held rates","weight":0}]}}]}`))
-		default:
-			t.Errorf("unexpected path %s", r.URL.Path)
-			http.NotFound(w, r)
-		}
-	}))
-	defer closeServer()
-
-	ctx := context.Background()
-	sessions, err := provider.MarketSessions(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, "London", sessions.Sessions[0].Name)
-	assert.Equal(t, "London / New York", sessions.Overlaps[0].Name)
-
-	risk, err := provider.RiskSentiment(ctx, url.Values{"limit": []string{"1"}})
-	require.NoError(t, err)
-	assert.Equal(t, 0.5, risk.Data[0].Components["ofr_fsi"])
-	assert.Equal(t, "alias for val", risk.ComponentMetadata.Aliases["score"])
-
-	news, err := provider.News(ctx, "USD", nil)
-	require.NoError(t, err)
-	assert.Equal(t, "Policy statement", news.Data[0].Title)
-	assert.Equal(t, "hold", news.Data[0].RatePath.BiasAction)
-
-	pressReleases, err := provider.PressReleases(ctx, "USD", nil)
-	require.NoError(t, err)
-	assert.Equal(t, 1, pressReleases.Count)
-	assert.Equal(t, "policy", pressReleases.Data[0].Topics[0])
 }
