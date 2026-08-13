@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -124,31 +123,26 @@ func (f *FXMacroData) getLatestForexRates(ctx context.Context, baseCurrency stri
 	return standardisedRates, nil
 }
 
-// GetLatestForexRate returns the latest available FXMacroData rate for a pair.
-func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quoteCurrency string) (float64, error) {
-	var resp forexResponse
-	values := url.Values{}
-	values.Set("limit", "1")
-	err := f.sendHTTPAuthRequest(ctx,
+// Forex returns historical FX observations for a pair.
+func (f *FXMacroData) Forex(ctx context.Context, baseCurrency, quoteCurrency string, values url.Values) (*ForexResponse, error) {
+	response := new(ForexResponse)
+	return response, f.sendHTTPAuthRequest(ctx,
 		"forex/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency),
 		values,
-		nil,
-		http.MethodGet,
-		&resp,
+		response,
 	)
+}
+
+// GetLatestForexRate returns the latest available FXMacroData rate for a pair.
+func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quoteCurrency string) (float64, error) {
+	response, err := f.Forex(ctx, baseCurrency, quoteCurrency, url.Values{"limit": {"1"}})
 	if err != nil {
 		return 0, err
 	}
-	if len(resp.Data) == 0 {
+	if len(response.Data) == 0 || response.Data[0].Val == nil {
 		return 0, fmt.Errorf("no FXMacroData rate returned for %s/%s", baseCurrency, quoteCurrency)
 	}
-	return resp.Data[0].Val, nil
-}
-
-// Health returns the public FXMacroData service health status.
-func (f *FXMacroData) Health(ctx context.Context) (*ServiceStatusResponse, error) {
-	response := new(ServiceStatusResponse)
-	return response, f.sendHTTPPublicRequest(ctx, "health", nil, response)
+	return *response.Data[0].Val, nil
 }
 
 // Ping returns the public FXMacroData service liveness status.
@@ -170,15 +164,15 @@ func (f *FXMacroData) Announcements(ctx context.Context, currency, indicator str
 }
 
 // LatestAnnouncements returns latest announcements for a currency.
-func (f *FXMacroData) LatestAnnouncements(ctx context.Context, currency string, values url.Values) (*AnnouncementResponse, error) {
-	response := new(AnnouncementResponse)
+func (f *FXMacroData) LatestAnnouncements(ctx context.Context, currency string, values url.Values) (*LatestAnnouncementsResponse, error) {
+	response := new(LatestAnnouncementsResponse)
 	return response, f.sendCurrencyScopedRequest(ctx, currency, "announcements/"+strings.ToLower(currency)+"/latest", values, response)
 }
 
 // AnnouncementChanges returns recently changed announcement rows.
 func (f *FXMacroData) AnnouncementChanges(ctx context.Context, values url.Values) (*AnnouncementChangesResponse, error) {
 	response := new(AnnouncementChangesResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "announcements/changes", values, nil, http.MethodGet, response)
+	return response, f.sendHTTPAuthRequest(ctx, "announcements/changes", values, response)
 }
 
 // Calendar returns the release calendar for a currency.
@@ -202,43 +196,49 @@ func (f *FXMacroData) COT(ctx context.Context, currency string, values url.Value
 // Commodity returns a commodity time series.
 func (f *FXMacroData) Commodity(ctx context.Context, indicator string, values url.Values) (*CommodityResponse, error) {
 	response := new(CommodityResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "commodities/"+indicator, values, nil, http.MethodGet, response)
+	return response, f.sendHTTPAuthRequest(ctx, "commodities/"+indicator, values, response)
 }
 
 // CommoditiesLatest returns latest commodity points.
-func (f *FXMacroData) CommoditiesLatest(ctx context.Context, values url.Values) (*CommodityResponse, error) {
-	response := new(CommodityResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "commodities/latest", values, nil, http.MethodGet, response)
+func (f *FXMacroData) CommoditiesLatest(ctx context.Context, values url.Values) (*CommoditiesLatestResponse, error) {
+	response := new(CommoditiesLatestResponse)
+	return response, f.sendHTTPAuthRequest(ctx, "commodities/latest", values, response)
 }
 
 // Curves returns yield curve data for a currency.
-func (f *FXMacroData) Curves(ctx context.Context, currency string, values url.Values) (*CurveSnapshotResponse, error) {
-	response := new(CurveSnapshotResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "curves/"+strings.ToLower(currency), values, nil, http.MethodGet, response)
+func (f *FXMacroData) Curves(ctx context.Context, currency string, values url.Values) (*CurveAnalyticsResponse, error) {
+	response := new(CurveAnalyticsResponse)
+	return response, f.sendHTTPAuthRequest(ctx, "curves/"+strings.ToLower(currency), values, response)
 }
 
-// CurveProxies returns curve proxy data for a currency.
-func (f *FXMacroData) CurveProxies(ctx context.Context, currency string, values url.Values) (*CurveProxyResponse, error) {
-	response := new(CurveProxyResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "curve_proxies/"+strings.ToLower(currency), values, nil, http.MethodGet, response)
-}
-
-// ForwardCurves returns forward curve data for a currency.
-func (f *FXMacroData) ForwardCurves(ctx context.Context, currency string, values url.Values) (*ForwardCurveResponse, error) {
-	response := new(ForwardCurveResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "forward_curves/"+strings.ToLower(currency), values, nil, http.MethodGet, response)
+// Factor returns one precomputed currency factor.
+func (f *FXMacroData) Factor(ctx context.Context, currency, factor string, values url.Values) (*FactorResponse, error) {
+	response := new(FactorResponse)
+	return response, f.sendHTTPAuthRequest(ctx, "factors/"+strings.ToLower(currency)+"/"+factor, values, response)
 }
 
 // RateDifferentials returns rate differentials for a pair.
 func (f *FXMacroData) RateDifferentials(ctx context.Context, baseCurrency, quoteCurrency string, values url.Values) (*RateDifferentialResponse, error) {
 	response := new(RateDifferentialResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "rate_differentials/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency), values, nil, http.MethodGet, response)
+	return response, f.sendHTTPAuthRequest(ctx, "rate_differentials/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency), values, response)
 }
 
-// ForwardDifferentials returns forward differentials for a pair.
-func (f *FXMacroData) ForwardDifferentials(ctx context.Context, baseCurrency, quoteCurrency string, values url.Values) (*ForwardDifferentialResponse, error) {
-	response := new(ForwardDifferentialResponse)
-	return response, f.sendHTTPAuthRequest(ctx, "forward_differentials/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency), values, nil, http.MethodGet, response)
+// IntradayReferenceRates returns subscriber intraday reference-rate observations.
+func (f *FXMacroData) IntradayReferenceRates(ctx context.Context, baseCurrency, quoteCurrency string, values url.Values) (*FxIntradayReferenceRatesResponse, error) {
+	response := new(FxIntradayReferenceRatesResponse)
+	return response, f.sendHTTPAuthRequest(ctx, "fx/intraday-reference-rates/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency), values, response)
+}
+
+// FXSources returns public metadata for supported FX reference-rate sources.
+func (f *FXMacroData) FXSources(ctx context.Context, values url.Values) (*FxSourcesResponse, error) {
+	response := new(FxSourcesResponse)
+	return response, f.sendHTTPPublicRequest(ctx, "fx/sources", values, response)
+}
+
+// FXSourceUniverse returns the pair universe available from public FX sources.
+func (f *FXMacroData) FXSourceUniverse(ctx context.Context, values url.Values) (*FxSourceUniverseResponse, error) {
+	response := new(FxSourceUniverseResponse)
+	return response, f.sendHTTPPublicRequest(ctx, "fx/source-universe", values, response)
 }
 
 // MarketSessions returns FX market-session state.
@@ -253,44 +253,33 @@ func (f *FXMacroData) RiskSentiment(ctx context.Context, values url.Values) (*Ri
 	return response, f.sendHTTPPublicRequest(ctx, "risk_sentiment", values, response)
 }
 
-// News returns macro news for a currency.
-func (f *FXMacroData) News(ctx context.Context, currency string, values url.Values) (*NewsResponse, error) {
-	response := new(NewsResponse)
-	return response, f.sendCurrencyScopedRequest(ctx, currency, "news/"+strings.ToLower(currency), values, response)
-}
-
 // PressReleases returns central-bank and official press releases.
 func (f *FXMacroData) PressReleases(ctx context.Context, currency string, values url.Values) (*PressReleasesResponse, error) {
 	response := new(PressReleasesResponse)
 	return response, f.sendCurrencyScopedRequest(ctx, currency, "press-releases/"+strings.ToLower(currency), values, response)
 }
 
-// GraphQL executes an FXMacroData GraphQL request and honours ctx.
-func (f *FXMacroData) GraphQL(ctx context.Context, payload string, result any) error {
-	return f.sendHTTPAuthRequest(ctx, "graphql", nil, strings.NewReader(payload), http.MethodPost, result)
-}
-
 func (f *FXMacroData) sendCurrencyScopedRequest(ctx context.Context, currency, endpoint string, values url.Values, result any) error {
 	if strings.EqualFold(currency, "USD") && f.APIKey == "" {
 		return f.sendHTTPPublicRequest(ctx, endpoint, values, result)
 	}
-	return f.sendHTTPAuthRequest(ctx, endpoint, values, nil, http.MethodGet, result)
+	return f.sendHTTPAuthRequest(ctx, endpoint, values, result)
 }
 
 // sendHTTPAuthRequest sends an API-key authenticated FXMacroData request.
-func (f *FXMacroData) sendHTTPAuthRequest(ctx context.Context, endpoint string, values url.Values, body io.Reader, method string, result any) error {
+func (f *FXMacroData) sendHTTPAuthRequest(ctx context.Context, endpoint string, values url.Values, result any) error {
 	if f.APIKey == "" {
 		return errAPIKeyNotConfigured
 	}
-	return f.send(ctx, endpoint, values, body, method, result, request.AuthenticatedRequest)
+	return f.send(ctx, endpoint, values, result, request.AuthenticatedRequest)
 }
 
 // sendHTTPPublicRequest sends an unauthenticated FXMacroData request.
 func (f *FXMacroData) sendHTTPPublicRequest(ctx context.Context, endpoint string, values url.Values, result any) error {
-	return f.send(ctx, endpoint, values, nil, http.MethodGet, result, request.UnauthenticatedRequest)
+	return f.send(ctx, endpoint, values, result, request.UnauthenticatedRequest)
 }
 
-func (f *FXMacroData) send(ctx context.Context, endpoint string, values url.Values, body io.Reader, method string, result any, auth request.AuthType) error {
+func (f *FXMacroData) send(ctx context.Context, endpoint string, values url.Values, result any, auth request.AuthType) error {
 	query := make(url.Values, len(values))
 	for k, v := range values {
 		query[k] = append([]string(nil), v...)
@@ -304,15 +293,10 @@ func (f *FXMacroData) send(ctx context.Context, endpoint string, values url.Valu
 	if auth == request.AuthenticatedRequest {
 		headers["X-API-Key"] = f.APIKey
 	}
-	if method == http.MethodPost {
-		headers["Content-Type"] = "application/json"
-	}
-
 	item := &request.Item{
-		Method:  method,
+		Method:  http.MethodGet,
 		Path:    path,
 		Headers: headers,
-		Body:    body,
 		Result:  result,
 		Verbose: f.Verbose,
 	}
