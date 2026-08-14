@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -29,6 +30,8 @@ type Exchange struct {
 	exchange.Base
 	jwt         jwtManager
 	pairAliases pairAliases
+	wsSeqState  map[websocket.Connection]uint64
+	wsSeqMu     sync.Mutex
 }
 
 // Version is used for the niche cases where the Version of the API must be specified and passed around for proper functionality

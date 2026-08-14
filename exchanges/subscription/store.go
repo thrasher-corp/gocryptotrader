@@ -129,6 +129,42 @@ func (s *Store) Remove(key any) error {
 	return ErrNotFound
 }
 
+// UpdateKeyAndState replaces a stored subscription's key and state while
+// holding the store lock.
+func (s *Store) UpdateKeyAndState(sub *Subscription, key any, state State) error {
+	if s == nil {
+		return fmt.Errorf("%w: UpdateKeyAndState called on nil Store", common.ErrNilPointer)
+	}
+	if s.m == nil {
+		return fmt.Errorf("%w: UpdateKeyAndState called on an uninitialised Store", common.ErrNilPointer)
+	}
+	if sub == nil {
+		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
+	}
+	if key == nil {
+		return fmt.Errorf("%w: key param", common.ErrNilPointer)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	oldKey := sub.EnsureKeyed()
+	found := s.get(oldKey)
+	if found == nil {
+		return ErrNotFound
+	}
+	if existing := s.m[key]; existing != nil && existing != found {
+		return fmt.Errorf("%w: %s", ErrDuplicate, sub)
+	}
+	if err := sub.SetState(state); err != nil {
+		return err
+	}
+	delete(s.m, found.Key)
+	sub.SetKey(key)
+	s.m[key] = sub
+	return nil
+}
+
 // List returns a slice of Subscriptions pointers
 func (s *Store) List() List {
 	if s == nil || s.m == nil {
