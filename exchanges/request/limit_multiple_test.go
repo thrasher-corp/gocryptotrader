@@ -41,6 +41,28 @@ func TestRateLimiterWithWeightApplyMultipleRateLimits(t *testing.T) {
 		})
 	})
 
+	t.Run("non-binding limiter remains spaced from transmission", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			slow := NewRateLimitWithWeight(time.Second, 1, 1)
+			nonBinding := NewRateLimitWithWeight(time.Second, 1, 1)
+			endpoint := NewRateLimitWithWeight(0, 0, 1)
+			require.NoError(t, slow.RateLimit(t.Context()), "initial slow reservation must not error")
+
+			start := time.Now()
+			require.NoError(t, endpoint.applyMultipleRateLimits(t.Context(), 0, []AdditionalRateLimit{
+				{Limiter: slow, Scope: "slow"},
+				{Limiter: nonBinding, Scope: "non-binding"},
+			}), "coordinated reservation must not error")
+			assert.Equal(t, time.Second, time.Since(start), "request should wait for the binding limiter")
+
+			start = time.Now()
+			require.NoError(t, nonBinding.RateLimit(t.Context()), "subsequent reservation must not error")
+			assert.Equal(t, time.Second, time.Since(start), "non-binding limiter should remain spaced from transmission")
+		})
+	})
+
 	t.Run("delay not allowed", func(t *testing.T) {
 		t.Parallel()
 

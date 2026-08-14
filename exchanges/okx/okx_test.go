@@ -3719,6 +3719,76 @@ func TestSubmitOrder(t *testing.T) {
 		require.Equal(t, "submit-order", quoteAmountResult.OrderID, "SubmitOrder must return the websocket order ID")
 	})
 
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+	}{
+		{name: "trigger", orderType: order.Trigger},
+		{name: "conditional", orderType: order.ConditionalStop},
+		{name: "chase", orderType: order.Chase},
+		{name: "trailing stop", orderType: order.TrailingStop},
+		{name: "TWAP", orderType: order.TWAP},
+		{name: "OCO", orderType: order.OCO},
+	} {
+		t.Run("algorithmic "+tc.name+" arguments", func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan AlgoOrderParams, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var got AlgoOrderParams
+				if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				requests <- got
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"algoId":"algo-order","sCode":"0","sMsg":""}]}`))
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+			algoResult, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:         ex.Name,
+				Pair:             mainPair,
+				AssetType:        asset.Futures,
+				Side:             order.Long,
+				Type:             tc.orderType,
+				Amount:           1,
+				Price:            1,
+				TriggerPrice:     10,
+				TriggerPriceType: order.LastPrice,
+				TrackingMode:     order.Percentage,
+				TrackingValue:    0.5,
+				MarginType:       margin.Multi,
+				ReduceOnly:       true,
+				RiskManagementModes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 12, LimitPrice: 13},
+					StopLoss:   order.RiskManagement{Price: 9, LimitPrice: 8},
+				},
+			})
+			require.NoError(t, err, "SubmitOrder must not error for algorithmic order")
+			assert.Equal(t, "algo-order", algoResult.OrderID, "SubmitOrder should return the algorithmic order ID")
+			got := <-requests
+			assert.Equal(t, order.Sell.Lower(), got.Side, "reduce-only long should use the closing side")
+			assert.Equal(t, positionSideLong, got.PositionSide, "hedge-mode position side should remain long")
+			assert.False(t, got.ReduceOnly, "hedge-mode order should omit reduceOnly")
+			if tc.orderType == order.OCO {
+				assert.Equal(t, 9.0, got.StopLossTriggerPrice.Float64(), "stop-loss trigger should use the stop-loss price")
+				assert.Equal(t, 8.0, got.StopLossOrderPrice.Float64(), "stop-loss order should use the stop-loss limit price")
+			}
+		})
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{
 		Pair: currency.Pair{
@@ -4013,6 +4083,70 @@ func TestCancelAllOrders(t *testing.T) {
 		})
 	}
 
+	for _, tc := range []struct {
+		name      string
+		assetType asset.Item
+	}{
+		{name: "asset type unset", assetType: asset.Empty},
+		{name: "instrument code unavailable", assetType: asset.Spot},
+	} {
+		t.Run("REST fallback when "+tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			restCancellation := make(chan []CancelOrderRequestParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v5/trade/orders-pending":
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"BTC-USDT","ordId":"1","side":"buy"},{"instId":"ETH-USDT","ordId":"2","side":"sell"}]}`))
+				case "/api/v5/trade/cancel-batch-orders":
+					body, readErr := io.ReadAll(r.Body)
+					if readErr != nil {
+						http.Error(w, readErr.Error(), http.StatusInternalServerError)
+						return
+					}
+					var got []CancelOrderRequestParam
+					if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+						http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+						return
+					}
+					restCancellation <- got
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1","sCode":"0","sMsg":""},{"ordId":"2","sCode":"0","sMsg":""}]}`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+			if tc.assetType == asset.Spot {
+				ex.instrumentsInfoMapLock.Lock()
+				ex.instrumentsInfoMap[instTypeSpot] = []Instrument{{
+					InstrumentID:     mainPair,
+					InstrumentIDCode: types.Number(123),
+				}}
+				ex.instrumentsInfoMapLock.Unlock()
+			}
+
+			result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: tc.assetType, Pair: mainPair})
+			require.NoError(t, err, "CancelAllOrders must fall back to REST")
+			assert.Equal(t, order.Cancelled.String(), result.Status["1"], "REST cancellation should be returned")
+			assert.Equal(t, order.Cancelled.String(), result.Status["2"], "REST cancellation should be returned")
+			select {
+			case got := <-restCancellation:
+				require.Len(t, got, 2, "REST cancellation must contain all pending orders")
+				for i := range got {
+					assert.Zero(t, got[i].InstrumentIDCode, "REST cancellation should not include websocket instrument codes")
+				}
+			default:
+				require.Fail(t, "CancelAllOrders must use REST when websocket prerequisites are incomplete")
+			}
+		})
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
 	assert.NoError(t, err)
@@ -4085,6 +4219,102 @@ func TestModifyOrder(t *testing.T) {
 		require.NoError(t, err, "ModifyOrder must allow a fractional spot amount")
 		require.NotNil(t, resp, "ModifyOrder must return a response")
 	})
+
+	t.Run("fractional spread amount", func(t *testing.T) {
+		t.Parallel()
+
+		requests := make(chan AmendSpreadOrderParam, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				http.Error(w, readErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			var got AmendSpreadOrderParam
+			if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+				http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+				return
+			}
+			requests <- got
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1234","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			AssetType: asset.Spread,
+			Pair:      spreadPair,
+			OrderID:   "1234",
+			Amount:    0.0001,
+		})
+		require.NoError(t, err, "ModifyOrder must allow a fractional spread amount")
+		require.NotNil(t, resp, "ModifyOrder must return a response")
+		assert.Equal(t, 0.0001, (<-requests).NewSize.Float64(), "spread amendment should preserve the fractional amount")
+	})
+
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+	}{
+		{name: "trigger attachment", orderType: order.Trigger},
+		{name: "OCO", orderType: order.OCO},
+	} {
+		t.Run(tc.name+" stop-loss order price", func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan AmendAlgoOrderParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var got AmendAlgoOrderParam
+				if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				requests <- got
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"algoId":"1234","sCode":"0","sMsg":""}]}`))
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+			_, err := ex.ModifyOrder(t.Context(), &order.Modify{
+				AssetType:    asset.Futures,
+				Pair:         mainPair,
+				OrderID:      "1234",
+				Amount:       1,
+				Price:        1,
+				TriggerPrice: 10,
+				Type:         tc.orderType,
+				RiskManagementModes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 12, LimitPrice: 13},
+					StopLoss:   order.RiskManagement{Price: 9, LimitPrice: 8},
+				},
+			})
+			require.NoError(t, err, "ModifyOrder must not error")
+			got := <-requests
+			if tc.orderType == order.Trigger {
+				require.Len(t, got.AttachAlgoOrders, 1, "trigger amendment must include its attached order")
+				assert.Equal(t, 8.0, got.AttachAlgoOrders[0].NewStopLossOrderPrice.Float64(), "attached stop-loss order should use the limit price")
+				return
+			}
+			assert.Equal(t, 8.0, got.NewStopLossOrderPrice.Float64(), "stop-loss order should use the limit price")
+		})
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Modify{
@@ -4452,6 +4682,7 @@ func TestWsProcessOrderBooks(t *testing.T) {
 
 	tracked := new(Exchange)
 	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+	tracked.ValidateOrderbook = true
 	conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
 	require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
 	subs := subscription.List{
@@ -4504,6 +4735,16 @@ func TestWsProcessOrderBooks(t *testing.T) {
 		require.NoErrorf(t, err, "GetOrderbook must return the recovered %s orderbook", a)
 		assert.Equalf(t, int64(51), book.LastUpdateID, "The recovered %s orderbook should accept subsequent updates", a)
 	}
+
+	invalidUpdate := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[["0","1","0","1"]],"ts":"1659792392940","checksum":0,"prevSeqId":51,"seqId":52}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, invalidUpdate), "wsProcessOrderBooks must recover from an integrity failure")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "An integrity failure must invalidate the mapped %s orderbook", a)
+	}
+	require.Len(t, conn.requests, 4, "Integrity recovery must send another unsubscribe and subscribe request")
+	assert.Equal(t, operationUnsubscribe, conn.requests[2].Operation, "Integrity recovery should unsubscribe first")
+	assert.Equal(t, operationSubscribe, conn.requests[3].Operation, "Integrity recovery should resubscribe second")
 
 	bboTracked := new(Exchange)
 	require.NoError(t, testexch.Setup(bboTracked), "BBO test instance Setup must not error")
@@ -4607,7 +4848,7 @@ var pushDataMap = map[string]string{
 	"Test Snapshot Orderbook":               `{"arg": {"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`,
 	"Options Trades":                        `{"arg": {"channel": "option-trades", "instType": "OPTION", "instFamily": "BTC-USD" }, "data": [ { "fillVol": "0.5066007836914062", "fwdPx": "16469.69928595038", "idxPx": "16537.2", "instFamily": "BTC-USD", "instId": "BTC-USD-230224-18000-C", "markPx": "0.04690107010619562", "optType": "C", "px": "0.045", "side": "sell", "sz": "2", "tradeId": "38", "ts": "1672286551080" } ] }`,
 	"Public Block Trades":                   `{"arg": {"channel":"public-block-trades", "instId":"BTC-USD-231020-5000-P" }, "data":[ { "fillVol":"5", "fwdPx":"26808.16", "idxPx":"27222.5", "instId":"BTC-USD-231020-5000-P", "markPx":"0.0022406326071111", "px":"0.0048", "side":"buy", "sz":"1", "tradeId":"633971452580106242", "ts":"1697422572972"}]}`,
-	"Option Summary":                        `{"arg": {"channel": "opt-summary","uly": "BTC-USD"},"data": [{"instType": "OPTION","instId": "BTC-USD-200103-5500-C","uly": "BTC-USD","delta": "0.7494223636","gamma": "-0.6765419039","theta": "-0.0000809873","vega": "0.0000077307","deltaBS": "0.7494223636","gammaBS": "-0.6765419039","thetaBS": "-0.0000809873","vegaBS": "0.0000077307","realVol": "0","bidVol": "","askVol": "1.5625","markVol": "0.9987","lever": "4.0342","fwdPx": "39016.8143629068452065","ts": "1597026383085"}]}`,
+	"Option Summary":                        `{"arg": {"channel": "opt-summary","instFamily": "BTC-USD"},"data": [{"instType": "OPTION","instId": "BTC-USD-200103-5500-C","uly": "BTC-USD","delta": "0.7494223636","gamma": "-0.6765419039","theta": "-0.0000809873","vega": "0.0000077307","deltaBS": "0.7494223636","gammaBS": "-0.6765419039","thetaBS": "-0.0000809873","vegaBS": "0.0000077307","realVol": "0","bidVol": "","askVol": "1.5625","markVol": "0.9987","lever": "4.0342","fwdPx": "39016.8143629068452065","ts": "1597026383085"}]}`,
 	"Funding Rate":                          `{"arg": {"channel": "funding-rate","instId": "BTC-USD-SWAP"},"data": [{"instType": "SWAP","instId": "BTC-USD-SWAP","fundingRate": "0.018","nextFundingRate": "","fundingTime": "1597026383085"}]}`,
 	"Index Candlestick":                     `{"arg": {"channel": "index-candle30m","instId": "BTC-USDT"},"data": [["1597026383085", "3811.31", "3811.31", "3811.31", "3811.31"]]}`,
 	"Index Ticker":                          `{"arg": {"channel": "index-tickers","instId": "BTC-USDT"},"data": [{"instId": "BTC-USDT","idxPx": "0.1","high24h": "0.5","low24h": "0.1","open24h": "0.1","sodUtc0": "0.1","sodUtc8": "0.1","ts": "1597026383085"}]}`,
@@ -4649,6 +4890,21 @@ func TestWsHandleData(t *testing.T) {
 			require.NoErrorf(t, err, "%s must not error", name)
 		}
 	}
+
+	t.Run("option summary dispatch", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		require.NoError(t, ex.wsHandleData(t.Context(), nil, []byte(pushDataMap["Option Summary"])), "option summary must not error")
+		select {
+		case message := <-ex.Websocket.DataHandler.C:
+			_, ok := message.Data.(*WsOptionSummary)
+			require.True(t, ok, "option summary must be dispatched as WsOptionSummary")
+		default:
+			require.Fail(t, "option summary must be dispatched")
+		}
+	})
 }
 
 func TestPushDataDynamic(t *testing.T) {

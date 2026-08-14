@@ -57,6 +57,8 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresClientID = true
 
 	e.instrumentsInfoMap = make(map[string][]Instrument)
+	// Trade limits are scoped to the configured exchange instance so unrelated
+	// credentials do not share an account-level budget.
 	e.tradeLimiter = tradeRateLimiter{
 		scopedLimiters:    make(map[tradeRateLimitKey]*request.RateLimiterWithWeight),
 		subAccountLimiter: request.NewRateLimitWithWeight(twoSecondsInterval, subAccountTradeRateLimitActions, 1),
@@ -912,12 +914,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if s.AssetType.IsFutures() && s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
 	}
-	var sideType, positionSide string
-	switch s.AssetType {
-	case asset.Spot, asset.Margin, asset.Spread:
-		sideType = s.Side.String()
-	case asset.Futures, asset.PerpetualSwap, asset.Options:
-		positionSide = s.Side.Lower()
+	sideType, positionSide, reduceOnly, err := deriveOrderPositionArguments(s)
+	if err != nil {
+		return nil, err
 	}
 	// If asset type is spread
 	if s.AssetType == asset.Spread {
@@ -984,11 +983,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
 			TradeMode:        tradeMode,
-			Side:             s.Side.Lower(),
+			Side:             sideType,
 			PositionSide:     positionSide,
 			OrderType:        orderTypeString,
 			Size:             types.Number(s.Amount),
-			ReduceOnly:       s.ReduceOnly,
+			ReduceOnly:       reduceOnly,
 			TriggerPrice:     types.Number(s.TriggerPrice),
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
@@ -997,11 +996,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
 			TradeMode:                tradeMode,
-			Side:                     s.Side.Lower(),
+			Side:                     sideType,
 			PositionSide:             positionSide,
 			OrderType:                orderTypeString,
 			Size:                     types.Number(s.Amount),
-			ReduceOnly:               s.ReduceOnly,
+			ReduceOnly:               reduceOnly,
 			StopLossTriggerPrice:     types.Number(s.TriggerPrice),
 			StopLossOrderPrice:       types.Number(s.Price),
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
@@ -1016,11 +1015,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
 			TradeMode:     tradeMode,
-			Side:          s.Side.Lower(),
+			Side:          sideType,
 			PositionSide:  positionSide,
 			OrderType:     orderTypeString,
 			Size:          types.Number(s.Amount),
-			ReduceOnly:    s.ReduceOnly,
+			ReduceOnly:    reduceOnly,
 			MaxChaseType:  s.TrackingMode.String(),
 			MaxChaseValue: types.Number(s.TrackingValue),
 		})
@@ -1042,7 +1041,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:           positionSide,
 			OrderType:              orderTypeString,
 			Size:                   types.Number(s.Amount),
-			ReduceOnly:             s.ReduceOnly,
+			ReduceOnly:             reduceOnly,
 			CallbackRatio:          types.Number(callbackRatio),
 			CallbackSpreadVariance: types.Number(callbackSpread),
 			ActivePrice:            types.Number(s.TriggerPrice),
@@ -1065,7 +1064,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide:  positionSide,
 			OrderType:     orderTypeString,
 			Size:          types.Number(s.Amount),
-			ReduceOnly:    s.ReduceOnly,
+			ReduceOnly:    reduceOnly,
 			PriceVariance: types.Number(priceVar),
 			PriceSpread:   types.Number(priceSpread),
 			SizeLimit:     types.Number(s.Amount),
@@ -1086,13 +1085,13 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PositionSide: positionSide,
 			OrderType:    orderTypeString,
 			Size:         types.Number(s.Amount),
-			ReduceOnly:   s.ReduceOnly,
+			ReduceOnly:   reduceOnly,
 
 			TakeProfitTriggerPrice:     types.Number(s.RiskManagementModes.TakeProfit.Price),
 			TakeProfitOrderPrice:       types.Number(s.RiskManagementModes.TakeProfit.LimitPrice),
 			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
 
-			StopLossTriggerPrice:     types.Number(s.RiskManagementModes.TakeProfit.Price),
+			StopLossTriggerPrice:     types.Number(s.RiskManagementModes.StopLoss.Price),
 			StopLossOrderPrice:       types.Number(s.RiskManagementModes.StopLoss.LimitPrice),
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
@@ -1135,7 +1134,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if (action.AssetType.IsFutures() || action.AssetType == asset.Options) && math.Trunc(action.Amount) != action.Amount {
+	if action.AssetType != asset.Spread &&
+		(action.AssetType.IsFutures() || action.AssetType == asset.Options) &&
+		math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	// When asset type is asset.Spread
@@ -1197,7 +1198,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 					NewTakeProfitTriggerPrice:     types.Number(action.RiskManagementModes.TakeProfit.Price),
 					NewTakeProfitOrderPrice:       types.Number(action.RiskManagementModes.TakeProfit.LimitPrice),
 					NewStopLossTriggerPrice:       types.Number(action.RiskManagementModes.StopLoss.Price),
-					NewStopLossOrderPrice:         types.Number(action.RiskManagementModes.StopLoss.Price),
+					NewStopLossOrderPrice:         types.Number(action.RiskManagementModes.StopLoss.LimitPrice),
 					NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
 					NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
 				},
@@ -1238,7 +1239,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			NewTakeProfitOrderPrice:   types.Number(action.RiskManagementModes.TakeProfit.LimitPrice),
 
 			NewStopLossTriggerPrice: types.Number(action.RiskManagementModes.StopLoss.Price),
-			NewStopLossOrderPrice:   types.Number(action.RiskManagementModes.StopEntry.LimitPrice),
+			NewStopLossOrderPrice:   types.Number(action.RiskManagementModes.StopLoss.LimitPrice),
 
 			NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
 			NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
@@ -1258,9 +1259,6 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		return nil, err
 	}
 	if action.AssetType == asset.Spread {
-		if math.Trunc(action.Amount) != action.Amount {
-			return nil, errContractAmountCanNotBeDecimal
-		}
 		_, err := e.WSAmendSpreadOrder(ctx, &AmendSpreadOrderParam{
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
@@ -1358,11 +1356,10 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	}
 	pairString := pairFormat.Format(s.Pair)
 	tradeMode := e.marginTypeToString(s.MarginType)
-	sideType, err := deriveOrderSide(s.Side, s.ReduceOnly)
+	sideType, positionSide, reduceOnly, err := deriveOrderPositionArguments(s)
 	if err != nil {
 		return nil, err
 	}
-	positionSide := derivePositionSide(s)
 	amount := s.Amount
 	var targetCurrency string
 	if isSpotMarketOrder(s) {
@@ -1393,7 +1390,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		Price:          types.Number(s.Price),
 		TargetCurrency: targetCurrency,
 		AssetType:      s.AssetType,
-		ReduceOnly:     s.ReduceOnly,
+		ReduceOnly:     reduceOnly,
 	}, nil
 }
 
@@ -1453,6 +1450,15 @@ func derivePositionSide(s *order.Submit) string {
 	default:
 		return ""
 	}
+}
+
+func deriveOrderPositionArguments(s *order.Submit) (side, positionSide string, reduceOnly bool, err error) {
+	side, err = deriveOrderSide(s.Side, s.ReduceOnly)
+	if err != nil {
+		return "", "", false, err
+	}
+	positionSide = derivePositionSide(s)
+	return side, positionSide, s.ReduceOnly && positionSide == "", nil
 }
 
 func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderRequestParams, error) {
@@ -1789,27 +1795,39 @@ ordersLoop:
 		return cancelAllResponse, nil
 	}
 	remaining := cancelAllOrdersRequestParams
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid() {
+	// TODO: Add transport-explicit batch and cancel-all methods to OrderManagement
+	// before removing automatic websocket routing from these generic wrappers.
+	useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid()
+	if useWebsocket {
+		// Websocket cancellation requires an instrument code for every order.
+		// Resolve them first so a missing code can cleanly fall back to REST.
+		instrumentIDCodes := make([]int64, len(remaining))
 		for i := range remaining {
 			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(orderCancellation.AssetType, remaining[i].InstrumentID)
 			if codeErr != nil {
-				return order.CancelAllResponse{}, codeErr
+				useWebsocket = false
+				break
 			}
-			remaining[i].InstrumentIDCode = instrumentIDCode
+			instrumentIDCodes[i] = instrumentIDCode
+		}
+		if useWebsocket {
+			for i := range remaining {
+				remaining[i].InstrumentIDCode = instrumentIDCodes[i]
+			}
 		}
 	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for range loop {
 		var response []*OrderData
 		if len(remaining) > 20 {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if useWebsocket {
 				response, err = e.WSCancelMultipleOrders(ctx, remaining[:20])
 			} else {
 				response, err = e.CancelMultipleOrders(ctx, remaining[:20])
 			}
 			remaining = remaining[20:]
 		} else {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if useWebsocket {
 				response, err = e.WSCancelMultipleOrders(ctx, remaining)
 			} else {
 				response, err = e.CancelMultipleOrders(ctx, remaining)

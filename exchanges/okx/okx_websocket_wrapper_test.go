@@ -128,6 +128,8 @@ func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
 		require.Len(tb, req.Arguments, 1, "amend request must contain one argument")
 		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "amend request must contain instIdCode")
 		response = `{"id":"` + req.ID + `","op":"amend-order","code":"0","msg":"","data":[{"ordId":"amended-order","sCode":"0","sMsg":""}]}`
+	case "sprd-amend-order":
+		response = `{"id":"` + req.ID + `","op":"sprd-amend-order","code":"0","msg":"","data":[{"ordId":"amended-spread","sCode":"0","sMsg":""}]}`
 	case "cancel-order":
 		require.Len(tb, req.Arguments, 1, "cancel request must contain one argument")
 		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "cancel request must contain instIdCode")
@@ -266,6 +268,21 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 			Price:     1,
 		})
 		require.ErrorIs(t, err, errContractAmountCanNotBeDecimal, "decimal contract amount must return expected error")
+	})
+
+	t.Run("fractional spread amount", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		resp, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "spread-order-1",
+			AssetType: asset.Spread,
+			Pair:      spreadPair,
+			Amount:    0.0001,
+			Price:     1,
+		})
+		require.NoError(t, err, "fractional spread amendment must not error")
+		assert.Equal(t, "spread-order-1", resp.OrderID, "order ID should match")
 	})
 
 	t.Run("algorithmic order", func(t *testing.T) {
@@ -456,6 +473,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 			require.NoError(t, err, "deriveSubmitOrderArguments must not error")
 			assert.Equal(t, tc.expectedSide, arg.Side, "reduce-only order should use the closing side")
 			assert.Equal(t, tc.expectedPos, arg.PositionSide, "reduce-only order should retain the hedge-mode position side")
+			assert.False(t, arg.ReduceOnly, "hedge-mode order should omit reduceOnly")
 		})
 	}
 
@@ -555,6 +573,40 @@ func TestDeriveOrderSide(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestDeriveOrderPositionArguments(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		submit           *order.Submit
+		expectedSide     string
+		expectedPosition string
+		expectedReduce   bool
+		expectedError    error
+	}{
+		{name: "reduce only futures long", submit: &order.Submit{AssetType: asset.Futures, Side: order.Long, ReduceOnly: true}, expectedSide: order.Sell.Lower(), expectedPosition: positionSideLong},
+		{name: "reduce only futures short", submit: &order.Submit{AssetType: asset.Futures, Side: order.Short, ReduceOnly: true}, expectedSide: order.Buy.Lower(), expectedPosition: positionSideShort},
+		{name: "reduce only futures net", submit: &order.Submit{AssetType: asset.Futures, Side: order.Buy, ReduceOnly: true}, expectedSide: order.Buy.Lower(), expectedReduce: true},
+		{name: "spot buy", submit: &order.Submit{AssetType: asset.Spot, Side: order.Buy}, expectedSide: order.Buy.Lower()},
+		{name: "invalid side", submit: &order.Submit{AssetType: asset.Spot, Side: order.AnySide}, expectedError: order.ErrSideIsInvalid},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			side, positionSide, reduceOnly, err := deriveOrderPositionArguments(tc.submit)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError, "invalid order arguments must return expected error")
+				return
+			}
+			require.NoError(t, err, "valid order arguments must not error")
+			assert.Equal(t, tc.expectedSide, side, "order side should match")
+			assert.Equal(t, tc.expectedPosition, positionSide, "position side should match")
+			assert.Equal(t, tc.expectedReduce, reduceOnly, "reduce-only flag should match the position mode")
 		})
 	}
 }

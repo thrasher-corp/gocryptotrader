@@ -115,6 +115,7 @@ const (
 	channelTrades          = "trades"
 	channelAllTrades       = "trades-all"
 	channelOptionTrades    = "option-trades"
+	channelOptSummary      = "opt-summary"
 	channelEstimatedPrice  = "estimated-price"
 	channelMarkPrice       = "mark-price"
 	channelPriceLimit      = "price-limit"
@@ -515,6 +516,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessOrderBooks(ctx, conn, respRaw)
 	case channelOptionTrades:
 		return e.wsProcessOptionTrades(respRaw)
+	case channelOptSummary:
+		var response WsOptionSummary
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelFundingRate:
 		var response WsFundingRate
 		return e.wsProcessPushData(ctx, respRaw, &response)
@@ -964,7 +968,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if err == nil {
 			continue
 		}
-		if !errors.Is(err, errInvalidOrderbookSequence) {
+		if !errors.Is(err, errInvalidOrderbookSequence) && !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 			return err
 		}
 		var tracked subscription.List
@@ -1022,6 +1026,8 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
 	defer putWsOrderbookLevels(bidsPoolItem)
 	updateTime := data.Timestamp.Time()
+	// A message without instType can map one instrument to multiple cached assets,
+	// such as spot and margin, so verify every depth before mutating any.
 	for i := range assets {
 		if _, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i]); err != nil {
 			return err
@@ -1055,7 +1061,11 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			ReceivedAt: receivedAt,
 			AllowEmpty: true, // Allow empty levels to push forward sequence ID
 		}); err != nil {
-			return err
+			updateErr := err
+			for j := range assets {
+				updateErr = common.AppendError(updateErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
+			}
+			return updateErr
 		}
 	}
 	return nil

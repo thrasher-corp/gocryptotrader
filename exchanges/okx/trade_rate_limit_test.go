@@ -218,13 +218,6 @@ func TestTradeRateLimitContext(t *testing.T) {
 		require.ErrorIs(t, err, errMissingTradeRateLimitScope, "empty instrument ID must return missing scope error")
 	})
 
-	t.Run("batch over maximum", func(t *testing.T) {
-		t.Parallel()
-
-		_, err := tradeRateLimitContext(t.Context(), newLimiter(), tradeRateLimitPlaceBatch, make([]PlaceOrderRequestParam, maxBatchOrders+1))
-		require.ErrorIs(t, err, errExceedLimit, "oversized batch must return expected error")
-	})
-
 	t.Run("uninitialised limiter", func(t *testing.T) {
 		t.Parallel()
 
@@ -250,7 +243,6 @@ func TestRateLimitWeight(t *testing.T) {
 	testCases := []struct {
 		name          string
 		count         int
-		isBatched     bool
 		expected      request.Weight
 		expectedError error
 	}{
@@ -259,14 +251,12 @@ func TestRateLimitWeight(t *testing.T) {
 		{name: "valid", count: 20, expected: 20},
 		{name: "maximum", count: 255, expected: 255},
 		{name: "over maximum", count: 256, expectedError: errInvalidTradeRateLimitWeight},
-		{name: "batch maximum", count: maxBatchOrders, isBatched: true, expected: maxBatchOrders},
-		{name: "batch over maximum", count: maxBatchOrders + 1, isBatched: true, expectedError: errExceedLimit},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			weight, err := rateLimitWeight(tc.count, tc.isBatched)
+			weight, err := rateLimitWeight(tc.count)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError, "rateLimitWeight must return expected error")
 				return

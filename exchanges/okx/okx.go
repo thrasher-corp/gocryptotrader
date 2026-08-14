@@ -1725,7 +1725,8 @@ func (e *Exchange) GetAccountAndPositionRisk(ctx context.Context, instrumentType
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountAndPositionRiskEPL, http.MethodGet, common.EncodeURLValues("account/account-position-risk", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieve data from the last 7 days
+// GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first.
+// See: https://www.okx.com/docs-v5/en/#trading-account-rest-api-get-bills-details-last-7-days
 func (e *Exchange) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {
 	return e.GetBillsDetail(ctx, arg, "account/bills", getBillsDetailsEPL)
 }

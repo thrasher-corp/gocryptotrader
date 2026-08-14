@@ -37,23 +37,59 @@ func (r *RateLimiterWithWeight) applyMultipleRateLimits(ctx context.Context, end
 	if err != nil {
 		return err
 	}
+	// reservationPlan groups repeated uses of a limiter and tracks when its first
+	// and last tokens are available so all limiters finish at the same send time.
+	type reservationPlan struct {
+		limiter    *RateLimiterWithWeight
+		weight     int
+		scope      string
+		firstDelay time.Duration
+		finalDelay time.Duration
+	}
+	plans := make([]reservationPlan, 0, len(lockSet))
+	planIndexes := make(map[*RateLimiterWithWeight]int, len(lockSet))
+	for _, rateLimit := range rateLimits {
+		weight := rateLimit.WeightOverride
+		if weight == 0 {
+			weight = rateLimit.Limiter.weight
+		}
+		if weight == 0 {
+			return errInvalidWeight
+		}
+		if index, ok := planIndexes[rateLimit.Limiter]; ok {
+			plans[index].weight += int(weight)
+			continue
+		}
+		planIndexes[rateLimit.Limiter] = len(plans)
+		plans = append(plans, reservationPlan{
+			limiter: rateLimit.Limiter,
+			weight:  int(weight),
+			scope:   rateLimit.Scope,
+		})
+	}
 
 	lockSet.lock()
 	tn := time.Now()
-	reserved := make([]*rate.Reservation, 0, len(rateLimits))
+	reservationCount := 0
+	for i := range plans {
+		reservationCount += plans[i].weight
+	}
+	reserved := make([]*rate.Reservation, 0, reservationCount)
 	var finalDelay time.Duration
 	var limitingScope string
-	for _, rateLimit := range rateLimits {
-		reservations, delay, err := rateLimit.Limiter.reserve(tn, rateLimit.WeightOverride)
-		if err != nil {
-			cancelAll(reserved, tn)
-			lockSet.unlock()
-			return err
+	for i := range plans {
+		for token := range plans[i].weight {
+			reservation := plans[i].limiter.limiter.ReserveN(tn, 1)
+			reserved = append(reserved, reservation)
+			delay := reservation.DelayFrom(tn)
+			if token == 0 {
+				plans[i].firstDelay = delay
+			}
+			plans[i].finalDelay = delay
 		}
-		reserved = append(reserved, reservations...)
-		if finalDelay < delay {
-			finalDelay = delay
-			limitingScope = rateLimit.Scope
+		if finalDelay < plans[i].finalDelay {
+			finalDelay = plans[i].finalDelay
+			limitingScope = plans[i].scope
 		}
 	}
 
@@ -72,10 +108,27 @@ func (r *RateLimiterWithWeight) applyMultipleRateLimits(ctx context.Context, end
 		lockSet.unlock()
 		return fmt.Errorf("rate limit delay of %s for scope %q will exceed deadline: %w", finalDelay, limitingScope, context.DeadlineExceeded)
 	}
+	if err := ctx.Err(); err != nil {
+		cancelAll(reserved, tn)
+		lockSet.unlock()
+		return err
+	}
 
 	if finalDelay == 0 {
 		lockSet.unlock()
 		return nil
+	}
+
+	// The initial reservations find the common transmission time. Re-reserving
+	// each limiter so its final weighted token lands at that time prevents a
+	// non-binding limiter from refilling before the request is actually sent.
+	cancelAll(reserved, tn)
+	reserved = reserved[:0]
+	for i := range plans {
+		startAt := tn.Add(finalDelay - (plans[i].finalDelay - plans[i].firstDelay))
+		for range plans[i].weight {
+			reserved = append(reserved, plans[i].limiter.limiter.ReserveN(startAt, 1))
+		}
 	}
 	lockSet.unlock()
 	if IsVerbose(ctx, false) {
@@ -85,6 +138,8 @@ func (r *RateLimiterWithWeight) applyMultipleRateLimits(ctx context.Context, end
 	select {
 	case <-ctx.Done():
 		lockSet.lock()
+		// A later reservation can prevent x/time/rate from fully rolling back an
+		// earlier one, so cancellation after releasing the locks is best effort.
 		cancelAll(reserved, time.Now())
 		lockSet.unlock()
 		return ctx.Err()
