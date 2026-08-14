@@ -150,14 +150,14 @@ func TestGetTradeHistoryPagination(t *testing.T) {
 			require.NoError(t, err, "GetTradeHistory must not error")
 			assert.Equal(t, TradeHistory{Trades: []OrderFilledResponse{}}, result, "GetTradeHistory should return the correct trade history")
 
-			var request requestResult
+			var capturedRequest requestResult
 			select {
-			case request = <-requestC:
+			case capturedRequest = <-requestC:
 			case <-time.After(time.Second):
 				t.Fatal("GetTradeHistory must send a request to the mock server")
 			}
-			require.NoError(t, request.err, "GetTradeHistory fixture request decoding must not error")
-			delete(request.payload, "nonce")
+			require.NoError(t, capturedRequest.err, "GetTradeHistory fixture request decoding must not error")
+			delete(capturedRequest.payload, "nonce")
 			expected := map[string]json.RawMessage{
 				"inst_id": []byte("123"),
 				"request": []byte(strconv.Quote(coinutTradeHistory)),
@@ -168,7 +168,7 @@ func TestGetTradeHistoryPagination(t *testing.T) {
 			if tc.limit != 0 {
 				expected["limit"] = []byte(strconv.FormatUint(tc.limit, 10))
 			}
-			assert.Equal(t, expected, request.payload, "GetTradeHistory request should contain the correct parameters")
+			assert.Equal(t, expected, capturedRequest.payload, "GetTradeHistory request should contain the correct parameters")
 		})
 	}
 }
