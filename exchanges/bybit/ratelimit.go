@@ -96,7 +96,7 @@ var rateLimits = request.RateLimitDefinitions{
 	getPositionListEPL:                       request.NewRateLimitWithWeight(time.Second, 10, 10),
 	getExecutionListEPL:                      request.NewRateLimitWithWeight(time.Second, 10, 10),
 	getPositionClosedPNLEPL:                  request.NewRateLimitWithWeight(time.Second, 10, 10),
-	postPositionSetLeverageEPL:               request.NewRateLimitWithWeight(time.Second, 10, 10),
+	postPositionSetLeverageEPL:               request.NewRateLimitWithWeight(time.Second, 10, 1),
 	setPositionTPLSModeEPL:                   request.NewRateLimitWithWeight(time.Second, 10, 10),
 	setPositionRiskLimitEPL:                  request.NewRateLimitWithWeight(time.Second, 10, 10),
 	stopTradingPositionEPL:                   request.NewRateLimitWithWeight(time.Second, 10, 10),

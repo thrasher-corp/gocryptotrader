@@ -33,3 +33,8 @@ func TestGetWSRateLimitEPLByCategory(t *testing.T) {
 		})
 	}
 }
+
+func TestPositionSetLeverageRateLimit(t *testing.T) {
+	err := rateLimits[postPositionSetLeverageEPL].RateLimit(request.WithDelayNotAllowed(t.Context()))
+	require.NoError(t, err, "first position leverage request must not require a rate limit delay")
+}
