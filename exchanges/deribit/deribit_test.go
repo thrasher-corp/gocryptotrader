@@ -18,6 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/options"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -27,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -4029,7 +4032,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = channelName(s) + "." + p.String()
+					s.QualifiedChannel = channelName(s)
+					if !strings.HasSuffix(s.QualifiedChannel, ".") {
+						s.QualifiedChannel += "."
+					}
+					s.QualifiedChannel += p.String()
 					if s.Interval != 0 {
 						s.QualifiedChannel += "." + channelInterval(s)
 					}
@@ -4417,6 +4424,7 @@ var websocketPushData = map[string]string{
 	"Volatility Index":                       `{"params" : {"data" : {"volatility" : 129.36,"timestamp" : 1619777946007,"index_name" : "btc_usd","estimated_delivery" : 129.36},"channel" : "deribit_volatility_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
 	"Estimated Expiration Price":             `{"params" : {"data" : {"seconds" : 180929,"price" : 3939.73,"is_estimated" : false},"channel" : "estimated_expiration_price.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
 	"Incremental Ticker":                     `{"jsonrpc": "2.0", "method": "subscription", "params": { "channel": "incremental_ticker.BTC-PERPETUAL", "data": { "type": "snapshot", "timestamp": 1677592580023, "stats": { "volume_usd": 224579520.0, "volume": 9581.70741368, "price_change": -1.2945, "low": 23123.5, "high": 23900.0 }, "state": "open", "settlement_price": 23240.71, "open_interest": 333091400, "min_price": 23057.4, "max_price": 23759.65, "mark_price": 23408.41, "last_price": 23409.0, "interest_value": 0.0, "instrument_name": "BTC-PERPETUAL", "index_price": 23406.85, "funding_8h": 0.0, "estimated_delivery_price": 23406.85, "current_funding": 0.0, "best_bid_price": 23408.5, "best_bid_amount": 53270.0, "best_ask_price": 23409.0, "best_ask_amount": 46990.0 } } }`,
+	"Incremental Ticker Options":             `{"jsonrpc": "2.0", "method": "subscription", "params": { "channel": "incremental_ticker.BTC-26NOV24-92000-C", "data": { "type": "snapshot", "timestamp": 1677592580023, "stats": { "volume_usd": 224579520.0, "volume": 9581.70741368, "price_change": -1.2945, "low": 23123.5, "high": 23900.0 }, "state": "open", "settlement_price": 23240.71, "open_interest": 333091400, "min_price": 23057.4, "max_price": 23759.65, "mark_price": 23408.41, "last_price": 23409.0, "interest_value": 0.0, "instrument_name": "BTC-26NOV24-92000-C", "index_price": 23406.85, "funding_8h": 0.0, "estimated_delivery_price": 23406.85, "current_funding": 0.0, "best_bid_price": 23408.5, "best_bid_amount": 53270.0, "best_ask_price": 23409.0, "best_ask_amount": 46990.0, "greeks": {"delta": 0.1, "gamma": 0.2, "vega": 0.3, "theta": 0.4, "rho": 0.5}, "bid_iv": 0.11, "ask_iv": 0.12, "mark_iv": 0.13 } } }`,
 	"Instrument State":                       `{"params" : {"data" : {"timestamp" : 1553080940000,"state" : "created","instrument_name" : "BTC-22MAR19"},"channel" : "instrument.state.any.any"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
 	"Currency Trades":                        `{"params":{"data":[{"trade_seq":2,"trade_id" : "48079289","timestamp" : 1590484589306,"tick_direction" : 2,"price" : 0.0075,"mark_price" : 0.01062686,"iv" : 47.58,"instrument_name" : "BTC-27MAY20-9000-C","index_price" : 8956.17,"direction" : "sell","amount" : 3}],"channel" : "trades.option.BTC.raw"},"method":"subscription","jsonrpc":"2.0"}`,
 	"Change Updates":                         `{"params" : {"data" : {"trades" : [{"trade_seq" : 866638,"trade_id" : "1430914","timestamp" : 1605780344032,"tick_direction" : 1,"state" : "filled","self_trade" : false,"reduce_only" : false,"profit_loss" : 0.00004898,"price" : 17391,"post_only" : false,"order_type" : "market","order_id" : "3398016","matching_id" : null,"mark_price" : 17391,"liquidity" : "T","instrument_name" : "BTC-PERPETUAL","index_price" : 17501.88,"fee_currency" : "BTC","fee" : 1.6e-7,"direction" : "sell","amount" : 10		  }		],"positions" : [		  {			"total_profit_loss" : 1.69711368,			"size_currency" : 10.646886321,			"size" : 185160,			"settlement_price" : 16025.83,			"realized_profit_loss" : 0.012454598,			"realized_funding" : 0.01235663,			"open_orders_margin" : 0,			"mark_price" : 17391,			"maintenance_margin" : 0.234575865,			"leverage" : 33,			"kind" : "future",			"interest_value" : 1.7362511643080387,			"instrument_name" : "BTC-PERPETUAL",			"initial_margin" : 0.319750953,			"index_price" : 17501.88,			"floating_profit_loss" : 0.906961435,			"direction" : "buy",			"delta" : 10.646886321,			"average_price" : 15000		  }		],"orders" : [		  {			"web" : true,			"time_in_force" : "good_til_cancelled",			"replaced" : false,			"reduce_only" : false,			"profit_loss" : 0.00009166,			"price" : 15665.5,			"post_only" : false,			"order_type" : "market",			"order_state" : "filled",			"order_id" : "3398016",			"max_show" : 10,			"last_update_timestamp" : 1605780344032,			"label" : "",			"is_liquidation" : false,			"instrument_name" : "BTC-PERPETUAL",			"filled_amount" : 10,			"direction" : "sell",			"creation_timestamp" : 1605780344032,			"commission" : 1.6e-7,			"average_price" : 17391,			"api" : false,			"amount" : 10}],"instrument_name" : "BTC-PERPETUAL"	  },	  "channel" : "user.changes.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
@@ -4445,6 +4453,75 @@ func TestProcessPushData(t *testing.T) {
 			require.NoError(t, err, "wsHandleData must not error")
 		})
 	}
+}
+
+func TestProcessIncrementalTicker(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid channel", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), nil, []string{"incremental_ticker"})
+		assert.ErrorIs(t, err, common.ErrMalformedData, "processIncrementalTicker should reject invalid channels")
+	})
+
+	t.Run("invalid instrument", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), nil, []string{"incremental_ticker", ""})
+		assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "processIncrementalTicker should reject an empty instrument")
+	})
+
+	t.Run("invalid payload", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte("{"), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		assert.Error(t, err, "processIncrementalTicker should reject invalid JSON")
+	})
+
+	t.Run("futures ticker", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		require.NoError(t, err)
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "processIncrementalTicker should dispatch a ticker")
+	})
+
+	t.Run("options ticker and greeks", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
+		require.NoError(t, err)
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
+		greeks, ok := (<-ex.Websocket.DataHandler.C).Data.(*options.Greeks)
+		require.True(t, ok, "second dispatch must contain option greeks")
+		assert.Equal(t, 0.1, greeks.Delta, "Delta should be normalised")
+		assert.Equal(t, 0.5, greeks.Rho, "Rho should be normalised")
+	})
+
+	t.Run("ticker dispatch error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"), "DataHandler.Send must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		assert.Error(t, err, "processIncrementalTicker should return ticker dispatch errors")
+	})
+
+	t.Run("greeks dispatch error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
+		assert.Error(t, err, "processIncrementalTicker should return greeks dispatch errors")
+	})
 }
 
 func TestProcessCandleChartIntervalMapping(t *testing.T) {
@@ -4507,6 +4584,21 @@ func TestOptionPairToString(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6DEC29-0D87-C")}: "MATIC_USDC-6DEC29-0d87-C",
 	} {
 		assert.Equal(t, exp, optionPairToString(pair), "optionPairToString should return correctly")
+	}
+}
+
+func TestOptionComboPairToString(t *testing.T) {
+	t.Parallel()
+	for pair, expected := range map[currency.Pair]string{
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("ICOND-7AUG26-62000_65000_67000_70000")}:  "BTC-ICOND-7AUG26-62000_65000_67000_70000",
+		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("USDC-PS-5AUG26-1780_1650")}:              "ETH_USDC-PS-5AUG26-1780_1650",
+		{Delimiter: currency.DashDelimiter, Base: currency.XRP, Quote: currency.NewCode("USDC-CBUT-26SEP25-2D9_3D2_3D4")}:         "XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4",
+		{Delimiter: currency.DashDelimiter, Base: currency.NewCode("PAXG"), Quote: currency.NewCode("USDC-CS-12SEP25-3550_3600")}: "PAXG_USDC-CS-12SEP25-3550_3600",
+	} {
+		t.Run(expected, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, expected, optionComboPairToString(pair), "optionComboPairToString should return correctly")
+		})
 	}
 }
 

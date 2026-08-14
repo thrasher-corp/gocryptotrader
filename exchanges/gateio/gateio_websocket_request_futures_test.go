@@ -147,7 +147,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 	_, err = e.WebsocketFuturesAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, errInvalidAmount)
 
-	amend.Size = 2
+	amend.Size = 0.5
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 

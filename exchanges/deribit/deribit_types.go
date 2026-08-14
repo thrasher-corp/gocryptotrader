@@ -74,6 +74,9 @@ var (
 	errMissingSignature                    = errors.New("missing signature")
 	errStartingHeartbeat                   = errors.New("error starting heartbeat")
 	errSendingHeartbeat                    = errors.New("error sending heartbeat")
+	errAuthenticatedWebsocketNotEnabled    = errors.New("authenticated websocket API support not enabled")
+	errSubscriptionNotAcknowledged         = errors.New("subscription was not acknowledged")
+	errUnexpectedSubscriptionChannel       = errors.New("unexpected subscription channel")
 
 	websocketRequestTimeout = time.Second * 30
 

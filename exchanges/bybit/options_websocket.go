@@ -21,10 +21,20 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 	}
 
 	var subscriptions subscription.List
+	tradeBaseSubscribed := make(map[string]struct{})
 	for z := range pairs {
-		for _, channel := range []string{chanOrderbook, chanPublicTrade, chanPublicTicker} {
+		for _, channel := range []string{chanOrderbook, chanPublicTicker} {
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channel,
+				Pairs:   currency.Pairs{pairs[z]},
+				Asset:   asset.Options,
+			})
+		}
+		base := pairs[z].Base.Upper().String()
+		if _, ok := tradeBaseSubscribed[base]; !ok {
+			tradeBaseSubscribed[base] = struct{}{}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: chanPublicTrade,
 				Pairs:   currency.Pairs{pairs[z]},
 				Asset:   asset.Options,
 			})

@@ -2118,7 +2118,7 @@ func (e *Exchange) GetSettlementHistoryByInstrument(ctx context.Context, instrum
 		getSettlementHistoryByInstrument, params, &resp)
 }
 
-// GetSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency
+// GetSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency.
 func (e *Exchange) GetSettlementHistoryByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -3169,7 +3169,7 @@ func (e *Exchange) StringToAssetKind(assetType string) (asset.Item, error) {
 }
 
 // getAssetPairByInstrument is able to determine the asset type and currency pair
-// based on the received instrument ID
+// based on the received instrument ID.
 func getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, error) {
 	if instrument == "" {
 		return asset.Empty, currency.EMPTYPAIR, currency.ErrSymbolStringEmpty
@@ -3183,31 +3183,33 @@ func getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, err
 	if err != nil {
 		return asset.Empty, currency.EMPTYPAIR, err
 	}
+
 	return item, cp, nil
 }
 
-// getAssetFromInstrument extrapolates the asset type from the instrument formatting as each type is unique
+// getAssetFromInstrument classifies Deribit instruments by the exchange's distinct spot, futures, options and combo delimiters.
 func getAssetFromInstrument(instrument string) (asset.Item, error) {
-	currencyParts := strings.Split(instrument, currency.DashDelimiter)
-	partsLen := len(currencyParts)
-	currencySuffix := currencyParts[partsLen-1]
+	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
+	splitLen := len(splitCurrency)
+	if splitLen == 0 {
+		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
+	}
+	lastSplit := splitCurrency[splitLen-1]
 	hasUnderscore := strings.Contains(instrument, currency.UnderscoreDelimiter)
 	switch {
-	case partsLen == 1 && !hasUnderscore: // no pair delimiter found
+	case splitLen == 1 && !hasUnderscore:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
-	case partsLen == 1: // spot pairs use underscore eg BTC_USDC
+	case splitLen == 1: // Spot instruments use an underscore without a dash, for example BTC_USDC.
 		return asset.Spot, nil
-	case partsLen == 2: // futures pairs use single dash eg ETH_USDC-PERPETUAL, BTC-12SEP25
+	case splitLen == 2: // Futures use one dash, including linear instruments such as ETH_USDC-PERPETUAL.
 		return asset.Futures, nil
-	case currencySuffix == "C", currencySuffix == "P": // options end in P or C to denote puts or calls eg BTC-26SEP25-30000-C
-		return asset.Options, nil
-	case partsLen >= 3 && currencyParts[partsLen-2] == "FS" && strings.Contains(currencySuffix, currency.UnderscoreDelimiter):
-		// futures combos have underlying-FS-shortLeg_longLeg
-		// eg BTC-FS-28NOV25_PERP or BTC-USDC-FS-28NOV25_PERP
+	case strings.Contains(instrument, "-FS-"): // Futures combos identify the spread between their component legs with FS.
 		return asset.FutureCombo, nil
-	case partsLen == 4: // option combos with more than 3 parts eg BTC_USDC-PS-19SEP25-113000_111000
+	case lastSplit == "C" || lastSplit == "P": // Options end with their call or put designation.
+		return asset.Options, nil
+	case splitLen >= 3 && hasUnderscore: // Option combos encode multiple strikes or expiries in the final underscore-delimited segment.
 		return asset.OptionCombo, nil
-	default: // deribit has changed their format and needs a review
+	default:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 	}
 }
@@ -3264,6 +3266,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.0003 * price * amount
 }
 
+// formatFuturesTradablePair transforms futures pair formatting to Deribit instrument naming.
 func formatFuturesTradablePair(pair currency.Pair) string {
 	var instrumentID string
 	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 {
@@ -3291,44 +3294,26 @@ func optionPairToString(pair currency.Pair) string {
 	return pair.Base.String() + initialDelimiter + q
 }
 
-// optionComboPairToString formats an option combo pair to deribit request format
-// e.g. XRP-USDC-CS-26SEP25-3D3_3D5 -> XRP_USDC-CS-26SEP25-3d3_3d5
+// optionComboPairToString formats an option combo pair from dash to underscore between base and quote, e.g. PAXG-USDC-CS-12SEP25-3550_3600 -> PAXG_USDC-CS-12SEP25-3550_3600
 func optionComboPairToString(pair currency.Pair) string {
-	parts := strings.Split(pair.String(), "-")
-	// Deribit uses lowercase 'd' to represent the decimal point
-	lastIdx := len(parts) - 1
-	parts[lastIdx] = strings.ReplaceAll(parts[lastIdx], "D", "d")
-	// Leave unchanged when:
-	// * length <= 3 (not enough info to be a combo needing underscore)
-	// * length == 4 and second token is not USDC (original logic kept as-is)
-	if len(parts) <= 3 || (len(parts) == 4 && parts[1] != "USDC") {
-		return strings.Join(parts, "-")
+	parts := strings.Split(pair.String(), currency.DashDelimiter)
+	lastPart := len(parts) - 1
+	parts[lastPart] = strings.ReplaceAll(parts[lastPart], "D", "d")
+	if len(parts) < 3 || parts[1] != currency.USDC.String() {
+		return strings.Join(parts, currency.DashDelimiter)
 	}
-	// Otherwise insert underscore after base (covers:
-	// * any length > 4
-	// * length == 4 with USDC as second token)
-	return parts[0] + "_" + strings.Join(parts[1:], "-")
+	return parts[0] + currency.UnderscoreDelimiter + strings.Join(parts[1:], currency.DashDelimiter)
 }
 
-// futureComboPairToString formats a future combo pair to deribit request format
-// e.g. ETH-USDC-FS-28NOV25_PERP -> ETH_USDC-FS-28NOV25_PERP (linear)
-// e.g. BTC-FS-28NOV25_PERP -> BTC-FS-28NOV25_PERP (inverse, unchanged)
+// futureComboPairToString formats a futures combo pair from dash to underscore between base and quote.
 func futureComboPairToString(pair currency.Pair) string {
-	s := pair.String()
-	before, after, found := strings.Cut(s, "-")
-	if !found {
-		return s
+	pairStr := pair.String()
+	if !strings.Contains(pairStr, "-FS-") {
+		return pairStr
 	}
-
-	// Must have "USDC-" immediately after first dash (linear combo)
-	if len(after) < 5 || after[:5] != "USDC-" {
-		return s
+	splitPair := strings.Split(pairStr, currency.DashDelimiter)
+	if len(splitPair) >= 3 && splitPair[1] != "FS" {
+		return splitPair[0] + currency.UnderscoreDelimiter + strings.Join(splitPair[1:], currency.DashDelimiter)
 	}
-
-	// Need at least one more dash after "USDC-" to have 4+ parts
-	if !strings.Contains(after[5:], "-") {
-		return s
-	}
-
-	return before + "_" + after
+	return pairStr
 }
