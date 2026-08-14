@@ -3673,51 +3673,81 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
-	mockedExchange := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
-	mockedExchange.instrumentsInfoMapLock.Lock()
-	mockedExchange.instrumentsInfoMap[instTypeFutures] = []Instrument{
+	for _, tc := range []struct {
+		name                   string
+		submit                 order.Submit
+		expectedAmount         float64
+		expectedSide           string
+		expectedTargetCurrency string
+		expectedReduceOnly     bool
+	}{
 		{
-			InstrumentID:     mainPair,
-			InstrumentIDCode: types.Number(456),
-		},
-	}
-	mockedExchange.instrumentsInfoMapLock.Unlock()
-	result, err := mockedExchange.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:   mockedExchange.Name,
-		Pair:       mainPair,
-		AssetType:  asset.Futures,
-		Side:       order.Buy,
-		Type:       order.Limit,
-		Amount:     1,
-		Price:      1,
-		ReduceOnly: true,
-	})
-	require.NoError(t, err, "SubmitOrder must send reduce-only net orders over authenticated websocket")
-	require.Equal(t, "submit-order", result.OrderID, "SubmitOrder must return the websocket order ID")
-
-	t.Run("spot market buy with quote amount", func(t *testing.T) {
-		t.Parallel()
-
-		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
-		ex.instrumentsInfoMapLock.Lock()
-		ex.instrumentsInfoMap[instTypeSpot] = []Instrument{
-			{
-				InstrumentID:     mainPair,
-				InstrumentIDCode: types.Number(789),
+			name: "reduce-only futures order",
+			submit: order.Submit{
+				Pair:       mainPair,
+				AssetType:  asset.Futures,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				ReduceOnly: true,
 			},
-		}
-		ex.instrumentsInfoMapLock.Unlock()
-		quoteAmountResult, err := ex.SubmitOrder(t.Context(), &order.Submit{
-			Exchange:    ex.Name,
-			Pair:        mainPair,
-			AssetType:   asset.Spot,
-			Side:        order.Buy,
-			Type:        order.Market,
-			QuoteAmount: 10,
+			expectedAmount:     1,
+			expectedSide:       order.Buy.Lower(),
+			expectedReduceOnly: true,
+		},
+		{
+			name: "spot market buy with quote amount",
+			submit: order.Submit{
+				Pair:        mainPair,
+				AssetType:   asset.Spot,
+				Side:        order.Buy,
+				Type:        order.Market,
+				QuoteAmount: 10,
+			},
+			expectedAmount:         10,
+			expectedSide:           order.Buy.Lower(),
+			expectedTargetCurrency: "quote_ccy",
+		},
+	} {
+		t.Run("REST transport with websocket available "+tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan PlaceOrderRequestParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var got PlaceOrderRequestParam
+				if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				requests <- got
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"rest-order","clOrdId":"client-order","sCode":"0","sMsg":""}]}`))
+			}))
+			t.Cleanup(server.Close)
+
+			ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+			tc.submit.Exchange = ex.Name
+
+			result, err := ex.SubmitOrder(t.Context(), &tc.submit)
+			require.NoError(t, err, "SubmitOrder must not error")
+			require.Equal(t, "rest-order", result.OrderID, "SubmitOrder must return the REST order ID")
+			got := <-requests
+			assert.Zero(t, got.InstrumentIDCode, "REST submission should not include a websocket instrument code")
+			assert.Equal(t, tc.expectedAmount, got.Amount.Float64(), "REST submission should preserve the expected amount")
+			assert.Equal(t, tc.expectedSide, got.Side, "REST submission should preserve the expected side")
+			assert.Equal(t, tc.expectedTargetCurrency, got.TargetCurrency, "REST submission should preserve the expected target currency")
+			assert.Equal(t, tc.expectedReduceOnly, got.ReduceOnly, "REST submission should preserve reduce-only")
 		})
-		require.NoError(t, err, "SubmitOrder must accept a quote amount for a spot market buy")
-		require.Equal(t, "submit-order", quoteAmountResult.OrderID, "SubmitOrder must return the websocket order ID")
-	})
+	}
 
 	for _, tc := range []struct {
 		name      string
@@ -3790,6 +3820,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	var result *order.SubmitResponse
 	arg = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
@@ -4198,14 +4229,15 @@ func TestModifyOrder(t *testing.T) {
 	t.Run("fractional spot amount", func(t *testing.T) {
 		t.Parallel()
 
+		restRequest := make(chan struct{}, 1)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			restRequest <- struct{}{}
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1234","sCode":"0","sMsg":""}]}`))
 		}))
 		t.Cleanup(server.Close)
 
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
 		ex.SkipAuthCheck = true
 		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
@@ -4218,6 +4250,11 @@ func TestModifyOrder(t *testing.T) {
 		})
 		require.NoError(t, err, "ModifyOrder must allow a fractional spot amount")
 		require.NotNil(t, resp, "ModifyOrder must return a response")
+		select {
+		case <-restRequest:
+		default:
+			require.Fail(t, "ModifyOrder must use REST when websocket is available")
+		}
 	})
 
 	t.Run("fractional spread amount", func(t *testing.T) {
@@ -4241,8 +4278,7 @@ func TestModifyOrder(t *testing.T) {
 		}))
 		t.Cleanup(server.Close)
 
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
 		ex.SkipAuthCheck = true
 		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")

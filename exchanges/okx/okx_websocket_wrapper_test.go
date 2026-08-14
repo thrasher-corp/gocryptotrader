@@ -128,6 +128,8 @@ func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
 		require.Len(tb, req.Arguments, 1, "amend request must contain one argument")
 		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "amend request must contain instIdCode")
 		response = `{"id":"` + req.ID + `","op":"amend-order","code":"0","msg":"","data":[{"ordId":"amended-order","sCode":"0","sMsg":""}]}`
+	case "sprd-order":
+		response = `{"id":"` + req.ID + `","op":"sprd-order","code":"0","msg":"","data":[{"ordId":"spread-order","clOrdId":"client-order","sCode":"0","sMsg":""}]}`
 	case "sprd-amend-order":
 		response = `{"id":"` + req.ID + `","op":"sprd-amend-order","code":"0","msg":"","data":[{"ordId":"amended-spread","sCode":"0","sMsg":""}]}`
 	case "cancel-order":
@@ -198,6 +200,69 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 		require.ErrorIs(t, err, errMissingInstrumentIDCode, "missing cached instrument code must return the expected error")
 	})
 
+	t.Run("reduce-only futures submission", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.instrumentsInfoMapLock.Lock()
+		ex.instrumentsInfoMap[instTypeFutures] = []Instrument{{
+			InstrumentID:     mainPair,
+			InstrumentIDCode: types.Number(456),
+		}}
+		ex.instrumentsInfoMapLock.Unlock()
+		resp, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:   ex.Name,
+			Pair:       mainPair,
+			AssetType:  asset.Futures,
+			Side:       order.Buy,
+			Type:       order.Limit,
+			Amount:     1,
+			Price:      1,
+			ReduceOnly: true,
+		})
+		require.NoError(t, err, "WebsocketSubmitOrder must support reduce-only futures orders")
+		assert.Equal(t, "submit-order", resp.OrderID, "websocket order ID should match")
+	})
+
+	t.Run("spot market buy with quote amount", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.instrumentsInfoMapLock.Lock()
+		ex.instrumentsInfoMap[instTypeSpot] = []Instrument{{
+			InstrumentID:     mainPair,
+			InstrumentIDCode: types.Number(789),
+		}}
+		ex.instrumentsInfoMapLock.Unlock()
+		resp, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:    ex.Name,
+			Pair:        mainPair,
+			AssetType:   asset.Spot,
+			Side:        order.Buy,
+			Type:        order.Market,
+			QuoteAmount: 10,
+		})
+		require.NoError(t, err, "WebsocketSubmitOrder must support spot quote-amount orders")
+		assert.Equal(t, "submit-order", resp.OrderID, "websocket order ID should match")
+	})
+
+	t.Run("spread submission", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		resp, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      spreadPair,
+			AssetType: asset.Spread,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    0.0001,
+			Price:     1,
+		})
+		require.NoError(t, err, "WebsocketSubmitOrder must support spread orders")
+		assert.Equal(t, "spread-order", resp.OrderID, "websocket spread order ID should match")
+	})
+
 	t.Run("wrapper preference does not block explicit websocket", func(t *testing.T) {
 		t.Parallel()
 
@@ -253,6 +318,27 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 			Price:     1,
 		})
 		require.NoError(t, err, "WebsocketModifyOrder must not error")
+		assert.Equal(t, "order-1", resp.OrderID, "order ID should match")
+	})
+
+	t.Run("fractional spot amount", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.instrumentsInfoMapLock.Lock()
+		ex.instrumentsInfoMap[instTypeSpot] = []Instrument{{
+			InstrumentID:     mainPair,
+			InstrumentIDCode: types.Number(789),
+		}}
+		ex.instrumentsInfoMapLock.Unlock()
+		resp, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "order-1",
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+			Amount:    0.5,
+			Price:     1,
+		})
+		require.NoError(t, err, "WebsocketModifyOrder must support a fractional spot amount")
 		assert.Equal(t, "order-1", resp.OrderID, "order ID should match")
 	})
 

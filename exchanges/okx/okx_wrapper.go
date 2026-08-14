@@ -928,17 +928,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          types.Number(s.Amount),
 			Price:         types.Number(s.Price),
 		}
-		var placeSpreadOrderResponse *SpreadOrderResponse
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			placeSpreadOrderResponse, err = e.WSPlaceSpreadOrder(ctx, spreadParam)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			placeSpreadOrderResponse, err = e.PlaceSpreadOrder(ctx, spreadParam)
-			if err != nil {
-				return nil, err
-			}
+		placeSpreadOrderResponse, err := e.PlaceSpreadOrder(ctx, spreadParam)
+		if err != nil {
+			return nil, err
 		}
 		response, err := s.DeriveSubmitResponse(placeSpreadOrderResponse.OrderID)
 		if err != nil {
@@ -959,15 +951,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderRequest.InstrumentIDCode, err = e.cachedInstrumentIDCode(s.AssetType, orderRequest.InstrumentID)
-			if err != nil {
-				return nil, err
-			}
-			placeOrderResponse, err = e.WSPlaceOrder(ctx, orderRequest)
-		} else {
-			placeOrderResponse, err = e.PlaceOrder(ctx, orderRequest)
-		}
+		placeOrderResponse, err = e.PlaceOrder(ctx, orderRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -1147,11 +1131,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			NewSize:       types.Number(action.Amount),
 			NewPrice:      types.Number(action.Price),
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSAmendSpreadOrder(ctx, amendSpreadOrder)
-		} else {
-			_, err = e.AmendSpreadOrder(ctx, amendSpreadOrder)
-		}
+		_, err = e.AmendSpreadOrder(ctx, amendSpreadOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -1174,16 +1154,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(action.AssetType, amendRequest.InstrumentID)
-			if codeErr != nil {
-				return nil, codeErr
-			}
-			amendRequest.InstrumentIDCode = instrumentIDCode
-			_, err = e.WSAmendOrder(ctx, &amendRequest)
-		} else {
-			_, err = e.AmendOrder(ctx, &amendRequest)
-		}
+		_, err = e.AmendOrder(ctx, &amendRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -1595,6 +1566,8 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	if len(cancelOrderParams) > 0 {
 		var canceledOrders []*OrderData
+		// TODO: Add an explicit websocket batch-cancel wrapper so callers can
+		// select the transport instead of relying on automatic routing here.
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			canceledOrders, err = e.WSCancelMultipleOrders(ctx, cancelOrderParams)
 		} else {
@@ -1795,8 +1768,8 @@ ordersLoop:
 		return cancelAllResponse, nil
 	}
 	remaining := cancelAllOrdersRequestParams
-	// TODO: Add transport-explicit batch and cancel-all methods to OrderManagement
-	// before removing automatic websocket routing from these generic wrappers.
+	// TODO: Add an explicit websocket cancel-all wrapper so callers can select
+	// the transport instead of relying on automatic routing here.
 	useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid()
 	if useWebsocket {
 		// Websocket cancellation requires an instrument code for every order.
