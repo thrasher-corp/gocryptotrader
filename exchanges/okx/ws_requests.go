@@ -48,7 +48,7 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	if _, err := rateLimitWeight(len(args), true); err != nil {
+	if err := validateBatchOrderCount(len(args)); err != nil {
 		return nil, err
 	}
 	for i := range args {
@@ -100,7 +100,7 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	if _, err := rateLimitWeight(len(args), true); err != nil {
+	if err := validateBatchOrderCount(len(args)); err != nil {
 		return nil, err
 	}
 	for i := range args {
@@ -157,7 +157,7 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	if _, err := rateLimitWeight(len(args), true); err != nil {
+	if err := validateBatchOrderCount(len(args)); err != nil {
 		return nil, err
 	}
 	for x := range args {
@@ -346,11 +346,11 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 	case 0:
 		return nil
 	case 1:
-		return fmt.Errorf("%w %s %s code=%d message=%s: %w", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errOperationFailed))
+		return fmt.Errorf("%w %s %s: %w: %w", request.ErrAuthRequestFailed, e.Name, operation, getStatusError(intermediary.Code, intermediary.Message), parseWSResponseErrors(result, errOperationFailed))
 	case 2:
-		return fmt.Errorf("%w %s %s code=%d message=%s: %w", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errPartialSuccess))
+		return fmt.Errorf("%w %s %s: %w: %w", request.ErrAuthRequestFailed, e.Name, operation, getStatusError(intermediary.Code, intermediary.Message), parseWSResponseErrors(result, errPartialSuccess))
 	default:
-		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message)
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operation, getStatusError(intermediary.Code, intermediary.Message))
 	}
 }
 

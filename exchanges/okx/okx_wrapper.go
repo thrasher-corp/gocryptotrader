@@ -170,7 +170,8 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.SixMonth},
 					kline.IntervalCapacity{Interval: kline.OneYear},
 				),
-				GlobalResultLimit: 100,
+				// Spread candle history caps at 100 and this limit is shared across assets.
+				GlobalResultLimit: 100, // https://www.okx.com/docs-v5/en/#spread-trading-rest-api-get-candlesticks-history
 			},
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
@@ -1134,7 +1135,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if math.Trunc(action.Amount) != action.Amount {
+	if (action.AssetType.IsFutures() || action.AssetType == asset.Options) && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	// When asset type is asset.Spread
@@ -1357,7 +1358,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	}
 	pairString := pairFormat.Format(s.Pair)
 	tradeMode := e.marginTypeToString(s.MarginType)
-	sideType, err := deriveOrderSide(s.Side)
+	sideType, err := deriveOrderSide(s.Side, s.ReduceOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -1404,9 +1405,17 @@ func isSpotMarketBuyWithQuoteAmount(s *order.Submit) bool {
 	return isSpotMarketOrder(s) && s.Side.IsLong() && s.QuoteAmount > 0
 }
 
-func deriveOrderSide(side order.Side) (string, error) {
+func deriveOrderSide(side order.Side, reduceOnly bool) (string, error) {
 	if !side.IsLong() && !side.IsShort() {
 		return "", fmt.Errorf("%w %s", order.ErrSideIsInvalid, side)
+	}
+	if reduceOnly {
+		switch side {
+		case order.Long:
+			return order.Sell.Lower(), nil
+		case order.Short:
+			return order.Buy.Lower(), nil
+		}
 	}
 	if side.IsLong() {
 		return order.Buy.Lower(), nil
@@ -1453,7 +1462,7 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	if action.AssetType == asset.Spread {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
-	if math.Trunc(action.Amount) != action.Amount {
+	if (action.AssetType.IsFutures() || action.AssetType == asset.Options) && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	pairFormat, err := e.GetPairFormat(action.AssetType, true)
@@ -1551,11 +1560,19 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if o[x].ClientID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
-			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
+			cancelOrder := CancelOrderRequestParam{
 				InstrumentID:  pairFormat.Format(ord.Pair),
 				OrderID:       ord.OrderID,
 				ClientOrderID: ord.ClientOrderID,
-			})
+			}
+			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				instrumentIDCode, codeErr := e.cachedInstrumentIDCode(ord.AssetType, cancelOrder.InstrumentID)
+				if codeErr != nil {
+					return nil, codeErr
+				}
+				cancelOrder.InstrumentIDCode = instrumentIDCode
+			}
+			cancelOrderParams = append(cancelOrderParams, cancelOrder)
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
 			if o[x].OrderID == "" {
@@ -1571,7 +1588,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	if len(cancelOrderParams) > 0 {
-		canceledOrders, err := e.CancelMultipleOrders(ctx, cancelOrderParams)
+		var canceledOrders []*OrderData
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			canceledOrders, err = e.WSCancelMultipleOrders(ctx, cancelOrderParams)
+		} else {
+			canceledOrders, err = e.CancelMultipleOrders(ctx, cancelOrderParams)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1614,7 +1636,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		if err != nil {
 			return nil, err
 		}
-		side, err := deriveOrderSide(s.Side)
+		side, err := deriveOrderSide(s.Side, s.ReduceOnly)
 		if err != nil {
 			return nil, err
 		}
@@ -1767,14 +1789,31 @@ ordersLoop:
 		return cancelAllResponse, nil
 	}
 	remaining := cancelAllOrdersRequestParams
+	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid() {
+		for i := range remaining {
+			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(orderCancellation.AssetType, remaining[i].InstrumentID)
+			if codeErr != nil {
+				return order.CancelAllResponse{}, codeErr
+			}
+			remaining[i].InstrumentIDCode = instrumentIDCode
+		}
+	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for range loop {
 		var response []*OrderData
 		if len(remaining) > 20 {
-			response, err = e.CancelMultipleOrders(ctx, remaining[:20])
+			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				response, err = e.WSCancelMultipleOrders(ctx, remaining[:20])
+			} else {
+				response, err = e.CancelMultipleOrders(ctx, remaining[:20])
+			}
 			remaining = remaining[20:]
 		} else {
-			response, err = e.CancelMultipleOrders(ctx, remaining)
+			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				response, err = e.WSCancelMultipleOrders(ctx, remaining)
+			} else {
+				response, err = e.CancelMultipleOrders(ctx, remaining)
+			}
 		}
 		if err != nil {
 			if len(cancelAllResponse.Status) == 0 {

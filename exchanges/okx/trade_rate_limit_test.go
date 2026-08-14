@@ -277,6 +277,34 @@ func TestRateLimitWeight(t *testing.T) {
 	}
 }
 
+func TestValidateBatchOrderCount(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		count         int
+		expectedError error
+	}{
+		{name: "negative", count: -1, expectedError: errInvalidTradeRateLimitWeight},
+		{name: "zero", expectedError: errInvalidTradeRateLimitWeight},
+		{name: "single", count: 1},
+		{name: "maximum", count: maxBatchOrders},
+		{name: "over maximum", count: maxBatchOrders + 1, expectedError: errExceedLimit},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validateBatchOrderCount(tc.count)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError, "validateBatchOrderCount must return expected error")
+				return
+			}
+			require.NoError(t, err, "validateBatchOrderCount must not error")
+		})
+	}
+}
+
 func TestTradeRateLimiterGetOrCreateScopedLimiter(t *testing.T) {
 	t.Parallel()
 

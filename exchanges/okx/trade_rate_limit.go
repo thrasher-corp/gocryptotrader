@@ -97,13 +97,24 @@ func tradeRateLimitContext[T tradeRateLimitRequest](ctx context.Context, limiter
 }
 
 func rateLimitWeight(count int, isBatched bool) (request.Weight, error) {
-	if isBatched && count > maxBatchOrders {
-		return 0, fmt.Errorf("%w, cannot process more than %d orders", errExceedLimit, maxBatchOrders)
-	}
-	if count < 1 || count > math.MaxUint8 {
+	if isBatched {
+		if err := validateBatchOrderCount(count); err != nil {
+			return 0, err
+		}
+	} else if count < 1 || count > math.MaxUint8 {
 		return 0, errInvalidTradeRateLimitWeight
 	}
 	return request.Weight(count), nil
+}
+
+func validateBatchOrderCount(count int) error {
+	if count < 1 {
+		return errInvalidTradeRateLimitWeight
+	}
+	if count > maxBatchOrders {
+		return fmt.Errorf("%w, cannot process more than %d orders", errExceedLimit, maxBatchOrders)
+	}
+	return nil
 }
 
 func (l *tradeRateLimiter) getOrCreateScopedLimiter(class tradeRateLimitClass, scope string) (*request.RateLimiterWithWeight, error) {
@@ -150,8 +161,6 @@ func (l *tradeRateLimiter) additionalTradeRateLimits(class tradeRateLimitClass, 
 			additionalRateLimits = append(additionalRateLimits, limit)
 		}
 	case tradeRateLimitCancelSingle, tradeRateLimitCancelBatch:
-	default:
-		return nil, fmt.Errorf("%w: %s", errInvalidTradeRateLimitClass, class)
 	}
 	return additionalRateLimits, nil
 }

@@ -77,7 +77,7 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
 	}
-	if _, err := rateLimitWeight(len(args), true); err != nil {
+	if err := validateBatchOrderCount(len(args)); err != nil {
 		return nil, err
 	}
 	for x := range args {
@@ -134,7 +134,7 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	if _, err := rateLimitWeight(len(args), true); err != nil {
+	if err := validateBatchOrderCount(len(args)); err != nil {
 		return nil, err
 	}
 	for x := range args {
@@ -193,7 +193,7 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	if _, err := rateLimitWeight(len(args), true); err != nil {
+	if err := validateBatchOrderCount(len(args)); err != nil {
 		return nil, err
 	}
 	for x := range args {

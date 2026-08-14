@@ -132,6 +132,12 @@ func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
 		require.Len(tb, req.Arguments, 1, "cancel request must contain one argument")
 		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "cancel request must contain instIdCode")
 		response = `{"id":"` + req.ID + `","op":"cancel-order","code":"0","msg":"","data":[{"ordId":"cancelled-order","sCode":"0","sMsg":""}]}`
+	case "batch-cancel-orders":
+		require.NotEmpty(tb, req.Arguments, "batch cancel request must contain arguments")
+		for i := range req.Arguments {
+			require.Positive(tb, req.Arguments[i].InstrumentIDCode, "batch cancel request must contain instIdCode")
+		}
+		response = `{"id":"` + req.ID + `","op":"batch-cancel-orders","code":"0","msg":"","data":[{"ordId":"cancelled-order","sCode":"0","sMsg":""}]}`
 	case "mass-cancel":
 		response = `{"id":"` + req.ID + `","op":"mass-cancel","code":"0","msg":"","data":[{"result":true}]}`
 	default:
@@ -425,6 +431,34 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		assert.True(t, arg.ReduceOnly)
 	})
 
+	for _, tc := range []struct {
+		name         string
+		side         order.Side
+		expectedSide string
+		expectedPos  string
+	}{
+		{name: "reduce only long", side: order.Long, expectedSide: order.Sell.Lower(), expectedPos: positionSideLong},
+		{name: "reduce only short", side: order.Short, expectedSide: order.Buy.Lower(), expectedPos: positionSideShort},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+				Exchange:   ex.Name,
+				Pair:       mainPair,
+				AssetType:  asset.Futures,
+				Side:       tc.side,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				ReduceOnly: true,
+			})
+			require.NoError(t, err, "deriveSubmitOrderArguments must not error")
+			assert.Equal(t, tc.expectedSide, arg.Side, "reduce-only order should use the closing side")
+			assert.Equal(t, tc.expectedPos, arg.PositionSide, "reduce-only order should retain the hedge-mode position side")
+		})
+	}
+
 	t.Run("futures plain sell omits position side", func(t *testing.T) {
 		t.Parallel()
 		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
@@ -475,10 +509,11 @@ func TestDeriveOrderSide(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name    string
-		side    order.Side
-		want    string
-		wantErr error
+		name       string
+		side       order.Side
+		reduceOnly bool
+		want       string
+		wantErr    error
 	}{
 		{
 			name: "buy",
@@ -491,6 +526,18 @@ func TestDeriveOrderSide(t *testing.T) {
 			want: order.Sell.Lower(),
 		},
 		{
+			name:       "reduce only long",
+			side:       order.Long,
+			reduceOnly: true,
+			want:       order.Sell.Lower(),
+		},
+		{
+			name:       "reduce only short",
+			side:       order.Short,
+			reduceOnly: true,
+			want:       order.Buy.Lower(),
+		},
+		{
 			name:    "invalid",
 			side:    order.AnySide,
 			wantErr: order.ErrSideIsInvalid,
@@ -501,7 +548,7 @@ func TestDeriveOrderSide(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := deriveOrderSide(tc.side)
+			got, err := deriveOrderSide(tc.side, tc.reduceOnly)
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				return
@@ -693,6 +740,15 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 		Amount:    1.5,
 	})
 	require.ErrorIs(t, err, errContractAmountCanNotBeDecimal)
+
+	spotArg, err := ex.deriveAmendOrderArguments(&order.Modify{
+		OrderID:   "1",
+		AssetType: asset.Spot,
+		Pair:      mainPair,
+		Amount:    0.5,
+	})
+	require.NoError(t, err, "fractional spot amount must not error")
+	require.Equal(t, 0.5, spotArg.NewQuantity.Float64(), "fractional spot amount must be retained")
 
 	arg, err := ex.deriveAmendOrderArguments(&order.Modify{
 		OrderID:       "1",

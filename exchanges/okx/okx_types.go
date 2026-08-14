@@ -3704,10 +3704,8 @@ type WsOrderBookData struct {
 
 // WsOrderBookLevel contains the price and amount from an OKX orderbook level.
 type WsOrderBookLevel struct {
-	Price        types.Number
-	Amount       types.Number
-	PriceString  string
-	AmountString string
+	Price  types.Number
+	Amount types.Number
 }
 
 // UnmarshalJSON deserialises the price and amount from an OKX orderbook level.
@@ -3722,7 +3720,6 @@ func (w *WsOrderBookLevel) UnmarshalJSON(data []byte) error {
 	pos++
 
 	var values [2]types.Number
-	var rawValues [2]string
 	for valueIndex := range values {
 		for pos < len(data) && (data[pos] == ' ' || data[pos] == ',') {
 			pos++
@@ -3747,13 +3744,11 @@ func (w *WsOrderBookLevel) UnmarshalJSON(data []byte) error {
 			}
 		}
 
-		rawValue := string(data[start:pos])
-		value, err := strconv.ParseFloat(rawValue, 64)
+		value, err := strconv.ParseFloat(string(data[start:pos]), 64)
 		if err != nil {
 			return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
 		}
 		values[valueIndex] = types.Number(value)
-		rawValues[valueIndex] = rawValue
 
 		if pos < len(data) && data[pos] == '"' {
 			pos++
@@ -3762,8 +3757,6 @@ func (w *WsOrderBookLevel) UnmarshalJSON(data []byte) error {
 
 	w.Price = values[0]
 	w.Amount = values[1]
-	w.PriceString = rawValues[0]
-	w.AmountString = rawValues[1]
 	return nil
 }
 

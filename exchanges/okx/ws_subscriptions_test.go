@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -379,6 +380,7 @@ func TestWSAuthenticateConnection(t *testing.T) {
 		conn := &authConnectionStub{response: []byte(`{"code":"1","msg":"bad auth"}`)}
 		err := ex.wsAuthenticateConnection(t.Context(), conn)
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsAuthenticateConnection must treat non-zero code as auth failure")
+		assert.ErrorContains(t, err, "status code: `1` status message: \"bad auth\"", "websocket authentication status should match REST formatting")
 	})
 
 	t.Run("success", func(t *testing.T) {

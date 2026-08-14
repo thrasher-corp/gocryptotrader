@@ -503,8 +503,23 @@ func TestParseWSResponseErrors(t *testing.T) {
 func TestSendAuthenticatedWebsocketRequest(t *testing.T) {
 	t.Parallel()
 
-	err := new(Exchange).SendAuthenticatedWebsocketRequest(t.Context(), request.Unset, "id", "", nil, nil)
-	require.ErrorIs(t, err, errInvalidWebsocketRequest, "SendAuthenticatedWebsocketRequest must validate the request")
+	t.Run("invalid request", func(t *testing.T) {
+		t.Parallel()
+
+		err := new(Exchange).SendAuthenticatedWebsocketRequest(t.Context(), request.Unset, "id", "", nil, nil)
+		require.ErrorIs(t, err, errInvalidWebsocketRequest, "SendAuthenticatedWebsocketRequest must validate the request")
+	})
+
+	t.Run("status error", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		var resp []*OrderData
+		err := ex.SendAuthenticatedWebsocketRequest(t.Context(), request.Unset, "id", "unknown", []struct{}{{}}, &resp)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedWebsocketRequest must wrap the authentication failure")
+		require.ErrorIs(t, err, errOperationFailed, "SendAuthenticatedWebsocketRequest must preserve the operation failure")
+		assert.ErrorContains(t, err, "status code: `1` status message: \"operation failed\"", "websocket status errors should match REST formatting")
+	})
 }
 
 func TestSingleItem(t *testing.T) {

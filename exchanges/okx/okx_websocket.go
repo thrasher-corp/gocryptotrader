@@ -291,7 +291,7 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 
 	if intermediary.Code != 0 {
-		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operationLogin, intermediary.Code, intermediary.Message)
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operationLogin, getStatusError(intermediary.Code, intermediary.Message))
 	}
 	return nil
 }
@@ -1023,6 +1023,11 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 	defer putWsOrderbookLevels(bidsPoolItem)
 	updateTime := data.Timestamp.Time()
 	for i := range assets {
+		if _, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i]); err != nil {
+			return err
+		}
+	}
+	for i := range assets {
 		lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i])
 		if err != nil {
 			return err
@@ -1067,10 +1072,8 @@ func wsOrderbookItems(entries []WsOrderBookLevel) orderbook.Levels {
 func appendWsOrderbookItems(items orderbook.Levels, entries []WsOrderBookLevel) {
 	for j := range entries {
 		items[j] = orderbook.Level{
-			Amount:    entries[j].Amount.Float64(),
-			StrAmount: entries[j].AmountString,
-			Price:     entries[j].Price.Float64(),
-			StrPrice:  entries[j].PriceString,
+			Amount: entries[j].Amount.Float64(),
+			Price:  entries[j].Price.Float64(),
 		}
 	}
 }

@@ -3892,6 +3892,27 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	t.Run("websocket batch", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{
+				OrderID:   "1",
+				AssetType: asset.Options,
+				Pair:      mainPair,
+			},
+			{
+				OrderID:   "2",
+				AssetType: asset.Options,
+				Pair:      mainPair,
+			},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		require.NotNil(t, resp, "CancelBatchOrders must return a response")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["cancelled-order"], "CancelBatchOrders should report the websocket cancellation")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellationParams := []order.Cancel{
 		{
@@ -4039,6 +4060,31 @@ func TestModifyOrder(t *testing.T) {
 	arg.Type = order.OCO
 	_, err = e.ModifyOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+
+	t.Run("fractional spot amount", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1234","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+			OrderID:   "1234",
+			Amount:    0.5,
+		})
+		require.NoError(t, err, "ModifyOrder must allow a fractional spot amount")
+		require.NotNil(t, resp, "ModifyOrder must return a response")
+	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Modify{
@@ -4255,16 +4301,12 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
 	data := &WsOrderBookData{
 		Bids: []WsOrderBookLevel{{
-			Price:        100.5,
-			Amount:       1.25,
-			PriceString:  "100.50",
-			AmountString: "1.250",
+			Price:  100.5,
+			Amount: 1.25,
 		}},
 		Asks: []WsOrderBookLevel{{
-			Price:        100.6,
-			Amount:       0.75,
-			PriceString:  "100.60",
-			AmountString: "0.750",
+			Price:  100.6,
+			Amount: 0.75,
 		}},
 		Timestamp:  types.Time(time.UnixMilli(1659792392540)),
 		SequenceID: 42,
@@ -4280,10 +4322,10 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	assert.Equal(t, int64(42), book.LastUpdateID, "LastUpdateID should match the snapshot sequence ID")
 	require.Len(t, book.Bids, 1, "Snapshot must contain one bid")
 	require.Len(t, book.Asks, 1, "Snapshot must contain one ask")
-	assert.Equal(t, "100.50", book.Bids[0].StrPrice, "Bid price string should retain the wire representation")
-	assert.Equal(t, "1.250", book.Bids[0].StrAmount, "Bid amount string should retain the wire representation")
-	assert.Equal(t, "100.60", book.Asks[0].StrPrice, "Ask price string should retain the wire representation")
-	assert.Equal(t, "0.750", book.Asks[0].StrAmount, "Ask amount string should retain the wire representation")
+	assert.Equal(t, 100.5, book.Bids[0].Price, "Bid price should match")
+	assert.Equal(t, 1.25, book.Bids[0].Amount, "Bid amount should match")
+	assert.Equal(t, 100.6, book.Asks[0].Price, "Ask price should match")
+	assert.Equal(t, 0.75, book.Asks[0].Amount, "Ask amount should match")
 }
 
 func TestWsProcessUpdateOrderbook(t *testing.T) {
@@ -4383,6 +4425,26 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, a)
 		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "A sequence gap must invalidate the %s orderbook", a)
 	}
+
+	partialPair := currency.NewPairWithDelimiter("PART", "USDT", "-")
+	err = tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     tracked.Name,
+		Pair:         partialPair,
+		Asset:        asset.Spot,
+		LastUpdateID: 20,
+		LastUpdated:  time.UnixMilli(1659792392540),
+		LastPushed:   time.UnixMilli(1659792392540),
+		Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+		Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+	})
+	require.NoError(t, err, "LoadSnapshot must not error")
+	update.PreviousSequenceID = 20
+	update.SequenceID = 21
+	err = tracked.WsProcessUpdateOrderbook(update, partialPair, []asset.Item{asset.Spot, asset.Margin})
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every asset before applying updates")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(partialPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must return the unchanged spot orderbook")
+	assert.Equal(t, int64(20), book.LastUpdateID, "A missing secondary asset should not advance the first asset")
 }
 
 func TestWsProcessOrderBooks(t *testing.T) {
@@ -4995,29 +5057,23 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name                 string
-		data                 []byte
-		expectedPrice        float64
-		expectedAmount       float64
-		expectedPriceString  string
-		expectedAmountString string
-		expectedError        error
+		name           string
+		data           []byte
+		expectedPrice  float64
+		expectedAmount float64
+		expectedError  error
 	}{
 		{
-			name:                 "quoted values retain trailing zeroes",
-			data:                 []byte(`["0.0702600","5.00","0","1"]`),
-			expectedPrice:        0.07026,
-			expectedAmount:       5,
-			expectedPriceString:  "0.0702600",
-			expectedAmountString: "5.00",
+			name:           "quoted values",
+			data:           []byte(`["0.0702600","5.00","0","1"]`),
+			expectedPrice:  0.07026,
+			expectedAmount: 5,
 		},
 		{
-			name:                 "numeric values",
-			data:                 []byte(`[0.07026,5,0,1]`),
-			expectedPrice:        0.07026,
-			expectedAmount:       5,
-			expectedPriceString:  "0.07026",
-			expectedAmountString: "5",
+			name:           "numeric values",
+			data:           []byte(`[0.07026,5,0,1]`),
+			expectedPrice:  0.07026,
+			expectedAmount: 5,
 		},
 		{
 			name:          "missing amount",
@@ -5045,8 +5101,6 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 			require.NoError(t, err, "UnmarshalJSON must not error")
 			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
 			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
-			assert.Equal(t, testCase.expectedPriceString, level.PriceString, "PriceString should retain its wire representation")
-			assert.Equal(t, testCase.expectedAmountString, level.AmountString, "AmountString should retain its wire representation")
 		})
 	}
 }
@@ -5055,17 +5109,15 @@ func TestWsOrderbookItems(t *testing.T) {
 	t.Parallel()
 
 	entries := []WsOrderBookLevel{{
-		Price:        100.5,
-		Amount:       2.25,
-		PriceString:  "100.50",
-		AmountString: "2.250",
+		Price:  100.5,
+		Amount: 2.25,
 	}}
 	items := wsOrderbookItems(entries)
 	require.Len(t, items, 1, "wsOrderbookItems must return one orderbook item")
 	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
 	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
-	assert.Equal(t, "100.50", items[0].StrPrice, "orderbook price string should match")
-	assert.Equal(t, "2.250", items[0].StrAmount, "orderbook amount string should match")
+	assert.Empty(t, items[0].StrPrice, "orderbook price string should not be populated")
+	assert.Empty(t, items[0].StrAmount, "orderbook amount string should not be populated")
 }
 
 func TestAppendWsOrderbookItems(t *testing.T) {
@@ -5084,12 +5136,12 @@ func TestAppendWsOrderbookItems(t *testing.T) {
 		{
 			name: "multiple levels",
 			entries: []WsOrderBookLevel{
-				{Price: 1.25, Amount: 2.5, PriceString: "1.250", AmountString: "2.50"},
-				{Price: 3.75, Amount: 4.5, PriceString: "3.750", AmountString: "4.50"},
+				{Price: 1.25, Amount: 2.5},
+				{Price: 3.75, Amount: 4.5},
 			},
 			expected: orderbook.Levels{
-				{Price: 1.25, Amount: 2.5, StrPrice: "1.250", StrAmount: "2.50"},
-				{Price: 3.75, Amount: 4.5, StrPrice: "3.750", StrAmount: "4.50"},
+				{Price: 1.25, Amount: 2.5},
+				{Price: 3.75, Amount: 4.5},
 			},
 		},
 	}
@@ -5108,8 +5160,8 @@ func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
 	t.Parallel()
 
 	entries := []WsOrderBookLevel{
-		{Price: 1, Amount: 2, PriceString: "1.0", AmountString: "2.0"},
-		{Price: 3, Amount: 4, PriceString: "3.0", AmountString: "4.0"},
+		{Price: 1, Amount: 2},
+		{Price: 3, Amount: 4},
 	}
 	items, pooled := appendWsOrderbookItemsFromPool(entries)
 	t.Cleanup(func() {
@@ -5119,8 +5171,8 @@ func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
 	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
 	assert.Equal(t, float64(1), items[0].Price, "first price should match")
 	assert.Equal(t, float64(4), items[1].Amount, "second amount should match")
-	assert.Equal(t, "1.0", items[0].StrPrice, "first price string should match")
-	assert.Equal(t, "4.0", items[1].StrAmount, "second amount string should match")
+	assert.Empty(t, items[0].StrPrice, "first price string should not be populated")
+	assert.Empty(t, items[1].StrAmount, "second amount string should not be populated")
 }
 
 func TestPutWsOrderbookLevels(t *testing.T) {
