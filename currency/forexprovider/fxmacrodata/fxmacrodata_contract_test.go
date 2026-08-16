@@ -81,7 +81,10 @@ func TestAnnouncements(t *testing.T) {
 	require.Len(t, response.Data, 1, "Announcements must decode one data point")
 	require.NotNil(t, response.Data[0].PreviousValue, "Announcements previous value must be present")
 	assert.Equal(t, 2.6, *response.Data[0].PreviousValue, "Announcements should preserve previous values")
-	assert.Equal(t, "current", *response.DataQuality.Reason, "Announcements should decode quality context")
+	assert.Equal(t, "2026-07-31", response.Data[0].Date.String(), "Announcements should decode ISO dates")
+	assert.Equal(t, int64(1786105800), response.Data[0].AnnouncementDatetime.Time().Unix(),
+		"Announcements should decode Unix timestamps")
+	assert.Equal(t, "current", response.DataQuality.Reason, "Announcements should decode quality context")
 }
 
 func TestLatestAnnouncements(t *testing.T) {
@@ -188,7 +191,7 @@ func TestCommodity(t *testing.T) {
 	require.NoError(t, err, "Commodity must decode a documented response")
 	require.Len(t, response.Data, 1, "Commodity must decode one data point")
 	assert.Equal(t, 68.4, *response.Data[0].Val, "Commodity should decode values")
-	assert.Equal(t, "2026-08-11", *response.LatestAvailableDate, "Commodity should decode availability metadata")
+	assert.Equal(t, "2026-08-11", response.LatestAvailableDate.String(), "Commodity should decode availability metadata")
 }
 
 func TestCommoditiesLatest(t *testing.T) {
