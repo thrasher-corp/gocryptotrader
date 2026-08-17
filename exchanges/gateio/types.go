@@ -665,18 +665,6 @@ type SmallCurrencyBalance struct {
 	GTAmount   types.Number `json:"gt_amount"`
 }
 
-// MarginCurrencyPairInfo represents margin currency pair detailed info.
-type MarginCurrencyPairInfo struct {
-	ID                       currency.Pair `json:"id"`
-	Base                     currency.Code `json:"base"`
-	Quote                    currency.Code `json:"quote"`
-	Leverage                 types.Number  `json:"leverage"`
-	BaseMinimumBorrowAmount  types.Number  `json:"min_base_amount"`
-	QuoteMinimumBorrowAmount types.Number  `json:"min_quote_amount"`
-	QuoteMaximumBorrowAmount types.Number  `json:"max_quote_amount"`
-	Status                   int32         `json:"status"`
-}
-
 // OrderbookOfLendingLoan represents order book of lending loans
 type OrderbookOfLendingLoan struct {
 	Rate   types.Number `json:"rate"`
@@ -1344,56 +1332,6 @@ type MarginCurrencyBalance struct {
 	UnpairInterest types.Number `json:"interest"`
 }
 
-// MarginAccountItem margin account item.
-// Returned by the GET /margin/user/account endpoint which is the latest interface
-// supporting both risk-based (risk) and maintenance-margin-based (mmr) isolated
-// margin accounts.
-type MarginAccountItem struct {
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	// AccountType indicates the account mode: "risk" (risk rate account),
-	// "mmr" (maintenance margin rate account), or "inactive" (market not activated).
-	AccountType string `json:"account_type"`
-	// Leverage is the user's current market leverage multiplier.
-	Leverage types.Number `json:"leverage"`
-	Locked   bool         `json:"locked"`
-	// Risk is the current risk rate (returned for risk-rate accounts).
-	Risk types.Number `json:"risk"`
-	// MaintenanceMarginRate is the current maintenance margin rate (returned for mmr accounts).
-	MaintenanceMarginRate types.Number              `json:"mmr"`
-	Base                  AccountBalanceInformation `json:"base"`
-	Quote                 AccountBalanceInformation `json:"quote"`
-}
-
-// AccountBalanceInformation represents currency account balance information.
-type AccountBalanceInformation struct {
-	Available    types.Number  `json:"available"`
-	Borrowed     types.Number  `json:"borrowed"`
-	Interest     types.Number  `json:"interest"`
-	Currency     currency.Code `json:"currency"`
-	LockedAmount types.Number  `json:"locked"`
-}
-
-// MarginAccountBalanceChangeInfo represents margin account balance
-type MarginAccountBalanceChangeInfo struct {
-	ID            string        `json:"id"`
-	TimeUnix      string        `json:"time"`
-	Time          types.Time    `json:"time_ms"`
-	Currency      currency.Code `json:"currency"`
-	CurrencyPair  currency.Pair `json:"currency_pair"`
-	AmountChanged types.Number  `json:"change"`
-	Balance       types.Number  `json:"balance"`
-	AccountType   string        `json:"type"`
-}
-
-// MarginFundingAccountItem represents funding account list item.
-type MarginFundingAccountItem struct {
-	Currency     currency.Code `json:"currency"`
-	Available    types.Number  `json:"available"`
-	LockedAmount types.Number  `json:"locked"`
-	Lent         types.Number  `json:"lent"`       // Outstanding loan amount yet to be repaid
-	TotalLent    types.Number  `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
-}
-
 // SubAccountCrossMarginInfo represents subaccount's cross_margin account info
 type SubAccountCrossMarginInfo struct {
 	UID       string                       `json:"uid"`
@@ -1655,18 +1593,6 @@ type SpotPriceTriggeredOrder struct {
 	Status       string           `json:"status"`
 	Reason       string           `json:"reason"`
 	Market       currency.Pair    `json:"market"`
-}
-
-// OnOffStatus represents on or off status response status
-type OnOffStatus struct {
-	Status string `json:"status"`
-}
-
-// MaxTransferAndLoanAmount represents the maximum amount to transfer, borrow, or lend for specific currency and currency pair
-type MaxTransferAndLoanAmount struct {
-	Currency     currency.Code `json:"currency"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	Amount       types.Number  `json:"amount"`
 }
 
 // CrossMarginCurrencies represents a currency supported by cross margin
@@ -3807,62 +3733,6 @@ type CurrencyDetail struct {
 	BeforeAmountUSDT types.Number  `json:"before_amount_usdt"`
 	AfterAmount      types.Number  `json:"after_amount"`
 	AfterAmountUSDT  types.Number  `json:"after_amount_usdt"`
-}
-
-// LendingMarketDetail represents a list of lending market instruments detail.
-type LendingMarketDetail struct {
-	CurrencyPair         currency.Pair `json:"currency_pair"`
-	BaseMinBorrowAmount  types.Number  `json:"base_min_borrow_amount"`
-	QuoteMinBorrowAmount types.Number  `json:"quote_min_borrow_amount"`
-	Leverage             types.Number  `json:"leverage"`
-}
-
-// LendOrBorrowRequest represents a request parameters for lending and borrowing
-type LendOrBorrowRequest struct {
-	Currency     currency.Code `json:"currency"`
-	OrderType    string        `json:"type"`
-	Amount       types.Number  `json:"amount"`
-	RepaidAll    bool          `json:"repaid_all"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-}
-
-// LendOrBorrowDetail represents a lending or borrowing detail.
-type LendOrBorrowDetail struct {
-	Currency     currency.Code `json:"currency"`
-	Amount       types.Number  `json:"amount"`
-	OrderType    string        `json:"type"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	RepaidAll    bool          `json:"repaid_all"`
-}
-
-// LoanDetail represents a loan detail
-type LoanDetail struct {
-	Currency     currency.Code `json:"currency"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	Amount       types.Number  `json:"amount"`
-	LoanType     string        `json:"type"`
-	ChangeTime   types.Time    `json:"change_time"`
-	CreateTime   types.Time    `json:"create_time"`
-}
-
-// MaximumBorrowableAmount represents a maximum borrowable amount of a currency
-type MaximumBorrowableAmount struct {
-	Currency     currency.Code `json:"currency"`
-	Borrowable   types.Number  `json:"borrowable"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-}
-
-// LoanMarginTierDetail holds details of borrowing tier margin requirements of a specific spot market
-type LoanMarginTierDetail struct {
-	TierAmount            types.Number `json:"tier_amount"`
-	MaintenanceMarginRate types.Number `json:"mmr"`
-	Leverage              types.Number `json:"leverage"`
-}
-
-// CurrencyPairAndLeverage holds a currency pair and leverage information
-type CurrencyPairAndLeverage struct {
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	Leverage     types.Number  `json:"leverage"`
 }
 
 // CreateChaseOrderRequest represents a chase limit order creation request.

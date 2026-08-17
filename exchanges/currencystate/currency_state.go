@@ -46,17 +46,43 @@ func (s *States) GetCurrencyStateSnapshot() ([]Snapshot, error) {
 
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	var sh []Snapshot
+	snapshotCount := 0
+	for _, states := range s.m {
+		snapshotCount += len(states)
+	}
+	var snapshots []Snapshot
+	// Snapshots own their option pointers, so a contiguous backing store avoids
+	// one heap allocation per boolean without exposing Currency fields.
+	type stateValue struct {
+		withdrawals bool
+		deposits    bool
+		trading     bool
+	}
+	var stateValues []stateValue
+	if snapshotCount != 0 {
+		snapshots = make([]Snapshot, 0, snapshotCount)
+		stateValues = make([]stateValue, snapshotCount)
+	}
 	for a, m1 := range s.m {
 		for c, val := range m1 {
-			sh = append(sh, Snapshot{
-				Code:    currency.Code{Item: c},
-				Asset:   a,
-				Options: val.GetState(),
+			state := &stateValues[len(snapshots)]
+			val.mtx.RLock()
+			state.withdrawals = val.withdrawals
+			state.deposits = val.deposits
+			state.trading = val.trading
+			val.mtx.RUnlock()
+			snapshots = append(snapshots, Snapshot{
+				Code:  currency.Code{Item: c},
+				Asset: a,
+				Options: Options{
+					Withdraw: &state.withdrawals,
+					Deposit:  &state.deposits,
+					Trade:    &state.trading,
+				},
 			})
 		}
 	}
-	return sh, nil
+	return snapshots, nil
 }
 
 // CanTradePair returns if the currency pair is currently tradeable for this

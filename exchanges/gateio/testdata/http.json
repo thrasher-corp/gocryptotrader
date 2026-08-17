@@ -6934,34 +6934,60 @@
     {
      "data": [
       {
+       "base_min_borrow_amount": "0.00001",
+       "currency_pair": "BTC_USDT",
+       "delisted_time": 0,
+       "leverage": "10",
+       "quote_min_borrow_amount": "1",
+       "status": "enabled"
+      },
+      {
        "base_min_borrow_amount": "8",
        "currency_pair": "1INCH_USDT",
+       "delisted_time": 0,
        "leverage": "3",
-       "quote_min_borrow_amount": "1"
+       "quote_min_borrow_amount": "1",
+       "status": "enabled"
       },
       {
        "base_min_borrow_amount": "0.003",
        "currency_pair": "AAVE_USDT",
+       "delisted_time": 0,
        "leverage": "5",
-       "quote_min_borrow_amount": "1"
+       "quote_min_borrow_amount": "1",
+       "status": "enabled"
       },
       {
        "base_min_borrow_amount": "700",
        "currency_pair": "ACA_USDT",
+       "delisted_time": 0,
        "leverage": "3",
-       "quote_min_borrow_amount": "1"
+       "quote_min_borrow_amount": "1",
+       "status": "enabled"
       },
       {
        "base_min_borrow_amount": "22",
        "currency_pair": "ACH_USDT",
+       "delisted_time": 0,
        "leverage": "3",
-       "quote_min_borrow_amount": "1"
+       "quote_min_borrow_amount": "1",
+       "status": "enabled"
       },
       {
        "base_min_borrow_amount": "2",
        "currency_pair": "ADA_USDT",
+       "delisted_time": 0,
        "leverage": "3",
-       "quote_min_borrow_amount": "1"
+       "quote_min_borrow_amount": "1",
+       "status": "enabled"
+      },
+      {
+       "base_min_borrow_amount": "500000000",
+       "currency_pair": "PEIPEI_USDT",
+       "delisted_time": 0,
+       "leverage": "3",
+       "quote_min_borrow_amount": "1",
+       "status": "disabled"
       }
      ],
      "queryString": "",
@@ -6976,8 +7002,10 @@
      "data": {
       "base_min_borrow_amount": "0.00001",
       "currency_pair": "BTC_USDT",
+      "delisted_time": 0,
       "leverage": "10",
-      "quote_min_borrow_amount": "1"
+      "quote_min_borrow_amount": "1",
+      "status": "enabled"
      },
      "queryString": "",
      "bodyParams": "",

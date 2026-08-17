@@ -3,6 +3,7 @@ package buffer
 import (
 	"math/rand"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -424,6 +425,86 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	require.ErrorIs(t, err, orderbook.ErrEmptyUpdate)
 }
 
+func TestUpdateHolder(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		bufferEnabled bool
+		bufferLimit   int
+		allowEmpty    bool
+		updateID      int64
+		relayFull     bool
+		wantUpdateID  int64
+		wantBufferLen int
+		wantRelayLen  int
+		wantErr       error
+		wantErrText   string
+		wantLastIDErr error
+	}{
+		{name: "unbuffered", allowEmpty: true, updateID: 69421, wantUpdateID: 69421, wantRelayLen: 1},
+		{name: "unbuffered invalid", wantErr: orderbook.ErrEmptyUpdate, wantLastIDErr: orderbook.ErrOrderbookInvalid},
+		{name: "buffered pending", bufferEnabled: true, bufferLimit: 2, allowEmpty: true, updateID: 69421, wantUpdateID: 69420, wantBufferLen: 1},
+		{name: "buffered applied", bufferEnabled: true, bufferLimit: 1, allowEmpty: true, updateID: 69421, wantUpdateID: 69421, wantRelayLen: 1},
+		{name: "buffered invalid", bufferEnabled: true, bufferLimit: 1, wantErr: orderbook.ErrEmptyUpdate, wantLastIDErr: orderbook.ErrOrderbookInvalid},
+		{name: "relay full", allowEmpty: true, updateID: 69421, relayFull: true, wantUpdateID: 69421, wantRelayLen: 1, wantErrText: "channel buffer is full"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cp, err := getExclusivePair()
+			require.NoError(t, err, "getExclusivePair must not error")
+			relay := stream.NewRelay(1)
+			obl := &Orderbook{exchangeName: exchangeName, ob: make(map[key.PairAsset]*orderbookHolder), dataHandler: relay}
+			err = obl.LoadSnapshot(&orderbook.Book{
+				Exchange:     exchangeName,
+				Pair:         cp,
+				Asset:        asset.Spot,
+				LastUpdated:  time.Now(),
+				LastUpdateID: 69420,
+			})
+			require.NoError(t, err, "LoadSnapshot must not error")
+			<-relay.C
+
+			bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
+			holder := obl.ob[bookKey]
+			require.NotNil(t, holder, "LoadSnapshot must install an orderbook holder")
+			delete(obl.ob, bookKey)
+			obl.bufferEnabled = tc.bufferEnabled
+			obl.obBufferLimit = tc.bufferLimit
+			if tc.relayFull {
+				require.NoError(t, relay.Send(t.Context(), "full"), "Send must not error while filling the relay")
+			}
+
+			err = obl.updateHolder(holder, &orderbook.Update{
+				Pair:       cp,
+				Asset:      asset.Spot,
+				AllowEmpty: tc.allowEmpty,
+				UpdateID:   tc.updateID,
+				UpdateTime: time.Now(),
+			})
+			switch {
+			case tc.wantErr != nil:
+				require.ErrorIs(t, err, tc.wantErr, "updateHolder must return the expected error")
+			case tc.wantErrText != "":
+				require.ErrorContains(t, err, tc.wantErrText, "updateHolder must return the expected relay error")
+			default:
+				require.NoError(t, err, "updateHolder must not error")
+			}
+
+			lastUpdateID, err := holder.ob.LastUpdateID()
+			if tc.wantLastIDErr != nil {
+				require.ErrorIs(t, err, tc.wantLastIDErr, "LastUpdateID must return the expected holder error")
+			} else {
+				require.NoError(t, err, "LastUpdateID must not error")
+				assert.Equal(t, tc.wantUpdateID, lastUpdateID, "updateHolder should leave the expected update ID")
+			}
+			assert.Len(t, holder.buffer, tc.wantBufferLen, "updateHolder should leave the expected buffered-update count")
+			assert.Len(t, relay.C, tc.wantRelayLen, "updateHolder should leave the expected relayed-update count")
+		})
+	}
+}
+
 // TestRunSnapshotWithNoData logic test
 func TestRunSnapshotWithNoData(t *testing.T) {
 	t.Parallel()
@@ -471,6 +552,56 @@ func TestLoadSnapshot(t *testing.T) {
 	snapShot1.Pair = cp
 	snapShot1.LastUpdated = time.Now()
 	require.NoError(t, obl.LoadSnapshot(&snapShot1))
+	bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
+	existingHolder := obl.ob[bookKey]
+	require.NotNil(t, existingHolder, "LoadSnapshot must install an orderbook holder")
+	snapShot1.LastUpdateID = 1
+	snapShot1.LastUpdated = time.Now()
+	require.NoError(t, obl.LoadSnapshot(&snapShot1), "LoadSnapshot must not error for an existing holder")
+	assert.Same(t, existingHolder, obl.ob[bookKey], "LoadSnapshot should reuse an existing holder")
+}
+
+func TestLoadSnapshotConcurrentHolderStability(t *testing.T) {
+	t.Parallel()
+
+	cp, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+
+	const snapshotCount = 16
+	obl := Orderbook{
+		dataHandler:  stream.NewRelay(snapshotCount),
+		exchangeName: exchangeName,
+		ob:           make(map[key.PairAsset]*orderbookHolder),
+	}
+	bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
+	start := make(chan struct{})
+	errs := make([]error, snapshotCount)
+	holders := make([]*orderbookHolder, snapshotCount)
+	var wg sync.WaitGroup
+	for i := range snapshotCount {
+		wg.Go(func() {
+			<-start
+			errs[i] = obl.LoadSnapshot(&orderbook.Book{
+				Exchange:     exchangeName,
+				Pair:         cp,
+				Asset:        asset.Spot,
+				LastUpdated:  time.Unix(int64(i+1), 0),
+				LastUpdateID: int64(i + 1),
+			})
+			obl.m.RLock()
+			holders[i] = obl.ob[bookKey]
+			obl.m.RUnlock()
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	require.NotNil(t, holders[0], "LoadSnapshot must retain an orderbook holder")
+	for i := range snapshotCount {
+		require.NoErrorf(t, errs[i], "LoadSnapshot must not error for concurrent snapshot %d", i)
+		assert.Samef(t, holders[0], holders[i], "LoadSnapshot should retain one holder for concurrent snapshot %d", i)
+	}
+	require.Len(t, obl.ob, 1, "LoadSnapshot must retain one orderbook entry")
 }
 
 // TestFlushBuffer logic test

@@ -29,9 +29,7 @@ var (
 	jobsPool    = &sync.Pool{New: func() any { return new(job) }}
 	jobsChannel = make(chan *job, defaultJobChannelCapacity)
 
-	// Note: Logger state within logFields will be persistent until it's garbage
-	// collected. This is a little bit more efficient.
-	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: logger} }}
+	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: &logger} }}
 
 	// LogPath system path to store log files in
 	logPath string

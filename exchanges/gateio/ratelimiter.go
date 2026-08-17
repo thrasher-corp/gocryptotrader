@@ -16,8 +16,10 @@ const (
 	publicListCurrencyPairsSpotEPL
 	publicCurrenciesSpotEPL
 
-	publicCurrencyPairsMarginEPL
 	publicOrderbookMarginEPL
+	publicUniCurrencyPairsMarginEPL
+	publicUniCurrencyPairDetailMarginEPL
+	publicIsolatedMarginPoolLoansEPL
 
 	publicInsuranceDeliveryEPL
 	publicDeliveryContractsEPL
@@ -94,7 +96,6 @@ const (
 	spotGetTriggerOrderEPL
 	spotCancelTriggerOrderEPL
 
-	marginAccountListEPL
 	marginAccountBalanceEPL
 	marginFundingAccountListEPL
 	marginLendBorrowEPL
@@ -111,7 +112,11 @@ const (
 	marginAutoRepayEPL
 	marginGetAutoRepaySettingsEPL
 	marginGetMaxTransferEPL
-	marginGetMaxBorrowEPL
+	marginUniBorrowableEPL
+	marginUserLoanMarginTiersEPL
+	marginMarketLoanMarginTiersEPL
+	marginSetUserMarketLeverageEPL
+	marginUserAccountListEPL
 	marginSupportedCurrencyCrossListEPL
 	marginSupportedCurrencyCrossEPL
 	marginAccountsEPL
@@ -123,7 +128,12 @@ const (
 	marginGetMaxBorrowCrossEPL
 	marginGetCrossBorrowHistoryEPL
 	marginGetBorrowEPL
-	marginEstimateRateEPL
+	marginUniEstimateRateEPL
+	marginUniLoansEPL
+	marginCreateUniLoanEPL
+	marginUniLoanRecordsEPL
+	marginUniInterestRecordsEPL
+	unifiedInterestRecordsEPL
 
 	flashSwapOrderEPL
 	flashGetOrdersEPL
@@ -218,7 +228,6 @@ const (
 	alphaTokensEPL
 
 	// Unified EPLs
-	unifiedInterestRecordsEPL
 	unifiedRiskUnitsEPL
 	unifiedUpdateUnifiedModeEPL
 	unifiedGetUnifiedModeEPL
@@ -259,15 +268,6 @@ const (
 	earnUniRateEPL
 	earnUniCurrenciesEPL
 	earnUniCurrencyEPL
-
-	// Margin uni EPLs
-	marginUniCreateLoansEPL
-	marginUniGetLoansEPL
-	marginUniLoanRecordsEPL
-	marginUniInterestRecordsEPL
-	marginUniBorrowableEPL
-	marginUniCurrencyPairsEPL
-	marginUniCurrencyPairEPL
 
 	// TradFi EPLs
 	tradfiUsersMT5AccountEPL
@@ -387,6 +387,7 @@ const (
 	otcOrderCancelEPL
 	otcOrderListEPL
 	otcStablecoinOrderListEPL
+	// Must remain last because TestRateLimits uses this as its inclusive upper bound.
 	otcOrderDetailEPL
 )
 
@@ -400,8 +401,10 @@ var packageRateLimits = request.RateLimitDefinitions{
 	publicListCurrencyPairsSpotEPL:  standardRateLimit(),
 	publicCurrenciesSpotEPL:         standardRateLimit(),
 
-	publicCurrencyPairsMarginEPL: standardRateLimit(),
-	publicOrderbookMarginEPL:     standardRateLimit(),
+	publicOrderbookMarginEPL:             standardRateLimit(),
+	publicUniCurrencyPairsMarginEPL:      standardRateLimit(),
+	publicUniCurrencyPairDetailMarginEPL: standardRateLimit(),
+	publicIsolatedMarginPoolLoansEPL:     standardRateLimit(),
 
 	publicInsuranceDeliveryEPL:      standardRateLimit(),
 	publicDeliveryContractsEPL:      standardRateLimit(),
@@ -478,7 +481,6 @@ var packageRateLimits = request.RateLimitDefinitions{
 	spotGetTriggerOrderEPL:     standardRateLimit(),
 	spotCancelTriggerOrderEPL:  orderCloseRateLimit(),
 
-	marginAccountListEPL:                otherPrivateEndpointRateLimit(),
 	marginAccountBalanceEPL:             otherPrivateEndpointRateLimit(),
 	marginFundingAccountListEPL:         otherPrivateEndpointRateLimit(),
 	marginLendBorrowEPL:                 otherPrivateEndpointRateLimit(),
@@ -495,7 +497,11 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginAutoRepayEPL:                  otherPrivateEndpointRateLimit(),
 	marginGetAutoRepaySettingsEPL:       otherPrivateEndpointRateLimit(),
 	marginGetMaxTransferEPL:             otherPrivateEndpointRateLimit(),
-	marginGetMaxBorrowEPL:               otherPrivateEndpointRateLimit(),
+	marginUniBorrowableEPL:              otherPrivateEndpointRateLimit(),
+	marginUserLoanMarginTiersEPL:        otherPrivateEndpointRateLimit(),
+	marginMarketLoanMarginTiersEPL:      standardRateLimit(),
+	marginSetUserMarketLeverageEPL:      otherPrivateEndpointRateLimit(),
+	marginUserAccountListEPL:            otherPrivateEndpointRateLimit(),
 	marginSupportedCurrencyCrossListEPL: standardRateLimit(),
 	marginSupportedCurrencyCrossEPL:     otherPrivateEndpointRateLimit(),
 	marginAccountsEPL:                   otherPrivateEndpointRateLimit(),
@@ -507,7 +513,12 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginGetMaxBorrowCrossEPL:          otherPrivateEndpointRateLimit(),
 	marginGetCrossBorrowHistoryEPL:      otherPrivateEndpointRateLimit(),
 	marginGetBorrowEPL:                  otherPrivateEndpointRateLimit(),
-	marginEstimateRateEPL:               otherPrivateEndpointRateLimit(),
+	marginUniEstimateRateEPL:            otherPrivateEndpointRateLimit(),
+	marginUniLoansEPL:                   otherPrivateEndpointRateLimit(),
+	marginCreateUniLoanEPL:              otherPrivateEndpointRateLimit(),
+	marginUniLoanRecordsEPL:             otherPrivateEndpointRateLimit(),
+	marginUniInterestRecordsEPL:         otherPrivateEndpointRateLimit(),
+	unifiedInterestRecordsEPL:           otherPrivateEndpointRateLimit(),
 
 	flashSwapOrderEPL:   otherPrivateEndpointRateLimit(),
 	flashGetOrdersEPL:   otherPrivateEndpointRateLimit(),
@@ -602,7 +613,6 @@ var packageRateLimits = request.RateLimitDefinitions{
 	alphaTokensEPL:      standardRateLimit(),
 
 	// Unified limits
-	unifiedInterestRecordsEPL:                   standardRateLimit(),
 	unifiedRiskUnitsEPL:                         standardRateLimit(),
 	unifiedUpdateUnifiedModeEPL:                 standardRateLimit(),
 	unifiedGetUnifiedModeEPL:                    standardRateLimit(),
@@ -643,15 +653,6 @@ var packageRateLimits = request.RateLimitDefinitions{
 	earnUniRateEPL:            standardRateLimit(),
 	earnUniCurrenciesEPL:      standardRateLimit(),
 	earnUniCurrencyEPL:        standardRateLimit(),
-
-	// Margin uni limits
-	marginUniCreateLoansEPL:     standardRateLimit(),
-	marginUniGetLoansEPL:        standardRateLimit(),
-	marginUniLoanRecordsEPL:     standardRateLimit(),
-	marginUniInterestRecordsEPL: standardRateLimit(),
-	marginUniBorrowableEPL:      standardRateLimit(),
-	marginUniCurrencyPairsEPL:   standardRateLimit(),
-	marginUniCurrencyPairEPL:    standardRateLimit(),
 
 	// TradFi limits
 	tradfiUsersMT5AccountEPL:    standardRateLimit(),
