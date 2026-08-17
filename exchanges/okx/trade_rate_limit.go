@@ -211,7 +211,7 @@ func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.Addition
 	if orderCount < 1 {
 		return request.AdditionalRateLimit{}, false, nil
 	}
-	weightOverride, err := rateLimitWeight(orderCount)
+	weight, err := rateLimitWeight(orderCount)
 	if err != nil {
 		return request.AdditionalRateLimit{}, false, fmt.Errorf("%w: subaccount order count %d", err, orderCount)
 	}
@@ -220,7 +220,7 @@ func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.Addition
 	}
 	return request.AdditionalRateLimit{
 		Limiter:        l.subAccountLimiter,
-		WeightOverride: weightOverride,
+		WeightOverride: weight,
 	}, true, nil
 }
 
