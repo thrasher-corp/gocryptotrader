@@ -103,7 +103,10 @@ func (e *Exchange) GetIsolatedMarginMaxTransferableAmount(ctx context.Context, c
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	if currencyPair.IsEmpty() && ccy.Equal(currency.USDT) {
+	if !currencyPair.IsEmpty() && (!currencyPair.IsPopulated() || currencyPair.IsInvalid()) {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !currencyPair.IsPopulated() && ccy.Equal(currency.USDT) {
 		return nil, fmt.Errorf("%w: required when currency is USDT", currency.ErrCurrencyPairEmpty)
 	}
 	if currencyPair.IsPopulated() {

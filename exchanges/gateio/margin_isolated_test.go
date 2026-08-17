@@ -73,6 +73,15 @@ func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair must return the expected error")
+
+	for _, pair := range []currency.Pair{
+		currency.NewPair(currency.BTC, currency.BTC),
+		currency.NewPair(currency.BTC, currency.EMPTYCODE),
+	} {
+		_, err = e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.BTC, pair)
+		require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "malformed currency pair must return the expected error")
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, BTCUSDT)
 	require.NoError(t, err, "GetIsolatedMarginMaxTransferableAmount must not error")
