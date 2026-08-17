@@ -3,6 +3,7 @@ package bybit
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -28,12 +29,12 @@ func TestWebsocketOrderResponse(t *testing.T) {
 	require.Equal(t, "FLOWUSDT", result.OrderDetails[0].Symbol, "order symbol must match")
 	require.Equal(t, "2281309546159014400", result.OrderDetails[0].OrderID, "order ID must match")
 	require.Equal(t, "Filled", result.OrderDetails[0].OrderStatus, "order status must match")
-	require.Equal(t, types.Number(0), result.OrderDetails[0].SelfMatchPreventionGroup, "self-match prevention group must match")
-	require.Equal(t, types.Number(0), result.OrderDetails[0].SlippageTolerance, "slippage tolerance must match")
+	require.Equal(t, types.Time(time.UnixMilli(1786689290245)), result.CreationTime, "creation time must match")
+	require.Equal(t, types.Time(time.UnixMilli(1786689290243)), result.OrderDetails[0].CreatedTime, "created time must match")
+	require.Equal(t, types.Time(time.UnixMilli(1786689290244)), result.OrderDetails[0].UpdatedTime, "updated time must match")
+	require.Equal(t, order.Sell, result.OrderDetails[0].Side, "order side must match")
 	require.Equal(t, "UNKNOWN", result.OrderDetails[0].SlippageToleranceType, "slippage tolerance type must match")
 	require.Equal(t, types.Number(0.0048975312), result.OrderDetails[0].CumulativeFeeDetail["USDT"], "cumulative fee must match")
-	require.False(t, result.OrderDetails[0].RetailPriceImprovementTakerAccess, "retail price improvement taker access must match")
-	require.Equal(t, types.Number(0), result.OrderDetails[0].RetailPriceImprovementMatchedQuantity, "retail price improvement matched quantity must match")
 }
 
 func TestWSCreateOrder(t *testing.T) {
