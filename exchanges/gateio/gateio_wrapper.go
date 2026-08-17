@@ -175,6 +175,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.EdgeCase1:             frontEndURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -433,16 +434,17 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return pairs, nil
 	case asset.Margin:
-		tradables, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		tradables, err := e.GetIsolatedMarginLendingMarkets(ctx)
 		if err != nil {
 			return nil, err
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
+		now := time.Now()
 		for x := range tradables {
-			if tradables[x].Status == 0 || tradables[x].BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
+			if !tradables[x].IsTradable(now) {
 				continue
 			}
-			pairs = append(pairs, tradables[x].ID)
+			pairs = append(pairs, tradables[x].Pair)
 		}
 		return pairs, nil
 	case asset.CrossMargin:
@@ -739,23 +741,20 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 				Free:  balances[i].Available.Float64(),
 			})
 		}
-	case asset.Margin, asset.CrossMargin:
-		balances, err := e.GetMarginAccountList(ctx, currency.EMPTYPAIR)
+	case asset.Margin:
+		balances, err := e.GetIsolatedMarginAccountList(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
-		for i := range balances {
-			subAccts[0].Balances.Set(balances[i].Base.Currency, accounts.Balance{
-				Total: balances[i].Base.Available.Float64() + balances[i].Base.LockedAmount.Float64(),
-				Hold:  balances[i].Base.LockedAmount.Float64(),
-				Free:  balances[i].Base.Available.Float64(),
-			})
-			subAccts[0].Balances.Set(balances[i].Quote.Currency, accounts.Balance{
-				Total: balances[i].Quote.Available.Float64() + balances[i].Quote.LockedAmount.Float64(),
-				Hold:  balances[i].Quote.LockedAmount.Float64(),
-				Free:  balances[i].Quote.Available.Float64(),
-			})
+		if err := setIsolatedMarginAccountBalances(&subAccts[0].Balances, balances); err != nil {
+			return nil, err
 		}
+	case asset.CrossMargin:
+		crossMarginAccount, err := e.GetCrossMarginAccounts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		setCrossMarginAccountBalances(&subAccts[0].Balances, crossMarginAccount)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 		if err != nil {
@@ -789,6 +788,50 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		return nil, fmt.Errorf("%w asset type: %q", asset.ErrNotSupported, a)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+}
+
+func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItem) error {
+	for i := range response {
+		if err := addIsolatedMarginAccountBalance(balances, response[i].Base); err != nil {
+			return err
+		}
+		if err := addIsolatedMarginAccountBalance(balances, response[i].Quote); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func addIsolatedMarginAccountBalance(balances *accounts.CurrencyBalances, balance AccountBalanceInformation) error {
+	// Interest is already reflected in available, so only principal is removed from available without borrow.
+	borrowed := balance.Borrowed.Float64()
+	available := balance.Available.Float64()
+	locked := balance.LockedAmount.Float64()
+	return balances.Add(balance.Currency, accounts.Balance{
+		Total:                  available + locked,
+		Hold:                   locked,
+		Free:                   available,
+		AvailableWithoutBorrow: available - borrowed,
+		Borrowed:               borrowed,
+	})
+}
+
+func setCrossMarginAccountBalances(balances *accounts.CurrencyBalances, account *CrossMarginAccount) {
+	if account == nil {
+		return
+	}
+	for ccy, balance := range account.Balances {
+		borrowed := balance.Borrowed.Float64() + balance.Interest.Float64()
+		available := balance.Available.Float64()
+		freeze := balance.Freeze.Float64()
+		balances.Set(currency.NewCode(ccy), accounts.Balance{
+			Total:                  available + freeze,
+			Hold:                   freeze,
+			Free:                   available,
+			AvailableWithoutBorrow: available - borrowed,
+			Borrowed:               borrowed,
+		})
+	}
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -1989,17 +2032,18 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			})
 		}
 	case asset.Margin:
-		marginPairs, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		marginPairs, err := e.GetIsolatedMarginLendingMarkets(ctx)
 		if err != nil {
 			return err
 		}
 
-		supported := make(map[currency.Pair]*MarginCurrencyPairInfo, len(marginPairs))
+		supported := make(map[currency.Pair]*IsolatedMarginLendingMarket, len(marginPairs))
+		now := time.Now()
 		for i := range marginPairs {
-			if marginPairs[i].Status == 0 || marginPairs[i].BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
+			if !marginPairs[i].IsTradable(now) {
 				continue
 			}
-			supported[marginPairs[i].ID] = &marginPairs[i]
+			supported[marginPairs[i].Pair] = &marginPairs[i]
 		}
 
 		// Required for spot trading limits
@@ -2020,19 +2064,25 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if minBaseAmount == 0 {
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
+			delisted := mInfo.DelistedTime.Time()
+			if delisted.IsZero() {
+				delisted = pairsData[i].DelistingTime.Time()
+			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                      key.NewExchangeAssetPair(e.Name, a, pairsData[i].ID),
 				PriceStepIncrementSize:   math.Pow10(-int(pairsData[i].PricePrecision)),
 				AmountStepIncrementSize:  math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:        minBaseAmount,
 				MinimumQuoteAmount:       pairsData[i].MinQuoteAmount.Float64(),
-				Delisted:                 pairsData[i].DelistingTime.Time(),
+				Delisted:                 delisted,
 				MinimumBorrowAmountBase:  mInfo.BaseMinimumBorrowAmount.Float64(),
 				MinimumBorrowAmountQuote: mInfo.QuoteMinimumBorrowAmount.Float64(),
 			})
 		}
 		if len(unsupported) > 0 {
-			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no execution limits loaded for: %v", e.Name, len(unsupported), unsupported)
+			unsupportedPairs := currency.Pairs(slices.Collect(maps.Keys(unsupported))).Strings()
+			slices.Sort(unsupportedPairs)
+			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no execution limits loaded for: %v", e.Name, len(unsupportedPairs), unsupportedPairs)
 		}
 	case asset.CrossMargin:
 		crossMinimums, err := e.getCrossMarginMinimums(ctx)
