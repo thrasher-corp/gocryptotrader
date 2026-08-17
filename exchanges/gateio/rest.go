@@ -79,6 +79,10 @@ const (
 const (
 	utc0TimeZone = "utc0"
 	utc8TimeZone = "utc8"
+
+	// sizeDecimalHeader opts in to decimal sizes; without it futures sizes are truncated to whole
+	// contracts, which silently loses precision and reports sub-unit orderbook levels as zero
+	sizeDecimalHeader = "X-Gate-Size-Decimal"
 )
 
 var (
@@ -4211,6 +4215,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["TIMESTAMP"] = strconv.FormatInt(timestamp.Unix(), 10)
 		headers["Accept"] = "application/json"
 		headers["SIGN"] = sig
+		headers[sizeDecimalHeader] = "1"
 		urlPath = ePoint + urlPath
 		if param != nil {
 			urlPath = common.EncodeURLValues(urlPath, param)
@@ -4300,6 +4305,7 @@ func (e *Exchange) sendUnversionedHTTPRequest(ctx context.Context, ep exchange.U
 		return &request.Item{
 			Method:                 http.MethodGet,
 			Path:                   endpoint + path,
+			Headers:                map[string]string{sizeDecimalHeader: "1"},
 			Result:                 &intermediary,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,

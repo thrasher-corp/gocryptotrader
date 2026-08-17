@@ -27,6 +27,11 @@ func TestMain(m *testing.M) {
 	if err := testexch.MockHTTPInstance(e, ""); err != nil {
 		log.Fatalf("MockHTTPInstance error: %s", err)
 	}
+	// Mock responses are served locally, so throttling protects nothing and long windows such as the
+	// 100-per-day CrossEx limits would otherwise stall any endpoint exercised more than once per run
+	if err := e.DisableRateLimiter(); err != nil {
+		log.Fatal(err)
+	}
 	if err := e.enablePairs(); err != nil {
 		log.Fatal(err)
 	}
