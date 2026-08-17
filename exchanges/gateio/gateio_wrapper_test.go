@@ -145,7 +145,7 @@ func TestContractStatUnmarshalLastFundingRate(t *testing.T) {
 	assert.Equal(t, 0.00125, stats[0].LastFundingRate.Float64())
 }
 
-func TestGetSupportedFlashSwapCurrenciesResponse(t *testing.T) {
+func TestGetSupportedFlashSwapCurrencyPairsResponse(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
@@ -153,21 +153,25 @@ func TestGetSupportedFlashSwapCurrenciesResponse(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
-		assert.Equal(t, "/api/v4/flash_swap/currencies", r.URL.Path, "request path should be flash swap currencies")
-		_, err := fmt.Fprint(w, `[{"currency":"BTC","min_amount":"0.001","max_amount":"1","swappable":["USDT"]}]`)
-		assert.NoError(t, err, "writing flash swap currencies should not error")
+		assert.Equal(t, "/api/v4/flash_swap/currency_pairs", r.URL.Path, "request path should be flash swap currency pairs")
+		assert.Equal(t, "BTC", r.URL.Query().Get("currency"), "currency query should match")
+		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit query should match")
+		assert.Equal(t, "2", r.URL.Query().Get("page"), "page query should match")
+		_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","sell_currency":"BTC","buy_currency":"USDT","sell_min_amount":"0.001","sell_max_amount":"1","buy_min_amount":"1","buy_max_amount":"100000"}]`)
+		assert.NoError(t, err, "writing flash swap currency pairs should not error")
 	}))
 	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
 
-	currencies, err := ex.GetSupportedFlashSwapCurrencies(t.Context())
-	require.NoError(t, err, "GetSupportedFlashSwapCurrencies must not error")
-	require.Len(t, currencies, 1, "GetSupportedFlashSwapCurrencies must return the mock currency")
-	assert.Equal(t, "BTC", currencies[0].Currency, "GetSupportedFlashSwapCurrencies should decode the currency")
-	assert.Equal(t, 0.001, currencies[0].MinAmount.Float64(), "GetSupportedFlashSwapCurrencies should decode the minimum amount")
-	assert.Equal(t, []string{"USDT"}, currencies[0].Swappable, "GetSupportedFlashSwapCurrencies should decode swappable currencies")
+	pairs, err := ex.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.BTC, 10, 2)
+	require.NoError(t, err, "GetSupportedFlashSwapCurrencyPairs must not error")
+	require.Len(t, pairs, 1, "GetSupportedFlashSwapCurrencyPairs must return the mock pair")
+	assert.Equal(t, "BTC_USDT", pairs[0].CurrencyPair, "GetSupportedFlashSwapCurrencyPairs should decode the pair")
+	assert.Equal(t, "BTC", pairs[0].SellCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the sell currency")
+	assert.Equal(t, "USDT", pairs[0].BuyCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the buy currency")
+	assert.Equal(t, 0.001, pairs[0].SellMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum sell amount")
 }
 
 func TestGetCrossMarginMinimums(t *testing.T) {

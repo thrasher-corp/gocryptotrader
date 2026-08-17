@@ -914,12 +914,25 @@ type OptionSettlement struct {
 	StrikePrice types.Number `json:"strike_price"`
 }
 
-// SwapCurrencies represents Flash Swap supported currencies
+// SwapCurrencies represents Flash Swap supported currencies.
+//
+// Deprecated: Use FlashSwapCurrencyPair.
 type SwapCurrencies struct {
 	Currency  string       `json:"currency"`
 	MinAmount types.Number `json:"min_amount"`
 	MaxAmount types.Number `json:"max_amount"`
 	Swappable []string     `json:"swappable"`
+}
+
+// FlashSwapCurrencyPair represents a supported flash swap pair.
+type FlashSwapCurrencyPair struct {
+	CurrencyPair  string       `json:"currency_pair"`
+	SellCurrency  string       `json:"sell_currency"`
+	BuyCurrency   string       `json:"buy_currency"`
+	SellMinAmount types.Number `json:"sell_min_amount"`
+	SellMaxAmount types.Number `json:"sell_max_amount"`
+	BuyMinAmount  types.Number `json:"buy_min_amount"`
+	BuyMaxAmount  types.Number `json:"buy_max_amount"`
 }
 
 // MyOptionSettlement represents option private settlement

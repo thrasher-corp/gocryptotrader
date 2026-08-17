@@ -1674,11 +1674,11 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	}
 }
 
-func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
+func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 	t.Parallel()
 
-	if _, err := e.GetSupportedFlashSwapCurrencies(t.Context()); err != nil {
-		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", e.Name, err)
+	if _, err := e.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.EMPTYCODE, 0, 0); err != nil {
+		t.Errorf("%s GetSupportedFlashSwapCurrencyPairs() error %v", e.Name, err)
 	}
 }
 

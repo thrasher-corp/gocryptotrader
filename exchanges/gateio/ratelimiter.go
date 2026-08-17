@@ -248,7 +248,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	publicTradeHistoryOptionsEPL:          standardRateLimit(),
 
 	publicGetServerTimeEPL:     standardRateLimit(),
-	publicFlashSwapEPL:         flashSwapPublicRateLimit(),
+	publicFlashSwapEPL:         standardRateLimit(),
 	publicListCurrencyChainEPL: standardRateLimit(),
 
 	walletDepositAddressEPL:                 standardRateLimit(),
@@ -404,11 +404,6 @@ var packageRateLimits = request.RateLimitDefinitions{
 
 func standardRateLimit() *request.RateLimiterWithWeight {
 	return request.NewRateLimitWithWeight(time.Second*10, 200, 1)
-}
-
-func flashSwapPublicRateLimit() *request.RateLimiterWithWeight {
-	// Flash-swap discovery has returned 429s at the general public endpoint rate.
-	return request.NewRateLimitWithWeight(time.Second, 1, 1)
 }
 
 func personalAccountRateLimit() *request.RateLimiterWithWeight {
