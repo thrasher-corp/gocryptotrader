@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestTransferCollateralToIsolatedMargin(t *testing.T) {
@@ -88,6 +89,30 @@ func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, BTCUSDT)
 	require.NoError(t, err, "GetIsolatedMarginMaxTransferableAmount must not error")
+}
+
+func TestIsolatedMarginLendingMarketIsTradable(t *testing.T) {
+	t.Parallel()
+	now := time.Unix(2_000_000_000, 0)
+
+	for _, tc := range []struct {
+		name         string
+		status       string
+		delistedTime time.Time
+		expected     bool
+	}{
+		{name: "enabled without delisting", status: "enabled", expected: true},
+		{name: "disabled", status: "disabled", expected: false},
+		{name: "past delisting", status: "enabled", delistedTime: now.Add(-time.Second), expected: false},
+		{name: "delisting now", status: "enabled", delistedTime: now, expected: true},
+		{name: "future delisting", status: "enabled", delistedTime: now.Add(time.Second), expected: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			market := IsolatedMarginLendingMarket{Status: tc.status, DelistedTime: types.Time(tc.delistedTime)}
+			assert.Equal(t, tc.expected, market.IsTradable(now), "tradability should match the market status and delisting time")
+		})
+	}
 }
 
 func TestGetIsolatedMarginLendingMarkets(t *testing.T) {

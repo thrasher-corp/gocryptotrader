@@ -439,8 +439,9 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			return nil, err
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
+		now := time.Now()
 		for x := range tradables {
-			if tradables[x].Status != "enabled" || !tradables[x].DelistedTime.Time().IsZero() && tradables[x].DelistedTime.Time().Before(time.Now()) {
+			if !tradables[x].IsTradable(now) {
 				continue
 			}
 			pairs = append(pairs, tradables[x].Pair)
@@ -2040,8 +2041,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 
 		supported := make(map[currency.Pair]*IsolatedMarginLendingMarket, len(marginPairs))
+		now := time.Now()
 		for i := range marginPairs {
-			if marginPairs[i].Status != "enabled" || !marginPairs[i].DelistedTime.Time().IsZero() && marginPairs[i].DelistedTime.Time().Before(time.Now()) {
+			if !marginPairs[i].IsTradable(now) {
 				continue
 			}
 			supported[marginPairs[i].Pair] = &marginPairs[i]

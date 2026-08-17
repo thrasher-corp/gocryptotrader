@@ -1,6 +1,8 @@
 package gateio
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -45,6 +47,12 @@ type IsolatedMarginLendingMarket struct {
 	PositionLeverage         types.Number  `json:"leverage"`
 	Status                   string        `json:"status"` // "enabled" or "disabled"
 	DelistedTime             types.Time    `json:"delisted_time"`
+}
+
+// IsTradable returns whether the market is enabled and has not completed delisting.
+func (m IsolatedMarginLendingMarket) IsTradable(now time.Time) bool {
+	delisted := m.DelistedTime.Time()
+	return m.Status == "enabled" && (delisted.IsZero() || !delisted.Before(now))
 }
 
 // IsolatedMarginLendingTier represents the lending tier information for isolated margin accounts.
