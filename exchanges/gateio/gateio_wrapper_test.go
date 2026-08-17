@@ -172,6 +172,9 @@ func TestGetSupportedFlashSwapCurrencyPairsResponse(t *testing.T) {
 	assert.Equal(t, "BTC", pairs[0].SellCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the sell currency")
 	assert.Equal(t, "USDT", pairs[0].BuyCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the buy currency")
 	assert.Equal(t, 0.001, pairs[0].SellMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum sell amount")
+	assert.Equal(t, 1.0, pairs[0].SellMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum sell amount")
+	assert.Equal(t, 1.0, pairs[0].BuyMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum buy amount")
+	assert.Equal(t, 100000.0, pairs[0].BuyMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum buy amount")
 }
 
 func TestGetCrossMarginMinimums(t *testing.T) {
