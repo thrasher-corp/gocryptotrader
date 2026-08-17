@@ -440,7 +440,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
-			if tradables[x].Status != "enabled" || !tradables[x].DelistedTime.Time().IsZero() {
+			if tradables[x].Status != "enabled" || !tradables[x].DelistedTime.Time().IsZero() && tradables[x].DelistedTime.Time().Before(time.Now()) {
 				continue
 			}
 			pairs = append(pairs, tradables[x].Pair)
@@ -2041,6 +2041,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 		supported := make(map[currency.Pair]*IsolatedMarginLendingMarket, len(marginPairs))
 		for i := range marginPairs {
+			if marginPairs[i].Status != "enabled" || !marginPairs[i].DelistedTime.Time().IsZero() && marginPairs[i].DelistedTime.Time().Before(time.Now()) {
+				continue
+			}
 			supported[marginPairs[i].Pair] = &marginPairs[i]
 		}
 
@@ -2078,8 +2081,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			})
 		}
 		if len(unsupported) > 0 {
-			unsupportedPairs := slices.Collect(maps.Keys(unsupported))
-			sort.Slice(unsupportedPairs, func(i, j int) bool { return unsupportedPairs[i].String() < unsupportedPairs[j].String() })
+			unsupportedPairs := currency.Pairs(slices.Collect(maps.Keys(unsupported))).Strings()
+			slices.Sort(unsupportedPairs)
 			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no execution limits loaded for: %v", e.Name, len(unsupportedPairs), unsupportedPairs)
 		}
 	case asset.CrossMargin:

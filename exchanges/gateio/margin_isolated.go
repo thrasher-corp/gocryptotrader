@@ -246,8 +246,8 @@ func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		if limit > 100 {
-			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
+		if limit > 1000 {
+			return nil, fmt.Errorf("%w: maximum 1000", errInvalidLimit)
 		}
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}

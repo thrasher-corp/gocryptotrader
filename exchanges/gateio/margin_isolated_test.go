@@ -71,7 +71,10 @@ func TestUpdateIsolatedMarginUsersAutoRepaymentSetting(t *testing.T) {
 
 func TestGetIsolatedMarginMaxTransferableAmount(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	_, err := e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.EMPTYCODE, BTCUSDT)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty currency code must return the expected error")
+
+	_, err = e.GetIsolatedMarginMaxTransferableAmount(t.Context(), currency.USDT, currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty currency pair must return the expected error")
 
 	for _, pair := range []currency.Pair{
@@ -218,7 +221,7 @@ func TestGetIsolatedMarginLoanRecords(t *testing.T) {
 
 func TestGetIsolatedMarginInterestDeductionRecords(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 101, time.Time{}, time.Time{})
+	_, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 1001, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errInvalidLimit, "limit above maximum must return the expected error")
 	tn := time.Now()
 	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 0, 0, tn.Add(time.Hour), tn)
@@ -285,8 +288,17 @@ func TestGetIsolatedMarginAccountList(t *testing.T) {
 func TestGetIsolatedMarginPoolLoans(t *testing.T) {
 	t.Parallel()
 	ctx := request.WithHeaders(t.Context(), http.Header{
-		"User-Agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"},
-		"Accept":     {"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"},
+		"User-Agent":                {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"},
+		"Accept":                    {"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"},
+		"Accept-Language":           {"en-US,en;q=0.9"},
+		"Sec-Ch-Ua":                 {`"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"`},
+		"Sec-Ch-Ua-Mobile":          {"?0"},
+		"Sec-Ch-Ua-Platform":        {`"Windows"`},
+		"Sec-Fetch-Dest":            {"document"},
+		"Sec-Fetch-Mode":            {"navigate"},
+		"Sec-Fetch-Site":            {"none"},
+		"Sec-Fetch-User":            {"?1"},
+		"Upgrade-Insecure-Requests": {"1"},
 	})
 	_, err := e.GetIsolatedMarginPoolLoans(ctx, currency.BTC, 18446744073709551615, 100)
 	require.ErrorContains(t, err, "Type mismatch", "page value above the API range must return a type mismatch")

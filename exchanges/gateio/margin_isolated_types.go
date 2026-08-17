@@ -37,7 +37,6 @@ type MaxTransferAndLoanAmount struct {
 	Amount       types.Number `json:"amount"`
 }
 
-// "status":"enabled","delisted_time":0}
 // IsolatedMarginLendingMarket represents an isolated margin lending market
 type IsolatedMarginLendingMarket struct {
 	Pair                     currency.Pair `json:"currency_pair"`

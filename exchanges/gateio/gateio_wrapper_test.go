@@ -133,7 +133,7 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","min_base_amount":"0.001","min_quote_amount":"1","amount_precision":3,"precision":2,"trade_status":"tradable"}]`)
 			assert.NoError(t, err, "writing spot currency pairs should not error")
 		case "/api/v4/margin/uni/currency_pairs":
-			_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","quote_min_borrow_amount":"2"}]`)
+			_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","quote_min_borrow_amount":"2","status":"enabled","delisted_time":0}]`)
 			assert.NoError(t, err, "writing isolated margin lending markets should not error")
 		case "/api/v4/margin/cross/currencies":
 			_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1}]`)
@@ -175,7 +175,7 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","trade_status":"tradable"},{"id":"ETH_USDT","base":"ETH","quote":"USDT","trade_status":"tradable"},{"id":"DOGE_USDT","base":"DOGE","quote":"USDT","trade_status":"untradable"}]`)
 			assert.NoError(t, err, "writing spot currency pairs should not error")
 		case "/api/v4/margin/uni/currency_pairs":
-			_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","status":"enabled","delisted_time":0},{"currency_pair":"ETH_USDT","base_min_borrow_amount":"0.02","status":"enabled","delisted_time":0},{"currency_pair":"DOGE_USDT","base_min_borrow_amount":"1","status":"disabled","delisted_time":0},{"currency_pair":"SOL_USDT","base_min_borrow_amount":"0.1","status":"enabled","delisted_time":1700000000}]`)
+			_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","base_min_borrow_amount":"0.01","status":"enabled","delisted_time":0},{"currency_pair":"ETH_USDT","base_min_borrow_amount":"0.02","status":"enabled","delisted_time":0},{"currency_pair":"DOGE_USDT","base_min_borrow_amount":"1","status":"disabled","delisted_time":0},{"currency_pair":"SOL_USDT","base_min_borrow_amount":"0.1","status":"enabled","delisted_time":1700000000},{"currency_pair":"XRP_USDT","base_min_borrow_amount":"1","status":"enabled","delisted_time":4102444800}]`)
 			assert.NoError(t, err, "writing isolated margin lending markets should not error")
 		case "/api/v4/margin/cross/currencies":
 			_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1},{"name":"ETH","min_borrow_amount":"0.05","loanable":true,"status":0},{"name":"DOGE","min_borrow_amount":"1","loanable":true,"status":1}]`)
@@ -191,9 +191,10 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 
 	marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
 	require.NoError(t, err, "FetchTradablePairs must not error for margin")
-	require.Len(t, marginPairs, 2, "margin must return all pairs from the isolated-margin endpoint")
+	require.Len(t, marginPairs, 3, "margin must return enabled pairs that are not yet delisted")
 	assert.True(t, marginPairs[0].Equal(currency.NewBTCUSDT()), "margin should include the first isolated-margin pair")
 	assert.True(t, marginPairs[1].Equal(currency.NewPair(currency.ETH, currency.USDT)), "margin should include the second isolated-margin pair")
+	assert.True(t, marginPairs[2].Equal(currency.NewPair(currency.XRP, currency.USDT)), "margin should include a pair with a future delisting time")
 
 	crossPairs, err := ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
 	require.NoError(t, err, "FetchTradablePairs must not error for cross margin")
