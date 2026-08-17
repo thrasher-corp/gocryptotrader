@@ -36,8 +36,17 @@ func TestGetWSRateLimitEPLByCategory(t *testing.T) {
 
 func TestRateLimits(t *testing.T) {
 	t.Parallel()
+	batchEPLs := map[any]struct{}{
+		createBatchOrderEPL: {},
+		amendBatchOrderEPL:  {},
+		cancelBatchOrderEPL: {},
+	}
 	for epl, limiter := range rateLimits {
 		if limiter == request.RateLimitNotRequired {
+			continue
+		}
+		if _, isBatchEPL := batchEPLs[epl]; isBatchEPL {
+			// Bybit charges batch endpoints by the number of orders in each request.
 			continue
 		}
 		assert.Equalf(t, request.Weight(1), limiter.Weight(), "EPL %d should consume one request", epl)

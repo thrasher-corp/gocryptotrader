@@ -80,6 +80,7 @@ const (
 )
 
 var rateLimits = request.RateLimitDefinitions{
+	// TODO: Replace this IP-wide fallback with endpoint-specific per-UID limits.
 	defaultEPL:                               request.NewRateLimitWithWeight(time.Second*5, 600, 1), // See: https://bybit-exchange.github.io/docs/v5/rate-limit
 	createOrderEPL:                           request.NewRateLimitWithWeight(time.Second, 10, 1),
 	createSpotOrderEPL:                       request.NewRateLimitWithWeight(time.Second, 20, 1),
@@ -101,7 +102,7 @@ var rateLimits = request.RateLimitDefinitions{
 	setPositionRiskLimitEPL:                  request.NewRateLimitWithWeight(time.Second, 10, 1),
 	stopTradingPositionEPL:                   request.NewRateLimitWithWeight(time.Second, 10, 1),
 	getAccountWalletBalanceEPL:               request.NewRateLimitWithWeight(time.Second, 10, 1),
-	getAccountFeeEPL:                         request.NewRateLimitWithWeight(time.Second, 10, 1),
+	getAccountFeeEPL:                         request.NewRateLimitWithWeight(time.Second, 5, 1),
 	getAssetTransferQueryInfoEPL:             request.NewRateLimitWithWeight(time.Minute, 60, 1),
 	getAssetTransferQueryTransferCoinListEPL: request.NewRateLimitWithWeight(time.Minute, 60, 1),
 	getAssetTransferCoinListEPL:              request.NewRateLimitWithWeight(time.Minute, 60, 1),
@@ -120,8 +121,8 @@ var rateLimits = request.RateLimitDefinitions{
 	universalTransferEPL:                     request.NewRateLimitWithWeight(time.Second, 5, 1),
 	createWithdrawalEPL:                      request.NewWeightedRateLimitByDuration(time.Second),
 	cancelWithdrawalEPL:                      request.NewRateLimitWithWeight(time.Minute, 60, 1),
-	userCreateSubMemberEPL:                   request.NewRateLimitWithWeight(time.Second, 5, 1),
-	userCreateSubAPIKeyEPL:                   request.NewRateLimitWithWeight(time.Second, 5, 1),
+	userCreateSubMemberEPL:                   request.NewRateLimitWithWeight(time.Second, 1, 1),
+	userCreateSubAPIKeyEPL:                   request.NewRateLimitWithWeight(time.Second, 1, 1),
 	userFrozenSubMemberEPL:                   request.NewRateLimitWithWeight(time.Second, 5, 1),
 	userUpdateAPIEPL:                         request.NewRateLimitWithWeight(time.Second, 5, 1),
 	userUpdateSubAPIEPL:                      request.NewRateLimitWithWeight(time.Second, 5, 1),
