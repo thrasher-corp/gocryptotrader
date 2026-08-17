@@ -139,10 +139,10 @@ func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quot
 	if err != nil {
 		return 0, err
 	}
-	if len(response.Data) == 0 || response.Data[0].Val == nil {
+	if len(response.Data) == 0 {
 		return 0, fmt.Errorf("no FXMacroData rate returned for %s/%s", baseCurrency, quoteCurrency)
 	}
-	return *response.Data[0].Val, nil
+	return response.Data[0].Val, nil
 }
 
 // Ping returns the public FXMacroData service liveness status.

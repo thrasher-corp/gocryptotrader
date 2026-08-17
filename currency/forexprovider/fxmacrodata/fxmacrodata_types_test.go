@@ -23,10 +23,18 @@ func TestDateJSONZeroValue(t *testing.T) {
 	var date Date
 	require.NoError(t, json.Unmarshal([]byte("null"), &date), "Date must accept a null optional value")
 	assert.Empty(t, date.String(), "Date should retain its zero value for null")
+	require.NoError(t, json.Unmarshal([]byte(`""`), &date), "Date must accept an empty optional value")
+	assert.Empty(t, date.String(), "Date should retain its zero value for an empty string")
 
 	encoded, err := json.Marshal(date)
 	require.NoError(t, err, "Date must encode its zero value")
 	assert.Equal(t, "null", string(encoded), "Date should encode its zero value as null")
+}
+
+func TestDateJSONRejectsNonString(t *testing.T) {
+	var date Date
+	err := json.Unmarshal([]byte(`123`), &date)
+	assert.Error(t, err, "Date should reject non-string JSON values")
 }
 
 func TestDateJSONRejectsDateTime(t *testing.T) {

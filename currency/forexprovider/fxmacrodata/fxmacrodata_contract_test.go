@@ -40,9 +40,9 @@ func TestForex(t *testing.T) {
 	require.NoError(t, err, "Forex must decode a documented response")
 	require.Len(t, response.Data, 1, "Forex must decode one data point")
 	require.NotNil(t, response.Data[0].Val, "Forex value must be present")
-	assert.Equal(t, 1.53, *response.Data[0].Val, "Forex should decode the rate")
+	assert.Equal(t, 1.53, response.Data[0].Val, "Forex should decode the rate")
 	require.NotNil(t, response.Data[0].RSI14, "Forex RSI must be present")
-	assert.Equal(t, 55.2, *response.Data[0].RSI14, "Forex should decode technical fields")
+	assert.Equal(t, 55.2, response.Data[0].RSI14, "Forex should decode technical fields")
 }
 
 func TestDataCatalogue(t *testing.T) {
@@ -80,7 +80,7 @@ func TestAnnouncements(t *testing.T) {
 	require.NoError(t, err, "Announcements must decode a documented response")
 	require.Len(t, response.Data, 1, "Announcements must decode one data point")
 	require.NotNil(t, response.Data[0].PreviousValue, "Announcements previous value must be present")
-	assert.Equal(t, 2.6, *response.Data[0].PreviousValue, "Announcements should preserve previous values")
+	assert.Equal(t, 2.6, response.Data[0].PreviousValue, "Announcements should preserve previous values")
 	assert.Equal(t, "2026-07-31", response.Data[0].Date.String(), "Announcements should decode ISO dates")
 	assert.Equal(t, int64(1786105800), response.Data[0].AnnouncementDatetime.Time().Unix(),
 		"Announcements should decode Unix timestamps")
@@ -101,7 +101,7 @@ func TestLatestAnnouncements(t *testing.T) {
 	require.Len(t, response.Data, 1, "LatestAnnouncements must decode one indicator")
 	assert.Equal(t, "inflation", response.Data[0].Indicator, "LatestAnnouncements should decode the indicator")
 	require.NotNil(t, response.Data[0].Latest.Val, "LatestAnnouncements value must be present")
-	assert.Equal(t, 2.7, *response.Data[0].Latest.Val, "LatestAnnouncements should decode the latest value")
+	assert.Equal(t, 2.7, response.Data[0].Latest.Val, "LatestAnnouncements should decode the latest value")
 }
 
 func TestAnnouncementChanges(t *testing.T) {
@@ -117,7 +117,7 @@ func TestAnnouncementChanges(t *testing.T) {
 	require.NoError(t, err, "AnnouncementChanges must decode a documented response")
 	require.Len(t, response.Data, 1, "AnnouncementChanges must decode one event")
 	assert.Equal(t, "event-1", response.Data[0].EventID, "AnnouncementChanges should decode event identifiers")
-	assert.Equal(t, 2, *response.Data[0].RecordsWritten, "AnnouncementChanges should decode write counts")
+	assert.Equal(t, 2, response.Data[0].RecordsWritten, "AnnouncementChanges should decode write counts")
 }
 
 func TestCalendar(t *testing.T) {
@@ -133,8 +133,8 @@ func TestCalendar(t *testing.T) {
 	response, err := provider.Calendar(t.Context(), "USD", nil)
 	require.NoError(t, err, "Calendar must decode a documented response")
 	require.Len(t, response.Data, 1, "Calendar must decode one release")
-	assert.True(t, *response.Data[0].ReleaseDateConfirmed, "Calendar should preserve confirmed release state")
-	assert.False(t, *response.Data[0].ReleaseTimeAssumed, "Calendar should preserve assumed-time state")
+	assert.True(t, response.Data[0].ReleaseDateConfirmed, "Calendar should preserve confirmed release state")
+	assert.False(t, response.Data[0].ReleaseTimeAssumed, "Calendar should preserve assumed-time state")
 }
 
 func TestPredictions(t *testing.T) {
@@ -152,7 +152,7 @@ func TestPredictions(t *testing.T) {
 	require.NoError(t, err, "Predictions must decode a documented response")
 	require.Len(t, response.Data, 1, "Predictions must decode one announcement group")
 	require.Len(t, response.Data[0].Predictions, 1, "Predictions must decode one source")
-	assert.True(t, *response.Data[0].Predictions[0].IsPreRelease, "Predictions should preserve pre-release state")
+	assert.True(t, response.Data[0].Predictions[0].IsPreRelease, "Predictions should preserve pre-release state")
 	assert.Equal(t, 2.5, response.Data[0].Predictions[0].PredictedValue, "Predictions should decode forecast values")
 }
 
@@ -174,8 +174,8 @@ func TestCOT(t *testing.T) {
 	response, err := provider.COT(t.Context(), "JPY", nil)
 	require.NoError(t, err, "COT must decode a documented response")
 	require.Len(t, response.Data, 1, "COT must decode one positioning row")
-	assert.Equal(t, int64(-40000), *response.Data[0].NonCommercialNet, "COT should preserve net positioning")
-	assert.True(t, *response.Data[0].ReleaseDateConfirmed, "COT should preserve release confirmation")
+	assert.Equal(t, int64(-40000), response.Data[0].NonCommercialNet, "COT should preserve net positioning")
+	assert.True(t, response.Data[0].ReleaseDateConfirmed, "COT should preserve release confirmation")
 }
 
 func TestCommodity(t *testing.T) {
@@ -190,7 +190,7 @@ func TestCommodity(t *testing.T) {
 	response, err := provider.Commodity(t.Context(), "brent", nil)
 	require.NoError(t, err, "Commodity must decode a documented response")
 	require.Len(t, response.Data, 1, "Commodity must decode one data point")
-	assert.Equal(t, 68.4, *response.Data[0].Val, "Commodity should decode values")
+	assert.Equal(t, 68.4, response.Data[0].Val, "Commodity should decode values")
 	assert.Equal(t, "2026-08-11", response.LatestAvailableDate.String(), "Commodity should decode availability metadata")
 }
 
@@ -236,8 +236,8 @@ func TestFactor(t *testing.T) {
 	response, err := provider.Factor(t.Context(), "USD", "inflation_pressure", nil)
 	require.NoError(t, err, "Factor must decode a documented response")
 	require.Len(t, response.Data, 1, "Factor must decode one data point")
-	assert.Equal(t, 0.7, *response.Data[0].Score, "Factor should decode scores")
-	assert.True(t, *response.Data[0].PointInTimeSafe, "Factor should preserve point-in-time state")
+	assert.Equal(t, 0.7, response.Data[0].Score, "Factor should decode scores")
+	assert.True(t, response.Data[0].PointInTimeSafe, "Factor should preserve point-in-time state")
 }
 
 func TestRateDifferentials(t *testing.T) {
@@ -255,7 +255,7 @@ func TestRateDifferentials(t *testing.T) {
 	response, err := provider.RateDifferentials(t.Context(), "EUR", "USD", nil)
 	require.NoError(t, err, "RateDifferentials must decode a documented response")
 	require.Len(t, response.Data, 1, "RateDifferentials must decode one data point")
-	assert.Equal(t, -175.0, *response.Data[0].SpreadBPS, "RateDifferentials should decode basis-point spreads")
+	assert.Equal(t, -175.0, response.Data[0].SpreadBPS, "RateDifferentials should decode basis-point spreads")
 	assert.Equal(t, "spot", response.RateType, "RateDifferentials should decode rate type")
 }
 
@@ -272,7 +272,7 @@ func TestIntradayReferenceRates(t *testing.T) {
 	require.NoError(t, err, "IntradayReferenceRates must decode a documented response")
 	require.Len(t, response.Data, 1, "IntradayReferenceRates must decode one data point")
 	assert.Equal(t, 1.53, response.Data[0].Price, "IntradayReferenceRates should decode prices")
-	assert.Equal(t, "inverse", *response.Data[0].DerivationMethod, "IntradayReferenceRates should decode derivation metadata")
+	assert.Equal(t, "inverse", response.Data[0].DerivationMethod, "IntradayReferenceRates should decode derivation metadata")
 }
 
 func TestFXSources(t *testing.T) {
@@ -298,7 +298,7 @@ func TestFXSourceUniverse(t *testing.T) {
 	response, err := provider.FXSourceUniverse(t.Context(), nil)
 	require.NoError(t, err, "FXSourceUniverse must decode a documented response")
 	require.Len(t, response.Data, 1, "FXSourceUniverse must decode one source group")
-	assert.Equal(t, "USD", *response.Currency, "FXSourceUniverse should decode currency filters")
+	assert.Equal(t, "USD", response.Currency, "FXSourceUniverse should decode currency filters")
 	assert.Equal(t, float64(1), response.Data[0]["pair_count"], "FXSourceUniverse should decode pair counts")
 }
 
