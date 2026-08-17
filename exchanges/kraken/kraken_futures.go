@@ -57,21 +57,21 @@ func (e *Exchange) GetFuturesCharts(ctx context.Context, resolution, tickType st
 	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, reqStr, &resp)
 }
 
-// GetFuturesTrades returns public trade data for kraken futures
-func (e *Exchange) GetFuturesTrades(ctx context.Context, symbol currency.Pair, to, from time.Time) (*FuturesPublicTrades, error) {
+// GetFuturesTrades returns public trade data for Kraken Futures, bounded by optional millisecond since and before cursors
+func (e *Exchange) GetFuturesTrades(ctx context.Context, symbol currency.Pair, since, before time.Time) (*FuturesPublicTrades, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return nil, err
 	}
 	params := url.Values{}
-	if !to.IsZero() {
-		params.Set("since", strconv.FormatInt(to.Unix(), 10))
+	if !since.IsZero() {
+		params.Set("since", strconv.FormatInt(since.UnixMilli(), 10))
 	}
-	if !from.IsZero() {
-		params.Set("before", strconv.FormatInt(from.Unix(), 10))
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	var resp FuturesPublicTrades
-	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresPublicTrades+"/"+symbolValue+"/executions?"+params.Encode(), &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, common.EncodeURLValues(futuresPublicTrades+symbolValue+"/executions", params), &resp)
 }
 
 // GetInstruments gets a list of futures markets and their data
