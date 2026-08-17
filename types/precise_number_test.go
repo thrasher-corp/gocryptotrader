@@ -232,7 +232,6 @@ func TestPreciseNumberIsZero(t *testing.T) {
 
 // BenchmarkPreciseNumberUnmarshalJSON measures the cost of UnmarshalJSON for
 // a typical exchange string value.
-// Ballpark: 271.2 ns/op        392 B/op         16 allocs/op
 func BenchmarkPreciseNumberUnmarshalJSON(b *testing.B) {
 	var p PreciseNumber
 	for b.Loop() {
@@ -243,7 +242,6 @@ func BenchmarkPreciseNumberUnmarshalJSON(b *testing.B) {
 }
 
 // BenchmarkPreciseNumberDecimal measures the cost of Decimal().
-// Ballpark: 55.11 ns/op         56 B/op          3 allocs/op
 func BenchmarkPreciseNumberDecimal(b *testing.B) {
 	p, err := NewPreciseNumberFromString("0.04200074")
 	require.NoError(b, err, "NewPreciseNumberFromString must not error")

@@ -42,14 +42,7 @@ func BenchmarkLoadSnapshotExistingHolder(b *testing.B) {
 	}
 }
 
-// Benchstat medians (20 counterbalanced fresh-process observations per revision).
-// The timed region includes LoadSnapshot, applyPendingUpdates, and relay drain.
-// 64 updates:
-// Before: 18.58 µs/op  3120 B/op  65 allocs/op
-// After:  16.66 µs/op  3120 B/op  65 allocs/op
-// 256 updates:
-// Before: 74.13 µs/op  12336 B/op  257 allocs/op
-// After:  65.87 µs/op  12336 B/op  257 allocs/op
+// BenchmarkApplyPendingUpdates times LoadSnapshot, applyPendingUpdates and the relay drain together.
 func BenchmarkApplyPendingUpdates(b *testing.B) {
 	for _, updateCount := range []uint{1, 2, 8, 64, 256} {
 		benchmarkName := strconv.FormatUint(uint64(updateCount), 10)

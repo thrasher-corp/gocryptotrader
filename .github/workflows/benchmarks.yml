@@ -1,0 +1,58 @@
+name: benchmarks
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: '0 0 * * 1-5'
+  workflow_dispatch:
+env:
+  GO_VERSION: 1.26.x
+
+jobs:
+  gate:
+    name: allocation gate
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Check allocations against baseline
+        run: make bench
+
+  trend:
+    name: ns/op trend
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      && github.repository == 'thrasher-corp/gocryptotrader'
+      && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: benchmarks-history
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Fetch existing history
+        run: bash ./scripts/bench_history.sh fetch series.jsonl
+
+      - name: Run benchmarks and append to history
+        run: make bench_trend BENCH_SERIES=series.jsonl
+
+      - name: Publish history
+        env:
+          BENCH_HISTORY_LABEL: ${{ github.sha }}
+          GIT_AUTHOR_NAME: 'github-actions[bot]'
+          GIT_AUTHOR_EMAIL: 'github-actions[bot]@users.noreply.github.com'
+        run: bash ./scripts/bench_history.sh publish series.jsonl

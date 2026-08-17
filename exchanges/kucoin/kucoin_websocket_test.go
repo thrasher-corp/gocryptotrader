@@ -461,14 +461,14 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		t.Parallel()
 		ku := testInstance(t)
 		ku.Name += "-TestProcessFuturesOrderbookLevel2"
-		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
+		require.False(t, futuresTradablePair(t).IsEmpty(), "futuresTradablePair must be initialised")
 
 		const updateID = int64(18)
 		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
 			FetchDelay:    0,
 			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
 			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-				if !p.Equal(futuresTradablePair) {
+				if !p.Equal(futuresTradablePair(t)) {
 					return nil, fmt.Errorf("unexpected pair %s", p)
 				}
 				if a != asset.Futures {
@@ -476,7 +476,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 				}
 				return &orderbook.Book{
 					Exchange:     ku.Name,
-					Pair:         futuresTradablePair,
+					Pair:         futuresTradablePair(t),
 					Asset:        asset.Futures,
 					Bids:         orderbook.Levels{{Price: 4990, Amount: 1, ID: updateID - 1}},
 					Asks:         orderbook.Levels{{Price: 5010, Amount: 1, ID: updateID - 1}},
@@ -489,15 +489,15 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			BufferInstance:     &ku.Websocket.Orderbook,
 		})
 
-		err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, futuresTradablePair.String())
+		err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, futuresTradablePair(t).String())
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for buy updates")
 
 		require.Eventually(t, func() bool {
-			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair, asset.Futures)
+			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair(t), asset.Futures)
 			return err == nil && id == updateID
 		}, time.Second*5, time.Millisecond*50, "futures orderbook buy update must eventually sync")
 
-		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair, asset.Futures)
+		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair(t), asset.Futures)
 		require.NoError(t, err, "GetOrderbook must not error for futures buy updates")
 		require.NotEmpty(t, book.Bids, "bids must not be empty after processing a buy update")
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
@@ -509,14 +509,14 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		t.Parallel()
 		ku := testInstance(t)
 		ku.Name += "-TestProcessFuturesOrderbookLevel2Sell"
-		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
+		require.False(t, futuresTradablePair(t).IsEmpty(), "futuresTradablePair must be initialised")
 
 		const updateID = int64(18)
 		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
 			FetchDelay:    0,
 			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
 			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-				if !p.Equal(futuresTradablePair) {
+				if !p.Equal(futuresTradablePair(t)) {
 					return nil, fmt.Errorf("unexpected pair %s", p)
 				}
 				if a != asset.Futures {
@@ -524,7 +524,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 				}
 				return &orderbook.Book{
 					Exchange:     ku.Name,
-					Pair:         futuresTradablePair,
+					Pair:         futuresTradablePair(t),
 					Asset:        asset.Futures,
 					Bids:         orderbook.Levels{{Price: 4990, Amount: 1, ID: updateID - 1}},
 					Asks:         orderbook.Levels{{Price: 5010, Amount: 1, ID: updateID - 1}},
@@ -537,15 +537,15 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			BufferInstance:     &ku.Websocket.Orderbook,
 		})
 
-		err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,sell,83","timestamp":1551770400000}`), futuresTradablePair.String())
+		err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,sell,83","timestamp":1551770400000}`), futuresTradablePair(t).String())
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for sell updates")
 
 		require.Eventually(t, func() bool {
-			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair, asset.Futures)
+			id, err := ku.Websocket.Orderbook.LastUpdateID(futuresTradablePair(t), asset.Futures)
 			return err == nil && id == updateID
 		}, time.Second*5, time.Millisecond*50, "futures orderbook sell update must eventually sync")
 
-		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair, asset.Futures)
+		book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair(t), asset.Futures)
 		require.NoError(t, err, "GetOrderbook must not error for futures sell updates")
 		require.NotEmpty(t, book.Asks, "asks must not be empty after processing a sell update")
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
@@ -565,35 +565,35 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		t.Run("invalid_json", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":`), futuresTradablePair(t).String())
 			require.Error(t, err)
 		})
 
 		t.Run("invalid_change_format", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "unexpected orderbook change format")
 		})
 
 		t.Run("invalid_price", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"bad,buy,83","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"bad,buy,83","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "invalid syntax")
 		})
 
 		t.Run("invalid_amount", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy,bad","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy,bad","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "invalid syntax")
 		})
 
 		t.Run("invalid_side", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,hold,83","timestamp":1551770400000}`), futuresTradablePair.String())
+			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,hold,83","timestamp":1551770400000}`), futuresTradablePair(t).String())
 			require.ErrorContains(t, err, "unexpected orderbook side")
 		})
 	})
@@ -896,7 +896,7 @@ func TestProcessFuturesKline(t *testing.T) {
 	ku := new(Exchange)
 	require.NoError(t, testexch.Setup(ku), "Test instance Setup must not error")
 
-	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
+	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair(t).String())
 	err := ku.processFuturesKline(t.Context(), []byte(data), "1hour")
 	require.NoError(t, err)
 
@@ -907,7 +907,7 @@ func TestProcessFuturesKline(t *testing.T) {
 		assert.Equal(t, &kline.Item{
 			Asset:    asset.Futures,
 			Exchange: ku.Name,
-			Pair:     futuresTradablePair,
+			Pair:     futuresTradablePair(t),
 			Interval: kline.OneHour,
 			Candles: []kline.Candle{{
 				Time:   time.Unix(1714964400, 0),

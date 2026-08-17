@@ -1,0 +1,40 @@
+# Packages benchmarked by `make bench`. One package per line, relative to the module root.
+#
+# A trailing "gated" marks a package in which every benchmark must have an entry in baseline.json,
+# so a new `func Benchmark` fails CI until it is seeded with `make bench_update`. Benchmarks in
+# unmarked packages are still checked whenever they already have a baseline entry; the marker only
+# makes that coverage mandatory.
+#
+# Gate a package once its benchmarks are hermetic - no network, no shared state between benchmarks,
+# no writes to stdout during measurement, and reproducible allocation counts. Verify with:
+#   make bench_pkg PKG=./<pkg>/
+# run a few times over, and confirm allocs/op does not move. That target uses the gate's own
+# BENCH_FLAGS, so the measurement matches; a hand-written go test line drifts from it and -cpu/-p in
+# particular change what a scheduler-sensitive benchmark reports.
+
+common                     gated
+common/math                gated
+common/timedmutex          gated
+currency                   gated
+dispatch                   gated
+encoding/json              gated
+exchange/websocket/buffer  gated
+exchanges/alert            gated
+exchanges/binance          gated
+exchanges/currencystate    gated
+exchanges/kucoin           gated
+exchanges/order            gated
+exchanges/orderbook        gated
+exchanges/request          gated
+log                        gated
+types                      gated
+
+# Benchmarked and checked against the baseline, but not gated:
+config                     # near-deterministic; entry carries a small allocs tolerance
+exchanges/gateio           # seeded, but the package's benchmarks are not yet audited for hermeticity
+exchanges/okx              # as above
+
+# Not benchmarked at all, and why. Note that a baseline "ignore" only skips comparison - it does not
+# stop the benchmark running - so a benchmark that is unsafe to execute must be excluded here.
+#
+# Nothing is currently excluded.
