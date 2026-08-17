@@ -440,6 +440,9 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
+			if tradables[x].Status != "enabled" || !tradables[x].DelistedTime.Time().IsZero() {
+				continue
+			}
 			pairs = append(pairs, tradables[x].Pair)
 		}
 		return pairs, nil
@@ -2059,19 +2062,25 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if minBaseAmount == 0 {
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
+			delisted := mInfo.DelistedTime.Time()
+			if delisted.IsZero() {
+				delisted = pairsData[i].DelistingTime.Time()
+			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                      key.NewExchangeAssetPair(e.Name, a, pairsData[i].ID),
 				PriceStepIncrementSize:   math.Pow10(-int(pairsData[i].PricePrecision)),
 				AmountStepIncrementSize:  math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:        minBaseAmount,
 				MinimumQuoteAmount:       pairsData[i].MinQuoteAmount.Float64(),
-				Delisted:                 pairsData[i].DelistingTime.Time(),
+				Delisted:                 delisted,
 				MinimumBorrowAmountBase:  mInfo.BaseMinimumBorrowAmount.Float64(),
 				MinimumBorrowAmountQuote: mInfo.QuoteMinimumBorrowAmount.Float64(),
 			})
 		}
 		if len(unsupported) > 0 {
-			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no execution limits loaded for: %v", e.Name, len(unsupported), unsupported)
+			unsupportedPairs := slices.Collect(maps.Keys(unsupported))
+			sort.Slice(unsupportedPairs, func(i, j int) bool { return unsupportedPairs[i].String() < unsupportedPairs[j].String() })
+			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no execution limits loaded for: %v", e.Name, len(unsupportedPairs), unsupportedPairs)
 		}
 	case asset.CrossMargin:
 		crossMinimums, err := e.getCrossMarginMinimums(ctx)

@@ -37,12 +37,15 @@ type MaxTransferAndLoanAmount struct {
 	Amount       types.Number `json:"amount"`
 }
 
+// "status":"enabled","delisted_time":0}
 // IsolatedMarginLendingMarket represents an isolated margin lending market
 type IsolatedMarginLendingMarket struct {
 	Pair                     currency.Pair `json:"currency_pair"`
 	BaseMinimumBorrowAmount  types.Number  `json:"base_min_borrow_amount"`
 	QuoteMinimumBorrowAmount types.Number  `json:"quote_min_borrow_amount"`
 	PositionLeverage         types.Number  `json:"leverage"`
+	Status                   string        `json:"status"` // "enabled" or "disabled"
+	DelistedTime             types.Time    `json:"delisted_time"`
 }
 
 // IsolatedMarginLendingTier represents the lending tier information for isolated margin accounts.
