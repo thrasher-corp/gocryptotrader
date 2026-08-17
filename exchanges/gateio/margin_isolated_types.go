@@ -50,7 +50,7 @@ type IsolatedMarginLendingMarket struct {
 }
 
 // IsTradable returns whether the market is enabled and has not completed delisting.
-func (m IsolatedMarginLendingMarket) IsTradable(now time.Time) bool {
+func (m *IsolatedMarginLendingMarket) IsTradable(now time.Time) bool {
 	delisted := m.DelistedTime.Time()
 	return m.Status == "enabled" && (delisted.IsZero() || !delisted.Before(now))
 }

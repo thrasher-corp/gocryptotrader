@@ -107,13 +107,19 @@ func TestSetUnixTimeRangeParams(t *testing.T) {
 			name:           "start equals end",
 			from:           from,
 			to:             from,
-			expectedParams: url.Values{},
-			expectedErr:    common.ErrStartEqualsEnd,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Unix(), 10)}},
 		},
 		{
 			name:           "start after current time",
 			from:           time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
 			to:             time.Date(2222, 1, 2, 0, 0, 0, 0, time.UTC),
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterTimeNow,
+		},
+		{
+			name:           "equal times after current time",
+			from:           time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			to:             time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
 			expectedParams: url.Values{},
 			expectedErr:    common.ErrStartAfterTimeNow,
 		},
@@ -212,6 +218,11 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 	}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		AccountType: "inactive",
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	balances := accounts.CurrencyBalances{}
 	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
 		{
@@ -252,15 +263,6 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 				Currency:     currency.USDT,
 				Available:    types.Number(20),
 				LockedAmount: types.Number(4),
-			},
-		},
-		{
-			AccountType: "inactive",
-			Base: AccountBalanceInformation{
-				Currency: currency.EMPTYCODE,
-			},
-			Quote: AccountBalanceInformation{
-				Currency: currency.EMPTYCODE,
 			},
 		},
 	})

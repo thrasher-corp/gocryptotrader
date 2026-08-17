@@ -792,9 +792,6 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 
 func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItem) error {
 	for i := range response {
-		if response[i].AccountType == "inactive" && response[i].Base.Currency.IsEmpty() && response[i].Quote.Currency.IsEmpty() {
-			continue
-		}
 		if err := addIsolatedMarginAccountBalance(balances, response[i].Base); err != nil {
 			return err
 		}

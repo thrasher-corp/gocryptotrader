@@ -190,12 +190,16 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 }
 
-// setUnixTimeRangeParams validates fully populated ranges, rejecting equal
-// bounds and future start times, before setting Unix timestamp parameters.
+// setUnixTimeRangeParams validates fully populated ranges before setting Unix timestamp parameters.
 func setUnixTimeRangeParams(params *url.Values, from, to time.Time) error {
 	if !from.IsZero() && !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
-			return err
+			if !errors.Is(err, common.ErrStartEqualsEnd) {
+				return err
+			}
+			if from.After(time.Now()) {
+				return common.ErrStartAfterTimeNow
+			}
 		}
 	}
 	if !from.IsZero() {
