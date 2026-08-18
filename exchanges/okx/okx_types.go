@@ -145,7 +145,7 @@ var (
 	errUniqueCodeRequired                   = errors.New("unique code is required")
 	errLastDaysRequired                     = errors.New("last days required")
 	errCopyInstrumentIDTypeRequired         = errors.New("copy instrument ID type is required")
-	errInvalidChecksum                      = errors.New("invalid checksum")
+	errInvalidOrderbookSequence             = errors.New("invalid orderbook sequence")
 	errInvalidPositionMode                  = errors.New("invalid position mode")
 	errLendingTermIsRequired                = errors.New("lending term is required")
 	errRateRequired                         = errors.New("lending rate is required")
@@ -3689,7 +3689,6 @@ type WsOrderBookData struct {
 	Asks               [][4]types.Number `json:"asks"`
 	Bids               [][4]types.Number `json:"bids"`
 	Timestamp          types.Time        `json:"ts"`
-	Checksum           int32             `json:"checksum"`
 	PreviousSequenceID int64             `json:"prevSeqId"`
 	SequenceID         int64             `json:"seqId"`
 }
