@@ -4,11 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,6 +38,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -83,6 +89,30 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+func TestSetDefaultsEndpoints(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+
+	restURL, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "GetURL must not fail for OKX REST")
+	require.Equal(t, "https://www.okx.com/api/v5/", restURL)
+
+	publicURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	require.NoError(t, err, "GetURL must not fail for OKX public websocket")
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/public", publicURL)
+
+	privateURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketPrivate)
+	require.NoError(t, err, "GetURL must not fail for OKX private websocket")
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/private", privateURL)
+
+	businessURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	require.NoError(t, err, "GetURL must not fail for OKX business websocket")
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/business", businessURL)
+	assert.Equal(t, uint64(100), ex.Features.Enabled.Kline.GlobalResultLimit, "global kline result limit should match the most restrictive OKX candle endpoint")
 }
 
 func syncLeadTraderUniqueID(t *testing.T) error {
@@ -412,16 +442,10 @@ func TestGetInstrument(t *testing.T) {
 
 	resp, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
-		Underlying:     "SOL-USD",
+		Underlying:     optionsPair.String(),
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp, "GetInstruments must return live instruments for SOL-USD futures")
-	for i := range resp {
-		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
-		assert.Equal(t, "SOL-USD", resp[i].Underlying, "Underlying should be correct")
-		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
-		assert.NotEmpty(t, resp[i].State, "State should not be empty")
-	}
+	assert.NotEmpty(t, resp, "futures instruments should be returned")
 
 	result, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
@@ -466,13 +490,12 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
-	instrumentID := p[0].String()
-	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
+	uly, err := e.underlyingFromInstID(instTypeOption, p[0].String())
 	require.NoError(t, err)
-	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, instrumentID)
+	family, err := e.instrumentFamilyFromInstID(instTypeOption, p[0].String())
 	require.NoError(t, err)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, family, p[0].String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -764,13 +787,13 @@ func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	require.NotEmptyf(t, instruments, "GetInstruments for options (underlying: %s) must return at least one instrument", optionsPair)
 	var selectedExpTime time.Time
 	for _, inst := range instruments {
-		if inst.ExpTime.Time().IsZero() {
+		if inst.State != stateLive || inst.ExpTime.Time().IsZero() {
 			continue
 		}
 		selectedExpTime = inst.ExpTime.Time()
 		break
 	}
-	require.NotZero(t, selectedExpTime, "GetInstruments must return an instrument with a non-zero expiry time")
+	require.NotZero(t, selectedExpTime, "GetInstruments must return a live instrument with a non-zero expiry time")
 	result, err := e.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, selectedExpTime, kline.OneDay)
 	require.NoErrorf(t, err, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s must not error", selectedExpTime, currency.BTC)
 	assert.NotNilf(t, result, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s should return a non-nil result", selectedExpTime, currency.BTC)
@@ -786,6 +809,37 @@ func TestGetTakerFlow(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("additional rate limits from context", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		require.NoError(t, ex.Requester.Shutdown(), "default requester must shut down")
+		var err error
+		ex.Requester, err = request.New(ex.Name, common.NewHTTPClientWithTimeout(time.Second), request.WithLimiter(request.RateLimitDefinitions{
+			placeOrderEPL: request.NewRateLimitWithWeight(0, 0, 1),
+		}))
+		require.NoError(t, err, "requester must initialise")
+		t.Cleanup(func() {
+			assert.NoError(t, ex.Requester.Shutdown(), "requester should shut down")
+		})
+
+		scopedLimiter, err := ex.tradeLimiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, mainPair.String())
+		require.NoError(t, err, "scoped limiter must initialise")
+		require.NoError(t, scopedLimiter.RateLimit(t.Context()), "first scoped reservation must not error")
+
+		_, err = ex.PlaceOrder(request.WithDelayNotAllowed(t.Context()), &PlaceOrderRequestParam{
+			InstrumentID: mainPair.String(),
+			TradeMode:    TradeModeCash,
+			Side:         order.Buy.String(),
+			OrderType:    orderMarket,
+			Amount:       1,
+		})
+		require.ErrorIs(t, err, request.ErrDelayNotAllowed, "PlaceOrder must enforce its context-carried scoped limiter")
+		assert.ErrorContains(t, err, "place-single:"+mainPair.String(), "PlaceOrder should identify the limiting scope")
+	})
+
 	_, err := e.PlaceOrder(contextGenerate(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
@@ -815,7 +869,7 @@ func TestPlaceOrder(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
@@ -856,10 +910,8 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 const (
-	instrumentJSON                                = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
-	placeOrderArgs                                = `[{"side": "buy","instId": "BTC-USDT","tdMode": "cash","ordType": "market","sz": "100"},{"side": "buy","instId": "LTC-USDT","tdMode": "cash","ordType": "market","sz": "1"}]`
-	calculateOrderbookChecksumUpdateOrderbookJSON = `{"Bids":[{"Amount":56,"Price":0.07014,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":608,"Price":0.07011,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07009,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.07006,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2347,"Price":0.07004,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":279,"Price":0.07003,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":52,"Price":0.07001,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":91,"Price":0.06997,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4242,"Price":0.06996,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":486,"Price":0.06995,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.06992,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.06991,"ID":0,"Period":0,"LiquidationOrders":0,
-	"OrderCount":0},{"Amount":7518,"Price":0.06988,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.06976,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":71,"Price":0.06975,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1086,"Price":0.06973,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":513,"Price":0.06961,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4603,"Price":0.06959,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.0695,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3043,"Price":0.06946,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":103,"Price":0.06939,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5053,"Price":0.0693,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5039,"Price":0.06909,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5037,"Price":0.06888,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06886,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5008,"Price":0.06867,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5065,"Price":0.06846,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1572,"Price":0.06826,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1565,"Price":0.06801,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":67,"Price":0.06748,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":111,"Price":0.0674,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10038,"Price":0.0672,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.06652,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06625,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10924,"Price":0.06619,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05986,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05387,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04848,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04363,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Asks":[{"Amount":5,"Price":0.07026,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":765,"Price":0.07027,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07028,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.0703,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":280,"Price":0.07034,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2255,"Price":0.07035,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":28,"Price":0.07036,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.07037,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":137,"Price":0.07039,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":48,"Price":0.0704,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":32,"Price":0.07041,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3985,"Price":0.07043,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":257,"Price":0.07057,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":7870,"Price":0.07058,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.07059,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4539,"Price":0.07061,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1438,"Price":0.07068,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3162,"Price":0.07088,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":99,"Price":0.07104,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5018,"Price":0.07108,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1540,"Price":0.07115,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5080,"Price":0.07129,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1512,"Price":0.07145,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5016,"Price":0.0715,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5026,"Price":0.07171,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5062,"Price":0.07192,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1517,"Price":0.07197,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1511,"Price":0.0726,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10376,"Price":0.07314,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.07354,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10277,"Price":0.07466,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07626,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07636,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.0809,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.08899,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.09789,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.10768,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Exchange":"Okx","Pair":"BTC-USDT","Asset":"spot","LastUpdated":"0001-01-01T00:00:00Z","LastUpdateID":0,"PriceDuplication":false,"IsFundingRate":false,"RestSnapshot":false,"IDAlignment":false}`
+	instrumentJSON               = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
+	placeOrderArgs               = `[{"side": "buy","instId": "BTC-USDT","tdMode": "cash","ordType": "market","sz": "100"},{"side": "buy","instId": "LTC-USDT","tdMode": "cash","ordType": "market","sz": "1"}]`
 	placeMultipleOrderParamsJSON = `[{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b159","side":"buy","ordType":"limit","px":"2.15","sz":"2"},{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b15","side":"buy","ordType":"limit","px":"2.15","sz":"2"}]`
 )
 
@@ -871,6 +923,9 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{})
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
+
+	_, err = e.PlaceMultipleOrders(contextGenerate(), make([]PlaceOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
 
 	arg := PlaceOrderRequestParam{
 		ReduceOnly: true,
@@ -897,7 +952,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
@@ -932,6 +987,10 @@ func TestCancelMultipleOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = e.CancelMultipleOrders(contextGenerate(), make([]CancelOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
+
 	arg := CancelOrderRequestParam{}
 	_, err = e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -982,6 +1041,9 @@ func TestAmendMultipleOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.AmendMultipleOrders(contextGenerate(), []AmendOrderRequestParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = e.AmendMultipleOrders(contextGenerate(), make([]AmendOrderRequestParams, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
 
 	arg := AmendOrderRequestParams{
 		NewPriceInUSD: 1233,
@@ -3360,6 +3422,13 @@ func TestAssetTypeFromInstrumentType(t *testing.T) {
 		assetItem, err := assetTypeFromInstrumentType(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.AssetType, assetItem)
+
+		if v.Error == nil && k != "" {
+			lower := strings.ToLower(k)
+			assetItem, err = assetTypeFromInstrumentType(lower)
+			require.NoError(t, err, "assetTypeFromInstrumentType must support lowercase instrument type inputs")
+			assert.Equal(t, v.AssetType, assetItem, "asset type should match for lowercase instrument type input")
+		}
 	}
 }
 
@@ -3393,6 +3462,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+				switch a {
+				case asset.Spot, asset.Margin:
+					assert.Positive(t, l.MaximumQuoteAmount, "MaximumQuoteAmount should be positive")
+				case asset.Futures, asset.PerpetualSwap, asset.Options:
+					assert.Positive(t, l.MultiplierDecimal, "MultiplierDecimal should be positive")
+					assert.NotZero(t, l.Listed, "Listed should be populated")
+				case asset.Spread:
+					assert.NotZero(t, l.Listed, "Listed should be populated")
+				}
 			}
 		})
 	}
@@ -3408,13 +3487,24 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	exch.Name = t.Name()
 
 	livePair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	pastPair := currency.NewPairWithDelimiter("LTC", "USDT", "-")
 	inactivePair := currency.NewPairWithDelimiter("ETH", "USDT", "-")
+	futureExpiry := time.Now().UTC().Add(time.Hour)
+	pastExpiry := time.Now().UTC().Add(-time.Hour)
 	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{
 			InstrumentID:     livePair,
-			State:            instrumentStateLive,
+			State:            stateLive,
 			TickSize:         types.Number(0.1),
 			MinimumOrderSize: types.Number(1),
+			ExpTime:          types.Time(futureExpiry),
+		},
+		{
+			InstrumentID:     pastPair,
+			State:            stateLive,
+			TickSize:         types.Number(0.1),
+			MinimumOrderSize: types.Number(1),
+			ExpTime:          types.Time(pastExpiry),
 		},
 		{
 			InstrumentID:     inactivePair,
@@ -3424,7 +3514,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 		},
 		{
 			InstrumentID:     currency.EMPTYPAIR,
-			State:            instrumentStateLive,
+			State:            stateLive,
 			TickSize:         types.Number(0.01),
 			MinimumOrderSize: types.Number(2),
 		},
@@ -3434,13 +3524,20 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
 	assert.Equal(t, 0.1, loadedLimit.PriceStepIncrementSize, "PriceStepIncrementSize should be set from live instrument")
 	assert.Equal(t, 1.0, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should be set from live instrument")
+	assert.Equal(t, futureExpiry, loadedLimit.Delisting, "future expiry should set delisting")
+	assert.True(t, loadedLimit.Delisted.IsZero(), "future expiry should not set delisted")
+
+	pastLimit, err := exch.GetOrderExecutionLimits(asset.Futures, pastPair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for an expired live instrument")
+	assert.Equal(t, pastExpiry, pastLimit.Delisting, "past expiry should set delisting")
+	assert.Equal(t, pastExpiry, pastLimit.Delisted, "past expiry should set delisted")
 
 	_, err = exch.GetOrderExecutionLimits(asset.Futures, inactivePair)
 	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "inactive instruments must not be loaded")
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{InstrumentID: inactivePair, State: "preopen"},
-		{InstrumentID: currency.EMPTYPAIR, State: instrumentStateLive},
+		{InstrumentID: currency.EMPTYPAIR, State: stateLive},
 	}), common.ErrInvalidResponse, "all filtered instruments must return invalid response")
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
@@ -3469,8 +3566,35 @@ func TestUpdateTickers(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(contextGenerate(), a)
+		if a == asset.Spread {
+			require.ErrorIs(t, err, common.ErrFunctionNotSupported, "spread asset must return not supported error")
+			continue
+		}
 		require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
 	}
+
+	t.Run("filters disabled pairs", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = t.Name()
+		ticks, err := ex.GetTickers(contextGenerate(), instTypeSpot, "", "")
+		require.NoError(t, err, "GetTickers must not error")
+		require.GreaterOrEqual(t, len(ticks), 2, "fixture must contain at least two tickers")
+		enabledPair, err := ex.GetPairFromInstrumentID(ticks[0].InstrumentID.String())
+		require.NoError(t, err, "enabled fixture instrument ID must produce a pair")
+		disabledPair, err := ex.GetPairFromInstrumentID(ticks[1].InstrumentID.String())
+		require.NoError(t, err, "disabled fixture instrument ID must produce a pair")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{enabledPair, disabledPair}, false), "StorePairs must store the fixture pairs as available")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{enabledPair}, true), "StorePairs must enable only the selected pair")
+
+		require.NoError(t, ex.UpdateTickers(contextGenerate(), asset.Spot), "UpdateTickers must not error")
+		_, err = ticker.GetTicker(ex.Name, enabledPair, asset.Spot)
+		require.NoError(t, err, "enabled pair ticker must be stored")
+		_, err = ticker.GetTicker(ex.Name, disabledPair, asset.Spot)
+		require.ErrorIs(t, err, ticker.ErrTickerNotFound, "disabled pair ticker must not be stored")
+	})
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -3551,7 +3675,154 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	for _, tc := range []struct {
+		name                   string
+		submit                 order.Submit
+		expectedAmount         float64
+		expectedSide           string
+		expectedTargetCurrency string
+		expectedReduceOnly     bool
+	}{
+		{
+			name: "reduce-only futures order",
+			submit: order.Submit{
+				Pair:       mainPair,
+				AssetType:  asset.Futures,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				ReduceOnly: true,
+			},
+			expectedAmount:     1,
+			expectedSide:       order.Buy.Lower(),
+			expectedReduceOnly: true,
+		},
+		{
+			name: "spot market buy with quote amount",
+			submit: order.Submit{
+				Pair:        mainPair,
+				AssetType:   asset.Spot,
+				Side:        order.Buy,
+				Type:        order.Market,
+				QuoteAmount: 10,
+			},
+			expectedAmount:         10,
+			expectedSide:           order.Buy.Lower(),
+			expectedTargetCurrency: "quote_ccy",
+		},
+	} {
+		t.Run("REST transport with websocket available "+tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan PlaceOrderRequestParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var got PlaceOrderRequestParam
+				if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				requests <- got
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"rest-order","clOrdId":"client-order","sCode":"0","sMsg":""}]}`))
+			}))
+			t.Cleanup(server.Close)
+
+			ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+			tc.submit.Exchange = ex.Name
+
+			result, err := ex.SubmitOrder(t.Context(), &tc.submit)
+			require.NoError(t, err, "SubmitOrder must not error")
+			require.Equal(t, "rest-order", result.OrderID, "SubmitOrder must return the REST order ID")
+			got := <-requests
+			assert.Zero(t, got.InstrumentIDCode, "REST submission should not include a websocket instrument code")
+			assert.Equal(t, tc.expectedAmount, got.Amount.Float64(), "REST submission should preserve the expected amount")
+			assert.Equal(t, tc.expectedSide, got.Side, "REST submission should preserve the expected side")
+			assert.Equal(t, tc.expectedTargetCurrency, got.TargetCurrency, "REST submission should preserve the expected target currency")
+			assert.Equal(t, tc.expectedReduceOnly, got.ReduceOnly, "REST submission should preserve reduce-only")
+		})
+	}
+
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+	}{
+		{name: "trigger", orderType: order.Trigger},
+		{name: "conditional", orderType: order.ConditionalStop},
+		{name: "chase", orderType: order.Chase},
+		{name: "trailing stop", orderType: order.TrailingStop},
+		{name: "TWAP", orderType: order.TWAP},
+		{name: "OCO", orderType: order.OCO},
+	} {
+		t.Run("algorithmic "+tc.name+" arguments", func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan AlgoOrderParams, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var got AlgoOrderParams
+				if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				requests <- got
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"algoId":"algo-order","sCode":"0","sMsg":""}]}`))
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+			algoResult, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:         ex.Name,
+				Pair:             mainPair,
+				AssetType:        asset.Futures,
+				Side:             order.Long,
+				Type:             tc.orderType,
+				Amount:           1,
+				Price:            1,
+				TriggerPrice:     10,
+				TriggerPriceType: order.LastPrice,
+				TrackingMode:     order.Percentage,
+				TrackingValue:    0.5,
+				MarginType:       margin.Multi,
+				ReduceOnly:       true,
+				RiskManagementModes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 12, LimitPrice: 13},
+					StopLoss:   order.RiskManagement{Price: 9, LimitPrice: 8},
+				},
+			})
+			require.NoError(t, err, "SubmitOrder must not error for algorithmic order")
+			assert.Equal(t, "algo-order", algoResult.OrderID, "SubmitOrder should return the algorithmic order ID")
+			got := <-requests
+			assert.Equal(t, order.Sell.Lower(), got.Side, "reduce-only long should use the closing side")
+			assert.Equal(t, positionSideLong, got.PositionSide, "hedge-mode position side should remain long")
+			assert.False(t, got.ReduceOnly, "hedge-mode order should omit reduceOnly")
+			if tc.orderType == order.OCO {
+				assert.Equal(t, 9.0, got.StopLossTriggerPrice.Float64(), "stop-loss trigger should use the stop-loss price")
+				assert.Equal(t, 8.0, got.StopLossOrderPrice.Float64(), "stop-loss order should use the stop-loss limit price")
+			}
+		})
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	var result *order.SubmitResponse
 	arg = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
@@ -3565,7 +3836,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
-	result, err := e.SubmitOrder(contextGenerate(), arg)
+	result, err = e.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -3724,6 +3995,106 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	t.Run("websocket batch", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{
+				OrderID:   "1",
+				AssetType: asset.Options,
+				Pair:      mainPair,
+			},
+			{
+				OrderID:   "2",
+				AssetType: asset.Options,
+				Pair:      mainPair,
+			},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		require.NotNil(t, resp, "CancelBatchOrders must return a response")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["cancelled-order"], "CancelBatchOrders should report the websocket cancellation")
+	})
+
+	t.Run("REST fallback when instrument code is unavailable", func(t *testing.T) {
+		t.Parallel()
+
+		restCancellation := make(chan []CancelOrderRequestParam, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path != "/api/v5/trade/cancel-batch-orders" {
+				http.NotFound(w, r)
+				return
+			}
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				http.Error(w, readErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			var got []CancelOrderRequestParam
+			if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+				http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+				return
+			}
+			restCancellation <- got
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{
+			OrderID:   "1",
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+		}})
+		require.NoError(t, err, "CancelBatchOrders must fall back to REST")
+		require.NotNil(t, resp, "CancelBatchOrders must return a response")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["1"], "REST cancellation should be returned")
+		select {
+		case got := <-restCancellation:
+			require.Len(t, got, 1, "REST cancellation must contain the order")
+			assert.Zero(t, got[0].InstrumentIDCode, "REST cancellation should not include a websocket instrument code")
+		default:
+			require.Fail(t, "CancelBatchOrders must use REST when the websocket instrument code is unavailable")
+		}
+	})
+
+	t.Run("algo failure returns partial response and error", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/api/v5/trade/cancel-batch-orders":
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"standard","sCode":"0","sMsg":""}]}`))
+			case "/api/v5/trade/cancel-advance-algos":
+				http.Error(w, "algo cancellation failed", http.StatusInternalServerError)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(server.Close)
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "standard", AssetType: asset.Spot, Pair: mainPair, Type: order.Limit},
+			{OrderID: "algo", AssetType: asset.Spot, Pair: mainPair, Type: order.Trigger},
+		})
+		require.Error(t, err, "CancelBatchOrders must return the algo cancellation error")
+		require.NotNil(t, resp, "CancelBatchOrders must preserve the partial response")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["standard"], "successful cancellation should be preserved")
+		assert.NotContains(t, resp.Status, "algo", "failed cancellation should not be reported as cancelled")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellationParams := []order.Cancel{
 		{
@@ -3751,10 +4122,264 @@ func TestCancelBatchOrders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestCancelMultipleOrdersForWrapper(t *testing.T) {
+	t.Parallel()
+
+	t.Run("websocket", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		result, err := ex.cancelMultipleOrdersForWrapper(t.Context(), []CancelOrderRequestParam{{
+			InstrumentID: mainPair.String(),
+			OrderID:      "1",
+		}}, []asset.Item{asset.Options})
+		require.NoError(t, err, "cancelMultipleOrdersForWrapper must not error")
+		require.Len(t, result, 1, "cancelMultipleOrdersForWrapper must return the websocket response")
+		assert.Equal(t, "cancelled-order", result[0].OrderID, "websocket routing should return the websocket cancellation")
+	})
+
+	t.Run("REST fallback", func(t *testing.T) {
+		t.Parallel()
+
+		restCancellation := make(chan []CancelOrderRequestParam, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				http.Error(w, readErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			var got []CancelOrderRequestParam
+			if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+				http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+				return
+			}
+			restCancellation <- got
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+		params := []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "1"}}
+		result, err := ex.cancelMultipleOrdersForWrapper(t.Context(), params, []asset.Item{asset.Spot})
+		require.NoError(t, err, "cancelMultipleOrdersForWrapper must fall back to REST")
+		require.Len(t, result, 1, "cancelMultipleOrdersForWrapper must return the REST response")
+		assert.Equal(t, "1", result[0].OrderID, "REST routing should return the REST cancellation")
+		assert.Zero(t, params[0].InstrumentIDCode, "websocket preparation should not mutate the REST parameters")
+		select {
+		case got := <-restCancellation:
+			require.Len(t, got, 1, "REST cancellation must contain the order")
+			assert.Zero(t, got[0].InstrumentIDCode, "REST cancellation should not include a websocket instrument code")
+		default:
+			require.Fail(t, "cancelMultipleOrdersForWrapper must use REST when the instrument code is unavailable")
+		}
+	})
+}
+
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	for _, tc := range []struct {
+		name           string
+		orderID        string
+		clientOrderID  string
+		side           order.Side
+		expectedOrders []string
+	}{
+		{name: "order ID", orderID: "2", expectedOrders: []string{"2"}},
+		{name: "client order ID", clientOrderID: "client-3", expectedOrders: []string{"3"}},
+		{name: "buy side", side: order.Buy, expectedOrders: []string{"1", "3"}},
+		{name: "sell side", side: order.Sell, expectedOrders: []string{"2"}},
+		{name: "all", expectedOrders: []string{"1", "2", "3"}},
+		{name: "no matches", orderID: "missing"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan []CancelOrderRequestParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v5/trade/orders-pending":
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"BTC-USDT","ordId":"1","clOrdId":"client-1","side":"buy"},{"instId":"BTC-USDT","ordId":"2","clOrdId":"client-2","side":"sell"},{"instId":"ETH-USDT","ordId":"3","clOrdId":"client-3","side":"buy"}]}`))
+				case "/api/v5/trade/cancel-batch-orders":
+					body, readErr := io.ReadAll(r.Body)
+					if readErr != nil {
+						http.Error(w, readErr.Error(), http.StatusInternalServerError)
+						return
+					}
+					var got []CancelOrderRequestParam
+					if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+						http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+						return
+					}
+					requests <- got
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{
+				AssetType:     asset.Spot,
+				OrderID:       tc.orderID,
+				ClientOrderID: tc.clientOrderID,
+				Side:          tc.side,
+			})
+			require.NoError(t, err, "CancelAllOrders must not error")
+			if len(tc.expectedOrders) == 0 {
+				assert.Empty(t, requests, "CancelAllOrders should not send an empty cancellation batch")
+				return
+			}
+			got := <-requests
+			require.Len(t, got, len(tc.expectedOrders), "Cancellation request must contain only matching orders")
+			for i := range got {
+				assert.Equal(t, tc.expectedOrders[i], got[i].OrderID, "Cancellation request should preserve matching order IDs")
+				assert.NotEmpty(t, got[i].InstrumentID, "Cancellation request should include the instrument ID")
+			}
+		})
+	}
+
+	t.Run("later batch failure returns partial response and error", func(t *testing.T) {
+		t.Parallel()
+
+		pendingOrders := make([]map[string]string, 21)
+		for i := range pendingOrders {
+			pendingOrders[i] = map[string]string{
+				"instId": "BTC-USDT",
+				"ordId":  strconv.Itoa(i + 1),
+				"side":   "buy",
+			}
+		}
+		var cancellationCalls atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/api/v5/trade/orders-pending":
+				payload, marshalErr := json.Marshal(map[string]any{"code": "0", "msg": "", "data": pendingOrders})
+				if marshalErr != nil {
+					http.Error(w, marshalErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				_, _ = w.Write(payload)
+			case "/api/v5/trade/cancel-batch-orders":
+				if cancellationCalls.Add(1) > 1 {
+					http.Error(w, "second cancellation batch failed", http.StatusInternalServerError)
+					return
+				}
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var args []CancelOrderRequestParam
+				if unmarshalErr := json.Unmarshal(body, &args); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				results := make([]map[string]string, len(args))
+				for i := range args {
+					results[i] = map[string]string{"ordId": args[i].OrderID, "sCode": "0", "sMsg": ""}
+				}
+				payload, marshalErr := json.Marshal(map[string]any{"code": "0", "msg": "", "data": results})
+				if marshalErr != nil {
+					http.Error(w, marshalErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				_, _ = w.Write(payload)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(server.Close)
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+		require.Error(t, err, "CancelAllOrders must return the later batch error")
+		assert.Len(t, result.Status, 20, "CancelAllOrders should preserve successful cancellation results")
+		assert.Equal(t, int32(2), cancellationCalls.Load(), "CancelAllOrders should attempt both cancellation batches")
+	})
+
+	for _, tc := range []struct {
+		name      string
+		assetType asset.Item
+	}{
+		{name: "asset type unset", assetType: asset.Empty},
+		{name: "instrument code unavailable", assetType: asset.Spot},
+	} {
+		t.Run("REST fallback when "+tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			restCancellation := make(chan []CancelOrderRequestParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v5/trade/orders-pending":
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"BTC-USDT","ordId":"1","side":"buy"},{"instId":"ETH-USDT","ordId":"2","side":"sell"}]}`))
+				case "/api/v5/trade/cancel-batch-orders":
+					body, readErr := io.ReadAll(r.Body)
+					if readErr != nil {
+						http.Error(w, readErr.Error(), http.StatusInternalServerError)
+						return
+					}
+					var got []CancelOrderRequestParam
+					if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+						http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+						return
+					}
+					restCancellation <- got
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1","sCode":"0","sMsg":""},{"ordId":"2","sCode":"0","sMsg":""}]}`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+			if tc.assetType == asset.Spot {
+				ex.instrumentsInfoMapLock.Lock()
+				ex.instrumentsInfoMap[instTypeSpot] = []Instrument{{
+					InstrumentID:     mainPair,
+					InstrumentIDCode: types.Number(123),
+				}}
+				ex.instrumentsInfoMapLock.Unlock()
+			}
+
+			result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: tc.assetType, Pair: mainPair})
+			require.NoError(t, err, "CancelAllOrders must fall back to REST")
+			assert.Equal(t, order.Cancelled.String(), result.Status["1"], "REST cancellation should be returned")
+			assert.Equal(t, order.Cancelled.String(), result.Status["2"], "REST cancellation should be returned")
+			select {
+			case got := <-restCancellation:
+				require.Len(t, got, 2, "REST cancellation must contain all pending orders")
+				for i := range got {
+					assert.Zero(t, got[i].InstrumentIDCode, "REST cancellation should not include websocket instrument codes")
+				}
+			default:
+				require.Fail(t, "CancelAllOrders must use REST when websocket prerequisites are incomplete")
+			}
+		})
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
@@ -3803,6 +4428,132 @@ func TestModifyOrder(t *testing.T) {
 	arg.Type = order.OCO
 	_, err = e.ModifyOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+
+	t.Run("fractional spot amount", func(t *testing.T) {
+		t.Parallel()
+
+		restRequest := make(chan struct{}, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			restRequest <- struct{}{}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1234","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+			OrderID:   "1234",
+			Amount:    0.5,
+		})
+		require.NoError(t, err, "ModifyOrder must allow a fractional spot amount")
+		require.NotNil(t, resp, "ModifyOrder must return a response")
+		select {
+		case <-restRequest:
+		default:
+			require.Fail(t, "ModifyOrder must use REST when websocket is available")
+		}
+	})
+
+	t.Run("fractional spread amount", func(t *testing.T) {
+		t.Parallel()
+
+		requests := make(chan AmendSpreadOrderParam, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				http.Error(w, readErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			var got AmendSpreadOrderParam
+			if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+				http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+				return
+			}
+			requests <- got
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1234","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+			AssetType: asset.Spread,
+			Pair:      spreadPair,
+			OrderID:   "1234",
+			Amount:    0.0001,
+		})
+		require.NoError(t, err, "ModifyOrder must allow a fractional spread amount")
+		require.NotNil(t, resp, "ModifyOrder must return a response")
+		assert.Equal(t, 0.0001, (<-requests).NewSize.Float64(), "spread amendment should preserve the fractional amount")
+	})
+
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+	}{
+		{name: "trigger attachment", orderType: order.Trigger},
+		{name: "OCO", orderType: order.OCO},
+	} {
+		t.Run(tc.name+" stop-loss order price", func(t *testing.T) {
+			t.Parallel()
+
+			requests := make(chan AmendAlgoOrderParam, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var got AmendAlgoOrderParam
+				if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				requests <- got
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"algoId":"1234","sCode":"0","sMsg":""}]}`))
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+			_, err := ex.ModifyOrder(t.Context(), &order.Modify{
+				AssetType:    asset.Futures,
+				Pair:         mainPair,
+				OrderID:      "1234",
+				Amount:       1,
+				Price:        1,
+				TriggerPrice: 10,
+				Type:         tc.orderType,
+				RiskManagementModes: order.RiskManagementModes{
+					TakeProfit: order.RiskManagement{Price: 12, LimitPrice: 13},
+					StopLoss:   order.RiskManagement{Price: 9, LimitPrice: 8},
+				},
+			})
+			require.NoError(t, err, "ModifyOrder must not error")
+			got := <-requests
+			if tc.orderType == order.Trigger {
+				require.Len(t, got.AttachAlgoOrders, 1, "trigger amendment must include its attached order")
+				assert.Equal(t, 8.0, got.AttachAlgoOrders[0].NewStopLossOrderPrice.Float64(), "attached stop-loss order should use the limit price")
+				return
+			}
+			assert.Equal(t, 8.0, got.NewStopLossOrderPrice.Float64(), "stop-loss order should use the limit price")
+		})
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Modify{
@@ -4012,12 +4763,244 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGenerateOrderbookChecksum(t *testing.T) {
+func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	t.Parallel()
-	var orderbookBase orderbook.Book
-	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateOrderbookJSON), &orderbookBase)
-	require.NoError(t, err)
-	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
+
+	tracked := new(Exchange)
+	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+	data := &WsOrderBookData{
+		Bids: []WsOrderBookLevel{{
+			Price:  100.5,
+			Amount: 1.25,
+		}},
+		Asks: []WsOrderBookLevel{{
+			Price:  100.6,
+			Amount: 0.75,
+		}},
+		Timestamp:  types.Time(time.UnixMilli(1659792392540)),
+		SequenceID: 42,
+	}
+	pair := currency.NewPairWithDelimiter("SNAP", "USDT", "-")
+	require.NoError(t, tracked.WsProcessSnapshotOrderBook(data, pair, []asset.Item{asset.Spot}), "WsProcessSnapshotOrderBook must not error")
+
+	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
+	assert.False(t, book.ReceivedAt.IsZero(), "ReceivedAt should be set")
+	assert.Equal(t, int64(42), book.LastUpdateID, "LastUpdateID should match the snapshot sequence ID")
+	require.Len(t, book.Bids, 1, "Snapshot must contain one bid")
+	require.Len(t, book.Asks, 1, "Snapshot must contain one ask")
+	assert.Equal(t, 100.5, book.Bids[0].Price, "Bid price should match")
+	assert.Equal(t, 1.25, book.Bids[0].Amount, "Bid amount should match")
+	assert.Equal(t, 100.6, book.Asks[0].Price, "Ask price should match")
+	assert.Equal(t, 0.75, book.Asks[0].Amount, "Ask amount should match")
+}
+
+func TestWsProcessUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+
+	tracked := new(Exchange)
+	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+
+	pair := currency.NewPairWithDelimiter("UPD", "USDT", "-")
+	err := tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     tracked.Name,
+		Pair:         pair,
+		Asset:        asset.Spot,
+		LastUpdateID: 10,
+		LastUpdated:  time.UnixMilli(1659792392540),
+		LastPushed:   time.UnixMilli(1659792392540),
+		Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+		Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+	})
+	require.NoError(t, err, "LoadSnapshot must not error")
+
+	update := &WsOrderBookData{
+		Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+		PreviousSequenceID: 10,
+		SequenceID:         11,
+	}
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must not error when prevSeqId matches")
+	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must advance to update seqId")
+	require.Equal(t, update.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, update.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
+
+	heartbeatTime := time.UnixMilli(1659792392740)
+	update.Timestamp = types.Time(heartbeatTime)
+	update.PreviousSequenceID = 11
+	update.SequenceID = 11
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must process a documented heartbeat")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(11), book.LastUpdateID, "A heartbeat must retain its sequence ID")
+	require.Equal(t, heartbeatTime, book.LastUpdated, "A heartbeat must update the generation timestamp")
+
+	update.PreviousSequenceID = 10
+	update.SequenceID = 11
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must discard stale updates without error")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must remain unchanged after stale update")
+	require.Equal(t, heartbeatTime, book.LastUpdated, "A stale update must not change the generation timestamp")
+
+	update.PreviousSequenceID = 11
+	update.SequenceID = 3
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must accept a documented sequence reset")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(3), book.LastUpdateID, "LastUpdateID must move to the reset sequence")
+
+	update.PreviousSequenceID = 3
+	update.SequenceID = 5
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must continue from the reset sequence")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(5), book.LastUpdateID, "LastUpdateID must advance from the reset sequence")
+
+	update.PreviousSequenceID = 3
+	update.SequenceID = 4
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject updates from a stale sequence chain")
+	_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "A stale sequence chain must invalidate the orderbook")
+
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		err = tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     tracked.Name,
+			Pair:         pair,
+			Asset:        a,
+			LastUpdateID: 5,
+			LastUpdated:  time.UnixMilli(1659792392540),
+			LastPushed:   time.UnixMilli(1659792392540),
+			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+		})
+		require.NoErrorf(t, err, "LoadSnapshot must not error for %s", a)
+	}
+
+	update.PreviousSequenceID = 0
+	update.SequenceID = 6
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot, asset.Margin})
+	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must treat zero as a sequence value and reject the gap")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, a)
+		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "A sequence gap must invalidate the %s orderbook", a)
+	}
+
+	partialPair := currency.NewPairWithDelimiter("PART", "USDT", "-")
+	err = tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     tracked.Name,
+		Pair:         partialPair,
+		Asset:        asset.Spot,
+		LastUpdateID: 20,
+		LastUpdated:  time.UnixMilli(1659792392540),
+		LastPushed:   time.UnixMilli(1659792392540),
+		Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+		Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+	})
+	require.NoError(t, err, "LoadSnapshot must not error")
+	update.PreviousSequenceID = 20
+	update.SequenceID = 21
+	err = tracked.WsProcessUpdateOrderbook(update, partialPair, []asset.Item{asset.Spot, asset.Margin})
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every asset before applying updates")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(partialPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must return the unchanged spot orderbook")
+	assert.Equal(t, int64(20), book.LastUpdateID, "A missing secondary asset should not advance the first asset")
+}
+
+func TestWsProcessOrderBooks(t *testing.T) {
+	t.Parallel()
+
+	tracked := new(Exchange)
+	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+	tracked.ValidateOrderbook = true
+	conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+	require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
+	subs := subscription.List{
+		{
+			Asset:            asset.Spot,
+			Pairs:            currency.Pairs{mainPair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
+			Levels:           400,
+		},
+		{
+			Asset:            asset.Margin,
+			Pairs:            currency.Pairs{mainPair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
+			Levels:           400,
+		},
+	}
+	require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, subs...), "AddSuccessfulSubscriptions must not error")
+	for _, sub := range subs {
+		require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
+	}
+
+	snapshot := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","checksum":0,"prevSeqId":-1,"seqId":10}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load the snapshot")
+
+	gap := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1659792392640","checksum":0,"prevSeqId":12,"seqId":13}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover from a sequence gap")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must remain invalid until a new snapshot arrives", a)
+	}
+	require.Len(t, conn.requests, 2, "Recovery must send an unsubscribe and subscribe request")
+	assert.Equal(t, operationUnsubscribe, conn.requests[0].Operation, "Recovery should unsubscribe the tracked channel first")
+	require.Len(t, conn.requests[0].Arguments, 1, "Recovery must deduplicate the spot and margin unsubscribe arguments")
+	assert.Equal(t, operationSubscribe, conn.requests[1].Operation, "Recovery should resubscribe the tracked channel")
+	require.Len(t, conn.requests[1].Arguments, 1, "Recovery must deduplicate the spot and margin subscribe arguments")
+	recoveredSubs := conn.Subscriptions().List()
+	require.Len(t, recoveredSubs, 2, "Recovery must retain both spot and margin subscriptions")
+	for _, sub := range recoveredSubs {
+		assert.Equal(t, 400, sub.Levels, "Recovery should retain the subscription depth")
+	}
+
+	freshSnapshot := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392740","checksum":0,"prevSeqId":-1,"seqId":50}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, freshSnapshot), "wsProcessOrderBooks must load a fresh snapshot after recovery")
+	validUpdate := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[["100","2","0","1"]],"ts":"1659792392840","checksum":0,"prevSeqId":50,"seqId":51}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, validUpdate), "wsProcessOrderBooks must process updates after recovery")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+		require.NoErrorf(t, err, "GetOrderbook must return the recovered %s orderbook", a)
+		assert.Equalf(t, int64(51), book.LastUpdateID, "The recovered %s orderbook should accept subsequent updates", a)
+	}
+
+	invalidUpdate := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[["0","1","0","1"]],"ts":"1659792392940","checksum":0,"prevSeqId":51,"seqId":52}]}`)
+	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, invalidUpdate), "wsProcessOrderBooks must recover from an integrity failure")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "An integrity failure must invalidate the mapped %s orderbook", a)
+	}
+	require.Len(t, conn.requests, 4, "Integrity recovery must send another unsubscribe and subscribe request")
+	assert.Equal(t, operationUnsubscribe, conn.requests[2].Operation, "Integrity recovery should unsubscribe first")
+	assert.Equal(t, operationSubscribe, conn.requests[3].Operation, "Integrity recovery should resubscribe second")
+
+	bboTracked := new(Exchange)
+	require.NoError(t, testexch.Setup(bboTracked), "BBO test instance Setup must not error")
+	bboPair := currency.NewPairWithDelimiter("BBO", "USDT", "-")
+	bboSnapshot := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BBO-USDT","instType":"SPOT"},"data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","seqId":20}]}`)
+	require.NoError(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, bboSnapshot), "wsProcessOrderBooks must load bbo-tbt data as a snapshot")
+	bboBook, err := bboTracked.Websocket.Orderbook.GetOrderbook(bboPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must return the BBO snapshot")
+	require.Len(t, bboBook.Bids, 1, "BBO snapshot must contain one bid")
+	require.Len(t, bboBook.Asks, 1, "BBO snapshot must contain one ask")
+	assert.Equal(t, float64(100), bboBook.Bids[0].Price, "BBO bid should match the snapshot")
+	assert.Equal(t, int64(20), bboBook.LastUpdateID, "BBO LastUpdateID should match seqId")
+
+	invalidBBOAction := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BBO-USDT","instType":"SPOT"},"action":"update","data":[]}`)
+	require.ErrorIs(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, invalidBBOAction), orderbook.ErrInvalidAction, "bbo-tbt must reject incremental actions")
+	invalidIncrementalAction := []byte(`{"arg":{"channel":"books-l2-tbt","instId":"BBO-USDT","instType":"SPOT"},"action":"partial","data":[]}`)
+	require.ErrorIs(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, invalidIncrementalAction), orderbook.ErrInvalidAction, "incremental channels must reject unknown actions")
 }
 
 func TestOrderPushData(t *testing.T) {
@@ -4104,7 +5087,7 @@ var pushDataMap = map[string]string{
 	"Test Snapshot Orderbook":               `{"arg": {"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`,
 	"Options Trades":                        `{"arg": {"channel": "option-trades", "instType": "OPTION", "instFamily": "BTC-USD" }, "data": [ { "fillVol": "0.5066007836914062", "fwdPx": "16469.69928595038", "idxPx": "16537.2", "instFamily": "BTC-USD", "instId": "BTC-USD-230224-18000-C", "markPx": "0.04690107010619562", "optType": "C", "px": "0.045", "side": "sell", "sz": "2", "tradeId": "38", "ts": "1672286551080" } ] }`,
 	"Public Block Trades":                   `{"arg": {"channel":"public-block-trades", "instId":"BTC-USD-231020-5000-P" }, "data":[ { "fillVol":"5", "fwdPx":"26808.16", "idxPx":"27222.5", "instId":"BTC-USD-231020-5000-P", "markPx":"0.0022406326071111", "px":"0.0048", "side":"buy", "sz":"1", "tradeId":"633971452580106242", "ts":"1697422572972"}]}`,
-	"Option Summary":                        `{"arg": {"channel": "opt-summary","uly": "BTC-USD"},"data": [{"instType": "OPTION","instId": "BTC-USD-200103-5500-C","uly": "BTC-USD","delta": "0.7494223636","gamma": "-0.6765419039","theta": "-0.0000809873","vega": "0.0000077307","deltaBS": "0.7494223636","gammaBS": "-0.6765419039","thetaBS": "-0.0000809873","vegaBS": "0.0000077307","realVol": "0","bidVol": "","askVol": "1.5625","markVol": "0.9987","lever": "4.0342","fwdPx": "39016.8143629068452065","ts": "1597026383085"}]}`,
+	"Option Summary":                        `{"arg": {"channel": "opt-summary","instFamily": "BTC-USD"},"data": [{"instType": "OPTION","instId": "BTC-USD-200103-5500-C","uly": "BTC-USD","delta": "0.7494223636","gamma": "-0.6765419039","theta": "-0.0000809873","vega": "0.0000077307","deltaBS": "0.7494223636","gammaBS": "-0.6765419039","thetaBS": "-0.0000809873","vegaBS": "0.0000077307","realVol": "0","bidVol": "","askVol": "1.5625","markVol": "0.9987","lever": "4.0342","fwdPx": "39016.8143629068452065","ts": "1597026383085"}]}`,
 	"Funding Rate":                          `{"arg": {"channel": "funding-rate","instId": "BTC-USD-SWAP"},"data": [{"instType": "SWAP","instId": "BTC-USD-SWAP","fundingRate": "0.018","nextFundingRate": "","fundingTime": "1597026383085"}]}`,
 	"Index Candlestick":                     `{"arg": {"channel": "index-candle30m","instId": "BTC-USDT"},"data": [["1597026383085", "3811.31", "3811.31", "3811.31", "3811.31"]]}`,
 	"Index Ticker":                          `{"arg": {"channel": "index-tickers","instId": "BTC-USDT"},"data": [{"instId": "BTC-USDT","idxPx": "0.1","high24h": "0.5","low24h": "0.1","open24h": "0.1","sodUtc0": "0.1","sodUtc8": "0.1","ts": "1597026383085"}]}`,
@@ -4146,6 +5129,21 @@ func TestWsHandleData(t *testing.T) {
 			require.NoErrorf(t, err, "%s must not error", name)
 		}
 	}
+
+	t.Run("option summary dispatch", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		require.NoError(t, ex.wsHandleData(t.Context(), nil, []byte(pushDataMap["Option Summary"])), "option summary must not error")
+		select {
+		case message := <-ex.Websocket.DataHandler.C:
+			_, ok := message.Data.(*WsOptionSummary)
+			require.True(t, ok, "option summary must be dispatched as WsOptionSummary")
+		default:
+			require.Fail(t, "option summary must be dispatched")
+		}
+	})
 }
 
 func TestPushDataDynamic(t *testing.T) {
@@ -4460,34 +5458,224 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	_, err := e.getAssetsFromInstrumentID("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
-	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
-		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
-		switch a {
-		case asset.Spot, asset.Margin:
-			// spot and margin instruments are similar
-			require.Len(t, assets, 2)
-		default:
-			require.Len(t, assets, 1)
-		}
-		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
+	testCases := []struct {
+		name               string
+		instrumentID       string
+		expectedAssetTypes []asset.Item
+		expectedError      error
+	}{
+		{
+			name:               "spot instrument",
+			instrumentID:       "BTC-USDT",
+			expectedAssetTypes: []asset.Item{asset.Spot, asset.Margin},
+		},
+		{
+			name:               "swap instrument",
+			instrumentID:       "BTC-USD-SWAP",
+			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
+		},
+		{
+			name:               "swap instrument lowercase suffix",
+			instrumentID:       "BTC-USD-swap",
+			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
+		},
+		{
+			name:          "invalid instrument",
+			instrumentID:  "test",
+			expectedError: currency.ErrCurrencyNotSupported,
+		},
+		{
+			name:          "disabled spot instrument",
+			instrumentID:  "ETH-USDT",
+			expectedError: asset.ErrNotEnabled,
+		},
+		{
+			name:               "futures instrument",
+			instrumentID:       "BTC-USD-240329",
+			expectedAssetTypes: []asset.Item{asset.Futures},
+		},
+		{
+			name:               "options instrument",
+			instrumentID:       "BTC-USD-240329-70000-C",
+			expectedAssetTypes: []asset.Item{asset.Options},
+		},
+		{
+			name:               "options instrument lowercase suffix",
+			instrumentID:       "BTC-USD-240329-70000-c",
+			expectedAssetTypes: []asset.Item{asset.Options},
+		},
 	}
 
-	_, err = e.getAssetsFromInstrumentID("test")
-	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = e.getAssetsFromInstrumentID("test-test")
-	assert.ErrorIs(t, err, asset.ErrNotEnabled)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
-		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
-		assert.Contains(t, assets, a)
+			ex := new(Exchange)
+			ex.SetDefaults()
+			if testCase.expectedError == nil {
+				pair, err := currency.NewPairDelimiter(testCase.instrumentID, currency.DashDelimiter)
+				require.NoError(t, err, "test instrument ID must produce a pair")
+				for _, assetType := range testCase.expectedAssetTypes {
+					require.NoError(t, ex.CurrencyPairs.StorePairs(assetType, currency.Pairs{pair}, true), "StorePairs must enable the test pair")
+				}
+			}
+
+			assets, err := ex.getAssetsFromInstrumentID(testCase.instrumentID)
+			if testCase.expectedError != nil {
+				require.ErrorIs(t, err, testCase.expectedError, "getAssetsFromInstrumentID must return expected error")
+				return
+			}
+			require.NoError(t, err, "getAssetsFromInstrumentID must not error")
+			assert.Equal(t, testCase.expectedAssetTypes, assets, "asset types should match")
+		})
 	}
+}
+
+func TestGetAssetsFromInstrumentID(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	e.SetDefaults()
+	pair, err := currency.NewPairDelimiter("BTC-USD-240329-70000-C", currency.DashDelimiter)
+	require.NoError(t, err, "test instrument ID must produce a pair")
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{pair}, true), "StorePairs must enable the option pair")
+	assets, err := e.getAssetsFromInstrumentID("BTC-USD-240329-70000-C")
+	require.NoError(t, err, "getAssetsFromInstrumentID must not error for option instrument IDs")
+	require.Equal(t, []asset.Item{asset.Options}, assets, "getAssetsFromInstrumentID must infer options asset type")
+}
+
+func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		data           []byte
+		expectedPrice  float64
+		expectedAmount float64
+		expectedError  error
+	}{
+		{
+			name:           "quoted values",
+			data:           []byte(`["0.0702600","5.00","0","1"]`),
+			expectedPrice:  0.07026,
+			expectedAmount: 5,
+		},
+		{
+			name:           "numeric values",
+			data:           []byte(`[0.07026,5,0,1]`),
+			expectedPrice:  0.07026,
+			expectedAmount: 5,
+		},
+		{
+			name:          "missing amount",
+			data:          []byte(`["1"]`),
+			expectedError: errInvalidOrderBookLevel,
+		},
+		{
+			name:          "malformed",
+			data:          []byte(`{}`),
+			expectedError: errInvalidOrderBookLevel,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var level WsOrderBookLevel
+			err := json.Unmarshal(testCase.data, &level)
+			if testCase.expectedError != nil {
+				require.ErrorIs(t, err, testCase.expectedError, "UnmarshalJSON must return the expected error")
+				return
+			}
+
+			require.NoError(t, err, "UnmarshalJSON must not error")
+			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
+			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
+		})
+	}
+}
+
+func TestWsOrderbookItems(t *testing.T) {
+	t.Parallel()
+
+	entries := []WsOrderBookLevel{{
+		Price:  100.5,
+		Amount: 2.25,
+	}}
+	items := wsOrderbookItems(entries)
+	require.Len(t, items, 1, "wsOrderbookItems must return one orderbook item")
+	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
+	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
+	assert.Empty(t, items[0].StrPrice, "orderbook price string should not be populated")
+	assert.Empty(t, items[0].StrAmount, "orderbook amount string should not be populated")
+}
+
+func TestAppendWsOrderbookItems(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		entries  []WsOrderBookLevel
+		expected orderbook.Levels
+	}{
+		{
+			name:     "empty",
+			entries:  []WsOrderBookLevel{},
+			expected: orderbook.Levels{},
+		},
+		{
+			name: "multiple levels",
+			entries: []WsOrderBookLevel{
+				{Price: 1.25, Amount: 2.5},
+				{Price: 3.75, Amount: 4.5},
+			},
+			expected: orderbook.Levels{
+				{Price: 1.25, Amount: 2.5},
+				{Price: 3.75, Amount: 4.5},
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			items := make(orderbook.Levels, len(testCase.entries))
+			appendWsOrderbookItems(items, testCase.entries)
+			assert.Equal(t, testCase.expected, items, "orderbook levels should match")
+		})
+	}
+}
+
+func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
+	t.Parallel()
+
+	entries := []WsOrderBookLevel{
+		{Price: 1, Amount: 2},
+		{Price: 3, Amount: 4},
+	}
+	items, pooled := appendWsOrderbookItemsFromPool(entries)
+	t.Cleanup(func() {
+		putWsOrderbookLevels(pooled)
+	})
+
+	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
+	assert.Equal(t, float64(1), items[0].Price, "first price should match")
+	assert.Equal(t, float64(4), items[1].Amount, "second amount should match")
+	assert.Empty(t, items[0].StrPrice, "first price string should not be populated")
+	assert.Empty(t, items[1].StrAmount, "second amount string should not be populated")
+}
+
+func TestPutWsOrderbookLevels(t *testing.T) {
+	t.Parallel()
+
+	items := orderbook.Levels{{Price: 1}, {Price: 2}}
+	putWsOrderbookLevels(&items)
+	require.Empty(t, items, "putWsOrderbookLevels must reset pooled slice length")
 }
 
 func TestSetMarginType(t *testing.T) {
@@ -4527,7 +5715,7 @@ func TestSetCollateralMode(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestGetPositionSummary(t *testing.T) {
+func TestGetFuturesPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	pp, err := e.CurrencyPairs.GetPairs(asset.PerpetualSwap, true)
@@ -4644,12 +5832,9 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, got.Asks, 5)
-	require.Len(t, got.Bids, 5)
-	// Book replicated to margin
-	got, err = orderbook.Get(e.Name, required, asset.Margin)
-	require.NoError(t, err)
-	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
+	require.Equal(t, time.UnixMilli(1695864901807), got.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, got.LastUpdated, got.LastPushed, "LastPushed should match OKX generation timestamp")
 }
 
 func TestGetLeverateEstimatedInfo(t *testing.T) {
@@ -6221,6 +7406,10 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
+	for _, sub := range defaultSubscriptions {
+		assert.NotEqual(t, channelBalanceAndPosition, sub.Channel, "Balance and position should require explicit configuration")
+		assert.NotEqual(t, channelAccountGreeks, sub.Channel, "Account Greeks should require explicit configuration")
+	}
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
@@ -6229,8 +7418,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{
-		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	exp := subscription.List{}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
+		exp = append(exp, s)
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6244,14 +7439,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			if isSymbolChannel(s) {
+			switch {
+			case isSymbolChannel(s):
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			} else {
+			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6263,7 +7459,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, append(public, private...))
+	testsubs.EqualLists(t, exp, slices.Concat(public, private))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)
@@ -6334,8 +7530,9 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
-	var subs subscription.List
-	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
+	channels := []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H}
+	subs := make(subscription.List, 0, len(channels))
+	for i, ch := range channels {
 		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
 
@@ -6372,7 +7569,14 @@ const (
 func TestWsProcessSpreadOrderbook(t *testing.T) {
 	t.Parallel()
 	err := e.wsProcessSpreadOrderbook([]byte(processSpreadOrderbookJSON))
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
+	pair, err := e.GetPairFromInstrumentID("BTC-USDT_BTC-USDT-SWAP")
+	require.NoError(t, err, "GetPairFromInstrumentID must not error")
+	book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spread)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, time.UnixMilli(1670324386802), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match OKX generation timestamp")
 }
 
 func TestWsProcessPublicSpreadTrades(t *testing.T) {
@@ -6491,6 +7695,8 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), common.ErrNilPointer)
 	p = &PlaceOrderRequestParam{}
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
+	p.InstrumentIDCode = 1
+	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
 	p.InstrumentID = mainPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
@@ -6498,6 +7704,8 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)

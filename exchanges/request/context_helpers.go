@@ -58,6 +58,41 @@ func hasDelayNotAllowed(ctx context.Context) bool {
 	return ok
 }
 
+type additionalRateLimitsKey struct{}
+
+type endpointRateLimitWeightKey struct{}
+
+// WithAdditionalRateLimits returns a child context that applies the supplied limiters in addition to the endpoint limiter.
+// Repeated calls append limits, so callers must not add the same limiter more than once.
+func WithAdditionalRateLimits(ctx context.Context, rateLimits ...AdditionalRateLimit) context.Context {
+	if len(rateLimits) == 0 {
+		return ctx
+	}
+	existing := additionalRateLimitsFromContext(ctx)
+	combined := make([]AdditionalRateLimit, 0, len(existing)+len(rateLimits))
+	combined = append(combined, existing...)
+	combined = append(combined, rateLimits...)
+	return context.WithValue(ctx, additionalRateLimitsKey{}, combined)
+}
+
+func additionalRateLimitsFromContext(ctx context.Context) []AdditionalRateLimit {
+	rateLimits, _ := ctx.Value(additionalRateLimitsKey{}).([]AdditionalRateLimit)
+	return rateLimits
+}
+
+// WithEndpointRateLimitWeight carries the endpoint weight needed when a request spans multiple rate-limit scopes.
+func WithEndpointRateLimitWeight(ctx context.Context, weight Weight) context.Context {
+	if weight == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, endpointRateLimitWeightKey{}, weight)
+}
+
+func endpointRateLimitWeightFromContext(ctx context.Context) Weight {
+	weight, _ := ctx.Value(endpointRateLimitWeightKey{}).(Weight)
+	return weight
+}
+
 type retryNotAllowedKey struct{}
 
 // WithRetryNotAllowed adds a value to the context that indicates that no retries are allowed for requests.

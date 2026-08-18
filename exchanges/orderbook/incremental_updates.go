@@ -41,6 +41,9 @@ type Update struct {
 	UpdateID   int64
 	UpdateTime time.Time
 	LastPushed time.Time
+	// ReceivedAt marks when the exchange adapter starts handling this
+	// update before it is applied to depth. This mirrors Book.ReceivedAt.
+	ReceivedAt time.Time
 	Asset      asset.Item
 	Bids       Levels
 	Asks       Levels

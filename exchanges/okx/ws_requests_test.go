@@ -2,35 +2,208 @@ package okx
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
+func TestOrderRequestNumberMarshalling(t *testing.T) {
+	t.Parallel()
+
+	const smallNumber = 1.555e-8
+	const expectedNumber = `"0.00000001555"`
+	testCases := []struct {
+		name           string
+		request        any
+		expectedFields []string
+		expected       []string
+		omittedFields  []string
+	}{
+		{
+			name: "place order",
+			request: &PlaceOrderRequestParam{
+				Amount: smallNumber,
+				Price:  smallNumber,
+			},
+			expectedFields: []string{"sz", "px"},
+		},
+		{
+			name: "amend order",
+			request: &AmendOrderRequestParams{
+				NewQuantity:        smallNumber,
+				NewPrice:           smallNumber,
+				NewPriceInUSD:      smallNumber,
+				NewPriceVolatility: smallNumber,
+			},
+			expectedFields: []string{"newSz", "newPx", "newPxUsd", "newPxVol"},
+		},
+		{
+			name: "amend order attached TP/SL",
+			request: &AlgoOrdInfo{
+				NewTakeProfitTriggerPrice: smallNumber,
+				NewTakeProfitOrderPrice:   smallNumber,
+				NewStopLossTriggerPrice:   smallNumber,
+				NewStopLossOrderPrice:     smallNumber,
+				NewSize:                   smallNumber,
+			},
+			expectedFields: []string{"newTpTriggerPx", "newTpOrdPx", "newSlTriggerPx", "newSlOrdPx", "sz"},
+		},
+		{
+			name: "place algo order",
+			request: &AlgoOrderParams{
+				Size:                   smallNumber,
+				TakeProfitOrderPrice:   smallNumber,
+				TakeProfitTriggerPrice: smallNumber,
+				StopLossTriggerPrice:   smallNumber,
+				StopLossOrderPrice:     smallNumber,
+				CallbackRatio:          smallNumber,
+				ActivePrice:            smallNumber,
+				CallbackSpreadVariance: smallNumber,
+				TriggerPrice:           smallNumber,
+				OrderPrice:             smallNumber,
+				PriceVariance:          smallNumber,
+				PriceSpread:            smallNumber,
+				SizeLimit:              smallNumber,
+				LimitPrice:             smallNumber,
+				ChaseValue:             smallNumber,
+				MaxChaseValue:          smallNumber,
+			},
+			expectedFields: []string{
+				"sz", "tpOrdPx", "tpTriggerPx", "slTriggerPx", "slOrdPx", "callbackRatio", "activePx", "callbackSpread",
+				"triggerPx", "orderPx", "pxVar", "pxSpread", "szLimit", "pxLimit", "chaseVal", "maxChaseVal",
+			},
+		},
+		{
+			name: "amend algo order",
+			request: &AmendAlgoOrderParam{
+				NewSize:                   smallNumber,
+				NewTakeProfitTriggerPrice: smallNumber,
+				NewTakeProfitOrderPrice:   smallNumber,
+				NewStopLossTriggerPrice:   smallNumber,
+				NewStopLossOrderPrice:     smallNumber,
+				NewTriggerPrice:           smallNumber,
+				NewOrderPrice:             smallNumber,
+			},
+			expectedFields: []string{"newSz", "newTpTriggerPx", "newTpOrdPx", "newSlTriggerPx", "newSlOrdPx", "newTriggerPx", "newOrdPx"},
+		},
+		{
+			name: "amend algo attached TP/SL",
+			request: &SubTPSLParams{
+				NewTakeProfitTriggerPrice: smallNumber,
+				NewTakeProfitOrderPrice:   smallNumber,
+				NewStopLossTriggerPrice:   smallNumber,
+				NewStopLossOrderPrice:     smallNumber,
+			},
+			expectedFields: []string{"newTpTriggerPx", "newTpOrdPx", "newSlTriggerPx", "newSlOrdPx"},
+		},
+		{
+			name:           "place spread order",
+			request:        &SpreadOrderParam{Size: smallNumber, Price: smallNumber},
+			expectedFields: []string{"sz", "px"},
+		},
+		{
+			name:           "amend spread order",
+			request:        &AmendSpreadOrderParam{NewSize: smallNumber, NewPrice: smallNumber},
+			expectedFields: []string{"newSz", "newPx"},
+		},
+		{
+			name:          "zero optional price",
+			request:       &PlaceOrderRequestParam{},
+			expected:      []string{`"sz":""`},
+			omittedFields: []string{"px"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			raw, err := json.Marshal(testCase.request)
+			require.NoError(t, err, "Order request must marshal")
+			for _, field := range testCase.expectedFields {
+				assert.Containsf(t, string(raw), `"`+field+`":`+expectedNumber, "Order request should encode %s as a plain decimal string", field)
+			}
+			for _, expected := range testCase.expected {
+				assert.Contains(t, string(raw), expected, "Order request should contain expected JSON")
+			}
+			for _, field := range testCase.omittedFields {
+				assert.NotContainsf(t, string(raw), `"`+field+`"`, "Order request should omit zero-valued field %s", field)
+			}
+			assert.NotContains(t, string(raw), "e-", "Order request should not contain lowercase scientific notation")
+			assert.NotContains(t, string(raw), "E-", "Order request should not contain uppercase scientific notation")
+		})
+	}
+}
+
 func TestWSPlaceOrder(t *testing.T) {
 	t.Parallel()
 
+	t.Run("additional rate limits from context", func(t *testing.T) {
+		t.Parallel()
+
+		var requestSent atomic.Bool
+		ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, connection *gws.Conn) error {
+			tb.Helper()
+			requestSent.Store(true)
+			return okxOrderWsMock(tb, payload, connection)
+		}, request.RateLimitDefinitions{
+			placeOrderEPL: request.NewRateLimitWithWeight(0, 0, 1),
+		})
+		scopedLimiter, err := ex.tradeLimiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, mainPair.String())
+		require.NoError(t, err, "scoped limiter must initialise")
+		require.NoError(t, scopedLimiter.RateLimit(t.Context()), "first scoped reservation must not error")
+
+		_, err = ex.WSPlaceOrder(request.WithDelayNotAllowed(t.Context()), &PlaceOrderRequestParam{
+			InstrumentID:     mainPair.String(),
+			InstrumentIDCode: 1,
+			TradeMode:        TradeModeCash,
+			Side:             order.Buy.String(),
+			OrderType:        orderMarket,
+			Amount:           1,
+		})
+		require.ErrorIs(t, err, request.ErrDelayNotAllowed, "WSPlaceOrder must enforce its context-carried scoped limiter")
+		assert.ErrorContains(t, err, "place-single:"+mainPair.String(), "WSPlaceOrder should identify the limiting scope")
+		assert.False(t, requestSent.Load(), "WSPlaceOrder should reject the request before transmission")
+	})
+
 	_, err := e.WSPlaceOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = e.WSPlaceOrder(t.Context(), &PlaceOrderRequestParam{
+		InstrumentID: mainPair.String(),
+		TradeMode:    TradeModeIsolated,
+		Side:         order.Buy.String(),
+		OrderType:    orderPostOnly,
+		Amount:       1,
+	})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSPlaceOrder must require instIdCode")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
 	out := &PlaceOrderRequestParam{
-		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
+		AssetType:        asset.Spot,
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: instrumentIDCode,
+		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+		Side:             "Buy",
+		OrderType:        "post_only",
+		Amount:           0.0001,
+		Price:            20000,
+		Currency:         "USDT",
 	}
 
 	got, err := e.WSPlaceOrder(request.WithVerbose(t.Context()), out)
@@ -44,21 +217,37 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 	_, err := e.WSPlaceMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
+	_, err = e.WSPlaceMultipleOrders(t.Context(), make([]PlaceOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
+
 	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
+	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{
+		InstrumentID: mainPair.String(),
+		TradeMode:    TradeModeIsolated,
+		Side:         order.Buy.String(),
+		OrderType:    orderPostOnly,
+		Amount:       1,
+	}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSPlaceMultipleOrders must require instIdCode")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
 	out := PlaceOrderRequestParam{
-		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
+		AssetType:        asset.Spot,
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: instrumentIDCode,
+		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+		Side:             "Buy",
+		OrderType:        "post_only",
+		Amount:           0.0001,
+		Price:            20000,
+		Currency:         "USDT",
 	}
 
 	got, err := e.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
@@ -76,13 +265,19 @@ func TestWSCancelOrder(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String()})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSCancelOrder must require instIdCode")
+
+	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String(), InstrumentIDCode: 1})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
-	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: mainPair.String(), OrderID: "2341161427393388544"})
+	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: mainPair.String(), InstrumentIDCode: instrumentIDCode, OrderID: "2341161427393388544"})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -93,17 +288,26 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 	_, err := e.WSCancelMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
+	_, err = e.WSCancelMultipleOrders(t.Context(), make([]CancelOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
+
 	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String()}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSCancelMultipleOrders must require instIdCode")
+
+	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), InstrumentIDCode: 1}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
-	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "2341184920998715392"}})
+	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), InstrumentIDCode: instrumentIDCode, OrderID: "2341184920998715392"}})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -120,6 +324,10 @@ func TestWSAmendOrder(t *testing.T) {
 
 	out.InstrumentID = mainPair.String()
 	_, err = e.WSAmendOrder(t.Context(), out)
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSAmendOrder must require instIdCode")
+
+	out.InstrumentIDCode = 1
+	_, err = e.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	out.OrderID = "2341200629875154944"
@@ -129,6 +337,9 @@ func TestWSAmendOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	out.InstrumentIDCode, err = e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
 	out.NewPrice = 21000
 	got, err := e.WSAmendOrder(request.WithVerbose(t.Context()), out)
@@ -142,11 +353,18 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	_, err := e.WSAmendMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
+	_, err = e.WSAmendMultipleOrders(t.Context(), make([]AmendOrderRequestParams, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
+
 	out := AmendOrderRequestParams{}
 	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	out.InstrumentID = mainPair.String()
+	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSAmendMultipleOrders must require instIdCode")
+
+	out.InstrumentIDCode = 1
 	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -156,6 +374,9 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	out.InstrumentIDCode, err = e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 	out.NewPrice = 20000
 
 	got, err := e.WSAmendMultipleOrders(request.WithVerbose(t.Context()), []AmendOrderRequestParams{out})
@@ -173,6 +394,16 @@ func TestWSMassCancelOrders(t *testing.T) {
 
 	err = e.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{InstrumentType: "OPTION"}})
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+
+	t.Run("rate limit", func(t *testing.T) {
+		t.Parallel()
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock, request.RateLimitDefinitions{
+			massCancelMMPOrderEPL: request.NewRateLimitWithWeight(0, 0, 1),
+		})
+
+		err := ex.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{InstrumentType: "OPTION", InstrumentFamily: "BTC-USD"}})
+		require.NoError(t, err, "WSMassCancelOrders must not error")
+	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
@@ -267,6 +498,28 @@ func TestParseWSResponseErrors(t *testing.T) {
 	require.ErrorIs(t, err, errPartialSuccess)
 	require.ErrorIs(t, err, err1)
 	require.ErrorIs(t, err, err2)
+}
+
+func TestSendAuthenticatedWebsocketRequest(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid request", func(t *testing.T) {
+		t.Parallel()
+
+		err := new(Exchange).SendAuthenticatedWebsocketRequest(t.Context(), request.Unset, "id", "", nil, nil)
+		require.ErrorIs(t, err, errInvalidWebsocketRequest, "SendAuthenticatedWebsocketRequest must validate the request")
+	})
+
+	t.Run("status error", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		var resp []*OrderData
+		err := ex.SendAuthenticatedWebsocketRequest(t.Context(), request.Unset, "id", "unknown", []struct{}{{}}, &resp)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedWebsocketRequest must wrap the authentication failure")
+		require.ErrorIs(t, err, errOperationFailed, "SendAuthenticatedWebsocketRequest must preserve the operation failure")
+		assert.ErrorContains(t, err, "status code: `1` status message: \"operation failed\"", "websocket status errors should match REST formatting")
+	})
 }
 
 func TestSingleItem(t *testing.T) {

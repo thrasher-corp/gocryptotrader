@@ -73,7 +73,7 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 	return r, nil
 }
 
-// SendPayload handles sending HTTP/HTTPS requests
+// SendPayload handles sending HTTP/HTTPS requests.
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
@@ -144,7 +144,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	return req, nil
 }
 
-// doRequest performs a HTTP/HTTPS request with the supplied params
+// doRequest performs a HTTP/HTTPS request with the supplied params.
 func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
 	for attempt := 1; ; attempt++ {
 		// Check if context has finished before executing new attempt.
@@ -156,8 +156,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if r.limiter != nil {
 			// Initiate a rate limit reservation and sleep on requested endpoint
-			err := r.InitiateRateLimit(ctx, endpoint)
-			if err != nil {
+			if err := r.InitiateRateLimit(ctx, endpoint); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
 		}
@@ -408,4 +407,51 @@ func (r *Requester) Shutdown() error {
 		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.release()
+}
+
+// InitiateRateLimit sleeps for designated endpoint rate limits.
+func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if r.disableRateLimiter.Load() {
+		return nil
+	}
+	if err := common.NilGuard(r.limiter); err != nil {
+		return err
+	}
+	if err := r.limiter[e].RateLimit(ctx); err != nil {
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+	}
+	return nil
+}
+
+// GetRateLimiterDefinitions returns the rate limiter definitions for the requester.
+func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
+	if r == nil {
+		return nil
+	}
+	return r.limiter
+}
+
+// DisableRateLimiter disables the rate limiting system for the exchange.
+func (r *Requester) DisableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if !r.disableRateLimiter.CompareAndSwap(false, true) {
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
+	}
+	return nil
+}
+
+// EnableRateLimiter enables the rate limiting system for the exchange.
+func (r *Requester) EnableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if !r.disableRateLimiter.CompareAndSwap(true, false) {
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
+	}
+	return nil
 }
