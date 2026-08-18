@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -112,65 +113,81 @@ func TestSeedInstruments(t *testing.T) {
 func TestGetTradeHistoryPagination(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		name  string
-		start uint64
-		limit uint64
-	}{
-		{name: "omit pagination"},
-		{name: "limit only", limit: 2},
-		{name: "start only", start: 101},
-		{name: "start and limit", start: 101, limit: 2},
-		{name: "maximum start", start: math.MaxUint64},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
 
-			type requestResult struct {
-				payload map[string]json.RawMessage
-				err     error
-			}
-			requestC := make(chan requestResult, 1)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var payload map[string]json.RawMessage
-				err := json.NewDecoder(r.Body).Decode(&payload)
-				requestC <- requestResult{payload: payload, err: err}
-				_, err = w.Write([]byte(`{"status":["OK"],"total_number":0,"trades":[]}`))
-				assert.NoError(t, err, "GetTradeHistory fixture response writing should not error")
-			}))
-			t.Cleanup(server.Close)
+		for _, tc := range []struct {
+			name  string
+			start uint64
+			limit uint64
+		}{
+			{name: "omit pagination"},
+			{name: "limit only", limit: 2},
+			{name: "start only", start: 101},
+			{name: "start and limit", start: 101, limit: 2},
+			{name: "maximum start", start: math.MaxUint64},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 
-			ex := new(Exchange)
-			require.NoError(t, testexch.Setup(ex), "Test exchange setup must not error")
-			ex.SkipAuthCheck = true
-			require.NoError(t, ex.SetHTTPClient(server.Client()), "Setting the HTTP client must not error")
-			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "Setting the REST endpoint must not error")
+				type requestResult struct {
+					payload map[string]json.RawMessage
+					err     error
+				}
+				requestC := make(chan requestResult, 1)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var payload map[string]json.RawMessage
+					err := json.NewDecoder(r.Body).Decode(&payload)
+					requestC <- requestResult{payload: payload, err: err}
+					_, err = w.Write([]byte(`{"status":["OK"],"total_number":0,"trades":[]}`))
+					assert.NoError(t, err, "GetTradeHistory fixture response writing should not error")
+				}))
+				t.Cleanup(server.Close)
 
-			result, err := ex.GetTradeHistory(t.Context(), 123, tc.start, tc.limit)
-			require.NoError(t, err, "GetTradeHistory must not error")
-			assert.Equal(t, TradeHistory{Trades: []OrderFilledResponse{}}, result, "GetTradeHistory should return the correct trade history")
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Test exchange setup must not error")
+				ex.SkipAuthCheck = true
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "Setting the HTTP client must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "Setting the REST endpoint must not error")
 
-			var capturedRequest requestResult
-			select {
-			case capturedRequest = <-requestC:
-			case <-time.After(time.Second):
-				t.Fatal("GetTradeHistory must send a request to the mock server")
-			}
-			require.NoError(t, capturedRequest.err, "GetTradeHistory fixture request decoding must not error")
-			delete(capturedRequest.payload, "nonce")
-			expected := map[string]json.RawMessage{
-				"inst_id": []byte("123"),
-				"request": []byte(strconv.Quote(coinutTradeHistory)),
-			}
-			if tc.start != 0 {
-				expected["start"] = []byte(strconv.FormatUint(tc.start, 10))
-			}
-			if tc.limit != 0 {
-				expected["limit"] = []byte(strconv.FormatUint(tc.limit, 10))
-			}
-			assert.Equal(t, expected, capturedRequest.payload, "GetTradeHistory request should contain the correct parameters")
-		})
-	}
+				result, err := ex.GetTradeHistory(t.Context(), 123, tc.start, tc.limit)
+				require.NoError(t, err, "GetTradeHistory must not error")
+				assert.Equal(t, TradeHistory{Trades: []OrderFilledResponse{}}, result, "GetTradeHistory should return the correct trade history")
+
+				var capturedRequest requestResult
+				select {
+				case capturedRequest = <-requestC:
+				case <-time.After(time.Second):
+					t.Fatal("GetTradeHistory must send a request to the mock server")
+				}
+				require.NoError(t, capturedRequest.err, "GetTradeHistory fixture request decoding must not error")
+				delete(capturedRequest.payload, "nonce")
+				expected := map[string]json.RawMessage{
+					"inst_id": []byte("123"),
+					"request": []byte(strconv.Quote(coinutTradeHistory)),
+				}
+				if tc.start != 0 {
+					expected["start"] = []byte(strconv.FormatUint(tc.start, 10))
+				}
+				if tc.limit != 0 {
+					expected["limit"] = []byte(strconv.FormatUint(tc.limit, 10))
+				}
+				assert.Equal(t, expected, capturedRequest.payload, "GetTradeHistory request should contain the correct parameters")
+			})
+		}
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		instrumentIDs := e.instrumentMap.GetInstrumentIDs()
+		require.NotEmpty(t, instrumentIDs, "instrumentIDs must contain a live instrument")
+		slices.Sort(instrumentIDs)
+
+		result, err := e.GetTradeHistory(t.Context(), instrumentIDs[0], 101, 2)
+		require.NoError(t, err, "GetTradeHistory must not error")
+		assert.LessOrEqual(t, len(result.Trades), 2, "GetTradeHistory should honour the requested limit")
+	})
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
