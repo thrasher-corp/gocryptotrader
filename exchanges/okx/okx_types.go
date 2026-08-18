@@ -146,6 +146,7 @@ var (
 	errLastDaysRequired                     = errors.New("last days required")
 	errCopyInstrumentIDTypeRequired         = errors.New("copy instrument ID type is required")
 	errInvalidOrderbookSequence             = errors.New("invalid orderbook sequence")
+	errOrderbookSnapshotPending             = errors.New("orderbook snapshot pending")
 	errInvalidPositionMode                  = errors.New("invalid position mode")
 	errLendingTermIsRequired                = errors.New("lending term is required")
 	errRateRequired                         = errors.New("lending rate is required")

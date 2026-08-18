@@ -929,7 +929,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		} else {
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
-		if err == nil {
+		if err == nil || errors.Is(err, errOrderbookSnapshotPending) {
 			continue
 		}
 		if !errors.Is(err, errInvalidOrderbookSequence) && !errors.Is(err, orderbook.ErrOrderbookInvalid) {
@@ -937,12 +937,12 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		}
 		var tracked subscription.List
 		for _, sub := range conn.Subscriptions().List() {
-			if sub.Channel == subscription.OrderbookChannel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
+			if channelName(sub) == response.Argument.Channel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
 				tracked = append(tracked, sub)
 			}
 		}
 		if len(tracked) == 0 {
-			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, subscription.OrderbookChannel, response.Argument.InstrumentID)
+			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
 		}
 		if err := tracked.SetStates(subscription.ResubscribingState); err != nil {
 			return err
@@ -998,6 +998,9 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 	// such as spot and margin, so verify every depth before mutating any.
 	for i := range assets {
 		if _, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i]); err != nil {
+			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				return fmt.Errorf("%w %v %v: %w", errOrderbookSnapshotPending, pair, assets[i], err)
+			}
 			return err
 		}
 	}
