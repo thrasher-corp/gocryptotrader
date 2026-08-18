@@ -130,6 +130,8 @@ func (t *TimePeriodCalculator) setTimePeriodExists() {
 		return
 	}
 	newPeriods := t.TimePeriods[periodOffset:]
+	// Check every period retained from earlier calls because the same
+	// timestamp may appear in more than one previously appended range.
 	for i := range t.comparisonTimes {
 		comparisonTime := t.comparisonTimes[i].Truncate(t.periodDuration)
 		for j := range periodOffset {
@@ -137,7 +139,9 @@ func (t *TimePeriodCalculator) setTimePeriodExists() {
 				t.TimePeriods[j].dataInRange = true
 			}
 		}
-		// calculatePeriods appends in ascending order; binary search also avoids duration overflow across long ranges.
+		// The range appended by calculatePeriods contains one entry per
+		// interval in ascending time order. Find the first period at or after
+		// comparisonTime, then mark it only when the timestamps match exactly.
 		periodIndex := sort.Search(len(newPeriods), func(j int) bool {
 			return !newPeriods[j].Time.Before(comparisonTime)
 		})
