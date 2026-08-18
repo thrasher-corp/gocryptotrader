@@ -119,9 +119,10 @@ func (r *RateLimiterWithWeight) applyMultipleRateLimits(ctx context.Context, end
 		return nil
 	}
 
-	// The initial reservations find the common transmission time. Re-reserving
-	// each limiter so its final weighted token lands at that time prevents a
-	// non-binding limiter from refilling before the request is actually sent.
+	// The initial reservations find the common transmission time. For burst-one
+	// limiters without competing reservations, re-reserving each limiter so its
+	// final weighted token lands at that time prevents a non-binding limiter from
+	// refilling before the request is actually sent.
 	cancelAll(reserved, tn)
 	reserved = reserved[:0]
 	for i := range plans {

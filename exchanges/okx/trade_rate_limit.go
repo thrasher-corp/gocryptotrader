@@ -36,9 +36,10 @@ var (
 )
 
 const (
-	maxBatchOrders                  = 20
-	singleTradeRateLimitActions     = 60
-	batchTradeRateLimitActions      = 300
+	maxBatchOrders              = 20
+	singleTradeRateLimitActions = 60
+	batchTradeRateLimitActions  = 300
+	// TODO: Derive the VIP5+ subaccount ceiling from the fill-ratio-based account rate limit.
 	subAccountTradeRateLimitActions = 1000
 
 	tradeRateLimitPlaceSingle  tradeRateLimitClass = "place-single"

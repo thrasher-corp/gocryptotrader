@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1517,6 +1518,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		return nil, fmt.Errorf("%w, must have at least 1 cancel order", order.ErrCancelOrderIsNil)
 	}
 	cancelOrderParams := make([]CancelOrderRequestParam, 0, len(o))
+	cancelOrderAssetTypes := make([]asset.Item, 0, len(o))
 	cancelAlgoOrderParams := make([]AlgoOrderCancelParams, 0, len(o))
 	var err error
 	for x := range o {
@@ -1542,14 +1544,8 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				OrderID:       ord.OrderID,
 				ClientOrderID: ord.ClientOrderID,
 			}
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				instrumentIDCode, codeErr := e.cachedInstrumentIDCode(ord.AssetType, cancelOrder.InstrumentID)
-				if codeErr != nil {
-					return nil, codeErr
-				}
-				cancelOrder.InstrumentIDCode = instrumentIDCode
-			}
 			cancelOrderParams = append(cancelOrderParams, cancelOrder)
+			cancelOrderAssetTypes = append(cancelOrderAssetTypes, ord.AssetType)
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
 			if o[x].OrderID == "" {
@@ -1565,14 +1561,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	if len(cancelOrderParams) > 0 {
-		var canceledOrders []*OrderData
-		// TODO: Add an explicit websocket batch-cancel wrapper so callers can
-		// select the transport instead of relying on automatic routing here.
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			canceledOrders, err = e.WSCancelMultipleOrders(ctx, cancelOrderParams)
-		} else {
-			canceledOrders, err = e.CancelMultipleOrders(ctx, cancelOrderParams)
-		}
+		canceledOrders, err := e.cancelMultipleOrdersForWrapper(ctx, cancelOrderParams, cancelOrderAssetTypes)
 		if err != nil {
 			return nil, err
 		}
@@ -1589,14 +1578,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		cancelationResponse, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
 		if err != nil {
 			if len(resp.Status) > 0 {
-				return resp, nil
+				return resp, err
 			}
 			return nil, err
 		} else if cancelationResponse.StatusCode != 0 {
-			if len(resp.Status) > 0 {
-				return resp, nil
-			}
-			return resp, getStatusError(cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
+			statusErr := getStatusError(cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
+			return resp, statusErr
 		}
 		for x := range cancelAlgoOrderParams {
 			resp.Status[cancelAlgoOrderParams[x].AlgoOrderID] = order.Cancelled.String()
@@ -1686,6 +1673,31 @@ func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64
 	return 0
 }
 
+// cancelMultipleOrdersForWrapper centralises the temporary automatic routing
+// shared by the generic batch-cancel and cancel-all wrappers. A nil assetTypes
+// slice or an unavailable websocket instrument code keeps the original request
+// on REST instead of making an otherwise valid cancellation fail.
+//
+// TODO: Remove this routing when OrderManagement exposes explicit websocket
+// bulk-cancel and cancel-all methods, then make the generic wrappers REST-only.
+func (e *Exchange) cancelMultipleOrdersForWrapper(ctx context.Context, params []CancelOrderRequestParam, assetTypes []asset.Item) ([]*OrderData, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() || assetTypes == nil {
+		return e.CancelMultipleOrders(ctx, params)
+	}
+	websocketParams := slices.Clone(params)
+	for i := range websocketParams {
+		instrumentIDCode, err := e.cachedInstrumentIDCode(assetTypes[i], websocketParams[i].InstrumentID)
+		if err != nil {
+			if errors.Is(err, errMissingInstrumentIDCode) {
+				return e.CancelMultipleOrders(ctx, params)
+			}
+			return nil, err
+		}
+		websocketParams[i].InstrumentIDCode = instrumentIDCode
+	}
+	return e.WSCancelMultipleOrders(ctx, websocketParams)
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	err := orderCancellation.Validate()
@@ -1768,48 +1780,28 @@ ordersLoop:
 		return cancelAllResponse, nil
 	}
 	remaining := cancelAllOrdersRequestParams
-	// TODO: Add an explicit websocket cancel-all wrapper so callers can select
-	// the transport instead of relying on automatic routing here.
-	useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid()
-	if useWebsocket {
-		// Websocket cancellation requires an instrument code for every order.
-		// Resolve them first so a missing code can cleanly fall back to REST.
-		instrumentIDCodes := make([]int64, len(remaining))
-		for i := range remaining {
-			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(orderCancellation.AssetType, remaining[i].InstrumentID)
-			if codeErr != nil {
-				useWebsocket = false
-				break
-			}
-			instrumentIDCodes[i] = instrumentIDCode
-		}
-		if useWebsocket {
-			for i := range remaining {
-				remaining[i].InstrumentIDCode = instrumentIDCodes[i]
-			}
+	var remainingAssetTypes []asset.Item
+	if orderCancellation.AssetType.IsValid() {
+		remainingAssetTypes = make([]asset.Item, len(remaining))
+		for i := range remainingAssetTypes {
+			remainingAssetTypes[i] = orderCancellation.AssetType
 		}
 	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for range loop {
-		var response []*OrderData
+		batch := remaining
+		batchAssetTypes := remainingAssetTypes
 		if len(remaining) > 20 {
-			if useWebsocket {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining[:20])
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining[:20])
-			}
+			batch = remaining[:20]
 			remaining = remaining[20:]
-		} else {
-			if useWebsocket {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining)
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining)
+			if remainingAssetTypes != nil {
+				batchAssetTypes = remainingAssetTypes[:20]
+				remainingAssetTypes = remainingAssetTypes[20:]
 			}
 		}
+		response, err := e.cancelMultipleOrdersForWrapper(ctx, batch, batchAssetTypes)
 		if err != nil {
-			if len(cancelAllResponse.Status) == 0 {
-				return cancelAllResponse, err
-			}
+			return cancelAllResponse, err
 		}
 		for y := range response {
 			if response[y].StatusCode == 0 {

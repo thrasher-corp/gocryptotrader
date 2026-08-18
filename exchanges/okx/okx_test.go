@@ -10,8 +10,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -4014,6 +4016,85 @@ func TestCancelBatchOrders(t *testing.T) {
 		assert.Equal(t, order.Cancelled.String(), resp.Status["cancelled-order"], "CancelBatchOrders should report the websocket cancellation")
 	})
 
+	t.Run("REST fallback when instrument code is unavailable", func(t *testing.T) {
+		t.Parallel()
+
+		restCancellation := make(chan []CancelOrderRequestParam, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path != "/api/v5/trade/cancel-batch-orders" {
+				http.NotFound(w, r)
+				return
+			}
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				http.Error(w, readErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			var got []CancelOrderRequestParam
+			if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+				http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+				return
+			}
+			restCancellation <- got
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{
+			OrderID:   "1",
+			AssetType: asset.Spot,
+			Pair:      mainPair,
+		}})
+		require.NoError(t, err, "CancelBatchOrders must fall back to REST")
+		require.NotNil(t, resp, "CancelBatchOrders must return a response")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["1"], "REST cancellation should be returned")
+		select {
+		case got := <-restCancellation:
+			require.Len(t, got, 1, "REST cancellation must contain the order")
+			assert.Zero(t, got[0].InstrumentIDCode, "REST cancellation should not include a websocket instrument code")
+		default:
+			require.Fail(t, "CancelBatchOrders must use REST when the websocket instrument code is unavailable")
+		}
+	})
+
+	t.Run("algo failure returns partial response and error", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/api/v5/trade/cancel-batch-orders":
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"standard","sCode":"0","sMsg":""}]}`))
+			case "/api/v5/trade/cancel-advance-algos":
+				http.Error(w, "algo cancellation failed", http.StatusInternalServerError)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(server.Close)
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "standard", AssetType: asset.Spot, Pair: mainPair, Type: order.Limit},
+			{OrderID: "algo", AssetType: asset.Spot, Pair: mainPair, Type: order.Trigger},
+		})
+		require.Error(t, err, "CancelBatchOrders must return the algo cancellation error")
+		require.NotNil(t, resp, "CancelBatchOrders must preserve the partial response")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["standard"], "successful cancellation should be preserved")
+		assert.NotContains(t, resp.Status, "algo", "failed cancellation should not be reported as cancelled")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellationParams := []order.Cancel{
 		{
@@ -4039,6 +4120,63 @@ func TestCancelBatchOrders(t *testing.T) {
 	result, err := e.CancelBatchOrders(contextGenerate(), orderCancellationParams)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestCancelMultipleOrdersForWrapper(t *testing.T) {
+	t.Parallel()
+
+	t.Run("websocket", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		result, err := ex.cancelMultipleOrdersForWrapper(t.Context(), []CancelOrderRequestParam{{
+			InstrumentID: mainPair.String(),
+			OrderID:      "1",
+		}}, []asset.Item{asset.Options})
+		require.NoError(t, err, "cancelMultipleOrdersForWrapper must not error")
+		require.Len(t, result, 1, "cancelMultipleOrdersForWrapper must return the websocket response")
+		assert.Equal(t, "cancelled-order", result[0].OrderID, "websocket routing should return the websocket cancellation")
+	})
+
+	t.Run("REST fallback", func(t *testing.T) {
+		t.Parallel()
+
+		restCancellation := make(chan []CancelOrderRequestParam, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				http.Error(w, readErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			var got []CancelOrderRequestParam
+			if unmarshalErr := json.Unmarshal(body, &got); unmarshalErr != nil {
+				http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+				return
+			}
+			restCancellation <- got
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"1","sCode":"0","sMsg":""}]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+		params := []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "1"}}
+		result, err := ex.cancelMultipleOrdersForWrapper(t.Context(), params, []asset.Item{asset.Spot})
+		require.NoError(t, err, "cancelMultipleOrdersForWrapper must fall back to REST")
+		require.Len(t, result, 1, "cancelMultipleOrdersForWrapper must return the REST response")
+		assert.Equal(t, "1", result[0].OrderID, "REST routing should return the REST cancellation")
+		assert.Zero(t, params[0].InstrumentIDCode, "websocket preparation should not mutate the REST parameters")
+		select {
+		case got := <-restCancellation:
+			require.Len(t, got, 1, "REST cancellation must contain the order")
+			assert.Zero(t, got[0].InstrumentIDCode, "REST cancellation should not include a websocket instrument code")
+		default:
+			require.Fail(t, "cancelMultipleOrdersForWrapper must use REST when the instrument code is unavailable")
+		}
+	})
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -4113,6 +4251,71 @@ func TestCancelAllOrders(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("later batch failure returns partial response and error", func(t *testing.T) {
+		t.Parallel()
+
+		pendingOrders := make([]map[string]string, 21)
+		for i := range pendingOrders {
+			pendingOrders[i] = map[string]string{
+				"instId": "BTC-USDT",
+				"ordId":  strconv.Itoa(i + 1),
+				"side":   "buy",
+			}
+		}
+		var cancellationCalls atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/api/v5/trade/orders-pending":
+				payload, marshalErr := json.Marshal(map[string]any{"code": "0", "msg": "", "data": pendingOrders})
+				if marshalErr != nil {
+					http.Error(w, marshalErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				_, _ = w.Write(payload)
+			case "/api/v5/trade/cancel-batch-orders":
+				if cancellationCalls.Add(1) > 1 {
+					http.Error(w, "second cancellation batch failed", http.StatusInternalServerError)
+					return
+				}
+				body, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					http.Error(w, readErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				var args []CancelOrderRequestParam
+				if unmarshalErr := json.Unmarshal(body, &args); unmarshalErr != nil {
+					http.Error(w, unmarshalErr.Error(), http.StatusBadRequest)
+					return
+				}
+				results := make([]map[string]string, len(args))
+				for i := range args {
+					results[i] = map[string]string{"ordId": args[i].OrderID, "sCode": "0", "sMsg": ""}
+				}
+				payload, marshalErr := json.Marshal(map[string]any{"code": "0", "msg": "", "data": results})
+				if marshalErr != nil {
+					http.Error(w, marshalErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				_, _ = w.Write(payload)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(server.Close)
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+
+		result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+		require.Error(t, err, "CancelAllOrders must return the later batch error")
+		assert.Len(t, result.Status, 20, "CancelAllOrders should preserve successful cancellation results")
+		assert.Equal(t, int32(2), cancellationCalls.Load(), "CancelAllOrders should attempt both cancellation batches")
+	})
 
 	for _, tc := range []struct {
 		name      string
