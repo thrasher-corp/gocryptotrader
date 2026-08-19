@@ -958,7 +958,6 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 				log.Errorf(log.ExchangeSys, "Failed to resubscribe %v: %v", subscriptionsToResub.Strings(), err)
 			}
 		}()
-
 	}
 	return nil
 }

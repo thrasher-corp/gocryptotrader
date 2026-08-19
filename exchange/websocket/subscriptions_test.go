@@ -1602,8 +1602,8 @@ func TestResubscribeFromConnection(t *testing.T) {
 
 		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
 		require.NoError(t, err)
-		require.Contains(t, m.subscriptions.List(), sub1, "sub1 should still be in global store")
-		require.Contains(t, conn.subscriptions.List(), sub1, "sub1 should still be in global store")
+		require.Contains(t, m.subscriptions.List(), sub1, "sub1 must still be in global store")
+		require.Contains(t, conn.subscriptions.List(), sub1, "sub1 must still be in global store")
 	})
 	t.Run("NilConnection", func(t *testing.T) {
 		t.Parallel()
