@@ -346,58 +346,65 @@ func TestGetBlockTicker(t *testing.T) {
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPublicBlockTrades(contextGenerate(), "")
-	require.ErrorIs(t, err, errMissingInstrumentID)
+	t.Run("public block trades", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetPublicBlockTrades(contextGenerate(), "")
+		require.ErrorIs(t, err, errMissingInstrumentID)
 
-	trades, err := e.GetPublicBlockTrades(contextGenerate(), mainPair.String())
-	require.NoError(t, err)
-	if assert.NotEmpty(t, trades, "Should get some block trades") {
-		blockTrade := trades[0]
+		publicBlockTrades, err := e.GetPublicBlockTrades(contextGenerate(), mainPair.String())
+		require.NoError(t, err)
+		if len(publicBlockTrades) == 0 {
+			return // there aren't always block trades returned on mainPair
+		}
+		blockTrade := publicBlockTrades[0]
 		assert.Equal(t, mainPair.String(), blockTrade.InstrumentID, "InstrumentID should have correct value")
 		assert.NotEmpty(t, blockTrade.TradeID, "TradeID should not be empty")
 		assert.Positive(t, blockTrade.Price.Float64(), "Price should have a positive value")
 		assert.Positive(t, blockTrade.Size.Float64(), "Size should have a positive value")
 		assert.Contains(t, []order.Side{order.Buy, order.Sell}, blockTrade.Side, "Side should be a side")
 		assert.WithinRange(t, blockTrade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
-	}
+	})
 
-	testexch.UpdatePairsOnce(t, e)
+	t.Run("options", func(t *testing.T) {
+		t.Parallel()
+		testexch.UpdatePairsOnce(t, e)
 
-	pairs, err := e.GetAvailablePairs(asset.Options)
-	require.NoError(t, err)
-	require.NotEmpty(t, pairs)
+		pairs, err := e.GetAvailablePairs(asset.Options)
+		require.NoError(t, err)
+		require.NotEmpty(t, pairs)
 
-	publicTrades, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 100)
-	require.NoError(t, err)
+		publicTrades, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 100)
+		require.NoError(t, err)
 
-	tested := false
-LOOP:
-	for _, trade := range publicTrades {
-		for _, leg := range trade.Legs {
-			p, err := e.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
-			if err != nil {
-				continue
-			}
+		tested := false
+	LOOP:
+		for _, pt := range publicTrades {
+			for _, leg := range pt.Legs {
+				p, err := e.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
+				if err != nil {
+					continue
+				}
 
-			trades, err = e.GetPublicBlockTrades(contextGenerate(), p.String())
-			require.NoError(t, err, "GetBlockTrades must not error on Options")
-			for _, trade := range trades {
-				assert.Equal(t, p.String(), trade.InstrumentID, "InstrumentID should have correct value")
-				assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-				assert.Positive(t, trade.Price.Float64(), "Price should have a positive value")
-				assert.Positive(t, trade.Size.Float64(), "Size should have a positive value")
-				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-				assert.GreaterOrEqual(t, trade.FillVolatility.Float64(), float64(0), "FillVolatility should not be negative")
-				assert.Positive(t, trade.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
-				assert.Positive(t, trade.IndexPrice.Float64(), "IndexPrice should have a positive value")
-				assert.Positive(t, trade.MarkPrice.Float64(), "MarkPrice should have a positive value")
-				assert.NotEmpty(t, trade.Timestamp, "Timestamp should not be empty")
-				tested = true
-				break LOOP
+				publicBlockTrades, err := e.GetPublicBlockTrades(contextGenerate(), p.String())
+				require.NoError(t, err, "GetBlockTrades must not error on Options")
+				for _, pbt := range publicBlockTrades {
+					assert.Equal(t, p.String(), pbt.InstrumentID, "InstrumentID should have correct value")
+					assert.NotEmpty(t, pbt.TradeID, "TradeID should not be empty")
+					assert.Positive(t, pbt.Price.Float64(), "Price should have a positive value")
+					assert.Positive(t, pbt.Size.Float64(), "Size should have a positive value")
+					assert.Contains(t, []order.Side{order.Buy, order.Sell}, pbt.Side, "Side should be a side")
+					assert.GreaterOrEqual(t, pbt.FillVolatility.Float64(), float64(0), "FillVolatility should not be negative")
+					assert.Positive(t, pbt.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
+					assert.Positive(t, pbt.IndexPrice.Float64(), "IndexPrice should have a positive value")
+					assert.Positive(t, pbt.MarkPrice.Float64(), "MarkPrice should have a positive value")
+					assert.NotEmpty(t, pbt.Timestamp, "Timestamp should not be empty")
+					tested = true
+					break LOOP
+				}
 			}
 		}
-	}
-	assert.True(t, tested, "Should find at least one BlockTrade somewhere")
+		assert.True(t, tested, "Should find at least one BlockTrade somewhere")
+	})
 }
 
 func TestGetInstrument(t *testing.T) {
@@ -4120,7 +4127,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		})
 	}
 
-	t.Run("missing mapped asset does not partially update", func(t *testing.T) {
+	t.Run("missing mapped asset invalidates existing depth", func(t *testing.T) {
 		t.Parallel()
 
 		tracked := new(Exchange)
@@ -4142,9 +4149,10 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			SequenceID:         21,
 		}, pair, []asset.Item{asset.Spot, asset.Margin})
 		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every mapped asset")
-		book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-		require.NoError(t, err, "GetOrderbook must return the unchanged spot orderbook")
-		assert.Equal(t, int64(20), book.LastUpdateID, "The spot orderbook should remain unchanged")
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Spot orderbook should be invalidated on mapped asset error")
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
+		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "Missing margin orderbook should remain missing")
 	})
 
 	t.Run("invalid book awaits replacement snapshot", func(t *testing.T) {

@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -928,8 +929,11 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
+			if errors.Is(err, errOrderbookSnapshotPending) {
+				continue
+			}
 		}
-		if err == nil || errors.Is(err, errOrderbookSnapshotPending) {
+		if err == nil {
 			continue
 		}
 		if !errors.Is(err, errInvalidOrderbookSequence) && !errors.Is(err, orderbook.ErrOrderbookInvalid) {
@@ -944,9 +948,12 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if len(subscriptionsToResub) == 0 {
 			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
 		}
-		if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); err != nil {
-			return err
-		}
+		go func() {
+			if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); err != nil {
+				log.Errorf(log.ExchangeSys, "Failed to resubscribe %v: %v", subscriptionsToResub.Strings(), err)
+			}
+		}()
+
 	}
 	return nil
 }
@@ -994,10 +1001,15 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 	// such as spot and margin, so verify every depth before mutating any.
 	for i := range assets {
 		if _, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i]); err != nil {
+			errChain := err
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-				return fmt.Errorf("%w %v %v: %w", errOrderbookSnapshotPending, pair, assets[i], err)
+				errChain = fmt.Errorf("%w %v %v: %w", errOrderbookSnapshotPending, pair, assets[i], err)
 			}
-			return err
+			// Invalidate all mapped orderbooks so stale depth data is never left in service.
+			for j := range assets {
+				errChain = common.AppendError(errChain, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
+			}
+			return errChain
 		}
 	}
 	for i := range assets {
