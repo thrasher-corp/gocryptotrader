@@ -920,6 +920,11 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 			return err
 		}
 	}
+	isSnapshotOnly := response.Argument.Channel == channelBBOTBT
+	if (isSnapshotOnly && response.Action != "" && response.Action != wsOrderbookSnapshot) ||
+		(!isSnapshotOnly && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot) {
+		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
+	}
 	if !response.Argument.InstrumentID.IsPopulated() {
 		return currency.ErrCurrencyPairsEmpty
 	}
