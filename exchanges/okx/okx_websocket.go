@@ -1024,7 +1024,7 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			Asks:       asks,
 			Bids:       bids,
 			AllowEmpty: true, // Allow empty levels to push forward sequence ID
-		}); err != nil {
+		}); err != nil && errors.Is(err, orderbook.ErrOrderbookInvalid) {
 			updateErr := err
 			for j := range assets {
 				updateErr = common.AppendError(updateErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
