@@ -960,14 +960,8 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	asks, err := e.AppendWsOrderbookItems(data.Asks)
-	if err != nil {
-		return err
-	}
-	bids, err := e.AppendWsOrderbookItems(data.Bids)
-	if err != nil {
-		return err
-	}
+	asks := e.AppendWsOrderbookItems(data.Asks)
+	bids := e.AppendWsOrderbookItems(data.Bids)
 	for i := range assets {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			LastUpdateID:      data.SequenceID,
@@ -989,14 +983,8 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // OKX can reset sequence IDs to a lower value while retaining continuity through
 // prevSeqId; see https://www.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	asks, err := e.AppendWsOrderbookItems(data.Asks)
-	if err != nil {
-		return err
-	}
-	bids, err := e.AppendWsOrderbookItems(data.Bids)
-	if err != nil {
-		return err
-	}
+	asks := e.AppendWsOrderbookItems(data.Asks)
+	bids := e.AppendWsOrderbookItems(data.Bids)
 	// A message without instType can map one instrument to multiple cached assets,
 	// such as spot and margin, so verify every depth before mutating any.
 	for i := range assets {
@@ -1048,12 +1036,12 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (e *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Levels, error) {
+func (e *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) orderbook.Levels {
 	items := make(orderbook.Levels, len(entries))
 	for j := range entries {
 		items[j] = orderbook.Level{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
 	}
-	return items, nil
+	return items
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
