@@ -935,22 +935,18 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if !errors.Is(err, errInvalidOrderbookSequence) && !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 			return err
 		}
-		var tracked subscription.List
+		var subscriptionsToResub subscription.List
 		for _, sub := range conn.Subscriptions().List() {
 			if channelName(sub) == response.Argument.Channel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
-				tracked = append(tracked, sub)
+				subscriptionsToResub = append(subscriptionsToResub, sub)
 			}
 		}
-		if len(tracked) == 0 {
+		if len(subscriptionsToResub) == 0 {
 			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
 		}
-		if err := tracked.SetStates(subscription.ResubscribingState); err != nil {
+		if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); err != nil {
 			return err
 		}
-		if err := e.Websocket.UnsubscribeChannels(ctx, conn, tracked); err != nil {
-			return err
-		}
-		return e.Websocket.SubscribeToChannels(ctx, conn, tracked)
 	}
 	return nil
 }

@@ -551,6 +551,23 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	return nil
 }
 
+// ResubscribeFromConnection unsubscribes and resubscribes to a subscription on a connection
+func (m *Manager) ResubscribeFromConnection(ctx context.Context, conn Connection, subs subscription.List) error {
+	if err := common.NilGuard(conn, subs); err != nil {
+		return err
+	}
+	if err := subs.SetStates(subscription.ResubscribingState); err != nil {
+		return err
+	}
+	if _, err := m.unsubscribeFromConnection(ctx, conn, subs); err != nil {
+		return err
+	}
+	if _, err := m.subscribeToConnection(ctx, conn, subs); err != nil {
+		return err
+	}
+	return nil
+}
+
 // unsubscribeFromConnection unsubscribes for a connection and removes subscriptions from the connection's store
 func (m *Manager) unsubscribeFromConnection(ctx context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
 	store := conn.Subscriptions()
