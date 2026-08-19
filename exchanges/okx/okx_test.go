@@ -4150,9 +4150,9 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		}, pair, []asset.Item{asset.Spot, asset.Margin})
 		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every mapped asset")
 		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Spot orderbook should be invalidated on mapped asset error")
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Spot orderbook must be invalidated on mapped asset error")
 		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
-		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "Missing margin orderbook should remain missing")
+		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "Missing margin orderbook must remain missing")
 	})
 
 	t.Run("invalid book awaits replacement snapshot", func(t *testing.T) {
