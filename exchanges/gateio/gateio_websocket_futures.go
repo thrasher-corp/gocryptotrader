@@ -70,6 +70,10 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 
 var errNoChannelsSupplied = errors.New("no channels supplied")
 
+// Gate uses !all to subscribe to account updates for every futures contract. It is represented as a
+// pseudo-pair because the shared subscription payload generator requires exactly one pair.
+var allFuturesContracts = currency.Pair{Base: currency.NewCode("!all").Lower()}
+
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	a := asset.USDTMarginedFutures
@@ -135,6 +139,15 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
+				Asset:   a,
+			})
+		}
+	}
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		for _, channel := range []string{futuresPositionsChannel, futuresAutoPositionCloseChannel} {
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channel,
+				Pairs:   currency.Pairs{allFuturesContracts},
 				Asset:   a,
 			})
 		}

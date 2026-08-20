@@ -2864,6 +2864,22 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	for _, channel := range []string{futuresPositionsChannel, futuresAutoPositionCloseChannel} {
+		var matching subscription.List
+		for _, sub := range subs {
+			if sub.Channel == channel {
+				matching = append(matching, sub)
+			}
+		}
+		require.Lenf(t, matching, 1, "%s must have one account-wide subscription", channel)
+		require.Equal(t, currency.Pairs{allFuturesContracts}, matching[0].Pairs,
+			"account-wide subscription must use the documented !all selector")
+		require.Equal(t, asset.CoinMarginedFutures, matching[0].Asset,
+			"account-wide subscription must retain its futures asset")
+	}
 	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err, "Disabled asset must not error")

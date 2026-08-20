@@ -3905,6 +3905,14 @@ func TestAuthSubscribe(t *testing.T) {
 	authsubs, err = e.generateAuthSubscriptions()
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
+	var positionSubscriptions subscription.List
+	for _, sub := range authsubs {
+		if sub.Channel == chanPositions {
+			positionSubscriptions = append(positionSubscriptions, sub)
+		}
+	}
+	require.Len(t, positionSubscriptions, 1, "position must have one all-in-one subscription")
+	require.Empty(t, positionSubscriptions[0].Pairs, "all-in-one position subscription must not specify symbols")
 
 	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, authsubs))
 	require.NoError(t, e.authUnsubscribe(t.Context(), &FixtureConnection{}, authsubs))
