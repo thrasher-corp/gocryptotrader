@@ -2559,6 +2559,43 @@ func TestFuturesDataHandler(t *testing.T) {
 	require.True(t, sawPositionClose, "futures fixture must emit a normalized position close")
 }
 
+func TestFuturesPositionCapturedPayload(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"time":1787206135,"time_ms":1787206135040,"channel":"futures.positions","event":"update","result":[{"time":1787206135,"time_ms":1787206135038,"size":"-55","user":"12870774","leverage_max":25,"mode":"single","update_id":267,"cross_leverage_limit":40,"liq_price":0.023554,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.802254544,"entry_price":0.012071295652,"leverage":1,"realised_pnl":0.079661896,"contract":"GPS_USDT","history_point":0,"margin":66.491714276087,"realised_point":0,"history_pnl":17.1379873471,"pos_margin_mode":"isolated","lever":"1"}]}`)
+	response := struct {
+		Time      types.Time          `json:"time"`
+		TimeMilli types.Time          `json:"time_ms"`
+		Channel   string              `json:"channel"`
+		Event     string              `json:"event"`
+		Result    []WsFuturesPosition `json:"result"`
+	}{}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&response), "captured position payload must unmarshal without unknown fields")
+	require.Len(t, response.Result, 1, "captured payload must contain one position")
+	assert.Equal(t, time.UnixMilli(1787206135038), response.Result[0].Time.Time())
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures))
+	message := <-e.Websocket.DataHandler.C
+	positions, ok := message.Data.([]futures.Position)
+	require.True(t, ok, "captured payload must emit canonical futures positions")
+	require.Len(t, positions, 1, "captured payload must emit one position")
+	position := positions[0]
+	assert.Equal(t, "GPS_USDT", position.Pair.String())
+	assert.Equal(t, order.Short, position.LatestDirection)
+	assert.Equal(t, "55", position.LatestSize.String())
+	assert.Equal(t, "1", position.Leverage.String())
+	assert.Equal(t, int64(267), position.UpdateID)
+	assert.Equal(t, time.UnixMilli(1787206135038), position.LastUpdated)
+	assert.True(t, position.OpeningPrice.Equal(decimal.NewFromFloat(0.012071295652)))
+	assert.True(t, position.PositionMargin.Equal(decimal.NewFromFloat(66.491714276087)))
+	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.9)))
+	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.023554)))
+	assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(0.079661896)))
+}
+
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
