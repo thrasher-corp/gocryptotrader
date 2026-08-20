@@ -596,36 +596,43 @@ type PositionInfoList struct {
 
 // PositionInfo represents a position info item.
 type PositionInfo struct {
-	Symbol           string       `json:"symbol"`
-	Side             string       `json:"side"`
-	Size             types.Number `json:"size"`
-	AveragePrice     types.Number `json:"avgPrice"`
-	PositionValue    types.Number `json:"positionValue"`
-	TradeMode        int64        `json:"tradeMode"`
-	PositionStatus   string       `json:"positionStatus"`
-	AutoAddMargin    int64        `json:"autoAddMargin"`
-	ADLRankIndicator int64        `json:"adlRankIndicator"`
-	Leverage         types.Number `json:"leverage"`
-	PositionBalance  types.Number `json:"positionBalance"`
-	MarkPrice        types.Number `json:"markPrice"`
-	LiqPrice         types.Number `json:"liqPrice"`
-	BustPrice        types.Number `json:"bustPrice"`
-	PositionMM       types.Number `json:"positionMM"`
-	PositionIM       types.Number `json:"positionIM"`
-	TpslMode         string       `json:"tpslMode"`
-	TakeProfit       types.Number `json:"takeProfit"`
-	StopLoss         types.Number `json:"stopLoss"`
-	TrailingStop     types.Number `json:"trailingStop"`
-	UnrealisedPnl    types.Number `json:"unrealisedPnl"`
-	PositionIndex    int64        `json:"positionIdx"`
-	RiskID           int64        `json:"riskId"`
-	RiskLimitValue   string       `json:"riskLimitValue"`
+	Symbol                string       `json:"symbol"`
+	Side                  string       `json:"side"`
+	Size                  types.Number `json:"size"`
+	AveragePrice          types.Number `json:"avgPrice"`
+	SessionAveragePrice   types.Number `json:"sessionAvgPrice"`
+	BreakEvenPrice        types.Number `json:"breakEvenPrice"`
+	PositionValue         types.Number `json:"positionValue"`
+	TradeMode             int64        `json:"tradeMode"`
+	PositionStatus        string       `json:"positionStatus"`
+	AutoAddMargin         int64        `json:"autoAddMargin"`
+	ADLRankIndicator      int64        `json:"adlRankIndicator"`
+	Leverage              types.Number `json:"leverage"`
+	PositionBalance       types.Number `json:"positionBalance"`
+	MarkPrice             types.Number `json:"markPrice"`
+	LiqPrice              types.Number `json:"liqPrice"`
+	LiqPriceByMarkPrice   types.Number `json:"liqPriceByMp"`
+	BustPrice             types.Number `json:"bustPrice"`
+	PositionMM            types.Number `json:"positionMM"`
+	PositionMMByMarkPrice types.Number `json:"positionMMByMp"`
+	PositionIM            types.Number `json:"positionIM"`
+	PositionIMByMarkPrice types.Number `json:"positionIMByMp"`
+	TpslMode              string       `json:"tpslMode"`
+	TakeProfit            types.Number `json:"takeProfit"`
+	StopLoss              types.Number `json:"stopLoss"`
+	TrailingStop          types.Number `json:"trailingStop"`
+	UnrealisedPnl         types.Number `json:"unrealisedPnl"`
+	PositionIndex         int64        `json:"positionIdx"`
+	RiskID                int64        `json:"riskId"`
+	RiskLimitValue        string       `json:"riskLimitValue"`
 
 	// Futures & Perp: it is the all time cumulative realised P&L
 	// Option: it is the realised P&L when you hold that position
-	CumRealisedPnl types.Number `json:"cumRealisedPnl"`
-	CreatedTime    types.Time   `json:"createdTime"`
-	UpdatedTime    types.Time   `json:"updatedTime"`
+	CumRealisedPnl     types.Number `json:"cumRealisedPnl"`
+	CurrentRealisedPnl types.Number `json:"curRealisedPnl"`
+	CreatedTime        types.Time   `json:"createdTime"`
+	UpdatedTime        types.Time   `json:"updatedTime"`
+	OpenTime           types.Time   `json:"openTime"`
 
 	IsReduceOnly           bool       `json:"isReduceOnly"`
 	MMRSysUpdatedTime      types.Time `json:"mmrSysUpdatedTime"`
@@ -1875,35 +1882,46 @@ type LTNav struct {
 	Basket         types.Number `json:"basket"`
 }
 
-// WsPositions represents a position information.
-type WsPositions []struct {
-	PositionIdx      int64        `json:"positionIdx"`
-	TradeMode        int64        `json:"tradeMode"`
-	RiskID           int64        `json:"riskId"`
-	RiskLimitValue   types.Number `json:"riskLimitValue"`
-	Symbol           string       `json:"symbol"`
-	Side             string       `json:"side"`
-	Size             types.Number `json:"size"`
-	EntryPrice       types.Number `json:"entryPrice"`
-	Leverage         types.Number `json:"leverage"`
-	PositionValue    types.Number `json:"positionValue"`
-	PositionBalance  types.Number `json:"positionBalance"`
-	MarkPrice        types.Number `json:"markPrice"`
-	PositionIM       types.Number `json:"positionIM"`
-	PositionMM       types.Number `json:"positionMM"`
-	TakeProfit       types.Number `json:"takeProfit"`
-	StopLoss         types.Number `json:"stopLoss"`
-	TrailingStop     types.Number `json:"trailingStop"`
-	UnrealisedPnl    types.Number `json:"unrealisedPnl"`
-	CumRealisedPnl   types.Number `json:"cumRealisedPnl"`
-	CreatedTime      types.Time   `json:"createdTime"`
-	UpdatedTime      types.Time   `json:"updatedTime"`
-	TpslMode         string       `json:"tpslMode"`
-	LiqPrice         types.Number `json:"liqPrice"`
-	BustPrice        types.Number `json:"bustPrice"`
-	Category         string       `json:"category"`
-	PositionStatus   string       `json:"positionStatus"`
-	AdlRankIndicator int64        `json:"adlRankIndicator"`
+// WsPosition represents position information.
+type WsPosition struct {
+	PositionIdx               int64        `json:"positionIdx"`
+	TradeMode                 int64        `json:"tradeMode"`
+	RiskID                    int64        `json:"riskId"`
+	RiskLimitValue            types.Number `json:"riskLimitValue"`
+	Symbol                    string       `json:"symbol"`
+	Side                      string       `json:"side"`
+	Size                      types.Number `json:"size"`
+	EntryPrice                types.Number `json:"entryPrice"`
+	SessionAveragePrice       types.Number `json:"sessionAvgPrice"`
+	Leverage                  types.Number `json:"leverage"`
+	PositionValue             types.Number `json:"positionValue"`
+	PositionBalance           types.Number `json:"positionBalance"`
+	MarkPrice                 types.Number `json:"markPrice"`
+	PositionIM                types.Number `json:"positionIM"`
+	PositionMM                types.Number `json:"positionMM"`
+	PositionIMByMarkPrice     types.Number `json:"positionIMByMp"`
+	PositionMMByMarkPrice     types.Number `json:"positionMMByMp"`
+	TakeProfit                types.Number `json:"takeProfit"`
+	StopLoss                  types.Number `json:"stopLoss"`
+	TrailingStop              types.Number `json:"trailingStop"`
+	UnrealisedPnl             types.Number `json:"unrealisedPnl"`
+	CumRealisedPnl            types.Number `json:"cumRealisedPnl"`
+	CurrentRealisedPNL        types.Number `json:"curRealisedPnl"`
+	CreatedTime               types.Time   `json:"createdTime"`
+	UpdatedTime               types.Time   `json:"updatedTime"`
+	TpslMode                  string       `json:"tpslMode"`
+	LiqPrice                  types.Number `json:"liqPrice"`
+	BustPrice                 types.Number `json:"bustPrice"`
+	Category                  string       `json:"category"`
+	PositionStatus            string       `json:"positionStatus"`
+	AdlRankIndicator          int64        `json:"adlRankIndicator"`
+	AutoAddMargin             int64        `json:"autoAddMargin"`
+	LeverageSystemUpdatedTime types.Time   `json:"leverageSysUpdatedTime"`
+	MMRSystemUpdatedTime      types.Time   `json:"mmrSysUpdatedTime"`
+	Sequence                  int64        `json:"seq"`
+	OpenTime                  types.Time   `json:"openTime"`
+	BreakEvenPrice            types.Number `json:"breakEvenPrice"`
+	IsReduceOnly              bool         `json:"isReduceOnly"`
 }
 
 // WsExecutions represents execution stream to see your executions in real-time.

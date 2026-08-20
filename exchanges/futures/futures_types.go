@@ -250,26 +250,34 @@ type PNLResult struct {
 
 // Position is a basic holder for position information
 type Position struct {
-	Exchange           string
-	Asset              asset.Item
-	Pair               currency.Pair
-	Underlying         currency.Code
-	CollateralCurrency currency.Code
-	RealisedPNL        decimal.Decimal
-	UnrealisedPNL      decimal.Decimal
-	Status             order.Status
-	OpeningDate        time.Time
-	OpeningPrice       decimal.Decimal
-	OpeningSize        decimal.Decimal
-	OpeningDirection   order.Side
-	LatestPrice        decimal.Decimal
-	LatestSize         decimal.Decimal
-	LatestDirection    order.Side
-	LastUpdated        time.Time
-	CloseDate          time.Time
-	Orders             []order.Detail
-	PNLHistory         []PNLResult
-	FundingRates       fundingrate.HistoricalRates
+	Exchange                     string
+	Asset                        asset.Item
+	Pair                         currency.Pair
+	Underlying                   currency.Code
+	CollateralCurrency           currency.Code
+	Leverage                     decimal.Decimal
+	NotionalSize                 decimal.Decimal
+	PositionMargin               decimal.Decimal
+	InitialMarginRequirement     decimal.Decimal
+	MaintenanceMarginRequirement decimal.Decimal
+	MaintenanceMarginFraction    decimal.Decimal
+	EstimatedLiquidationPrice    decimal.Decimal
+	UpdateID                     int64
+	RealisedPNL                  decimal.Decimal
+	UnrealisedPNL                decimal.Decimal
+	Status                       order.Status
+	OpeningDate                  time.Time
+	OpeningPrice                 decimal.Decimal
+	OpeningSize                  decimal.Decimal
+	OpeningDirection             order.Side
+	LatestPrice                  decimal.Decimal
+	LatestSize                   decimal.Decimal
+	LatestDirection              order.Side
+	LastUpdated                  time.Time
+	CloseDate                    time.Time
+	Orders                       []order.Detail
+	PNLHistory                   []PNLResult
+	FundingRates                 fundingrate.HistoricalRates
 }
 
 // PositionSummaryRequest is used to request a summary of an open position

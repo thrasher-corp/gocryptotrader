@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -194,13 +195,13 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresAutoDeleveragesChannel:
 		return e.processFuturesAutoDeleveragesNotification(ctx, respRaw)
 	case futuresAutoPositionCloseChannel:
-		return e.processPositionCloseData(ctx, respRaw)
+		return e.processPositionCloseData(ctx, respRaw, a)
 	case futuresBalancesChannel:
 		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(ctx, respRaw)
 	case futuresPositionsChannel:
-		return e.processFuturesPositionsNotification(ctx, respRaw)
+		return e.processFuturesPositionsNotification(ctx, respRaw, a)
 	case futuresAutoOrdersChannel:
 		return e.processFuturesAutoOrderPushData(ctx, respRaw)
 	case "futures.pong":
@@ -645,7 +646,9 @@ func (e *Exchange) processFuturesAutoDeleveragesNotification(ctx context.Context
 	return e.Websocket.DataHandler.Send(ctx, &resp)
 }
 
-func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte) error {
+// processPositionCloseData emits zero-size canonical futures positions while
+// preserving the established raw payload for options consumers.
+func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a asset.Item) error {
 	resp := struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
@@ -656,7 +659,36 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte) er
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	if a == asset.Options {
+		return e.Websocket.DataHandler.Send(ctx, &resp)
+	}
+	positions := make([]futures.Position, len(resp.Result))
+	for i := range resp.Result {
+		pair, err := e.MatchSymbolWithAvailablePairs(resp.Result[i].Contract, a, true)
+		if err != nil {
+			return err
+		}
+		direction, err := order.StringToOrderSide(resp.Result[i].Side)
+		if err != nil {
+			return err
+		}
+		collateralCurrency := pair.Quote
+		if a == asset.CoinMarginedFutures {
+			collateralCurrency = pair.Base
+		}
+		positions[i] = futures.Position{
+			Exchange:           e.Name,
+			Asset:              a,
+			Pair:               pair,
+			Underlying:         pair.Base,
+			CollateralCurrency: collateralCurrency,
+			RealisedPNL:        resp.Result[i].ProfitAndLoss.Decimal(),
+			LatestDirection:    direction,
+			LastUpdated:        resp.Result[i].Time.Time(),
+			CloseDate:          resp.Result[i].Time.Time(),
+		}
+	}
+	return e.Websocket.DataHandler.Send(ctx, positions)
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
@@ -700,7 +732,9 @@ func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context
 	return e.Websocket.DataHandler.Send(ctx, &resp)
 }
 
-func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte) error {
+// processFuturesPositionsNotification emits canonical positions with Gate's
+// signed contract size represented as absolute size plus direction.
+func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte, a asset.Item) error {
 	resp := struct {
 		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
@@ -711,7 +745,46 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	positions := make([]futures.Position, len(resp.Result))
+	for i := range resp.Result {
+		pair, err := e.MatchSymbolWithAvailablePairs(resp.Result[i].Contract, a, true)
+		if err != nil {
+			return err
+		}
+		size := resp.Result[i].Size.Decimal()
+		direction := order.Long
+		if size.IsNegative() {
+			direction = order.Short
+			size = size.Abs()
+		}
+		collateralCurrency := pair.Quote
+		if a == asset.CoinMarginedFutures {
+			collateralCurrency = pair.Base
+		}
+		leverage := resp.Result[i].Leverage.Decimal()
+		if resp.Result[i].PositionMarginMode != "" {
+			leverage = resp.Result[i].PositionLeverage.Decimal()
+		}
+		positions[i] = futures.Position{
+			Exchange:                  e.Name,
+			Asset:                     a,
+			Pair:                      pair,
+			Underlying:                pair.Base,
+			CollateralCurrency:        collateralCurrency,
+			Leverage:                  leverage,
+			PositionMargin:            resp.Result[i].Margin.Decimal(),
+			MaintenanceMarginFraction: resp.Result[i].MaintenanceRate.Decimal(),
+			EstimatedLiquidationPrice: resp.Result[i].LiqPrice.Decimal(),
+			UpdateID:                  resp.Result[i].UpdateID,
+			RealisedPNL:               resp.Result[i].RealisedPnl.Decimal(),
+			OpeningPrice:              resp.Result[i].EntryPrice.Decimal(),
+			OpeningDirection:          direction,
+			LatestSize:                size,
+			LatestDirection:           direction,
+			LastUpdated:               resp.Result[i].Time.Time(),
+		}
+	}
+	return e.Websocket.DataHandler.Send(ctx, positions)
 }
 
 func (e *Exchange) processFuturesAutoOrderPushData(ctx context.Context, data []byte) error {

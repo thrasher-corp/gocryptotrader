@@ -15,6 +15,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1170,6 +1171,37 @@ func TestSetDisconnectCancelAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestPositionInfoUnmarshal(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"retCode":0,"retMsg":"OK","result":{"nextPageCursor":"MOVEUSDT%2C1787198400021%2C0","category":"linear","list":[{"symbol":"BBUSDT","leverage":"1","breakEvenPrice":"0.01105546","autoAddMargin":0,"avgPrice":"0.01105794","liqPrice":"0.20933581","riskLimitValue":"25000","takeProfit":"","positionValue":"7.492255","isReduceOnly":false,"positionIMByMp":"7.50299557","tpslMode":"Full","riskId":1,"trailingStop":"0","liqPriceByMp":"","unrealisedPnl":"2.271903","markPrice":"0.008485","adlRankIndicator":3,"cumRealisedPnl":"0.00318599","positionMM":"0.16058567","createdTime":"1728875391204","positionIdx":0,"openTime":1786983352599,"positionIM":"7.50299557","positionMMByMp":"0.16058567","seq":169532619968,"updatedTime":"1787198400023","side":"Sell","bustPrice":"","positionBalance":"0","leverageSysUpdatedTime":"","curRealisedPnl":"0.00318599","size":"883","positionStatus":"Normal","mmrSysUpdatedTime":"","stopLoss":"","tradeMode":0,"sessionAvgPrice":""}]},"retExtInfo":{},"time":1787198702978}`)
+	response := struct {
+		RetCode    int64            `json:"retCode"`
+		RetMsg     string           `json:"retMsg"`
+		Result     PositionInfoList `json:"result"`
+		RetExtInfo map[string]any   `json:"retExtInfo"`
+		Time       int64            `json:"time"`
+	}{}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&response), "full REST position payload must unmarshal without unknown fields")
+	require.Len(t, response.Result.List, 1, "position payload must contain one position")
+
+	position := response.Result.List[0]
+	assert.Equal(t, time.UnixMilli(1786983352599), position.OpenTime.Time(), "open time should be correct")
+	assert.True(t, position.BreakEvenPrice.Decimal().Equal(decimal.NewFromFloat(0.01105546)),
+		"break-even price should be correct")
+	assert.True(t, position.PositionIMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(7.50299557)),
+		"mark-price initial margin should be correct")
+	assert.True(t, position.PositionMMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(0.16058567)),
+		"mark-price maintenance margin should be correct")
+	assert.True(t, position.CurrentRealisedPnl.Decimal().Equal(decimal.NewFromFloat(0.00318599)),
+		"current realised PNL should be correct")
+	assert.True(t, position.LiqPriceByMarkPrice.Decimal().IsZero(),
+		"empty mark-price liquidation price should decode as zero")
+	assert.True(t, position.SessionAveragePrice.Decimal().IsZero(),
+		"empty session average price should decode as zero")
 }
 
 func TestGetPositionInfo(t *testing.T) {
@@ -3054,6 +3086,39 @@ func TestWSHandleData(t *testing.T) {
 	}
 }
 
+func TestWsPositionUnmarshal(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"id":"74199870_position_1787197420650","topic":"position","creationTime":1787197420650,"data":[{"positionIdx":0,"tradeMode":0,"riskId":1,"riskLimitValue":"25000","symbol":"BBUSDT","side":"Sell","size":"883","entryPrice":"0.01105794","sessionAvgPrice":"","leverage":"1","positionValue":"7.403955","positionBalance":"0","markPrice":"0.008385","positionIM":"7.41469557","positionMM":"0.15881967","positionIMByMp":"7.41469557","positionMMByMp":"0.15881967","takeProfit":"0","stopLoss":"0","trailingStop":"0","unrealisedPnl":"2.360203","cumRealisedPnl":"0.00281412","curRealisedPnl":"0.00281412","createdTime":"1728875391204","updatedTime":"1787197420648","tpslMode":"Full","liqPrice":"0.20927497","bustPrice":"","category":"linear","positionStatus":"Normal","adlRankIndicator":2,"autoAddMargin":0,"leverageSysUpdatedTime":"","mmrSysUpdatedTime":"","seq":169498457174,"openTime":1786983352599,"breakEvenPrice":"0.01105504","isReduceOnly":false}]}`)
+	response := struct {
+		ID           string       `json:"id"`
+		Topic        string       `json:"topic"`
+		CreationTime types.Time   `json:"creationTime"`
+		Data         []WsPosition `json:"data"`
+	}{}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&response), "full position payload must unmarshal without unknown fields")
+	require.Len(t, response.Data, 1, "position payload must contain one position")
+
+	position := response.Data[0]
+	assert.True(t, position.SessionAveragePrice.Decimal().IsZero(), "empty session average price should decode as zero")
+	assert.True(t, position.PositionIMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(7.41469557)),
+		"mark-price initial margin should be correct")
+	assert.True(t, position.PositionMMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(0.15881967)),
+		"mark-price maintenance margin should be correct")
+	assert.True(t, position.CurrentRealisedPNL.Decimal().Equal(decimal.NewFromFloat(0.00281412)),
+		"current realised PNL should be correct")
+	assert.Zero(t, position.AutoAddMargin, "auto-add margin should be correct")
+	assert.True(t, position.LeverageSystemUpdatedTime.Time().IsZero(),
+		"empty leverage system update time should decode as zero")
+	assert.True(t, position.MMRSystemUpdatedTime.Time().IsZero(),
+		"empty MMR system update time should decode as zero")
+	assert.Equal(t, time.UnixMilli(1786983352599), position.OpenTime.Time(), "open time should be correct")
+	assert.True(t, position.BreakEvenPrice.Decimal().Equal(decimal.NewFromFloat(0.01105504)),
+		"break-even price should be correct")
+	assert.False(t, position.IsReduceOnly, "reduce-only state should be correct")
+}
+
 func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
 
@@ -3113,36 +3178,27 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	var sawPositions, sawOrderLinear, sawOrderOption, sawAccounts, sawGreeks, sawFills bool
 	for data := range ex.Websocket.DataHandler.C {
 		switch v := data.Data.(type) {
-		case WsPositions:
+		case []futures.Position:
 			sawPositions = true
 			require.Len(t, v, 1, "must see 1 position")
-			assert.Zero(t, v[0].PositionIdx, "PositionIdx should be 0")
-			assert.Zero(t, v[0].TradeMode, "TradeMode should be 0")
-			assert.Equal(t, int64(41), v[0].RiskID, "RiskID should be correct")
-			assert.Equal(t, 200000.0, v[0].RiskLimitValue.Float64(), "RiskLimitValue should be correct")
-			assert.Equal(t, "XRPUSDT", v[0].Symbol, "Symbol should be correct")
-			assert.Equal(t, "Buy", v[0].Side, "Side should be correct")
-			assert.Equal(t, 75.0, v[0].Size.Float64(), "Size should be correct")
-			assert.Equal(t, 0.3615, v[0].EntryPrice.Float64(), "Entry price should be correct")
-			assert.Equal(t, 10.0, v[0].Leverage.Float64(), "Leverage should be correct")
-			assert.Equal(t, 27.1125, v[0].PositionValue.Float64(), "Position value should be correct")
-			assert.Zero(t, v[0].PositionBalance.Float64(), "Position balance should be 0")
-			assert.Equal(t, 0.3374, v[0].MarkPrice.Float64(), "Mark price should be correct")
-			assert.Equal(t, 2.72589075, v[0].PositionIM.Float64(), "Position IM should be correct")
-			assert.Equal(t, 0.28576575, v[0].PositionMM.Float64(), "Position MM should be correct")
-			assert.Zero(t, v[0].TakeProfit.Float64(), "Take profit should be 0")
-			assert.Zero(t, v[0].StopLoss.Float64(), "Stop loss should be 0")
-			assert.Zero(t, v[0].TrailingStop.Float64(), "Trailing stop should be 0")
-			assert.Equal(t, -1.8075, v[0].UnrealisedPnl.Float64(), "Unrealised PnL should be correct")
-			assert.Equal(t, 0.64782276, v[0].CumRealisedPnl.Float64(), "Cum realised PnL should be correct")
-			assert.Equal(t, time.UnixMilli(1672121182216), v[0].CreatedTime.Time(), "Creation time should be correct")
-			assert.Equal(t, time.UnixMilli(1672364174449), v[0].UpdatedTime.Time(), "Updated time should be correct")
-			assert.Equal(t, "Full", v[0].TpslMode, "TPSL mode should be correct")
-			assert.Zero(t, v[0].LiqPrice.Float64(), "Liq price should be 0")
-			assert.Zero(t, v[0].BustPrice.Float64(), "Bust price should be 0")
-			assert.Equal(t, cLinear, v[0].Category, "Category should be correct")
-			assert.Equal(t, "Normal", v[0].PositionStatus, "Position status should be correct")
-			assert.Equal(t, int64(2), v[0].AdlRankIndicator, "ADL Rank Indicator should be correct")
+			assert.Equal(t, e.Name, v[0].Exchange, "exchange should be correct")
+			assert.Equal(t, asset.USDTMarginedFutures, v[0].Asset, "asset should be correct")
+			assert.Equal(t, currency.NewPair(currency.XRP, currency.USDT), v[0].Pair, "pair should be correct")
+			assert.Equal(t, currency.XRP, v[0].Underlying, "underlying should be correct")
+			assert.Equal(t, currency.USDT, v[0].CollateralCurrency, "collateral currency should be correct")
+			assert.True(t, v[0].Leverage.Equal(decimal.NewFromInt(10)), "leverage should be correct")
+			assert.True(t, v[0].NotionalSize.Equal(decimal.NewFromFloat(27.1125)), "notional size should be correct")
+			assert.True(t, v[0].PositionMargin.Equal(decimal.NewFromFloat(2.72589075)), "position margin should be correct")
+			assert.True(t, v[0].InitialMarginRequirement.Equal(decimal.NewFromFloat(2.72589075)), "initial margin should be correct")
+			assert.True(t, v[0].MaintenanceMarginRequirement.Equal(decimal.NewFromFloat(0.28576575)), "maintenance margin should be correct")
+			assert.Equal(t, order.Buy, v[0].LatestDirection, "direction should be correct")
+			assert.True(t, v[0].LatestSize.Equal(decimal.NewFromInt(75)), "size should be correct")
+			assert.True(t, v[0].OpeningPrice.Equal(decimal.NewFromFloat(0.3615)), "entry price should be correct")
+			assert.True(t, v[0].LatestPrice.Equal(decimal.NewFromFloat(0.3374)), "mark price should be correct")
+			assert.True(t, v[0].UnrealisedPNL.Equal(decimal.NewFromFloat(-1.8075)), "unrealised PnL should be correct")
+			assert.Equal(t, int64(42), v[0].UpdateID, "update ID should be correct")
+			assert.Equal(t, time.UnixMilli(1672207582216), v[0].OpeningDate, "opening date should use position open time")
+			assert.Equal(t, time.UnixMilli(1672364174449), v[0].LastUpdated, "updated time should be correct")
 		case []order.Detail:
 			require.Len(t, v, 1, "Order payload must contain exactly one order item")
 			switch v[0].OrderID {
@@ -3184,7 +3240,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, asset.Spot, v[0].AssetType, "Asset type should be correct")
 			exp := accounts.CurrencyBalances{}
 			exp.Set(currency.ETH, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482)})
-			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904})
+			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904, AvailableWithoutBorrow: 12632.05767702})
 			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, Free: 215.0570412})
 			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, Free: 1.82})
 			exp.Set(currency.USDC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 201.34882644, Free: 201.34882644})

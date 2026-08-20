@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -2528,11 +2529,34 @@ func TestFuturesDataHandler(t *testing.T) {
 	})
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	var sawPosition, sawPositionClose bool
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
+		if positions, ok := resp.Data.([]futures.Position); ok {
+			require.Len(t, positions, 1, "position update must contain one position")
+			assert.Equal(t, asset.CoinMarginedFutures, positions[0].Asset, "asset must match the websocket")
+			assert.Equal(t, "BTC_USD", positions[0].Pair.String(), "pair must be normalized")
+			assert.Equal(t, currency.BTC, positions[0].Underlying, "underlying should be normalized")
+			assert.Equal(t, currency.BTC, positions[0].CollateralCurrency, "collateral currency should be normalized")
+			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction must be normalized")
+			if positions[0].CloseDate.IsZero() {
+				sawPosition = true
+				assert.Equal(t, "3", positions[0].LatestSize.String(), "size must be normalized")
+				assert.True(t, positions[0].Leverage.IsZero(), "replacement cross-margin leverage should take precedence")
+				assert.True(t, positions[0].PositionMargin.Equal(decimal.NewFromFloat(49.999890611186)), "position margin should be populated")
+				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.005)), "maintenance margin rate should be populated")
+				assert.True(t, positions[0].EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.1)), "liquidation price should be populated")
+				assert.Equal(t, int64(42), positions[0].UpdateID, "update ID should be populated")
+			} else {
+				sawPositionClose = true
+				assert.True(t, positions[0].LatestSize.IsZero(), "close size must be zero")
+			}
+		}
 	}
+	require.True(t, sawPosition, "futures fixture must emit a normalized position")
+	require.True(t, sawPositionClose, "futures fixture must emit a normalized position close")
 }
 
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
