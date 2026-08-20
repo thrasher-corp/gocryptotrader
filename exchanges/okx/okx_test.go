@@ -4180,6 +4180,43 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		require.ErrorIs(t, err, errOrderbookSnapshotPending, "WsProcessUpdateOrderbook must report that a replacement snapshot is pending")
 		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "WsProcessUpdateOrderbook must preserve the invalid orderbook error")
 	})
+
+	t.Run("dispatch error preserves mapped depths", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		pair := currency.NewPairWithDelimiter("DISPATCH", "USDT", "-")
+		assets := []asset.Item{asset.Spot, asset.Margin}
+		for _, a := range assets {
+			require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:     tracked.Name,
+				Pair:         pair,
+				Asset:        a,
+				LastUpdateID: 10,
+				LastUpdated:  time.UnixMilli(1659792392540),
+				Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+				Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+			}), "LoadSnapshot must not error")
+		}
+		for len(tracked.Websocket.DataHandler.C) < cap(tracked.Websocket.DataHandler.C) {
+			require.NoError(t, tracked.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
+		}
+
+		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			Bids:               [][4]types.Number{{100.5, 2, 0, 1}},
+			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+			PreviousSequenceID: 10,
+			SequenceID:         11,
+		}, pair, assets)
+		require.ErrorContains(t, err, "channel buffer is full", "WsProcessUpdateOrderbook must return the dispatch failure")
+		for _, a := range assets {
+			book, bookErr := tracked.Websocket.Orderbook.GetOrderbook(pair, a)
+			require.NoErrorf(t, bookErr, "The %s orderbook must remain valid after a dispatch failure", a)
+			assert.Equalf(t, int64(11), book.LastUpdateID, "The %s orderbook should remain aligned after a dispatch failure", a)
+		}
+	})
 }
 
 func TestWsProcessOrderBooks(t *testing.T) {
@@ -4223,13 +4260,16 @@ func TestWsProcessOrderBooks(t *testing.T) {
 			_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
 			require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must remain invalid until a new snapshot arrives", a)
 		}
-		require.Len(t, conn.requests, 2, "Recovery must send an unsubscribe and subscribe request")
-		assert.Equal(t, operationUnsubscribe, conn.requests[0].Operation, "Recovery should unsubscribe first")
-		require.Len(t, conn.requests[0].Arguments, 1, "Recovery must deduplicate equivalent unsubscribe arguments")
-		assert.Equal(t, operationSubscribe, conn.requests[1].Operation, "Recovery should resubscribe second")
-		require.Len(t, conn.requests[1].Arguments, 1, "Recovery must deduplicate equivalent subscribe arguments")
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
+			"Recovery must send an unsubscribe and subscribe request")
+		requests := conn.Requests()
+		assert.Equal(t, operationUnsubscribe, requests[0].Operation, "Recovery should unsubscribe first")
+		require.Len(t, requests[0].Arguments, 1, "Recovery must deduplicate equivalent unsubscribe arguments")
+		assert.Equal(t, operationSubscribe, requests[1].Operation, "Recovery should resubscribe second")
+		require.Len(t, requests[1].Arguments, 1, "Recovery must deduplicate equivalent subscribe arguments")
 		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must ignore updates while awaiting a replacement snapshot")
-		require.Len(t, conn.requests, 2, "Updates received before the replacement snapshot must not trigger another resubscription")
+		require.Never(t, func() bool { return len(conn.Requests()) > 2 }, 100*time.Millisecond, 10*time.Millisecond,
+			"Updates received before the replacement snapshot must not trigger another resubscription")
 
 		freshSnapshot := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"snapshot\",\"data\":[{\"asks\":[[\"101\",\"1\",\"0\",\"1\"]],\"bids\":[[\"100\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392740\",\"checksum\":0,\"prevSeqId\":-1,\"seqId\":50}]}")
 		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, freshSnapshot), "wsProcessOrderBooks must load a fresh snapshot after recovery")
@@ -4247,9 +4287,11 @@ func TestWsProcessOrderBooks(t *testing.T) {
 			_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
 			require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must be invalidated after an invalid update", a)
 		}
-		require.Len(t, conn.requests, 4, "Invalid update recovery must send another unsubscribe and subscribe request")
-		assert.Equal(t, operationUnsubscribe, conn.requests[2].Operation, "Invalid update recovery should unsubscribe first")
-		assert.Equal(t, operationSubscribe, conn.requests[3].Operation, "Invalid update recovery should resubscribe second")
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 4 }, time.Second, 10*time.Millisecond,
+			"Invalid update recovery must send another unsubscribe and subscribe request")
+		requests = conn.Requests()
+		assert.Equal(t, operationUnsubscribe, requests[2].Operation, "Invalid update recovery should unsubscribe first")
+		assert.Equal(t, operationSubscribe, requests[3].Operation, "Invalid update recovery should resubscribe second")
 	})
 	t.Run("exchange-specific channel", func(t *testing.T) {
 		t.Parallel()
@@ -4272,11 +4314,65 @@ func TestWsProcessOrderBooks(t *testing.T) {
 		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load the exchange-specific channel snapshot")
 		gap := []byte("{\"arg\":{\"channel\":\"books-l2-tbt\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[],\"ts\":\"1659792392640\",\"prevSeqId\":12,\"seqId\":13}]}")
 		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover the exchange-specific channel")
-		require.Len(t, conn.requests, 2, "Recovery must send one unsubscribe and one subscribe request")
-		require.Len(t, conn.requests[0].Arguments, 1, "Unsubscribe must contain the exchange-specific channel")
-		assert.Equal(t, channelOrderBooksTBT, conn.requests[0].Arguments[0].Channel, "Unsubscribe should use the exchange-specific channel")
-		require.Len(t, conn.requests[1].Arguments, 1, "Subscribe must contain the exchange-specific channel")
-		assert.Equal(t, channelOrderBooksTBT, conn.requests[1].Arguments[0].Channel, "Subscribe should use the exchange-specific channel")
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
+			"Recovery must send one unsubscribe and one subscribe request")
+		requests := conn.Requests()
+		require.Len(t, requests[0].Arguments, 1, "Unsubscribe must contain the exchange-specific channel")
+		assert.Equal(t, channelOrderBooksTBT, requests[0].Arguments[0].Channel, "Unsubscribe should use the exchange-specific channel")
+		require.Len(t, requests[1].Arguments, 1, "Subscribe must contain the exchange-specific channel")
+		assert.Equal(t, channelOrderBooksTBT, requests[1].Arguments[0].Channel, "Subscribe should use the exchange-specific channel")
+	})
+
+	t.Run("bbo-tbt push is a snapshot", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		push := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BTC-USDT"},"data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","prevSeqId":-1,"seqId":10}]}`)
+
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), nil, push), "wsProcessOrderBooks must load bbo-tbt pushes as snapshots")
+		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must return the bbo-tbt snapshot")
+		assert.Equal(t, int64(10), book.LastUpdateID, "The bbo-tbt snapshot should set the sequence ID")
+	})
+
+	t.Run("missing mapped depth starts recovery", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
+		subs := subscription.List{
+			{
+				Asset:            asset.Spot,
+				Pairs:            currency.Pairs{mainPair},
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
+			},
+			{
+				Asset:            asset.Margin,
+				Pairs:            currency.Pairs{mainPair},
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
+			},
+		}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, subs...), "AddSuccessfulSubscriptions must not error")
+		for _, sub := range subs {
+			require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
+		}
+
+		spotSnapshot := []byte(`{"arg":{"channel":"books","instType":"SPOT","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","prevSeqId":-1,"seqId":10}]}`)
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, spotSnapshot), "wsProcessOrderBooks must load the spot-only snapshot")
+		gap := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1659792392640","prevSeqId":10,"seqId":11}]}`)
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover a missing mapped depth")
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
+			"Missing mapped depth must trigger an unsubscribe and subscribe request")
+		requests := conn.Requests()
+		assert.Equal(t, operationUnsubscribe, requests[0].Operation, "Missing-depth recovery should unsubscribe first")
+		assert.Equal(t, operationSubscribe, requests[1].Operation, "Missing-depth recovery should subscribe second")
 	})
 }
 

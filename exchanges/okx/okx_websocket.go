@@ -930,7 +930,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	}
 	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
-		if response.Action == wsOrderbookSnapshot {
+		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
@@ -941,7 +941,9 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if err == nil {
 			continue
 		}
-		if !errors.Is(err, errInvalidOrderbookSequence) && !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+		if !errors.Is(err, errInvalidOrderbookSequence) &&
+			!errors.Is(err, orderbook.ErrOrderbookInvalid) &&
+			!errors.Is(err, orderbook.ErrDepthNotFound) {
 			return err
 		}
 		var subscriptionsToResub subscription.List
@@ -1004,6 +1006,7 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			return errChain
 		}
 	}
+	var dispatchErr error
 	for i := range assets {
 		lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i])
 		if err != nil {
@@ -1028,7 +1031,11 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			Asks:       asks,
 			Bids:       bids,
 			AllowEmpty: true, // Allow empty levels to push forward sequence ID
-		}); err != nil && errors.Is(err, orderbook.ErrOrderbookInvalid) {
+		}); err != nil {
+			if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				dispatchErr = common.AppendError(dispatchErr, err)
+				continue
+			}
 			updateErr := err
 			for j := range assets {
 				updateErr = common.AppendError(updateErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
@@ -1036,7 +1043,7 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			return updateErr
 		}
 	}
-	return nil
+	return dispatchErr
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
