@@ -270,7 +270,6 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
 	case chanPositions:
-		fmt.Printf("%s\n", string(respRaw))
 		return e.wsProcessPosition(ctx, &result)
 	case chanExecution:
 		return e.wsProcessExecution(ctx, &result)
@@ -283,7 +282,6 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 		}
 		return e.wsProcessOrder(ctx, &result)
 	case chanWallet:
-		fmt.Printf("%s\n", string(respRaw))
 		return e.wsProcessWalletPushData(ctx, respRaw)
 	case chanGreeks:
 		return e.wsProcessGreeks(ctx, respRaw)
