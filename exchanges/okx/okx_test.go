@@ -4336,44 +4336,6 @@ func TestWsProcessOrderBooks(t *testing.T) {
 		require.NoError(t, err, "GetOrderbook must return the bbo-tbt snapshot")
 		assert.Equal(t, int64(10), book.LastUpdateID, "The bbo-tbt snapshot should set the sequence ID")
 	})
-
-	t.Run("missing mapped depth starts recovery", func(t *testing.T) {
-		t.Parallel()
-
-		tracked := new(Exchange)
-		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
-		tracked.Name = t.Name()
-		conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
-		require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
-		subs := subscription.List{
-			{
-				Asset:            asset.Spot,
-				Pairs:            currency.Pairs{mainPair},
-				Channel:          subscription.OrderbookChannel,
-				QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
-			},
-			{
-				Asset:            asset.Margin,
-				Pairs:            currency.Pairs{mainPair},
-				Channel:          subscription.OrderbookChannel,
-				QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
-			},
-		}
-		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, subs...), "AddSuccessfulSubscriptions must not error")
-		for _, sub := range subs {
-			require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
-		}
-
-		spotSnapshot := []byte(`{"arg":{"channel":"books","instType":"SPOT","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","prevSeqId":-1,"seqId":10}]}`)
-		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, spotSnapshot), "wsProcessOrderBooks must load the spot-only snapshot")
-		gap := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1659792392640","prevSeqId":10,"seqId":11}]}`)
-		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover a missing mapped depth")
-		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
-			"Missing mapped depth must trigger an unsubscribe and subscribe request")
-		requests := conn.Requests()
-		assert.Equal(t, operationUnsubscribe, requests[0].Operation, "Missing-depth recovery should unsubscribe first")
-		assert.Equal(t, operationSubscribe, requests[1].Operation, "Missing-depth recovery should subscribe second")
-	})
 }
 
 func TestOrderPushData(t *testing.T) {

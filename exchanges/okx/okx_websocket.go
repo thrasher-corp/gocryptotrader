@@ -942,8 +942,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 			continue
 		}
 		if !errors.Is(err, errInvalidOrderbookSequence) &&
-			!errors.Is(err, orderbook.ErrOrderbookInvalid) &&
-			!errors.Is(err, orderbook.ErrDepthNotFound) {
+			!errors.Is(err, orderbook.ErrOrderbookInvalid) {
 			return err
 		}
 		var subscriptionsToResub subscription.List
