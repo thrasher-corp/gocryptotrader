@@ -2952,8 +2952,10 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 		assert.NotEqual(t, allFuturesContracts, matching[0].Pairs[0].String(),
 			"account-wide subscription should not register the selector as a currency")
 		assert.Equal(t, allFuturesContracts, matching[0].Params[contractPayloadOverrideParam],
-			"account-wide subscription should serialize the documented selector")
-		assert.True(t, matching[0].Params[requiresUserPlaceholderParam].(bool),
+			"account-wide subscription should serialise the documented selector")
+		requiresUserPlaceholder, ok := matching[0].Params[requiresUserPlaceholderParam].(bool)
+		require.True(t, ok, "user placeholder parameter must be a boolean")
+		assert.True(t, requiresUserPlaceholder,
 			"account-wide subscription should retain the deprecated user placeholder")
 		require.Equal(t, asset.CoinMarginedFutures, matching[0].Asset,
 			"account-wide subscription must retain its futures asset")
