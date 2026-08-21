@@ -30,7 +30,12 @@ var (
 	offset = common.Counter{}
 )
 
-const exchangeName = "exchangeTest"
+const (
+	exchangeName = "exchangeTest"
+	// benchmarkBufferLimit is the number of updates a buffered benchmark accumulates before the
+	// holder flushes and publishes, matching the cadence its loop drains the relay at
+	benchmarkBufferLimit = 10
+)
 
 // getExclusivePair returns a currency pair with a unique ID for testing as books are centralised and changes will affect other tests
 func getExclusivePair() (currency.Pair, error) {
@@ -70,112 +75,86 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 	return holder, asks, bids, err
 }
 
+// benchmarkOrderbook builds a holder whose relay the benchmark drains itself, and pre-sizes the
+// update buffer the way Setup does in production.
+//
+// createSnapshot leaves the relay to a reader goroutine, but Relay.Send is non-blocking and errors
+// once the channel is full, so a reader that cannot keep up fails the benchmark instead of slowing
+// it down. Draining inline makes the loop self-pacing and hermetic at any benchtime. A bufferLimit
+// of zero leaves buffering disabled and publishes on every update.
+func benchmarkOrderbook(b *testing.B, bufferLimit int) (*Orderbook, *stream.Relay, *orderbook.Update) {
+	b.Helper()
+	cp, err := getExclusivePair()
+	require.NoError(b, err, "getExclusivePair must not error")
+
+	holder, asks, bids, err := createSnapshot(cp)
+	require.NoError(b, err, "createSnapshot must not error")
+
+	holder.dataHandler.Close() // Ends the reader goroutine createSnapshot spawned
+	relay := stream.NewRelay(1)
+	holder.dataHandler = relay
+	b.Cleanup(relay.Close)
+
+	if bufferLimit > 0 {
+		holder.bufferEnabled = true
+		holder.obBufferLimit = bufferLimit
+		// LoadSnapshot sized the buffer from obBufferLimit while it was still zero, so without this
+		// the first flush's worth of appends would grow the slice inside the measured loop
+		holder.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}].buffer = make([]orderbook.Update, 0, bufferLimit)
+	}
+
+	return holder, relay, &orderbook.Update{
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	}
+}
+
+// benchmarkUpdates drives the update loop, receiving the book the holder publishes every drainEvery
+// updates. A buffered holder only publishes once its buffer is full, so matching drainEvery to the
+// buffer limit keeps the capacity-one relay from ever filling.
+func benchmarkUpdates(b *testing.B, o *Orderbook, relay *stream.Relay, update *orderbook.Update, drainEvery int) {
+	b.Helper()
+	var updates int
+	for b.Loop() {
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
+		update.Asks = itemArray[randomIndex]
+		update.Bids = itemArray[randomIndex]
+		require.NoError(b, o.Update(update), "Update must not error")
+		updates++
+		if updates%drainEvery == 0 {
+			<-relay.C
+		}
+	}
+}
+
 // BenchmarkBufferPerformance demonstrates buffer more performant than multi
 // process calls
-// 890016	      1688 ns/op	     416 B/op	       3 allocs/op
 func BenchmarkBufferPerformance(b *testing.B) {
-	cp, err := getExclusivePair()
-	require.NoError(b, err)
-
-	holder, asks, bids, err := createSnapshot(cp)
-	require.NoError(b, err)
-
-	holder.bufferEnabled = true
-	update := &orderbook.Update{
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       cp,
-		UpdateTime: time.Now(),
-		Asset:      asset.Spot,
-	}
-	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
-		update.Asks = itemArray[randomIndex]
-		update.Bids = itemArray[randomIndex]
-		require.NoError(b, holder.Update(update))
-	}
+	holder, relay, update := benchmarkOrderbook(b, benchmarkBufferLimit)
+	benchmarkUpdates(b, holder, relay, update, benchmarkBufferLimit)
 }
 
-// BenchmarkBufferSortingPerformance benchmark
-//
-//	613964	      2093 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingPerformance(b *testing.B) {
-	cp, err := getExclusivePair()
-	require.NoError(b, err)
-
-	holder, asks, bids, err := createSnapshot(cp)
-	require.NoError(b, err)
-
-	holder.bufferEnabled = true
+	holder, relay, update := benchmarkOrderbook(b, benchmarkBufferLimit)
 	holder.sortBuffer = true
-	update := &orderbook.Update{
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       cp,
-		UpdateTime: time.Now(),
-		Asset:      asset.Spot,
-	}
-	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
-		update.Asks = itemArray[randomIndex]
-		update.Bids = itemArray[randomIndex]
-		require.NoError(b, holder.Update(update))
-	}
+	benchmarkUpdates(b, holder, relay, update, benchmarkBufferLimit)
 }
 
-// 914500	      1599 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
-	cp, err := getExclusivePair()
-	require.NoError(b, err)
-
-	holder, asks, bids, err := createSnapshot(cp)
-	require.NoError(b, err)
-
-	holder.bufferEnabled = true
+	holder, relay, update := benchmarkOrderbook(b, benchmarkBufferLimit)
 	holder.sortBuffer = true
 	holder.sortBufferByUpdateIDs = true
-	update := &orderbook.Update{
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       cp,
-		UpdateTime: time.Now(),
-		Asset:      asset.Spot,
-	}
-
-	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
-		update.Asks = itemArray[randomIndex]
-		update.Bids = itemArray[randomIndex]
-		require.NoError(b, holder.Update(update))
-	}
+	benchmarkUpdates(b, holder, relay, update, benchmarkBufferLimit)
 }
 
 // BenchmarkNoBufferPerformance demonstrates orderbook process more performant
 // than buffer
-//   122659	     12792 ns/op	     972 B/op	       7 allocs/op PRIOR
-//  1225924	      1028 ns/op	     240 B/op	       2 allocs/op CURRENT
-
 func BenchmarkNoBufferPerformance(b *testing.B) {
-	cp, err := getExclusivePair()
-	require.NoError(b, err)
-
-	obl, asks, bids, err := createSnapshot(cp)
-	require.NoError(b, err)
-
-	update := &orderbook.Update{
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       cp,
-		UpdateTime: time.Now(),
-		Asset:      asset.Spot,
-	}
-
-	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
-		update.Asks = itemArray[randomIndex]
-		update.Bids = itemArray[randomIndex]
-		require.NoError(b, obl.Update(update))
-	}
+	obl, relay, update := benchmarkOrderbook(b, 0)
+	benchmarkUpdates(b, obl, relay, update, 1)
 }
 
 // TestHittingTheBuffer logic test

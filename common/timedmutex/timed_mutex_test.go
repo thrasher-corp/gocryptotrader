@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-// 1000000	        1074 ns/op	     136 B/op	       4 allocs/op (prev)
-// 2423571	       503.9 ns/op	       0 B/op	       0 allocs/op (current)
 func BenchmarkTimedMutexTime(b *testing.B) {
 	tm := NewTimedMutex(0)
 	for b.Loop() {
@@ -14,8 +12,6 @@ func BenchmarkTimedMutexTime(b *testing.B) {
 	}
 }
 
-// 352309195	         3.194 ns/op	       0 B/op	       0 allocs/op (prev)
-// 927051118	         1.298 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkTimedMutexTimeUnlockNotPrimed(b *testing.B) {
 	tm := NewTimedMutex(0)
 	for b.Loop() {
@@ -23,8 +19,6 @@ func BenchmarkTimedMutexTimeUnlockNotPrimed(b *testing.B) {
 	}
 }
 
-// 95322825				15.51 ns/op	       0 B/op	       0 allocs/op (prev)
-// 239158972			4.621 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkTimedMutexTimeUnlockPrimed(b *testing.B) {
 	tm := NewTimedMutex(0)
 	tm.LockForDuration()
@@ -33,8 +27,6 @@ func BenchmarkTimedMutexTimeUnlockPrimed(b *testing.B) {
 	}
 }
 
-// 1000000	         1193 ns/op	     136 B/op	       4 allocs/op (prev)
-// 38592405	        36.12 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkTimedMutexTimeLinearInteraction(b *testing.B) {
 	tm := NewTimedMutex(0)
 	for b.Loop() {

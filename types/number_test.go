@@ -70,7 +70,6 @@ func TestNumberInt64(t *testing.T) {
 }
 
 // BenchmarkNumberUnmarshalJSON provides a barebones benchmark of Unmarshaling a string value
-// Ballpark: 42.78 ns/op        16 B/op          1 allocs/op
 func BenchmarkNumberUnmarshalJSON(b *testing.B) {
 	var n Number
 	for b.Loop() {
@@ -79,7 +78,6 @@ func BenchmarkNumberUnmarshalJSON(b *testing.B) {
 }
 
 // BenchmarkNumberMarshalJSON provides a barebones benchmark of Marshaling a string value
-// Ballpark: 118.2 ns/op            56 B/op          3 allocs/op
 func BenchmarkNumberMarshalJSON(b *testing.B) {
 	for b.Loop() {
 		_, _ = Number(1337.1337).MarshalJSON()

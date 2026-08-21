@@ -405,18 +405,30 @@ func TestMuxPublish(t *testing.T) {
 	assert.NoError(t, err, "stop should not error")
 }
 
-// 13636467	        84.26 ns/op	     141 B/op	       1 allocs/op
 func BenchmarkSubscribe(b *testing.B) {
 	d := NewDispatcher()
-	err := d.start(0, 0)
+	// Explicit rather than 0, 0: the defaulting path warns through the global logger, which go test
+	// would interleave into the result lines the moment a caller enables it
+	err := d.start(DefaultMaxWorkers, DefaultJobsLimit)
 	require.NoError(b, err, "start must not error")
+	// Each -count sample starts another set of relayers, so an unstopped dispatcher leaves them
+	// blocked for the rest of the run
+	b.Cleanup(func() { assert.NoError(b, d.stop(), "stop should not error") })
 	mux := GetNewMux(d)
 	newID, err := mux.GetID()
 	require.NoError(b, err, "GetID must not error")
 
+	// Unsubscribing keeps the route's subscriber slice at a steady length. Left to accumulate it
+	// grows by one channel per iteration and never shrinks, so the amortised cost of growing it
+	// lands differently depending on where in the doubling curve the run stopped, and B/op moves
+	// between runs. It also means the benchmark measures a subscriber list no caller would have.
 	for b.Loop() {
-		_, err := mux.Subscribe(newID)
+		pipe, err := mux.Subscribe(newID)
 		if err != nil {
+			b.Error(err)
+			continue
+		}
+		if err := pipe.Release(); err != nil {
 			b.Error(err)
 		}
 	}

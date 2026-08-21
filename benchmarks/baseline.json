@@ -1,0 +1,544 @@
+{
+  "common.BenchmarkCounter": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 4.6
+  },
+  "common/math.BenchmarkDecimalPercentageDifference": {
+    "allocs": 27,
+    "bytes": 792,
+    "ns_hint": 1375
+  },
+  "common/math.BenchmarkPercentageDifference": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 0.74
+  },
+  "common/timedmutex.BenchmarkTimedMutexTime": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 821.5
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeLinearInteraction": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 102
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeUnlockNotPrimed": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 1.96
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeUnlockPrimed": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 26.7
+  },
+  "config.BenchmarkUpdateConfig": {
+    "allocs": 40538,
+    "bytes": 9898890,
+    "ns_hint": 16867142,
+    "allocs_tolerance": 0.00003,
+    "reason": "40538 on almost every sample, 40539 on roughly one in twenty; the tolerance is sized to admit exactly one extra allocation and reject two"
+  },
+  "currency.BenchmarkFindDifferences": {
+    "allocs": 2,
+    "bytes": 288,
+    "ns_hint": 645.4
+  },
+  "currency.BenchmarkFindMatchingPairsBetween": {
+    "allocs": 2,
+    "bytes": 944,
+    "ns_hint": 875.7
+  },
+  "currency.BenchmarkGetCrypto": {
+    "allocs": 1,
+    "bytes": 48,
+    "ns_hint": 154.5
+  },
+  "currency.BenchmarkNewCode": {
+    "allocs": 1,
+    "bytes": 8,
+    "ns_hint": 101.7
+  },
+  "currency.BenchmarkPairsFormat": {
+    "allocs": 1,
+    "bytes": 352,
+    "ns_hint": 230
+  },
+  "currency.BenchmarkPairsJoin": {
+    "allocs": 1,
+    "bytes": 64,
+    "ns_hint": 131.2
+  },
+  "currency.BenchmarkPairsString": {
+    "allocs": 7,
+    "bytes": 56,
+    "ns_hint": 256
+  },
+  "currency.BenchmarkRemovePairsByFilter": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 27.1
+  },
+  "dispatch.BenchmarkSubscribe": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 127.4
+  },
+  "encoding/json.BenchmarkUnmarshal": {
+    "allocs": 24,
+    "bytes": 816,
+    "ns_hint": 2062
+  },
+  "exchange/websocket/buffer.BenchmarkApplyPendingUpdates/1": {
+    "allocs": 2,
+    "bytes": 96,
+    "ns_hint": 503
+  },
+  "exchange/websocket/buffer.BenchmarkApplyPendingUpdates/2": {
+    "allocs": 3,
+    "bytes": 144,
+    "ns_hint": 646.6
+  },
+  "exchange/websocket/buffer.BenchmarkApplyPendingUpdates/256": {
+    "allocs": 257,
+    "bytes": 12336,
+    "ns_hint": 48561
+  },
+  "exchange/websocket/buffer.BenchmarkApplyPendingUpdates/64": {
+    "allocs": 65,
+    "bytes": 3120,
+    "ns_hint": 12819
+  },
+  "exchange/websocket/buffer.BenchmarkApplyPendingUpdates/8": {
+    "allocs": 9,
+    "bytes": 432,
+    "ns_hint": 1811
+  },
+  "exchange/websocket/buffer.BenchmarkBufferPerformance": {
+    "allocs": 0,
+    "bytes": 4,
+    "ns_hint": 407.8
+  },
+  "exchange/websocket/buffer.BenchmarkBufferSortingByIDPerformance": {
+    "allocs": 0,
+    "bytes": 4,
+    "ns_hint": 423.3
+  },
+  "exchange/websocket/buffer.BenchmarkBufferSortingPerformance": {
+    "allocs": 0,
+    "bytes": 4,
+    "ns_hint": 421
+  },
+  "exchange/websocket/buffer.BenchmarkLoadSnapshotExistingHolder": {
+    "allocs": 1,
+    "bytes": 48,
+    "ns_hint": 200.9
+  },
+  "exchange/websocket/buffer.BenchmarkNoBufferPerformance": {
+    "allocs": 1,
+    "bytes": 48,
+    "ns_hint": 576
+  },
+  "exchanges/alert.BenchmarkAlert": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 4.78
+  },
+  "exchanges/alert.BenchmarkWait": {
+    "allocs": 1,
+    "bytes": 32,
+    "ns_hint": 686.9
+  },
+  "exchanges/binance.BenchmarkWsHandleData/BalanceUpdate": {
+    "allocs": 12,
+    "bytes": 528,
+    "ns_hint": 3509
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Depth": {
+    "allocs": 24,
+    "bytes": 1040,
+    "ns_hint": 6321
+  },
+  "exchanges/binance.BenchmarkWsHandleData/ExecutionReport": {
+    "allocs": 53,
+    "bytes": 75512,
+    "ns_hint": 42899
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Kline": {
+    "allocs": 16,
+    "bytes": 904,
+    "ns_hint": 8515
+  },
+  "exchanges/binance.BenchmarkWsHandleData/ListStatus": {
+    "allocs": 23,
+    "bytes": 1000,
+    "ns_hint": 7926
+  },
+  "exchanges/binance.BenchmarkWsHandleData/OutboundAccountPosition": {
+    "allocs": 35,
+    "bytes": 1080,
+    "ns_hint": 7497
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Ticker": {
+    "allocs": 11,
+    "bytes": 832,
+    "ns_hint": 9438
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Trade": {
+    "allocs": 2,
+    "bytes": 40,
+    "ns_hint": 1276
+  },
+  "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/1": {
+    "allocs": 2,
+    "bytes": 51,
+    "ns_hint": 197
+  },
+  "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/32": {
+    "allocs": 2,
+    "bytes": 1888,
+    "ns_hint": 1646
+  },
+  "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/512": {
+    "allocs": 2,
+    "bytes": 28800,
+    "ns_hint": 19894
+  },
+  "exchanges/gateio.BenchmarkMessageID": {
+    "allocs": 2,
+    "bytes": 48,
+    "ns_hint": 185
+  },
+  "exchanges/gateio.BenchmarkTimeInForceFromString": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 40.2
+  },
+  "exchanges/kucoin.BenchmarkIntervalToString": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 15.9
+  },
+  "exchanges/okx.BenchmarkMessageID": {
+    "allocs": 2,
+    "bytes": 48,
+    "ns_hint": 173.3
+  },
+  "exchanges/order.BenchmarkFilterOrdersByPairs": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 125.2
+  },
+  "exchanges/order.BenchmarkFilterOrdersBySide": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 67.6
+  },
+  "exchanges/order.BenchmarkFilterOrdersByTimeRange": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 322.6
+  },
+  "exchanges/order.BenchmarkFilterOrdersByType": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 67.6
+  },
+  "exchanges/order.BenchmarkIsActive": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 1.95
+  },
+  "exchanges/order.BenchmarkIsInactive": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 162.7
+  },
+  "exchanges/order.BenchmarkStringToOrderSide": {
+    "allocs": 1,
+    "bytes": 8,
+    "ns_hint": 45.7
+  },
+  "exchanges/order.BenchmarkStringToOrderStatus": {
+    "allocs": 1,
+    "bytes": 24,
+    "ns_hint": 164.4
+  },
+  "exchanges/order.BenchmarkStringToOrderType": {
+    "allocs": 1,
+    "bytes": 8,
+    "ns_hint": 49.1
+  },
+  "exchanges/order.BenchmarkStringToTimeInForce": {
+    "allocs": 13,
+    "bytes": 272,
+    "ns_hint": 1755
+  },
+  "exchanges/orderbook.BenchmarkDeleteByID": {
+    "allocs": 1,
+    "bytes": 480,
+    "ns_hint": 315.5
+  },
+  "exchanges/orderbook.BenchmarkInsertUpdates/Collision": {
+    "allocs": 3,
+    "bytes": 104,
+    "ns_hint": 641
+  },
+  "exchanges/orderbook.BenchmarkInsertUpdates/MiddleFreshCopy": {
+    "allocs": 1,
+    "bytes": 21760,
+    "ns_hint": 8448
+  },
+  "exchanges/orderbook.BenchmarkInsertUpdates/MiddleSpareCapacity": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 477.9
+  },
+  "exchanges/orderbook.BenchmarkInsertUpdates/TailSpareCapacity": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 583.2
+  },
+  "exchanges/orderbook.BenchmarkLoad": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 17.1
+  },
+  "exchanges/orderbook.BenchmarkProcess": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 283.9
+  },
+  "exchanges/orderbook.BenchmarkProcessUpdateInsertDelete": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 713
+  },
+  "exchanges/orderbook.BenchmarkRetrieve": {
+    "allocs": 1,
+    "bytes": 480,
+    "ns_hint": 231.5
+  },
+  "exchanges/orderbook.BenchmarkReverse": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 2265
+  },
+  "exchanges/orderbook.BenchmarkSortAsksAscending": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 2233
+  },
+  "exchanges/orderbook.BenchmarkSortAsksDescending": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 11771
+  },
+  "exchanges/orderbook.BenchmarkSortAsksLateInversion": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 24546
+  },
+  "exchanges/orderbook.BenchmarkSortAsksNaN/after-inversion": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 4104
+  },
+  "exchanges/orderbook.BenchmarkSortAsksNaN/early": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 3536
+  },
+  "exchanges/orderbook.BenchmarkSortAsksNaN/late": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 4457
+  },
+  "exchanges/orderbook.BenchmarkSortAsksStandard": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 122965
+  },
+  "exchanges/orderbook.BenchmarkSortBidsAscending": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 12626
+  },
+  "exchanges/orderbook.BenchmarkSortBidsDescending": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 2227
+  },
+  "exchanges/orderbook.BenchmarkSortBidsLateInversion": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 20948
+  },
+  "exchanges/orderbook.BenchmarkSortBidsNaN/after-inversion": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 4133
+  },
+  "exchanges/orderbook.BenchmarkSortBidsNaN/early": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 3523
+  },
+  "exchanges/orderbook.BenchmarkSortBidsNaN/late": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 4473
+  },
+  "exchanges/orderbook.BenchmarkSortBidsStandard": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 123396
+  },
+  "exchanges/orderbook.BenchmarkUpdateByID": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 25.7
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByID_asks": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 58.7
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByID_bids": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 76.9
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByPrice_Amend": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 7.42
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByPrice_Insert_Delete": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 57.4
+  },
+  "exchanges/request.BenchmarkGetNonce": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 118.2
+  },
+  "log.BenchmarkCustomLogHookBypass/Infof": {
+    "allocs": 4,
+    "bytes": 72,
+    "ns_hint": 204.8
+  },
+  "log.BenchmarkCustomLogHookBypass/Infoln": {
+    "allocs": 1,
+    "bytes": 16,
+    "ns_hint": 54.7
+  },
+  "log.BenchmarkCustomLogHookFallthrough": {
+    "allocs": 6,
+    "bytes": 144,
+    "ns_hint": 1099
+  },
+  "log.BenchmarkFormattedDisabled/Debugf": {
+    "allocs": 2,
+    "bytes": 64,
+    "ns_hint": 106.8
+  },
+  "log.BenchmarkFormattedDisabled/Errorf": {
+    "allocs": 2,
+    "bytes": 64,
+    "ns_hint": 99.7
+  },
+  "log.BenchmarkFormattedDisabled/Infof": {
+    "allocs": 2,
+    "bytes": 64,
+    "ns_hint": 97.4
+  },
+  "log.BenchmarkFormattedDisabled/Warnf": {
+    "allocs": 2,
+    "bytes": 64,
+    "ns_hint": 101.8
+  },
+  "log.BenchmarkInfoDisabled": {
+    "allocs": 1,
+    "bytes": 16,
+    "ns_hint": 36.1
+  },
+  "log.BenchmarkInfof": {
+    "allocs": 4,
+    "bytes": 216,
+    "ns_hint": 1156
+  },
+  "log.BenchmarkInfoln": {
+    "allocs": 4,
+    "bytes": 144,
+    "ns_hint": 897.1
+  },
+  "log.BenchmarkNewLogEvent": {
+    "allocs": 1,
+    "bytes": 32,
+    "ns_hint": 570.9
+  },
+  "types.BenchmarkNumberMarshalJSON": {
+    "allocs": 1,
+    "bytes": 16,
+    "ns_hint": 112.9
+  },
+  "types.BenchmarkNumberUnmarshalJSON": {
+    "allocs": 1,
+    "bytes": 16,
+    "ns_hint": 76.1
+  },
+  "types.BenchmarkPreciseNumberDecimal": {
+    "allocs": 3,
+    "bytes": 56,
+    "ns_hint": 132.7
+  },
+  "types.BenchmarkPreciseNumberUnmarshalJSON": {
+    "allocs": 16,
+    "bytes": 392,
+    "ns_hint": 793.3
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/date": {
+    "allocs": 2,
+    "bytes": 152,
+    "ns_hint": 315.8
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/fractional": {
+    "allocs": 1,
+    "bytes": 144,
+    "ns_hint": 293.4
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/padded_width": {
+    "allocs": 1,
+    "bytes": 144,
+    "ns_hint": 240.6
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/seconds": {
+    "allocs": 1,
+    "bytes": 144,
+    "ns_hint": 227.7
+  },
+  "types.BenchmarkUnmarshalJSON/direct/date": {
+    "allocs": 1,
+    "bytes": 8,
+    "ns_hint": 115
+  },
+  "types.BenchmarkUnmarshalJSON/direct/fractional": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 63.2
+  },
+  "types.BenchmarkUnmarshalJSON/direct/padded_width": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 46
+  },
+  "types.BenchmarkUnmarshalJSON/direct/seconds": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 37.7
+  }
+}
