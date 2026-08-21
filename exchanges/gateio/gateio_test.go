@@ -2606,6 +2606,30 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	require.True(t, ok, "zero-size update must emit canonical futures positions")
 	require.Len(t, positions, 1, "zero-size update must emit one position")
 	assert.Equal(t, order.Closed, positions[0].Status, "zero-size position status should be closed")
+	assert.Equal(t, order.UnknownSide, positions[0].LatestDirection, "zero-size single-mode direction should be unknown")
+	assert.Equal(t, time.UnixMilli(1787206135038), positions[0].CloseDate, "zero-size position close time should be preserved")
+
+	for _, tt := range []struct {
+		mode      string
+		direction order.Side
+	}{
+		{mode: "dual_long", direction: order.Long},
+		{mode: "dual_short", direction: order.Short},
+	} {
+		t.Run(tt.mode, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			dualPayload := []byte(strings.Replace(string(closedPayload), `"mode":"single"`, `"mode":"`+tt.mode+`"`, 1))
+			require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), dualPayload, asset.USDTMarginedFutures),
+				"processFuturesPositionsNotification must process a zero-size dual-mode update")
+			message := <-ex.Websocket.DataHandler.C
+			positions, ok := message.Data.([]futures.Position)
+			require.True(t, ok, "zero-size dual-mode update must emit canonical futures positions")
+			require.Len(t, positions, 1, "zero-size dual-mode update must emit one position")
+			assert.Equal(t, tt.direction, positions[0].LatestDirection, "zero-size dual-mode direction should be preserved")
+		})
+	}
 }
 
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
@@ -2924,8 +2948,13 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 			}
 		}
 		require.Lenf(t, matching, 1, "%s must have one account-wide subscription", channel)
-		require.Equal(t, currency.Pairs{allFuturesContracts}, matching[0].Pairs,
-			"account-wide subscription must use the documented !all selector")
+		require.Len(t, matching[0].Pairs, 1, "account-wide subscription must retain one identity pair")
+		assert.NotEqual(t, allFuturesContracts, matching[0].Pairs[0].String(),
+			"account-wide subscription should not register the selector as a currency")
+		assert.Equal(t, allFuturesContracts, matching[0].Params[contractPayloadOverrideParam],
+			"account-wide subscription should serialize the documented selector")
+		assert.True(t, matching[0].Params[requiresUserPlaceholderParam].(bool),
+			"account-wide subscription should retain the deprecated user placeholder")
 		require.Equal(t, asset.CoinMarginedFutures, matching[0].Asset,
 			"account-wide subscription must retain its futures asset")
 	}

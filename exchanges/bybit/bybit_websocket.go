@@ -13,6 +13,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -426,6 +427,10 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			if err != nil {
 				return err
 			}
+			direction, err = direction.Position()
+			if err != nil {
+				return err
+			}
 		}
 		collateralCurrency := pair.Quote
 		switch a {
@@ -442,6 +447,25 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 		if !result[i].Size.Decimal().IsZero() {
 			status = order.Open
 		}
+		switch result[i].PositionStatus {
+		case "Liq":
+			status = order.Liquidated
+		case "Adl":
+			status = order.AutoDeleverage
+		}
+		var closeDate time.Time
+		if result[i].Size.Decimal().IsZero() {
+			closeDate = result[i].UpdatedTime.Time()
+		}
+		positionMargin := result[i].PositionIM.Decimal()
+		// Bybit defines positionIM as the position's initial margin, so both canonical fields share the source value.
+		initialMarginRequirement := positionMargin
+		maintenanceMarginRequirement := result[i].PositionMM.Decimal()
+		var maintenanceMarginFraction decimal.Decimal
+		notionalSize := result[i].PositionValue.Decimal()
+		if !notionalSize.IsZero() {
+			maintenanceMarginFraction = maintenanceMarginRequirement.Div(notionalSize)
+		}
 		positions[i] = futures.Position{
 			Exchange:                     e.Name,
 			Asset:                        a,
@@ -449,10 +473,11 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			Underlying:                   pair.Base,
 			CollateralCurrency:           collateralCurrency,
 			Leverage:                     result[i].Leverage.Decimal(),
-			NotionalSize:                 result[i].PositionValue.Decimal(),
-			PositionMargin:               result[i].PositionIM.Decimal(),
-			InitialMarginRequirement:     result[i].PositionIM.Decimal(),
-			MaintenanceMarginRequirement: result[i].PositionMM.Decimal(),
+			NotionalSize:                 notionalSize,
+			PositionMargin:               positionMargin,
+			InitialMarginRequirement:     initialMarginRequirement,
+			MaintenanceMarginRequirement: maintenanceMarginRequirement,
+			MaintenanceMarginFraction:    maintenanceMarginFraction,
 			EstimatedLiquidationPrice:    result[i].LiqPrice.Decimal(),
 			UpdateID:                     result[i].Sequence,
 			RealisedPNL:                  result[i].CurrentRealisedPNL.Decimal(),
@@ -465,6 +490,7 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			LatestSize:                   result[i].Size.Decimal(),
 			LatestDirection:              direction,
 			LastUpdated:                  result[i].UpdatedTime.Time(),
+			CloseDate:                    closeDate,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, positions)

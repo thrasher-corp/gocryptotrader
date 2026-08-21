@@ -70,9 +70,11 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 
 var errNoChannelsSupplied = errors.New("no channels supplied")
 
-// Gate uses !all to subscribe to account updates for every futures contract. It is represented as a
-// pseudo-pair because the shared subscription payload generator requires exactly one pair.
-var allFuturesContracts = currency.Pair{Base: currency.NewCode("!all").Lower()}
+const (
+	allFuturesContracts          = "!all"
+	contractPayloadOverrideParam = "contractPayloadOverride"
+	requiresUserPlaceholderParam = "requiresUserPlaceholder"
+)
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
@@ -147,8 +149,13 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 		for _, channel := range []string{futuresPositionsChannel, futuresAutoPositionCloseChannel} {
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channel,
-				Pairs:   currency.Pairs{allFuturesContracts},
-				Asset:   a,
+				Pairs:   pairs[0:1],
+				Params: map[string]any{
+					contractPayloadOverrideParam: allFuturesContracts,
+					// Gate deprecated the user ID value but still requires its positional placeholder.
+					requiresUserPlaceholderParam: true,
+				},
+				Asset: a,
 			})
 		}
 	}
@@ -247,8 +254,10 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		}
 		var auth *WsAuthInput
 		timestamp := time.Now()
-		var params []string
-		params = []string{channelsToSubscribe[i].Pairs[0].String()}
+		params := []string{channelsToSubscribe[i].Pairs[0].String()}
+		if contractOverride, ok := channelsToSubscribe[i].Params[contractPayloadOverrideParam].(string); ok {
+			params[0] = contractOverride
+		}
 		if e.Websocket.CanUseAuthenticatedEndpoints() {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
@@ -256,12 +265,11 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				futuresAutoPositionCloseChannel, futuresBalancesChannel,
 				futuresReduceRiskLimitsChannel, futuresPositionsChannel,
 				futuresAutoOrdersChannel:
-				value, ok := channelsToSubscribe[i].Params["user"].(string)
-				if ok {
-					params = append(
-						[]string{value},
-						params...,
-					)
+				requiresUserPlaceholder, _ := channelsToSubscribe[i].Params[requiresUserPlaceholderParam].(bool)
+				if requiresUserPlaceholder {
+					params = append([]string{""}, params...)
+				} else if value, ok := channelsToSubscribe[i].Params["user"].(string); ok {
+					params = append([]string{value}, params...)
 				}
 				var sigTemp string
 				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
@@ -767,10 +775,17 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 			return err
 		}
 		size := resp.Result[i].Size.Decimal()
-		direction := order.Long
-		if size.IsNegative() {
+		direction := order.UnknownSide
+		switch {
+		case size.IsNegative():
 			direction = order.Short
 			size = size.Abs()
+		case size.IsPositive():
+			direction = order.Long
+		case resp.Result[i].Mode == "dual_long":
+			direction = order.Long
+		case resp.Result[i].Mode == "dual_short":
+			direction = order.Short
 		}
 		collateralCurrency := pair.Quote
 		if a == asset.CoinMarginedFutures {
@@ -783,6 +798,10 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 		status := order.Closed
 		if !size.IsZero() {
 			status = order.Open
+		}
+		var closeDate time.Time
+		if size.IsZero() {
+			closeDate = resp.Result[i].Time.Time()
 		}
 		positions[i] = futures.Position{
 			Exchange:                  e.Name,
@@ -802,6 +821,7 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 			LatestSize:                size,
 			LatestDirection:           direction,
 			LastUpdated:               resp.Result[i].Time.Time(),
+			CloseDate:                 closeDate,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, positions)

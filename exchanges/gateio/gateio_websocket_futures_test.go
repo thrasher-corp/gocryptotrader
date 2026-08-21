@@ -206,12 +206,16 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{
 				Channel: futuresPositionsChannel,
-				Pairs:   currency.Pairs{allFuturesContracts},
+				Pairs:   currency.Pairs{BTCUSDT},
+				Params: map[string]any{
+					contractPayloadOverrideParam: allFuturesContracts,
+					requiresUserPlaceholderParam: true,
+				},
 			},
 		})
 		require.NoError(t, err, "generateFuturesPayload must not error")
 		require.Len(t, got, 1, "all-contract positions must generate one payload")
-		require.Equal(t, []string{"!all"}, got[0].Payload,
+		require.Equal(t, []string{"", "!all"}, got[0].Payload,
 			"all-contract positions payload must use the documented selector")
 		require.NotNil(t, got[0].Auth, "all-contract positions payload must be authenticated")
 	})

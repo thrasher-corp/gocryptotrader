@@ -961,7 +961,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 				if !ok {
 					return fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset)
 				}
-				result, err := conn.SendMessageReturnResponse(request.WithVerbose(ctx), websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
+				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
 				if err != nil {
 					return err
 				}
