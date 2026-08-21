@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -175,7 +176,7 @@ func TestGetIsolatedMarginLoans(t *testing.T) {
 
 func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), nil), errNilArgument, "nil request should return the expected error")
+	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), nil), common.ErrNilPointer, "nil request should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		Currency: currency.BTC,
 		Type:     "borrow",
@@ -197,7 +198,7 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 		Currency:     currency.BTC,
 		Type:         "borrow",
 		Amount:       0,
-	}), errInvalidAmount, "zero amount should return the expected error")
+	}), order.ErrAmountIsInvalid, "zero amount should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
@@ -312,6 +313,9 @@ func TestGetIsolatedMarginAccountList(t *testing.T) {
 
 func TestGetIsolatedMarginPoolLoans(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip("web front-end endpoint is bot protected and cannot be recorded for mock testing")
+	}
 	ctx := request.WithHeaders(t.Context(), http.Header{
 		"User-Agent":                {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"},
 		"Accept":                    {"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"},

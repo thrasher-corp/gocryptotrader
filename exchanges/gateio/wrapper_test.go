@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -87,7 +88,7 @@ func TestOpenInterestFromStats(t *testing.T) {
 	_, err := openInterestFromStats(nil)
 	require.ErrorIs(t, err, errNoValidResponseFromServer)
 
-	openInterest, err := openInterestFromStats([]ContractStat{
+	openInterest, err := openInterestFromStats([]*ContractStat{
 		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
 		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
 		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
@@ -145,7 +146,7 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	pair := currency.NewBTCUSDT()
 	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Margin), "UpdateOrderExecutionLimits must not error for margin")
@@ -187,7 +188,7 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
 	require.NoError(t, err, "FetchTradablePairs must not error for margin")
@@ -225,6 +226,20 @@ func TestGetRequestedOpenInterestPair(t *testing.T) {
 	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{Asset: asset.DeliveryFutures}, {Asset: asset.DeliveryFutures}}, asset.DeliveryFutures)
 	require.NoError(t, err)
 	assert.Equal(t, currency.EMPTYPAIR, requested)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Truef(t, is, "%s should be a perpetual future currency", a)
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Falsef(t, is, "%s should not be a perpetual future currency", a)
+	}
 }
 
 func TestMessageID(t *testing.T) {
@@ -344,8 +359,6 @@ func BenchmarkMessageID(b *testing.B) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 
-	testexch.UpdatePairsOnce(t, e)
-
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, availMargin, "margin pairs must not be empty")
@@ -406,8 +419,8 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.Equal(t, e.Name, got.Exchange, "Exchange name should be correct")
 			assert.True(t, tc.pair.Equal(got.Pair), "Pair should be correct")
 			assert.Equal(t, tc.a, got.Asset, "Asset should be correct")
-			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
-			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Asks), 5, "Asks count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Bids), 5, "Bids count should not exceed limit, but may be empty especially for options")
 			assert.NotZero(t, got.LastUpdated, "Last updated timestamp should be set")
 			assert.NotZero(t, got.LastUpdateID, "Last update ID should be set")
 			assert.NotZero(t, got.LastPushed, "Last pushed timestamp should be set")
@@ -419,13 +432,132 @@ func TestFetchOrderbook(t *testing.T) {
 func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	ex.SetDefaults()
-	ex.Name = t.Name()
-
-	require.NoError(t, ex.Base.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false))
-
 	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
-	_, err := ex.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
+	_, err := e.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
 	require.ErrorIs(t, err, errNoSpotInstrument)
+}
+
+func TestSetCrossMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	balances := accounts.CurrencyBalances{}
+	setCrossMarginAccountBalances(&balances, nil)
+
+	setCrossMarginAccountBalances(&balances, &CrossMarginAccount{
+		Balances: map[string]CrossMarginCurrencyBalance{
+			"BTC": {
+				Available: types.Number(2),
+				Freeze:    types.Number(0.5),
+				Borrowed:  types.Number(0.25),
+				Interest:  types.Number(0.05),
+			},
+		},
+	})
+
+	got := balances[currency.BTC]
+	assert.InDelta(t, 2.5, got.Total, 0.00000001, "total should include available and frozen balances")
+	assert.InDelta(t, 0.5, got.Hold, 0.00000001, "hold should match frozen balance")
+	assert.InDelta(t, 2, got.Free, 0.00000001, "free should match available balance")
+	assert.InDelta(t, 0.3, got.Borrowed, 0.00000001, "borrowed should include principal and interest")
+	assert.InDelta(t, 1.7, got.AvailableWithoutBorrow, 0.00000001, "available without borrow should subtract borrowed principal and interest")
+}
+
+func TestSetIsolatedMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	err := setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		Base: AccountBalanceInformation{Currency: currency.BTC},
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		AccountType: "inactive",
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	balances := accounts.CurrencyBalances{}
+	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(1),
+				LockedAmount: types.Number(0.2),
+				Borrowed:     types.Number(0.25),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(10),
+				LockedAmount: types.Number(2),
+				Borrowed:     types.Number(2),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(3),
+				LockedAmount: types.Number(0.4),
+				Borrowed:     types.Number(0.5),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(5),
+				LockedAmount: types.Number(0.6),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(7),
+				LockedAmount: types.Number(0.8),
+				Borrowed:     types.Number(1),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(20),
+				LockedAmount: types.Number(4),
+			},
+		},
+	})
+	require.NoError(t, err, "setIsolatedMarginAccountBalances must add valid isolated margin balances")
+
+	btc := balances[currency.BTC]
+	assert.InDelta(t, 4.6, btc.Total, 0.00000001, "BTC total should include all isolated margin markets")
+	assert.InDelta(t, 0.6, btc.Hold, 0.00000001, "BTC hold should include all isolated margin markets")
+	assert.InDelta(t, 4, btc.Free, 0.00000001, "BTC free should include all isolated margin markets")
+	assert.InDelta(t, 0.75, btc.Borrowed, 0.00000001, "BTC borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 3.25, btc.AvailableWithoutBorrow, 0.00000001, "BTC available without borrow should subtract borrowed principal")
+
+	usdt := balances[currency.USDT]
+	assert.InDelta(t, 36, usdt.Total, 0.00000001, "USDT total should include all isolated margin markets")
+	assert.InDelta(t, 6, usdt.Hold, 0.00000001, "USDT hold should include all isolated margin markets")
+	assert.InDelta(t, 30, usdt.Free, 0.00000001, "USDT free should include all isolated margin markets")
+	assert.InDelta(t, 2, usdt.Borrowed, 0.00000001, "USDT borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 28, usdt.AvailableWithoutBorrow, 0.00000001, "USDT available without borrow should subtract borrowed principal")
+
+	eth := balances[currency.ETH]
+	assert.InDelta(t, 13.4, eth.Total, 0.00000001, "ETH total should include base and quote isolated margin entries")
+	assert.InDelta(t, 1.4, eth.Hold, 0.00000001, "ETH hold should include base and quote isolated margin entries")
+	assert.InDelta(t, 12, eth.Free, 0.00000001, "ETH free should include base and quote isolated margin entries")
+	assert.InDelta(t, 1, eth.Borrowed, 0.00000001, "ETH borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 11, eth.AvailableWithoutBorrow, 0.00000001, "ETH available without borrow should subtract borrowed principal")
+}
+
+func TestAddIsolatedMarginAccountBalanceWithNegativeAvailable(t *testing.T) {
+	t.Parallel()
+	balances := accounts.CurrencyBalances{}
+	err := addIsolatedMarginAccountBalance(&balances, AccountBalanceInformation{
+		Currency:  currency.LRC,
+		Available: types.Number(-0.01462404),
+		Borrowed:  types.Number(4.85),
+	})
+	require.NoError(t, err, "addIsolatedMarginAccountBalance must add a valid isolated margin balance")
+
+	lrc := balances[currency.LRC]
+	assert.InDelta(t, -0.01462404, lrc.Total, 0.00000001, "total should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
+	assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
 }

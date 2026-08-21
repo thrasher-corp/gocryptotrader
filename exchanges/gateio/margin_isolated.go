@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -28,13 +30,13 @@ var (
 
 // TransferCollateralToIsolatedMargin transfers collateral from spot account to isolated margin account for a specific currency and pair.
 func (e *Exchange) TransferCollateralToIsolatedMargin(ctx context.Context, pair currency.Pair, ccy currency.Code, amount float64) (*TransactionIDResponse, error) {
-	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: spotAccount, To: marginAccount, Amount: types.Number(amount)})
+	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: asset.Spot, To: asset.Margin, Amount: types.Number(amount)})
 }
 
 // TransferCollateralFromIsolatedMargin transfers collateral from an isolated margin account to spot account for a specific currency and pair.
 // NOTE: Collateral can be orphaned when interest deduction has occurred but has not been repaid yet.
 func (e *Exchange) TransferCollateralFromIsolatedMargin(ctx context.Context, pair currency.Pair, ccy currency.Code, amount float64) (*TransactionIDResponse, error) {
-	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: marginAccount, To: spotAccount, Amount: types.Number(amount)})
+	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: asset.Margin, To: asset.Spot, Amount: types.Number(amount)})
 }
 
 // GetIsolatedMarginAccountBalanceChangeHistory retrieves margin account balance change history
@@ -184,7 +186,7 @@ func (e *Exchange) GetIsolatedMarginLoans(ctx context.Context, ccy currency.Code
 // NOTE: 204 no content returned on success for borrow and repay.
 func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *IsolatedBorrowRepayRequest) error {
 	if arg == nil {
-		return errNilArgument
+		return common.ErrNilPointer
 	}
 	if arg.CurrencyPair.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
@@ -203,7 +205,7 @@ func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *Isolate
 			return errAmountOverriddenByRepaidAll
 		}
 	} else if arg.Amount <= 0 {
-		return fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
+		return fmt.Errorf("%w: amount must be greater than 0", order.ErrAmountIsInvalid)
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginCreateUniLoanEPL, http.MethodPost, "margin/uni/loans", nil, arg, nil)
 }
@@ -234,7 +236,7 @@ func (e *Exchange) GetIsolatedMarginLoanRecords(ctx context.Context, ccy currenc
 }
 
 // GetIsolatedMarginInterestDeductionRecords retrieves interest deduction records for isolated margin loans.
-func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, page, limit uint64, from, to time.Time) ([]LoanInterestDeductionRecord, error) {
+func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, page, limit uint64, from, to time.Time) ([]InterestDeductionRecord, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
@@ -254,7 +256,7 @@ func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
-	var response []LoanInterestDeductionRecord
+	var response []InterestDeductionRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, "margin/uni/interest_records", params, nil, &response)
 }
 
@@ -349,7 +351,7 @@ func (e *Exchange) GetIsolatedMarginPoolLoans(ctx context.Context, coin currency
 	path := common.EncodeURLValues("spot_loan/margin/margin_loan_info", params)
 
 	var resp *IsolatedMarginPoolLoanResponse
-	if err := e.SendHTTPRequest(ctx, exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, path, &resp); err != nil {
+	if err := e.sendUnversionedHTTPRequest(ctx, exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, path, &resp); err != nil {
 		return nil, err
 	}
 
