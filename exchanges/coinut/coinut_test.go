@@ -3,8 +3,15 @@ package coinut
 import (
 	"context"
 	"log"
+	"math"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"slices"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,12 +21,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -99,6 +108,86 @@ func TestSeedInstruments(t *testing.T) {
 	if len(e.instrumentMap.GetInstrumentIDs()) == 0 {
 		t.Error("instrument map hasn't been seeded")
 	}
+}
+
+func TestGetTradeHistoryPagination(t *testing.T) {
+	t.Parallel()
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name  string
+			start uint64
+			limit uint64
+		}{
+			{name: "omit pagination"},
+			{name: "limit only", limit: 2},
+			{name: "start only", start: 101},
+			{name: "start and limit", start: 101, limit: 2},
+			{name: "maximum start", start: math.MaxUint64},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				type requestResult struct {
+					payload map[string]json.RawMessage
+					err     error
+				}
+				requestC := make(chan requestResult, 1)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var payload map[string]json.RawMessage
+					err := json.NewDecoder(r.Body).Decode(&payload)
+					requestC <- requestResult{payload: payload, err: err}
+					_, err = w.Write([]byte(`{"status":["OK"],"total_number":0,"trades":[]}`))
+					assert.NoError(t, err, "GetTradeHistory fixture response writing should not error")
+				}))
+				t.Cleanup(server.Close)
+
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Test exchange setup must not error")
+				ex.SkipAuthCheck = true
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "Setting the HTTP client must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "Setting the REST endpoint must not error")
+
+				result, err := ex.GetTradeHistory(t.Context(), 123, tc.start, tc.limit)
+				require.NoError(t, err, "GetTradeHistory must not error")
+				assert.Equal(t, TradeHistory{Trades: []OrderFilledResponse{}}, result, "GetTradeHistory should return the correct trade history")
+
+				var capturedRequest requestResult
+				select {
+				case capturedRequest = <-requestC:
+				case <-time.After(time.Second):
+					t.Fatal("GetTradeHistory must send a request to the mock server")
+				}
+				require.NoError(t, capturedRequest.err, "GetTradeHistory fixture request decoding must not error")
+				delete(capturedRequest.payload, "nonce")
+				expected := map[string]json.RawMessage{
+					"inst_id": []byte("123"),
+					"request": []byte(strconv.Quote(coinutTradeHistory)),
+				}
+				if tc.start != 0 {
+					expected["start"] = []byte(strconv.FormatUint(tc.start, 10))
+				}
+				if tc.limit != 0 {
+					expected["limit"] = []byte(strconv.FormatUint(tc.limit, 10))
+				}
+				assert.Equal(t, expected, capturedRequest.payload, "GetTradeHistory request should contain the correct parameters")
+			})
+		}
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		instrumentIDs := e.instrumentMap.GetInstrumentIDs()
+		require.NotEmpty(t, instrumentIDs, "instrumentIDs must contain a live instrument")
+		slices.Sort(instrumentIDs)
+
+		result, err := e.GetTradeHistory(t.Context(), instrumentIDs[0], 101, 2)
+		require.NoError(t, err, "GetTradeHistory must not error")
+		assert.LessOrEqual(t, len(result.Trades), 2, "GetTradeHistory should honour the requested limit")
+	})
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -250,19 +339,343 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
-func TestGetOrderHistoryWrapper(t *testing.T) {
-	t.Parallel()
-	setupWSTestAuth(t)
-	getOrdersRequest := order.MultiOrderRequest{
-		Type:      order.AnyType,
-		AssetType: asset.Spot,
-		Pairs:     []currency.Pair{currency.NewBTCUSD()},
-		Side:      order.AnySide,
+func TestGetOrderHistory(t *testing.T) {
+	const (
+		emptyTradeHistoryResponse = `{"status":["OK"],"total_number":0,"trades":[]}`
+		validTradeHistoryResponse = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"BUY"}}]}`
+		invalidSideResponse       = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"INVALID"}}]}`
+	)
+
+	for _, tc := range []struct {
+		name                   string
+		request                *order.MultiOrderRequest
+		instruments            map[string]int64
+		enabledPairs           currency.Pairs
+		disableSpot            bool
+		clearRequestFormat     bool
+		response               string
+		wantError              bool
+		wantErrorIs            error
+		wantOrders             order.FilteredOrders
+		wantRequestCount       int
+		wantTradeInstrumentIDs []float64
+		wantOmittedPagination  bool
+	}{
+		{
+			name:        "nil request validation",
+			wantErrorIs: order.ErrGetOrdersRequestIsNil,
+		},
+		{
+			name:             "instrument load failure",
+			request:          &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			response:         `{`,
+			wantError:        true,
+			wantRequestCount: 1,
+		},
+		{
+			name:        "REST empty pair formatting failure",
+			request:     &order.MultiOrderRequest{Pairs: currency.Pairs{currency.EMPTYPAIR}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantErrorIs: currency.ErrCurrencyPairEmpty,
+		},
+		{
+			name:         "REST mapped pair success",
+			request:      &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:  map[string]int64{"BTCUSD": 123},
+			enabledPairs: currency.Pairs{currency.NewBTCUSD()},
+			response:     validTradeHistoryResponse,
+			wantOrders: order.FilteredOrders{{
+				OrderID:  "42",
+				Amount:   2,
+				Price:    10,
+				Exchange: "COINUT",
+				Side:     order.Buy,
+				Date:     time.Unix(1700000000, 0),
+				Pair:     currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+			}},
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+		{
+			name:                   "REST unmapped pair falls back to all instruments",
+			request:                &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:            map[string]int64{"ETHUSDT": 456, "LTCUSDT": 123},
+			response:               emptyTradeHistoryResponse,
+			wantOrders:             order.FilteredOrders{},
+			wantRequestCount:       2,
+			wantTradeInstrumentIDs: []float64{123, 456},
+			wantOmittedPagination:  true,
+		},
+		{
+			name:        "disabled spot store fails enabled pairs",
+			request:     &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments: map[string]int64{"LTCUSDT": 123},
+			disableSpot: true,
+			wantErrorIs: asset.ErrNotEnabled,
+		},
+		{
+			name:               "missing request format fails pair format",
+			request:            &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:        map[string]int64{"LTCUSDT": 123},
+			clearRequestFormat: true,
+			wantErrorIs:        currency.ErrPairFormatIsNil,
+		},
+		{
+			name:                   "REST trade history decode failure",
+			request:                &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:            map[string]int64{"BTCUSD": 123},
+			enabledPairs:           currency.Pairs{currency.NewBTCUSD()},
+			response:               `{`,
+			wantError:              true,
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+		{
+			name:                   "REST malformed instrument pair conversion",
+			request:                &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:            map[string]int64{"": 123},
+			response:               validTradeHistoryResponse,
+			wantError:              true,
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+		{
+			name:                   "REST invalid order side",
+			request:                &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:            map[string]int64{"BTCUSD": 123},
+			enabledPairs:           currency.Pairs{currency.NewBTCUSD()},
+			response:               invalidSideResponse,
+			wantErrorIs:            order.ErrSideIsInvalid,
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				requestMutex sync.Mutex
+				requests     []map[string]any
+			)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var payload map[string]any
+				err := json.NewDecoder(r.Body).Decode(&payload)
+				requestMutex.Lock()
+				requests = append(requests, payload)
+				requestMutex.Unlock()
+				assert.NoError(t, err, "GetOrderHistory fixture request decoding should not error")
+				response := tc.response
+				if response == "" {
+					response = emptyTradeHistoryResponse
+				}
+				_, err = w.Write([]byte(response))
+				assert.NoError(t, err, "GetOrderHistory fixture response writing should not error")
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "GetOrderHistory exchange setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "GetOrderHistory HTTP client setup must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "GetOrderHistory REST endpoint setup must not error")
+			for instrument, id := range tc.instruments {
+				ex.instrumentMap.Seed(instrument, id)
+			}
+			if tc.enabledPairs != nil {
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, tc.enabledPairs, false), "GetOrderHistory available-pair setup must not error")
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, tc.enabledPairs, true), "GetOrderHistory enabled-pair setup must not error")
+			}
+			if tc.disableSpot {
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "GetOrderHistory disabled-asset setup must not error")
+			}
+			if tc.clearRequestFormat {
+				ex.CurrencyPairs.RequestFormat = nil
+			}
+
+			orders, err := ex.GetOrderHistory(t.Context(), tc.request)
+			switch {
+			case tc.wantErrorIs != nil:
+				assert.ErrorIs(t, err, tc.wantErrorIs, "GetOrderHistory should error correctly")
+			case tc.wantError:
+				assert.Error(t, err, "GetOrderHistory should error")
+			default:
+				require.NoError(t, err, "GetOrderHistory must not error")
+			}
+			if tc.wantOrders != nil {
+				assert.Equal(t, tc.wantOrders, orders, "GetOrderHistory should return the correct orders")
+			}
+
+			requestMutex.Lock()
+			capturedRequests := append([]map[string]any(nil), requests...)
+			requestMutex.Unlock()
+			assert.Len(t, capturedRequests, tc.wantRequestCount, "GetOrderHistory should send the correct number of REST requests")
+			var instrumentIDs []float64
+			for _, request := range capturedRequests {
+				if request["request"] != coinutTradeHistory {
+					continue
+				}
+				if tc.wantOmittedPagination {
+					assert.NotContains(t, request, "start", "GetOrderHistory request should omit start")
+					assert.NotContains(t, request, "limit", "GetOrderHistory request should omit limit")
+				}
+				instrumentID, ok := request["inst_id"].(float64)
+				require.True(t, ok, "GetOrderHistory request instrument ID must be numeric")
+				instrumentIDs = append(instrumentIDs, instrumentID)
+			}
+			sort.Float64s(instrumentIDs)
+			assert.Equal(t, tc.wantTradeInstrumentIDs, instrumentIDs, "GetOrderHistory should request the correct instruments")
+		})
 	}
 
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	if sharedtestvalues.AreAPICredentialsSet(e) && err != nil {
-		t.Errorf("Could not get order history: %s", err)
+	for _, tc := range []struct {
+		name        string
+		mode        string
+		instruments map[string]int64
+		wantError   bool
+		wantErrorIs error
+		wantOrders  int
+		wantStarts  []int64
+	}{
+		{
+			name:        "websocket valid single trade",
+			mode:        "single",
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantOrders:  1,
+			wantStarts:  []int64{0},
+		},
+		{
+			name:        "websocket partial results on second page error",
+			mode:        "second page error",
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantError:   true,
+			wantOrders:  100,
+			wantStarts:  []int64{0, 100},
+		},
+		{
+			name:        "websocket malformed instrument pair conversion",
+			mode:        "malformed pair",
+			instruments: map[string]int64{"": 456, "BTCUSD": 123},
+			wantError:   true,
+			wantStarts:  []int64{0},
+		},
+		{
+			name:        "websocket invalid order side",
+			mode:        "invalid side",
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantErrorIs: order.ErrSideIsInvalid,
+			wantStarts:  []int64{0},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				requestMutex sync.Mutex
+				requests     []WsTradeHistoryRequest
+			)
+			server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
+				var request WsTradeHistoryRequest
+				if err := json.Unmarshal(payload, &request); err != nil {
+					return err
+				}
+				requestMutex.Lock()
+				requests = append(requests, request)
+				requestMutex.Unlock()
+
+				status := []string{"OK"}
+				trades := make([]map[string]any, 0, 1)
+				tradeCount := 1
+				instrumentID := int64(123)
+				side := "BUY"
+				if tc.mode == "second page error" {
+					if request.Start == 100 {
+						status = []string{"ERROR"}
+						tradeCount = 0
+					} else {
+						tradeCount = 100
+						trades = make([]map[string]any, 0, tradeCount)
+					}
+				}
+				if tc.mode == "malformed pair" {
+					instrumentID = 456
+				}
+				if tc.mode == "invalid side" {
+					side = "INVALID"
+				}
+				for i := range tradeCount {
+					trades = append(trades, map[string]any{
+						"client_ord_id": i + 1000,
+						"inst_id":       instrumentID,
+						"open_qty":      "0.5",
+						"order_id":      i + 42,
+						"price":         "10",
+						"qty":           "2",
+						"side":          side,
+						"status":        []string{"FILLED"},
+						"timestamp":     1700000000,
+					})
+				}
+				response, err := json.Marshal(map[string]any{
+					"nonce":        request.Nonce,
+					"reply":        "trade_history",
+					"status":       status,
+					"total_number": len(trades),
+					"trades":       trades,
+				})
+				if err != nil {
+					return err
+				}
+				return conn.WriteMessage(gws.TextMessage, response)
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "GetOrderHistory exchange setup must not error")
+			for instrument, id := range tc.instruments {
+				ex.instrumentMap.Seed(instrument, id)
+			}
+			ex.API.AuthenticatedWebsocketSupport = false
+			ex.Features.Subscriptions = nil
+			require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "GetOrderHistory websocket URL setup must not error")
+			ex.Websocket.SetSubscriptionsNotRequired()
+			require.NoError(t, ex.Websocket.Enable(t.Context()), "GetOrderHistory websocket connection must not error")
+			t.Cleanup(func() {
+				assert.NoError(t, ex.Websocket.Shutdown(), "GetOrderHistory websocket shutdown should not error")
+			})
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+			orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				Pairs:     currency.Pairs{currency.NewBTCUSD()},
+				AssetType: asset.Spot,
+				Type:      order.AnyType,
+				Side:      order.AnySide,
+			})
+			switch {
+			case tc.wantErrorIs != nil:
+				assert.ErrorIs(t, err, tc.wantErrorIs, "GetOrderHistory should error correctly")
+			case tc.wantError:
+				assert.Error(t, err, "GetOrderHistory should error")
+			default:
+				require.NoError(t, err, "GetOrderHistory must not error")
+			}
+			assert.Len(t, orders, tc.wantOrders, "GetOrderHistory should return the correct number of websocket orders")
+			if tc.mode == "single" {
+				require.Len(t, orders, 1, "GetOrderHistory must return one websocket order")
+				assert.Equal(t, "42", orders[0].OrderID, "GetOrderHistory should return the correct websocket order ID")
+				assert.Equal(t, currency.NewBTCUSD(), orders[0].Pair, "GetOrderHistory should return the correct websocket pair")
+				assert.Equal(t, order.Buy, orders[0].Side, "GetOrderHistory should return the correct websocket side")
+			}
+
+			requestMutex.Lock()
+			capturedRequests := append([]WsTradeHistoryRequest(nil), requests...)
+			requestMutex.Unlock()
+			starts := make([]int64, len(capturedRequests))
+			for i := range capturedRequests {
+				starts[i] = capturedRequests[i].Start
+				assert.Equal(t, int64(100), capturedRequests[i].Limit, "GetOrderHistory websocket request should use the correct page limit")
+			}
+			assert.Equal(t, tc.wantStarts, starts, "GetOrderHistory should request the correct websocket pages")
+		})
 	}
 }
 
