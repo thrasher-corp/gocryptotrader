@@ -177,7 +177,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	err = m.websocketDataHandler(exchName, []futures.Position{{
 		Exchange: exchName,
 		Asset:    asset.USDTMarginedFutures,
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 	}})
 	require.NoError(t, err)
 	origOrder := &order.Detail{
