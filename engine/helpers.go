@@ -184,9 +184,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case NTPManagerName:
 		if enable {
 			if bot.ntpManager == nil {
-				bot.ntpManager, err = setupNTPManager(
-					&bot.Config.NTPClient,
-					*bot.Config.Logging.Enabled)
+				bot.ntpManager, err = setupNTPManager(&bot.Config.NTPClient)
 				if err != nil {
 					return err
 				}
