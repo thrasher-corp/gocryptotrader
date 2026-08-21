@@ -104,16 +104,6 @@ type QueryOrderFinalResponse struct {
 	Orders []OrderResponse
 }
 
-// OrderHistory stores data for past orders
-type OrderHistory struct {
-	Result      bool            `json:"result,string"`
-	Total       string          `json:"total"`
-	PageLength  uint8           `json:"page_length"`
-	Orders      json.RawMessage `json:"orders"`
-	CurrentPage uint8           `json:"current_page"`
-	ErrorCode   int64           `json:"error_code"`
-}
-
 // OrderHistoryResponse stores past orders
 type OrderHistoryResponse struct {
 	ErrCapture
@@ -175,11 +165,6 @@ type OpenOrderFinalResponse struct {
 	Orders     []OrderResponse
 }
 
-// ExchangeRateResponse stores information about USD-RMB rate
-type ExchangeRateResponse struct {
-	USD2CNY string `json:"USD2CNY"`
-}
-
 // WithdrawConfigResponse stores info about withdrawal configurations
 type WithdrawConfigResponse struct {
 	AmountScale         int64         `json:"amountScale,string"`
@@ -232,12 +217,6 @@ type WithdrawalResponse struct {
 type ErrCapture struct {
 	Error  int64 `json:"error_code"`
 	Result bool  `json:"result,string"`
-}
-
-// GetAllOpenIDResp stores orderIds and currency pairs for open orders
-type GetAllOpenIDResp struct {
-	CurrencyPair string
-	OrderID      string
 }
 
 // V2Response wraps all LBank v2 API responses

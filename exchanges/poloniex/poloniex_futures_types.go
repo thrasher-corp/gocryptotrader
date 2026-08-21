@@ -678,71 +678,11 @@ func (v *WsFuturesMarkAndIndexPriceCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[8]any{&v.Symbol, &v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime, &v.PushTimestamp})
 }
 
-// MarginModeSwitchResponse represents a response detail after switching margin mode for a symbol
-type MarginModeSwitchResponse struct {
-	MarginMode string        `json:"mgnMode"`
-	Symbol     currency.Pair `json:"symbol"`
-}
-
 // ContractLimitPrice holds a contracts highest buy price and lowest sell price limits
 type ContractLimitPrice struct {
 	Symbol    currency.Pair `json:"symbol"`
 	BuyLimit  float64       `json:"buyLmt"`
 	SellLimit float64       `json:"sellLmt"`
-}
-
-// FuturesOrders represents a paginated list of Futures orders.
-type FuturesOrders struct {
-	CurrentPage int64          `json:"currentPage"`
-	PageSize    int64          `json:"pageSize"`
-	TotalNum    int64          `json:"totalNum"`
-	TotalPage   int64          `json:"totalPage"`
-	Items       []FuturesOrder `json:"items"`
-}
-
-// FuturesOrder represents a futures order detail.
-type FuturesOrder struct {
-	OrderID             string            `json:"id"`
-	Symbol              currency.Pair     `json:"symbol"`
-	OrderType           string            `json:"type"`
-	Side                string            `json:"side"`
-	Price               types.Number      `json:"price"`
-	Size                float64           `json:"size"`
-	Value               types.Number      `json:"value"`
-	FilledValue         types.Number      `json:"filledValue"`
-	FilledSize          float64           `json:"filledSize"`
-	SelfTradePrevention string            `json:"stp"`
-	Stop                string            `json:"stop"`
-	StopPriceType       string            `json:"stopPriceType"`
-	StopTriggered       bool              `json:"stopTriggered"`
-	StopPrice           float64           `json:"stopPrice"`
-	TimeInForce         order.TimeInForce `json:"timeInForce"`
-	PostOnly            bool              `json:"postOnly"`
-	Hidden              bool              `json:"hidden"`
-	Iceberg             bool              `json:"iceberg"`
-	VisibleSize         float64           `json:"visibleSize"`
-	Leverage            types.Number      `json:"leverage"`
-	ForceHold           bool              `json:"forceHold"`
-	CloseOrder          bool              `json:"closeOrder"`
-	ReduceOnly          bool              `json:"reduceOnly"`
-	ClientOrderID       string            `json:"clientOid"`
-	Remark              string            `json:"remark"`
-	IsActive            bool              `json:"isActive"`
-	CancelExist         bool              `json:"cancelExist"`
-	CreatedAt           types.Time        `json:"createdAt"`
-	SettleCurrency      currency.Code     `json:"settleCurrency"`
-	Status              string            `json:"status"`
-	UpdatedAt           types.Time        `json:"updatedAt"`
-	OrderTime           types.Time        `json:"orderTime"`
-
-	MarginType int64           `json:"marginType"` // Margin Mode, 0 (Isolated) or 1 (Cross)
-	Trades     []TradeIDAndFee `json:"trades"`
-}
-
-// TradeIDAndFee holds a trade ID and fee information
-type TradeIDAndFee struct {
-	FeePay  float64 `json:"feePay"`
-	TradeID string  `json:"tradeId"`
 }
 
 // AuthenticationResponse represents an authentication response for futures websocket connection

@@ -134,13 +134,6 @@ type OrderBookResponse struct {
 	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
-// DepthUpdateParams is used as an embedded type for WebsocketDepthStream
-type DepthUpdateParams []struct {
-	PriceLevel float64
-	Quantity   float64
-	ignore     []any
-}
-
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
 	Event         string                           `json:"e"`
@@ -737,25 +730,6 @@ type UserAccountStream struct {
 	ListenKey string `json:"listenKey"`
 }
 
-// WsAccountInfoData defines websocket account info data
-type WsAccountInfoData struct {
-	CanDeposit       bool      `json:"D"`
-	CanTrade         bool      `json:"T"`
-	CanWithdraw      bool      `json:"W"`
-	EventTime        time.Time `json:"E"`
-	LastUpdated      time.Time `json:"u"`
-	BuyerCommission  float64   `json:"b"`
-	MakerCommission  float64   `json:"m"`
-	SellerCommission float64   `json:"s"`
-	TakerCommission  float64   `json:"t"`
-	EventType        string    `json:"e"`
-	Currencies       []struct {
-		Asset     string  `json:"a"`
-		Available float64 `json:"f,string"`
-		Locked    float64 `json:"l,string"`
-	} `json:"B"`
-}
-
 // WsAccountPositionData defines websocket account position data
 type WsAccountPositionData struct {
 	Currencies []struct {
@@ -838,22 +812,6 @@ type WsPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
 	ID     string   `json:"id"`
-}
-
-// CrossMarginInterestData stores cross margin data for borrowing
-type CrossMarginInterestData struct {
-	Code          int64  `json:"code,string"`
-	Message       string `json:"message"`
-	MessageDetail string `json:"messageDetail"`
-	Data          []struct {
-		AssetName string `json:"assetName"`
-		Specs     []struct {
-			VipLevel          string `json:"vipLevel"`
-			DailyInterestRate string `json:"dailyInterestRate"`
-			BorrowLimit       string `json:"borrowLimit"`
-		} `json:"specs"`
-	} `json:"data"`
-	Success bool `json:"success"`
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation

@@ -980,13 +980,6 @@ type CoinGreeks struct {
 	} `json:"list"`
 }
 
-// FeeRate represents maker and taker fee rate information for a symbol.
-type FeeRate struct {
-	Symbol       string       `json:"symbol"`
-	TakerFeeRate types.Number `json:"takerFeeRate"`
-	MakerFeeRate types.Number `json:"makerFeeRate"`
-}
-
 // AccountInfo represents margin mode account information.
 type AccountInfo struct {
 	UnifiedMarginStatus      int64        `json:"unifiedMarginStatus"`
@@ -1988,28 +1981,12 @@ type GreeksResponse struct {
 	} `json:"data"`
 }
 
-// PingMessage represents a ping message.
-type PingMessage struct {
-	Operation string `json:"op"`
-	RequestID string `json:"req_id"`
-}
-
 // InstrumentInfoItem represents an instrument long short ratio information.
 type InstrumentInfoItem struct {
 	Symbol    string       `json:"symbol"`
 	BuyRatio  types.Number `json:"buyRatio"`
 	SellRatio types.Number `json:"sellRatio"`
 	Timestamp types.Time   `json:"timestamp"`
-}
-
-// Error defines all error information for each request
-type Error struct {
-	ReturnCode      int64  `json:"ret_code"`
-	ReturnMsg       string `json:"ret_msg"`
-	ReturnCodeV5    int64  `json:"retCode"`
-	ReturnMessageV5 string `json:"retMsg"`
-	ExtCode         string `json:"ext_code"`
-	ExtMsg          string `json:"ext_info"`
 }
 
 // accountTypeHolder holds the account type associated with the loaded API key.
