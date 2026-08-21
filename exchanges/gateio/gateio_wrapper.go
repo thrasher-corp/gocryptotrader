@@ -2578,7 +2578,9 @@ func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p
 	if err != nil {
 		return 0, err
 	}
-	stats, err := e.GetFutureStats(ctx, settle, p, time.Time{}, 0, 1)
+	// Query an extra row so a gap in the latest interval does not turn an
+	// otherwise available open-interest series into an empty result.
+	stats, err := e.GetFutureStats(ctx, settle, p, time.Time{}, 0, 2)
 	if err != nil {
 		return 0, err
 	}
