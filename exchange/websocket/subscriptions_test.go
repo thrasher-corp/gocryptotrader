@@ -1657,6 +1657,47 @@ func TestResubscribeFromConnection(t *testing.T) {
 		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
 		require.ErrorIs(t, err, errAlreadyConnected, "must error")
 	})
+	t.Run("Missing connection subscription", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		sub := &subscription.Subscription{Channel: "sub"}
+		require.NoError(t, m.subscriptions.Add(sub), "subscription must be added to the manager store")
+		conn := &connection{subscriptions: subscription.NewStore()}
+		subscriberCalled := false
+		m.Subscriber = func(subscription.List) error {
+			subscriberCalled = true
+			return nil
+		}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub})
+		require.ErrorIs(t, err, ErrSubscriptionsNotRemoved, "must error when the subscription is not owned by the connection")
+		assert.False(t, subscriberCalled, "subscriber should not be called for a subscription owned by another connection")
+	})
+	t.Run("Capacity consumed during unsubscribe", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		m.subscriptions = subscription.NewStore()
+		connStore := subscription.NewStore()
+		sub := &subscription.Subscription{Channel: "sub"}
+		other := &subscription.Subscription{Channel: "other"}
+		require.NoError(t, m.subscriptions.Add(sub), "subscription must be added to the manager store")
+		require.NoError(t, connStore.Add(sub), "subscription must be added to the connection store")
+		m.Unsubscriber = func(subscription.List) error {
+			return connStore.Add(other)
+		}
+		subscriberCalled := false
+		m.Subscriber = func(subscription.List) error {
+			subscriberCalled = true
+			return nil
+		}
+		conn := &connection{subscriptions: connStore}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub})
+		require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "must error when connection capacity is consumed during resubscription")
+		assert.False(t, subscriberCalled, "subscriber should not be called when the connection has no capacity")
+	})
 }
 
 func TestUnsubscribeFromConnection(t *testing.T) {

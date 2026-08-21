@@ -559,11 +559,19 @@ func (m *Manager) ResubscribeFromConnection(ctx context.Context, conn Connection
 	if err := subs.SetStates(subscription.ResubscribingState); err != nil {
 		return err
 	}
-	if _, err := m.unsubscribeFromConnection(ctx, conn, subs); err != nil {
+	missing, err := m.unsubscribeFromConnection(ctx, conn, subs)
+	if err != nil {
 		return err
 	}
-	if _, err := m.subscribeToConnection(ctx, conn, subs); err != nil {
+	if len(missing) > 0 {
+		return fmt.Errorf("%w: %q", ErrSubscriptionsNotRemoved, missing)
+	}
+	remaining, err := m.subscribeToConnection(ctx, conn, subs)
+	if err != nil {
 		return err
+	}
+	if len(remaining) > 0 {
+		return fmt.Errorf("%w: %q", ErrSubscriptionsNotAdded, remaining)
 	}
 	return nil
 }

@@ -954,6 +954,9 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if len(subscriptionsToResub) == 0 {
 			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
 		}
+		if e.Verbose {
+			log.Debugf(log.ExchangeSys, "Resubscribing to %v due to orderbook error: %v", subscriptionsToResub.Strings(), err)
+		}
 		go func() {
 			if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); err != nil {
 				log.Errorf(log.ExchangeSys, "Failed to resubscribe %v: %v", subscriptionsToResub.Strings(), err)
