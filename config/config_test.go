@@ -1525,7 +1525,9 @@ func TestReadVersion0ConfigFromFile(t *testing.T) {
 		Version int `json:"version"`
 	}
 	require.NoError(t, json.Unmarshal(latestCfg, &latest), "json.Unmarshal must not error when reading latest config version")
-	assert.Equal(t, latest.Version, legacy.Version, "Version 0 fixture should upgrade to the latest registered version")
+	assert.Equal(t, latest.Version, legacy.Version, "ReadConfigFromFile should upgrade version 0 fixture to the latest registered version")
+	_, err = legacy.GetExchangeConfig("Bitmex")
+	assert.ErrorIs(t, err, ErrExchangeNotFound, "GetExchangeConfig should return ErrExchangeNotFound for retired BitMEX")
 }
 
 func TestReadConfigFromReader(t *testing.T) {
