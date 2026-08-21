@@ -725,9 +725,13 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out when native websocket cancel all is unavailable")
+
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSD()})
 
 	if sharedtestvalues.AreAPICredentialsSet(e) {
 		assert.NoError(t, err, "CancelAllOrders should not error")
@@ -735,7 +739,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "CancelBatchOrders should error correctly")
 	}
 
-	assert.Empty(t, resp.Status, "CancelAllOrders Status should not contain any failed order errors")
+	if err == nil {
+		assert.Empty(t, resp.Status, "CancelAllOrders Status should not contain any failed order errors")
+	}
 }
 
 // TestUpdateAccountBalances exercises UpdateAccountBalances

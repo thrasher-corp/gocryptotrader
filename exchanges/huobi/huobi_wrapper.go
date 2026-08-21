@@ -343,12 +343,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for i := range ticks.Data {
 			var cp currency.Pair
-			cp, _, err = e.MatchSymbolCheckEnabled(ticks.Data[i].Symbol, a, false)
+			cp, err = e.MatchSymbolWithAvailablePairs(ticks.Data[i].Symbol, a, false)
 			if err != nil {
-				if !errors.Is(err, currency.ErrPairNotFound) {
-					errs = common.AppendError(errs, err)
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
 				}
-				continue
+				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks.Data[i].High,
@@ -377,12 +377,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for i := range ticks {
 			var cp currency.Pair
-			cp, _, err = e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
+			cp, err = e.MatchSymbolWithAvailablePairs(ticks[i].ContractCode, a, true)
 			if err != nil {
-				if !errors.Is(err, currency.ErrPairNotFound) {
-					errs = common.AppendError(errs, err)
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
 				}
-				continue
+				return err
 			}
 			tt := ticks[i].Timestamp.Time()
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -427,10 +427,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 					cp, err = e.pairFromContractExpiryCode(cp)
 				}
 				if err == nil {
-					cp, _, err = e.MatchSymbolCheckEnabled(cp.String(), a, true)
+					cp, err = e.MatchSymbolWithAvailablePairs(cp.String(), a, true)
 				}
 			} else {
-				cp, _, err = e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
+				cp, err = e.MatchSymbolWithAvailablePairs(ticks[i].ContractCode, a, true)
 			}
 			if err != nil {
 				if !errors.Is(err, currency.ErrPairNotFound) {
@@ -1107,100 +1107,71 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
-	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot:
-		enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return cancelAllOrdersResponse, err
+		if orderCancellation.Pair.IsEmpty() {
+			return nil, order.ErrPairRequiredForCancelAllFanout
 		}
-		for i := range enabledPairs {
-			resp, err := e.CancelOpenOrdersBatch(ctx,
-				orderCancellation.AccountID,
-				enabledPairs[i])
-			if err != nil {
-				return cancelAllOrdersResponse, err
+		resp, err := e.CancelOpenOrdersBatch(ctx,
+			orderCancellation.AccountID,
+			orderCancellation.Pair)
+		if err != nil {
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
 			}
-			if resp.Data.FailedCount > 0 {
-				return cancelAllOrdersResponse,
-					fmt.Errorf("%v orders failed to cancel",
-						resp.Data.FailedCount)
-			}
-			if resp.Status == "error" {
-				return cancelAllOrdersResponse, errors.New(resp.ErrorMessage)
-			}
+			return nil, err
+		}
+		if resp.Data.FailedCount > 0 {
+			return nil,
+				fmt.Errorf("%v orders failed to cancel",
+					resp.Data.FailedCount)
+		}
+		if resp.Status == "error" {
+			return nil, errors.New(resp.ErrorMessage)
 		}
 	case asset.CoinMarginedFutures:
 		if orderCancellation.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
+			return nil, order.ErrPairRequiredForCancelAllFanout
+		}
+		a, err := e.CancelAllSwapOrders(ctx, orderCancellation.Pair)
+		if err != nil {
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
 			}
-			for i := range enabledPairs {
-				a, err := e.CancelAllSwapOrders(ctx, enabledPairs[i])
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-				split := strings.Split(a.Successes, ",")
-				for x := range split {
-					cancelAllOrdersResponse.Status[split[x]] = "success"
-				}
-				for y := range a.Errors {
-					cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
-				}
-			}
-		} else {
-			a, err := e.CancelAllSwapOrders(ctx, orderCancellation.Pair)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			split := strings.Split(a.Successes, ",")
-			for x := range split {
-				cancelAllOrdersResponse.Status[split[x]] = "success"
-			}
-			for y := range a.Errors {
-				cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
-			}
+			return nil, err
+		}
+		split := strings.Split(a.Successes, ",")
+		for x := range split {
+			cancelAllOrdersResponse.Status[split[x]] = "success"
+		}
+		for y := range a.Errors {
+			cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
 		}
 	case asset.Futures:
 		if orderCancellation.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
+			return nil, order.ErrPairRequiredForCancelAllFanout
+		}
+		a, err := e.FCancelAllOrders(ctx, orderCancellation.Pair, "", "")
+		if err != nil {
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
 			}
-			for i := range enabledPairs {
-				a, err := e.FCancelAllOrders(ctx, enabledPairs[i], "", "")
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-				split := strings.Split(a.Data.Successes, ",")
-				for x := range split {
-					cancelAllOrdersResponse.Status[split[x]] = "success"
-				}
-				for y := range a.Data.Errors {
-					cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
-				}
-			}
-		} else {
-			a, err := e.FCancelAllOrders(ctx, orderCancellation.Pair, "", "")
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			split := strings.Split(a.Data.Successes, ",")
-			for x := range split {
-				cancelAllOrdersResponse.Status[split[x]] = "success"
-			}
-			for y := range a.Data.Errors {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
-			}
+			return nil, err
+		}
+		split := strings.Split(a.Data.Successes, ",")
+		for x := range split {
+			cancelAllOrdersResponse.Status[split[x]] = "success"
+		}
+		for y := range a.Data.Errors {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
 		}
 	}
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1208,7 +1179,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -2079,12 +2050,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			// formatting to match documentation
 			rates[i].ContractCode = rates[i].Symbol + "-USD"
 		}
-		cp, isEnabled, err := e.MatchSymbolCheckEnabled(rates[i].ContractCode, r.Asset, true)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		cp, err := e.MatchSymbolWithAvailablePairs(rates[i].ContractCode, r.Asset, true)
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
 			return nil, err
-		}
-		if !isEnabled {
-			continue
 		}
 		var isPerp bool
 		isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -2295,7 +2266,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 	}
 	var resp []futures.OpenInterest
-	for _, a := range e.GetAssetTypes(true) {
+	for _, a := range e.GetAssetTypes(false) {
 		switch a {
 		case asset.Futures:
 			data, err := e.FContractOpenInterest(ctx, "", "", currency.EMPTYPAIR)
@@ -2311,13 +2282,13 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			allData = append(allData, uData...)
 			for i := range allData {
 				var p currency.Pair
-				var isEnabled, appendData bool
-				p, isEnabled, err = e.MatchSymbolCheckEnabled(allData[i].ContractCode, a, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				var appendData bool
+				p, err = e.MatchSymbolWithAvailablePairs(allData[i].ContractCode, a, true)
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
-				}
-				if !isEnabled {
-					continue
 				}
 				for j := range k {
 					if k[j].Pair().Equal(p) {
@@ -2339,12 +2310,12 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			for i := range data.Data {
-				p, isEnabled, err := e.MatchSymbolCheckEnabled(data.Data[i].ContractCode, a, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				p, err := e.MatchSymbolWithAvailablePairs(data.Data[i].ContractCode, a, true)
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
-				}
-				if !isEnabled {
-					continue
 				}
 				var appendData bool
 				for j := range k {
@@ -2368,7 +2339,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the UR˜L to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}
