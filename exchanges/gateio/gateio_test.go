@@ -2543,6 +2543,7 @@ func TestFuturesDataHandler(t *testing.T) {
 			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction must be normalized")
 			if positions[0].CloseDate.IsZero() {
 				sawPosition = true
+				assert.Equal(t, order.Open, positions[0].Status, "position status should be open")
 				assert.Equal(t, "3", positions[0].LatestSize.String(), "size must be normalized")
 				assert.True(t, positions[0].Leverage.IsZero(), "replacement cross-margin leverage should take precedence")
 				assert.True(t, positions[0].PositionMargin.Equal(decimal.NewFromFloat(49.999890611186)), "position margin should be populated")
@@ -2551,6 +2552,7 @@ func TestFuturesDataHandler(t *testing.T) {
 				assert.Equal(t, int64(42), positions[0].UpdateID, "update ID should be populated")
 			} else {
 				sawPositionClose = true
+				assert.Equal(t, order.Closed, positions[0].Status, "position close status should be closed")
 				assert.True(t, positions[0].LatestSize.IsZero(), "close size must be zero")
 			}
 		}
@@ -2573,7 +2575,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	decoder.DisallowUnknownFields()
 	require.NoError(t, decoder.Decode(&response), "captured position payload must unmarshal without unknown fields")
 	require.Len(t, response.Result, 1, "captured payload must contain one position")
-	assert.Equal(t, time.UnixMilli(1787206135038), response.Result[0].Time.Time())
+	assert.Equal(t, time.UnixMilli(1787206135038), response.Result[0].Time.Time(), "position timestamp should preserve millisecond precision")
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
@@ -2583,17 +2585,27 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	require.True(t, ok, "captured payload must emit canonical futures positions")
 	require.Len(t, positions, 1, "captured payload must emit one position")
 	position := positions[0]
-	assert.Equal(t, "GPS_USDT", position.Pair.String())
-	assert.Equal(t, order.Short, position.LatestDirection)
-	assert.Equal(t, "55", position.LatestSize.String())
-	assert.Equal(t, "1", position.Leverage.String())
-	assert.Equal(t, int64(267), position.UpdateID)
-	assert.Equal(t, time.UnixMilli(1787206135038), position.LastUpdated)
-	assert.True(t, position.OpeningPrice.Equal(decimal.NewFromFloat(0.012071295652)))
-	assert.True(t, position.PositionMargin.Equal(decimal.NewFromFloat(66.491714276087)))
-	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.9)))
-	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.023554)))
-	assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(0.079661896)))
+	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalized")
+	assert.Equal(t, order.Open, position.Status, "position status should be open")
+	assert.Equal(t, order.Short, position.LatestDirection, "position direction should be short")
+	assert.Equal(t, "55", position.LatestSize.String(), "position size should be absolute")
+	assert.Equal(t, "1", position.Leverage.String(), "position leverage should use the isolated leverage field")
+	assert.Equal(t, int64(267), position.UpdateID, "position update ID should be preserved")
+	assert.Equal(t, time.UnixMilli(1787206135038), position.LastUpdated, "position update time should be preserved")
+	assert.True(t, position.OpeningPrice.Equal(decimal.NewFromFloat(0.012071295652)), "position opening price should be correct")
+	assert.True(t, position.PositionMargin.Equal(decimal.NewFromFloat(66.491714276087)), "position margin should be correct")
+	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.9)), "position maintenance rate should be correct")
+	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.023554)), "position liquidation price should be correct")
+	assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(0.079661896)), "position realised PNL should be correct")
+
+	closedPayload := []byte(strings.Replace(string(payload), `"size":"-55"`, `"size":"0"`, 1))
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), closedPayload, asset.USDTMarginedFutures),
+		"processFuturesPositionsNotification must process a zero-size update")
+	message = <-e.Websocket.DataHandler.C
+	positions, ok = message.Data.([]futures.Position)
+	require.True(t, ok, "zero-size update must emit canonical futures positions")
+	require.Len(t, positions, 1, "zero-size update must emit one position")
+	assert.Equal(t, order.Closed, positions[0].Status, "zero-size position status should be closed")
 }
 
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {

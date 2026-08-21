@@ -260,7 +260,8 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				if ok {
 					params = append(
 						[]string{value},
-						params...)
+						params...,
+					)
 				}
 				var sigTemp string
 				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
@@ -695,6 +696,7 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 			Pair:               pair,
 			Underlying:         pair.Base,
 			CollateralCurrency: collateralCurrency,
+			Status:             order.Closed,
 			RealisedPNL:        resp.Result[i].ProfitAndLoss.Decimal(),
 			LatestDirection:    direction,
 			LastUpdated:        resp.Result[i].Time.Time(),
@@ -778,12 +780,17 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 		if resp.Result[i].PositionMarginMode != "" {
 			leverage = resp.Result[i].PositionLeverage.Decimal()
 		}
+		status := order.Closed
+		if !size.IsZero() {
+			status = order.Open
+		}
 		positions[i] = futures.Position{
 			Exchange:                  e.Name,
 			Asset:                     a,
 			Pair:                      pair,
 			Underlying:                pair.Base,
 			CollateralCurrency:        collateralCurrency,
+			Status:                    status,
 			Leverage:                  leverage,
 			PositionMargin:            resp.Result[i].Margin.Decimal(),
 			MaintenanceMarginFraction: resp.Result[i].MaintenanceRate.Decimal(),

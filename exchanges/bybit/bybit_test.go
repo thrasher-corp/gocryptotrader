@@ -3117,6 +3117,31 @@ func TestWsPositionUnmarshal(t *testing.T) {
 	assert.True(t, position.BreakEvenPrice.Decimal().Equal(decimal.NewFromFloat(0.01105504)),
 		"break-even price should be correct")
 	assert.False(t, position.IsReduceOnly, "reduce-only state should be correct")
+
+	ex := testInstance()
+	pair := currency.NewPair(currency.NewCode("BB"), currency.USDT)
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false),
+		"StorePairs must store the captured position pair")
+	var wireResponse WebsocketResponse
+	require.NoError(t, json.Unmarshal(payload, &wireResponse), "captured websocket response must unmarshal")
+	require.NoError(t, ex.wsProcessPosition(t.Context(), &wireResponse),
+		"wsProcessPosition must process the captured open position")
+	message := <-ex.Websocket.DataHandler.C
+	positions, ok := message.Data.([]futures.Position)
+	require.True(t, ok, "position handler must emit canonical futures positions")
+	require.Len(t, positions, 1, "position handler must emit one position")
+	assert.Equal(t, order.Open, positions[0].Status, "nonzero position status should be open")
+	assert.True(t, positions[0].RealisedPNL.Equal(decimal.NewFromFloat(0.00281412)),
+		"position realised PNL should use the current position value")
+
+	wireResponse.Data = bytes.Replace(wireResponse.Data, []byte(`"size":"883"`), []byte(`"size":"0"`), 1)
+	require.NoError(t, ex.wsProcessPosition(t.Context(), &wireResponse),
+		"wsProcessPosition must process the captured closed position")
+	message = <-ex.Websocket.DataHandler.C
+	positions, ok = message.Data.([]futures.Position)
+	require.True(t, ok, "closed position handler must emit canonical futures positions")
+	require.Len(t, positions, 1, "closed position handler must emit one position")
+	assert.Equal(t, order.Closed, positions[0].Status, "zero-size position status should be closed")
 }
 
 func TestWSHandleAuthenticatedData(t *testing.T) {
@@ -3191,6 +3216,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.True(t, v[0].PositionMargin.Equal(decimal.NewFromFloat(2.72589075)), "position margin should be correct")
 			assert.True(t, v[0].InitialMarginRequirement.Equal(decimal.NewFromFloat(2.72589075)), "initial margin should be correct")
 			assert.True(t, v[0].MaintenanceMarginRequirement.Equal(decimal.NewFromFloat(0.28576575)), "maintenance margin should be correct")
+			assert.Equal(t, order.Open, v[0].Status, "status should identify an open position")
 			assert.Equal(t, order.Buy, v[0].LatestDirection, "direction should be correct")
 			assert.True(t, v[0].LatestSize.Equal(decimal.NewFromInt(75)), "size should be correct")
 			assert.True(t, v[0].OpeningPrice.Equal(decimal.NewFromFloat(0.3615)), "entry price should be correct")
@@ -3240,11 +3266,11 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, asset.Spot, v[0].AssetType, "Asset type should be correct")
 			exp := accounts.CurrencyBalances{}
 			exp.Set(currency.ETH, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482)})
-			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904, AvailableWithoutBorrow: 12632.05767702})
-			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, Free: 215.0570412})
-			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, Free: 1.82})
+			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904, AvailableWithoutBorrow: 11723.92075829})
+			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, Free: 215.0570412, AvailableWithoutBorrow: 215.0570412})
+			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, Free: 1.82, AvailableWithoutBorrow: 1.82})
 			exp.Set(currency.USDC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 201.34882644, Free: 201.34882644})
-			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, Free: 0.06488393})
+			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, Free: 0.06488393, AvailableWithoutBorrow: 0.06488393})
 			assert.Equal(t, exp, v[0].Balances, "Balances should be correct")
 		case *GreeksResponse:
 			sawGreeks = true
