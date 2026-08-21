@@ -2425,8 +2425,12 @@ type WsFuturesPosition struct {
 	RealisedPoint      types.Number `json:"realised_point"`
 	RiskLimit          types.Number `json:"risk_limit"`
 	Size               types.Number `json:"size"`
+	TimeSeconds        types.Time   `json:"time"`
 	Time               types.Time   `json:"time_ms"`
+	UpdateID           int64        `json:"update_id"`
 	User               string       `json:"user"`
+	PositionMarginMode string       `json:"pos_margin_mode"`
+	PositionLeverage   types.Number `json:"lever"`
 }
 
 // WsFuturesAutoOrder represents an auto order push data.

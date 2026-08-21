@@ -15,6 +15,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1170,6 +1171,37 @@ func TestSetDisconnectCancelAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestPositionInfoUnmarshal(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"retCode":0,"retMsg":"OK","result":{"nextPageCursor":"MOVEUSDT%2C1787198400021%2C0","category":"linear","list":[{"symbol":"BBUSDT","leverage":"1","breakEvenPrice":"0.01105546","autoAddMargin":0,"avgPrice":"0.01105794","liqPrice":"0.20933581","riskLimitValue":"25000","takeProfit":"","positionValue":"7.492255","isReduceOnly":false,"positionIMByMp":"7.50299557","tpslMode":"Full","riskId":1,"trailingStop":"0","liqPriceByMp":"","unrealisedPnl":"2.271903","markPrice":"0.008485","adlRankIndicator":3,"cumRealisedPnl":"0.00318599","positionMM":"0.16058567","createdTime":"1728875391204","positionIdx":0,"openTime":1786983352599,"positionIM":"7.50299557","positionMMByMp":"0.16058567","seq":169532619968,"updatedTime":"1787198400023","side":"Sell","bustPrice":"","positionBalance":"0","leverageSysUpdatedTime":"","curRealisedPnl":"0.00318599","size":"883","positionStatus":"Normal","mmrSysUpdatedTime":"","stopLoss":"","tradeMode":0,"sessionAvgPrice":""}]},"retExtInfo":{},"time":1787198702978}`)
+	response := struct {
+		RetCode    int64            `json:"retCode"`
+		RetMsg     string           `json:"retMsg"`
+		Result     PositionInfoList `json:"result"`
+		RetExtInfo map[string]any   `json:"retExtInfo"`
+		Time       int64            `json:"time"`
+	}{}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&response), "full REST position payload must unmarshal without unknown fields")
+	require.Len(t, response.Result.List, 1, "position payload must contain one position")
+
+	position := response.Result.List[0]
+	assert.Equal(t, time.UnixMilli(1786983352599), position.OpenTime.Time(), "open time should be correct")
+	assert.True(t, position.BreakEvenPrice.Decimal().Equal(decimal.NewFromFloat(0.01105546)),
+		"break-even price should be correct")
+	assert.True(t, position.PositionIMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(7.50299557)),
+		"mark-price initial margin should be correct")
+	assert.True(t, position.PositionMMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(0.16058567)),
+		"mark-price maintenance margin should be correct")
+	assert.True(t, position.CurrentRealisedPnl.Decimal().Equal(decimal.NewFromFloat(0.00318599)),
+		"current realised PNL should be correct")
+	assert.True(t, position.LiqPriceByMarkPrice.Decimal().IsZero(),
+		"empty mark-price liquidation price should decode as zero")
+	assert.True(t, position.SessionAveragePrice.Decimal().IsZero(),
+		"empty session average price should decode as zero")
 }
 
 func TestGetPositionInfo(t *testing.T) {
@@ -3054,6 +3086,113 @@ func TestWSHandleData(t *testing.T) {
 	}
 }
 
+func TestWsPositionUnmarshal(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"id":"74199870_position_1787197420650","topic":"position","creationTime":1787197420650,"data":[{"positionIdx":0,"tradeMode":0,"riskId":1,"riskLimitValue":"25000","symbol":"BBUSDT","side":"Sell","size":"883","entryPrice":"0.01105794","sessionAvgPrice":"","leverage":"1","positionValue":"7.403955","positionBalance":"0","markPrice":"0.008385","positionIM":"7.41469557","positionMM":"0.15881967","positionIMByMp":"7.41469557","positionMMByMp":"0.15881967","takeProfit":"0","stopLoss":"0","trailingStop":"0","unrealisedPnl":"2.360203","cumRealisedPnl":"0.00281412","curRealisedPnl":"0.00281412","createdTime":"1728875391204","updatedTime":"1787197420648","tpslMode":"Full","liqPrice":"0.20927497","bustPrice":"","category":"linear","positionStatus":"Normal","adlRankIndicator":2,"autoAddMargin":0,"leverageSysUpdatedTime":"","mmrSysUpdatedTime":"","seq":169498457174,"openTime":1786983352599,"breakEvenPrice":"0.01105504","isReduceOnly":false}]}`)
+	response := struct {
+		ID           string       `json:"id"`
+		Topic        string       `json:"topic"`
+		CreationTime types.Time   `json:"creationTime"`
+		Data         []WsPosition `json:"data"`
+	}{}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&response), "full position payload must unmarshal without unknown fields")
+	require.Len(t, response.Data, 1, "position payload must contain one position")
+
+	position := response.Data[0]
+	assert.Equal(t, "0", position.SessionAveragePrice.Decimal().String(), "empty session average price should decode as zero")
+	assert.Equal(t, "7.41469557", position.PositionIMByMarkPrice.Decimal().String(),
+		"mark-price initial margin should be correct")
+	assert.Equal(t, "0.15881967", position.PositionMMByMarkPrice.Decimal().String(),
+		"mark-price maintenance margin should be correct")
+	assert.Equal(t, "0.00281412", position.CurrentRealisedPNL.Decimal().String(),
+		"current realised PNL should be correct")
+	assert.Zero(t, position.AutoAddMargin, "auto-add margin should be correct")
+	assert.True(t, position.LeverageSystemUpdatedTime.Time().IsZero(),
+		"empty leverage system update time should decode as zero")
+	assert.True(t, position.MMRSystemUpdatedTime.Time().IsZero(),
+		"empty MMR system update time should decode as zero")
+	assert.Equal(t, time.UnixMilli(1786983352599), position.OpenTime.Time(), "open time should be correct")
+	assert.Equal(t, "0.01105504", position.BreakEvenPrice.Decimal().String(), "break-even price should be correct")
+	assert.False(t, position.IsReduceOnly, "reduce-only state should be correct")
+
+	pair := currency.NewPair(currency.NewCode("BB"), currency.USDT)
+	var wireResponse WebsocketResponse
+	require.NoError(t, json.Unmarshal(payload, &wireResponse), "captured websocket response must unmarshal")
+	baseData := wireResponse.Data
+	for _, tt := range []struct {
+		name              string
+		replacements      []string
+		expectedStatus    order.Status
+		expectedDirection order.Side
+		expectedCloseDate time.Time
+	}{
+		{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short},
+		{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long},
+		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648)},
+		{name: "liquidated", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Liquidated, expectedDirection: order.Short},
+		{name: "auto deleveraged", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.AutoDeleverage, expectedDirection: order.Short},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ex := testInstance()
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false),
+				"StorePairs must store the captured position pair")
+			wireResponse := wireResponse
+			wireResponse.Data = []byte(strings.NewReplacer(tt.replacements...).Replace(string(baseData)))
+			require.NoError(t, ex.wsProcessPosition(t.Context(), &wireResponse),
+				"wsProcessPosition must process the captured position")
+			message := <-ex.Websocket.DataHandler.C
+			positions, ok := message.Data.([]futures.Position)
+			require.True(t, ok, "position handler must emit canonical futures positions")
+			require.Len(t, positions, 1, "position handler must emit one position")
+			assert.Equal(t, tt.expectedStatus, positions[0].Status, "position status should be canonical")
+			assert.Equal(t, tt.expectedDirection, positions[0].OpeningDirection, "opening direction should be canonical")
+			assert.Equal(t, tt.expectedDirection, positions[0].LatestDirection, "latest direction should be canonical")
+			assert.Equal(t, tt.expectedCloseDate, positions[0].CloseDate, "position close time should be correct")
+			assert.Equal(t, "0.00281412", positions[0].RealisedPNL.String(),
+				"position realised PNL should use the current position value")
+			assert.Equal(t, "0.20927497", positions[0].EstimatedLiquidationPrice.String(),
+				"position liquidation price should be correct")
+			assert.Equal(t, "7.41469557", positions[0].PositionMargin.String(),
+				"position margin should preserve Bybit's initial margin")
+			assert.Equal(t, positions[0].PositionMargin, positions[0].InitialMarginRequirement,
+				"initial margin requirement should match Bybit's position margin")
+			assert.Equal(t, "0.15881967", positions[0].MaintenanceMarginRequirement.String(),
+				"maintenance margin requirement should preserve Bybit's absolute margin")
+			assert.Equal(t, "0.0214506530631264", positions[0].MaintenanceMarginFraction.String(),
+				"maintenance margin fraction should be normalized from Bybit's absolute margin")
+		})
+	}
+}
+
+func TestWsWalletCurrentUnifiedPayload(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"id":"wallet-update","topic":"wallet","creationTime":1787197420650,"data":[{"accountIMRate":"0.01","accountMMRate":"0.005","totalEquity":"120","totalWalletBalance":"100","totalMarginBalance":"110","totalAvailableBalance":"75","totalPerpUPL":"10","totalInitialMargin":"25","totalMaintenanceMargin":"5","coin":[{"coin":"USDT","equity":"120","usdValue":"120","walletBalance":"100","availableToWithdraw":"","availableToBorrow":"","borrowAmount":"0","accruedInterest":"0","totalOrderIM":"5","totalPositionIM":"20","totalPositionMM":"5","unrealisedPnl":"10","cumRealisedPnl":"2","bonus":"0","spotHedgingQty":"0"}],"accountType":"UNIFIED","accountLTV":""}]}`)
+	var wallet WebsocketWallet
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&wallet), "current UNIFIED wallet payload must unmarshal without unknown fields")
+	require.Len(t, wallet.Data, 1, "current UNIFIED wallet payload must contain one account")
+	require.Len(t, wallet.Data[0].Coin, 1, "current UNIFIED wallet payload must contain one coin")
+	assert.True(t, wallet.Data[0].Coin[0].AvailableToWithdraw.Decimal().IsZero(),
+		"empty deprecated withdrawal availability should decode as zero")
+
+	ex := testInstance()
+	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), payload),
+		"wsProcessWalletPushData must process current UNIFIED wallet payload")
+	message := <-ex.Websocket.DataHandler.C
+	subAccounts, ok := message.Data.(accounts.SubAccounts)
+	require.True(t, ok, "wallet handler must emit canonical subaccounts")
+	require.Len(t, subAccounts, 1, "wallet handler must emit one subaccount")
+	balance, ok := subAccounts[0].Balances[currency.USDT]
+	require.True(t, ok, "wallet handler must emit the USDT balance")
+	assert.Equal(t, 100.0, balance.Total, "wallet balance should be correct")
+	assert.Zero(t, balance.AvailableWithoutBorrow,
+		"coin availability should remain zero when the deprecated field is empty")
+}
+
 func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
 
@@ -3113,36 +3252,29 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	var sawPositions, sawOrderLinear, sawOrderOption, sawAccounts, sawGreeks, sawFills bool
 	for data := range ex.Websocket.DataHandler.C {
 		switch v := data.Data.(type) {
-		case WsPositions:
+		case []futures.Position:
 			sawPositions = true
 			require.Len(t, v, 1, "must see 1 position")
-			assert.Zero(t, v[0].PositionIdx, "PositionIdx should be 0")
-			assert.Zero(t, v[0].TradeMode, "TradeMode should be 0")
-			assert.Equal(t, int64(41), v[0].RiskID, "RiskID should be correct")
-			assert.Equal(t, 200000.0, v[0].RiskLimitValue.Float64(), "RiskLimitValue should be correct")
-			assert.Equal(t, "XRPUSDT", v[0].Symbol, "Symbol should be correct")
-			assert.Equal(t, "Buy", v[0].Side, "Side should be correct")
-			assert.Equal(t, 75.0, v[0].Size.Float64(), "Size should be correct")
-			assert.Equal(t, 0.3615, v[0].EntryPrice.Float64(), "Entry price should be correct")
-			assert.Equal(t, 10.0, v[0].Leverage.Float64(), "Leverage should be correct")
-			assert.Equal(t, 27.1125, v[0].PositionValue.Float64(), "Position value should be correct")
-			assert.Zero(t, v[0].PositionBalance.Float64(), "Position balance should be 0")
-			assert.Equal(t, 0.3374, v[0].MarkPrice.Float64(), "Mark price should be correct")
-			assert.Equal(t, 2.72589075, v[0].PositionIM.Float64(), "Position IM should be correct")
-			assert.Equal(t, 0.28576575, v[0].PositionMM.Float64(), "Position MM should be correct")
-			assert.Zero(t, v[0].TakeProfit.Float64(), "Take profit should be 0")
-			assert.Zero(t, v[0].StopLoss.Float64(), "Stop loss should be 0")
-			assert.Zero(t, v[0].TrailingStop.Float64(), "Trailing stop should be 0")
-			assert.Equal(t, -1.8075, v[0].UnrealisedPnl.Float64(), "Unrealised PnL should be correct")
-			assert.Equal(t, 0.64782276, v[0].CumRealisedPnl.Float64(), "Cum realised PnL should be correct")
-			assert.Equal(t, time.UnixMilli(1672121182216), v[0].CreatedTime.Time(), "Creation time should be correct")
-			assert.Equal(t, time.UnixMilli(1672364174449), v[0].UpdatedTime.Time(), "Updated time should be correct")
-			assert.Equal(t, "Full", v[0].TpslMode, "TPSL mode should be correct")
-			assert.Zero(t, v[0].LiqPrice.Float64(), "Liq price should be 0")
-			assert.Zero(t, v[0].BustPrice.Float64(), "Bust price should be 0")
-			assert.Equal(t, cLinear, v[0].Category, "Category should be correct")
-			assert.Equal(t, "Normal", v[0].PositionStatus, "Position status should be correct")
-			assert.Equal(t, int64(2), v[0].AdlRankIndicator, "ADL Rank Indicator should be correct")
+			assert.Equal(t, e.Name, v[0].Exchange, "exchange should be correct")
+			assert.Equal(t, asset.USDTMarginedFutures, v[0].Asset, "asset should be correct")
+			assert.Equal(t, currency.NewPair(currency.XRP, currency.USDT), v[0].Pair, "pair should be correct")
+			assert.Equal(t, currency.XRP, v[0].Underlying, "underlying should be correct")
+			assert.Equal(t, currency.USDT, v[0].CollateralCurrency, "collateral currency should be correct")
+			assert.True(t, v[0].Leverage.Equal(decimal.NewFromInt(10)), "leverage should be correct")
+			assert.True(t, v[0].NotionalSize.Equal(decimal.NewFromFloat(27.1125)), "notional size should be correct")
+			assert.True(t, v[0].PositionMargin.Equal(decimal.NewFromFloat(2.72589075)), "position margin should be correct")
+			assert.True(t, v[0].InitialMarginRequirement.Equal(decimal.NewFromFloat(2.72589075)), "initial margin should be correct")
+			assert.True(t, v[0].MaintenanceMarginRequirement.Equal(decimal.NewFromFloat(0.28576575)), "maintenance margin should be correct")
+			assert.Equal(t, order.Open, v[0].Status, "status should identify an open position")
+			assert.Equal(t, order.Long, v[0].OpeningDirection, "opening direction should be correct")
+			assert.Equal(t, order.Long, v[0].LatestDirection, "latest direction should be correct")
+			assert.True(t, v[0].LatestSize.Equal(decimal.NewFromInt(75)), "size should be correct")
+			assert.True(t, v[0].OpeningPrice.Equal(decimal.NewFromFloat(0.3615)), "entry price should be correct")
+			assert.True(t, v[0].LatestPrice.Equal(decimal.NewFromFloat(0.3374)), "mark price should be correct")
+			assert.True(t, v[0].UnrealisedPNL.Equal(decimal.NewFromFloat(-1.8075)), "unrealised PnL should be correct")
+			assert.Equal(t, int64(42), v[0].UpdateID, "update ID should be correct")
+			assert.Equal(t, time.UnixMilli(1672207582216), v[0].OpeningDate, "opening date should use position open time")
+			assert.Equal(t, time.UnixMilli(1672364174449), v[0].LastUpdated, "updated time should be correct")
 		case []order.Detail:
 			require.Len(t, v, 1, "Order payload must contain exactly one order item")
 			switch v[0].OrderID {
@@ -3184,11 +3316,11 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, asset.Spot, v[0].AssetType, "Asset type should be correct")
 			exp := accounts.CurrencyBalances{}
 			exp.Set(currency.ETH, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482)})
-			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904})
-			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, Free: 215.0570412})
-			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, Free: 1.82})
+			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904, AvailableWithoutBorrow: 11723.92075829})
+			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, Free: 215.0570412, AvailableWithoutBorrow: 215.0570412})
+			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, Free: 1.82, AvailableWithoutBorrow: 1.82})
 			exp.Set(currency.USDC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 201.34882644, Free: 201.34882644})
-			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, Free: 0.06488393})
+			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, Free: 0.06488393, AvailableWithoutBorrow: 0.06488393})
 			assert.Equal(t, exp, v[0].Balances, "Balances should be correct")
 		case *GreeksResponse:
 			sawGreeks = true
@@ -3849,6 +3981,14 @@ func TestAuthSubscribe(t *testing.T) {
 	authsubs, err = e.generateAuthSubscriptions()
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
+	var positionSubscriptions subscription.List
+	for _, sub := range authsubs {
+		if sub.Channel == chanPositions {
+			positionSubscriptions = append(positionSubscriptions, sub)
+		}
+	}
+	require.Len(t, positionSubscriptions, 1, "position must have one all-in-one subscription")
+	require.Empty(t, positionSubscriptions[0].Pairs, "all-in-one position subscription must not specify symbols")
 
 	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, authsubs))
 	require.NoError(t, e.authUnsubscribe(t.Context(), &FixtureConnection{}, authsubs))

@@ -13,6 +13,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -309,6 +311,7 @@ func (e *Exchange) wsProcessGreeks(ctx context.Context, resp []byte) error {
 	return e.Websocket.DataHandler.Send(ctx, &result)
 }
 
+// wsProcessWalletPushData stores and emits a canonical account snapshot.
 func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) error {
 	var result WebsocketWallet
 	if err := json.Unmarshal(resp, &result); err != nil {
@@ -318,9 +321,10 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 	for x := range result.Data {
 		for y := range result.Data[x].Coin {
 			subAccts[0].Balances.Set(result.Data[x].Coin[y].Coin, accounts.Balance{
-				Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
-				Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
-				UpdatedAt: result.CreationTime.Time(),
+				Total:                  result.Data[x].Coin[y].WalletBalance.Float64(),
+				Free:                   result.Data[x].Coin[y].WalletBalance.Float64(),
+				AvailableWithoutBorrow: result.Data[x].Coin[y].AvailableToWithdraw.Float64(),
+				UpdatedAt:              result.CreationTime.Time(),
 			})
 		}
 	}
@@ -404,12 +408,92 @@ func (e *Exchange) wsProcessExecution(ctx context.Context, resp *WebsocketRespon
 	return e.Websocket.DataHandler.Send(ctx, executions)
 }
 
+// wsProcessPosition emits canonical positions from Bybit's account-wide
+// private stream so consumers do not depend on exchange wire types.
 func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketResponse) error {
-	var result WsPositions
+	var result []WsPosition
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, result)
+	positions := make([]futures.Position, len(result))
+	for i := range result {
+		pair, a, err := e.matchPairAssetFromResponse(result[i].Category, result[i].Symbol)
+		if err != nil {
+			return err
+		}
+		direction := order.UnknownSide
+		if !result[i].Size.Decimal().IsZero() || result[i].Side != "" {
+			direction, err = order.StringToOrderSide(result[i].Side)
+			if err != nil {
+				return err
+			}
+			direction, err = direction.Position()
+			if err != nil {
+				return err
+			}
+		}
+		collateralCurrency := pair.Quote
+		switch a {
+		case asset.CoinMarginedFutures:
+			collateralCurrency = pair.Base
+		case asset.Options:
+			collateralCurrency = currency.USDC
+		}
+		openingDate := result[i].OpenTime.Time()
+		if openingDate.IsZero() {
+			openingDate = result[i].CreatedTime.Time()
+		}
+		status := order.Closed
+		if !result[i].Size.Decimal().IsZero() {
+			status = order.Open
+		}
+		switch result[i].PositionStatus {
+		case "Liq":
+			status = order.Liquidated
+		case "Adl":
+			status = order.AutoDeleverage
+		}
+		var closeDate time.Time
+		if result[i].Size.Decimal().IsZero() {
+			closeDate = result[i].UpdatedTime.Time()
+		}
+		positionMargin := result[i].PositionIM.Decimal()
+		// Bybit defines positionIM as the position's initial margin, so both canonical fields share the source value.
+		initialMarginRequirement := positionMargin
+		maintenanceMarginRequirement := result[i].PositionMM.Decimal()
+		var maintenanceMarginFraction decimal.Decimal
+		notionalSize := result[i].PositionValue.Decimal()
+		if !notionalSize.IsZero() {
+			maintenanceMarginFraction = maintenanceMarginRequirement.Div(notionalSize)
+		}
+		positions[i] = futures.Position{
+			Exchange:                     e.Name,
+			Asset:                        a,
+			Pair:                         pair,
+			Underlying:                   pair.Base,
+			CollateralCurrency:           collateralCurrency,
+			Leverage:                     result[i].Leverage.Decimal(),
+			NotionalSize:                 notionalSize,
+			PositionMargin:               positionMargin,
+			InitialMarginRequirement:     initialMarginRequirement,
+			MaintenanceMarginRequirement: maintenanceMarginRequirement,
+			MaintenanceMarginFraction:    maintenanceMarginFraction,
+			EstimatedLiquidationPrice:    result[i].LiqPrice.Decimal(),
+			UpdateID:                     result[i].Sequence,
+			RealisedPNL:                  result[i].CurrentRealisedPNL.Decimal(),
+			UnrealisedPNL:                result[i].UnrealisedPnl.Decimal(),
+			Status:                       status,
+			OpeningDate:                  openingDate,
+			OpeningPrice:                 result[i].EntryPrice.Decimal(),
+			OpeningDirection:             direction,
+			LatestPrice:                  result[i].MarkPrice.Decimal(),
+			LatestSize:                   result[i].Size.Decimal(),
+			LatestDirection:              direction,
+			LastUpdated:                  result[i].UpdatedTime.Time(),
+			CloseDate:                    closeDate,
+		}
+	}
+	return e.Websocket.DataHandler.Send(ctx, positions)
 }
 
 func (e *Exchange) wsLeverageTokenNav(ctx context.Context, resp *WebsocketResponse) error {

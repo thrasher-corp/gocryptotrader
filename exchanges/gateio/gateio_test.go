@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -2528,10 +2529,106 @@ func TestFuturesDataHandler(t *testing.T) {
 	})
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	var sawPosition, sawPositionClose bool
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
+		if positions, ok := resp.Data.([]futures.Position); ok {
+			require.Len(t, positions, 1, "position update must contain one position")
+			assert.Equal(t, asset.CoinMarginedFutures, positions[0].Asset, "asset should match the websocket")
+			assert.Equal(t, "BTC_USD", positions[0].Pair.String(), "pair should be normalized")
+			assert.Equal(t, currency.BTC, positions[0].Underlying, "underlying should be normalized")
+			assert.Equal(t, currency.BTC, positions[0].CollateralCurrency, "collateral currency should be normalized")
+			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction should be normalized")
+			if positions[0].CloseDate.IsZero() {
+				sawPosition = true
+				assert.Equal(t, order.Open, positions[0].Status, "position status should be open")
+				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalized")
+				assert.True(t, positions[0].Leverage.IsZero(), "replacement cross-margin leverage should take precedence")
+				assert.True(t, positions[0].PositionMargin.Equal(decimal.NewFromFloat(49.999890611186)), "position margin should be populated")
+				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.005)), "maintenance margin rate should be populated")
+				assert.True(t, positions[0].EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.1)), "liquidation price should be populated")
+				assert.Equal(t, int64(42), positions[0].UpdateID, "update ID should be populated")
+			} else {
+				sawPositionClose = true
+				assert.Equal(t, order.Closed, positions[0].Status, "position close status should be closed")
+				assert.True(t, positions[0].LatestSize.IsZero(), "close size should be zero")
+			}
+		}
+	}
+	require.True(t, sawPosition, "futures fixture must emit a normalized position")
+	require.True(t, sawPositionClose, "futures fixture must emit a normalized position close")
+}
+
+func TestFuturesPositionCapturedPayload(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"time":1787206135,"time_ms":1787206135040,"channel":"futures.positions","event":"update","result":[{"time":1787206135,"time_ms":1787206135038,"size":"-55","user":"12870774","leverage_max":25,"mode":"single","update_id":267,"cross_leverage_limit":40,"liq_price":0.023554,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.802254544,"entry_price":0.012071295652,"leverage":1,"realised_pnl":0.079661896,"contract":"GPS_USDT","history_point":0,"margin":66.491714276087,"realised_point":0,"history_pnl":17.1379873471,"pos_margin_mode":"isolated","lever":"1"}]}`)
+	response := struct {
+		Time      types.Time          `json:"time"`
+		TimeMilli types.Time          `json:"time_ms"`
+		Channel   string              `json:"channel"`
+		Event     string              `json:"event"`
+		Result    []WsFuturesPosition `json:"result"`
+	}{}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	require.NoError(t, decoder.Decode(&response), "captured position payload must unmarshal without unknown fields")
+	require.Len(t, response.Result, 1, "captured payload must contain one position")
+	assert.Equal(t, time.UnixMilli(1787206135038), response.Result[0].Time.Time(), "position timestamp should preserve millisecond precision")
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures))
+	message := <-e.Websocket.DataHandler.C
+	positions, ok := message.Data.([]futures.Position)
+	require.True(t, ok, "captured payload must emit canonical futures positions")
+	require.Len(t, positions, 1, "captured payload must emit one position")
+	position := positions[0]
+	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalized")
+	assert.Equal(t, order.Open, position.Status, "position status should be open")
+	assert.Equal(t, order.Short, position.LatestDirection, "position direction should be short")
+	assert.Equal(t, "55", position.LatestSize.String(), "position size should be absolute")
+	assert.Equal(t, "1", position.Leverage.String(), "position leverage should use the isolated leverage field")
+	assert.Equal(t, int64(267), position.UpdateID, "position update ID should be preserved")
+	assert.Equal(t, time.UnixMilli(1787206135038), position.LastUpdated, "position update time should be preserved")
+	assert.True(t, position.OpeningPrice.Equal(decimal.NewFromFloat(0.012071295652)), "position opening price should be correct")
+	assert.True(t, position.PositionMargin.Equal(decimal.NewFromFloat(66.491714276087)), "position margin should be correct")
+	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.9)), "position maintenance rate should be correct")
+	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.023554)), "position liquidation price should be correct")
+	assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(0.079661896)), "position realised PNL should be correct")
+
+	closedPayload := []byte(strings.Replace(string(payload), `"size":"-55"`, `"size":"0"`, 1))
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), closedPayload, asset.USDTMarginedFutures),
+		"processFuturesPositionsNotification must process a zero-size update")
+	message = <-e.Websocket.DataHandler.C
+	positions, ok = message.Data.([]futures.Position)
+	require.True(t, ok, "zero-size update must emit canonical futures positions")
+	require.Len(t, positions, 1, "zero-size update must emit one position")
+	assert.Equal(t, order.Closed, positions[0].Status, "zero-size position status should be closed")
+	assert.Equal(t, order.UnknownSide, positions[0].LatestDirection, "zero-size single-mode direction should be unknown")
+	assert.Equal(t, time.UnixMilli(1787206135038), positions[0].CloseDate, "zero-size position close time should be preserved")
+
+	for _, tt := range []struct {
+		mode      string
+		direction order.Side
+	}{
+		{mode: "dual_long", direction: order.Long},
+		{mode: "dual_short", direction: order.Short},
+	} {
+		t.Run(tt.mode, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			dualPayload := []byte(strings.Replace(string(closedPayload), `"mode":"single"`, `"mode":"`+tt.mode+`"`, 1))
+			require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), dualPayload, asset.USDTMarginedFutures),
+				"processFuturesPositionsNotification must process a zero-size dual-mode update")
+			message := <-ex.Websocket.DataHandler.C
+			positions, ok := message.Data.([]futures.Position)
+			require.True(t, ok, "zero-size dual-mode update must emit canonical futures positions")
+			require.Len(t, positions, 1, "zero-size dual-mode update must emit one position")
+			assert.Equal(t, tt.direction, positions[0].LatestDirection, "zero-size dual-mode direction should be preserved")
+		})
 	}
 }
 
@@ -2840,6 +2937,29 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	for _, channel := range []string{futuresPositionsChannel, futuresAutoPositionCloseChannel} {
+		var matching subscription.List
+		for _, sub := range subs {
+			if sub.Channel == channel {
+				matching = append(matching, sub)
+			}
+		}
+		require.Lenf(t, matching, 1, "%s must have one account-wide subscription", channel)
+		require.Len(t, matching[0].Pairs, 1, "account-wide subscription must retain one identity pair")
+		assert.NotEqual(t, allFuturesContracts, matching[0].Pairs[0].String(),
+			"account-wide subscription should not register the selector as a currency")
+		assert.Equal(t, allFuturesContracts, matching[0].Params[contractPayloadOverrideParam],
+			"account-wide subscription should serialise the documented selector")
+		requiresUserPlaceholder, ok := matching[0].Params[requiresUserPlaceholderParam].(bool)
+		require.True(t, ok, "user placeholder parameter must be a boolean")
+		assert.True(t, requiresUserPlaceholder,
+			"account-wide subscription should retain the deprecated user placeholder")
+		require.Equal(t, asset.CoinMarginedFutures, matching[0].Asset,
+			"account-wide subscription must retain its futures asset")
+	}
 	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err, "Disabled asset must not error")
