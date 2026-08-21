@@ -8,12 +8,11 @@ import (
 	"maps"
 	"math"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -944,7 +943,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -3058,7 +3057,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 
 // MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs
 func (e *Exchange) MessageID() string {
-	u := uuid.Must(uuid.NewV7())
+	u := uuid.NewV7()
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])

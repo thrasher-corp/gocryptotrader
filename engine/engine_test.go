@@ -49,7 +49,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			name: "test file",
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
-				CoreSettings: CoreSettings{EnableDryRun: true},
+				EnableDryRun: true,
 			},
 			want:    &empty,
 			wantErr: false,
@@ -60,7 +60,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
 				DataDir:      somePath,
-				CoreSettings: CoreSettings{EnableDryRun: true},
+				EnableDryRun: true,
 			},
 			want:    &somePath,
 			wantErr: false,
@@ -95,7 +95,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	tempDir := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -292,7 +292,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	tempDir2 := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -305,7 +305,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir2,
 	}, nil)
 	if err != nil {

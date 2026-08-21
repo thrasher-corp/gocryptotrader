@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -662,7 +661,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 	if err := e.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

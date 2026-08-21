@@ -2,8 +2,8 @@ package vm
 
 import (
 	"fmt"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 	"github.com/thrasher-corp/gocryptotrader/log"

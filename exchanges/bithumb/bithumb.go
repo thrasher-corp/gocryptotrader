@@ -578,7 +578,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 		headers := make(map[string]string)
 		headers["Api-Key"] = creds.Key
-		headers["Api-Sign"] = base64.StdEncoding.EncodeToString(([]byte(hex.EncodeToString(hmac))))
+		headers["Api-Sign"] = base64.StdEncoding.EncodeToString([]byte(hex.EncodeToString(hmac)))
 		headers["Api-Nonce"] = n
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 

@@ -49,11 +49,9 @@ func main() {
 	bot.ExchangeManager = engine.NewExchangeManager()
 
 	bot.Settings = engine.Settings{
-		CoreSettings: engine.CoreSettings{Verbose: verboseOverride},
-		ExchangeTuningSettings: engine.ExchangeTuningSettings{
-			DisableExchangeAutoPairUpdates: true,
-			EnableExchangeHTTPRateLimiter:  true,
-		},
+		Verbose:                        verboseOverride,
+		DisableExchangeAutoPairUpdates: true,
+		EnableExchangeHTTPRateLimiter:  true,
 	}
 
 	log.Println("Loading config...")

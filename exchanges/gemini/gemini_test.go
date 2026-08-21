@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -65,6 +66,19 @@ func TestGetTicker(t *testing.T) {
 	if err == nil {
 		t.Error("GetTicker() Expected error")
 	}
+}
+
+func TestTickerUnmarshal(t *testing.T) {
+	t.Parallel()
+	var tick Ticker
+	err := json.Unmarshal([]byte(`{"bid":"69778.07000","ask":"69781.21000","last":"69796.39000","volume":{"BTC":"2733.78157298","USD":"190808084.8425255422","timestamp":1787213040000}}`), &tick)
+	require.NoError(t, err, "Unmarshal must not error")
+	assert.Equal(t, 69778.07, tick.Bid, "Bid should decode")
+	assert.Equal(t, 69781.21, tick.Ask, "Ask should decode")
+	assert.Equal(t, 69796.39, tick.Last, "Last should decode")
+	assert.Equal(t, 2733.78157298, tick.Volume.BTC.Float64(), "BTC volume should decode")
+	assert.Equal(t, 190808084.8425255422, tick.Volume.USD.Float64(), "USD volume should decode")
+	assert.Equal(t, int64(1787213040000), tick.Volume.Timestamp.Time().UnixMilli(), "Timestamp should decode")
 }
 
 func TestGetOrderbook(t *testing.T) {

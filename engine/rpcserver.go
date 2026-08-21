@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
@@ -227,7 +227,7 @@ func (s *RPCServer) startRPCRESTProxy(ctx context.Context) {
 		Handler:           s.authClient(mux),
 	}
 
-	go func() {
+	go func() { //nolint:gosec // Shutdown must outlive ctx, which has just been cancelled
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -2535,7 +2535,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	UUID, err := uuid.FromString(r.Script.Uuid)
+	UUID, err := uuid.Parse(r.Script.Uuid)
 	if err != nil {
 		//nolint:nilerr // error is returned in the GCTScriptQueryResponse
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
@@ -2604,7 +2604,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	UUID, err := uuid.FromString(r.Script.Uuid)
+	UUID, err := uuid.Parse(r.Script.Uuid)
 	if err != nil {
 		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
@@ -3826,7 +3826,7 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 
 	if r.Id != "" {
 		var id uuid.UUID
-		id, err = uuid.FromString(r.Id)
+		id, err = uuid.Parse(r.Id)
 		if err != nil {
 			return nil, fmt.Errorf("%s %w", r.Id, err)
 		}

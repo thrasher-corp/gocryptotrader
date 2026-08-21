@@ -3,8 +3,8 @@ package bybit
 import (
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1373,13 +1373,15 @@ type WalletType struct {
 
 // SubUIDAPIKeyUpdateParam represents a sub-user ID API key update parameter.
 type SubUIDAPIKeyUpdateParam struct {
-	APIKey   string `json:"apikey"`
+	// Pass only when a master account manages a sub account key; Bybit errors if it is sent
+	// when calling with the sub account's own key
+	APIKey   string `json:"apikey,omitempty"`
 	ReadOnly int64  `json:"readOnly,omitempty"`
 	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
 	// don't pass ips or pass with ["*"] means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
-	IPs string `json:"ips"`
+	IPs string `json:"ips,omitempty"`
 
 	// You can provide the IP addresses as a list of strings.
 	IPAddresses []string `json:"-"`
@@ -1723,7 +1725,7 @@ type C2CLendingCoinInfo struct {
 type C2CLendingFundsParams struct {
 	Coin         currency.Code `json:"coin"`
 	Quantity     float64       `json:"quantity,string"`
-	SerialNumber string        `json:"serialNO"`
+	SerialNumber string        `json:"serialNo"`
 }
 
 // C2CLendingFundResponse represents contract-to-contract deposit funds item.

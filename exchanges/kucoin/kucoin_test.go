@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -464,8 +464,7 @@ func TestPostOrder(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
-	customID, err := uuid.NewV4()
-	assert.NoError(t, err)
+	customID := uuid.NewV4()
 
 	_, err = e.PostOrder(t.Context(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: spotTradablePair,
@@ -512,8 +511,7 @@ func TestPostOrderTest(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
-	customID, err := uuid.NewV4()
-	assert.NoError(t, err)
+	customID := uuid.NewV4()
 
 	_, err = e.PostOrderTest(t.Context(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: spotTradablePair,
@@ -559,8 +557,7 @@ func TestHandlePostOrder(t *testing.T) {
 	}, "")
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
-	customID, err := uuid.NewV4()
-	assert.NoError(t, err)
+	customID := uuid.NewV4()
 
 	_, err = e.HandlePostOrder(t.Context(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: spotTradablePair,
@@ -1389,7 +1386,7 @@ func TestGetTradingFee(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, avail)
 
-	pairs := currency.Pairs{avail[0]}
+	pairs := currency.Pairs{avail[0]} //nolint:prealloc // fixed test fixture, not a hot path
 	btcusdTradingFee, err := e.GetTradingFee(t.Context(), pairs)
 	assert.NoErrorf(t, err, "received %v, expected %v", err, nil)
 	assert.Len(t, btcusdTradingFee, 1)

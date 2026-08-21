@@ -108,7 +108,7 @@ type Order struct {
 	Price         float64 `json:"price,string"`
 	Quantity      float64 `json:"qty,string"`
 	ClientOrderID int     `json:"client_ord_id"`
-	Side          string  `json:"side,string"`
+	Side          string  `json:"side"`
 }
 
 // OrderResponse is a response for orders
@@ -211,7 +211,7 @@ type OptionChainResponse struct {
 		Call   Option  `json:"call"`
 		Put    Option  `json:"put"`
 		Strike float64 `json:"strike,string"`
-	}
+	} `json:"entries"`
 }
 
 // OptionChainUpdate contains information on the chain update options
@@ -573,7 +573,7 @@ type wsInstList struct {
 		DecimalPlaces int64  `json:"decimal_places"`
 		InstrumentID  int64  `json:"inst_id"`
 		Quote         string `json:"quote"`
-	} `json:"spot"`
+	} `json:"SPOT"`
 }
 
 // WsUserOpenOrdersResponse ws response

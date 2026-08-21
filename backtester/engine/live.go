@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -70,7 +69,7 @@ func (d *dataChecker) Start() error {
 	if d == nil {
 		return gctcommon.ErrNilPointer
 	}
-	if !atomic.CompareAndSwapUint32(&d.started, 0, 1) {
+	if !d.started.CompareAndSwap(false, true) {
 		return engine.ErrSubSystemAlreadyStarted
 	}
 	d.wg.Add(1)
@@ -92,7 +91,7 @@ func (d *dataChecker) Start() error {
 
 // IsRunning verifies whether the live data checker is running
 func (d *dataChecker) IsRunning() bool {
-	return d != nil && atomic.LoadUint32(&d.started) == 1
+	return d != nil && d.started.Load()
 }
 
 // Stop ceases fetching and processing live data
@@ -100,7 +99,7 @@ func (d *dataChecker) Stop() error {
 	if d == nil {
 		return gctcommon.ErrNilPointer
 	}
-	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
+	if !d.started.CompareAndSwap(true, false) {
 		return engine.ErrSubSystemNotStarted
 	}
 	close(d.shutdown)
@@ -115,7 +114,7 @@ func (d *dataChecker) SignalStopFromError(err error) error {
 	if d == nil {
 		return gctcommon.ErrNilPointer
 	}
-	if !atomic.CompareAndSwapUint32(&d.started, 1, 0) {
+	if !d.started.CompareAndSwap(true, false) {
 		return engine.ErrSubSystemNotStarted
 	}
 	log.Errorln(common.LiveStrategy, err)
@@ -129,7 +128,7 @@ func (d *dataChecker) DataFetcher() error {
 		return fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
 	d.wg.Done()
-	if atomic.LoadUint32(&d.started) == 0 {
+	if !d.started.Load() {
 		return engine.ErrSubSystemNotStarted
 	}
 	checkTimer := time.NewTimer(0)
@@ -182,13 +181,13 @@ func (d *dataChecker) UpdateFunding(force bool) error {
 	case d.funding == nil:
 		return fmt.Errorf("%w datachecker funding manager", gctcommon.ErrNilPointer)
 	case force:
-		atomic.StoreUint32(&d.updatingFunding, 1)
-	case !atomic.CompareAndSwapUint32(&d.updatingFunding, 0, 1):
+		d.updatingFunding.Store(true)
+	case !d.updatingFunding.CompareAndSwap(false, true):
 		// already processing funding and can't go any faster
 		return nil
 	}
 
-	defer atomic.StoreUint32(&d.updatingFunding, 0)
+	defer d.updatingFunding.Store(false)
 	var err error
 	if d.funding.HasFutures() {
 		err = d.funding.UpdateAllCollateral(d.realOrders, d.hasUpdatedFunding)
@@ -254,8 +253,8 @@ func (d *dataChecker) Reset() error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	d.wg = sync.WaitGroup{}
-	d.started = 0
-	d.updatingFunding = 0
+	d.started.Store(false)
+	d.updatingFunding.Store(false)
 	d.verboseDataCheck = false
 	d.realOrders = false
 	d.hasUpdatedFunding = false
@@ -346,7 +345,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 	if d == nil {
 		return false, fmt.Errorf("%w dataChecker", gctcommon.ErrNilPointer)
 	}
-	if atomic.LoadUint32(&d.started) == 0 {
+	if !d.started.Load() {
 		return false, engine.ErrSubSystemNotStarted
 	}
 	d.m.Lock()

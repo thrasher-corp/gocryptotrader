@@ -182,11 +182,11 @@ type PlaceBatchOrderData struct {
 
 // BatchCancelOrderData stores batch cancel order data
 type BatchCancelOrderData struct {
-	ClientOrderID string     `json:"clientOrderID"`
+	ClientOrderID string     `json:"clientOrderId"`
 	CumQty        float64    `json:"cumQty,string"`
 	CumBase       float64    `json:"cumBase,string"`
 	ExecuteQty    float64    `json:"executeQty,string"`
-	OrderID       int64      `json:"orderID,string"`
+	OrderID       int64      `json:"orderId,string"`
 	AvgPrice      float64    `json:"avgPrice,string"`
 	OrigQty       float64    `json:"origQty,string"`
 	Price         float64    `json:"price,string"`
@@ -198,7 +198,7 @@ type BatchCancelOrderData struct {
 	ClosePosition bool       `json:"closePosition"`
 	Symbol        string     `json:"symbol"`
 	Pair          string     `json:"pair"`
-	TimeInForce   string     `json:"TimeInForce"`
+	TimeInForce   string     `json:"timeInForce"`
 	OrderType     string     `json:"type"`
 	OrigType      string     `json:"origType"`
 	ActivatePrice float64    `json:"activatePrice,string"`
@@ -249,7 +249,7 @@ type FuturesOrderPlaceData struct {
 	ClosePosition bool       `json:"closePosition"`
 	Symbol        string     `json:"symbol"`
 	Pair          string     `json:"pair"`
-	TimeInForce   string     `json:"TimeInForce"`
+	TimeInForce   string     `json:"timeInForce"`
 	OrderType     string     `json:"type"`
 	OrigType      string     `json:"origType"`
 	ActivatePrice float64    `json:"activatePrice,string"`
@@ -262,7 +262,7 @@ type FuturesOrderPlaceData struct {
 // FuturesOrderGetData stores futures order data for get requests
 type FuturesOrderGetData struct {
 	AveragePrice       float64    `json:"avgPrice,string"`
-	ClientOrderID      string     `json:"clientOrderID"`
+	ClientOrderID      string     `json:"clientOrderId"`
 	CumulativeQuantity float64    `json:"cumQty,string"`
 	CumulativeBase     float64    `json:"cumBase,string"`
 	ExecutedQuantity   float64    `json:"executedQty,string"`
@@ -359,7 +359,7 @@ type FuturesAccountBalanceData struct {
 	Balance            float64    `json:"balance,string"`
 	WithdrawAvailable  float64    `json:"withdrawAvailable,string"`
 	CrossWalletBalance float64    `json:"crossWalletBalance,string"`
-	CrossUnPNL         float64    `json:"crossUnPNL,string"`
+	CrossUnPNL         float64    `json:"crossUnPnl,string"`
 	AvailableBalance   float64    `json:"availableBalance,string"`
 	UpdateTime         types.Time `json:"updateTime"`
 }
@@ -471,12 +471,12 @@ type FuturesPositionInformation struct {
 type FuturesAccountTradeList struct {
 	Symbol          string     `json:"symbol"`
 	ID              int64      `json:"id"`
-	OrderID         int64      `json:"orderID"`
+	OrderID         int64      `json:"orderId"`
 	Pair            string     `json:"pair"`
 	Side            string     `json:"side"`
 	Price           string     `json:"price"`
 	Qty             float64    `json:"qty"`
-	RealizedPNL     float64    `json:"realizedPNL"`
+	RealizedPNL     float64    `json:"realizedPnl"`
 	MarginAsset     string     `json:"marginAsset"`
 	BaseQty         float64    `json:"baseQty"`
 	Commission      float64    `json:"commission"`
@@ -506,7 +506,7 @@ type NotionalBracketData struct {
 		QtyCap           float64 `json:"qtyCap"`
 		QtylFloor        float64 `json:"qtyFloor"`
 		MaintMarginRatio float64 `json:"maintMarginRatio"`
-	}
+	} `json:"brackets"`
 }
 
 // ForcedOrdersData stores forced orders data
@@ -619,7 +619,7 @@ type UFuturesSymbolInfo struct {
 		MultiplierDecimal float64 `json:"multiplierDecimal,string"`
 		Notional          float64 `json:"notional,string"`
 	} `json:"filters"`
-	OrderTypes      []string `json:"OrderType"`
+	OrderTypes      []string `json:"orderTypes"`
 	TimeInForce     []string `json:"timeInForce"`
 	LiquidationFee  float64  `json:"liquidationFee,string"`
 	MarketTakeBound float64  `json:"marketTakeBound,string"`

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -430,7 +429,7 @@ allTrades:
 	}
 	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

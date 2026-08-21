@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -186,8 +187,8 @@ candles:
 				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMismatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
 			}
 			// todo change b.stream to map
-			for y := len(b.stream) - 1; y >= 0; y-- {
-				if s[x].GetTime().Equal(b.stream[y].GetTime()) {
+			for _, v := range slices.Backward(b.stream) {
+				if s[x].GetTime().Equal(v.GetTime()) {
 					continue candles
 				}
 			}

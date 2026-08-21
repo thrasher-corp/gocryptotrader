@@ -8,16 +8,16 @@ import (
 var currencyStateManagementCommand = &cli.Command{
 	Name:      "currencystate",
 	Usage:     "execute exchange currency state management command",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:      "getall",
 			Usage:     "fetch all currency states associated with an exchange",
-			ArgsUsage: "<exchange>",
+			ArgsUsage: exchangeArgsUsage,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 			},
 			Action: stateGetAll,
@@ -49,15 +49,15 @@ var currencyStateManagementCommand = &cli.Command{
 			ArgsUsage: "<exchange> <pair> <asset>",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:  "pair",
+					Name:  pairFlag,
 					Usage: "the currency pair e.g. btc-usd",
 				},
 				&cli.StringFlag{
-					Name:  "asset",
+					Name:  assetFlag,
 					Usage: "the asset type",
 				},
 			},
@@ -68,15 +68,15 @@ var currencyStateManagementCommand = &cli.Command{
 
 var stateFlags = []cli.Flag{
 	&cli.StringFlag{
-		Name:  "exchange",
-		Usage: "the exchange to act on",
+		Name:  exchangeFlag,
+		Usage: exchangeUsage,
 	},
 	&cli.StringFlag{
 		Name:  "code",
 		Usage: "the currency code",
 	},
 	&cli.StringFlag{
-		Name:  "asset",
+		Name:  assetFlag,
 		Usage: "the asset type",
 	},
 }
@@ -87,8 +87,8 @@ func stateGetAll(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -117,8 +117,8 @@ func stateGetDeposit(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -131,8 +131,8 @@ func stateGetDeposit(c *cli.Context) error {
 	}
 
 	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
+	if c.IsSet(assetFlag) {
+		a = c.String(assetFlag)
 	} else {
 		a = c.Args().Get(2)
 	}
@@ -165,8 +165,8 @@ func stateGetWithdrawal(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -179,8 +179,8 @@ func stateGetWithdrawal(c *cli.Context) error {
 	}
 
 	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
+	if c.IsSet(assetFlag) {
+		a = c.String(assetFlag)
 	} else {
 		a = c.Args().Get(2)
 	}
@@ -213,8 +213,8 @@ func stateGetTrading(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -227,8 +227,8 @@ func stateGetTrading(c *cli.Context) error {
 	}
 
 	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
+	if c.IsSet(assetFlag) {
+		a = c.String(assetFlag)
 	} else {
 		a = c.Args().Get(2)
 	}
@@ -261,22 +261,22 @@ func stateGetPairTrading(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 
 	var pair string
-	if c.IsSet("pair") {
-		pair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		pair = c.String(pairFlag)
 	} else {
 		pair = c.Args().Get(1)
 	}
 
 	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
+	if c.IsSet(assetFlag) {
+		a = c.String(assetFlag)
 	} else {
 		a = c.Args().Get(2)
 	}

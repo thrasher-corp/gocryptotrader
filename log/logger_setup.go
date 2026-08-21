@@ -53,10 +53,8 @@ func getWriters(s *SubLoggerConfig) (*multiWriterHolder, error) {
 func GenDefaultSettings() *Config {
 	return &Config{
 		Enabled: convert.BoolPtr(true),
-		SubLoggerConfig: SubLoggerConfig{
-			Level:  "INFO|DEBUG|WARN|ERROR",
-			Output: "console",
-		},
+		Level:   "INFO|DEBUG|WARN|ERROR",
+		Output:  "console",
 		LoggerFileConfig: &loggerFileConfig{
 			FileName: "log.txt",
 			Rotate:   convert.BoolPtr(false),

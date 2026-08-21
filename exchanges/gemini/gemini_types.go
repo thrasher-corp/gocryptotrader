@@ -11,12 +11,11 @@ type Ticker struct {
 	Bid    float64 `json:"bid,string"`
 	Last   float64 `json:"last,string"`
 	Volume struct {
-		Currency  float64
-		USD       float64
-		BTC       float64
-		ETH       float64
-		Timestamp types.Time
-	}
+		USD       types.Number `json:"USD"`
+		BTC       types.Number `json:"BTC"`
+		ETH       types.Number `json:"ETH"`
+		Timestamp types.Time   `json:"timestamp"`
+	} `json:"volume"`
 }
 
 // SymbolDetails contains additional symbol details
@@ -169,9 +168,8 @@ type TradeHistory struct {
 	Exchange        string     `json:"exchange"`
 	IsAuctionFilled bool       `json:"is_auction_fill"`
 	ClientOrderID   string     `json:"client_order_id"`
-	// Used to store values
-	BaseCurrency  string
-	QuoteCurrency string
+	BaseCurrency    string     `json:"-"`
+	QuoteCurrency   string     `json:"-"`
 }
 
 // TradeVolume holds Volume information

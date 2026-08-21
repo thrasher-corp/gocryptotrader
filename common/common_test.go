@@ -395,6 +395,28 @@ func TestChangePermission(t *testing.T) {
 	}
 }
 
+func TestChangePermissionSymlinks(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires elevated privileges on Windows")
+	}
+	tempDir := t.TempDir()
+	target := filepath.Join(tempDir, "target")
+	require.NoError(t, os.Mkdir(target, 0o750), "Mkdir must not error")
+	require.NoError(t, os.WriteFile(filepath.Join(target, "a.txt"), []byte("hello"), 0o600), "WriteFile must not error")
+	require.NoError(t, os.Symlink("a.txt", filepath.Join(target, "inner.txt")), "Symlink must not error")
+	require.NoError(t, ChangePermission(target), "ChangePermission must not error for a symlink resolving inside the tree")
+
+	outside := filepath.Join(tempDir, "outside.txt")
+	require.NoError(t, os.WriteFile(outside, []byte("secret"), 0o600), "WriteFile must not error")
+	require.NoError(t, os.Symlink(outside, filepath.Join(target, "escape.txt")), "Symlink must not error")
+	assert.ErrorContains(t, ChangePermission(target), "escapes from parent", "ChangePermission should reject a symlink resolving outside the tree")
+
+	fi, err := os.Stat(outside)
+	require.NoError(t, err, "Stat must not error")
+	assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm(), "the file outside the tree should keep its permissions")
+}
+
 func TestAddPaddingOnUpperCase(t *testing.T) {
 	t.Parallel()
 

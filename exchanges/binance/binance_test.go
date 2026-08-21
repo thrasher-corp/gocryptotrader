@@ -2410,7 +2410,6 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
 	wsFmt := currency.PairFormat{Uppercase: false, Delimiter: ""}
@@ -2420,6 +2419,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.TickerChannel, QualifiedChannel: "ticker", Asset: asset.Spot},
 		{Channel: subscription.AllTradesChannel, QualifiedChannel: "trade", Asset: asset.Spot},
 	}
+	exp := make(subscription.List, 0, len(baseExp)*len(pairs))
 	for _, p := range pairs {
 		for _, baseSub := range baseExp {
 			sub := baseSub.Clone()

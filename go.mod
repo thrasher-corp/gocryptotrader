@@ -1,13 +1,12 @@
 module github.com/thrasher-corp/gocryptotrader
 
-go 1.26
+go 1.27
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/buger/jsonparser v1.6.1
 	github.com/bytedance/sonic v1.15.2
 	github.com/d5/tengo/v2 v2.17.0
-	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0
@@ -47,6 +46,7 @@ require (
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect

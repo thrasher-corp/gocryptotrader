@@ -147,7 +147,7 @@ func (e *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, 
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	return &(response.Data), e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return &response.Data, e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 		if err != nil {
 			return nil, err
@@ -1219,7 +1219,7 @@ func channelInterval(s *subscription.Subscription) string {
 // Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
 	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
-	p := currency.Pairs{}
+	p := make(currency.Pairs, 0, len(cs))
 	for _, c := range cs {
 		p = append(p, currency.Pair{Base: c})
 	}

@@ -34,7 +34,7 @@ type Ticker struct {
 	Timestamp       types.Time `json:"timestamp"`
 	Open            float64    `json:"open,string"`
 	Open24          float64    `json:"open_24,string"`
-	Side            orderSide  `json:"side,string"`
+	Side            orderSide  `json:"side"`
 	PercentChange24 float64    `json:"percent_change_24,string"`
 }
 
@@ -47,13 +47,13 @@ type Orderbook struct {
 
 // TradingPair holds trading pair information
 type TradingPair struct {
-	Name            string `json:"name"`
-	URLSymbol       string `json:"url_symbol"`
-	BaseDecimals    int    `json:"base_decimals"`
-	CounterDecimals int    `json:"counter_decimals"`
-	MinimumOrder    float64
-	Trading         string `json:"trading"`
-	Description     string `json:"description"`
+	Name            string  `json:"name"`
+	URLSymbol       string  `json:"url_symbol"`
+	BaseDecimals    int     `json:"base_decimals"`
+	CounterDecimals int     `json:"counter_decimals"`
+	MinimumOrder    float64 `json:"-"`
+	Trading         string  `json:"trading"`
+	Description     string  `json:"description"`
 }
 
 // Transactions holds transaction data
@@ -139,7 +139,7 @@ type OrderStatus struct {
 		Fee          float64        `json:"fee,string"`
 		DateTime     types.DateTime `json:"datetime"`
 		Type         int64          `json:"type"`
-	}
+	} `json:"transactions"`
 }
 
 // CancelOrder holds the order cancellation info

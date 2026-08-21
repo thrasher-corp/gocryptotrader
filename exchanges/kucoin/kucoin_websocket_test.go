@@ -179,8 +179,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	var loanPairs currency.Pairs
 	loanCurrs := common.SortStrings(pairs["both"].GetCurrencies())
+	loanPairs := make(currency.Pairs, 0, len(loanCurrs))
 	for _, c := range loanCurrs {
 		loanPairs = append(loanPairs, currency.Pair{Base: c})
 	}
@@ -300,29 +300,27 @@ func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	ku := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "ticker"},
-						{Enabled: true, Channel: "allTrades"},
-						{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
-						{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
-						{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
-						{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
-						{Enabled: true, Channel: "/account/balance", Authenticated: true},
-						{Enabled: true, Channel: "/margin/position", Authenticated: true},
-						{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/level2", Asset: asset.Futures},
-						{Enabled: true, Channel: "/market/level2", Asset: asset.Spot, Authenticated: true},
-					},
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{
+				Subscriptions: subscription.List{
+					{Enabled: true, Channel: "ticker"},
+					{Enabled: true, Channel: "allTrades"},
+					{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
+					{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
+					{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
+					{Enabled: true, Channel: "/account/balance", Authenticated: true},
+					{Enabled: true, Channel: "/margin/position", Authenticated: true},
+					{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
+					{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
+					{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
+					{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
+					{Enabled: true, Channel: "/contractMarket/level2", Asset: asset.Futures},
+					{Enabled: true, Channel: "/market/level2", Asset: asset.Spot, Authenticated: true},
 				},
 			},
-			Features: exchange.Features{},
 		},
+		Features: exchange.Features{},
 	}
 
 	ku.checkSubscriptions()

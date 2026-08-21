@@ -72,13 +72,11 @@ func (s *States) GetCurrencyStateSnapshot() ([]Snapshot, error) {
 			state.trading = val.trading
 			val.mtx.RUnlock()
 			snapshots = append(snapshots, Snapshot{
-				Code:  currency.Code{Item: c},
-				Asset: a,
-				Options: Options{
-					Withdraw: &state.withdrawals,
-					Deposit:  &state.deposits,
-					Trade:    &state.trading,
-				},
+				Code:     currency.Code{Item: c},
+				Asset:    a,
+				Withdraw: &state.withdrawals,
+				Deposit:  &state.deposits,
+				Trade:    &state.trading,
 			})
 		}
 	}

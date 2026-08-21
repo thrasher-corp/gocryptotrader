@@ -2,9 +2,9 @@ package dispatch
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/gofrs/uuid"
+	"uuid"
 )
 
 const (
@@ -55,7 +55,7 @@ type Dispatcher struct {
 	m sync.RWMutex
 	// subscriberCount atomically stores the amount of subscription endpoints
 	// to verify whether to send out any jobs
-	subscriberCount int32
+	subscriberCount atomic.Int32
 }
 
 // job defines a relaying job associated with a ticket which allows routing to

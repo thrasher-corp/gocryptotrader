@@ -21,13 +21,11 @@ func main() {
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
 	for i := range exchange.Exchanges {
-		wg.Add(1)
-		go func(name string) {
-			defer wg.Done()
-			if err = engine.Bot.LoadExchange(name); err != nil {
-				log.Printf("Failed to load exchange %s. Err: %s", name, err)
+		wg.Go(func() {
+			if err := engine.Bot.LoadExchange(exchange.Exchanges[i]); err != nil {
+				log.Printf("Failed to load exchange %s. Err: %s", exchange.Exchanges[i], err)
 			}
-		}(exchange.Exchanges[i])
+		})
 	}
 	wg.Wait()
 	log.Println("Done.")

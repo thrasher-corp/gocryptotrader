@@ -8,15 +8,15 @@ import (
 var websocketManagerCommand = &cli.Command{
 	Name:      "websocket",
 	Usage:     "execute websocket management command",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:  "getinfo",
 			Usage: "returns all exchange websocket information",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 			},
 			Action: getwebsocketInfo,
@@ -26,22 +26,22 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "disables websocket connection for an exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 			},
 			Action: enableDisableWebsocket,
 		},
 		{
-			Name:  "enable",
+			Name:  enableFlag,
 			Usage: "enables websocket connection for an exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 				&cli.BoolFlag{
-					Name:   "enable",
+					Name:   enableFlag,
 					Hidden: true,
 					Value:  true,
 				},
@@ -53,8 +53,8 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "returns current subscriptions for an exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 			},
 			Action: getSubscriptions,
@@ -64,8 +64,8 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "sets exchange websocket proxy, flushes and reroutes connection",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 				&cli.StringFlag{
 					Name:  "proxy",
@@ -79,8 +79,8 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "sets exchange websocket endpoint URL and resets the websocket connection",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
+					Name:  exchangeFlag,
+					Usage: exchangeUsage,
 				},
 				&cli.StringFlag{
 					Name:  "url",
@@ -98,8 +98,8 @@ func getwebsocketInfo(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -121,14 +121,14 @@ func getwebsocketInfo(c *cli.Context) error {
 }
 
 func enableDisableWebsocket(c *cli.Context) error {
-	enable := c.Bool("enable")
+	enable := c.Bool(enableFlag)
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -155,8 +155,8 @@ func getSubscriptions(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -183,8 +183,8 @@ func setProxy(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -218,8 +218,8 @@ func setURL(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}

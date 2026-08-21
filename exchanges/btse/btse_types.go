@@ -321,7 +321,7 @@ type wsTradeData struct {
 	Side      order.Side `json:"side"`
 	Size      float64    `json:"size"`
 	Price     float64    `json:"price"`
-	TID       int64      `json:"tradeID"`
+	TID       int64      `json:"tradeId"`
 	Timestamp types.Time `json:"timestamp"`
 }
 

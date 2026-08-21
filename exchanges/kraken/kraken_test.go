@@ -1172,6 +1172,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	pairs, err := ex.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
 	require.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
+	//nolint:prealloc // fixed test fixture, not a hot path
 	exp := subscription.List{
 		{Channel: subscription.TickerChannel},
 		{Channel: subscription.AllTradesChannel},
@@ -1940,13 +1941,13 @@ func TestGetFuturesErr(t *testing.T) {
 
 	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid char", "Bad JSON should error correctly")
 	assert.NoError(t, getFuturesErr(json.RawMessage(`{"candles":[]}`)), "JSON with no Result should not error")
-	assert.NoError(t, getFuturesErr(json.RawMessage(`{"Result":"4 goats"}`)), "JSON with non-error Result should not error")
-	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"Result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
-	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"Result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
-	err := getFuturesErr(json.RawMessage(`{"Result":"error", "errors": ["2 goats", "3 goats"]}`))
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"result":"4 goats"}`)), "JSON with non-error Result should not error")
+	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
+	err := getFuturesErr(json.RawMessage(`{"result":"error", "errors": ["2 goats", "3 goats"]}`))
 	assert.ErrorContains(t, err, "2 goat", "JSON with errors should error correctly")
 	assert.ErrorContains(t, err, "3 goat", "JSON with errors should error correctly")
-	err = getFuturesErr(json.RawMessage(`{"Result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
+	err = getFuturesErr(json.RawMessage(`{"result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
 	assert.ErrorContains(t, err, "2 goat", "JSON with both error and errors should error correctly")
 	assert.ErrorContains(t, err, "3 goat", "JSON with both error and errors should error correctly")
 	assert.ErrorContains(t, err, "too many goat", "JSON both error and with errors should error correctly")

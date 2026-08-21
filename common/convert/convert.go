@@ -96,12 +96,12 @@ func DecimalToHumanFriendlyString(number decimal.Decimal, rounding uint, decPoin
 		rounding = math.MaxInt32 // Not feasible to test due to the size of the number
 	}
 
-	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg) //nolint:gosec // Checked above
+	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg)
 }
 
 func numberToHumanFriendlyString(str string, dec uint, decPoint, thousandsSep string, neg bool) string {
 	var prefix, suffix string
-	if dec > 0 && (dec)+1 > uint(len(str)) {
+	if dec > 0 && dec+1 > uint(len(str)) {
 		dec = 0
 	}
 	if dec > 0 {

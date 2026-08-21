@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/shopspring/decimal"
@@ -21,7 +21,6 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -172,7 +171,7 @@ func (s *GRPCServer) startRPCRESTProxy(ctx context.Context) error {
 		Handler:           mux,
 	}
 
-	go func() {
+	go func() { //nolint:gosec // Shutdown must outlive ctx, which has just been cancelled
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -574,17 +573,15 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			return nil, fmt.Errorf("%w '%v' cannot exceed '%v'", errBadPort, request.Config.DataSettings.DatabaseData.Config.Config.Port, math.MaxUint16)
 		}
 		cfg := database.Config{
-			Enabled: request.Config.DataSettings.DatabaseData.Config.Enabled,
-			Verbose: request.Config.DataSettings.DatabaseData.Config.Verbose,
-			Driver:  request.Config.DataSettings.DatabaseData.Config.Driver,
-			ConnectionDetails: drivers.ConnectionDetails{
-				Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
-				Port:     request.Config.DataSettings.DatabaseData.Config.Config.Port,
-				Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
-				Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
-				Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,
-				SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
-			},
+			Enabled:  request.Config.DataSettings.DatabaseData.Config.Enabled,
+			Verbose:  request.Config.DataSettings.DatabaseData.Config.Verbose,
+			Driver:   request.Config.DataSettings.DatabaseData.Config.Driver,
+			Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
+			Port:     request.Config.DataSettings.DatabaseData.Config.Config.Port,
+			Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
+			Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
+			Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,
+			SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
 		}
 		dbData = &config.DatabaseData{
 			StartDate:        request.Config.DataSettings.DatabaseData.StartDate.AsTime(),
@@ -730,7 +727,7 @@ func (s *GRPCServer) StopTask(_ context.Context, req *btrpc.StopTaskRequest) (*b
 	if req == nil {
 		return nil, fmt.Errorf("%w StopTaskRequest", gctcommon.ErrNilPointer)
 	}
-	id, err := uuid.FromString(req.Id)
+	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +771,7 @@ func (s *GRPCServer) StartTask(_ context.Context, req *btrpc.StartTaskRequest) (
 	if req == nil {
 		return nil, fmt.Errorf("%w StartTaskRequest", gctcommon.ErrNilPointer)
 	}
-	id, err := uuid.FromString(req.Id)
+	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -814,7 +811,7 @@ func (s *GRPCServer) ClearTask(_ context.Context, req *btrpc.ClearTaskRequest) (
 	if req == nil {
 		return nil, fmt.Errorf("%w ClearTaskRequest", gctcommon.ErrNilPointer)
 	}
-	id, err := uuid.FromString(req.Id)
+	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, err
 	}

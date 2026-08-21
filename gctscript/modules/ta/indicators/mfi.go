@@ -13,7 +13,7 @@ import (
 
 // MfiModule index indicator commands
 var MfiModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: mfi},
+	calculate: &objects.UserFunction{Name: calculate, Value: mfi},
 }
 
 // MoneyFlowIndex is the string constant
@@ -36,7 +36,7 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(MFI)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 

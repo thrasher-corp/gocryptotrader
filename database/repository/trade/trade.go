@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -148,11 +148,7 @@ func verifyTradeInIntervalsPostgres(ctx context.Context, tx *sql.Tx, exchangeNam
 func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	for i := range trades {
 		if trades[i].ID == "" {
-			freshUUID, err := uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			trades[i].ID = freshUUID.String()
+			trades[i].ID = uuid.NewV4().String()
 		}
 		tempEvent := sqlite3.Trade{
 			ID:             trades[i].ID,
@@ -183,12 +179,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	var err error
 	for i := range trades {
 		if trades[i].ID == "" {
-			var freshUUID uuid.UUID
-			freshUUID, err = uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			trades[i].ID = freshUUID.String()
+			trades[i].ID = uuid.NewV4().String()
 		}
 		tempEvent := postgres.Trade{
 			ExchangeNameID: trades[i].ExchangeNameID,

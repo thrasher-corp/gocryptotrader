@@ -20,12 +20,14 @@ const (
 )
 
 func TestMain(t *testing.M) {
-	err := e.Setup(base.Settings{
+	switch err := e.Setup(base.Settings{
 		Name:      "ExchangeRates",
 		APIKey:    apiKey,
 		APIKeyLvl: apiKeyLevel,
-	})
-	if err != nil && !(errors.Is(err, errAPIKeyNotSet)) {
+	}); {
+	case err == nil, errors.Is(err, errAPIKeyNotSet):
+		// Tests needing credentials skip themselves via isAPIKeySet
+	default:
 		log.Fatal(err)
 	}
 	os.Exit(t.Run())

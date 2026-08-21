@@ -15,7 +15,7 @@ import (
 var dataHistoryCommands = &cli.Command{
 	Name:      "datahistory",
 	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "getactivejobs",
@@ -109,7 +109,7 @@ var dataHistoryCommands = &cli.Command{
 var dataHistoryJobCommands = &cli.Command{
 	Name:      "addjob",
 	Usage:     "add or update data history jobs",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "savecandles",
@@ -205,17 +205,17 @@ var (
 	baseJobSubCommands = []cli.Flag{
 		nicknameFlag,
 		&cli.StringFlag{
-			Name:     "exchange",
+			Name:     exchangeFlag,
 			Usage:    "eg binance",
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:     "asset",
+			Name:     assetFlag,
 			Usage:    "eg spot",
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:     "pair",
+			Name:     pairFlag,
 			Usage:    "eg btc-usdt",
 			Required: true,
 		},
@@ -369,19 +369,19 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		nickname = c.String("nickname")
 	}
 
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		pair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		pair = c.String(pairFlag)
 	}
 	if !validPair(pair) {
 		return errInvalidPair

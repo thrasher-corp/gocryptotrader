@@ -2,8 +2,8 @@ package engine
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"

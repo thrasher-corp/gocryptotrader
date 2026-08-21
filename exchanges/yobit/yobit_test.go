@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -67,6 +68,22 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTicker(t.Context(), testPair.String())
 	assert.NoError(t, err, "GetTicker should not error")
+}
+
+func TestTickerUnmarshal(t *testing.T) {
+	t.Parallel()
+	var tick Ticker
+	err := json.Unmarshal([]byte(`{"high":82750,"low":80000.24,"avg":81375.12,"vol":40.81311859,"vol_cur":0.00050072,"last":80001,"buy":80001.1,"sell":82750.2,"updated":1787211897}`), &tick)
+	require.NoError(t, err, "Unmarshal must not error")
+	assert.Equal(t, 82750.0, tick.High, "High should decode")
+	assert.Equal(t, 80000.24, tick.Low, "Low should decode")
+	assert.Equal(t, 81375.12, tick.Avg, "Avg should decode")
+	assert.Equal(t, 40.81311859, tick.Vol, "Vol should decode")
+	assert.Equal(t, 0.00050072, tick.VolumeCurrent, "VolumeCurrent should decode")
+	assert.Equal(t, 80001.0, tick.Last, "Last should decode")
+	assert.Equal(t, 80001.1, tick.Buy, "Buy should decode")
+	assert.Equal(t, 82750.2, tick.Sell, "Sell should decode")
+	assert.Equal(t, int64(1787211897), tick.Updated, "Updated should decode")
 }
 
 func TestGetDepth(t *testing.T) {

@@ -28,16 +28,16 @@ var (
 
 var commonFlag = []cli.Flag{
 	&cli.StringFlag{
-		Name:  "exchange",
-		Usage: "the exchange to act on",
+		Name:  exchangeFlag,
+		Usage: exchangeUsage,
 	},
 	&cli.StringFlag{
-		Name:  "pair",
+		Name:  pairFlag,
 		Usage: "currency pair",
 	},
 	&cli.StringFlag{
-		Name:  "asset",
-		Usage: "asset",
+		Name:  assetFlag,
+		Usage: assetFlagUsage,
 	},
 	&cli.Int64Flag{
 		Name:        "granularity",
@@ -47,13 +47,13 @@ var commonFlag = []cli.Flag{
 		Destination: &taGranularity,
 	},
 	&cli.StringFlag{
-		Name:        "start",
+		Name:        startFlag,
 		Usage:       "the start date",
 		Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 		Destination: &taStartTime,
 	},
 	&cli.StringFlag{
-		Name:        "end",
+		Name:        endFlag,
 		Usage:       "the end date",
 		Value:       time.Now().Format(time.DateTime),
 		Destination: &taEndTime,
@@ -121,7 +121,7 @@ var technicalAnalysisCommand = &cli.Command{
 	Name:      "technicalanalysis",
 	Usage:     "get technical analysis command",
 	Aliases:   []string{"ta"},
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:      "twap",
@@ -241,15 +241,15 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 
 	var cpString string
-	if c.IsSet("pair") {
-		cpString = c.String("pair")
+	if c.IsSet(pairFlag) {
+		cpString = c.String(pairFlag)
 	} else {
 		cpString = c.Args().Get(1)
 	}
@@ -260,8 +260,8 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 	}
 
 	var asset string
-	if c.IsSet("asset") {
-		asset = c.String("asset")
+	if c.IsSet(assetFlag) {
+		asset = c.String(assetFlag)
 	} else {
 		asset = c.Args().Get(2)
 	}
@@ -280,20 +280,20 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 		}
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(4) != "" {
 			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		taStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value(startFlag).(string)
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(5) != "" {
 			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		taEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value(endFlag).(string)
 	}
 
 	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
@@ -356,15 +356,15 @@ func getBollingerBands(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 
 	var cpString string
-	if c.IsSet("pair") {
-		cpString = c.String("pair")
+	if c.IsSet(pairFlag) {
+		cpString = c.String(pairFlag)
 	} else {
 		cpString = c.Args().Get(1)
 	}
@@ -375,8 +375,8 @@ func getBollingerBands(c *cli.Context) error {
 	}
 
 	var asset string
-	if c.IsSet("asset") {
-		asset = c.String("asset")
+	if c.IsSet(assetFlag) {
+		asset = c.String(assetFlag)
 	} else {
 		asset = c.Args().Get(2)
 	}
@@ -395,20 +395,20 @@ func getBollingerBands(c *cli.Context) error {
 		}
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(4) != "" {
 			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		taStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value(startFlag).(string)
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(5) != "" {
 			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		taEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value(endFlag).(string)
 	}
 
 	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
@@ -512,15 +512,15 @@ func getMACD(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 
 	var cpString string
-	if c.IsSet("pair") {
-		cpString = c.String("pair")
+	if c.IsSet(pairFlag) {
+		cpString = c.String(pairFlag)
 	} else {
 		cpString = c.Args().Get(1)
 	}
@@ -531,8 +531,8 @@ func getMACD(c *cli.Context) error {
 	}
 
 	var asset string
-	if c.IsSet("asset") {
-		asset = c.String("asset")
+	if c.IsSet(assetFlag) {
+		asset = c.String(assetFlag)
 	} else {
 		asset = c.Args().Get(2)
 	}
@@ -551,20 +551,20 @@ func getMACD(c *cli.Context) error {
 		}
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(4) != "" {
 			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		taStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value(startFlag).(string)
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(5) != "" {
 			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		taEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value(endFlag).(string)
 	}
 
 	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
@@ -652,15 +652,15 @@ func getCoco(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 
 	var cpString string
-	if c.IsSet("pair") {
-		cpString = c.String("pair")
+	if c.IsSet(pairFlag) {
+		cpString = c.String(pairFlag)
 	} else {
 		cpString = c.Args().Get(1)
 	}
@@ -671,8 +671,8 @@ func getCoco(c *cli.Context) error {
 	}
 
 	var asset string
-	if c.IsSet("asset") {
-		asset = c.String("asset")
+	if c.IsSet(assetFlag) {
+		asset = c.String(assetFlag)
 	} else {
 		asset = c.Args().Get(2)
 	}
@@ -691,20 +691,20 @@ func getCoco(c *cli.Context) error {
 		}
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(4) != "" {
 			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		taStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value(startFlag).(string)
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(5) != "" {
 			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		taEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value(endFlag).(string)
 	}
 
 	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)

@@ -660,7 +660,7 @@ func (bot *Engine) EnsureRuntimeContext() context.Context {
 		return context.Background()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is retained as bot.runtimeCancel and invoked on shutdown
 	bot.runtimeCtx = ctx
 	bot.runtimeCancel = cancel
 	return ctx
@@ -1001,9 +1001,8 @@ func (bot *Engine) SetupExchanges() error {
 			continue
 		}
 
-		wg.Add(1)
-		go func(c config.Exchange) {
-			defer wg.Done()
+		c := configs[x]
+		wg.Go(func() {
 			if err := bot.LoadExchange(c.Name); err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 			} else {
@@ -1014,7 +1013,7 @@ func (bot *Engine) SetupExchanges() error {
 					common.IsEnabled(c.Verbose),
 				)
 			}
-		}(configs[x])
+		})
 	}
 	wg.Wait()
 	if len(bot.GetExchanges()) == 0 {

@@ -2,14 +2,12 @@ package trade
 
 import (
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -22,12 +20,10 @@ func TestAddTradesToBuffer(t *testing.T) {
 	processor.bufferProcessorInterval = BufferProcessorIntervalTime
 	processor.mutex.Unlock()
 	dbConf := database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite3,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "./rpctestdb",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite3,
+		Host:     "localhost",
+		Database: "./rpctestdb",
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -51,7 +47,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if atomic.AddInt32(&processor.started, 0) == 0 {
+	if !processor.started.Load() {
 		t.Error("expected the processor to have started")
 	}
 
@@ -98,7 +94,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 
 func TestSqlDataToTrade(t *testing.T) {
 	t.Parallel()
-	uuiderino, _ := uuid.NewV4()
+	uuiderino := uuid.NewV4()
 	data, err := SQLDataToTrade(sqltrade.Data{
 		ID:        uuiderino.String(),
 		Timestamp: time.Time{},
@@ -130,7 +126,7 @@ func TestSqlDataToTrade(t *testing.T) {
 func TestTradeToSQLData(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewBTCUSD()
-	sqlData, err := tradeToSQLData(Data{
+	sqlData := tradeToSQLData(Data{
 		Timestamp:    time.Now(),
 		Exchange:     "test!",
 		CurrencyPair: cp,
@@ -139,9 +135,6 @@ func TestTradeToSQLData(t *testing.T) {
 		Amount:       1337,
 		Side:         order.Buy,
 	})
-	if err != nil {
-		t.Error(err)
-	}
 	if len(sqlData) != 1 {
 		t.Fatal("unexpected result")
 	}
@@ -207,11 +200,11 @@ func TestShutdown(t *testing.T) {
 	wg.Add(1)
 	go p.Run(&wg)
 	wg.Wait()
-	if atomic.LoadInt32(&p.started) != 1 {
+	if !p.started.Load() {
 		t.Error("expected it to start running")
 	}
 	time.Sleep(time.Millisecond * 20)
-	if atomic.LoadInt32(&p.started) != 0 {
+	if p.started.Load() {
 		t.Error("expected it to stop running")
 	}
 }

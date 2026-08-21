@@ -47,7 +47,7 @@ type WSFuturesTickerData struct {
 	Suspended                     bool       `json:"suspended"`
 	Tag                           string     `json:"tag"`
 	Pair                          string     `json:"pair"`
-	OpenInterest                  float64    `json:"openinterest"`
+	OpenInterest                  float64    `json:"openInterest"`
 	MarkPrice                     float64    `json:"markPrice"`
 	MaturityTime                  types.Time `json:"maturityTime"`
 	FundingRate                   float64    `json:"funding_rate"`
@@ -217,12 +217,13 @@ type WsAccountBalancesAndMargin struct {
 type WsFuturesNotifications struct {
 	Feed          string `json:"feed"`
 	Notifications []struct {
-		ID               int64      `json:"id"`
-		NotificationType string     `json:"notificationType"`
-		Priority         string     `json:"priority"`
-		Note             string     `json:"note"`
-		EffectiveTime    types.Time `json:"effective_time"`
-	}
+		ID                      int64      `json:"id"`
+		NotificationType        string     `json:"type"`
+		Priority                string     `json:"priority"`
+		Note                    string     `json:"note"`
+		EffectiveTime           types.Time `json:"effective_time"`
+		ExpectedDowntimeMinutes int64      `json:"expected_downtime_minutes"`
+	} `json:"notifications"`
 }
 
 type assetTranslatorStore struct {
@@ -612,7 +613,7 @@ type FuturesPublicTrades struct {
 					UsdValue       float64               `json:"usdValue,string"`
 				} `json:"execution"`
 				TakerReducedQuantity string `json:"takerReducedQuantity"`
-			} `json:"execution"`
+			} `json:"Execution"`
 		} `json:"event"`
 		Timestamp types.Time `json:"timestamp"`
 		UID       string     `json:"uid"`

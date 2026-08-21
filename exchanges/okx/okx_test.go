@@ -220,6 +220,18 @@ func TestGetPremiumHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestOrderBookResponseDetailUnmarshal(t *testing.T) {
+	t.Parallel()
+	var ob OrderBookResponseDetail
+	err := json.Unmarshal([]byte(`{"asks":[["74611.6","0.50582211","0","13"],["74612.5","0.10514904","0","2"]],"bids":[["74611.5","0.012","0","1"]],"ts":"1787276524807"}`), &ob)
+	require.NoError(t, err, "Unmarshal must not error")
+	require.Len(t, ob.Asks, 2, "Asks must decode")
+	require.Len(t, ob.Bids, 1, "Bids must decode")
+	assert.Equal(t, 74611.6, ob.Asks[0].DepthPrice.Float64(), "ask price should decode")
+	assert.Equal(t, 74611.5, ob.Bids[0].DepthPrice.Float64(), "bid price should decode")
+	assert.Equal(t, int64(1787276524807), ob.GenerationTimestamp.Time().UnixMilli(), "GenerationTimestamp should decode")
+}
+
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderBookDepth(contextGenerate(), "", 400)
@@ -1060,7 +1072,7 @@ func TestGet7DayOrderHistory(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.Get7DayOrderHistory(contextGenerate(), &OrderHistoryRequestParams{OrderListRequestParams: OrderListRequestParams{InstrumentType: "MARGIN"}})
+	result, err := e.Get7DayOrderHistory(contextGenerate(), &OrderHistoryRequestParams{InstrumentType: "MARGIN"})
 	require.NoError(t, err)
 	require.NotNil(t, result)
 }
@@ -1068,7 +1080,7 @@ func TestGet7DayOrderHistory(t *testing.T) {
 func TestGet3MonthOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.Get3MonthOrderHistory(contextGenerate(), &OrderHistoryRequestParams{OrderListRequestParams: OrderListRequestParams{InstrumentType: "MARGIN"}})
+	result, err := e.Get3MonthOrderHistory(contextGenerate(), &OrderHistoryRequestParams{InstrumentType: "MARGIN"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6247,7 +6259,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instId":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
@@ -6334,8 +6346,9 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
-	var subs subscription.List
-	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
+	channels := []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H}
+	subs := make(subscription.List, 0, len(channels))
+	for i, ch := range channels {
 		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
 

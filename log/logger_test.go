@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -22,10 +22,8 @@ import (
 var (
 	testConfigEnabled = &Config{
 		Enabled: convert.BoolPtr(true),
-		SubLoggerConfig: SubLoggerConfig{
-			Output: "console",
-			Level:  "INFO|WARN|DEBUG|ERROR",
-		},
+		Output:  "console",
+		Level:   "INFO|WARN|DEBUG|ERROR",
 		AdvancedSettings: advancedSettings{
 			ShowLogSystemName: convert.BoolPtr(true),
 			Spacer:            " | ",
@@ -46,8 +44,8 @@ var (
 		},
 	}
 	testConfigDisabled = &Config{
-		Enabled:         convert.BoolPtr(false),
-		SubLoggerConfig: SubLoggerConfig{Output: "console"},
+		Enabled: convert.BoolPtr(false),
+		Output:  "console",
 	}
 
 	tempDir string
@@ -1361,8 +1359,7 @@ func TestWithFields(t *testing.T) {
 	err = sl.setOutputProtected(mwh)
 	require.NoError(t, err, "setOutputProtected must not error")
 
-	id, err := uuid.NewV4()
-	require.NoError(t, err, "uuid.NewV4 must not error")
+	id := uuid.NewV4()
 
 	ErrorlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	ErrorlnWithFields(sl, ExtraFields{"id": id}, "hello")

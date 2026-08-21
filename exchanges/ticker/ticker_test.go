@@ -9,9 +9,8 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -354,8 +353,6 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	var testArray []quick
 
-	_ = rand.NewSource(time.Now().Unix())
-
 	var wg sync.WaitGroup
 	var sm sync.Mutex
 
@@ -450,14 +447,12 @@ func TestGetExchangeTickers(t *testing.T) {
 	assert.ErrorIs(t, err, errExchangeNotFound)
 
 	s.Tickers[key.NewExchangeAssetPair("test", asset.Spot, currency.NewPair(currency.XBT, currency.DOGE))] = &Ticker{
-		Price: Price{
-			Pair:         currency.NewPair(currency.XBT, currency.DOGE),
-			ExchangeName: "test",
-			AssetType:    asset.Futures,
-			OpenInterest: 1337,
-		},
+		Pair:         currency.NewPair(currency.XBT, currency.DOGE),
+		ExchangeName: "test",
+		AssetType:    asset.Futures,
+		OpenInterest: 1337,
 	}
-	s.Exchange["test"] = uuid.Must(uuid.NewV4())
+	s.Exchange["test"] = uuid.NewV4()
 
 	resp, err := s.getExchangeTickers("test")
 	assert.NoError(t, err)

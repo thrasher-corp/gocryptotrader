@@ -615,7 +615,7 @@ type CancelReplaceOrderRequest struct {
 	Price             float64     `json:"price,omitempty,string"`
 	BaseAmount        float64     `json:"quantity,omitempty,string"`
 	QuoteAmount       float64     `json:"amount,omitempty,string"`
-	AmendedType       string      `json:"type,omitempty,string"`
+	AmendedType       string      `json:"type,omitempty"`
 	TimeInForce       TimeInForce `json:"timeInForce,omitempty"`
 	AllowBorrow       bool        `json:"allowBorrow,omitempty"`
 	ProceedOnFailure  bool        `json:"proceedOnFailure,omitempty,string"`

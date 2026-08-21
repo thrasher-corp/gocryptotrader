@@ -30,25 +30,23 @@ func TestWsHandleData(t *testing.T) {
 
 	dummy := Exchange{
 		location: time.Local,
-		Base: exchange.Base{
-			Name: "dummy",
-			Features: exchange.Features{
-				Enabled: exchange.FeaturesEnabled{SaveTradeData: true},
-			},
-			CurrencyPairs: currency.PairsManager{
-				Pairs: map[asset.Item]*currency.PairStore{
-					asset.Spot: {
-						Available: pairs,
-						Enabled:   pairs,
-						ConfigFormat: &currency.PairFormat{
-							Uppercase: true,
-							Delimiter: currency.DashDelimiter,
-						},
+		Name:     "dummy",
+		Features: exchange.Features{
+			Enabled: exchange.FeaturesEnabled{SaveTradeData: true},
+		},
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					Available: pairs,
+					Enabled:   pairs,
+					ConfigFormat: &currency.PairFormat{
+						Uppercase: true,
+						Delimiter: currency.DashDelimiter,
 					},
 				},
 			},
-			Websocket: websocket.NewManager(),
 		},
+		Websocket: websocket.NewManager(),
 	}
 
 	dummy.setupOrderbookManager(t.Context())

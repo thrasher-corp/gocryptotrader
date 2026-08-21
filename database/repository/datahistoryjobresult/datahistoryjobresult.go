@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -109,10 +109,7 @@ func (db *DBService) GetJobResultsBetween(jobID string, startDate, endDate time.
 func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobResult) error {
 	for i := range results {
 		if results[i].ID == "" {
-			freshUUID, err := uuid.NewV4()
-			if err != nil {
-				return err
-			}
+			freshUUID := uuid.NewV4()
 			results[i].ID = freshUUID.String()
 		}
 
@@ -138,12 +135,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobR
 	var err error
 	for i := range results {
 		if results[i].ID == "" {
-			var freshUUID uuid.UUID
-			freshUUID, err = uuid.NewV4()
-			if err != nil {
-				return err
-			}
-			results[i].ID = freshUUID.String()
+			results[i].ID = uuid.NewV4().String()
 		}
 		tempEvent := postgres.Datahistoryjobresult{
 			ID:                results[i].ID,

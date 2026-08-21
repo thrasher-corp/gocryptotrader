@@ -1467,7 +1467,7 @@ const subTplText = `
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
 		{{- else if isSymbolChannel $.S }}
 			{{- range $p := $pairs -}}
-				{"channel":"{{ $name }}","instID":"{{ $p }}"}
+				{"channel":"{{ $name }}","instId":"{{ $p }}"}
 				{{ $.PairSeparator }}
 			{{- end -}}
 		{{- else }}

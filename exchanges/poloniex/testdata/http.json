@@ -8886,7 +8886,7 @@
       "cancelReason": 0
      },
      "queryString": "",
-     "bodyParams": "{\"clientOrderId\":\"\",\"price\":\"1337\",\"type\":\"\\\"LIMIT\\\"\",\"timeInForce\":\"GTC\"}",
+     "bodyParams": "{\"clientOrderId\":\"\",\"price\":\"1337\",\"type\":\"LIMIT\",\"timeInForce\":\"GTC\"}",
      "headers": {
       "Content-Type": [
        "application/json"

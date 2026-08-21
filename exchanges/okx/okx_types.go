@@ -219,9 +219,9 @@ type IndexTicker struct {
 
 // OrderBookResponseDetail contains the ask and bid orders, structured with fields that include the timestamp of order generation.
 type OrderBookResponseDetail struct {
-	Asks                []OrderbookItemDetail
-	Bids                []OrderbookItemDetail
-	GenerationTimestamp time.Time
+	Asks                []OrderbookItemDetail `json:"asks"`
+	Bids                []OrderbookItemDetail `json:"bids"`
+	GenerationTimestamp types.Time            `json:"ts"` // unix milliseconds, quoted
 }
 
 // OrderbookItemDetail represents detailed information about currency bids.
@@ -1614,7 +1614,7 @@ type EstimateQuoteRequestInput struct {
 	Side                 string        `json:"side,omitempty"`
 	RFQAmount            float64       `json:"rfqSz,omitempty"`
 	RFQSzCurrency        string        `json:"rfqSzCcy,omitempty"`
-	ClientRequestOrderID string        `json:"clQReqId,string,omitempty"`
+	ClientRequestOrderID string        `json:"clQReqId,omitempty"`
 	Tag                  string        `json:"tag,omitempty"`
 }
 
@@ -2868,7 +2868,7 @@ type GridAlgoOrderResponse struct {
 	PerMaxProfitRate    types.Number `json:"perMaxProfitRate,omitempty"`
 	PerMinProfitRate    types.Number `json:"perMinProfitRate,omitempty"`
 	Profit              types.Number `json:"profit,omitempty"`
-	Runpx               string       `json:"runpx,omitempty"`
+	Runpx               string       `json:"runPx,omitempty"`
 	SingleAmt           types.Number `json:"singleAmt,omitempty"`
 	TotalAnnualizedRate types.Number `json:"totalAnnualizedRate,omitempty"`
 	TradeNumber         string       `json:"tradeNum,omitempty"`
@@ -3285,7 +3285,7 @@ type PositionDataDetail struct {
 	Currency         string       `json:"ccy"`
 	PositionCurrency string       `json:"posCcy"`
 	AveragePrice     types.Number `json:"avgPx"`
-	UpdateTime       types.Time   `json:"uTIme"`
+	UpdateTime       types.Time   `json:"uTime"`
 }
 
 // BalanceData represents currency and it's Cash balance with the update time
@@ -4176,10 +4176,10 @@ type TPSLOrderParam struct {
 	TakeProfitOrderPrice float64 `json:"tpOrdPx,omitempty,string"`
 	StopLossOrderPrice   float64 `json:"slOrdPx,omitempty,string"`
 
-	TakePofitTriggerPriceType string `json:"tpTriggerPriceType,omitempty,string"` // last: last price, 'index': index price 'mark': mark price Default is 'last'
-	StopLossTriggerPriceType  string `jsonL:"slTriggerPxType,omitempty,string"`   // Stop-loss trigger price type 'last': last price 'index': index price 'mark': mark price Default is 'last'
-	SubPositionType           string `json:"subPosType,omitempty,string"`         // 'lead': lead trading, the default value 'copy': copy trading
-	Tag                       string `json:"tag,omitempty,string"`
+	TakeProfitTriggerPriceType string `json:"tpTriggerPxType,omitempty"` // last: last price, 'index': index price 'mark': mark price Default is 'last'
+	StopLossTriggerPriceType   string `json:"slTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price 'index': index price 'mark': mark price Default is 'last'
+	SubPositionType            string `json:"subPosType,omitempty"`      // 'lead': lead trading, the default value 'copy': copy trading
+	Tag                        string `json:"tag,omitempty"`
 }
 
 // PositionIDInfo holds place positions information
@@ -4496,8 +4496,8 @@ type WsSpreadOrderbookItem struct {
 
 // WsSpreadOrderbookData represents orderbook response for spread instruments
 type WsSpreadOrderbookData struct {
-	Argument SubscriptionInfo `json:"arg"`
-	Data     []WsSpreadOrderbookItem
+	Argument SubscriptionInfo        `json:"arg"`
+	Data     []WsSpreadOrderbookItem `json:"data"`
 }
 
 // AffiliateInviteesDetail represents affiliate invitee's detail
