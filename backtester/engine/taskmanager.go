@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 

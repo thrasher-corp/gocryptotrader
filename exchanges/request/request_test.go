@@ -77,7 +77,7 @@ func TestRoundTripFuncRoundTrip(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodGet, "https://example.com", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", http.NoBody)
 			var receivedRequest *http.Request
 			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				receivedRequest = req

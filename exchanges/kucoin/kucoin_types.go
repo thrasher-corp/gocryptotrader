@@ -340,7 +340,7 @@ type MarginRiskLimit struct {
 type MarginBorrowParam struct {
 	Currency    currency.Code `json:"currency"`
 	Size        float64       `json:"size"`
-	IsIsolated  bool          `json:"isisolated"`
+	IsIsolated  bool          `json:"isIsolated"`
 	Symbol      currency.Pair `json:"symbol"`
 	TimeInForce string        `json:"timeInForce"`
 }
@@ -349,7 +349,7 @@ type MarginBorrowParam struct {
 type RepayParam struct {
 	Currency   currency.Code `json:"currency"`
 	Size       float64       `json:"size"`
-	IsIsolated bool          `json:"isisolated"`
+	IsIsolated bool          `json:"isIsolated"`
 	Symbol     currency.Pair `json:"symbol"`
 }
 
@@ -2028,7 +2028,7 @@ type PlaceMarginHFOrderParam struct {
 	AutoRepay           bool          `json:"autoRepay,omitempty"`
 	Price               float64       `json:"price,string"`
 	Size                float64       `json:"size,string"`
-	TimeInForce         string        `json:"timeInForce,omitempty,string"`
+	TimeInForce         string        `json:"timeInForce,omitempty"`
 	CancelAfter         int64         `json:"cancelAfter,omitempty,string"`
 	PostOnly            bool          `json:"postOnly,omitempty,string"`
 	Hidden              bool          `json:"hidden,omitempty,string"`

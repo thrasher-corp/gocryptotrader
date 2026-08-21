@@ -54,7 +54,7 @@ type WebsocketMainResponse struct {
 	Attributes struct {
 		ID     string `json:"id"`
 		Symbol string `json:"symbol"`
-	} `json:"Attributes"`
+	} `json:"attributes"`
 	Action string `json:"action,omitempty"`
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
 func TestMain(m *testing.M) {
@@ -42,8 +41,8 @@ func TestDatabaseConnect(t *testing.T) {
 		{
 			"SQLite",
 			&database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb.db"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb.db",
 			},
 			CloseDatabase,
 			nil,
@@ -52,9 +51,7 @@ func TestDatabaseConnect(t *testing.T) {
 			"SQliteNoDatabase",
 			&database.Config{
 				Driver: database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{
-					Host: "localhost",
-				},
+				Host:   "localhost",
 			},
 			nil,
 			database.ErrNoDatabaseProvided,

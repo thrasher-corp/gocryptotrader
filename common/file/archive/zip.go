@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -140,7 +141,28 @@ func Zip(src, dest string) error {
 }
 
 func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
-	return filepath.Walk(src, func(path string, i os.FileInfo, err error) error {
+	// Rooted so a mid-walk symlink swap cannot pull in an unrelated file; OpenRoot needs a
+	// directory, so a lone file is rooted at its parent
+	rootDir, start := src, "."
+	if !isDir {
+		rootDir, start = filepath.Split(src)
+		if rootDir == "" {
+			rootDir = "."
+		}
+	}
+
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
+	return fs.WalkDir(root.FS(), start, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		i, err := d.Info()
 		if err != nil {
 			return err
 		}
@@ -151,7 +173,7 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 		}
 
 		if isDir {
-			h.Name = filepath.Join(filepath.Base(src), strings.TrimPrefix(path, src))
+			h.Name = filepath.Join(filepath.Base(src), path)
 		}
 
 		if i.IsDir() {
@@ -169,7 +191,7 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 			return nil
 		}
 
-		f, err := os.Open(path)
+		f, err := root.Open(path)
 		if err != nil {
 			return err
 		}

@@ -12,6 +12,9 @@ import (
 // OHLCV locale string for OHLCV data conversion failure
 const OHLCV = "OHLCV data"
 
+// calculate is the entry point every indicator module exposes to scripts
+const calculate = "calculate"
+
 var errInvalidSelector = errors.New("invalid selector")
 
 func toFloat64(data any) (float64, error) {

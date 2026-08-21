@@ -6,8 +6,8 @@ import (
 	"net"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -440,6 +440,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 func TestLoadConfigPairs(t *testing.T) {
 	t.Parallel()
 
+	//nolint:prealloc // fixed test fixture; growing it only to satisfy the linter would leave cap > len on a slice shared by Enabled and Available
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USD},
 		currency.Pair{Base: currency.LTC, Quote: currency.USD},
@@ -2940,9 +2941,9 @@ func TestWebsocketCancelOrder(t *testing.T) {
 
 func TestMessageID(t *testing.T) {
 	t.Parallel()
-	id := (new(Base)).MessageID()
+	id := new(Base).MessageID()
 	require.NotEmpty(t, id, "MessageID must return a non-empty message ID")
-	u, err := uuid.FromString(id)
+	u, err := uuid.Parse(id)
 	require.NoError(t, err, "MessageID must return a valid UUID")
-	assert.Equal(t, uuid.V7, u.Version(), "MessageID should return a V7 uuid")
+	assert.Equal(t, byte(7), u[6]>>4, "MessageID should return a V7 uuid") // RFC 9562 version nibble
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/volatiletech/null"
 )
@@ -56,8 +55,8 @@ func TestScript(t *testing.T) {
 		{
 			"SQLite-Write",
 			&database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			writeScript,
 			testhelpers.CloseDatabase,
@@ -94,14 +93,11 @@ func TestScript(t *testing.T) {
 func writeScript() {
 	var wg sync.WaitGroup
 	for x := range 20 {
-		wg.Add(1)
-
-		go func(x int) {
-			defer wg.Done()
+		wg.Go(func() {
 			test := fmt.Sprintf("test-%v", x)
 			var data null.Bytes
 			Event(test, test, test, data, test, test, time.Now())
-		}(x)
+		})
 	}
 	wg.Wait()
 }

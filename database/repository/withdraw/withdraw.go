@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -127,22 +127,14 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		}
 	}
 
-	realID, _ := uuid.FromString(tempEvent.ID)
+	realID, _ := uuid.Parse(tempEvent.ID)
 	res.ID = realID
 
 	return nil
 }
 
 func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
-	newUUID, errUUID := uuid.NewV4()
-	if errUUID != nil {
-		log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-		}
-		return err
-	}
+	newUUID := uuid.NewV4()
 
 	tempEvent := modelSQLite.WithdrawalHistory{
 		ID:             newUUID.String(),
@@ -300,7 +292,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 		for x := range v {
 			tempResp := &withdraw.Response{}
 			var newUUID uuid.UUID
-			newUUID, err = uuid.FromString(v[x].ID)
+			newUUID, err = uuid.Parse(v[x].ID)
 			if err != nil {
 				return nil, err
 			}
@@ -317,7 +309,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, sqlDB)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
-				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
+				tempUUID, errUUID := uuid.Parse(v[x].ExchangeNameID)
 				if errUUID != nil {
 					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
 				} else {
@@ -372,7 +364,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 		for x := range v {
 			tempResp := &withdraw.Response{}
-			newUUID, _ := uuid.FromString(v[x].ID)
+			newUUID, _ := uuid.Parse(v[x].ID)
 			tempResp.ID = newUUID
 			tempResp.Exchange.ID = v[x].ExchangeID
 			tempResp.Exchange.Status = v[x].Status
@@ -388,7 +380,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, sqlDB)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
-				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
+				tempUUID, errUUID := uuid.Parse(v[x].ExchangeNameID)
 				if errUUID != nil {
 					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
 				} else {

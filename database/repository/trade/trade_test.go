@@ -7,13 +7,12 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -72,8 +71,8 @@ func TestTrades(t *testing.T) {
 		{
 			name: "SQLite",
 			config: &database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			seedDB: seedDB,
 		},
@@ -102,7 +101,7 @@ func tradeSQLTester(t *testing.T) {
 	trades := make([]Data, 20)
 	firstTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i := range 20 {
-		uu, _ := uuid.NewV4()
+		uu := uuid.NewV4()
 		trades[i] = Data{
 			ID:        uu.String(),
 			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),
@@ -124,7 +123,7 @@ func tradeSQLTester(t *testing.T) {
 
 	trades2 := make([]Data, 20)
 	for i := range 20 {
-		uu, _ := uuid.NewV4()
+		uu := uuid.NewV4()
 		trades2[i] = Data{
 			ID:        uu.String(),
 			Timestamp: firstTime.Add(time.Minute * time.Duration(i+1)),

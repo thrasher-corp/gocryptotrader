@@ -101,7 +101,7 @@ type SwapWsReqEstimatedFunding struct {
 		Low    float64 `json:"low,string"`
 		High   float64 `json:"high,string"`
 		Amount float64 `json:"amount,string"`
-	}
+	} `json:"data"`
 }
 
 // SwapWsSubBasisData stores subscribed basis data for swap websocket
@@ -129,7 +129,7 @@ type SwapWsReqBasisData struct {
 		IndexPrice    float64 `json:"index_price"`
 		Basis         float64 `json:"basis"`
 		BasisRate     float64 `json:"basis_rate"`
-	}
+	} `json:"data"`
 }
 
 // SwapWsSubOrderData stores subscribed order data for swap websocket
@@ -247,7 +247,7 @@ type SwapWsSubPositionUpdates struct {
 		LeverageRate   float64 `json:"lever_rate"`
 		Direction      string  `json:"direction"`
 		LastPrice      float64 `json:"last_price"`
-	}
+	} `json:"data"`
 }
 
 // SwapWsSubLiquidationOrders stores subscribed liquidation orders data for swap futures
@@ -572,7 +572,7 @@ type HistoricalFundingRateData struct {
 		CurrentPage int64                `json:"current_page"`
 		TotalSize   int64                `json:"total_size"`
 		Data        []HistoricalRateData `json:"data"`
-	}
+	} `json:"data"`
 }
 
 // HistoricalRateData stores historical rates data
@@ -936,7 +936,7 @@ type LightningCloseOrderData struct {
 		OrderID       int64  `json:"order_id"`
 		OrderIDString string `json:"order_id_str"`
 		ClientOrderID int64  `json:"client_order_id"`
-	}
+	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
 
@@ -966,7 +966,7 @@ type SwapOrderInfo struct {
 		Status          int64   `json:"status"`
 		FeeAsset        float64 `json:"fee_asset"`
 		LiquidationType int64   `json:"liquidation_type"`
-	}
+	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
 

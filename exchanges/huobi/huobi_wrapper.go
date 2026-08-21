@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -880,7 +879,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -951,20 +950,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			//
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
-			oType = "optimal_20"
+			oType = orderPriceTypeOptimal20
 			switch {
 			case s.TimeInForce.Is(order.ImmediateOrCancel):
-				oType = "optimal_20_ioc"
+				oType = orderPriceTypeOptimal20IOC
 			case s.TimeInForce.Is(order.FillOrKill):
-				oType = "optimal_20_fok"
+				oType = orderPriceTypeOptimal20FOK
 			}
 		case order.Limit:
-			oType = "limit"
+			oType = orderPriceTypeLimit
 			if s.TimeInForce.Is(order.PostOnly) {
-				oType = "post_only"
+				oType = orderPriceTypePostOnly
 			}
 		default:
-			oType = "opponent"
+			oType = orderPriceTypeOpponent
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1002,20 +1001,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			//
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
-			oType = "optimal_20"
+			oType = orderPriceTypeOptimal20
 			switch {
 			case s.TimeInForce.Is(order.ImmediateOrCancel):
-				oType = "optimal_20_ioc"
+				oType = orderPriceTypeOptimal20IOC
 			case s.TimeInForce.Is(order.FillOrKill):
-				oType = "optimal_20_fok"
+				oType = orderPriceTypeOptimal20FOK
 			}
 		case order.Limit:
-			oType = "limit"
+			oType = orderPriceTypeLimit
 			if s.TimeInForce.Is(order.PostOnly) {
-				oType = "post_only"
+				oType = orderPriceTypePostOnly
 			}
 		default:
-			oType = "opponent"
+			oType = orderPriceTypeOpponent
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1633,7 +1632,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					"",
 					"all",
 					"all",
-					"limit",
+					orderPriceTypeLimit,
 					[]order.Status{order.AnyStatus},
 					int64(req.EndTime.Sub(req.StartTime).Hours()/24),
 					currentPage,
@@ -1897,11 +1896,11 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 		return resp, errors.New("invalid orderSide")
 	}
 	switch orderPriceType {
-	case "limit":
+	case orderPriceTypeLimit:
 		resp.OrderType = order.Limit
-	case "opponent":
+	case orderPriceTypeOpponent:
 		resp.OrderType = order.Market
-	case "post_only":
+	case orderPriceTypePostOnly:
 		resp.OrderType = order.Limit
 		resp.TimeInForce = order.PostOnly
 	default:

@@ -19,8 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -342,28 +342,24 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = e.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errInvalidOrderType)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 	ord = &PlaceOrderInfo{
 		ClientOID:  id.String(),
 		ProductID:  testPairStable.String(),
 		Side:       order.Buy.String(),
 		MarginType: "CROSS",
 		Leverage:   9999,
-		OrderInfo: OrderInfo{
-			PostOnly:   false,
-			EndTime:    time.Now().Add(time.Hour),
-			OrderType:  order.Limit,
-			BaseAmount: testAmount,
-			LimitPrice: testPrice,
-		},
+		PostOnly:   false,
+		EndTime:    time.Now().Add(time.Hour),
+		OrderType:  order.Limit,
+		BaseAmount: testAmount,
+		LimitPrice: testPrice,
 	}
 	resp, err := e.PlaceOrder(t.Context(), ord)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
-	id, err = uuid.NewV4()
-	assert.NoError(t, err)
+	id = uuid.NewV4()
 	ord.ClientOID = id.String()
 	ord.MarginType = "MULTI"
 	resp, err = e.PlaceOrder(t.Context(), ord)
@@ -705,10 +701,22 @@ func TestGetHistoricKlines(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestDurationFieldsUnmarshal(t *testing.T) {
+	t.Parallel()
+	var fp FutureProductDetails
+	require.NoError(t, json.Unmarshal([]byte(`{"venue":"FCM","contract_code":"BIT","time_to_expiry_ms":"1814400000"}`), &fp), "Unmarshal must not error")
+	assert.Equal(t, 1814400000.0, fp.TimeToExpiryMilliseconds.Float64(), "TimeToExpiryMilliseconds should decode as milliseconds")
+
+	var bm TWAPBucketMetadata
+	require.NoError(t, json.Unmarshal([]byte(`{"bucket_duration":"3600s","bucket_size":"0.5","bucket_number":"4"}`), &bm), "Unmarshal must not error")
+	assert.Equal(t, "3600s", bm.BucketDuration, "BucketDuration should decode as the exchange's duration string")
+	assert.Equal(t, 0.5, bm.BucketSize.Float64(), "BucketSize should decode")
+}
+
 func TestGetAllProducts(t *testing.T) {
 	t.Parallel()
 	testPairs := []string{testPairFiat.String(), "ETH-USD"}
-	resp, err := e.GetAllProducts(t.Context(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
+	resp, err := e.GetAllProducts(t.Context(), 1000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
@@ -1760,16 +1768,14 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "matches"},
-					},
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{
+				Subscriptions: subscription.List{
+					{Enabled: true, Channel: "matches"},
 				},
 			},
-			Features: exchange.Features{},
 		},
+		Features: exchange.Features{},
 	}
 	e.checkSubscriptions()
 	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), e.Features.Subscriptions)

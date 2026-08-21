@@ -168,7 +168,7 @@ type FuturesFundingRate struct {
 type FundingHistoryItem struct {
 	Symbol      string     `json:"symbol"`
 	FundingRate float64    `json:"fundingRate"`
-	Timepoint   types.Time `json:"timepoint"`
+	Timepoint   types.Time `json:"timepoint"` // /v1/contract/funding-rates sends lowercase, unlike the current funding rate endpoint
 }
 
 // FuturesKline stores kline data

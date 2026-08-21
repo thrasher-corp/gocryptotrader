@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
@@ -62,13 +61,11 @@ func TestLoadDataCandles(t *testing.T) {
 	var err error
 	bot := &engine.Engine{}
 	dbConfg := database.Config{
-		Enabled: true,
-		Verbose: false,
-		Driver:  "sqlite",
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test",
-		},
+		Enabled:  true,
+		Verbose:  false,
+		Driver:   "sqlite",
+		Host:     "localhost",
+		Database: "test",
 	}
 	bot.Config = &config.Config{
 		Database: dbConfg,
@@ -129,13 +126,11 @@ func TestLoadDataTrades(t *testing.T) {
 	var err error
 	bot := &engine.Engine{}
 	dbConfg := database.Config{
-		Enabled: true,
-		Verbose: false,
-		Driver:  "sqlite",
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test",
-		},
+		Enabled:  true,
+		Verbose:  false,
+		Driver:   "sqlite",
+		Host:     "localhost",
+		Database: "test",
 	}
 	bot.Config = &config.Config{
 		Database: dbConfg,

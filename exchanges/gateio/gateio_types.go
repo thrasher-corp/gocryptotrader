@@ -2060,7 +2060,7 @@ type WsEventResponse struct {
 	Error *struct {
 		Code    int64  `json:"code"`
 		Message string `json:"message"`
-	}
+	} `json:"error"`
 }
 
 // WSResponse represents generalised websocket push data from the server.

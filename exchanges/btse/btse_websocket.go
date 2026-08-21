@@ -78,7 +78,7 @@ func (e *Exchange) WsAuthenticate(ctx context.Context) error {
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/ws/spot" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte((path)), []byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(path), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}

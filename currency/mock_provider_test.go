@@ -14,11 +14,9 @@ func newMockProvider() *forexprovider.ForexProviders {
 	p := &MockProvider{}
 	c, _ := p.GetSupportedCurrencies()
 	return &forexprovider.ForexProviders{
-		FXHandler: base.FXHandler{
-			Primary: base.Provider{
-				Provider:            p,
-				SupportedCurrencies: c,
-			},
+		Primary: base.Provider{
+			Provider:            p,
+			SupportedCurrencies: c,
 		},
 	}
 }

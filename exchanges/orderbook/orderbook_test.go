@@ -320,8 +320,6 @@ func TestProcessOrderbook(t *testing.T) {
 
 	var testArray []quick
 
-	_ = rand.NewSource(time.Now().Unix())
-
 	var wg sync.WaitGroup
 	var m sync.Mutex
 

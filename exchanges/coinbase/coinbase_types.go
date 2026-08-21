@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -156,24 +156,24 @@ type PerpetualDetails struct {
 
 // FutureProductDetails is a sub-struct used in the type Product
 type FutureProductDetails struct {
-	Venue                  string           `json:"venue"`
-	ContractCode           string           `json:"contract_code"`
-	ContractExpiry         time.Time        `json:"contract_expiry"`
-	ContractSize           types.Number     `json:"contract_size"`
-	ContractRootUnit       string           `json:"contract_root_unit"`
-	GroupDescription       string           `json:"group_description"`
-	ContractExpiryTimezone string           `json:"contract_expiry_timezone"`
-	GroupShortDescription  string           `json:"group_short_description"`
-	RiskManagedBy          string           `json:"risk_managed_by"`
-	ContractExpiryType     string           `json:"contract_expiry_type"`
-	PerpetualDetails       PerpetualDetails `json:"perpetual_details"`
-	ContractDisplayName    string           `json:"contract_display_name"`
-	TimeToExpiry           time.Duration    `json:"time_to_expiry_ms,string"`
-	NonCrypto              bool             `json:"non_crypto"`
-	ContractExpiryName     string           `json:"contract_expiry_name"`
-	TwentyFourBySeven      bool             `json:"twenty_four_by_seven"`
-	FundingInterval        string           `json:"funding_interval"`
-	OpenInterest           types.Number     `json:"open_interest"`
+	Venue                    string           `json:"venue"`
+	ContractCode             string           `json:"contract_code"`
+	ContractExpiry           time.Time        `json:"contract_expiry"`
+	ContractSize             types.Number     `json:"contract_size"`
+	ContractRootUnit         string           `json:"contract_root_unit"`
+	GroupDescription         string           `json:"group_description"`
+	ContractExpiryTimezone   string           `json:"contract_expiry_timezone"`
+	GroupShortDescription    string           `json:"group_short_description"`
+	RiskManagedBy            string           `json:"risk_managed_by"`
+	ContractExpiryType       string           `json:"contract_expiry_type"`
+	PerpetualDetails         PerpetualDetails `json:"perpetual_details"`
+	ContractDisplayName      string           `json:"contract_display_name"`
+	TimeToExpiryMilliseconds types.Number     `json:"time_to_expiry_ms"`
+	NonCrypto                bool             `json:"non_crypto"`
+	ContractExpiryName       string           `json:"contract_expiry_name"`
+	TwentyFourBySeven        bool             `json:"twenty_four_by_seven"`
+	FundingInterval          string           `json:"funding_interval"`
+	OpenInterest             types.Number     `json:"open_interest"`
 }
 
 // Product holds product information, returned by GetProductByID, and used as a sub-struct in the type AllProducts
@@ -555,9 +555,9 @@ type TriggerBracketPNL struct {
 
 // TWAPBucketMetadata is a sub-struct used in the type PreviewOrderResp
 type TWAPBucketMetadata struct {
-	BucketDuration time.Duration `json:"bucket_duration"`
-	BucketSize     types.Number  `json:"bucket_size"`
-	BucketNumber   Integer       `json:"bucket_number"`
+	BucketDuration string       `json:"bucket_duration"`
+	BucketSize     types.Number `json:"bucket_size"`
+	BucketNumber   Integer      `json:"bucket_number"`
 }
 
 // MarginRatioData is a sub-struct used in the type PreviewOrderResp

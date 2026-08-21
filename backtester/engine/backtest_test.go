@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1297,7 +1297,7 @@ func TestRunLive(t *testing.T) {
 	bt.Reports = &report.Data{}
 	bt.Funding = &fakeFunding{}
 	bt.Statistic = &fakeStats{}
-	dc.started = 0
+	dc.started.Store(false)
 	err = bt.RunLive()
 	assert.NoError(t, err)
 }
@@ -1328,7 +1328,7 @@ func TestLiveLoop(t *testing.T) {
 	assert.NoError(t, <-liveCheckErr)
 
 	// shutdown from error case
-	dc.started = 0
+	dc.started.Store(false)
 	liveCheckErr = make(chan error, 1)
 	go func() {
 		liveCheckErr <- bt.liveCheck()
@@ -1337,7 +1337,7 @@ func TestLiveLoop(t *testing.T) {
 	assert.NoError(t, <-liveCheckErr)
 
 	// shutdown case
-	dc.started = 1
+	dc.started.Store(true)
 	bt.shutdown = make(chan struct{})
 	liveCheckErr = make(chan error, 1)
 	go func() {
@@ -1424,11 +1424,10 @@ func TestGenerateSummary(t *testing.T) {
 	sum, err := bt.GenerateSummary()
 	assert.NoError(t, err)
 
-	if !sum.MetaData.ID.IsNil() {
+	if sum.MetaData.ID != uuid.Nil() {
 		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, "")
 	}
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 
 	bt.MetaData.ID = id
 	sum, err = bt.GenerateSummary()
@@ -1451,7 +1450,7 @@ func TestSetupMetaData(t *testing.T) {
 	err := bt.SetupMetaData()
 	assert.NoError(t, err)
 
-	if bt.MetaData.ID.IsNil() {
+	if bt.MetaData.ID == uuid.Nil() {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.ID, "an ID")
 	}
 	firstID := bt.MetaData.ID
@@ -1562,14 +1561,14 @@ func TestEqual(t *testing.T) {
 func TestMatchesID(t *testing.T) {
 	t.Parallel()
 	bt := &BackTest{}
-	if bt.MatchesID(uuid.Nil) {
+	if bt.MatchesID(uuid.Nil()) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 
 	err := bt.SetupMetaData()
 	assert.NoError(t, err)
 
-	if bt.MatchesID(uuid.Nil) {
+	if bt.MatchesID(uuid.Nil()) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 
@@ -1578,7 +1577,7 @@ func TestMatchesID(t *testing.T) {
 	}
 
 	id := bt.MetaData.ID
-	bt.MetaData.ID = uuid.Nil
+	bt.MetaData.ID = uuid.Nil()
 	if bt.MatchesID(id) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
@@ -1604,8 +1603,7 @@ func TestExecuteStrategy(t *testing.T) {
 	err := bt.ExecuteStrategy(false)
 	assert.ErrorIs(t, err, errNotSetup)
 
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 
 	bt.m.Lock()
 	bt.MetaData.ID = id

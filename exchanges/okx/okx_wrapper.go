@@ -6,12 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -816,7 +815,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			return nil, err
 		}
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -876,7 +875,7 @@ allTrades:
 			return nil, err
 		}
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
@@ -1896,10 +1895,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 allOrders:
 	for {
 		orderList, err := e.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
-			OrderListRequestParams: OrderListRequestParams{
-				InstrumentType: instrumentType,
-				End:            endTime,
-			},
+			InstrumentType: instrumentType,
+			End:            endTime,
 		})
 		if err != nil {
 			return nil, err
@@ -2648,12 +2645,10 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 
 		var positions []OrderDetail
 		historyRequest := &OrderHistoryRequestParams{
-			OrderListRequestParams: OrderListRequestParams{
-				InstrumentType: instrumentType,
-				InstrumentID:   fPair.String(),
-				Start:          req.StartDate,
-				End:            req.EndDate,
-			},
+			InstrumentType: instrumentType,
+			InstrumentID:   fPair.String(),
+			Start:          req.StartDate,
+			End:            req.EndDate,
 		}
 		if time.Since(req.StartDate) <= time.Hour*24*7 {
 			positions, err = e.Get7DayOrderHistory(ctx, historyRequest)
@@ -3071,7 +3066,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 
 // MessageID returns a universally unique ID using UUID V7, with hyphens removed to fit the maximum 32-character field for okx
 func (e *Exchange) MessageID() string {
-	u := uuid.Must(uuid.NewV7())
+	u := uuid.NewV7()
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])

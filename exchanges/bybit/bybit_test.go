@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1922,10 +1922,7 @@ func TestCreateInternalTransfer(t *testing.T) {
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{})
 	require.ErrorIs(t, err, errMissingTransferID)
 
-	transferID, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID := uuid.NewV7()
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{TransferID: transferID})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
@@ -1967,17 +1964,14 @@ func TestCreateInternalTransfer(t *testing.T) {
 
 func TestGetInternalTransferRecords(t *testing.T) {
 	t.Parallel()
-	transferID, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID := uuid.NewV7()
 	transferIDString := transferID.String()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	} else {
 		transferIDString = "018bd458-dba0-728b-b5b6-ecd5bd296528"
 	}
-	_, err = e.GetInternalTransferRecords(t.Context(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	_, err := e.GetInternalTransferRecords(t.Context(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2003,14 +1997,8 @@ func TestEnableUniversalTransferForSubUID(t *testing.T) {
 	err := e.EnableUniversalTransferForSubUID(t.Context())
 	require.ErrorIs(t, err, errMembersIDsNotSet)
 
-	transferID1, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
-	transferID2, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID1 := uuid.NewV7()
+	transferID2 := uuid.NewV7()
 	err = e.EnableUniversalTransferForSubUID(t.Context(), transferID1.String(), transferID2.String())
 	if err != nil {
 		t.Error(err)
@@ -2025,10 +2013,7 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{})
 	require.ErrorIs(t, err, errMissingTransferID)
 
-	transferID, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID := uuid.NewV7()
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{TransferID: transferID})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
@@ -2087,10 +2072,7 @@ func TestGetUniversalTransferRecords(t *testing.T) {
 	var transferIDString string
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-		transferID, err := uuid.NewV7()
-		if err != nil {
-			t.Fatal(err)
-		}
+		transferID := uuid.NewV7()
 		transferIDString = transferID.String()
 	} else {
 		transferIDString = "018bd461-cb9c-75ce-94d4-0d3f4d84c339"

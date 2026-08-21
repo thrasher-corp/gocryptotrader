@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -232,15 +232,11 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			Close:          in.Candles[x].Close,
 			Volume:         in.Candles[x].Volume,
 		}
-		tempUUID, err := uuid.NewV4()
-		if err != nil {
-			return 0, err
-		}
-		tempCandle.ID = tempUUID.String()
+		tempCandle.ID = uuid.NewV4().String()
 		tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: in.Candles[x].ValidationJobID != ""}
 		tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: in.Candles[x].ValidationIssues != ""}
 		tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: in.Candles[x].SourceJobID != ""}
-		err = tempCandle.Insert(ctx, tx, boil.Infer())
+		err := tempCandle.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return 0, err
 		}

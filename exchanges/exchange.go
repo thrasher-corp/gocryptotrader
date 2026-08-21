@@ -13,8 +13,8 @@ import (
 	"text/template"
 	"time"
 	"unicode"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1960,7 +1960,7 @@ func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
 // MessageID returns a universally unique id using UUID V7
 // In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
 func (b *Base) MessageID() string {
-	return uuid.Must(uuid.NewV7()).String()
+	return uuid.NewV7().String()
 }
 
 // MessageSequence returns a sequential message sequence number from common.Counter

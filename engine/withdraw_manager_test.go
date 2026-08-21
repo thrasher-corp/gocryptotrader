@@ -4,8 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -124,8 +124,7 @@ func TestWithdrawEventByID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requestID, err := uuid.NewV4()
-	require.NoError(t, err)
+	requestID := uuid.NewV4()
 
 	tempResp := &withdraw.Response{
 		ID: requestID,

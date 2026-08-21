@@ -21,10 +21,8 @@ func main() {
 	}
 
 	engine.Bot.Settings = engine.Settings{
-		CoreSettings: engine.CoreSettings{EnableDryRun: true},
-		ExchangeTuningSettings: engine.ExchangeTuningSettings{
-			DisableExchangeAutoPairUpdates: true,
-		},
+		EnableDryRun:                   true,
+		DisableExchangeAutoPairUpdates: true,
 	}
 
 	engine.Bot.Config.PurgeExchangeAPICredentials()

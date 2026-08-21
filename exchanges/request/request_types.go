@@ -3,6 +3,7 @@ package request
 import (
 	"io"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
@@ -33,7 +34,7 @@ type Requester struct {
 	userAgent          string
 	maxRetries         int
 	Nonce              nonce.Nonce
-	disableRateLimiter int32
+	disableRateLimiter atomic.Bool
 	backoff            Backoff
 	retryPolicy        RetryPolicy
 	timedLock          *timedmutex.TimedMutex

@@ -94,7 +94,7 @@ type Convert struct {
 	Meta struct {
 		Timestamp int64   `json:"timestamp"`
 		Rate      float64 `json:"rate"`
-	}
+	} `json:"meta"`
 	Response    float64 `json:"response"`
 	Error       bool    `json:"error"`
 	Status      int     `json:"status"`
@@ -133,16 +133,16 @@ type Usage struct {
 				Timeseries   bool `json:"time-series"`
 				Convert      bool `json:"convert"`
 			} `json:"features"`
-		} `json:"plaab"`
+		} `json:"plan"`
+		Usages struct {
+			Requests          int64 `json:"requests"`
+			RequestQuota      int   `json:"requests_quota"`
+			RequestsRemaining int   `json:"requests_remaining"`
+			DaysElapsed       int   `json:"days_elapsed"`
+			DaysRemaining     int   `json:"days_remaining"`
+			DailyAverage      int   `json:"daily_average"`
+		} `json:"usage"`
 	} `json:"data"`
-	Usages struct {
-		Requests          int64 `json:"requests"`
-		RequestQuota      int   `json:"requests_quota"`
-		RequestsRemaining int   `json:"requests_remaining"`
-		DaysElapsed       int   `json:"days_elapsed"`
-		DaysRemaining     int   `json:"days_remaining"`
-		DailyAverage      int   `json:"daily_average"`
-	}
 	Error       bool   `json:"error"`
 	Message     string `json:"message"`
 	Description string `json:"description"`

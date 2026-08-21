@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -1491,7 +1492,7 @@ func (e *Exchange) CreateInternalTransfer(ctx context.Context, arg *TransferPara
 	if arg == nil {
 		return "", errNilArgument
 	}
-	if arg.TransferID.IsNil() {
+	if arg.TransferID == uuid.Nil() {
 		return "", errMissingTransferID
 	}
 	if arg.Coin.IsEmpty() {
@@ -1546,7 +1547,7 @@ func (e *Exchange) CreateUniversalTransfer(ctx context.Context, arg *TransferPar
 	if arg == nil {
 		return "", errNilArgument
 	}
-	if arg.TransferID.IsNil() {
+	if arg.TransferID == uuid.Nil() {
 		return "", errMissingTransferID
 	}
 	if arg.Coin.IsEmpty() {
@@ -2456,7 +2457,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 		return err
 	}
 	value := reflect.ValueOf(result)
-	if value.Kind() != reflect.Ptr {
+	if value.Kind() != reflect.Pointer {
 		return fmt.Errorf("expected a pointer, got %T", value)
 	}
 	response := &RestResponse{
@@ -2485,7 +2486,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
 func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result any, f request.EndpointLimit) error {
 	val := reflect.ValueOf(result)
-	if val.Kind() != reflect.Ptr {
+	if val.Kind() != reflect.Pointer {
 		return errNonePointerArgument
 	} else if val.IsNil() {
 		return errNilArgument
@@ -2558,7 +2559,7 @@ func getAuthV5Error(response *RestResponse) error {
 		for i := range response.RetExtInfo.List {
 			if response.RetExtInfo.List[i].Code != 0 {
 				failed = true
-				errMessage.WriteString(fmt.Sprintf("code: %d message: %s ", response.RetExtInfo.List[i].Code, response.RetExtInfo.List[i].Message))
+				fmt.Fprintf(&errMessage, "code: %d message: %s ", response.RetExtInfo.List[i].Code, response.RetExtInfo.List[i].Message)
 			}
 		}
 		if failed {

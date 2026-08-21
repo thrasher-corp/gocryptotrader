@@ -8,8 +8,8 @@ import (
 	"math"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -382,11 +382,7 @@ ranges:
 			if !ok && !job.OverwriteExistingData {
 				// we have determined that data is there, however it is not reflected in
 				// this specific job's results, which is required for a job to be complete
-				var id uuid.UUID
-				id, err = uuid.NewV4()
-				if err != nil {
-					return err
-				}
+				id := uuid.NewV4()
 				job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()] = []DataHistoryJobResult{
 					{
 						ID:                id,
@@ -709,10 +705,7 @@ func (m *DataHistoryManager) processCandleData(ctx context.Context, job *DataHis
 		return nil, err
 	}
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -765,10 +758,7 @@ func (m *DataHistoryManager) processTradeData(ctx context.Context, job *DataHist
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -842,10 +832,7 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -881,10 +868,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -923,10 +907,7 @@ func (m *DataHistoryManager) validateCandles(ctx context.Context, job *DataHisto
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -1166,11 +1147,8 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if existingJob != nil {
 		job.ID = existingJob.ID
 	}
-	if job.ID == uuid.Nil {
-		job.ID, err = uuid.NewV4()
-		if err != nil {
-			return err
-		}
+	if job.ID == uuid.Nil() {
+		job.ID = uuid.NewV4()
 	}
 	interval := job.Interval
 	if job.DataType == dataHistoryConvertCandlesDataType {
@@ -1303,7 +1281,7 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
-	if id == uuid.Nil {
+	if id == uuid.Nil() {
 		return nil, errEmptyID
 	}
 	dbJ, err := m.jobDB.GetByID(id.String())
@@ -1503,7 +1481,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
 	}
-	id, err := uuid.FromString(dbModel.ID)
+	id, err := uuid.Parse(dbModel.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -1547,7 +1525,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		PrerequisiteJobNickname:  dbModel.PrerequisiteJobNickname,
 	}
 	if resp.PrerequisiteJobNickname != "" {
-		prereqID, err := uuid.FromString(dbModel.PrerequisiteJobID)
+		prereqID, err := uuid.Parse(dbModel.PrerequisiteJobID)
 		if err != nil {
 			return nil, err
 		}
@@ -1563,12 +1541,12 @@ func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryj
 	}
 	result := make(map[int64][]DataHistoryJobResult)
 	for i := range dbModels {
-		id, err := uuid.FromString(dbModels[i].ID)
+		id, err := uuid.Parse(dbModels[i].ID)
 		if err != nil {
 			return nil, err
 		}
 
-		jobID, err := uuid.FromString(dbModels[i].JobID)
+		jobID, err := uuid.Parse(dbModels[i].JobID)
 		if err != nil {
 			return nil, err
 		}
@@ -1631,10 +1609,10 @@ func (m *DataHistoryManager) convertJobToDBModel(job *DataHistoryJob) *datahisto
 		IssueTolerancePercentage:    job.IssueTolerancePercentage,
 		ReplaceOnIssue:              job.ReplaceOnIssue,
 	}
-	if job.ID != uuid.Nil {
+	if job.ID != uuid.Nil() {
 		model.ID = job.ID.String()
 	}
-	if job.PrerequisiteJobID != uuid.Nil {
+	if job.PrerequisiteJobID != uuid.Nil() {
 		model.PrerequisiteJobID = job.PrerequisiteJobID.String()
 	}
 

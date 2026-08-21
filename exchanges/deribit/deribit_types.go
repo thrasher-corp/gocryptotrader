@@ -92,7 +92,7 @@ type UnmarshalError struct {
 	Message string `json:"message"`
 	Data    struct {
 		Reason string `json:"reason"`
-	}
+	} `json:"data"`
 	Code int64 `json:"code"`
 }
 

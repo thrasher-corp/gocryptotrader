@@ -22,7 +22,7 @@ type Parameter interface {
 func StructValsToURLVals(v any) (url.Values, error) {
 	values := url.Values{}
 
-	if reflect.ValueOf(v).Kind() != reflect.Ptr {
+	if reflect.ValueOf(v).Kind() != reflect.Pointer {
 		return nil, errors.New("address of struct needs to be passed in")
 	}
 

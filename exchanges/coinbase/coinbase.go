@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -878,6 +878,7 @@ func (e *Exchange) GetHistoricKlines(ctx context.Context, productID string, gran
 // GetAllProducts returns information on all currency pairs that are available for trading
 // The getTradabilityStatus parameter is only used for authenticated requests, and will return the tradability status of SPOT products in their view_only field
 // The getAllProducts parameter overrides the set productType; with it set to true, it will return both SPOT and Futures products
+// The exchange caps limit at 1000, undocumented; 0 leaves the count to the exchange
 func (e *Exchange) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus, productsSortOrder string, productIDs []string, getTradabilityStatus, getAllProducts, authenticated bool) (*AllProducts, error) {
 	vals := url.Values{}
 	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
@@ -1779,7 +1780,7 @@ func (o *Orders) UnmarshalJSON(data []byte) error {
 	}
 	switch a := alias.(type) {
 	case string:
-		if o.OrderID, err = uuid.FromString(a); err != nil {
+		if o.OrderID, err = uuid.Parse(a); err != nil {
 			return err
 		}
 		o.OrderCount = 1

@@ -3,8 +3,8 @@ package script
 import (
 	"context"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -41,14 +41,7 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 		}
 		tempEvent := modelSQLite.Script{}
 		if !f {
-			newUUID, errUUID := uuid.NewV4()
-			if errUUID != nil {
-				log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
-				_ = tx.Rollback()
-				return
-			}
-
-			tempEvent.ID = newUUID.String()
+			tempEvent.ID = uuid.NewV4().String()
 			tempEvent.ScriptID = id
 			tempEvent.ScriptName = name
 			tempEvent.ScriptPath = path

@@ -3382,7 +3382,7 @@ func TestWebsocketSliceErrorCheck(t *testing.T) {
 
 func TestSendBatchValidatedAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
-	result, err := SendBatchValidatedAuthenticatedHTTPRequest[*OrderIDResponse](t.Context(), e, exchange.RestSpot, sBatchOrderEPL, http.MethodGet, "path", nil, nil)
+	result, err := e.SendBatchValidatedAuthenticatedHTTPRequest[*OrderIDResponse](t.Context(), exchange.RestSpot, sBatchOrderEPL, http.MethodGet, "path", nil, nil)
 	require.Error(t, err)
 	assert.IsType(t, []*OrderIDResponse{}, result)
 }
