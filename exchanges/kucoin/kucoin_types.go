@@ -855,15 +855,6 @@ type AccountSummaryInformation struct {
 	MaxDefaultSubQuantity float64 `json:"maxDefaultSubQuantity"`
 }
 
-// SubAccountsResponse represents a sub-accounts items response instance
-type SubAccountsResponse struct {
-	CurrentPage int64            `json:"currentPage"`
-	PageSize    int64            `json:"pageSize"`
-	TotalNumber int64            `json:"totalNum"`
-	TotalPage   int64            `json:"totalPage"`
-	Items       []SubAccountInfo `json:"items"`
-}
-
 // SubAccountInfo holds subaccount data for main, spot(trade), and margin accounts
 type SubAccountInfo struct {
 	SubUserID      string                `json:"subUserId"`
