@@ -176,13 +176,9 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	p, err := currency.NewPairFromString(resp.Pair)
-	if err != nil {
-		return err
-	}
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
-		Pair:         p,
+		Pair:         resp.Pair, // ← direct use
 		AssetType:    asset.Spot,
 		High:         resp.Tick.High.Float64(),
 		Low:          resp.Tick.Low.Float64(),
@@ -203,10 +199,7 @@ func (e *Exchange) wsHandleTrades(ctx context.Context, respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	p, err := currency.NewPairFromString(resp.Pair)
-	if err != nil {
-		return err
-	}
+
 	side, err := order.StringToOrderSide(resp.Trade.Direction)
 	if err != nil {
 		return err
@@ -214,7 +207,7 @@ func (e *Exchange) wsHandleTrades(ctx context.Context, respRaw []byte) error {
 	tradeData := trade.Data{
 		Exchange:     e.Name,
 		AssetType:    asset.Spot,
-		CurrencyPair: p,
+		CurrencyPair: resp.Pair,
 		Price:        resp.Trade.Price.Float64(),
 		Amount:       resp.Trade.Volume.Float64(),
 		Timestamp:    resp.Trade.TS.Time(),
@@ -237,13 +230,10 @@ func (e *Exchange) wsHandleOrderbook(respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	p, err := currency.NewPairFromString(resp.Pair)
-	if err != nil {
-		return err
-	}
+
 	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:          e.Name,
-		Pair:              p,
+		Pair:              resp.Pair,
 		Asset:             asset.Spot,
 		ValidateOrderbook: e.ValidateOrderbook,
 		Asks:              resp.Depth.Asks.Levels(),
@@ -258,17 +248,14 @@ func (e *Exchange) wsHandleKbar(ctx context.Context, respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	p, err := currency.NewPairFromString(resp.Pair)
-	if err != nil {
-		return err
-	}
+
 	interval, err := klineIntervalFromString(resp.Kbar.Slot)
 	if err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, kline.Item{
 		Exchange: e.Name,
-		Pair:     p,
+		Pair:     resp.Pair,
 		Asset:    asset.Spot,
 		Interval: interval,
 		Candles: []kline.Candle{{
@@ -308,10 +295,7 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	p, err := currency.NewPairFromString(resp.Pair)
-	if err != nil {
-		return err
-	}
+
 	status, err := lbankOrderStatusToOrderStatus(resp.OrderUpdate.OrderStatus)
 	if err != nil {
 		return err
@@ -319,7 +303,7 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange:    e.Name,
 		AssetType:   asset.Spot,
-		Pair:        p,
+		Pair:        resp.Pair,
 		Price:       resp.OrderUpdate.Price.Float64(),
 		Amount:      resp.OrderUpdate.Amount.Float64(),
 		OrderID:     resp.OrderUpdate.UUID,

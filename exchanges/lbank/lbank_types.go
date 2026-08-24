@@ -109,10 +109,10 @@ type QueryOrderFinalResponse struct {
 
 // websocketResponse is the base envelope for all LBank websocket messages
 type websocketResponse struct {
-	Type    string `json:"type"`
-	Pair    string `json:"pair"`
-	Message string `json:"message"`
-	Status  string `json:"status"`
+	Type    string        `json:"type"`
+	Pair    currency.Pair `json:"pair"`
+	Message string        `json:"message"`
+	Status  string        `json:"status"`
 }
 
 // websocketTickResponse holds a ticker websocket message
