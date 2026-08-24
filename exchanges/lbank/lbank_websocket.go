@@ -36,19 +36,27 @@ const (
 	lbankWsPing        = "ping"
 	lbankWsPong        = "pong"
 	lbankWsAction      = "action"
+	lbankWsKline1Min   = "1min"
+	lbankWsKline5Min   = "5min"
+	lbankWsKline15Min  = "15min"
+	lbankWsKline30Min  = "30min"
+	lbankWsKline1Hr    = "1hr"
+	lbankWsKline4Hr    = "4hr"
+	lbankWsKlineDay    = "day"
+	lbankWsKlineWeek   = "week"
+	lbankWsKlineMonth  = "month"
 )
 
 var klineIntervals = map[kline.Interval]string{
-	kline.OneMin:     "1min",
-	kline.FiveMin:    "5min",
-	kline.FifteenMin: "15min",
-	kline.ThirtyMin:  "30min",
-	kline.OneHour:    "1hr",
-	kline.FourHour:   "4hr",
-	kline.OneDay:     "day",
-	kline.OneWeek:    "week",
-	kline.OneMonth:   "month",
-	kline.OneYear:    "year",
+	kline.OneMin:     lbankWsKline1Min,
+	kline.FiveMin:    lbankWsKline5Min,
+	kline.FifteenMin: lbankWsKline15Min,
+	kline.ThirtyMin:  lbankWsKline30Min,
+	kline.OneHour:    lbankWsKline1Hr,
+	kline.FourHour:   lbankWsKline4Hr,
+	kline.OneDay:     lbankWsKlineDay,
+	kline.OneWeek:    lbankWsKlineWeek,
+	kline.OneMonth:   lbankWsKlineMonth,
 }
 
 var defaultSubscriptions = subscription.List{
@@ -336,26 +344,24 @@ func (e *Exchange) wsHandleAssetUpdate(ctx context.Context, respRaw []byte) erro
 // klineIntervalFromString converts an LBank interval string to a kline.Interval
 func klineIntervalFromString(s string) (kline.Interval, error) {
 	switch s {
-	case "1min":
+	case lbankWsKline1Min:
 		return kline.OneMin, nil
-	case "5min":
+	case lbankWsKline5Min:
 		return kline.FiveMin, nil
-	case "15min":
+	case lbankWsKline15Min:
 		return kline.FifteenMin, nil
-	case "30min":
+	case lbankWsKline30Min:
 		return kline.ThirtyMin, nil
-	case "1hr":
+	case lbankWsKline1Hr:
 		return kline.OneHour, nil
-	case "4hr":
+	case lbankWsKline4Hr:
 		return kline.FourHour, nil
-	case "day":
+	case lbankWsKlineDay:
 		return kline.OneDay, nil
-	case "week":
+	case lbankWsKlineWeek:
 		return kline.OneWeek, nil
-	case "month":
+	case lbankWsKlineMonth:
 		return kline.OneMonth, nil
-	case "year":
-		return kline.OneYear, nil
 	default:
 		return 0, fmt.Errorf("lbank: unsupported kline interval string %s", s)
 	}
