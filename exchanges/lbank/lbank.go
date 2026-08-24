@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -30,11 +31,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Lbank
+// Exchange implements the exchange interface for LBank
 type Exchange struct {
 	exchange.Base
-	privateKey     *rsa.PrivateKey
-	wsSubscribeKey string
+	privateKey *rsa.PrivateKey
+	ws         struct {
+		subscribeKey string
+		mu           sync.RWMutex
+	}
 }
 
 const (

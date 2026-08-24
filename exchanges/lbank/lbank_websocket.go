@@ -100,8 +100,12 @@ func (e *Exchange) WsConnect() error {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%s websocket auth failed: %v\n", e.Name, err)
 		} else {
-			e.wsSubscribeKey = key
+			e.ws.mu.Lock()
+			e.ws.subscribeKey = key
+			e.ws.mu.Unlock()
 			e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			e.Websocket.Wg.Add(1)
+			go e.wsRefreshSubscribeKey(ctx)
 		}
 	}
 	if e.Verbose {
@@ -367,6 +371,35 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return defaultSubscriptionTemplate, nil
 }
 
+// wsRefreshSubscribeKey refreshes the subscribe key every 50 minutes
+func (e *Exchange) wsRefreshSubscribeKey(ctx context.Context) {
+	defer e.Websocket.Wg.Done()
+	refreshTicker := time.NewTicker(50 * time.Minute)
+	defer refreshTicker.Stop()
+	for {
+		select {
+		case <-refreshTicker.C:
+			e.ws.mu.RLock()
+			key := e.ws.subscribeKey
+			e.ws.mu.RUnlock()
+
+			if err := e.RefreshWebsocketSubscribeKey(ctx, key); err != nil {
+				log.Warnf(log.ExchangeSys, "%s failed to refresh websocket subscribe key, attempting to get new one: %v\n", e.Name, err)
+				newKey, err := e.GetWebsocketSubscribeKey(ctx)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s failed to get new websocket subscribe key: %v\n", e.Name, err)
+					continue
+				}
+				e.ws.mu.Lock()
+				e.ws.subscribeKey = newKey
+				e.ws.mu.Unlock()
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // manageSubs handles both subscribe and unsubscribe
 func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, action string) error {
 	var errs error
@@ -378,20 +411,24 @@ subscriptionLoop:
 			continue
 		}
 
+		e.ws.mu.RLock()
+		subscribeKey := e.ws.subscribeKey
+		e.ws.mu.RUnlock()
+
 		var req map[string]any
 		switch s.Channel {
 		case subscription.MyOrdersChannel:
 			req = map[string]any{
 				lbankWsAction:  action,
 				"subscribe":    lbankWsOrderUpdate,
-				"subscribeKey": e.wsSubscribeKey,
+				"subscribeKey": subscribeKey,
 				"pair":         "all",
 			}
 		case subscription.MyAccountChannel:
 			req = map[string]any{
 				lbankWsAction:  action,
 				"subscribe":    lbankWsAssetUpdate,
-				"subscribeKey": e.wsSubscribeKey,
+				"subscribeKey": subscribeKey,
 			}
 		}
 
