@@ -82,13 +82,17 @@ var defaultSubscriptionTemplate = template.Must(template.New("").Funcs(template.
 		return subscriptionNames[s.Channel]
 	},
 }).Parse(`
-{{- range $asset, $pairs := $.AssetPairs -}}
-	{{- range $p := $pairs -}}
-		{{- channelName $.S }}_{{ $p.Lower.String }}
-		{{- $.PairSeparator }}
-	{{- end -}}
-	{{- $.AssetSeparator }}
+{{- if $.S.Asset -}}
+{{ range $asset, $pairs := $.AssetPairs }}
+{{- range $p := $pairs -}}
+{{- channelName $.S }}_{{ $p.Lower.String }}
+{{- $.PairSeparator }}
 {{- end -}}
+{{ $.AssetSeparator }}
+{{- end -}}
+{{- else -}}
+{{- channelName $.S }}
+{{- end }}
 `))
 
 // WsConnect connects to the LBank websocket
@@ -103,17 +107,25 @@ func (e *Exchange) WsConnect() error {
 		return err
 	}
 	if e.IsWebsocketAuthenticationSupported() {
-		key, err := e.GetWebsocketSubscribeKey(ctx)
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys, "%s websocket auth failed: %v\n", e.Name, err)
-		} else {
-			e.ws.mu.Lock()
-			e.ws.subscribeKey = key
-			e.ws.mu.Unlock()
-			e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			e.Websocket.Wg.Add(1)
-			go e.wsRefreshSubscribeKey(ctx)
+		if e.privateKey == nil {
+			if err := e.loadPrivKey(ctx); err != nil {
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				log.Errorf(log.ExchangeSys, "%s failed to load private key for websocket auth: %v\n", e.Name, err)
+			}
+		}
+		if e.privateKey != nil {
+			key, err := e.GetWebsocketSubscribeKey(ctx)
+			if err != nil {
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				log.Errorf(log.ExchangeSys, "%s websocket auth failed: %v\n", e.Name, err)
+			} else {
+				e.ws.mu.Lock()
+				e.ws.subscribeKey = key
+				e.ws.mu.Unlock()
+				e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+				e.Websocket.Wg.Add(1)
+				go e.wsRefreshSubscribeKey(ctx)
+			}
 		}
 	}
 	if e.Verbose {
