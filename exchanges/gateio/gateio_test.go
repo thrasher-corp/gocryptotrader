@@ -2940,26 +2940,33 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
-	for _, channel := range []string{futuresPositionsChannel, futuresAutoPositionCloseChannel} {
-		var matching subscription.List
-		for _, sub := range subs {
-			if sub.Channel == channel {
-				matching = append(matching, sub)
-			}
+	var matching subscription.List
+	for _, sub := range subs {
+		if sub.Channel == futuresPositionsChannel {
+			matching = append(matching, sub)
 		}
-		require.Lenf(t, matching, 1, "%s must have one account-wide subscription", channel)
-		require.Len(t, matching[0].Pairs, 1, "account-wide subscription must retain one identity pair")
-		assert.NotEqual(t, allFuturesContracts, matching[0].Pairs[0].String(),
-			"account-wide subscription should not register the selector as a currency")
-		assert.Equal(t, allFuturesContracts, matching[0].Params[contractPayloadOverrideParam],
-			"account-wide subscription should serialise the documented selector")
-		requiresUserPlaceholder, ok := matching[0].Params[requiresUserPlaceholderParam].(bool)
-		require.True(t, ok, "user placeholder parameter must be a boolean")
-		assert.True(t, requiresUserPlaceholder,
-			"account-wide subscription should retain the deprecated user placeholder")
-		require.Equal(t, asset.CoinMarginedFutures, matching[0].Asset,
-			"account-wide subscription must retain its futures asset")
 	}
+	require.Len(t, matching, 1, "futures positions must have one account-wide subscription")
+	require.Len(t, matching[0].Pairs, 1, "account-wide subscription must retain one identity pair")
+	assert.NotEqual(t, allFuturesContracts, matching[0].Pairs[0].String(),
+		"account-wide subscription should not register the selector as a currency")
+	assert.Equal(t, allFuturesContracts, matching[0].Params[contractPayloadOverrideParam],
+		"account-wide subscription should serialise the documented selector")
+	requiresUserPlaceholder, ok := matching[0].Params[requiresUserPlaceholderParam].(bool)
+	require.True(t, ok, "user placeholder parameter must be a boolean")
+	assert.True(t, requiresUserPlaceholder,
+		"account-wide subscription should retain the deprecated user placeholder")
+	require.Equal(t, asset.CoinMarginedFutures, matching[0].Asset,
+		"account-wide subscription must retain its futures asset")
+	for _, sub := range subs {
+		assert.NotEqual(t, futuresAutoPositionCloseChannel, sub.Channel,
+			"default subscriptions should omit position closes without the required user ID")
+	}
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, nil, true),
+		"StorePairs must clear enabled coin-margined futures pairs")
+	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "Enabled asset without pairs must error")
+	require.Empty(t, subs, "Enabled asset without pairs must return no subscriptions")
 	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err, "Disabled asset must not error")

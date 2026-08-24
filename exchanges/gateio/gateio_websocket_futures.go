@@ -115,6 +115,10 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 		return nil, err
 	}
 
+	if len(pairs) == 0 {
+		return nil, fmt.Errorf("%w: no enabled pairs for asset %s", currency.ErrCurrencyPairsEmpty, a)
+	}
+
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {
 		for j := range pairs {
@@ -146,18 +150,16 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 		}
 	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		for _, channel := range []string{futuresPositionsChannel, futuresAutoPositionCloseChannel} {
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channel,
-				Pairs:   pairs[0:1],
-				Params: map[string]any{
-					contractPayloadOverrideParam: allFuturesContracts,
-					// Gate deprecated the user ID value but still requires its positional placeholder.
-					requiresUserPlaceholderParam: true,
-				},
-				Asset: a,
-			})
-		}
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: futuresPositionsChannel,
+			Pairs:   pairs[0:1],
+			Params: map[string]any{
+				contractPayloadOverrideParam: allFuturesContracts,
+				// Gate deprecated the user ID value but still requires its positional placeholder.
+				requiresUserPlaceholderParam: true,
+			},
+			Asset: a,
+		})
 	}
 	return subscriptions, nil
 }

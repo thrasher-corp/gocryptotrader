@@ -421,8 +421,10 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 		if err != nil {
 			return err
 		}
+		size := result[i].Size.Decimal()
+		isSizeZero := size.IsZero()
 		direction := order.UnknownSide
-		if !result[i].Size.Decimal().IsZero() || result[i].Side != "" {
+		if !isSizeZero || result[i].Side != "" {
 			direction, err = order.StringToOrderSide(result[i].Side)
 			if err != nil {
 				return err
@@ -444,7 +446,7 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			openingDate = result[i].CreatedTime.Time()
 		}
 		status := order.Closed
-		if !result[i].Size.Decimal().IsZero() {
+		if !isSizeZero {
 			status = order.Open
 		}
 		switch result[i].PositionStatus {
@@ -454,7 +456,7 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			status = order.AutoDeleverage
 		}
 		var closeDate time.Time
-		if result[i].Size.Decimal().IsZero() {
+		if isSizeZero {
 			closeDate = result[i].UpdatedTime.Time()
 		}
 		positionMargin := result[i].PositionIM.Decimal()
@@ -487,7 +489,7 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			OpeningPrice:                 result[i].EntryPrice.Decimal(),
 			OpeningDirection:             direction,
 			LatestPrice:                  result[i].MarkPrice.Decimal(),
-			LatestSize:                   result[i].Size.Decimal(),
+			LatestSize:                   size,
 			LatestDirection:              direction,
 			LastUpdated:                  result[i].UpdatedTime.Time(),
 			CloseDate:                    closeDate,

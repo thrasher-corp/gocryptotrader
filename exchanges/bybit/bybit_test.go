@@ -3122,17 +3122,19 @@ func TestWsPositionUnmarshal(t *testing.T) {
 	require.NoError(t, json.Unmarshal(payload, &wireResponse), "captured websocket response must unmarshal")
 	baseData := wireResponse.Data
 	for _, tt := range []struct {
-		name              string
-		replacements      []string
-		expectedStatus    order.Status
-		expectedDirection order.Side
-		expectedCloseDate time.Time
+		name               string
+		replacements       []string
+		expectedStatus     order.Status
+		expectedDirection  order.Side
+		expectedCloseDate  time.Time
+		expectedMMFraction string
 	}{
-		{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short},
-		{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long},
-		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648)},
-		{name: "liquidated", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Liquidated, expectedDirection: order.Short},
-		{name: "auto deleveraged", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.AutoDeleverage, expectedDirection: order.Short},
+		{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
+		{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long, expectedMMFraction: "0.0214506530631264"},
+		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedMMFraction: "0.0214506530631264"},
+		{name: "liquidated", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Liquidated, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
+		{name: "auto deleveraged", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
+		{name: "zero notional", replacements: []string{`"positionValue":"7.403955"`, `"positionValue":"0"`}, expectedStatus: order.Open, expectedDirection: order.Short, expectedMMFraction: "0"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -3161,10 +3163,20 @@ func TestWsPositionUnmarshal(t *testing.T) {
 				"initial margin requirement should match Bybit's position margin")
 			assert.Equal(t, "0.15881967", positions[0].MaintenanceMarginRequirement.String(),
 				"maintenance margin requirement should preserve Bybit's absolute margin")
-			assert.Equal(t, "0.0214506530631264", positions[0].MaintenanceMarginFraction.String(),
+			assert.Equal(t, tt.expectedMMFraction, positions[0].MaintenanceMarginFraction.String(),
 				"maintenance margin fraction should be normalized from Bybit's absolute margin")
 		})
 	}
+	t.Run("unsupported position side", func(t *testing.T) {
+		t.Parallel()
+		ex := testInstance()
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false),
+			"StorePairs must store the captured position pair")
+		wireResponse := wireResponse
+		wireResponse.Data = []byte(strings.Replace(string(baseData), `"side":"Sell"`, `"side":"Any"`, 1))
+		require.ErrorIs(t, ex.wsProcessPosition(t.Context(), &wireResponse), order.ErrPositionSideUnsupported,
+			"wsProcessPosition must reject a non-directional position side")
+	})
 }
 
 func TestWsWalletCurrentUnifiedPayload(t *testing.T) {
