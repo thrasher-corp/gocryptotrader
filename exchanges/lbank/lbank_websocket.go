@@ -154,7 +154,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	case lbankWsTicker:
 		return e.wsHandleTicker(ctx, respRaw)
 	case lbankWsTrades:
-		return e.wsHandleTrades(respRaw)
+		return e.wsHandleTrades(ctx, respRaw)
 	case lbankWsOrderbook:
 		return e.wsHandleOrderbook(respRaw)
 	case lbankWsKbar:
@@ -192,10 +192,13 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, respRaw []byte) error {
 }
 
 // wsHandleTrades handles trade websocket messages
-func (e *Exchange) wsHandleTrades(respRaw []byte) error {
-	if !e.IsSaveTradeDataEnabled() && !e.IsTradeFeedEnabled() {
+func (e *Exchange) wsHandleTrades(ctx context.Context, respRaw []byte) error {
+	tradeFeed := e.IsTradeFeedEnabled()
+	saveTradeData := e.IsSaveTradeDataEnabled()
+	if !tradeFeed && !saveTradeData {
 		return nil
 	}
+
 	var resp websocketTradeResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -208,7 +211,7 @@ func (e *Exchange) wsHandleTrades(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	return trade.AddTradesToBuffer(trade.Data{
+	tradeData := trade.Data{
 		Exchange:     e.Name,
 		AssetType:    asset.Spot,
 		CurrencyPair: p,
@@ -216,7 +219,16 @@ func (e *Exchange) wsHandleTrades(respRaw []byte) error {
 		Amount:       resp.Trade.Volume.Float64(),
 		Timestamp:    resp.Trade.TS.Time(),
 		Side:         side,
-	})
+	}
+	if tradeFeed {
+		if err := e.Websocket.DataHandler.Send(ctx, tradeData); err != nil {
+			return err
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(tradeData)
+	}
+	return nil
 }
 
 // wsHandleOrderbook handles orderbook websocket messages
