@@ -178,6 +178,12 @@ type websocketKbarResponse struct {
 	Kbar websocketKbarData `json:"kbar"`
 }
 
+// websocketPingResponse holds a ping message from the server
+type websocketPingResponse struct {
+	Action string `json:"action"`
+	Ping   string `json:"ping"`
+}
+
 // websocketKbarData holds kline fields
 type websocketKbarData struct {
 	Open      types.Number `json:"o"`

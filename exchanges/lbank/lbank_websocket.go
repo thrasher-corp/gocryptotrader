@@ -33,6 +33,9 @@ const (
 	lbankWsKbar        = "kbar"
 	lbankWsOrderUpdate = "orderUpdate"
 	lbankWsAssetUpdate = "assetUpdate"
+	lbankWsPing        = "ping"
+	lbankWsPong        = "pong"
+	lbankWsAction      = "action"
 )
 
 var klineIntervals = map[kline.Interval]string{
@@ -131,6 +134,16 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &base); err != nil {
 		return err
 	}
+
+	// Handle ping challenge before type check
+	var ping websocketPingResponse
+	if err := json.Unmarshal(respRaw, &ping); err == nil && ping.Action == lbankWsPing {
+		return e.Websocket.Conn.SendJSONMessage(ctx, 0, map[string]string{
+			lbankWsAction: lbankWsPong,
+			"pong":        ping.Ping,
+		})
+	}
+
 	if base.Type == "" {
 		if base.Message != "" {
 			return fmt.Errorf("lbank websocket error: %s", base.Message)
@@ -373,14 +386,14 @@ subscriptionLoop:
 		switch s.Channel {
 		case subscription.MyOrdersChannel:
 			req = map[string]any{
-				"action":       action,
+				lbankWsAction:  action,
 				"subscribe":    lbankWsOrderUpdate,
 				"subscribeKey": e.wsSubscribeKey,
 				"pair":         "all",
 			}
 		case subscription.MyAccountChannel:
 			req = map[string]any{
-				"action":       action,
+				lbankWsAction:  action,
 				"subscribe":    lbankWsAssetUpdate,
 				"subscribeKey": e.wsSubscribeKey,
 			}
@@ -404,10 +417,10 @@ subscriptionLoop:
 			switch s.Channel {
 			case subscription.OrderbookChannel:
 				req = map[string]any{
-					"action":    action,
-					"subscribe": chName,
-					"depth":     strconv.Itoa(s.Levels),
-					"pair":      p.Lower().String(),
+					lbankWsAction: action,
+					"subscribe":   chName,
+					"depth":       strconv.Itoa(s.Levels),
+					"pair":        p.Lower().String(),
 				}
 			case subscription.CandlesChannel:
 				intervalStr, ok := klineIntervals[s.Interval]
@@ -416,16 +429,16 @@ subscriptionLoop:
 					continue subscriptionLoop
 				}
 				req = map[string]any{
-					"action":    action,
-					"subscribe": chName,
-					"kbar":      intervalStr,
-					"pair":      p.Lower().String(),
+					lbankWsAction: action,
+					"subscribe":   chName,
+					"kbar":        intervalStr,
+					"pair":        p.Lower().String(),
 				}
 			default:
 				req = map[string]any{
-					"action":    action,
-					"subscribe": chName,
-					"pair":      p.Lower().String(),
+					lbankWsAction: action,
+					"subscribe":   chName,
+					"pair":        p.Lower().String(),
 				}
 			}
 			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
