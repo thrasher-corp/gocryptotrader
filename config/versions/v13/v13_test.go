@@ -10,53 +10,6 @@ import (
 	v13 "github.com/thrasher-corp/gocryptotrader/config/versions/v13"
 )
 
-func TestExchanges(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, []string{"Huobi", "HTX"}, new(v13.Version).Exchanges(), "Exchanges should return migrated exchange names")
-}
-
-func TestUpgradeExchange(t *testing.T) {
-	t.Parallel()
-	for _, tt := range []struct {
-		name string
-		in   string
-		want string
-	}{
-		{name: "legacy", in: "Huobi", want: "HTX"},
-		{name: "unrelated", in: "Kraken", want: "Kraken"},
-		{name: "current", in: "HTX", want: "HTX"},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			out, err := new(v13.Version).UpgradeExchange(t.Context(), []byte(`{"name":"`+tt.in+`"}`))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			require.NotEmpty(t, out, "UpgradeExchange must return output")
-			assert.Equalf(t, `{"name":"`+tt.want+`"}`, string(out), "exchange name %s should migrate correctly", tt.in)
-		})
-	}
-}
-
-func TestDowngradeExchange(t *testing.T) {
-	t.Parallel()
-	for _, tt := range []struct {
-		name string
-		in   string
-		want string
-	}{
-		{name: "current", in: "HTX", want: "Huobi"},
-		{name: "unrelated", in: "Kraken", want: "Kraken"},
-		{name: "legacy", in: "Huobi", want: "Huobi"},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			out, err := new(v13.Version).DowngradeExchange(t.Context(), []byte(`{"name":"`+tt.in+`"}`))
-			require.NoError(t, err, "DowngradeExchange must not error")
-			require.NotEmpty(t, out, "DowngradeExchange must return output")
-			assert.Equalf(t, `{"name":"`+tt.want+`"}`, string(out), "exchange name %s should migrate correctly", tt.in)
-		})
-	}
-}
-
 func TestUpgradeConfig(t *testing.T) {
 	t.Parallel()
 
@@ -65,14 +18,46 @@ func TestUpgradeConfig(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{name: "hobbyist", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"hobbyist","apiKey":"keep"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"builder","apiKey":"keep"}}}`},
-		{name: "normalised standard", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":" Standard "}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"growth"}}}`},
-		{name: "legacy placeholder", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":" AccountPlan "}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`},
-		{name: "empty plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":""}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`},
-		{name: "current plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"growth"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"growth"}}}`},
-		{name: "unknown plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"custom"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"custom"}}}`},
-		{name: "missing account plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`},
-		{name: "non-string account plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`},
+		{
+			name:     "hobbyist",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"hobbyist","apiKey":"keep"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"builder","apiKey":"keep"}}}`,
+		},
+		{
+			name:     "normalised standard",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":" Standard "}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"growth"}}}`,
+		},
+		{
+			name:     "legacy placeholder",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":" AccountPlan "}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`,
+		},
+		{
+			name:     "empty plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":""}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`,
+		},
+		{
+			name:     "current plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"growth"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"growth"}}}`,
+		},
+		{
+			name:     "unknown plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"custom"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"custom"}}}`,
+		},
+		{
+			name:     "missing account plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`,
+		},
+		{
+			name:     "non-string account plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -104,14 +89,46 @@ func TestDowngradeConfig(t *testing.T) {
 		expected string
 		wantErr  bool
 	}{
-		{name: "builder", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"builder","apiKey":"keep"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"hobbyist","apiKey":"keep"}}}`},
-		{name: "normalised growth", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":" Growth "}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"standard"}}}`},
-		{name: "unaffected plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"startup"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"startup"}}}`},
-		{name: "basic remains basic", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`},
-		{name: "missing account plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`},
-		{name: "non-string account plan", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`, expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`},
-		{name: "malformed", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":`, wantErr: true},
-		{name: "invalid string escape", input: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"\x"}}}`, wantErr: true},
+		{
+			name:     "builder",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"builder","apiKey":"keep"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"hobbyist","apiKey":"keep"}}}`,
+		},
+		{
+			name:     "normalised growth",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":" Growth "}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"standard"}}}`,
+		},
+		{
+			name:     "unaffected plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"startup"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"startup"}}}`,
+		},
+		{
+			name:     "basic remains basic",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"basic"}}}`,
+		},
+		{
+			name:     "missing account plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"apiKey":"keep"}}}`,
+		},
+		{
+			name:     "non-string account plan",
+			input:    `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`,
+			expected: `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":null}}}`,
+		},
+		{
+			name:    "malformed",
+			input:   `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid string escape",
+			input:   `{"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"\x"}}}`,
+			wantErr: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -130,14 +147,6 @@ func TestDowngradeConfig(t *testing.T) {
 			assert.Equal(t, out, outAgain, "DowngradeConfig should not change a downgraded config")
 		})
 	}
-}
-
-func TestRegisteredUpgrade(t *testing.T) {
-	t.Parallel()
-	input := []byte(`{"version":11,"exchanges":[{"name":"EXMO"},{"name":"Huobi","enabled":true},{"name":"Kraken","enabled":true}]}`)
-	out, err := versions.Manager.Deploy(t.Context(), input, 13)
-	require.NoError(t, err, "Deploy must apply the registered v12 and v13 upgrades")
-	assert.JSONEq(t, `{"version":13,"exchanges":[{"name":"HTX","enabled":true},{"name":"Kraken","enabled":true}]}`, string(out), "Deploy should remove EXMO before renaming Huobi to HTX")
 }
 
 func TestRegisteredMigration(t *testing.T) {

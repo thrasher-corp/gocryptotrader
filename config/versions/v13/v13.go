@@ -1,5 +1,4 @@
-// Package v13 migrates configuration values introduced by the HTX rename and
-// deprecated CoinMarketCap account plan names.
+// Package v13 migrates deprecated CoinMarketCap account plan names.
 package v13
 
 import (
@@ -22,27 +21,8 @@ const (
 	standard              = "standard"
 )
 
-// Version implements ConfigVersion and ExchangeVersion for the v13 migrations.
+// Version implements ConfigVersion to migrate CoinMarketCap account plan names.
 type Version struct{}
-
-// Exchanges returns the legacy and current exchange names handled by this migration.
-func (*Version) Exchanges() []string { return []string{"Huobi", "HTX"} }
-
-// UpgradeExchange changes the legacy Huobi exchange name to HTX.
-func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if name, err := jsonparser.GetString(exchange, "name"); err == nil && name == "Huobi" {
-		return jsonparser.Set(exchange, []byte(`"HTX"`), "name")
-	}
-	return exchange, nil
-}
-
-// DowngradeExchange changes the HTX exchange name back to Huobi.
-func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if name, err := jsonparser.GetString(exchange, "name"); err == nil && name == "HTX" {
-		return jsonparser.Set(exchange, []byte(`"Huobi"`), "name")
-	}
-	return exchange, nil
-}
 
 // UpgradeConfig replaces deprecated account plan names with their current
 // CoinMarketCap equivalents.
