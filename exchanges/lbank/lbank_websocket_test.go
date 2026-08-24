@@ -15,51 +15,64 @@ import (
 
 func TestWsHandleKbar(t *testing.T) {
 	t.Parallel()
-
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
 	err := ex.wsHandleData(t.Context(), []byte(`{
 		"type": "kbar",
 		"pair": "btc_usdt",
-		"kbar": {
-			"o": "29000.0",
-			"h": "29500.0",
-			"l": "28800.0",
-			"c": "29200.0",
-			"v": "100.5",
-			"t": "2026-07-07T12:30:00.000Z",
-			"slot": "1min"
-		},
+		"kbar": {"o": "29000.0","h": "29500.0","l": "28800.0","c": "29200.0","v": "100.5","t": "2026-07-07T12:30:00.000Z","slot": "1min"},
 		"SERVER": "V2",
 		"TS": "2026-07-07T12:30:00.000Z"
 	}`))
 	assert.NoError(t, err, "wsHandleData kbar should not error")
+
+	t.Run("invalid interval", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{
+			"type": "kbar",
+			"pair": "btc_usdt",
+			"kbar": {"o": "100","h": "110","l": "90","c": "105","v": "50","t": "2026-07-07T12:30:00.000Z","slot": "invalid"}
+		}`))
+		assert.Error(t, err, "invalid interval should return error")
+	})
+
+	t.Run("malformed JSON", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{"type":"kbar","pair":"btc_usdt","kbar":!!!}`))
+		assert.Error(t, err, "malformed JSON should return error")
+	})
 }
 
 func TestWsHandleOrderUpdate(t *testing.T) {
 	t.Parallel()
-
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
 	err := ex.wsHandleData(t.Context(), []byte(`{
 		"type": "orderUpdate",
 		"pair": "btc_usdt",
-		"orderUpdate": {
-			"amount": "0.5",
-			"orderStatus": 2,
-			"price": "29000.0",
-			"role": "maker",
-			"updateTime": 1704067200000,
-			"uuid": "test-order-uuid",
-			"txUuid": "test-tx-uuid",
-			"volumePrice": "14500.0"
-		},
+		"orderUpdate": {"amount": "0.5","orderStatus": 2,"price": "29000.0","role": "maker","updateTime": 1704067200000,"uuid": "test-order-uuid","txUuid": "test-tx-uuid","volumePrice": "14500.0"},
 		"SERVER": "V2",
 		"TS": 1704067200000
 	}`))
 	assert.NoError(t, err, "wsHandleData orderUpdate should not error")
+
+	t.Run("invalid order status", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{
+			"type": "orderUpdate",
+			"pair": "btc_usdt",
+			"orderUpdate": {"amount": "0.5","orderStatus": 99,"price": "100","updateTime": 1704067200000,"uuid": "test"}
+		}`))
+		assert.Error(t, err, "invalid order status should return error")
+	})
+
+	t.Run("malformed JSON", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{"type":"orderUpdate","pair":"btc_usdt","orderUpdate":!!!}`))
+		assert.Error(t, err, "malformed JSON should return error")
+	})
 }
 
 func TestLbankOrderStatusToOrderStatus(t *testing.T) {
@@ -156,24 +169,23 @@ func TestWsHandleData(t *testing.T) {
 
 func TestWsHandleTicker(t *testing.T) {
 	t.Parallel()
-
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
 	err := ex.wsHandleData(t.Context(), []byte(`{
 		"type": "tick",
 		"pair": "eth_usdt",
-		"tick": {
-			"high": "2149.67",
-			"low": "2010.26",
-			"latest": "2124.36",
-			"vol": "51774.0345",
-			"change": "2.66"
-		},
+		"tick": {"high": "2149.67","low": "2010.26","latest": "2124.36","vol": "51774.0345"},
 		"SERVER": "V2",
 		"TS": "2024-01-01T00:00:00.000"
 	}`))
 	assert.NoError(t, err, "wsHandleData ticker should not error")
+
+	t.Run("malformed JSON", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{"type":"tick","pair":"btc_usdt","tick":!!!}`))
+		assert.Error(t, err, "malformed JSON should return error")
+	})
 }
 
 func TestWsHandleAssetUpdate(t *testing.T) {
@@ -200,7 +212,6 @@ func TestWsHandleAssetUpdate(t *testing.T) {
 
 func TestWsHandleTrades(t *testing.T) {
 	t.Parallel()
-
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.SetSaveTradeDataStatus(true)
@@ -208,16 +219,27 @@ func TestWsHandleTrades(t *testing.T) {
 	err := ex.wsHandleData(t.Context(), []byte(`{
 		"type": "trade",
 		"pair": "eth_usdt",
-		"trade": {
-			"volume": "0.5",
-			"price": "2100.0",
-			"direction": "buy",
-			"TS": "1704067200000"
-		},
+		"trade": {"volume": "0.5","price": "2100.0","direction": "buy","TS": 1704067200000},
 		"SERVER": "V2",
-		"TS": "1704067200000"
+		"TS": 1704067200000
 	}`))
 	assert.NoError(t, err, "wsHandleData trades should not error")
+
+	t.Run("invalid direction", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{
+			"type": "trade",
+			"pair": "btc_usdt",
+			"trade": {"volume": "0.5","price": "100","direction": "invalid","TS": 1704067200000}
+		}`))
+		assert.Error(t, err, "invalid direction should return error")
+	})
+
+	t.Run("malformed JSON", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{"type":"trade","pair":"btc_usdt","trade":!!!}`))
+		assert.Error(t, err, "malformed JSON should return error")
+	})
 }
 
 func TestWsHandleOrderbook(t *testing.T) {
@@ -261,61 +283,4 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	assert.NotEmpty(t, subs, "generateSubscriptions should return subscriptions")
-}
-
-func TestWsHandleTickerErrors(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-
-	err := ex.wsHandleData(t.Context(), []byte(`{
-		"type": "tick",
-		"pair": "btc_usdt",
-		"tick": "not an object"
-	}`))
-	assert.Error(t, err, "invalid tick JSON should return error")
-}
-
-func TestWsHandleTradesErrors(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.SetSaveTradeDataStatus(true)
-
-	err := ex.wsHandleData(t.Context(), []byte(`{
-		"type": "trade",
-		"pair": "btc_usdt",
-		"trade": {"volume": "0.5", "price": "100", "direction": "invalid", "TS": 1704067200000}
-	}`))
-	assert.Error(t, err, "invalid direction should return error")
-}
-
-func TestWsHandleKbarErrors(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-
-	err := ex.wsHandleData(t.Context(), []byte(`{
-		"type": "kbar",
-		"pair": "btc_usdt",
-		"kbar": {"o": "100", "h": "110", "l": "90", "c": "105", "v": "50", "t": 1704067200000, "slot": "invalid"}
-	}`))
-	assert.Error(t, err, "invalid interval should return error")
-}
-
-func TestWsHandleOrderUpdateErrors(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-
-	err := ex.wsHandleData(t.Context(), []byte(`{
-		"type": "orderUpdate",
-		"pair": "btc_usdt",
-		"orderUpdate": {"amount": "0.5", "orderStatus": 99, "price": "100", "updateTime": 1704067200000, "uuid": "test"}
-	}`))
-	assert.Error(t, err, "invalid order status should return error")
 }
