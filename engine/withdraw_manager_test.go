@@ -121,27 +121,26 @@ func TestWithdrawEventByID(t *testing.T) {
 	t.Parallel()
 	em, pm := withdrawManagerTestHelper(t)
 	m, err := SetupWithdrawManager(em, pm, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "SetupWithdrawManager must not error")
 	requestID := uuid.NewV4()
 
 	tempResp := &withdraw.Response{
 		ID: requestID,
 	}
 	_, err = m.WithdrawalEventByID(requestID.String())
-	assert.ErrorIs(t, err, ErrWithdrawRequestNotFound)
+	assert.ErrorIs(t, err, ErrWithdrawRequestNotFound, "WithdrawalEventByID should report the request as not found")
+	// the cause varies with ambient database state, so match the wrapping
+	var wrapped interface{ Unwrap() []error }
+	require.ErrorAs(t, err, &wrapped, "the repository cause must be wrapped, not just formatted in")
+	assert.Len(t, wrapped.Unwrap(), 2, "both the sentinel and the repository cause should be retained")
 
 	withdraw.Cache.Add(requestID.String(), tempResp)
 	t.Cleanup(func() {
 		withdraw.Cache.Remove(requestID.String())
 	})
 	v, err := m.WithdrawalEventByID(requestID.String())
-	assert.NoError(t, err)
-
-	if v == nil {
-		t.Error("expected WithdrawalEventByID() to return data from cache")
-	}
+	require.NoError(t, err, "WithdrawalEventByID must not error when the request is cached")
+	assert.NotNil(t, v, "WithdrawalEventByID should return a non-nil value when the request is cached")
 }
 
 func TestWithdrawalEventByExchange(t *testing.T) {

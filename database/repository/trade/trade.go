@@ -20,9 +20,18 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
+// errInvalidTradeID is returned when a supplied trade ID is not a UUID. SQLite stores the
+// column as unrestricted text, so without this an unreadable row could be written
+var errInvalidTradeID = errors.New("invalid trade ID")
+
 // Insert saves trade data to the database
 func Insert(trades ...Data) error {
 	for i := range trades {
+		if trades[i].ID != "" {
+			if _, err := uuid.Parse(trades[i].ID); err != nil {
+				return fmt.Errorf("%w %q: %w", errInvalidTradeID, trades[i].ID, err)
+			}
+		}
 		if trades[i].ExchangeNameID == "" && trades[i].Exchange != "" {
 			exchangeUUID, err := exchange.UUIDByName(trades[i].Exchange)
 			if err != nil {

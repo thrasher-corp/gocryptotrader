@@ -54,6 +54,24 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+func TestInsertRejectsNonUUIDID(t *testing.T) {
+	t.Parallel()
+	// SQLite stores the ID column as unrestricted text, so a bad ID would write a row that
+	// trade.SQLDataToTrade can no longer read back
+	err := Insert(Data{
+		ID:        "not-a-uuid",
+		Exchange:  testExchanges[0].Name,
+		Base:      currency.BTC.String(),
+		Quote:     currency.USD.String(),
+		AssetType: asset.Spot.String(),
+		Price:     1337,
+		Amount:    1337,
+		Side:      order.Buy.String(),
+		Timestamp: time.Now(),
+	})
+	assert.ErrorIs(t, err, errInvalidTradeID, "Insert should reject a non-UUID ID")
+}
+
 func TestTrades(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

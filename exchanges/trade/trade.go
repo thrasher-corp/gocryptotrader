@@ -20,6 +20,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// errInvalidTradeID is returned when a stored trade ID cannot be parsed as a UUID
+var errInvalidTradeID = errors.New("invalid trade ID")
+
 // setup creates the trade processor if trading is supported
 func (p *Processor) setup(wg *sync.WaitGroup) {
 	p.mutex.Lock()
@@ -205,8 +208,10 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
 		if err != nil {
 			return nil, err
 		}
-		// A malformed stored ID degrades to the nil UUID rather than failing the whole conversion
-		id, _ := uuid.Parse(dbTrades[i].ID)
+		id, err := uuid.Parse(dbTrades[i].ID)
+		if err != nil {
+			return nil, fmt.Errorf("%w %q: %w", errInvalidTradeID, dbTrades[i].ID, err)
+		}
 		result[i] = Data{
 			ID:           id,
 			Timestamp:    dbTrades[i].Timestamp.UTC(),

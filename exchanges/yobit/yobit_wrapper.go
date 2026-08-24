@@ -168,11 +168,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Last:         resultCurr.Last,
 			Ask:          resultCurr.Sell,
 			Bid:          resultCurr.Buy,
+			High:         resultCurr.High,
 			Low:          resultCurr.Low,
-			QuoteVolume:  resultCurr.VolumeCurrent,
-			Volume:       resultCurr.Vol,
+			Volume:       resultCurr.BaseVolume,
+			QuoteVolume:  resultCurr.QuoteVolume,
 			ExchangeName: e.Name,
 			AssetType:    a,
+			LastUpdated:  resultCurr.Updated.Time(),
 		})
 		if err != nil {
 			return err

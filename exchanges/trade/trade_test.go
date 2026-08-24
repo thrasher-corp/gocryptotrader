@@ -6,6 +6,8 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
@@ -92,7 +94,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 	processor.mutex.Unlock()
 }
 
-func TestSqlDataToTrade(t *testing.T) {
+func TestSQLDataToTrade(t *testing.T) {
 	t.Parallel()
 	uuiderino := uuid.NewV4()
 	data, err := SQLDataToTrade(sqltrade.Data{
@@ -106,21 +108,23 @@ func TestSqlDataToTrade(t *testing.T) {
 		Amount:    1337,
 		Side:      "buy",
 	})
-	if err != nil {
-		t.Error(err)
-	}
-	if len(data) != 1 {
-		t.Fatal("unexpected scenario")
-	}
-	if data[0].Side != order.Buy {
-		t.Error("expected buy side")
-	}
-	if data[0].CurrencyPair.String() != "BTCUSD" {
-		t.Errorf("expected \"BTCUSD\", got %v", data[0].CurrencyPair)
-	}
-	if data[0].AssetType != asset.Spot {
-		t.Error("expected spot")
-	}
+	require.NoError(t, err, "SQLDataToTrade must not error")
+	require.Len(t, data, 1, "SQLDataToTrade must return one trade")
+	assert.Equal(t, uuiderino, data[0].ID, "ID should decode")
+	assert.Equal(t, order.Buy, data[0].Side, "Side should decode")
+	assert.Equal(t, "BTCUSD", data[0].CurrencyPair.String(), "CurrencyPair should decode")
+	assert.Equal(t, asset.Spot, data[0].AssetType, "AssetType should decode")
+
+	_, err = SQLDataToTrade(sqltrade.Data{
+		ID:        "not-a-uuid",
+		Exchange:  "hello",
+		Base:      currency.BTC.String(),
+		Quote:     currency.USD.String(),
+		AssetType: "spot",
+		Side:      "buy",
+	})
+	assert.ErrorIs(t, err, errInvalidTradeID, "SQLDataToTrade should reject a malformed stored ID")
+	assert.ErrorContains(t, err, `"not-a-uuid"`, "error should name the offending ID")
 }
 
 func TestTradeToSQLData(t *testing.T) {

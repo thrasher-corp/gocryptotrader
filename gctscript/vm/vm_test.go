@@ -336,13 +336,20 @@ func TestRemoveVM(t *testing.T) {
 		config: configHelper(true, true, maxTestVirtualMachines),
 	}
 	manager.started.Store(true)
-	id, _ := uuid.Parse("6f20c907-64a0-48f2-848a-7837dee61672")
+	id := uuid.MustParse("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := manager.RemoveVM(id)
-	if err != nil {
-		if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
-			t.Fatal(err)
-		}
-	}
+	assert.ErrorIs(t, err, ErrNoVMFound, "RemoveVM should error for an unregistered VM")
+	assert.ErrorContains(t, err, id.String(), "the error should name the requested VM")
+
+	AllVMSync.Store(id, &VM{ID: id})
+	VMSCount.add()
+	count := VMSCount.Len()
+
+	require.NoError(t, manager.RemoveVM(id), "RemoveVM must not error for a registered VM")
+	_, ok := AllVMSync.Load(id)
+	assert.False(t, ok, "RemoveVM should drop the VM from AllVMSync")
+	assert.Equal(t, count-1, VMSCount.Len(), "RemoveVM should decrement the VM count")
+	assert.ErrorIs(t, manager.RemoveVM(id), ErrNoVMFound, "removing the same VM twice should error")
 }
 
 func TestError_Error(t *testing.T) {

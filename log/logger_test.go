@@ -1300,9 +1300,11 @@ func BenchmarkCustomLogHookFallthrough(b *testing.B) {
 	b.Cleanup(cleanup)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		Infof(sl, "formatted %s %d", "message", 1)
 	}
+	// b.Loop stops the timer once it returns false, so the async flush this measures has to be timed back in
+	b.StartTimer()
 	drainBenchmarkLoggerJobs()
 	b.StopTimer()
 }
@@ -1316,9 +1318,12 @@ func BenchmarkInfof(b *testing.B) {
 	b.Cleanup(cleanup)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for n := range b.N {
+	var n int
+	for b.Loop() {
 		Infof(sl, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+		n++
 	}
+	b.StartTimer()
 	drainBenchmarkLoggerJobs()
 	b.StopTimer()
 }
@@ -1331,9 +1336,10 @@ func BenchmarkInfoln(b *testing.B) {
 	b.Cleanup(cleanup)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		Infoln(sl, "Hello this is an infoln benchmark")
 	}
+	b.StartTimer()
 	drainBenchmarkLoggerJobs()
 	b.StopTimer()
 }

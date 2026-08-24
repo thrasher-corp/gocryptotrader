@@ -1,13 +1,13 @@
 package bitstamp
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // UnmarshalJSON deserialises JSON and parses the minimum order value
@@ -36,17 +36,13 @@ type orderSide order.Side
 
 func (s *orderSide) UnmarshalJSON(data []byte) error {
 	// The REST ticker quotes the side whereas the websocket order feed sends a bare number
-	var n types.Number
-	if err := json.Unmarshal(data, &n); err != nil {
-		return err
-	}
-	switch n.Int64() {
-	case 0:
+	switch string(bytes.Trim(data, `"`)) {
+	case "0":
 		*s = orderSide(order.Buy)
-	case 1:
+	case "1":
 		*s = orderSide(order.Sell)
 	default:
-		return fmt.Errorf("invalid value for order side: %v", n)
+		return fmt.Errorf("%w: %s", order.ErrSideIsInvalid, data)
 	}
 
 	return nil

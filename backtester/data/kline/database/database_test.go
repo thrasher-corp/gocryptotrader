@@ -158,7 +158,6 @@ func TestLoadDataTrades(t *testing.T) {
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
 	err = trade.Insert(trade.Data{
-		ID:        "123",
 		TID:       "123",
 		Exchange:  exch,
 		Base:      p.Base.String(),
