@@ -123,11 +123,10 @@ type websocketTickResponse struct {
 
 // websocketTickData holds ticker data fields
 type websocketTickData struct {
-	High     types.Number `json:"high"`
-	Low      types.Number `json:"low"`
-	Latest   types.Number `json:"latest"`
-	Vol      types.Number `json:"vol"`
-	Turnover types.Number `json:"turnover"`
+	High   types.Number `json:"high"`
+	Low    types.Number `json:"low"`
+	Latest types.Number `json:"latest"`
+	Vol    types.Number `json:"vol"`
 }
 
 // websocketTradeResponse holds a trade websocket message
@@ -148,8 +147,6 @@ type websocketAssetUpdateData struct {
 	AssetCode string       `json:"assetCode"`
 	Free      types.Number `json:"free"`
 	Freeze    types.Number `json:"freeze"`
-	Time      types.Time   `json:"time"`
-	Type      string       `json:"type"`
 }
 
 // websocketTradeData holds trade data fields
@@ -206,11 +203,8 @@ type websocketOrderUpdateData struct {
 	Amount      types.Number `json:"amount"`
 	OrderStatus int64        `json:"orderStatus"`
 	Price       types.Number `json:"price"`
-	Role        string       `json:"role"`
 	UpdateTime  types.Time   `json:"updateTime"`
 	UUID        string       `json:"uuid"`
-	TxUUID      string       `json:"txUuid"`
-	VolumePrice types.Number `json:"volumePrice"`
 }
 
 // OrderHistory stores data for past orders
