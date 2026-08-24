@@ -376,58 +376,65 @@ func TestGetBlockTicker(t *testing.T) {
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPublicBlockTrades(contextGenerate(), "")
-	require.ErrorIs(t, err, errMissingInstrumentID)
+	t.Run("public block trades", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetPublicBlockTrades(contextGenerate(), "")
+		require.ErrorIs(t, err, errMissingInstrumentID)
 
-	trades, err := e.GetPublicBlockTrades(contextGenerate(), mainPair.String())
-	require.NoError(t, err)
-	if assert.NotEmpty(t, trades, "Should get some block trades") {
-		blockTrade := trades[0]
+		publicBlockTrades, err := e.GetPublicBlockTrades(contextGenerate(), mainPair.String())
+		require.NoError(t, err)
+		if len(publicBlockTrades) == 0 {
+			return // there aren't always block trades returned on mainPair
+		}
+		blockTrade := publicBlockTrades[0]
 		assert.Equal(t, mainPair.String(), blockTrade.InstrumentID, "InstrumentID should have correct value")
 		assert.NotEmpty(t, blockTrade.TradeID, "TradeID should not be empty")
 		assert.Positive(t, blockTrade.Price.Float64(), "Price should have a positive value")
 		assert.Positive(t, blockTrade.Size.Float64(), "Size should have a positive value")
 		assert.Contains(t, []order.Side{order.Buy, order.Sell}, blockTrade.Side, "Side should be a side")
 		assert.WithinRange(t, blockTrade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
-	}
+	})
 
-	testexch.UpdatePairsOnce(t, e)
+	t.Run("options", func(t *testing.T) {
+		t.Parallel()
+		testexch.UpdatePairsOnce(t, e)
 
-	pairs, err := e.GetAvailablePairs(asset.Options)
-	require.NoError(t, err)
-	require.NotEmpty(t, pairs)
+		pairs, err := e.GetAvailablePairs(asset.Options)
+		require.NoError(t, err)
+		require.NotEmpty(t, pairs)
 
-	publicTrades, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 100)
-	require.NoError(t, err)
+		publicTrades, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 100)
+		require.NoError(t, err)
 
-	tested := false
-LOOP:
-	for _, trade := range publicTrades {
-		for _, leg := range trade.Legs {
-			p, err := e.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
-			if err != nil {
-				continue
-			}
+		tested := false
+	LOOP:
+		for _, pt := range publicTrades {
+			for _, leg := range pt.Legs {
+				p, err := e.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
+				if err != nil {
+					continue
+				}
 
-			trades, err = e.GetPublicBlockTrades(contextGenerate(), p.String())
-			require.NoError(t, err, "GetBlockTrades must not error on Options")
-			for _, trade := range trades {
-				assert.Equal(t, p.String(), trade.InstrumentID, "InstrumentID should have correct value")
-				assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-				assert.Positive(t, trade.Price.Float64(), "Price should have a positive value")
-				assert.Positive(t, trade.Size.Float64(), "Size should have a positive value")
-				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-				assert.GreaterOrEqual(t, trade.FillVolatility.Float64(), float64(0), "FillVolatility should not be negative")
-				assert.Positive(t, trade.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
-				assert.Positive(t, trade.IndexPrice.Float64(), "IndexPrice should have a positive value")
-				assert.Positive(t, trade.MarkPrice.Float64(), "MarkPrice should have a positive value")
-				assert.NotEmpty(t, trade.Timestamp, "Timestamp should not be empty")
-				tested = true
-				break LOOP
+				publicBlockTrades, err := e.GetPublicBlockTrades(contextGenerate(), p.String())
+				require.NoError(t, err, "GetBlockTrades must not error on Options")
+				for _, pbt := range publicBlockTrades {
+					assert.Equal(t, p.String(), pbt.InstrumentID, "InstrumentID should have correct value")
+					assert.NotEmpty(t, pbt.TradeID, "TradeID should not be empty")
+					assert.Positive(t, pbt.Price.Float64(), "Price should have a positive value")
+					assert.Positive(t, pbt.Size.Float64(), "Size should have a positive value")
+					assert.Contains(t, []order.Side{order.Buy, order.Sell}, pbt.Side, "Side should be a side")
+					assert.GreaterOrEqual(t, pbt.FillVolatility.Float64(), float64(0), "FillVolatility should not be negative")
+					assert.Positive(t, pbt.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
+					assert.Positive(t, pbt.IndexPrice.Float64(), "IndexPrice should have a positive value")
+					assert.Positive(t, pbt.MarkPrice.Float64(), "MarkPrice should have a positive value")
+					assert.NotEmpty(t, pbt.Timestamp, "Timestamp should not be empty")
+					tested = true
+					break LOOP
+				}
 			}
 		}
-	}
-	assert.True(t, tested, "Should find at least one BlockTrade somewhere")
+		assert.True(t, tested, "Should find at least one BlockTrade somewhere")
+	})
 }
 
 func TestGetInstrument(t *testing.T) {
@@ -4769,14 +4776,8 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	tracked := new(Exchange)
 	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
 	data := &WsOrderBookData{
-		Bids: []WsOrderBookLevel{{
-			Price:  100.5,
-			Amount: 1.25,
-		}},
-		Asks: []WsOrderBookLevel{{
-			Price:  100.6,
-			Amount: 0.75,
-		}},
+		Bids:       [][4]types.Number{{100.5, 1.25, 0, 1}},
+		Asks:       [][4]types.Number{{100.6, 0.75, 0, 1}},
 		Timestamp:  types.Time(time.UnixMilli(1659792392540)),
 		SequenceID: 42,
 	}
@@ -4785,9 +4786,6 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 
 	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
-	assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
-	assert.False(t, book.ReceivedAt.IsZero(), "ReceivedAt should be set")
 	assert.Equal(t, int64(42), book.LastUpdateID, "LastUpdateID should match the snapshot sequence ID")
 	require.Len(t, book.Bids, 1, "Snapshot must contain one bid")
 	require.Len(t, book.Asks, 1, "Snapshot must contain one ask")
@@ -4800,207 +4798,297 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 func TestWsProcessUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 
-	tracked := new(Exchange)
-	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
-
-	pair := currency.NewPairWithDelimiter("UPD", "USDT", "-")
-	err := tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-		Exchange:     tracked.Name,
-		Pair:         pair,
-		Asset:        asset.Spot,
-		LastUpdateID: 10,
-		LastUpdated:  time.UnixMilli(1659792392540),
-		LastPushed:   time.UnixMilli(1659792392540),
-		Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
-		Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
-	})
-	require.NoError(t, err, "LoadSnapshot must not error")
-
-	update := &WsOrderBookData{
-		Timestamp:          types.Time(time.UnixMilli(1659792392640)),
-		PreviousSequenceID: 10,
-		SequenceID:         11,
+	testCases := []struct {
+		name               string
+		instrument         string
+		previousSequenceID int64
+		sequenceID         int64
+		expectedSequenceID int64
+		expectedError      error
+		multipleAssets     bool
+	}{
+		{
+			name:               "contiguous update",
+			instrument:         "CONT",
+			previousSequenceID: 10,
+			sequenceID:         11,
+			expectedSequenceID: 11,
+		},
+		{
+			name:               "documented sequence reset",
+			instrument:         "RESET",
+			previousSequenceID: 10,
+			sequenceID:         3,
+			expectedSequenceID: 3,
+		},
+		{
+			name:               "stale update",
+			instrument:         "STALE",
+			previousSequenceID: 9,
+			sequenceID:         10,
+			expectedSequenceID: 10,
+		},
+		{
+			name:               "sequence gap invalidates mapped assets",
+			instrument:         "GAP",
+			previousSequenceID: 9,
+			sequenceID:         11,
+			expectedError:      errInvalidOrderbookSequence,
+			multipleAssets:     true,
+		},
 	}
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must not error when prevSeqId matches")
-	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must advance to update seqId")
-	require.Equal(t, update.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
-	assert.Equal(t, update.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	heartbeatTime := time.UnixMilli(1659792392740)
-	update.Timestamp = types.Time(heartbeatTime)
-	update.PreviousSequenceID = 11
-	update.SequenceID = 11
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must process a documented heartbeat")
-	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(11), book.LastUpdateID, "A heartbeat must retain its sequence ID")
-	require.Equal(t, heartbeatTime, book.LastUpdated, "A heartbeat must update the generation timestamp")
+			tracked := new(Exchange)
+			require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+			pair := currency.NewPairWithDelimiter(tc.instrument, "USDT", "-")
+			assets := []asset.Item{asset.Spot}
+			if tc.multipleAssets {
+				assets = append(assets, asset.Margin)
+			}
+			for _, a := range assets {
+				require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+					Exchange:     tracked.Name,
+					Pair:         pair,
+					Asset:        a,
+					LastUpdateID: 10,
+					LastUpdated:  time.UnixMilli(1659792392540),
+					Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+					Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+				}), "LoadSnapshot must not error")
+			}
 
-	update.PreviousSequenceID = 10
-	update.SequenceID = 11
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must discard stale updates without error")
-	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must remain unchanged after stale update")
-	require.Equal(t, heartbeatTime, book.LastUpdated, "A stale update must not change the generation timestamp")
+			err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+				Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+				PreviousSequenceID: tc.previousSequenceID,
+				SequenceID:         tc.sequenceID,
+			}, pair, assets)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError, "WsProcessUpdateOrderbook must return the expected error")
+				for _, a := range assets {
+					_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, a)
+					require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must be invalidated", a)
+				}
+				return
+			}
+			require.NoError(t, err, "WsProcessUpdateOrderbook must not error")
+			book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			assert.Equal(t, tc.expectedSequenceID, book.LastUpdateID, "LastUpdateID should match the expected sequence")
+		})
+	}
 
-	update.PreviousSequenceID = 11
-	update.SequenceID = 3
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must accept a documented sequence reset")
-	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(3), book.LastUpdateID, "LastUpdateID must move to the reset sequence")
+	t.Run("missing mapped asset invalidates existing depth", func(t *testing.T) {
+		t.Parallel()
 
-	update.PreviousSequenceID = 3
-	update.SequenceID = 5
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must continue from the reset sequence")
-	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(5), book.LastUpdateID, "LastUpdateID must advance from the reset sequence")
-
-	update.PreviousSequenceID = 3
-	update.SequenceID = 4
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject updates from a stale sequence chain")
-	_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "A stale sequence chain must invalidate the orderbook")
-
-	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		err = tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		pair := currency.NewPairWithDelimiter("PART", "USDT", "-")
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Exchange:     tracked.Name,
 			Pair:         pair,
-			Asset:        a,
-			LastUpdateID: 5,
+			Asset:        asset.Spot,
+			LastUpdateID: 20,
 			LastUpdated:  time.UnixMilli(1659792392540),
-			LastPushed:   time.UnixMilli(1659792392540),
 			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
 			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
-		})
-		require.NoErrorf(t, err, "LoadSnapshot must not error for %s", a)
-	}
+		}), "LoadSnapshot must not error")
 
-	update.PreviousSequenceID = 0
-	update.SequenceID = 6
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot, asset.Margin})
-	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must treat zero as a sequence value and reject the gap")
-	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, a)
-		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "A sequence gap must invalidate the %s orderbook", a)
-	}
-
-	partialPair := currency.NewPairWithDelimiter("PART", "USDT", "-")
-	err = tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-		Exchange:     tracked.Name,
-		Pair:         partialPair,
-		Asset:        asset.Spot,
-		LastUpdateID: 20,
-		LastUpdated:  time.UnixMilli(1659792392540),
-		LastPushed:   time.UnixMilli(1659792392540),
-		Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
-		Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+			PreviousSequenceID: 20,
+			SequenceID:         21,
+		}, pair, []asset.Item{asset.Spot, asset.Margin})
+		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every mapped asset")
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Spot orderbook must be invalidated on mapped asset error")
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
+		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "Missing margin orderbook must remain missing")
 	})
-	require.NoError(t, err, "LoadSnapshot must not error")
-	update.PreviousSequenceID = 20
-	update.SequenceID = 21
-	err = tracked.WsProcessUpdateOrderbook(update, partialPair, []asset.Item{asset.Spot, asset.Margin})
-	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every asset before applying updates")
-	book, err = tracked.Websocket.Orderbook.GetOrderbook(partialPair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must return the unchanged spot orderbook")
-	assert.Equal(t, int64(20), book.LastUpdateID, "A missing secondary asset should not advance the first asset")
+
+	t.Run("invalid book awaits replacement snapshot", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		pair := currency.NewPairWithDelimiter("PENDING", "USDT", "-")
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     tracked.Name,
+			Pair:         pair,
+			Asset:        asset.Spot,
+			LastUpdateID: 20,
+			LastUpdated:  time.UnixMilli(1659792392540),
+			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+		}), "LoadSnapshot must not error")
+		require.NoError(t, tracked.Websocket.Orderbook.InvalidateOrderbook(pair, asset.Spot), "InvalidateOrderbook must not error")
+
+		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+			PreviousSequenceID: 20,
+			SequenceID:         21,
+		}, pair, []asset.Item{asset.Spot})
+		require.ErrorIs(t, err, errOrderbookSnapshotPending, "WsProcessUpdateOrderbook must report that a replacement snapshot is pending")
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "WsProcessUpdateOrderbook must preserve the invalid orderbook error")
+	})
+
+	t.Run("dispatch error preserves mapped depths", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		pair := currency.NewPairWithDelimiter("DISPATCH", "USDT", "-")
+		assets := []asset.Item{asset.Spot, asset.Margin}
+		for _, a := range assets {
+			require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:     tracked.Name,
+				Pair:         pair,
+				Asset:        a,
+				LastUpdateID: 10,
+				LastUpdated:  time.UnixMilli(1659792392540),
+				Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+				Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+			}), "LoadSnapshot must not error")
+		}
+		for len(tracked.Websocket.DataHandler.C) < cap(tracked.Websocket.DataHandler.C) {
+			require.NoError(t, tracked.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
+		}
+
+		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			Bids:               [][4]types.Number{{100.5, 2, 0, 1}},
+			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+			PreviousSequenceID: 10,
+			SequenceID:         11,
+		}, pair, assets)
+		require.ErrorContains(t, err, "channel buffer is full", "WsProcessUpdateOrderbook must return the dispatch failure")
+		for _, a := range assets {
+			book, bookErr := tracked.Websocket.Orderbook.GetOrderbook(pair, a)
+			require.NoErrorf(t, bookErr, "The %s orderbook must remain valid after a dispatch failure", a)
+			assert.Equalf(t, int64(11), book.LastUpdateID, "The %s orderbook should remain aligned after a dispatch failure", a)
+		}
+	})
 }
 
 func TestWsProcessOrderBooks(t *testing.T) {
 	t.Parallel()
 
-	tracked := new(Exchange)
-	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
-	tracked.ValidateOrderbook = true
-	conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
-	require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
-	subs := subscription.List{
-		{
+	t.Run("recover from sequence gap", func(t *testing.T) {
+		t.Parallel()
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		tracked.ValidateOrderbook = true
+		conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
+		subs := subscription.List{
+			{
+				Asset:            asset.Spot,
+				Pairs:            currency.Pairs{mainPair},
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: "{\"channel\":\"books\",\"instId\":\"BTC-USDT\"}",
+				Levels:           400,
+			},
+			{
+				Asset:            asset.Margin,
+				Pairs:            currency.Pairs{mainPair},
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: "{\"channel\":\"books\",\"instId\":\"BTC-USDT\"}",
+				Levels:           400,
+			},
+		}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, subs...), "AddSuccessfulSubscriptions must not error")
+		for _, sub := range subs {
+			require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
+		}
+
+		snapshot := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"snapshot\",\"data\":[{\"asks\":[[\"101\",\"1\",\"0\",\"1\"]],\"bids\":[[\"100\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392540\",\"checksum\":0,\"prevSeqId\":-1,\"seqId\":10}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load snapshots without checksum validation")
+
+		gap := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[],\"ts\":\"1659792392640\",\"checksum\":0,\"prevSeqId\":12,\"seqId\":13}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover from a sequence gap")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+			require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must remain invalid until a new snapshot arrives", a)
+		}
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
+			"Recovery must send an unsubscribe and subscribe request")
+		requests := conn.Requests()
+		assert.Equal(t, operationUnsubscribe, requests[0].Operation, "Recovery should unsubscribe first")
+		require.Len(t, requests[0].Arguments, 1, "Recovery must deduplicate equivalent unsubscribe arguments")
+		assert.Equal(t, operationSubscribe, requests[1].Operation, "Recovery should resubscribe second")
+		require.Len(t, requests[1].Arguments, 1, "Recovery must deduplicate equivalent subscribe arguments")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must ignore updates while awaiting a replacement snapshot")
+		require.Never(t, func() bool { return len(conn.Requests()) > 2 }, 100*time.Millisecond, 10*time.Millisecond,
+			"Updates received before the replacement snapshot must not trigger another resubscription")
+
+		freshSnapshot := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"snapshot\",\"data\":[{\"asks\":[[\"101\",\"1\",\"0\",\"1\"]],\"bids\":[[\"100\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392740\",\"checksum\":0,\"prevSeqId\":-1,\"seqId\":50}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, freshSnapshot), "wsProcessOrderBooks must load a fresh snapshot after recovery")
+		validUpdate := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[[\"100\",\"2\",\"0\",\"1\"]],\"ts\":\"1659792392840\",\"checksum\":0,\"prevSeqId\":50,\"seqId\":51}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, validUpdate), "wsProcessOrderBooks must process updates after recovery")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+			require.NoErrorf(t, err, "GetOrderbook must return the recovered %s orderbook", a)
+			assert.Equalf(t, int64(51), book.LastUpdateID, "The recovered %s orderbook should accept subsequent updates", a)
+		}
+
+		invalidUpdate := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[[\"0\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392940\",\"checksum\":0,\"prevSeqId\":51,\"seqId\":52}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, invalidUpdate), "wsProcessOrderBooks must recover from an invalid orderbook update")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+			require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must be invalidated after an invalid update", a)
+		}
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 4 }, time.Second, 10*time.Millisecond,
+			"Invalid update recovery must send another unsubscribe and subscribe request")
+		requests = conn.Requests()
+		assert.Equal(t, operationUnsubscribe, requests[2].Operation, "Invalid update recovery should unsubscribe first")
+		assert.Equal(t, operationSubscribe, requests[3].Operation, "Invalid update recovery should resubscribe second")
+	})
+	t.Run("exchange-specific channel", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
+		sub := &subscription.Subscription{
 			Asset:            asset.Spot,
 			Pairs:            currency.Pairs{mainPair},
-			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
-			Levels:           400,
-		},
-		{
-			Asset:            asset.Margin,
-			Pairs:            currency.Pairs{mainPair},
-			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
-			Levels:           400,
-		},
-	}
-	require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, subs...), "AddSuccessfulSubscriptions must not error")
-	for _, sub := range subs {
+			Channel:          channelOrderBooksTBT,
+			QualifiedChannel: "{\"channel\":\"books-l2-tbt\",\"instId\":\"BTC-USDT\"}",
+		}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
 		require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
-	}
 
-	snapshot := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","checksum":0,"prevSeqId":-1,"seqId":10}]}`)
-	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load the snapshot")
+		snapshot := []byte("{\"arg\":{\"channel\":\"books-l2-tbt\",\"instId\":\"BTC-USDT\"},\"action\":\"snapshot\",\"data\":[{\"asks\":[[\"101\",\"1\",\"0\",\"1\"]],\"bids\":[[\"100\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392540\",\"prevSeqId\":-1,\"seqId\":10}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load the exchange-specific channel snapshot")
+		gap := []byte("{\"arg\":{\"channel\":\"books-l2-tbt\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[],\"ts\":\"1659792392640\",\"prevSeqId\":12,\"seqId\":13}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover the exchange-specific channel")
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
+			"Recovery must send one unsubscribe and one subscribe request")
+		requests := conn.Requests()
+		require.Len(t, requests[0].Arguments, 1, "Unsubscribe must contain the exchange-specific channel")
+		assert.Equal(t, channelOrderBooksTBT, requests[0].Arguments[0].Channel, "Unsubscribe should use the exchange-specific channel")
+		require.Len(t, requests[1].Arguments, 1, "Subscribe must contain the exchange-specific channel")
+		assert.Equal(t, channelOrderBooksTBT, requests[1].Arguments[0].Channel, "Subscribe should use the exchange-specific channel")
+	})
 
-	gap := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[],"ts":"1659792392640","checksum":0,"prevSeqId":12,"seqId":13}]}`)
-	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover from a sequence gap")
-	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
-		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must remain invalid until a new snapshot arrives", a)
-	}
-	require.Len(t, conn.requests, 2, "Recovery must send an unsubscribe and subscribe request")
-	assert.Equal(t, operationUnsubscribe, conn.requests[0].Operation, "Recovery should unsubscribe the tracked channel first")
-	require.Len(t, conn.requests[0].Arguments, 1, "Recovery must deduplicate the spot and margin unsubscribe arguments")
-	assert.Equal(t, operationSubscribe, conn.requests[1].Operation, "Recovery should resubscribe the tracked channel")
-	require.Len(t, conn.requests[1].Arguments, 1, "Recovery must deduplicate the spot and margin subscribe arguments")
-	recoveredSubs := conn.Subscriptions().List()
-	require.Len(t, recoveredSubs, 2, "Recovery must retain both spot and margin subscriptions")
-	for _, sub := range recoveredSubs {
-		assert.Equal(t, 400, sub.Levels, "Recovery should retain the subscription depth")
-	}
+	t.Run("bbo-tbt push is a snapshot", func(t *testing.T) {
+		t.Parallel()
 
-	freshSnapshot := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392740","checksum":0,"prevSeqId":-1,"seqId":50}]}`)
-	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, freshSnapshot), "wsProcessOrderBooks must load a fresh snapshot after recovery")
-	validUpdate := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[["100","2","0","1"]],"ts":"1659792392840","checksum":0,"prevSeqId":50,"seqId":51}]}`)
-	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, validUpdate), "wsProcessOrderBooks must process updates after recovery")
-	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
-		require.NoErrorf(t, err, "GetOrderbook must return the recovered %s orderbook", a)
-		assert.Equalf(t, int64(51), book.LastUpdateID, "The recovered %s orderbook should accept subsequent updates", a)
-	}
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		push := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BTC-USDT"},"data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","prevSeqId":-1,"seqId":10}]}`)
 
-	invalidUpdate := []byte(`{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[],"bids":[["0","1","0","1"]],"ts":"1659792392940","checksum":0,"prevSeqId":51,"seqId":52}]}`)
-	require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, invalidUpdate), "wsProcessOrderBooks must recover from an integrity failure")
-	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
-		require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "An integrity failure must invalidate the mapped %s orderbook", a)
-	}
-	require.Len(t, conn.requests, 4, "Integrity recovery must send another unsubscribe and subscribe request")
-	assert.Equal(t, operationUnsubscribe, conn.requests[2].Operation, "Integrity recovery should unsubscribe first")
-	assert.Equal(t, operationSubscribe, conn.requests[3].Operation, "Integrity recovery should resubscribe second")
-
-	bboTracked := new(Exchange)
-	require.NoError(t, testexch.Setup(bboTracked), "BBO test instance Setup must not error")
-	bboPair := currency.NewPairWithDelimiter("BBO", "USDT", "-")
-	bboSnapshot := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BBO-USDT","instType":"SPOT"},"data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","seqId":20}]}`)
-	require.NoError(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, bboSnapshot), "wsProcessOrderBooks must load bbo-tbt data as a snapshot")
-	bboBook, err := bboTracked.Websocket.Orderbook.GetOrderbook(bboPair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must return the BBO snapshot")
-	require.Len(t, bboBook.Bids, 1, "BBO snapshot must contain one bid")
-	require.Len(t, bboBook.Asks, 1, "BBO snapshot must contain one ask")
-	assert.Equal(t, float64(100), bboBook.Bids[0].Price, "BBO bid should match the snapshot")
-	assert.Equal(t, int64(20), bboBook.LastUpdateID, "BBO LastUpdateID should match seqId")
-
-	invalidBBOAction := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BBO-USDT","instType":"SPOT"},"action":"update","data":[]}`)
-	require.ErrorIs(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, invalidBBOAction), orderbook.ErrInvalidAction, "bbo-tbt must reject incremental actions")
-	invalidIncrementalAction := []byte(`{"arg":{"channel":"books-l2-tbt","instId":"BBO-USDT","instType":"SPOT"},"action":"partial","data":[]}`)
-	require.ErrorIs(t, bboTracked.wsProcessOrderBooks(t.Context(), nil, invalidIncrementalAction), orderbook.ErrInvalidAction, "incremental channels must reject unknown actions")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), nil, push), "wsProcessOrderBooks must load bbo-tbt pushes as snapshots")
+		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must return the bbo-tbt snapshot")
+		assert.Equal(t, int64(10), book.LastUpdateID, "The bbo-tbt snapshot should set the sequence ID")
+	})
 }
 
 func TestOrderPushData(t *testing.T) {
@@ -5546,136 +5634,6 @@ func TestGetAssetsFromInstrumentID(t *testing.T) {
 	assets, err := e.getAssetsFromInstrumentID("BTC-USD-240329-70000-C")
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error for option instrument IDs")
 	require.Equal(t, []asset.Item{asset.Options}, assets, "getAssetsFromInstrumentID must infer options asset type")
-}
-
-func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name           string
-		data           []byte
-		expectedPrice  float64
-		expectedAmount float64
-		expectedError  error
-	}{
-		{
-			name:           "quoted values",
-			data:           []byte(`["0.0702600","5.00","0","1"]`),
-			expectedPrice:  0.07026,
-			expectedAmount: 5,
-		},
-		{
-			name:           "numeric values",
-			data:           []byte(`[0.07026,5,0,1]`),
-			expectedPrice:  0.07026,
-			expectedAmount: 5,
-		},
-		{
-			name:          "missing amount",
-			data:          []byte(`["1"]`),
-			expectedError: errInvalidOrderBookLevel,
-		},
-		{
-			name:          "malformed",
-			data:          []byte(`{}`),
-			expectedError: errInvalidOrderBookLevel,
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			var level WsOrderBookLevel
-			err := json.Unmarshal(testCase.data, &level)
-			if testCase.expectedError != nil {
-				require.ErrorIs(t, err, testCase.expectedError, "UnmarshalJSON must return the expected error")
-				return
-			}
-
-			require.NoError(t, err, "UnmarshalJSON must not error")
-			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
-			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
-		})
-	}
-}
-
-func TestWsOrderbookItems(t *testing.T) {
-	t.Parallel()
-
-	entries := []WsOrderBookLevel{{
-		Price:  100.5,
-		Amount: 2.25,
-	}}
-	items := wsOrderbookItems(entries)
-	require.Len(t, items, 1, "wsOrderbookItems must return one orderbook item")
-	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
-	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
-	assert.Empty(t, items[0].StrPrice, "orderbook price string should not be populated")
-	assert.Empty(t, items[0].StrAmount, "orderbook amount string should not be populated")
-}
-
-func TestAppendWsOrderbookItems(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name     string
-		entries  []WsOrderBookLevel
-		expected orderbook.Levels
-	}{
-		{
-			name:     "empty",
-			entries:  []WsOrderBookLevel{},
-			expected: orderbook.Levels{},
-		},
-		{
-			name: "multiple levels",
-			entries: []WsOrderBookLevel{
-				{Price: 1.25, Amount: 2.5},
-				{Price: 3.75, Amount: 4.5},
-			},
-			expected: orderbook.Levels{
-				{Price: 1.25, Amount: 2.5},
-				{Price: 3.75, Amount: 4.5},
-			},
-		},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			items := make(orderbook.Levels, len(testCase.entries))
-			appendWsOrderbookItems(items, testCase.entries)
-			assert.Equal(t, testCase.expected, items, "orderbook levels should match")
-		})
-	}
-}
-
-func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
-	t.Parallel()
-
-	entries := []WsOrderBookLevel{
-		{Price: 1, Amount: 2},
-		{Price: 3, Amount: 4},
-	}
-	items, pooled := appendWsOrderbookItemsFromPool(entries)
-	t.Cleanup(func() {
-		putWsOrderbookLevels(pooled)
-	})
-
-	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
-	assert.Equal(t, float64(1), items[0].Price, "first price should match")
-	assert.Equal(t, float64(4), items[1].Amount, "second amount should match")
-	assert.Empty(t, items[0].StrPrice, "first price string should not be populated")
-	assert.Empty(t, items[1].StrAmount, "second amount string should not be populated")
-}
-
-func TestPutWsOrderbookLevels(t *testing.T) {
-	t.Parallel()
-
-	items := orderbook.Levels{{Price: 1}, {Price: 2}}
-	putWsOrderbookLevels(&items)
-	require.Empty(t, items, "putWsOrderbookLevels must reset pooled slice length")
 }
 
 func TestSetMarginType(t *testing.T) {

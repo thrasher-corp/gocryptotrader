@@ -1,7 +1,6 @@
 package coinbase
 
 import (
-	"net/url"
 	"sync"
 	"time"
 
@@ -30,9 +29,6 @@ type Exchange struct {
 	jwt         jwtManager
 	pairAliases pairAliases
 }
-
-// Version is used for the niche cases where the Version of the API must be specified and passed around for proper functionality
-type Version bool
 
 // FiatTransferType is used so that we don't need to duplicate the four fiat transfer-related endpoints under version 2 of the API
 type FiatTransferType bool
@@ -79,11 +75,6 @@ type PermissionsResponse struct {
 	CanTransfer   bool   `json:"can_transfer"`
 	PortfolioUUID string `json:"portfolio_uuid"`
 	PortfolioType string `json:"portfolio_type"`
-}
-
-// Params is used within functions to make the setting of parameters easier
-type Params struct {
-	url.Values
 }
 
 // MarginWindow is a sub-struct used in the type CurrentMarginWindow
@@ -1930,15 +1921,7 @@ type allocatePortfolioReqBase struct {
 	Amount        float64 `json:"amount,string"`
 }
 
-// IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse, TransactionData, DeposWithdrData, and PaymentMethodData
-type IDResource struct {
-	ID           string `json:"id"`
-	Resource     string `json:"resource"`
-	ResourcePath string `json:"resource_path"`
-	Email        string `json:"email"`
-}
-
-// PaginationResp holds pagination information, used in ListNotificationsResponse, GetAllWalletsResponse, GetAllAddrResponse, ManyTransactionsResp, and ManyDeposWithdrResp
+// PaginationResp holds pagination information returned by paginated endpoints.
 type PaginationResp struct {
 	EndingBefore         string `json:"ending_before"`
 	StartingAfter        string `json:"starting_after"`
@@ -1960,65 +1943,10 @@ type PaginationInp struct {
 	EndingBefore  string
 }
 
-// AmountWithCurrency is a sub-struct used in ListNotificationsSubData, WalletData, TransactionData, DeposWithdrData, Settlement, EquityReset, and PaymentMethodData
+// AmountWithCurrency stores an amount and its currency.
 type AmountWithCurrency struct {
 	Amount   types.Number `json:"amount"`
 	Currency string       `json:"currency"`
-}
-
-// Fees is a sub-struct used in ListNotificationsSubData
-type Fees []struct {
-	Type   string             `json:"type"`
-	Amount AmountWithCurrency `json:"amount"`
-}
-
-// ListNotificationsSubData is a sub-struct used in ListNotificationsData
-type ListNotificationsSubData struct {
-	ID            string             `json:"id"`
-	Address       string             `json:"address"`
-	Name          string             `json:"name"`
-	Status        string             `json:"status"`
-	PaymentMethod IDResource         `json:"payment_method"`
-	Transaction   IDResource         `json:"transaction"`
-	Amount        AmountWithCurrency `json:"amount"`
-	Total         AmountWithCurrency `json:"total"`
-	Subtotal      AmountWithCurrency `json:"subtotal"`
-	CreatedAt     time.Time          `json:"created_at"`
-	UpdatedAt     time.Time          `json:"updated_at"`
-	Resource      string             `json:"resource"`
-	ResourcePath  string             `json:"resource_path"`
-	Committed     bool               `json:"committed"`
-	Instant       bool               `json:"instant"`
-	Fee           AmountWithCurrency `json:"fee"`
-	Fees          []Fees             `json:"fees"`
-	PayoutAt      time.Time          `json:"payout_at"`
-}
-
-// AdditionalData is a sub-struct used in ListNotificationsData
-type AdditionalData struct {
-	Hash   string             `json:"hash"`
-	Amount AmountWithCurrency `json:"amount"`
-}
-
-// ListNotificationsData is a sub-struct used in ListNotificationsResponse
-type ListNotificationsData struct {
-	ID               string                   `json:"id"`
-	Type             string                   `json:"type"`
-	Data             ListNotificationsSubData `json:"data"`
-	AdditionalData   AdditionalData           `json:"additional_data"`
-	User             IDResource               `json:"user"`
-	Account          IDResource               `json:"account"`
-	DeliveryAttempts int32                    `json:"delivery_attempts"`
-	CreatedAt        time.Time                `json:"created_at"`
-	Resource         string                   `json:"resource"`
-	ResourcePath     string                   `json:"resource_path"`
-	Transaction      IDResource               `json:"transaction"`
-}
-
-// ListNotificationsResponse holds information on notifications that the user is subscribed to. Returned by ListNotifications
-type ListNotificationsResponse struct {
-	Pagination PaginationResp          `json:"pagination"`
-	Data       []ListNotificationsData `json:"data"`
 }
 
 // CodeName is a sub-struct holding a code and a name, used in UserResponse
@@ -2126,40 +2054,6 @@ type AddressInfo struct {
 	DestinationTag string `json:"destination_tag"`
 }
 
-// TitleSubtitle holds a title and a subtitle, used in AddressData and TransactionData
-type TitleSubtitle struct {
-	Title    string `json:"title"`
-	Subtitle string `json:"subtitle"`
-}
-
-// Options is a sub-struct used in Warnings
-type Options struct {
-	Text  string `json:"text"`
-	Style string `json:"style"`
-	ID    string `json:"id"`
-}
-
-// Warnings is a sub-struct used in AddressData
-type Warnings struct {
-	Type     string    `json:"type"`
-	Title    string    `json:"title"`
-	Details  string    `json:"details"`
-	ImageURL string    `json:"image_url"`
-	Options  []Options `json:"options"`
-}
-
-// ShareAddressCopy is a sub-struct used in AddressData
-type ShareAddressCopy struct {
-	Line1 string `json:"line1"`
-	Line2 string `json:"line2"`
-}
-
-// InlineWarning is a sub-struct used in AddressData
-type InlineWarning struct {
-	Text    string        `json:"text"`
-	Tooltip TitleSubtitle `json:"tooltip"`
-}
-
 // AddressData holds address information, used in GetAllAddrResponse, and returned by CreateAddress and GetAddressByID
 type AddressData struct {
 	ID             string        `json:"id"`
@@ -2187,13 +2081,6 @@ type AdvancedTradeFill struct {
 	OrderID    string        `json:"order_id"`
 	Commission types.Number  `json:"commission"`
 	OrderSide  string        `json:"order_side"`
-}
-
-// Network is a sub-struct used in TransactionData
-type Network struct {
-	Status string `json:"status"`
-	Hash   string `json:"hash"`
-	Name   string `json:"name"`
 }
 
 // FullAddress is a sub-struct, used in TravelRule

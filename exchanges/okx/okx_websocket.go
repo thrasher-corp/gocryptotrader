@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -30,18 +29,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
-	pingMsg               = []byte("ping")
-	pongMsg               = []byte("pong")
-	wsOrderbookLevelsPool = sync.Pool{
-		New: func() any {
-			levels := make(orderbook.Levels, 0, wsOrderbookLevelsPoolCapacity)
-			return &levels
-		},
-	}
+	pingMsg = []byte("ping")
+	pongMsg = []byte("pong")
 
 	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 	authConnErrorCodes = []string{
@@ -49,9 +43,6 @@ var (
 		"60005", "60021", "60031", "50110", "60033",
 	}
 )
-
-// wsOrderbookLevelsPoolCapacity follows OKX's "books" channel depth.
-const wsOrderbookLevelsPoolCapacity = 400
 
 const (
 	// wsOrderbookSnapshot orderbook push data type 'snapshot'
@@ -938,13 +929,8 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	if err != nil {
 		return err
 	}
-	isSnapshotOnly := response.Argument.Channel == channelBBOTBT
-	if (isSnapshotOnly && response.Action != "" && response.Action != wsOrderbookSnapshot) ||
-		(!isSnapshotOnly && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot) {
+	if response.Argument.Channel == channelOrderBooks && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot {
 		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
-	}
-	if !response.Argument.InstrumentID.IsPopulated() {
-		return errMissingInstrumentID
 	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
@@ -959,53 +945,63 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 			return err
 		}
 	}
+	isSnapshotOnly := response.Argument.Channel == channelBBOTBT
+	if (isSnapshotOnly && response.Action != "" && response.Action != wsOrderbookSnapshot) ||
+		(!isSnapshotOnly && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot) {
+		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
+	}
+	if !response.Argument.InstrumentID.IsPopulated() {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
+			if errors.Is(err, errOrderbookSnapshotPending) {
+				continue
+			}
 		}
 		if err == nil {
 			continue
 		}
-		if !errors.Is(err, errInvalidOrderbookSequence) && !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+		if !errors.Is(err, errInvalidOrderbookSequence) &&
+			!errors.Is(err, orderbook.ErrOrderbookInvalid) {
 			return err
 		}
-		var tracked subscription.List
+		var subscriptionsToResub subscription.List
 		for _, sub := range conn.Subscriptions().List() {
-			if sub.Channel == subscription.OrderbookChannel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
-				tracked = append(tracked, sub)
+			if channelName(sub) == response.Argument.Channel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
+				subscriptionsToResub = append(subscriptionsToResub, sub)
 			}
 		}
-		if len(tracked) == 0 {
-			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, subscription.OrderbookChannel, response.Argument.InstrumentID)
+		if len(subscriptionsToResub) == 0 {
+			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
 		}
-		if err := tracked.SetStates(subscription.ResubscribingState); err != nil {
-			return err
+		if e.Verbose {
+			log.Debugf(log.ExchangeSys, "Resubscribing to %v due to orderbook error: %v", subscriptionsToResub.Strings(), err)
 		}
-		if err := e.Websocket.UnsubscribeChannels(ctx, conn, tracked); err != nil {
-			return err
-		}
-		return e.Websocket.SubscribeToChannels(ctx, conn, tracked)
+		go func() {
+			if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); err != nil {
+				log.Errorf(log.ExchangeSys, "Failed to resubscribe %v: %v", subscriptionsToResub.Strings(), err)
+			}
+		}()
 	}
 	return nil
 }
 
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	receivedAt := time.Now()
-	asks := wsOrderbookItems(data.Asks)
-	bids := wsOrderbookItems(data.Bids)
-	lastUpdated := data.Timestamp.Time()
+	asks := e.AppendWsOrderbookItems(data.Asks)
+	bids := e.AppendWsOrderbookItems(data.Bids)
 	for i := range assets {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			LastUpdateID:      data.SequenceID,
 			Asset:             assets[i],
 			Asks:              asks,
 			Bids:              bids,
-			LastUpdated:       lastUpdated,
-			LastPushed:        lastUpdated,
-			ReceivedAt:        receivedAt,
+			LastUpdated:       data.Timestamp.Time(),
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -1020,19 +1016,24 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // OKX can reset sequence IDs to a lower value while retaining continuity through
 // prevSeqId; see https://www.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	receivedAt := time.Now()
-	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
-	defer putWsOrderbookLevels(asksPoolItem)
-	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
-	defer putWsOrderbookLevels(bidsPoolItem)
-	updateTime := data.Timestamp.Time()
+	asks := e.AppendWsOrderbookItems(data.Asks)
+	bids := e.AppendWsOrderbookItems(data.Bids)
 	// A message without instType can map one instrument to multiple cached assets,
 	// such as spot and margin, so verify every depth before mutating any.
 	for i := range assets {
 		if _, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i]); err != nil {
-			return err
+			errChain := err
+			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				errChain = fmt.Errorf("%w %v %v: %w", errOrderbookSnapshotPending, pair, assets[i], err)
+			}
+			// Invalidate all mapped orderbooks so stale depth data is never left in service.
+			for j := range assets {
+				errChain = common.AppendError(errChain, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
+			}
+			return errChain
 		}
 	}
+	var dispatchErr error
 	for i := range assets {
 		lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i])
 		if err != nil {
@@ -1041,8 +1042,6 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 		if data.SequenceID == lastUpdateID && data.PreviousSequenceID < lastUpdateID {
 			continue
 		}
-		// Continuity is determined by prevSeqId because OKX may reset seqId
-		// to a lower value while continuing from the current sequence.
 		if data.PreviousSequenceID != lastUpdateID {
 			sequenceErr := fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
 			for j := range assets {
@@ -1054,13 +1053,16 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			UpdateID:   data.SequenceID,
 			Pair:       pair,
 			Asset:      assets[i],
-			UpdateTime: updateTime,
-			LastPushed: updateTime,
+			UpdateTime: data.Timestamp.Time(),
+			LastPushed: data.Timestamp.Time(),
 			Asks:       asks,
 			Bids:       bids,
-			ReceivedAt: receivedAt,
 			AllowEmpty: true, // Allow empty levels to push forward sequence ID
 		}); err != nil {
+			if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				dispatchErr = common.AppendError(dispatchErr, err)
+				continue
+			}
 			updateErr := err
 			for j := range assets {
 				updateErr = common.AppendError(updateErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, assets[j]))
@@ -1068,44 +1070,16 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			return updateErr
 		}
 	}
-	return nil
+	return dispatchErr
 }
 
-// wsOrderbookItems copies websocket orderbook data into orderbook levels.
-func wsOrderbookItems(entries []WsOrderBookLevel) orderbook.Levels {
+// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
+func (e *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) orderbook.Levels {
 	items := make(orderbook.Levels, len(entries))
-	appendWsOrderbookItems(items, entries)
-	return items
-}
-
-// appendWsOrderbookItems copies websocket level values into preallocated orderbook levels.
-func appendWsOrderbookItems(items orderbook.Levels, entries []WsOrderBookLevel) {
 	for j := range entries {
-		items[j] = orderbook.Level{
-			Amount: entries[j].Amount.Float64(),
-			Price:  entries[j].Price.Float64(),
-		}
+		items[j] = orderbook.Level{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
 	}
-}
-
-// appendWsOrderbookItemsFromPool reuses pooled level slices to reduce allocations.
-func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook.Levels, pooledItems *orderbook.Levels) {
-	pooledItems = wsOrderbookLevelsPool.Get().(*orderbook.Levels) //nolint:forcetypeassert // Not necessary from a pool
-	items = *pooledItems
-	if cap(items) < len(entries) {
-		items = make(orderbook.Levels, len(entries))
-	} else {
-		items = items[:len(entries)]
-	}
-	appendWsOrderbookItems(items, entries)
-	*pooledItems = items
-	return items, pooledItems
-}
-
-// putWsOrderbookLevels clears and returns pooled orderbook levels.
-func putWsOrderbookLevels(items *orderbook.Levels) {
-	*items = (*items)[:0]
-	wsOrderbookLevelsPool.Put(items)
+	return items
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.

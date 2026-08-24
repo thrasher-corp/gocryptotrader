@@ -85,6 +85,14 @@ func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWe
 	}
 }
 
+// Weight returns the number of reservations consumed by each request.
+func (r *RateLimiterWithWeight) Weight() Weight {
+	if r == nil {
+		return 0
+	}
+	return r.weight
+}
+
 // NewBasicRateLimit returns an object that implements the limiter interface for basic rate limit.
 func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateLimitDefinitions {
 	rl := NewRateLimitWithWeight(interval, actions, weight)
