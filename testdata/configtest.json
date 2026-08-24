@@ -163,7 +163,7 @@
    "enabled": false,
    "verbose": false,
    "apiKey": "Key",
-   "accountPlan": "accountPlan"
+   "accountPlan": "basic"
   },
   "currencyPairFormat": {
    "uppercase": true,

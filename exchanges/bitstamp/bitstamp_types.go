@@ -211,14 +211,6 @@ type UnconfirmedBTCTransactions struct {
 	MemoID         string `json:"memo_id"`
 }
 
-// CaptureError is used to capture unmarshalled errors
-type CaptureError struct {
-	Status any `json:"status"`
-	Reason any `json:"reason"`
-	Code   any `json:"code"`
-	Error  any `json:"error"`
-}
-
 const (
 	sepaWithdrawal          string = "sepa"
 	internationalWithdrawal string = "international"

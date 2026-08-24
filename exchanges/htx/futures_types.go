@@ -33,18 +33,6 @@ type FContractIndexPriceInfo struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// FContractPriceLimits gets limits for futures contracts
-type FContractPriceLimits struct {
-	Data struct {
-		Symbol       string  `json:"symbol"`
-		HighLimit    float64 `json:"high_limit"`
-		LowLimit     float64 `json:"low_limit"`
-		ContractCode string  `json:"contract_code"`
-		ContractType string  `json:"contract_type"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
-}
-
 // FContractOIData stores open interest data for futures contracts
 type FContractOIData struct {
 	Data      []FContractOpenInterest `json:"data"`
@@ -176,28 +164,6 @@ type FuturesTrade struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// FClawbackRateAndInsuranceData stores clawback rate and insurance data for futures
-type FClawbackRateAndInsuranceData struct {
-	Timestamp types.Time `json:"ts"`
-	Data      []struct {
-		Symbol            string  `json:"symbol"`
-		InsuranceFund     float64 `json:"insurance_fund"`
-		EstimatedClawback float64 `json:"estimated_clawback"`
-	} `json:"data"`
-}
-
-// FHistoricalInsuranceRecordsData stores historical records of insurance fund balances for futures
-type FHistoricalInsuranceRecordsData struct {
-	Timestamp types.Time `json:"timestamp"`
-	Data      struct {
-		Symbol string `json:"symbol"`
-		Tick   []struct {
-			InsuranceFund float64    `json:"insurance_fund"`
-			Timestamp     types.Time `json:"ts"`
-		} `json:"tick"`
-	} `json:"data"`
-}
-
 // FTieredAdjustmentFactorInfo stores info on adjustment factor for futures
 type FTieredAdjustmentFactorInfo struct {
 	Data []struct {
@@ -229,19 +195,6 @@ type FOIData struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// FInfoSystemStatusData stores system status info for futures
-type FInfoSystemStatusData struct {
-	Data []struct {
-		Symbol      string `json:"symbol"`
-		Open        int64  `json:"open"`
-		Close       int64  `json:"close"`
-		Cancel      int64  `json:"cancel"`
-		TransferIn  int64  `json:"transfer_in"`
-		TransferOut int64  `json:"transfer_out"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
-}
-
 // FTopAccountsLongShortRatio stores long/short ratio for top futures accounts
 type FTopAccountsLongShortRatio struct {
 	Data struct {
@@ -267,25 +220,6 @@ type FTopPositionsLongShortRatio struct {
 		} `json:"list"`
 	} `json:"data"`
 	Timestamp types.Time `json:"timestamp"`
-}
-
-// FLiquidationOrdersInfo stores data of futures liquidation orders
-type FLiquidationOrdersInfo struct {
-	Data struct {
-		Orders []struct {
-			Symbol       string     `json:"symbol"`
-			ContractCode string     `json:"contract_code"`
-			Direction    string     `json:"direction"`
-			Offset       string     `json:"offset"`
-			Volume       float64    `json:"volume"`
-			Price        float64    `json:"price"`
-			CreatedAt    types.Time `json:"created_at"`
-		} `json:"orders"`
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
 }
 
 // FIndexKlineData stores index kline data for futures

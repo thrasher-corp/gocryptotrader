@@ -100,31 +100,6 @@ type CoinMarginedFuturesTrade struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// InsuranceAndClawbackData stores insurance fund's and clawback rate's data
-type InsuranceAndClawbackData struct {
-	Timestamp types.Time `json:"timestamp"`
-	Data      []struct {
-		ContractCode      string  `json:"contract_code"`
-		InsuranceFund     float64 `json:"insurance_fund"`
-		EstimatedClawback float64 `json:"estimated_clawback"`
-	} `json:"data"`
-}
-
-// HistoricalInsuranceFundBalance stores insurance fund balance data in the past
-type HistoricalInsuranceFundBalance struct {
-	Data struct {
-		Symbol       string `json:"symbol"`
-		ContractCode string `json:"contract_code"`
-		Tick         []struct {
-			InsuranceFund float64    `json:"insurance_fund"`
-			Timestamp     types.Time `json:"ts"`
-		} `json:"tick"`
-		TotalPage   int64 `json:"total_page"`
-		TotalSize   int64 `json:"total_size"`
-		CurrentPage int64 `json:"current_page"`
-	} `json:"data"`
-}
-
 // TieredAdjustmentFactorData stores tiered adjustment factor data
 type TieredAdjustmentFactorData struct {
 	Data []struct {
@@ -555,25 +530,6 @@ type InternalAccountTransferData struct {
 	} `json:"data"`
 }
 
-// InternalAccountTransferRecords stores data for transfer records within the account
-type InternalAccountTransferRecords struct {
-	Timestamp types.Time `json:"ts"`
-	Data      struct {
-		TransferRecord []struct {
-			ID             int64      `json:"id"`
-			Timestamp      types.Time `json:"ts"`
-			Symbol         string     `json:"symbol"`
-			SubUID         int64      `json:"sub_uid"`
-			SubAccountName string     `json:"sub_account_name"`
-			TransferType   int64      `json:"transfer_type"`
-			Amount         float64    `json:"amount"`
-		} `json:"transfer_record"`
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
-	} `json:"data"`
-}
-
 // SwapOrderData stores swap order data
 type SwapOrderData struct {
 	Data struct {
@@ -667,50 +623,6 @@ type SwapOrderInfo struct {
 		FeeAsset        string  `json:"fee_asset"`
 		LiquidationType int64   `json:"liquidation_type"`
 	}
-	Timestamp types.Time `json:"ts"`
-}
-
-// OrderDetailData acquires order details
-type OrderDetailData struct {
-	Data struct {
-		Symbol          string  `json:"symbol"`
-		ContractCode    string  `json:"contract_code"`
-		Volume          float64 `json:"volume"`
-		Price           float64 `json:"price"`
-		OrderPriceType  string  `json:"order_price_type"`
-		Direction       string  `json:"direction"`
-		Offset          string  `json:"offset"`
-		LeverRate       float64 `json:"lever_rate"`
-		MarginFrozen    float64 `json:"margin_frozen"`
-		Profit          float64 `json:"profit"`
-		OrderSource     string  `json:"order_source"`
-		CreatedAt       int64   `json:"created_at"`
-		FinalInterest   float64 `json:"final_interest"`
-		AdjustValue     float64 `json:"adjust_value"`
-		FeeAsset        string  `json:"fee_asset"`
-		LiquidationType string  `json:"liquidation_type"`
-		OrderID         int64   `json:"order_id"`
-		OrderIDStr      string  `json:"order_id_str"`
-		ClientOrderID   int     `json:"client_order_id"`
-		TradeVolume     float64 `json:"trade_volume"`
-		TradeTurnover   float64 `json:"trade_turnover"`
-		OrderType       int     `json:"order_type"`
-		Status          int     `json:"status"`
-		TradeAvgPrice   float64 `json:"trade_avg_price"`
-		Trades          []struct {
-			ID            string  `json:"id"`
-			TradeID       float64 `json:"trade_id"`
-			TradeVolume   float64 `json:"trade_volume"`
-			TradePrice    float64 `json:"trade_price"`
-			TradeFee      float64 `json:"trade_fee"`
-			TradeTurnover float64 `json:"trade_turnover"`
-			Role          string  `json:"role"`
-			CreatedAt     int64   `json:"created_at"`
-		} `json:"trades"`
-		TotalPage   int64 `json:"total_page"`
-		TotalSize   int64 `json:"total_size"`
-		CurrentPage int64 `json:"current_page"`
-	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
 
@@ -847,14 +759,6 @@ func (a *AccountTradeHistoryData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// TriggerOrderData stores trigger order data
-type TriggerOrderData struct {
-	Data struct {
-		OrderID       int64  `json:"order_id"`
-		OrderIDString string `json:"order_id_str"`
-	} `json:"data"`
-}
-
 // CancelTriggerOrdersData stores trigger order cancel data
 type CancelTriggerOrdersData struct {
 	Data struct {
@@ -864,34 +768,6 @@ type CancelTriggerOrdersData struct {
 			ErrMsg  string `json:"err_msg"`
 		} `json:"errors"`
 		Successes string `json:"successes"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
-}
-
-// TriggerOpenOrdersData stores trigger open orders data
-type TriggerOpenOrdersData struct {
-	Data struct {
-		Orders []struct {
-			Symbol         string  `json:"symbol"`
-			ContractCode   string  `json:"contract_code"`
-			TriggerType    string  `json:"trigger_type"`
-			Volume         float64 `json:"volume"`
-			OrderType      int64   `json:"order_type"`
-			Direction      string  `json:"direction"`
-			Offset         string  `json:"offset"`
-			LeverageRate   float64 `json:"lever_rate"`
-			OrderID        int64   `json:"order_id"`
-			OrderIDString  string  `json:"order_id_str"`
-			OrderSource    string  `json:"order_source"`
-			TriggerPrice   float64 `json:"trigger_price"`
-			OrderPrice     float64 `json:"order_price"`
-			CreatedAt      int64   `json:"created_at"`
-			OrderPriceType string  `json:"order_price_type"`
-			Status         int64   `json:"status"`
-		} `json:"orders"`
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -929,12 +805,4 @@ type TriggerOrderHistory struct {
 		TotalSize   int64 `json:"total_size"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
-}
-
-// TransferMarginBetweenAccountsData stores margin transfer data between spot and swap accounts
-type TransferMarginBetweenAccountsData struct {
-	Code    int64  `json:"code"`
-	Data    int64  `json:"data"`
-	Message string `json:"message"`
-	Success bool   `json:"success"`
 }
