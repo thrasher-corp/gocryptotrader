@@ -486,25 +486,30 @@ type CurrencyInfo struct {
 
 // CurrencyPairDetail represents a single currency pair detail.
 type CurrencyPairDetail struct {
-	ID              currency.Pair `json:"id"`
-	Base            currency.Code `json:"base"`
-	BaseName        string        `json:"base_name"`
-	Quote           currency.Code `json:"quote"`
-	QuoteName       string        `json:"quote_name"`
-	Fee             types.Number  `json:"fee"`
-	MinBaseAmount   types.Number  `json:"min_base_amount"`
-	MinQuoteAmount  types.Number  `json:"min_quote_amount"`
-	MaxBaseAmount   types.Number  `json:"max_base_amount"`
-	MaxQuoteAmount  types.Number  `json:"max_quote_amount"`
-	AmountPrecision uint8         `json:"amount_precision"`
-	PricePrecision  uint8         `json:"precision"`
-	TradeStatus     string        `json:"trade_status"` // e.g. "untradable", "buyable", "sellable", "tradable"
-	SellStart       types.Time    `json:"sell_start"`
-	BuyStart        types.Time    `json:"buy_start"`
-	DelistingTime   types.Time    `json:"delisting_time"`
-	Type            string        `json:"type"` // e.g. "normal", "pre-market"
-	TradeURL        string        `json:"trade_url"`
-	STTag           bool          `json:"st_tag"`
+	ID                            currency.Pair `json:"id"`
+	Base                          currency.Code `json:"base"`
+	BaseName                      string        `json:"base_name"`
+	Quote                         currency.Code `json:"quote"`
+	QuoteName                     string        `json:"quote_name"`
+	Fee                           types.Number  `json:"fee"`
+	MinBaseAmount                 types.Number  `json:"min_base_amount"`
+	MinQuoteAmount                types.Number  `json:"min_quote_amount"`
+	MaxBaseAmount                 types.Number  `json:"max_base_amount"`
+	MaxQuoteAmount                types.Number  `json:"max_quote_amount"`
+	AmountPrecision               uint8         `json:"amount_precision"`
+	PricePrecision                uint8         `json:"precision"`
+	TradeStatus                   string        `json:"trade_status"` // e.g. "untradable", "buyable", "sellable", "tradable"
+	SellStart                     types.Time    `json:"sell_start"`
+	BuyStart                      types.Time    `json:"buy_start"`
+	DelistingTime                 types.Time    `json:"delisting_time"`
+	Type                          string        `json:"type"` // e.g. "normal", "pre-market"
+	TradeURL                      string        `json:"trade_url"`
+	STTag                         bool          `json:"st_tag"`
+	MaximumQuoteRisePercentage    types.Number  `json:"up_rate"`
+	MaximumQuoteDeclinePercentage types.Number  `json:"down_rate"`
+	Slippage                      types.Number  `json:"slippage"`
+	MarketOrderMaxStock           types.Number  `json:"market_order_max_stock"`
+	MarketOrderMaxMoney           types.Number  `json:"market_order_max_money"`
 }
 
 // Ticker holds detail ticker information for a currency pair
@@ -626,18 +631,6 @@ type CurrencyChain struct {
 	IsDisabled         int64  `json:"is_disabled"`          // If it is disabled. 0 means NOT being disabled
 	IsDepositDisabled  int64  `json:"is_deposit_disabled"`  // Is deposit disabled. 0 means not
 	IsWithdrawDisabled int64  `json:"is_withdraw_disabled"` // Is withdrawal disabled. 0 means not
-}
-
-// MarginCurrencyPairInfo represents margin currency pair detailed info.
-type MarginCurrencyPairInfo struct {
-	ID             currency.Pair `json:"id"`
-	Base           currency.Code `json:"base"`
-	Quote          currency.Code `json:"quote"`
-	Leverage       types.Number  `json:"leverage"`
-	MinBaseAmount  types.Number  `json:"min_base_amount"`
-	MinQuoteAmount types.Number  `json:"min_quote_amount"`
-	MaxQuoteAmount types.Number  `json:"max_quote_amount"`
-	Status         int32         `json:"status"`
 }
 
 // OrderbookOfLendingLoan represents order book of lending loans
@@ -929,7 +922,7 @@ type MyOptionSettlement struct {
 	Fee          types.Number `json:"fee"`
 }
 
-// OptionsTicker represents  tickers of options contracts
+// OptionsTicker represents tickers of options contracts
 type OptionsTicker struct {
 	Name                  currency.Pair `json:"name"`
 	LastPrice             types.Number  `json:"last_price"`
@@ -1258,43 +1251,6 @@ type MarginCurrencyBalance struct {
 	Locked         types.Number `json:"locked"`
 	BorrowedAmount types.Number `json:"borrowed"`
 	UnpairInterest types.Number `json:"interest"`
-}
-
-// MarginAccountItem margin account item
-type MarginAccountItem struct {
-	Locked       bool                      `json:"locked"`
-	CurrencyPair string                    `json:"currency_pair"`
-	Risk         string                    `json:"risk"`
-	Base         AccountBalanceInformation `json:"base"`
-	Quote        AccountBalanceInformation `json:"quote"`
-}
-
-// AccountBalanceInformation represents currency account balance information.
-type AccountBalanceInformation struct {
-	Available    types.Number  `json:"available"`
-	Borrowed     types.Number  `json:"borrowed"`
-	Interest     types.Number  `json:"interest"`
-	Currency     currency.Code `json:"currency"`
-	LockedAmount types.Number  `json:"locked"`
-}
-
-// MarginAccountBalanceChangeInfo represents margin account balance
-type MarginAccountBalanceChangeInfo struct {
-	ID            string     `json:"id"`
-	Time          types.Time `json:"time_ms"`
-	Currency      string     `json:"currency"`
-	CurrencyPair  string     `json:"currency_pair"`
-	AmountChanged string     `json:"change"`
-	Balance       string     `json:"balance"`
-}
-
-// MarginFundingAccountItem represents funding account list item.
-type MarginFundingAccountItem struct {
-	Currency     string       `json:"currency"`
-	Available    types.Number `json:"available"`
-	LockedAmount types.Number `json:"locked"`
-	Lent         string       `json:"lent"`       // Outstanding loan amount yet to be repaid
-	TotalLent    string       `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
 }
 
 // MarginLoanRequestParam represents margin lend or borrow request param
@@ -1634,29 +1590,18 @@ type LoanRecord struct {
 	UnpaidInterest types.Number `json:"unpaid_interest"`
 }
 
-// OnOffStatus represents on or off status response status
-type OnOffStatus struct {
-	Status string `json:"status"`
-}
-
-// MaxTransferAndLoanAmount represents the maximum amount to transfer, borrow, or lend for specific currency and currency pair
-type MaxTransferAndLoanAmount struct {
-	Currency     string       `json:"currency"`
-	CurrencyPair string       `json:"currency_pair"`
-	Amount       types.Number `json:"amount"`
-}
-
 // CrossMarginCurrencies represents a currency supported by cross margin
 type CrossMarginCurrencies struct {
-	Name                 string       `json:"name"`
-	Rate                 types.Number `json:"rate"`
-	CurrencyPrecision    types.Number `json:"prec"`
-	Discount             string       `json:"discount"`
-	MinBorrowAmount      types.Number `json:"min_borrow_amount"`
-	UserMaxBorrowAmount  types.Number `json:"user_max_borrow_amount"`
-	TotalMaxBorrowAmount types.Number `json:"total_max_borrow_amount"`
-	Price                types.Number `json:"price"` // Price change between this currency and USDT
-	Status               int64        `json:"status"`
+	Name                 currency.Code `json:"name"`
+	Rate                 types.Number  `json:"rate"`
+	CurrencyPrecision    types.Number  `json:"prec"`
+	Discount             types.Number  `json:"discount"`
+	MinBorrowAmount      types.Number  `json:"min_borrow_amount"`
+	UserMaxBorrowAmount  types.Number  `json:"user_max_borrow_amount"`
+	TotalMaxBorrowAmount types.Number  `json:"total_max_borrow_amount"`
+	Price                types.Number  `json:"price"` // Price change between this currency and USDT
+	Loanable             bool          `json:"loanable"`
+	Status               int64         `json:"status"`
 }
 
 // CrossMarginCurrencyBalance represents the currency detailed balance information for cross margin
@@ -1722,14 +1667,15 @@ type CurrencyAndAmount struct {
 	Amount   types.Number  `json:"amount"`
 }
 
-// RepaymentHistoryItem represents an item in a repayment history.
-type RepaymentHistoryItem struct {
-	ID         string       `json:"id"`
-	CreateTime types.Time   `json:"create_time"`
-	LoanID     string       `json:"loan_id"`
-	Currency   string       `json:"currency"`
-	Principal  types.Number `json:"principal"`
-	Interest   types.Number `json:"interest"`
+// LoanInterestDeductionRecord represents a single interest deduction record
+type LoanInterestDeductionRecord struct {
+	Currency     currency.Code `json:"currency"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	ActualRate   types.Number  `json:"actual_rate"`
+	Interest     types.Number  `json:"interest"`
+	Status       int64         `json:"status"` // 0=undeducted, 1=deducted
+	CreateTime   types.Time    `json:"create_time"`
+	Type         string        `json:"type"` // "platform" or "margin"
 }
 
 // FlashSwapOrderParams represents create flash swap order request parameters.
@@ -1863,7 +1809,7 @@ type CloseOrder struct {
 	IsLiquidation bool         `json:"is_liq"`
 }
 
-// DualModeResponse represents  dual mode enable or disable
+// DualModeResponse represents dual mode enable or disable
 type DualModeResponse struct {
 	User           int64        `json:"user"`
 	Currency       string       `json:"currency"`
@@ -2328,7 +2274,7 @@ type WsFutureTicker struct {
 	High24H               types.Number  `json:"high_24h"`
 }
 
-// WsFuturesTrades represents  a list of trades push data
+// WsFuturesTrades represents a list of trades push data
 type WsFuturesTrades struct {
 	Size       types.Number  `json:"size"`
 	ID         int64         `json:"id"`

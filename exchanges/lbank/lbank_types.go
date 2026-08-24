@@ -28,12 +28,9 @@ type TickerResponse struct {
 
 // MarketDepthResponse stores arrays for asks, bids and a timestamp for a currency pair
 type MarketDepthResponse struct {
-	ErrCapture
-	Data struct {
-		Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
-		Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
-		Timestamp types.Time                       `json:"timestamp"`
-	} `json:"data"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp types.Time                       `json:"timestamp"`
 }
 
 // TradeResponse stores date_ms, amount, price, type, tid for a currency pair
@@ -278,11 +275,6 @@ type OpenOrderFinalResponse struct {
 	Orders     []OrderResponse
 }
 
-// ExchangeRateResponse stores information about USD-RMB rate
-type ExchangeRateResponse struct {
-	USD2CNY string `json:"USD2CNY"`
-}
-
 // WithdrawConfigResponse stores info about withdrawal configurations
 type WithdrawConfigResponse struct {
 	AmountScale         int64         `json:"amountScale,string"`
@@ -337,15 +329,12 @@ type ErrCapture struct {
 	Result bool  `json:"result,string"`
 }
 
-// GetAllOpenIDResp stores orderIds and currency pairs for open orders
-type GetAllOpenIDResp struct {
-	CurrencyPair string
-	OrderID      string
-}
-
-// TimestampResponse holds timestamp data
-type TimestampResponse struct {
-	Timestamp types.Time `json:"data"`
+// V2Response wraps all LBank v2 API responses
+type V2Response struct {
+	Result    string          `json:"result"`
+	Msg       string          `json:"msg"`
+	Data      json.RawMessage `json:"data"`
+	ErrorCode int64           `json:"error_code"`
 }
 
 var errorCodes = map[int64]string{

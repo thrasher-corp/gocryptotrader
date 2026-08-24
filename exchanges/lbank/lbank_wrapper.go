@@ -258,8 +258,8 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		Pair:              p,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Asks:              d.Data.Asks.Levels(),
-		Bids:              d.Data.Bids.Levels(),
+		Asks:              d.Asks.Levels(),
+		Bids:              d.Bids.Levels(),
 	}
 	if err := ob.Process(); err != nil {
 		return nil, err

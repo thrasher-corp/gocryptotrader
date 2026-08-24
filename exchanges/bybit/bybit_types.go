@@ -404,47 +404,47 @@ type TradeOrders struct {
 
 // TradeOrder represents a trade order details.
 type TradeOrder struct {
-	OrderID                string       `json:"orderId"`
-	OrderLinkID            string       `json:"orderLinkId"`
-	BlockTradeID           string       `json:"blockTradeId"`
-	Symbol                 string       `json:"symbol"`
-	Price                  types.Number `json:"price"`
-	OrderQuantity          types.Number `json:"qty"`
-	Side                   string       `json:"side"`
-	IsLeverage             string       `json:"isLeverage"`
-	PositionIdx            int64        `json:"positionIdx"`
-	OrderStatus            string       `json:"orderStatus"`
-	CancelType             string       `json:"cancelType"`
-	RejectReason           string       `json:"rejectReason"`
-	AveragePrice           types.Number `json:"avgPrice"`
-	LeavesQuantity         types.Number `json:"leavesQty"`
-	LeavesValue            string       `json:"leavesValue"`
-	CumulativeExecQuantity types.Number `json:"cumExecQty"`
-	CumulativeExecValue    types.Number `json:"cumExecValue"`
-	CumulativeExecFee      types.Number `json:"cumExecFee"`
-	TimeInForce            string       `json:"timeInForce"`
-	OrderType              string       `json:"orderType"`
-	StopOrderType          string       `json:"stopOrderType"`
-	OrderIv                string       `json:"orderIv"`
-	TriggerPrice           types.Number `json:"triggerPrice"`
-	TakeProfitPrice        types.Number `json:"takeProfit"`
-	StopLossPrice          types.Number `json:"stopLoss"`
-	TpTriggerBy            string       `json:"tpTriggerBy"`
-	SlTriggerBy            string       `json:"slTriggerBy"`
-	TriggerDirection       int64        `json:"triggerDirection"`
-	TriggerBy              string       `json:"triggerBy"`
-	LastPriceOnCreated     string       `json:"lastPriceOnCreated"`
-	ReduceOnly             bool         `json:"reduceOnly"`
-	CloseOnTrigger         bool         `json:"closeOnTrigger"`
-	SmpType                string       `json:"smpType"`
-	SmpGroup               int64        `json:"smpGroup"`
-	SmpOrderID             string       `json:"smpOrderId"`
-	TpslMode               string       `json:"tpslMode"`
-	TpLimitPrice           types.Number `json:"tpLimitPrice"`
-	SlLimitPrice           types.Number `json:"slLimitPrice"`
-	PlaceType              string       `json:"placeType"`
-	CreatedTime            types.Time   `json:"createdTime"`
-	UpdatedTime            types.Time   `json:"updatedTime"`
+	OrderID                  string       `json:"orderId"`
+	OrderLinkID              string       `json:"orderLinkId"`
+	BlockTradeID             string       `json:"blockTradeId"`
+	Symbol                   string       `json:"symbol"`
+	Price                    types.Number `json:"price"`
+	OrderQuantity            types.Number `json:"qty"`
+	Side                     string       `json:"side"`
+	IsLeverage               string       `json:"isLeverage"`
+	PositionIdx              int64        `json:"positionIdx"`
+	OrderStatus              string       `json:"orderStatus"`
+	CancelType               string       `json:"cancelType"`
+	RejectReason             string       `json:"rejectReason"`
+	AveragePrice             types.Number `json:"avgPrice"`
+	LeavesQuantity           types.Number `json:"leavesQty"`
+	LeavesValue              string       `json:"leavesValue"`
+	CumulativeExecQuantity   types.Number `json:"cumExecQty"`
+	CumulativeExecValue      types.Number `json:"cumExecValue"`
+	CumulativeExecFee        types.Number `json:"cumExecFee"`
+	TimeInForce              string       `json:"timeInForce"`
+	OrderType                string       `json:"orderType"`
+	StopOrderType            string       `json:"stopOrderType"`
+	OrderIv                  string       `json:"orderIv"`
+	TriggerPrice             types.Number `json:"triggerPrice"`
+	TakeProfitPrice          types.Number `json:"takeProfit"`
+	StopLossPrice            types.Number `json:"stopLoss"`
+	TpTriggerBy              string       `json:"tpTriggerBy"`
+	SlTriggerBy              string       `json:"slTriggerBy"`
+	TriggerDirection         int64        `json:"triggerDirection"`
+	TriggerBy                string       `json:"triggerBy"`
+	LastPriceOnCreated       string       `json:"lastPriceOnCreated"`
+	ReduceOnly               bool         `json:"reduceOnly"`
+	CloseOnTrigger           bool         `json:"closeOnTrigger"`
+	SmpType                  string       `json:"smpType"`
+	SelfMatchPreventionGroup types.Number `json:"smpGroup"`
+	SmpOrderID               string       `json:"smpOrderId"`
+	TpslMode                 string       `json:"tpslMode"`
+	TpLimitPrice             types.Number `json:"tpLimitPrice"`
+	SlLimitPrice             types.Number `json:"slLimitPrice"`
+	PlaceType                string       `json:"placeType"`
+	CreatedTime              types.Time   `json:"createdTime"`
+	UpdatedTime              types.Time   `json:"updatedTime"`
 
 	// UTA Spot: add new response field 'ocoTriggerBy',
 	// and the value can be 'OcoTriggerByUnknown', 'OcoTriggerByTp', 'OcoTriggerBySl'
@@ -487,7 +487,7 @@ type BatchOrderItemParam struct {
 	TriggerDirection int64         `json:"triggerDirection,omitempty"`
 	TriggerPrice     int64         `json:"triggerPrice,omitempty"`
 	OrderIv          int64         `json:"orderIv,omitempty,string"`
-	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values:  LastPrice, IndexPrice, and MarkPrice
+	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values: LastPrice, IndexPrice, and MarkPrice
 	TimeInForce      string        `json:"timeInForce,omitempty"`
 
 	// PositionIndex Used to identify positions in different position modes. Under hedge-mode,
@@ -980,23 +980,16 @@ type CoinGreeks struct {
 	} `json:"list"`
 }
 
-// FeeRate represents maker and taker fee rate information for a symbol.
-type FeeRate struct {
-	Symbol       string       `json:"symbol"`
-	TakerFeeRate types.Number `json:"takerFeeRate"`
-	MakerFeeRate types.Number `json:"makerFeeRate"`
-}
-
 // AccountInfo represents margin mode account information.
 type AccountInfo struct {
-	UnifiedMarginStatus int64      `json:"unifiedMarginStatus"`
-	MarginMode          string     `json:"marginMode"` // ISOLATED_MARGIN, REGULAR_MARGIN, PORTFOLIO_MARGIN
-	DcpStatus           string     `json:"dcpStatus"`  // Disconnected-CancelAll-Prevention status: ON, OFF
-	TimeWindow          int64      `json:"timeWindow"`
-	SmpGroup            int64      `json:"smpGroup"`
-	IsMasterTrader      bool       `json:"isMasterTrader"`
-	SpotHedgingStatus   string     `json:"spotHedgingStatus"`
-	UpdatedTime         types.Time `json:"updatedTime"`
+	UnifiedMarginStatus      int64        `json:"unifiedMarginStatus"`
+	MarginMode               string       `json:"marginMode"` // ISOLATED_MARGIN, REGULAR_MARGIN, PORTFOLIO_MARGIN
+	DcpStatus                string       `json:"dcpStatus"`  // Disconnected-CancelAll-Prevention status: ON, OFF
+	TimeWindow               int64        `json:"timeWindow"`
+	SelfMatchPreventionGroup types.Number `json:"smpGroup"`
+	IsMasterTrader           bool         `json:"isMasterTrader"`
+	SpotHedgingStatus        string       `json:"spotHedgingStatus"`
+	UpdatedTime              types.Time   `json:"updatedTime"`
 }
 
 // SetMarginModeResponse represents a response for setting margin mode.
@@ -1670,7 +1663,7 @@ type LoanOrderDetails struct {
 	ContractSymbols     []string     `json:"contractSymbols"`
 }
 
-// OrderRepayInfo represents repaid information information.
+// OrderRepayInfo represents repaid order information.
 type OrderRepayInfo struct {
 	RepayOrderID string     `json:"repayOrderId"`
 	RepaidTime   types.Time `json:"repaidTime"`
@@ -1937,55 +1930,6 @@ type WsExecutions []struct {
 	ClosedSize      types.Number `json:"closedSize"`
 }
 
-// WsOrders represents private order
-type WsOrders []struct {
-	Symbol             string       `json:"symbol"`
-	OrderID            string       `json:"orderId"`
-	Side               string       `json:"side"`
-	OrderType          string       `json:"orderType"`
-	CancelType         string       `json:"cancelType"`
-	Price              types.Number `json:"price"`
-	Qty                types.Number `json:"qty"`
-	OrderIv            string       `json:"orderIv"`
-	TimeInForce        string       `json:"timeInForce"`
-	OrderStatus        string       `json:"orderStatus"`
-	OrderLinkID        string       `json:"orderLinkId"`
-	LastPriceOnCreated string       `json:"lastPriceOnCreated"`
-	ReduceOnly         bool         `json:"reduceOnly"`
-	LeavesQty          types.Number `json:"leavesQty"`
-	LeavesValue        types.Number `json:"leavesValue"`
-	CumExecQty         types.Number `json:"cumExecQty"`
-	CumExecValue       types.Number `json:"cumExecValue"`
-	AvgPrice           types.Number `json:"avgPrice"`
-	BlockTradeID       string       `json:"blockTradeId"`
-	PositionIdx        int64        `json:"positionIdx"`
-	CumExecFee         types.Number `json:"cumExecFee"`
-	CreatedTime        types.Time   `json:"createdTime"`
-	UpdatedTime        types.Time   `json:"updatedTime"`
-	RejectReason       string       `json:"rejectReason"`
-	StopOrderType      string       `json:"stopOrderType"`
-	TpslMode           string       `json:"tpslMode"`
-	TriggerPrice       types.Number `json:"triggerPrice"`
-	TakeProfit         types.Number `json:"takeProfit"`
-	StopLoss           types.Number `json:"stopLoss"`
-	TpTriggerBy        types.Number `json:"tpTriggerBy"`
-	SlTriggerBy        types.Number `json:"slTriggerBy"`
-	TpLimitPrice       types.Number `json:"tpLimitPrice"`
-	SlLimitPrice       types.Number `json:"slLimitPrice"`
-	TriggerDirection   int64        `json:"triggerDirection"`
-	TriggerBy          string       `json:"triggerBy"`
-	CloseOnTrigger     bool         `json:"closeOnTrigger"`
-	Category           string       `json:"category"`
-	PlaceType          string       `json:"placeType"`
-	SmpType            string       `json:"smpType"` // SMP execution type
-	SmpGroup           int64        `json:"smpGroup"`
-	SmpOrderID         string       `json:"smpOrderId"`
-
-	// UTA Spot: add new response field ocoTriggerBy, and the value can be
-	// OcoTriggerByUnknown, OcoTriggerByTp, OcoTriggerBySl
-	OCOTriggerBy string `json:"ocoTriggerBy"`
-}
-
 // WebsocketWallet represents a wallet stream to see changes to your wallet in real-time.
 type WebsocketWallet struct {
 	ID           string     `json:"id"`
@@ -2037,28 +1981,12 @@ type GreeksResponse struct {
 	} `json:"data"`
 }
 
-// PingMessage represents a ping message.
-type PingMessage struct {
-	Operation string `json:"op"`
-	RequestID string `json:"req_id"`
-}
-
 // InstrumentInfoItem represents an instrument long short ratio information.
 type InstrumentInfoItem struct {
 	Symbol    string       `json:"symbol"`
 	BuyRatio  types.Number `json:"buyRatio"`
 	SellRatio types.Number `json:"sellRatio"`
 	Timestamp types.Time   `json:"timestamp"`
-}
-
-// Error defines all error information for each request
-type Error struct {
-	ReturnCode      int64  `json:"ret_code"`
-	ReturnMsg       string `json:"ret_msg"`
-	ReturnCodeV5    int64  `json:"retCode"`
-	ReturnMessageV5 string `json:"retMsg"`
-	ExtCode         string `json:"ext_code"`
-	ExtMsg          string `json:"ext_info"`
 }
 
 // accountTypeHolder holds the account type associated with the loaded API key.
