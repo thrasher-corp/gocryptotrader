@@ -215,15 +215,6 @@ type CurrencyBase struct {
 	IsDebitEnabled  bool   `json:"isDebitEnabled"`
 }
 
-// Currency stores currency data
-type Currency struct {
-	CurrencyBase
-	WithdrawalMinSize float64 `json:"withdrawalMinSize,string"`
-	WithdrawalMinFee  float64 `json:"withdrawalMinFee,string"`
-	IsWithdrawEnabled bool    `json:"isWithdrawEnabled"`
-	IsDepositEnabled  bool    `json:"isDepositEnabled"`
-}
-
 // Chain stores blockchain data
 type Chain struct {
 	ChainName         string       `json:"chainName"`
@@ -327,15 +318,6 @@ type IsolatedMarginRiskLimitCurrencyConfig struct {
 	QuoteBorrowEnabled     bool         `json:"quoteBorrowEnabled"`
 }
 
-// MarginRiskLimit stores margin risk limit
-type MarginRiskLimit struct {
-	Currency            string  `json:"currency"`
-	MaximumBorrowAmount float64 `json:"borrowMaxAmount,string"`
-	MaxumumBuyAmount    float64 `json:"buyMaxAmount,string"`
-	MaximumHoldAmount   float64 `json:"holdMaxAmount,string"`
-	Precision           int64   `json:"precision"`
-}
-
 // MarginBorrowParam represents a margin borrow parameter
 type MarginBorrowParam struct {
 	Currency    currency.Code `json:"currency"`
@@ -388,62 +370,6 @@ type BorrowRepayDetailItem struct {
 	CreatedTime types.Time   `json:"createdTime"`
 }
 
-// BorrowOrder stores borrow order
-type BorrowOrder struct {
-	OrderID   string                 `json:"orderId"`
-	Currency  string                 `json:"currency"`
-	Size      float64                `json:"size,string"`
-	Filled    float64                `json:"filled"`
-	MatchList []BorrowOrderMatchItem `json:"matchList"`
-	Status    string                 `json:"status"`
-}
-
-// BorrowOrderMatchItem represents a borrow order match item detail
-type BorrowOrderMatchItem struct {
-	TradeID      string     `json:"tradeId"`
-	Currency     string     `json:"currency"`
-	DailyIntRate float64    `json:"dailyIntRate,string"`
-	Size         float64    `json:"size,string"`
-	Term         int64      `json:"term"`
-	Timestamp    types.Time `json:"timestamp"`
-}
-
-type baseRecord struct {
-	TradeID      string  `json:"tradeId"`
-	Currency     string  `json:"currency"`
-	DailyIntRate float64 `json:"dailyIntRate,string"`
-	Principal    float64 `json:"principal,string"`
-	RepaidSize   float64 `json:"repaidSize,string"`
-	Term         int64   `json:"term"`
-}
-
-// RepaidRecordsResponse stores list of repaid record details
-type RepaidRecordsResponse struct {
-	CurrentPage int64          `json:"currentPage"`
-	PageSize    int64          `json:"pageSize"`
-	TotalNumber int64          `json:"totalNum"`
-	TotalPage   int64          `json:"totalPage"`
-	Items       []RepaidRecord `json:"items"`
-}
-
-// RepaidRecord stores repaid record
-type RepaidRecord struct {
-	baseRecord
-	Interest  float64    `json:"interest,string"`
-	RepayTime types.Time `json:"repayTime"`
-}
-
-// LendOrder stores lend order
-type LendOrder struct {
-	OrderID      string     `json:"orderId"`
-	Currency     string     `json:"currency"`
-	Size         float64    `json:"size,string"`
-	FilledSize   float64    `json:"filledSize,string"`
-	DailyIntRate float64    `json:"dailyIntRate,string"`
-	Term         int64      `json:"term"`
-	CreatedAt    types.Time `json:"createdAt"`
-}
-
 // IsolatedMarginPairConfig current isolated margin trading pair configuration
 type IsolatedMarginPairConfig struct {
 	Symbol                string  `json:"symbol"`
@@ -484,18 +410,6 @@ type IsolatedMarginAccountInfo struct {
 	TotalConversionBalance     float64     `json:"totalConversionBalance,string"`
 	LiabilityConversionBalance float64     `json:"liabilityConversionBalance,string"`
 	Assets                     []AssetInfo `json:"assets"`
-}
-
-type baseRepaymentRecord struct {
-	LoanID            string     `json:"loanId"`
-	Symbol            string     `json:"symbol"`
-	Currency          string     `json:"currency"`
-	PrincipalTotal    float64    `json:"principalTotal,string"`
-	InterestBalance   float64    `json:"interestBalance,string"`
-	CreatedAt         types.Time `json:"createdAt"`
-	Period            int64      `json:"period"`
-	RepaidSize        float64    `json:"repaidSize,string"`
-	DailyInterestRate float64    `json:"dailyInterestRate,string"`
 }
 
 // ServiceStatus represents a service status message
@@ -611,12 +525,6 @@ type HFOrderFills struct {
 // PlaceOrderParams represents a batch place order parameters
 type PlaceOrderParams struct {
 	OrderList []PlaceHFParam `json:"orderList"`
-}
-
-// CompletedRepaymentRecord represents repayment records of isolated margin positions
-type CompletedRepaymentRecord struct {
-	baseRepaymentRecord
-	RepayFinishAt types.Time `json:"repayFinishAt"`
 }
 
 // PostMarginOrderResp represents response data for placing margin orders
@@ -947,15 +855,6 @@ type AccountSummaryInformation struct {
 	MaxDefaultSubQuantity float64 `json:"maxDefaultSubQuantity"`
 }
 
-// SubAccountsResponse represents a sub-accounts items response instance
-type SubAccountsResponse struct {
-	CurrentPage int64            `json:"currentPage"`
-	PageSize    int64            `json:"pageSize"`
-	TotalNumber int64            `json:"totalNum"`
-	TotalPage   int64            `json:"totalPage"`
-	Items       []SubAccountInfo `json:"items"`
-}
-
 // SubAccountInfo holds subaccount data for main, spot(trade), and margin accounts
 type SubAccountInfo struct {
 	SubUserID      string                `json:"subUserId"`
@@ -1260,12 +1159,6 @@ type InstanceServer struct {
 	PingTimeout  int64  `json:"pingTimeout"`
 }
 
-// WSConnMessages represents response messages ping, pong, and welcome message structures
-type WSConnMessages struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-}
-
 // WsSubscriptionInput represents a subscription information structure
 type WsSubscriptionInput struct {
 	ID             string `json:"id"`
@@ -1536,15 +1429,6 @@ type WsFuturesExecutionData struct {
 	Timestamp        types.Time `json:"ts"`
 }
 
-// WsOrderbookLevel5 represents an orderbook push data with depth level 5
-type WsOrderbookLevel5 struct {
-	Sequence      int64             `json:"sequence"`
-	Asks          []orderbook.Level `json:"asks"`
-	Bids          []orderbook.Level `json:"bids"`
-	PushTimestamp types.Time        `json:"ts"`
-	Timestamp     types.Time        `json:"timestamp"`
-}
-
 // WsFuturesOrderbookLevelResponse represents a response data for an orderbook push data with depth level 5 or 50
 type WsFuturesOrderbookLevelResponse struct {
 	Sequence      int64                            `json:"sequence"`
@@ -1718,13 +1602,6 @@ type WsFuturesPositionFundingSettlement struct {
 	SettleCurrency   string     `json:"settleCurrency"`
 }
 
-// IsolatedMarginBorrowing represents response data for initiating isolated margin borrowing
-type IsolatedMarginBorrowing struct {
-	OrderID    string  `json:"orderId"`
-	Currency   string  `json:"currency"`
-	ActualSize float64 `json:"actualSize,string"`
-}
-
 // Response represents response model and implements UnmarshalTo interface
 type Response struct {
 	Data any `json:"data"`
@@ -1790,14 +1667,6 @@ type SubAccountV2Response struct {
 	Items       []SubAccount `json:"items"`
 }
 
-// SubAccountCreatedResponse represents the sub-account response
-type SubAccountCreatedResponse struct {
-	UID     int64  `json:"uid"`
-	SubName string `json:"subName"`
-	Remarks string `json:"remarks"`
-	Access  string `json:"access"`
-}
-
 // SpotAPISubAccount represents a Spot APIs for sub-accounts
 type SpotAPISubAccount struct {
 	APIKey      string `json:"apiKey"`
@@ -1818,12 +1687,6 @@ type SpotAPISubAccount struct {
 type DeleteSubAccountResponse struct {
 	SubAccountName string `json:"subName"`
 	APIKey         string `json:"apiKey"`
-}
-
-// ConnectionMessage represents a connection and subscription status message
-type ConnectionMessage struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
 }
 
 // TickersResponse represents list of tickers and update timestamp information

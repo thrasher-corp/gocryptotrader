@@ -184,6 +184,8 @@ func TestGetRateLimiterWithWeight(t *testing.T) {
 	require.NotNil(t, weighted, "weighted limiter must not be nil")
 	assert.Equal(t, Weight(5), weighted.weight, "weight should be 5")
 	assert.Equal(t, r, weighted.limiter, "should reference same limiter")
+	assert.Equal(t, Weight(5), weighted.Weight(), "weight should match the configured request cost")
+	assert.Zero(t, (*RateLimiterWithWeight)(nil).Weight(), "nil limiter weight should be zero")
 }
 
 func TestNewBasicRateLimit(t *testing.T) {

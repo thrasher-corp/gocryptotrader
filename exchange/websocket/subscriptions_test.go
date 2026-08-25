@@ -1583,6 +1583,123 @@ func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 	require.NotNil(t, ws.subscriptions.Get(trackedSub), "tracked subscriptions must be recorded by the manager")
 }
 
+func TestResubscribeFromConnection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		m.Unsubscriber = func(subscription.List) error { return nil }
+		m.Subscriber = func(subscription.List) error { return nil }
+		sub1 := &subscription.Subscription{Channel: "sub1"}
+		sub2 := &subscription.Subscription{Channel: "sub2"}
+		store := subscription.NewStore()
+		require.NoError(t, store.Add(sub1))
+		require.NoError(t, store.Add(sub2))
+		m.subscriptions = store
+		conn := &connection{subscriptions: store}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
+		require.NoError(t, err)
+		require.Contains(t, m.subscriptions.List(), sub1, "sub1 must still be in global store")
+		require.Contains(t, conn.subscriptions.List(), sub1, "sub1 must still be in global store")
+	})
+	t.Run("NilConnection", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		err := m.ResubscribeFromConnection(t.Context(), nil, nil)
+		require.ErrorIs(t, err, common.ErrNilPointer)
+	})
+	t.Run("Bad state", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		m.Unsubscriber = func(subscription.List) error { return nil }
+		m.Subscriber = func(subscription.List) error { return nil }
+		sub1 := &subscription.Subscription{Channel: "sub1"}
+		require.NoError(t, sub1.SetState(subscription.ResubscribingState), "sub1 must be in unsubscribed state for this test")
+		store := subscription.NewStore()
+		require.NoError(t, store.Add(sub1))
+		m.subscriptions = store
+		conn := &connection{subscriptions: store}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
+		require.ErrorIs(t, err, subscription.ErrInStateAlready, "must error when subscription is not in unsubscribed state")
+	})
+	t.Run("Bad unsub", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		m.Unsubscriber = func(subscription.List) error { return errAlreadyConnected }
+		m.Subscriber = func(subscription.List) error { return nil }
+		sub1 := &subscription.Subscription{Channel: "sub1"}
+		store := subscription.NewStore()
+		require.NoError(t, store.Add(sub1))
+		m.subscriptions = store
+		conn := &connection{subscriptions: store}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
+		require.ErrorIs(t, err, errAlreadyConnected, "must error")
+	})
+	t.Run("Bad sub", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		m.Unsubscriber = func(subscription.List) error { return nil }
+		m.Subscriber = func(subscription.List) error { return errAlreadyConnected }
+		sub1 := &subscription.Subscription{Channel: "sub1"}
+		store := subscription.NewStore()
+		require.NoError(t, store.Add(sub1))
+		m.subscriptions = store
+		conn := &connection{subscriptions: store}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
+		require.ErrorIs(t, err, errAlreadyConnected, "must error")
+	})
+	t.Run("Missing connection subscription", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		sub := &subscription.Subscription{Channel: "sub"}
+		require.NoError(t, m.subscriptions.Add(sub), "subscription must be added to the manager store")
+		conn := &connection{subscriptions: subscription.NewStore()}
+		subscriberCalled := false
+		m.Subscriber = func(subscription.List) error {
+			subscriberCalled = true
+			return nil
+		}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub})
+		require.ErrorIs(t, err, ErrSubscriptionsNotRemoved, "must error when the subscription is not owned by the connection")
+		assert.False(t, subscriberCalled, "subscriber should not be called for a subscription owned by another connection")
+	})
+	t.Run("Capacity consumed during unsubscribe", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		m.subscriptions = subscription.NewStore()
+		connStore := subscription.NewStore()
+		sub := &subscription.Subscription{Channel: "sub"}
+		other := &subscription.Subscription{Channel: "other"}
+		require.NoError(t, m.subscriptions.Add(sub), "subscription must be added to the manager store")
+		require.NoError(t, connStore.Add(sub), "subscription must be added to the connection store")
+		m.Unsubscriber = func(subscription.List) error {
+			return connStore.Add(other)
+		}
+		subscriberCalled := false
+		m.Subscriber = func(subscription.List) error {
+			subscriberCalled = true
+			return nil
+		}
+		conn := &connection{subscriptions: connStore}
+
+		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub})
+		require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "must error when connection capacity is consumed during resubscription")
+		assert.False(t, subscriberCalled, "subscriber should not be called when the connection has no capacity")
+	})
+}
+
 func TestUnsubscribeFromConnection(t *testing.T) {
 	t.Parallel()
 	m := NewManager()

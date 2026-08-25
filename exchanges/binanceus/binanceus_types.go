@@ -693,18 +693,6 @@ type AssetWalletDetail struct {
 // AssetWalletList list of asset wallet details
 type AssetWalletList []AssetWalletDetail
 
-// WithdrawalRequestParam represents the params for the
-// input parameters of Withdraw Crypto
-type WithdrawalRequestParam struct {
-	Coin            string  `json:"coin"`
-	Network         string  `json:"network"`
-	WithdrawOrderID string  `json:"withdrawOrderId"` // Client ID for withdraw
-	Address         string  `json:"address"`
-	AddressTag      string  `json:"addressTag"`
-	Amount          float64 `json:"amount"`
-	RecvWindow      uint64  `json:"recvWindow"`
-}
-
 // WithdrawalResponse holds the transaction id for a withdrawal action.
 type WithdrawalResponse struct {
 	ID string `json:"id"`
@@ -835,25 +823,6 @@ type WebsocketDepthDiffStream struct {
 	LastUpdateID int64                            `json:"lastUpdateId"`
 	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
 	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
-}
-
-// WsAccountInfoData defines websocket account info data
-type WsAccountInfoData struct {
-	CanDeposit       bool      `json:"D"`
-	CanTrade         bool      `json:"T"`
-	CanWithdraw      bool      `json:"W"`
-	EventTime        time.Time `json:"E"`
-	LastUpdated      time.Time `json:"u"`
-	BuyerCommission  float64   `json:"b"`
-	MakerCommission  float64   `json:"m"`
-	SellerCommission float64   `json:"s"`
-	TakerCommission  float64   `json:"t"`
-	EventType        string    `json:"e"`
-	Currencies       []struct {
-		Asset     string  `json:"a"`
-		Available float64 `json:"f,string"`
-		Locked    float64 `json:"l,string"`
-	} `json:"B"`
 }
 
 // wsAccountPosition websocket response of account position.

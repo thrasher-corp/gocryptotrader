@@ -76,55 +76,6 @@ type Price []struct {
 	Symbol     string  `json:"symbol"`
 }
 
-// SpotMarket stores market data
-type SpotMarket struct {
-	Symbol            string  `json:"symbol"`
-	ID                string  `json:"id"`
-	BaseCurrency      string  `json:"base_currency"`
-	QuoteCurrency     string  `json:"quote_currency"`
-	BaseMinSize       float64 `json:"base_min_size"`
-	BaseMaxSize       float64 `json:"base_max_size"`
-	BaseIncrementSize float64 `json:"base_increment_size"`
-	QuoteMinPrice     float64 `json:"quote_min_price"`
-	QuoteIncrement    float64 `json:"quote_increment"`
-	Status            string  `json:"status"`
-}
-
-// FuturesMarket stores market data
-type FuturesMarket struct {
-	Symbol              string     `json:"symbol"`
-	Last                float64    `json:"last"`
-	LowestAsk           float64    `json:"lowestAsk"`
-	HighestBid          float64    `json:"highestBid"`
-	OpenInterest        float64    `json:"openInterest"`
-	OpenInterestUSD     float64    `json:"openInterestUSD"`
-	PercentageChange    float64    `json:"percentageChange"`
-	Volume              float64    `json:"volume"`
-	High24Hr            float64    `json:"high24Hr"`
-	Low24Hr             float64    `json:"low24Hr"`
-	Base                string     `json:"base"`
-	Quote               string     `json:"quote"`
-	ContractStart       int64      `json:"contractStart"`
-	ContractEnd         int64      `json:"contractEnd"`
-	Active              bool       `json:"active"`
-	TimeBasedContract   bool       `json:"timeBasedContract"`
-	OpenTime            types.Time `json:"openTime"`
-	CloseTime           types.Time `json:"closeTime"`
-	StartMatching       types.Time `json:"startMatching"`
-	InactiveTime        types.Time `json:"inactiveTime"`
-	FundingRate         float64    `json:"fundingRate"`
-	ContractSize        float64    `json:"contractSize"`
-	MaxPosition         int64      `json:"maxPosition"`
-	MinValidPrice       float64    `json:"minValidPrice"`
-	MinPriceIncrement   float64    `json:"minPriceIncrement"`
-	MinOrderSize        int32      `json:"minOrderSize"`
-	MaxOrderSize        int32      `json:"maxOrderSize"`
-	MinRiskLimit        int32      `json:"minRiskLimit"`
-	MaxRiskLimit        int32      `json:"maxRiskLimit"`
-	MinSizeIncrement    float64    `json:"minSizeIncrement"`
-	AvailableSettlement []string   `json:"availableSettlement"`
-}
-
 // Trade stores trade data
 type Trade struct {
 	SerialID int64      `json:"serialId"`
@@ -148,26 +99,6 @@ type Orderbook struct {
 	SellQuote []QuoteData `json:"sellQuote"`
 	Symbol    string      `json:"symbol"`
 	Timestamp types.Time  `json:"timestamp"`
-}
-
-// Ticker stores the ticker data
-type Ticker struct {
-	Price  float64    `json:"price,string"`
-	Size   float64    `json:"size,string"`
-	Bid    float64    `json:"bid,string"`
-	Ask    float64    `json:"ask,string"`
-	Volume float64    `json:"volume,string"`
-	Time   types.Time `json:"time"`
-}
-
-// MarketStatistics stores market statistics for a particular product
-type MarketStatistics struct {
-	Open   float64   `json:"open,string"`
-	Low    float64   `json:"low,string"`
-	High   float64   `json:"high,string"`
-	Close  float64   `json:"close,string"`
-	Volume float64   `json:"volume,string"`
-	Time   time.Time `json:"time"`
 }
 
 // ServerTime stores the server time data

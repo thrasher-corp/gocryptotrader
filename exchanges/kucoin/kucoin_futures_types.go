@@ -391,67 +391,6 @@ type APIKeyDetail struct {
 	CreateAt    types.Time `json:"createdAt"`
 }
 
-// FuturesDepositDetailsResponse represents a futures deposits list detail response
-type FuturesDepositDetailsResponse struct {
-	CurrentPage int64                  `json:"currentPage"`
-	PageSize    int64                  `json:"pageSize"`
-	TotalNum    int64                  `json:"totalNum"`
-	TotalPage   int64                  `json:"totalPage"`
-	Items       []FuturesDepositDetail `json:"items"`
-}
-
-// FuturesDepositDetail represents futures deposit detail information
-type FuturesDepositDetail struct {
-	Currency   string     `json:"currency"`
-	Status     string     `json:"status"`
-	Address    string     `json:"address"`
-	IsInner    bool       `json:"isInner"`
-	Amount     float64    `json:"amount"`
-	Fee        float64    `json:"fee"`
-	WalletTxID string     `json:"walletTxId"`
-	CreatedAt  types.Time `json:"createdAt"`
-}
-
-// FuturesWithdrawalLimit represents withdrawal limit information
-type FuturesWithdrawalLimit struct {
-	Currency            string  `json:"currency"`
-	ChainID             string  `json:"chainId"`
-	LimitAmount         float64 `json:"limitAmount"`
-	UsedAmount          float64 `json:"usedAmount"`
-	RemainAmount        float64 `json:"remainAmount"`
-	AvailableAmount     float64 `json:"availableAmount"`
-	WithdrawMinFee      float64 `json:"withdrawMinFee"`
-	InnerWithdrawMinFee float64 `json:"innerWithdrawMinFee"`
-	WithdrawMinSize     float64 `json:"withdrawMinSize"`
-	IsWithdrawEnabled   bool    `json:"isWithdrawEnabled"`
-	Precision           float64 `json:"precision"`
-}
-
-// FuturesWithdrawalsListResponse represents a list of futures Withdrawal history instance
-type FuturesWithdrawalsListResponse struct {
-	CurrentPage int64                      `json:"currentPage"`
-	PageSize    int64                      `json:"pageSize"`
-	TotalNum    int64                      `json:"totalNum"`
-	TotalPage   int64                      `json:"totalPage"`
-	Items       []FuturesWithdrawalHistory `json:"items"`
-}
-
-// FuturesWithdrawalHistory represents a list of Futures withdrawal history
-type FuturesWithdrawalHistory struct {
-	WithdrawalID string     `json:"withdrawalId"`
-	Currency     string     `json:"currency"`
-	Status       string     `json:"status"`
-	Address      string     `json:"address"`
-	Memo         string     `json:"memo"`
-	IsInner      bool       `json:"isInner"`
-	Amount       float64    `json:"amount"`
-	Fee          float64    `json:"fee"`
-	WalletTxID   string     `json:"walletTxId"`
-	CreatedAt    types.Time `json:"createdAt"`
-	Remark       string     `json:"remark"`
-	Reason       string     `json:"reason"`
-}
-
 // TransferBase represents transfer base information
 type TransferBase struct {
 	ApplyID   string     `json:"applyId"`
