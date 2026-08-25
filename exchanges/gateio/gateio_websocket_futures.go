@@ -73,6 +73,7 @@ var errNoChannelsSupplied = errors.New("no channels supplied")
 const (
 	allFuturesContracts          = "!all"
 	contractPayloadOverrideParam = "contractPayloadOverride"
+	omitContractParam            = "omitContract"
 	requiresUserPlaceholderParam = "requiresUserPlaceholder"
 )
 
@@ -103,9 +104,6 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 	if a == asset.CoinMarginedFutures {
 		channelsToSubscribe = defaultCoinMarginedFuturesSubscriptions
 	}
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
-	}
 
 	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
@@ -117,6 +115,27 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 
 	if len(pairs) == 0 {
 		return nil, fmt.Errorf("%w: no enabled pairs for asset %s", currency.ErrCurrencyPairsEmpty, a)
+	}
+
+	var userID string
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		ctx := context.TODO()
+		if _, err := e.GetCredentials(ctx); err != nil {
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
+			if err != nil {
+				return nil, err
+			}
+			account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
+			if err != nil {
+				return nil, err
+			}
+			if account == nil || account.User == 0 {
+				return nil, fmt.Errorf("%w: futures account user ID missing", common.ErrInvalidResponse)
+			}
+			userID = strconv.FormatInt(account.User, 10)
+		}
 	}
 
 	var subscriptions subscription.List
@@ -150,16 +169,37 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 		}
 	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: futuresPositionsChannel,
-			Pairs:   pairs[0:1],
-			Params: map[string]any{
-				contractPayloadOverrideParam: allFuturesContracts,
+		for _, channel := range []string{
+			futuresOrdersChannel,
+			futuresUserTradesChannel,
+			futuresLiquidatesChannel,
+			futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel,
+			futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel,
+			futuresPositionsChannel,
+			futuresAutoOrdersChannel,
+		} {
+			params := map[string]any{contractPayloadOverrideParam: allFuturesContracts}
+			switch channel {
+			case futuresPositionsChannel:
 				// Gate deprecated the user ID value but still requires its positional placeholder.
-				requiresUserPlaceholderParam: true,
-			},
-			Asset: a,
-		})
+				params[requiresUserPlaceholderParam] = true
+			case futuresBalancesChannel:
+				delete(params, contractPayloadOverrideParam)
+				params[omitContractParam] = true
+				params["user"] = userID
+			case futuresAutoOrdersChannel:
+			default:
+				params["user"] = userID
+			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channel,
+				Pairs:   pairs[0:1],
+				Params:  params,
+				Asset:   a,
+			})
+		}
 	}
 	return subscriptions, nil
 }
@@ -257,7 +297,9 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		var auth *WsAuthInput
 		timestamp := time.Now()
 		params := []string{channelsToSubscribe[i].Pairs[0].String()}
-		if contractOverride, ok := channelsToSubscribe[i].Params[contractPayloadOverrideParam].(string); ok {
+		if omitContract, _ := channelsToSubscribe[i].Params[omitContractParam].(bool); omitContract {
+			params = nil
+		} else if contractOverride, ok := channelsToSubscribe[i].Params[contractPayloadOverrideParam].(string); ok {
 			params[0] = contractOverride
 		}
 		if e.Websocket.CanUseAuthenticatedEndpoints() {
@@ -267,11 +309,14 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				futuresAutoPositionCloseChannel, futuresBalancesChannel,
 				futuresReduceRiskLimitsChannel, futuresPositionsChannel,
 				futuresAutoOrdersChannel:
-				requiresUserPlaceholder, _ := channelsToSubscribe[i].Params[requiresUserPlaceholderParam].(bool)
-				if requiresUserPlaceholder {
+				userID, hasUserID := channelsToSubscribe[i].Params["user"].(string)
+				if channelsToSubscribe[i].Channel == futuresAutoPositionCloseChannel && (!hasUserID || userID == "") {
+					return nil, fmt.Errorf("%w: user ID for %s", common.ErrParameterRequired, futuresAutoPositionCloseChannel)
+				}
+				if requiresUserPlaceholder, _ := channelsToSubscribe[i].Params[requiresUserPlaceholderParam].(bool); requiresUserPlaceholder {
 					params = append([]string{""}, params...)
-				} else if value, ok := channelsToSubscribe[i].Params["user"].(string); ok {
-					params = append([]string{value}, params...)
+				} else if hasUserID {
+					params = append([]string{userID}, params...)
 				}
 				var sigTemp string
 				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())

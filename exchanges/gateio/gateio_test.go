@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"slices"
@@ -2937,30 +2939,84 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"user":20011}`))
+		require.NoError(t, err, "Mock futures account response must be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range e.API.Endpoints.GetURLMap() {
+		require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	e.API.AuthenticatedSupport = true
+	e.API.AuthenticatedWebsocketSupport = true
+	e.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
-	var matching subscription.List
+	authenticatedChannels := map[string]bool{
+		futuresOrdersChannel:            false,
+		futuresUserTradesChannel:        false,
+		futuresLiquidatesChannel:        false,
+		futuresAutoDeleveragesChannel:   false,
+		futuresBalancesChannel:          false,
+		futuresReduceRiskLimitsChannel:  false,
+		futuresPositionsChannel:         false,
+		futuresAutoPositionCloseChannel: false,
+		futuresAutoOrdersChannel:        false,
+	}
+	accountSubscriptions := make(map[string]*subscription.Subscription)
 	for _, sub := range subs {
-		if sub.Channel == futuresPositionsChannel {
-			matching = append(matching, sub)
+		if _, ok := authenticatedChannels[sub.Channel]; ok {
+			authenticatedChannels[sub.Channel] = true
+			accountSubscriptions[sub.Channel] = sub
 		}
 	}
-	require.Len(t, matching, 1, "futures positions must have one account-wide subscription")
-	require.Len(t, matching[0].Pairs, 1, "account-wide subscription must retain one identity pair")
-	assert.NotEqual(t, allFuturesContracts, matching[0].Pairs[0].String(),
+	for channel, found := range authenticatedChannels {
+		assert.Truef(t, found, "%s should be generated for authenticated futures", channel)
+	}
+	require.Len(t, accountSubscriptions, len(authenticatedChannels),
+		"authenticated futures channels must each have one account-wide subscription")
+	positionsSubscription := accountSubscriptions[futuresPositionsChannel]
+	require.NotNil(t, positionsSubscription, "positions subscription must be generated")
+	require.Len(t, positionsSubscription.Pairs, 1, "account-wide subscription must retain one identity pair")
+	assert.NotEqual(t, allFuturesContracts, positionsSubscription.Pairs[0].String(),
 		"account-wide subscription should not register the selector as a currency")
-	assert.Equal(t, allFuturesContracts, matching[0].Params[contractPayloadOverrideParam],
+	assert.Equal(t, allFuturesContracts, positionsSubscription.Params[contractPayloadOverrideParam],
 		"account-wide subscription should serialise the documented selector")
-	requiresUserPlaceholder, ok := matching[0].Params[requiresUserPlaceholderParam].(bool)
+	requiresUserPlaceholder, ok := positionsSubscription.Params[requiresUserPlaceholderParam].(bool)
 	require.True(t, ok, "user placeholder parameter must be a boolean")
 	assert.True(t, requiresUserPlaceholder,
-		"account-wide subscription should retain the deprecated user placeholder")
-	require.Equal(t, asset.CoinMarginedFutures, matching[0].Asset,
+		"positions subscription should retain the deprecated user placeholder")
+	require.Equal(t, asset.CoinMarginedFutures, positionsSubscription.Asset,
 		"account-wide subscription must retain its futures asset")
-	for _, sub := range subs {
-		assert.NotEqual(t, futuresAutoPositionCloseChannel, sub.Channel,
-			"default subscriptions should omit position closes without the required user ID")
+	closeSubscription := accountSubscriptions[futuresAutoPositionCloseChannel]
+	require.NotNil(t, closeSubscription, "position closes subscription must be generated")
+	assert.Equal(t, "20011", closeSubscription.Params["user"],
+		"position closes subscription should use the futures account user ID")
+	accountSubscriptionList := make(subscription.List, 0, len(accountSubscriptions))
+	for _, sub := range accountSubscriptions {
+		accountSubscriptionList = append(accountSubscriptionList, sub)
+	}
+	payloads, err := e.generateFuturesPayload(t.Context(), subscribeEvent, accountSubscriptionList)
+	require.NoError(t, err, "generateFuturesPayload must generate account-wide payloads")
+	require.Len(t, payloads, len(authenticatedChannels),
+		"account-wide subscriptions must each generate one payload")
+	expectedPayloads := map[string][]string{
+		futuresOrdersChannel:            {"20011", allFuturesContracts},
+		futuresUserTradesChannel:        {"20011", allFuturesContracts},
+		futuresLiquidatesChannel:        {"20011", allFuturesContracts},
+		futuresAutoDeleveragesChannel:   {"20011", allFuturesContracts},
+		futuresAutoPositionCloseChannel: {"20011", allFuturesContracts},
+		futuresBalancesChannel:          {"20011"},
+		futuresReduceRiskLimitsChannel:  {"20011", allFuturesContracts},
+		futuresPositionsChannel:         {"", allFuturesContracts},
+		futuresAutoOrdersChannel:        {allFuturesContracts},
+	}
+	for i := range payloads {
+		assert.Equalf(t, expectedPayloads[payloads[i].Channel], payloads[i].Payload,
+			"%s payload should match Gate's documented parameters", payloads[i].Channel)
+		require.NotNilf(t, payloads[i].Auth, "%s payload must be authenticated", payloads[i].Channel)
 	}
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, nil, true),
 		"StorePairs must clear enabled coin-margined futures pairs")
