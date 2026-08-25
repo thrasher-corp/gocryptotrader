@@ -75,7 +75,7 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)
 	_, err := h.V5UniversalTransfer(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "V5UniversalTransfer must reject nil request")
 	resp, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{
@@ -91,7 +91,7 @@ func TestV5UniversalTransfer(t *testing.T) {
 
 func TestGetV5UniversalTransferRecords(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/universal_transfer_records", `{"code":200,"data":[{"id":1,"transfer_id":"123","amount":"10"}]}`, func(r *http.Request) {
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v5/account/universal_transfer_records", `{"code":200,"data":[{"id":1,"transfer_id":"123","amount":"10"}]}`, func(r *http.Request) {
 		assert.Equal(t, "123", r.URL.Query().Get("transfer_id"), "transfer ID should be sent")
 		assert.Equal(t, "USDT", r.URL.Query().Get("currency"), "currency should be sent")
 	})

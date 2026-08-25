@@ -142,6 +142,18 @@ func TestSetLeverage(t *testing.T) {
 			require.ErrorIs(t, err, tc.expected, "SetLeverage must return the expected validation error")
 		})
 	}
+
+	t.Run("USDT position side", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, func(r *http.Request) {
+			var request V5SetLeverageRequest
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&request), "leverage request should decode") {
+				return
+			}
+			assert.Equal(t, "short", request.PositionSide, "sell leverage should target the short position")
+		})
+		require.NoError(t, h.SetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, margin.Isolated, 5, order.Sell), "SetLeverage must preserve the requested position side")
+	})
 }
 
 func TestSettlementCurrencyForContract(t *testing.T) {
@@ -224,6 +236,7 @@ func TestGetCollateralMode(t *testing.T) {
 		err       error
 	}{
 		{name: "multi asset", assetMode: 1, expected: collateral.MultiMode},
+		{name: "legacy single asset", assetMode: 0, expected: collateral.SingleMode},
 		{name: "single asset", assetMode: 2, expected: collateral.SingleMode},
 		{name: "unknown asset mode", assetMode: 3, err: collateral.ErrInvalidCollateralMode},
 	} {

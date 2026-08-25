@@ -3,12 +3,16 @@ package htx
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // wsHandleUSDTMarginedPrivateMessage decodes authenticated V5 USDT notifications.
@@ -16,29 +20,96 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 	if err := common.NilGuard(sub); err != nil {
 		return err
 	}
-	var response any
 	switch sub.Channel {
 	case subscription.MyOrdersChannel:
-		response = new(V5WsOrderUpdate)
+		response := new(V5WsOrderUpdate)
+		if err := json.Unmarshal(raw, response); err != nil {
+			return err
+		}
+		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
 	case wsTradeUpdatesChannel:
-		response = new(V5WsTradeUpdate)
+		response := new(V5WsTradeUpdate)
+		if err := json.Unmarshal(raw, response); err != nil {
+			return err
+		}
+		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
 	case wsExecutionDetailsChannel:
-		response = new(V5WsTradeDetailUpdate)
+		response := new(V5WsTradeDetailUpdate)
+		if err := json.Unmarshal(raw, response); err != nil {
+			return err
+		}
+		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
 	case wsPositionsChannel:
-		response = new(V5WsPositionUpdate)
+		response := new(V5WsPositionUpdate)
+		if err := json.Unmarshal(raw, response); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, response)
 	case subscription.MyAccountChannel:
-		response = new(V5WsAccountUpdate)
+		response := new(V5WsAccountUpdate)
+		if err := json.Unmarshal(raw, response); err != nil {
+			return err
+		}
+		changes := make([]accounts.Change, 0, len(response.Data.Details))
+		for i := range response.Data.Details {
+			free := response.Data.Details[i].Available.Float64() + response.Data.Details[i].IsolatedAvailable.Float64()
+			changes = append(changes, accounts.Change{
+				AssetType: sub.Asset,
+				Balance: accounts.Balance{
+					Currency:  currency.NewCode(response.Data.Details[i].Currency),
+					Total:     response.Data.Details[i].Equity.Float64(),
+					Free:      free,
+					Hold:      response.Data.Details[i].Equity.Float64() - free,
+					UpdatedAt: response.Timestamp.Time(),
+				},
+			})
+		}
+		return e.Websocket.DataHandler.Send(ctx, changes)
 	case subscription.MyTradesChannel:
-		response = new(V5WsMatchOrderUpdate)
+		response := new(V5WsMatchOrderUpdate)
+		if err := json.Unmarshal(raw, response); err != nil {
+			return err
+		}
+		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
 	case wsTriggerOrdersChannel:
-		response = new(V5WsAlgoOrderUpdate)
+		response := new(V5WsAlgoOrderUpdate)
+		if err := json.Unmarshal(raw, response); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, response)
 	default:
 		return fmt.Errorf("%w: %s", common.ErrNotYetImplemented, sub.Channel)
 	}
-	if err := json.Unmarshal(raw, response); err != nil {
+}
+
+// sendV5WSOrderUpdate converts each V5 order-notification variant into the canonical order type.
+func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Subscription, contractCode string, data *V5WsOrderData) error {
+	detail, err := e.formatV5OrderDetail(&V5OrderData{
+		ContractCode:      contractCode,
+		Side:              data.Side,
+		PositionSide:      data.PositionSide,
+		Type:              data.Type,
+		OrderID:           data.OrderID,
+		ClientOrderID:     data.ClientOrderID,
+		MarginMode:        data.MarginMode,
+		Price:             data.Price,
+		Volume:            data.Volume,
+		LeverageRate:      types.Number(data.LeverageRate),
+		State:             V5OrderState(data.State),
+		ReduceOnly:        V5Boolean(data.ReduceOnly),
+		TimeInForce:       data.TimeInForce,
+		TradeAveragePrice: data.TradeAveragePrice,
+		TradeVolume:       data.TradeVolume,
+		TradeTurnover:     data.TradeTurnover,
+		FeeCurrency:       data.FeeCurrency,
+		Fee:               data.Fee,
+		CreatedTime:       types.Time(time.UnixMilli(data.CreatedTime.Int64())),
+		UpdatedTime:       types.Time(time.UnixMilli(data.UpdatedTime.Int64())),
+	}, sub.Asset)
+	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, response)
+	return e.Websocket.DataHandler.Send(ctx, &detail)
 }
 
 // WSPlaceV5Order places an order through the dedicated V5 trade connection.

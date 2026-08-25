@@ -16,10 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -37,6 +39,11 @@ const emptySuccessResponse = `{"status":"ok","code":200,"msg":"","data":null}`
 func newHTTPTestExchange(t *testing.T, endpoint exchange.URL, method, path, response string, check func(*http.Request)) *Exchange {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if path != "/v5/position/mode" && r.URL.Path == "/v5/position/mode" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":200,"data":{"position_mode":"single_side"}}`))
+			return
+		}
 		assert.Equal(t, method, r.Method, "HTTP method should match")
 		assert.Equal(t, path, r.URL.Path, "endpoint path should match")
 		if check != nil {
@@ -52,6 +59,19 @@ func newHTTPTestExchange(t *testing.T, endpoint exchange.URL, method, path, resp
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	require.NoError(t, h.API.Endpoints.SetRunningURL(endpoint.String(), server.URL), "running endpoint must be set")
 	return h
+}
+
+// setV5PositionModeEndpoint configures the position-mode response required by V5 order tests.
+func setV5PositionModeEndpoint(t *testing.T, h *Exchange, mode string) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v5/position/mode", r.URL.Path, "position mode endpoint should match")
+		_, _ = w.Write([]byte(`{"code":200,"data":{"position_mode":"` + mode + `"}}`))
+	}))
+	t.Cleanup(server.Close)
+	h.API.AuthenticatedSupport = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "position mode endpoint must be set")
 }
 
 func TestNewHTTPTestExchange(t *testing.T) {
@@ -79,6 +99,11 @@ func TestSetDefaults(t *testing.T) {
 	assert.True(t, h.Features.TradingRequirements.SpotMarketBuyQuotation, "spot market buys should require quote amount")
 	assert.True(t, h.Features.TradingRequirements.SpotMarketSellBase, "spot market sells should require base amount")
 	assert.Len(t, h.Features.Subscriptions, 38, "default subscriptions should cover public and private spot and derivatives channels")
+	for _, sub := range h.Features.Subscriptions {
+		if sub.Authenticated && sub.Asset != asset.Spot {
+			assert.False(t, sub.Enabled, "private derivative subscriptions should default to disabled")
+		}
+	}
 	for _, tt := range []struct {
 		endpoint exchange.URL
 		want     string
@@ -102,6 +127,30 @@ func TestSetup(t *testing.T) {
 	assert.True(t, h.SupportsAsset(asset.Futures), "delivery futures should remain enabled")
 	assert.True(t, h.SupportsAsset(asset.CoinMarginedFutures), "coin-margined futures should remain enabled")
 	assert.True(t, h.SupportsAsset(asset.USDTMarginedFutures), "USDT-margined futures should remain enabled")
+	tradeSetup := &websocket.ConnectionSetup{
+		URL:                      wsUSDTMarginedTradeURL,
+		Connector:                h.wsConnect,
+		Handler:                  h.wsHandleData,
+		MessageFilter:            exchange.WebsocketTrade,
+		SubscriptionsNotRequired: true,
+	}
+	require.NoError(t, h.Websocket.SetupNewConnection(tradeSetup), "trade websocket must be absent when authenticated websocket support is disabled")
+
+	authenticated := new(Exchange)
+	authenticated.SetDefaults()
+	require.NoError(t, authenticated.Setup(&config.Exchange{
+		Name:                    "HTX",
+		Enabled:                 true,
+		WebsocketTrafficTimeout: time.Second,
+		API: config.APIConfig{
+			AuthenticatedWebsocketSupport: true,
+		},
+	}), "Setup must configure authenticated websocket support")
+	authenticatedTradeSetup := *tradeSetup
+	authenticatedTradeSetup.Connector = authenticated.wsConnect
+	authenticatedTradeSetup.Handler = authenticated.wsHandleData
+	err := authenticated.Websocket.SetupNewConnection(&authenticatedTradeSetup)
+	require.Error(t, err, "trade websocket must already be configured when authenticated websocket support is enabled")
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -312,6 +361,17 @@ func TestGetOrderHistory(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/v5/trade/order/history", r.URL.Path, "history endpoint path should match")
 			assert.Equal(t, "next", r.URL.Query().Get("direct"), "history pagination should move forwards")
+			start, err := strconv.ParseInt(r.URL.Query().Get("start_time"), 10, 64)
+			if !assert.NoError(t, err, "history start time should be valid") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			end, err := strconv.ParseInt(r.URL.Query().Get("end_time"), 10, 64)
+			if !assert.NoError(t, err, "history end time should be valid") {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			assert.LessOrEqual(t, end-start, int64(48*time.Hour/time.Millisecond), "V5 history windows should not exceed 48 hours")
 			calls.Add(1)
 			if r.URL.Query().Get("margin_mode") == "cross" {
 				_, _ = w.Write([]byte(`{"code":200,"data":[{"id":"1","contract_code":"BTC-USDT","order_id":"1","side":"buy","type":"limit","state":"filled","time_in_force":"gtc","margin_mode":"cross","price":"100","volume":"2","trade_volume":"1"}]}`))
@@ -325,13 +385,19 @@ func TestGetOrderHistory(t *testing.T) {
 		h.API.AuthenticatedSupport = true
 		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
+		startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 		orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-			Type: order.AnyType, Pairs: currency.Pairs{btcusdtPair}, AssetType: asset.USDTMarginedFutures, Side: order.AnySide,
+			Type:      order.AnyType,
+			Pairs:     currency.Pairs{btcusdtPair},
+			AssetType: asset.USDTMarginedFutures,
+			Side:      order.AnySide,
+			StartTime: startTime,
+			EndTime:   startTime.Add(49 * time.Hour),
 		})
 		require.NoError(t, err, "GetOrderHistory must not error")
 		require.Len(t, orders, 1, "one historical order must be returned")
 		assert.Equal(t, "1", orders[0].OrderID, "order ID should match")
-		assert.Equal(t, int64(2), calls.Load(), "unset margin mode should query cross and isolated history")
+		assert.Equal(t, int64(4), calls.Load(), "each history window should query cross and isolated margin modes")
 	})
 }
 
@@ -850,6 +916,13 @@ func TestCancelBatchOrdersValidation(t *testing.T) {
 		{OrderID: "2", AssetType: asset.Futures, Pair: currency.NewPair(currency.ETH, currency.NewCode("CW"))},
 	})
 	require.ErrorIs(t, err, errBatchPairMismatch, "CancelBatchOrders must reject mixed derivative pairs")
+
+	tooMany := make([]order.Cancel, 11)
+	for i := range tooMany {
+		tooMany[i] = order.Cancel{OrderID: strconv.Itoa(i + 1), AssetType: asset.USDTMarginedFutures, Pair: btcusdtPair}
+	}
+	_, err = e.CancelBatchOrders(t.Context(), tooMany)
+	require.ErrorIs(t, err, errBatchOrderLimitExceeded, "CancelBatchOrders must enforce the V5 ten-order limit")
 }
 
 func TestCancelAllOrdersValidation(t *testing.T) {
@@ -910,6 +983,14 @@ func TestUpdateAccountBalances(t *testing.T) {
 	assert.Equal(t, 5.0, balance.Total, "total should include free and held balances")
 	assert.Equal(t, 2.0, balance.Free, "free balance should include trade funds")
 	assert.Equal(t, 3.0, balance.Hold, "held balance should include frozen funds")
+
+	h = newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/balance",
+		`{"code":200,"data":{"details":[{"currency":"USDT","equity":"10","available":"4","isolated_available":"2"}]}}`, nil)
+	subAccounts, err = h.UpdateAccountBalances(t.Context(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "USDT-margined UpdateAccountBalances must not error")
+	balance = subAccounts[0].Balances[currency.USDT]
+	assert.Equal(t, 6.0, balance.Free, "free balance should include cross and isolated availability")
+	assert.Equal(t, 4.0, balance.Hold, "held balance should exclude all available funds")
 }
 
 func TestUpdateAccountBalancesValidation(t *testing.T) {
@@ -1013,17 +1094,30 @@ func TestFormatV5OrderDetail(t *testing.T) {
 	_, err := h.formatV5OrderDetail(nil, asset.USDTMarginedFutures)
 	require.ErrorIs(t, err, common.ErrNilPointer, "formatV5OrderDetail must reject nil data")
 	detail, err := h.formatV5OrderDetail(&V5OrderData{
-		ContractCode: "BTC-USDT", OrderID: "1", ClientOrderID: "2", Side: "buy", Type: "limit",
-		State: "filled", TimeInForce: "gtc", MarginMode: "cross", Price: 100, Volume: 2,
-		TradeVolume: 1, TradeTurnover: 100, TradeAveragePrice: 100, Fee: 0.1, FeeCurrency: "USDT",
-		LeverageRate: 5, ReduceOnly: true,
+		ContractCode:      "BTC-USDT",
+		OrderID:           "1",
+		ClientOrderID:     "2",
+		Side:              "buy",
+		Type:              orderPriceTypePostOnly,
+		State:             "filled",
+		TimeInForce:       "gtc",
+		MarginMode:        "cross",
+		Price:             100,
+		Volume:            2,
+		TradeVolume:       1,
+		TradeTurnover:     100,
+		TradeAveragePrice: 100,
+		Fee:               0.1,
+		FeeCurrency:       "USDT",
+		LeverageRate:      5,
+		ReduceOnly:        true,
 	}, asset.USDTMarginedFutures)
 	require.NoError(t, err, "formatV5OrderDetail must not error")
 	assert.Equal(t, "1", detail.OrderID, "order ID should match")
 	assert.Equal(t, order.Buy, detail.Side, "side should match")
 	assert.Equal(t, order.Limit, detail.Type, "type should match")
 	assert.Equal(t, order.Filled, detail.Status, "status should match")
-	assert.Equal(t, order.GoodTillCancel, detail.TimeInForce, "time in force should match")
+	assert.Equal(t, order.PostOnly, detail.TimeInForce, "post-only order should retain its time in force")
 	assert.Equal(t, margin.Multi, detail.MarginType, "margin type should match")
 	assert.Equal(t, 1.0, detail.RemainingAmount, "remaining amount should match")
 }
@@ -1063,18 +1157,18 @@ func TestGetOrderInfo(t *testing.T) {
 		})
 	}
 	for _, tt := range []struct {
-		name              string
-		endpoint          exchange.URL
-		method            string
-		path              string
-		pair              currency.Pair
-		asset             asset.Item
-		response          string
-		checkNoMarginMode bool
+		name               string
+		endpoint           exchange.URL
+		method             string
+		path               string
+		pair               currency.Pair
+		asset              asset.Item
+		response           string
+		expectedMarginMode string
 	}{
 		{
 			name: "spot response", endpoint: exchange.RestSpot, method: http.MethodGet, path: "/v1/order/orders/1", pair: btcusdtPair, asset: asset.Spot,
-			response: `{"status":"ok","data":{"id":1,"symbol":"btcusdt","account-id":2,"amount":"2","price":"100","type":"buy-limit","state":"filled","filled-amount":"1","filled-cash-amount":"100","filled-fees":"0.1"}}`,
+			response: `{"status":"ok","data":{"id":1,"symbol":"btcusdt","account-id":2,"amount":"2","price":"100","type":"buy-limit-maker","state":"filled","filled-amount":"1","filled-cash-amount":"100","filled-fees":"0.1"}}`,
 		},
 		{
 			name: "coin margined response", endpoint: exchange.RestFutures, method: http.MethodPost, path: "/swap-api/v1/swap_order_info", pair: btcusdPair, asset: asset.CoinMarginedFutures,
@@ -1082,8 +1176,8 @@ func TestGetOrderInfo(t *testing.T) {
 		},
 		{
 			name: "USDT margined response", endpoint: exchange.RestUSDTMargined, method: http.MethodGet, path: "/v5/trade/order", pair: btcusdtPair, asset: asset.USDTMarginedFutures,
-			response:          `{"code":200,"data":{"id":"1","contract_code":"BTC-USDT","order_id":"1","client_order_id":"2","side":"buy","type":"limit","state":"filled","time_in_force":"gtc","margin_mode":"isolated","price":"100","volume":"2","trade_volume":"1","trade_turnover":"100","trade_avg_price":"100","fee":"0.1","fee_currency":"USDT","lever_rate":"5","reduce_only":true}}`,
-			checkNoMarginMode: true,
+			response:           `{"code":200,"data":{"id":"1","contract_code":"BTC-USDT","order_id":"1","client_order_id":"2","side":"buy","type":"limit","state":"filled","time_in_force":"gtc","margin_mode":"isolated","price":"100","volume":"2","trade_volume":"1","trade_turnover":"100","trade_avg_price":"100","fee":"0.1","fee_currency":"USDT","lever_rate":"5","reduce_only":true}}`,
+			expectedMarginMode: "cross",
 		},
 		{
 			name: "delivery futures response", endpoint: exchange.RestFutures, method: http.MethodPost, path: fOrderInfo, pair: btccwPair, asset: asset.Futures,
@@ -1093,9 +1187,9 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var check func(*http.Request)
-			if tt.checkNoMarginMode {
+			if tt.expectedMarginMode != "" {
 				check = func(r *http.Request) {
-					assert.Empty(t, r.URL.Query().Get("margin_mode"), "GetOrderInfo should not restrict the unknown margin mode")
+					assert.Equal(t, tt.expectedMarginMode, r.URL.Query().Get("margin_mode"), "GetOrderInfo should query a concrete margin mode")
 				}
 			}
 			h := newHTTPTestExchange(t, tt.endpoint, tt.method, tt.path, tt.response, check)
@@ -1145,56 +1239,167 @@ func TestGetHistoricTrades(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
+func TestGetV5PositionModeName(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		response    string
+		expected    string
+		expectedErr error
+		wantErr     bool
+	}{
+		{name: "success", response: `{"code":200,"data":{"position_mode":"dual_side"}}`, expected: "dual_side"},
+		{name: "empty response", response: `null`, expectedErr: errEmptyResult},
+		{name: "empty mode", response: `{"code":200,"data":{}}`, expectedErr: errEmptyResult},
+		{name: "invalid mode", response: `{"code":200,"data":{"position_mode":"invalid"}}`, expectedErr: errInvalidPositionMode},
+		{name: "decode error", response: `{`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/mode", tc.response, nil)
+			mode, err := h.getV5PositionModeName(t.Context())
+			if tc.wantErr || tc.expectedErr != nil {
+				if tc.expectedErr != nil {
+					require.ErrorIs(t, err, tc.expectedErr, "getV5PositionModeName must return the expected error")
+				} else {
+					require.Error(t, err, "getV5PositionModeName must return an endpoint error")
+				}
+				return
+			}
+			require.NoError(t, err, "getV5PositionModeName must not error")
+			assert.Equal(t, tc.expected, mode, "position mode should match")
+		})
+	}
+}
+
 func TestFormatV5OrderRequest(t *testing.T) {
 	t.Parallel()
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	_, err := h.formatV5OrderRequest(nil)
+	_, err := h.formatV5OrderRequest(nil, "dual_side")
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "formatV5OrderRequest must reject nil submissions")
 
 	for _, tc := range []struct {
-		name         string
-		submit       order.Submit
-		expectedType string
-		expectedTIF  string
-		expectedMode string
+		name             string
+		submit           order.Submit
+		expectedType     string
+		expectedTIF      string
+		expectedMode     string
+		expectedPosition string
 	}{
 		{
 			name: "isolated post only",
 			submit: order.Submit{
-				Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit,
-				Price: 100, Amount: 2, MarginType: margin.Isolated, TimeInForce: order.PostOnly, ReduceOnly: true,
+				Pair:          btcusdtPair,
+				AssetType:     asset.USDTMarginedFutures,
+				Side:          order.Buy,
+				Type:          order.Limit,
+				Price:         100,
+				Amount:        2,
+				MarginType:    margin.Isolated,
+				TimeInForce:   order.GoodTillCancel | order.PostOnly,
+				ReduceOnly:    true,
+				ClientOrderID: "client-id",
 			},
-			expectedType: "post_only",
-			expectedTIF:  "gtc",
-			expectedMode: "isolated",
+			expectedType:     orderPriceTypePostOnly,
+			expectedTIF:      "gtc",
+			expectedMode:     "isolated",
+			expectedPosition: "long",
 		},
 		{
 			name: "cross market FOK",
 			submit: order.Submit{
-				Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Sell, Type: order.Market,
-				Amount: 2, MarginType: margin.Multi, TimeInForce: order.FillOrKill,
+				Pair:        btcusdtPair,
+				AssetType:   asset.USDTMarginedFutures,
+				Side:        order.Sell,
+				Type:        order.Market,
+				Amount:      2,
+				MarginType:  margin.Multi,
+				TimeInForce: order.FillOrKill,
 			},
-			expectedType: "market",
-			expectedTIF:  "fok",
-			expectedMode: "cross",
+			expectedType:     "market",
+			expectedTIF:      "fok",
+			expectedMode:     "cross",
+			expectedPosition: "short",
+		},
+		{
+			name: "default GTC",
+			submit: order.Submit{
+				Pair:      btcusdtPair,
+				AssetType: asset.USDTMarginedFutures,
+				Side:      order.Buy,
+				Type:      order.Limit,
+				Price:     100,
+				Amount:    2,
+			},
+			expectedType:     "limit",
+			expectedTIF:      "gtc",
+			expectedMode:     "cross",
+			expectedPosition: "long",
+		},
+		{
+			name: "IOC",
+			submit: order.Submit{
+				Pair:        btcusdtPair,
+				AssetType:   asset.USDTMarginedFutures,
+				Side:        order.Buy,
+				Type:        order.Limit,
+				Price:       100,
+				Amount:      2,
+				TimeInForce: order.ImmediateOrCancel,
+			},
+			expectedType:     "limit",
+			expectedTIF:      "ioc",
+			expectedMode:     "cross",
+			expectedPosition: "long",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := h.formatV5OrderRequest(&tc.submit)
+			got, err := h.formatV5OrderRequest(&tc.submit, "dual_side")
 			require.NoError(t, err, "formatV5OrderRequest must not error")
 			assert.Equal(t, "BTC-USDT", got.ContractCode, "contract code should be formatted")
 			assert.Equal(t, tc.expectedType, got.Type, "order type should match")
 			assert.Equal(t, tc.expectedTIF, got.TimeInForce, "time in force should match")
 			assert.Equal(t, tc.expectedMode, got.MarginMode, "margin mode should match")
+			assert.Equal(t, tc.expectedPosition, got.PositionSide, "position side should match")
 		})
 	}
+
+	for _, tc := range []struct {
+		name        string
+		submit      order.Submit
+		expectedErr error
+	}{
+		{name: "empty pair", submit: order.Submit{Side: order.Buy, Type: order.Limit}, expectedErr: currency.ErrCurrencyPairEmpty},
+		{name: "unsupported margin", submit: order.Submit{Pair: btcusdtPair, Side: order.Buy, Type: order.Limit, MarginType: margin.NoMargin}, expectedErr: margin.ErrMarginTypeUnsupported},
+		{name: "invalid side", submit: order.Submit{Pair: btcusdtPair, Type: order.Limit}, expectedErr: order.ErrSideIsInvalid},
+		{name: "unsupported type", submit: order.Submit{Pair: btcusdtPair, Side: order.Buy, Type: order.Stop}, expectedErr: order.ErrUnsupportedOrderType},
+		{name: "unsupported time in force", submit: order.Submit{Pair: btcusdtPair, Side: order.Buy, Type: order.Limit, TimeInForce: order.TimeInForce(1 << 15)}, expectedErr: order.ErrUnsupportedTimeInForce},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := h.formatV5OrderRequest(&tc.submit, "dual_side")
+			require.ErrorIs(t, err, tc.expectedErr, "formatV5OrderRequest must return the expected validation error")
+		})
+	}
+
+	t.Run("single-side mode", func(t *testing.T) {
+		t.Parallel()
+		got, err := h.formatV5OrderRequest(&order.Submit{
+			Pair: btcusdtPair,
+			Side: order.Buy,
+			Type: order.Market,
+		}, "single_side")
+		require.NoError(t, err, "formatV5OrderRequest must support single-side mode")
+		assert.Equal(t, "both", got.PositionSide, "single-side mode should target both positions")
+	})
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	setV5PositionModeEndpoint(t, h, "single_side")
 	submission := &order.Submit{
 		Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures,
 		Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1,
@@ -1212,7 +1417,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	setV5PositionModeEndpoint(t, h, "single_side")
 	_, err := h.WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams, "WebsocketSubmitOrders must reject empty submissions")
 	responses, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{{
@@ -1226,7 +1432,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 
 func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	require.ErrorIs(t, h.WebsocketCancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "WebsocketCancelOrder must reject nil cancellations")
 	require.NoError(t, h.WebsocketCancelOrder(t.Context(), &order.Cancel{
 		Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, ClientOrderID: "2",
@@ -1427,8 +1633,8 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Pair:                 currency.NewBTCUSDT(),
 		IncludePredictedRate: true,
 	})
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "USDT-margined predicted funding rates must be rejected")
+	assert.Empty(t, resp, "unsupported predicted funding rates should not be returned")
 
 	resp, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.CoinMarginedFutures,

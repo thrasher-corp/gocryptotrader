@@ -300,21 +300,27 @@ type FWsSubOrderData struct {
 
 // FWsSubMatchOrderData stores subscribed match order data for futures websocket
 type FWsSubMatchOrderData struct {
-	Operation     string     `json:"op"`
-	Topic         string     `json:"topic"`
-	UID           string     `json:"uid"`
-	Timestamp     types.Time `json:"ts"`
-	Symbol        string     `json:"symbol"`
-	ContractType  string     `json:"contract_type"`
-	ContractCode  string     `json:"contract_code"`
-	Status        int64      `json:"status"`
-	OrderID       int64      `json:"order_id"`
-	OrderIDString string     `json:"order_id_str"`
-	OrderType     string     `json:"order_type"`
-	Volume        float64    `json:"volume"`
-	TradeVolume   float64    `json:"trade_volume"`
-	ClientOrderID int64      `json:"client_order_id"`
-	Trade         []struct {
+	Operation      string     `json:"op"`
+	Topic          string     `json:"topic"`
+	UID            string     `json:"uid"`
+	Timestamp      types.Time `json:"ts"`
+	Symbol         string     `json:"symbol"`
+	ContractType   string     `json:"contract_type"`
+	ContractCode   string     `json:"contract_code"`
+	Status         int64      `json:"status"`
+	OrderID        int64      `json:"order_id"`
+	OrderIDString  string     `json:"order_id_str"`
+	OrderType      int64      `json:"order_type"`
+	Direction      string     `json:"direction"`
+	Offset         string     `json:"offset"`
+	OrderPriceType string     `json:"order_price_type"`
+	Price          float64    `json:"price"`
+	LeverageRate   float64    `json:"lever_rate"`
+	CreatedAt      int64      `json:"created_at"`
+	Volume         float64    `json:"volume"`
+	TradeVolume    float64    `json:"trade_volume"`
+	ClientOrderID  int64      `json:"client_order_id"`
+	Trade          []struct {
 		ID            string  `json:"id"`
 		TradeID       int64   `json:"trade_id"`
 		TradeVolume   float64 `json:"trade_volume"`

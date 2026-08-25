@@ -197,7 +197,7 @@ type SwapWsSubMatchOrderData struct {
 	OrderID        int64      `json:"order_id"`
 	OrderIDString  string     `json:"order_id_str"`
 	ClientOrderID  int64      `json:"client_order_id"`
-	OrderType      string     `json:"order_type"`
+	OrderType      int64      `json:"order_type"`
 	TradeVolume    float64    `json:"trade_volume"`
 	Volume         float64    `json:"volume"`
 	Direction      string     `json:"direction"`

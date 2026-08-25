@@ -253,6 +253,10 @@ func (e *Exchange) wsHandleAllTradesMsg(ctx context.Context, s *subscription.Sub
 		if t.Tick.Data[i].Direction != "buy" {
 			side = order.Sell
 		}
+		tradeID := t.Tick.Data[i].TradeID
+		if tradeID == "" {
+			tradeID = t.Tick.Data[i].ID
+		}
 		trades = append(trades, trade.Data{
 			Exchange:     e.Name,
 			AssetType:    s.Asset,
@@ -261,7 +265,7 @@ func (e *Exchange) wsHandleAllTradesMsg(ctx context.Context, s *subscription.Sub
 			Amount:       t.Tick.Data[i].Amount,
 			Price:        t.Tick.Data[i].Price,
 			Side:         side,
-			TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
+			TID:          string(tradeID),
 		})
 	}
 	if tradeFeed {
@@ -558,7 +562,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	}
 	if op == wsSubOp {
 		s.SetKey(s.QualifiedChannel)
-		if err := conn.Subscriptions().Add(s); err != nil {
+		if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
@@ -568,7 +572,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	}
 	if err != nil {
 		if op == wsSubOp {
-			_ = conn.Subscriptions().Remove(s)
+			_ = e.Websocket.RemoveSubscriptions(conn, s)
 		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
@@ -578,7 +582,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", e.Name, s)
 		}
 	} else {
-		err = conn.Subscriptions().Remove(s)
+		err = e.Websocket.RemoveSubscriptions(conn, s)
 	}
 	return err
 }

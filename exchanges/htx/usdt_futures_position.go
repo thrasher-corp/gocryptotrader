@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -120,7 +121,7 @@ func (e *Exchange) GetV5PositionRiskLimitTiers(ctx context.Context, code currenc
 }
 
 // SwitchLinearSwapLeverage changes leverage through the current V5 endpoint.
-func (e *Exchange) SwitchLinearSwapLeverage(ctx context.Context, code currency.Pair, leverage uint64, crossMargin bool) error {
+func (e *Exchange) SwitchLinearSwapLeverage(ctx context.Context, code currency.Pair, leverage uint64, crossMargin bool, side order.Side) error {
 	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
 	if err != nil {
 		return err
@@ -129,9 +130,17 @@ func (e *Exchange) SwitchLinearSwapLeverage(ctx context.Context, code currency.P
 	if crossMargin {
 		marginMode = "cross"
 	}
+	positionSide := "both"
+	switch {
+	case side.IsLong():
+		positionSide = "long"
+	case side.IsShort():
+		positionSide = "short"
+	}
 	_, err = e.SetV5Leverage(ctx, &V5SetLeverageRequest{
 		ContractCode: codeValue,
 		MarginMode:   marginMode,
+		PositionSide: positionSide,
 		LeverageRate: types.Number(leverage),
 	})
 	return err

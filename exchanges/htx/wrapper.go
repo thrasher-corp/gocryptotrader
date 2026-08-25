@@ -240,6 +240,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, private: true},
 		{endpoint: exchange.WebsocketTrade, asset: asset.USDTMarginedFutures, private: true, trade: true},
 	} {
+		if ws.trade && !exch.API.AuthenticatedWebsocketSupport {
+			continue
+		}
 		runningURL, err := e.API.Endpoints.GetURL(ws.endpoint)
 		if err != nil {
 			return err
@@ -936,10 +939,11 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.Data.Details {
 			curr := currency.NewCode(resp.Data.Details[i].Currency)
+			free := resp.Data.Details[i].Available.Float64() + resp.Data.Details[i].IsolatedAvailable.Float64()
 			subAccts[0].Balances.Set(curr, accounts.Balance{
 				Total: resp.Data.Details[i].Equity.Float64(),
-				Hold:  resp.Data.Details[i].Equity.Float64() - resp.Data.Details[i].Available.Float64(),
-				Free:  resp.Data.Details[i].Available.Float64(),
+				Hold:  resp.Data.Details[i].Equity.Float64() - free,
+				Free:  free,
 			})
 		}
 	case asset.Futures:
@@ -1172,9 +1176,30 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 	return nil, common.ErrFunctionNotSupported
 }
 
-func (e *Exchange) formatV5OrderRequest(s *order.Submit) (*V5OrderRequest, error) {
+// getV5PositionModeName returns the current position mode required when placing V5 orders.
+func (e *Exchange) getV5PositionModeName(ctx context.Context) (string, error) {
+	mode, err := e.GetV5PositionMode(ctx)
+	if err != nil {
+		return "", err
+	}
+	if mode == nil || mode.Data.PositionMode == "" {
+		return "", errEmptyResult
+	}
+	switch mode.Data.PositionMode {
+	case "single_side", "dual_side":
+		return mode.Data.PositionMode, nil
+	default:
+		return "", fmt.Errorf("%w %q", errInvalidPositionMode, mode.Data.PositionMode)
+	}
+}
+
+// formatV5OrderRequest maps the generic order model to HTX's current position and margin modes.
+func (e *Exchange) formatV5OrderRequest(s *order.Submit, positionMode string) (*V5OrderRequest, error) {
 	if s == nil {
 		return nil, order.ErrSubmissionIsNil
+	}
+	if s.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	formattedPair, err := e.FormatSymbol(s.Pair, asset.USDTMarginedFutures)
 	if err != nil {
@@ -1198,8 +1223,14 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit) (*V5OrderRequest, error
 	switch {
 	case s.Side.IsLong():
 		req.Side = "buy"
+		if positionMode == "dual_side" {
+			req.PositionSide = "long"
+		}
 	case s.Side.IsShort():
 		req.Side = "sell"
+		if positionMode == "dual_side" {
+			req.PositionSide = "short"
+		}
 	default:
 		return nil, order.ErrSideIsInvalid
 	}
@@ -1213,9 +1244,9 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit) (*V5OrderRequest, error
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
 	switch {
-	case s.TimeInForce == order.UnknownTIF, s.TimeInForce.Is(order.GoodTillCancel):
 	case s.TimeInForce.Is(order.PostOnly):
-		req.Type = "post_only"
+		req.Type = orderPriceTypePostOnly
+	case s.TimeInForce == order.UnknownTIF, s.TimeInForce.Is(order.GoodTillCancel):
 	case s.TimeInForce.Is(order.ImmediateOrCancel):
 		req.TimeInForce = "ioc"
 	case s.TimeInForce.Is(order.FillOrKill):
@@ -1298,14 +1329,14 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		case order.Limit:
 			oType = "limit"
 			if s.TimeInForce.Is(order.PostOnly) {
-				oType = "post_only"
+				oType = orderPriceTypePostOnly
 			}
 		default:
 			oType = "opponent"
 		}
 		offset := "open"
 		if s.ReduceOnly {
-			offset = "close"
+			offset = orderOffsetClose
 		}
 		orderResp, err := e.PlaceSwapOrders(ctx,
 			s.Pair,
@@ -1321,7 +1352,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		orderID = orderResp.Data.OrderIDString
 	case asset.USDTMarginedFutures:
-		v5Req, err := e.formatV5OrderRequest(s)
+		positionMode, err := e.getV5PositionModeName(ctx)
+		if err != nil {
+			return nil, err
+		}
+		v5Req, err := e.formatV5OrderRequest(s, positionMode)
 		if err != nil {
 			return nil, err
 		}
@@ -1362,14 +1397,14 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		case order.Limit:
 			oType = "limit"
 			if s.TimeInForce.Is(order.PostOnly) {
-				oType = "post_only"
+				oType = orderPriceTypePostOnly
 			}
 		default:
 			oType = "opponent"
 		}
 		offset := "open"
 		if s.ReduceOnly {
-			offset = "close"
+			offset = orderOffsetClose
 		}
 		o, err := e.FOrder(ctx,
 			s.Pair,
@@ -1410,7 +1445,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if s.AssetType != asset.USDTMarginedFutures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
-	req, err := e.formatV5OrderRequest(s)
+	positionMode, err := e.getV5PositionModeName(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req, err := e.formatV5OrderRequest(s, positionMode)
 	if err != nil {
 		return nil, err
 	}
@@ -1443,8 +1482,13 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		if orders[i].AssetType != asset.USDTMarginedFutures {
 			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, orders[i].AssetType)
 		}
-		var err error
-		requests[i], err = e.formatV5OrderRequest(orders[i])
+	}
+	positionMode, err := e.getV5PositionModeName(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range orders {
+		requests[i], err = e.formatV5OrderRequest(orders[i], positionMode)
 		if err != nil {
 			return nil, err
 		}
@@ -1622,6 +1666,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			resp.Status[cancelledOrders.Data.Errors[i].OrderID] = cancelledOrders.Data.Errors[i].ErrMsg
 		}
 	case asset.USDTMarginedFutures:
+		if len(ids)+len(cIDs) > 10 {
+			return nil, errBatchOrderLimitExceeded
+		}
 		if pair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
@@ -1836,6 +1883,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	return cancelAllOrdersResponse, nil
 }
 
+// formatV5OrderDetail converts V5 REST and websocket responses into the canonical order type.
 func (e *Exchange) formatV5OrderDetail(data *V5OrderData, item asset.Item) (order.Detail, error) {
 	if data == nil {
 		return order.Detail{}, common.ErrNilPointer
@@ -1844,17 +1892,25 @@ func (e *Exchange) formatV5OrderDetail(data *V5OrderData, item asset.Item) (orde
 	if err != nil {
 		return order.Detail{}, err
 	}
-	orderType, err := order.StringToOrderType(data.Type)
+	orderType := order.Limit
+	timeInForce := order.UnknownTIF
+	if data.Type == orderPriceTypePostOnly {
+		timeInForce = order.PostOnly
+	} else {
+		orderType, err = order.StringToOrderType(data.Type)
+		if err != nil {
+			return order.Detail{}, err
+		}
+	}
+	status, err := order.StringToOrderStatus(string(data.State))
 	if err != nil {
 		return order.Detail{}, err
 	}
-	status, err := order.StringToOrderStatus(data.State)
-	if err != nil {
-		return order.Detail{}, err
-	}
-	timeInForce, err := order.StringToTimeInForce(data.TimeInForce)
-	if err != nil {
-		return order.Detail{}, err
+	if timeInForce == order.UnknownTIF {
+		timeInForce, err = order.StringToTimeInForce(data.TimeInForce)
+		if err != nil {
+			return order.Detail{}, err
+		}
 	}
 	marginType, err := margin.StringToMarginType(data.MarginMode)
 	if err != nil {
@@ -1924,7 +1980,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, fmt.Errorf("%s - GetOrderInfo order ID mismatch; expected %s, received %s", e.Name, orderID, responseID)
 		}
 		typeDetails := strings.Split(respData.Type, "-")
-		if len(typeDetails) != 2 {
+		if len(typeDetails) < 2 {
 			return nil, fmt.Errorf("%w %q", errInvalidOrderPriceType, respData.Type)
 		}
 		orderSide, err := order.StringToOrderSide(typeDetails[0])
@@ -1991,7 +2047,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Fee:                  data.Fee,
 			FeeAsset:             currency.NewCode(data.FeeAsset),
 			Leverage:             float64(data.LeverRate),
-			ReduceOnly:           data.Offset == "close",
+			ReduceOnly:           data.Offset == orderOffsetClose,
 			AssetType:            assetType,
 			MarginType:           margin.Isolated,
 		}
@@ -2009,11 +2065,18 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		orderDetail.InferCostsAndTimes()
 	case asset.USDTMarginedFutures:
-		orderInfo, err := e.GetV5Order(ctx, pair, "", orderID, "")
-		if err != nil {
-			return nil, err
+		var orderInfo *V5OrderQueryResponse
+		var err error
+		for _, marginMode := range []string{"cross", "isolated"} {
+			orderInfo, err = e.GetV5Order(ctx, pair, marginMode, orderID, "")
+			if err != nil {
+				return nil, err
+			}
+			if orderInfo != nil && orderInfo.Data.OrderID != "" {
+				break
+			}
 		}
-		if orderInfo == nil {
+		if orderInfo == nil || orderInfo.Data.OrderID == "" {
 			return nil, errEmptyResult
 		}
 		orderDetail, err = e.formatV5OrderDetail(&orderInfo.Data, assetType)
@@ -2058,7 +2121,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Fee:                  data.Fee,
 			FeeAsset:             currency.NewCode(data.FeeAsset),
 			Leverage:             float64(data.LeverRate),
-			ReduceOnly:           data.Offset == "close",
+			ReduceOnly:           data.Offset == orderOffsetClose,
 			AssetType:            assetType,
 			MarginType:           margin.Isolated,
 		}
@@ -2489,6 +2552,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.USDTMarginedFutures:
+		windows, err := getV3HistoryWindows(req.StartTime, req.EndTime)
+		if err != nil {
+			return nil, err
+		}
 		marginModes := []string{"cross", "isolated"}
 		switch req.MarginType {
 		case margin.Unset:
@@ -2505,45 +2572,58 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			for _, marginMode := range marginModes {
-				var from uint64
-				for {
-					orderHistory, err := e.GetV5OrderHistory(ctx, &V5OrderHistoryRequest{
-						ContractCode: contractCode,
-						MarginMode:   marginMode,
-						StartTime:    req.StartTime,
-						EndTime:      req.EndTime,
-						From:         from,
-						Limit:        100,
-						Direction:    "next",
-					})
-					if err != nil {
-						return orders, err
-					}
-					if orderHistory == nil {
-						return orders, errEmptyResult
-					}
-					for i := range orderHistory.Data {
-						detail, err := e.formatV5OrderDetail(&orderHistory.Data[i], req.AssetType)
+				seen := make(map[string]struct{})
+				for _, window := range windows {
+					var from uint64
+					for {
+						orderHistory, err := e.GetV5OrderHistory(ctx, &V5OrderHistoryRequest{
+							ContractCode: contractCode,
+							MarginMode:   marginMode,
+							StartTime:    window.start,
+							EndTime:      window.end,
+							From:         from,
+							Limit:        100,
+							Direction:    "next",
+						})
 						if err != nil {
 							return orders, err
 						}
-						orders = append(orders, detail)
+						if orderHistory == nil {
+							return orders, errEmptyResult
+						}
+						for i := range orderHistory.Data {
+							orderKey := orderHistory.Data[i].OrderID
+							if orderKey == "" {
+								orderKey = orderHistory.Data[i].ID
+							}
+							if orderKey != "" {
+								if _, found := seen[orderKey]; found {
+									continue
+								}
+								seen[orderKey] = struct{}{}
+							}
+							detail, err := e.formatV5OrderDetail(&orderHistory.Data[i], req.AssetType)
+							if err != nil {
+								return orders, err
+							}
+							orders = append(orders, detail)
+						}
+						if len(orderHistory.Data) < 100 {
+							break
+						}
+						cursor := orderHistory.Data[len(orderHistory.Data)-1].ID
+						if cursor == "" {
+							cursor = orderHistory.Data[len(orderHistory.Data)-1].OrderID
+						}
+						next, err := strconv.ParseUint(cursor, 10, 64)
+						if err != nil {
+							return orders, fmt.Errorf("invalid HTX order cursor %q: %w", cursor, err)
+						}
+						if next == from {
+							break
+						}
+						from = next
 					}
-					if len(orderHistory.Data) < 100 {
-						break
-					}
-					cursor := orderHistory.Data[len(orderHistory.Data)-1].ID
-					if cursor == "" {
-						cursor = orderHistory.Data[len(orderHistory.Data)-1].OrderID
-					}
-					next, err := strconv.ParseUint(cursor, 10, 64)
-					if err != nil {
-						return orders, fmt.Errorf("invalid HTX order cursor %q: %w", cursor, err)
-					}
-					if next == from {
-						break
-					}
-					from = next
 				}
 			}
 		}
@@ -2825,7 +2905,7 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 		resp.OrderType = order.Limit
 	case "opponent":
 		resp.OrderType = order.Market
-	case "post_only":
+	case orderPriceTypePostOnly:
 		resp.OrderType = order.Limit
 		resp.TimeInForce = order.PostOnly
 	default:
@@ -3010,6 +3090,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	if r.Asset != asset.CoinMarginedFutures && r.Asset != asset.USDTMarginedFutures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	if r.Asset == asset.USDTMarginedFutures && r.IncludePredictedRate {
+		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
 
 	var rates []FundingRatesData

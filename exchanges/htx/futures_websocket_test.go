@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -46,6 +47,11 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	}
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	for _, sub := range h.Features.Subscriptions {
+		if sub.Authenticated {
+			sub.Enabled = true
+		}
+	}
 	privateSubs, err := h.generateSubscriptionsForAsset(asset.CoinMarginedFutures, true)
 	require.NoError(t, err, "private generateSubscriptionsForAsset must not error")
 	require.Len(t, privateSubs, 5, "coin-margined subscriptions must include each private notification channel")
@@ -55,6 +61,11 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	}
 
 	h.Features.Subscriptions = defaultFuturesSubscriptions.Clone()
+	for _, sub := range h.Features.Subscriptions {
+		if sub.Authenticated {
+			sub.Enabled = true
+		}
+	}
 	h.futureContractCodes = map[string]currency.Code{"CW": currency.NewCode("250829")}
 	deliveryPairs := currency.Pairs{currency.NewPairWithDelimiter("BTC", "250829", "-")}
 	require.NoError(t, h.SetPairs(deliveryPairs, asset.Futures, false), "available delivery pairs must be set")
@@ -64,6 +75,110 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 	require.Len(t, subs, 4, "delivery subscriptions must include each public market channel")
 	for _, sub := range subs {
 		assert.Contains(t, sub.QualifiedChannel, "BTC_CW", "delivery channel should use HTX's expiry shorthand")
+		require.Len(t, sub.Pairs, 1, "delivery subscription must retain one canonical pair")
+		assert.True(t, sub.Pairs[0].Equal(deliveryPairs[0]), "delivery subscription should retain the configured canonical pair")
+	}
+	h.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel, Pairs: deliveryPairs}}
+	multipleDeliveryPairs := currency.Pairs{deliveryPairs[0], currency.NewPairWithDelimiter("ETH", "250829", "-")}
+	require.NoError(t, h.SetPairs(multipleDeliveryPairs, asset.Futures, false), "multiple delivery pairs must be available")
+	require.NoError(t, h.SetPairs(multipleDeliveryPairs, asset.Futures, true), "multiple delivery pairs must be enabled")
+	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
+	require.NoError(t, err, "scoped delivery subscription generation must not error")
+	require.Len(t, subs, 1, "scoped delivery subscription must not expand to every enabled contract")
+	assert.Equal(t, deliveryPairs, subs[0].Pairs, "scoped delivery subscription should preserve its configured pair")
+	require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "delivery futures must be disabled")
+	subs, err = h.generateSubscriptionsForAsset(asset.Futures, false)
+	require.NoError(t, err, "disabled delivery subscription generation must not error")
+	assert.Empty(t, subs, "disabled delivery futures should not generate subscriptions")
+}
+
+func TestFormatLegacyFuturesWSOrder(t *testing.T) {
+	t.Parallel()
+	base := legacyFuturesWSOrder{
+		asset:          asset.Futures,
+		contractCode:   "BTC-USD",
+		direction:      "buy",
+		status:         6,
+		orderID:        123,
+		clientOrderID:  456,
+		volume:         2,
+		price:          100,
+		tradeVolume:    1,
+		tradeTurnover:  100,
+		fee:            0.1,
+		feeAsset:       "BTC",
+		leverage:       5,
+		createdAt:      1000,
+		cancelledAt:    2000,
+		reduceOnly:     true,
+		orderIDString:  "order-id",
+		orderPriceType: "limit",
+	}
+	for _, tc := range []struct {
+		name             string
+		update           func(*legacyFuturesWSOrder)
+		expectedType     order.Type
+		expectedTIF      order.TimeInForce
+		expectedOrderID  string
+		expectedErr      error
+		wantErr          bool
+		checkFullDetails bool
+	}{
+		{name: "explicit price type", expectedType: order.Limit, expectedOrderID: "order-id", checkFullDetails: true},
+		{name: "numeric limit", update: func(data *legacyFuturesWSOrder) {
+			data.orderPriceType = ""
+			data.orderType = 1
+			data.orderIDString = ""
+		}, expectedType: order.Limit, expectedOrderID: "123"},
+		{name: "numeric market", update: func(data *legacyFuturesWSOrder) { data.orderPriceType = ""; data.orderType = 3 }, expectedType: order.Market, expectedOrderID: "order-id"},
+		{name: "numeric post only", update: func(data *legacyFuturesWSOrder) { data.orderPriceType = ""; data.orderType = 6 }, expectedType: order.Limit, expectedTIF: order.PostOnly, expectedOrderID: "order-id"},
+		{name: "invalid numeric type", update: func(data *legacyFuturesWSOrder) { data.orderPriceType = "" }, expectedErr: errInvalidOrderPriceType},
+		{name: "invalid direction", update: func(data *legacyFuturesWSOrder) { data.direction = "invalid" }, expectedErr: errUnrecognisedOrderSide},
+		{name: "invalid price type", update: func(data *legacyFuturesWSOrder) { data.orderPriceType = "invalid" }, expectedErr: errInvalidOrderPriceType},
+		{name: "invalid status", update: func(data *legacyFuturesWSOrder) { data.status = 99 }, expectedErr: errInvalidOrderStatus},
+		{name: "invalid pair", update: func(data *legacyFuturesWSOrder) { data.contractCode = "" }, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			data := base
+			if tc.update != nil {
+				tc.update(&data)
+			}
+			h := new(Exchange)
+			h.Name = "HTX"
+			detail, err := h.formatLegacyFuturesWSOrder(&data)
+			if tc.wantErr || tc.expectedErr != nil {
+				if tc.expectedErr != nil {
+					require.ErrorIs(t, err, tc.expectedErr, "formatLegacyFuturesWSOrder must return the expected error")
+				} else {
+					require.Error(t, err, "formatLegacyFuturesWSOrder must reject invalid data")
+				}
+				return
+			}
+			require.NoError(t, err, "formatLegacyFuturesWSOrder must convert the notification")
+			assert.Equal(t, tc.expectedType, detail.Type, "order type should match")
+			assert.Equal(t, tc.expectedTIF, detail.TimeInForce, "time in force should match")
+			assert.Equal(t, tc.expectedOrderID, detail.OrderID, "order ID should match")
+			if tc.checkFullDetails {
+				assert.Equal(t, "HTX", detail.Exchange, "exchange should match")
+				assert.Equal(t, "456", detail.ClientOrderID, "client order ID should match")
+				assert.Equal(t, btcusdPair, detail.Pair, "pair should match")
+				assert.Equal(t, order.Buy, detail.Side, "side should match")
+				assert.Equal(t, order.Filled, detail.Status, "status should match")
+				assert.Equal(t, time.UnixMilli(1000), detail.Date, "creation time should match")
+				assert.Equal(t, time.UnixMilli(2000), detail.CloseTime, "cancellation time should match")
+				assert.Equal(t, 100.0, detail.Price, "price should match")
+				assert.Equal(t, 2.0, detail.Amount, "amount should match")
+				assert.Equal(t, 1.0, detail.ExecutedAmount, "executed amount should match")
+				assert.Equal(t, 1.0, detail.RemainingAmount, "remaining amount should match")
+				assert.Equal(t, 100.0, detail.Cost, "cost should match")
+				assert.Equal(t, 0.1, detail.Fee, "fee should match")
+				assert.Equal(t, currency.BTC, detail.FeeAsset, "fee asset should match")
+				assert.Equal(t, 5.0, detail.Leverage, "leverage should match")
+				assert.True(t, detail.ReduceOnly, "reduce-only should match")
+				assert.Equal(t, asset.Futures, detail.AssetType, "asset type should match")
+			}
+		})
 	}
 }
 
@@ -270,11 +385,11 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 		a        asset.Item
 		expected any
 	}{
-		{a: asset.Futures, expected: &FWsSubOrderData{}},
-		{a: asset.CoinMarginedFutures, expected: &SwapWsSubOrderData{}},
-		{a: asset.USDTMarginedFutures, expected: &V5WsOrderUpdate{}},
+		{a: asset.Futures, expected: &FWsSubPositionUpdates{}},
+		{a: asset.CoinMarginedFutures, expected: &SwapWsSubPositionUpdates{}},
+		{a: asset.USDTMarginedFutures, expected: &V5WsPositionUpdate{}},
 	} {
-		sub := &subscription.Subscription{Asset: tt.a, Channel: subscription.MyOrdersChannel, Authenticated: true}
+		sub := &subscription.Subscription{Asset: tt.a, Channel: wsPositionsChannel, Authenticated: true}
 		require.NoErrorf(t, h.wsHandleFuturesPrivateMessage(t.Context(), sub, []byte(`{"op":"notify","topic":"orders.*","ts":1603878749908}`)), "%s private message must be dispatched", tt.a)
 		message := <-h.Websocket.DataHandler.C
 		assert.IsType(t, tt.expected, message.Data, "notification should use the asset schema")
@@ -286,6 +401,11 @@ func TestFuturesAuthSubscribe(t *testing.T) {
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	h.Features.Subscriptions = defaultFuturesSubscriptions.Clone()
+	for _, sub := range h.Features.Subscriptions {
+		if sub.Authenticated {
+			sub.Enabled = true
+		}
+	}
 	for _, tt := range []struct {
 		a     asset.Item
 		pairs currency.Pairs
@@ -315,15 +435,22 @@ func TestFuturesAuthSubscribe(t *testing.T) {
 	require.NoError(t, h.Subscribe(all), "all private derivative subscriptions must succeed")
 	for _, tt := range []struct {
 		endpoint exchange.URL
+		asset    asset.Item
 		count    int
 	}{
-		{endpoint: exchange.WebsocketFuturesPrivate, count: 5},
-		{endpoint: exchange.WebsocketCoinMarginedPrivate, count: 5},
-		{endpoint: exchange.WebsocketUSDTMarginedPrivate, count: 7},
+		{endpoint: exchange.WebsocketFuturesPrivate, asset: asset.Futures, count: 5},
+		{endpoint: exchange.WebsocketCoinMarginedPrivate, asset: asset.CoinMarginedFutures, count: 5},
+		{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, count: 7},
 	} {
-		conn, err := h.Websocket.GetConnection(tt.endpoint)
+		_, err := h.Websocket.GetConnection(tt.endpoint)
 		require.NoError(t, err, "private derivative websocket connection must be available")
-		assert.Len(t, conn.Subscriptions().List(), tt.count, "connection should contain every authenticated subscription")
+		count := 0
+		for _, sub := range h.Websocket.GetSubscriptions() {
+			if sub.Asset == tt.asset && sub.Authenticated {
+				count++
+			}
+		}
+		assert.Equal(t, tt.count, count, "manager should contain every authenticated subscription")
 	}
 }
 
@@ -333,10 +460,11 @@ func TestWSHandleDeliveryFuturesPrivateMessage(t *testing.T) {
 		name     string
 		channel  string
 		expected any
+		raw      string
 	}{
-		{name: "orders", channel: subscription.MyOrdersChannel, expected: &FWsSubOrderData{}},
-		{name: "matches", channel: subscription.MyTradesChannel, expected: &FWsSubMatchOrderData{}},
-		{name: "accounts", channel: subscription.MyAccountChannel, expected: &FWsSubEquityUpdates{}},
+		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6,"order_id":1,"volume":2,"trade_volume":1}`},
+		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_type":1,"status":6,"order_id":1,"volume":2,"trade_volume":1}`},
+		{name: "accounts", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":[{"symbol":"BTC","margin_balance":2,"margin_frozen":1,"margin_available":1}]}`},
 		{name: "positions", channel: wsPositionsChannel, expected: &FWsSubPositionUpdates{}},
 		{name: "trigger orders", channel: wsTriggerOrdersChannel, expected: &FWsSubTriggerOrderUpdates{}},
 	} {
@@ -345,7 +473,10 @@ func TestWSHandleDeliveryFuturesPrivateMessage(t *testing.T) {
 			h := new(Exchange)
 			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 			sub := &subscription.Subscription{Asset: asset.Futures, Channel: tt.channel, Authenticated: true}
-			raw := []byte(`{"op":"notify","topic":"private.*","ts":1603878749908,"symbol":"BTC","contract_code":"BTC250829","data":[]}`)
+			raw := []byte(tt.raw)
+			if len(raw) == 0 {
+				raw = []byte(`{"op":"notify","topic":"private.*","ts":1603878749908,"symbol":"BTC","contract_code":"BTC250829","data":[]}`)
+			}
 			require.NoError(t, h.wsHandleDeliveryFuturesPrivateMessage(t.Context(), sub, raw), "private delivery notification must be decoded")
 			message := <-h.Websocket.DataHandler.C
 			assert.IsType(t, tt.expected, message.Data, "notification should use its dedicated response type")

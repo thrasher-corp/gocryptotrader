@@ -8,6 +8,51 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// V5Boolean accepts the empty-string false value returned by some V5 order endpoints.
+type V5Boolean types.Boolean
+
+// UnmarshalJSON decodes documented V5 boolean representations.
+func (b *V5Boolean) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`""`)) {
+		*b = false
+		return nil
+	}
+	var value types.Boolean
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*b = V5Boolean(value)
+	return nil
+}
+
+// Bool returns the underlying boolean value.
+func (b V5Boolean) Bool() bool { return bool(b) }
+
+// V5OrderState accepts both named and legacy numeric order states.
+type V5OrderState string
+
+// UnmarshalJSON decodes both V5 order-state representations.
+func (s *V5OrderState) UnmarshalJSON(data []byte) error {
+	if len(data) != 0 && data[0] == '"' {
+		var value string
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		*s = V5OrderState(value)
+		return nil
+	}
+	var state int64
+	if err := json.Unmarshal(data, &state); err != nil {
+		return err
+	}
+	orderVars, err := compatibleVars("buy", "limit", state)
+	if err != nil {
+		return err
+	}
+	*s = V5OrderState(orderVars.Status.String())
+	return nil
+}
+
 // LinearSwapMarket stores USDT-margined contract metadata.
 type LinearSwapMarket struct {
 	Symbol            string       `json:"symbol"`
@@ -57,6 +102,7 @@ type V5AccountBalance struct {
 		Equity                types.Number `json:"equity"`
 		IsolatedEquity        types.Number `json:"isolated_equity"`
 		Available             types.Number `json:"available"`
+		IsolatedAvailable     types.Number `json:"isolated_available"`
 		WithdrawAvailable     types.Number `json:"withdraw_available"`
 		ProfitUnreal          types.Number `json:"profit_unreal"`
 		IsolatedProfitUnreal  types.Number `json:"isolated_profit_unreal"`
@@ -204,40 +250,40 @@ type V5OrdersQueryResponse struct {
 
 // V5OrderData stores USDT-margined V5 order details.
 type V5OrderData struct {
-	ID                  string        `json:"id"`
-	ContractCode        string        `json:"contract_code"`
-	Side                string        `json:"side"`
-	PositionSide        string        `json:"position_side"`
-	Type                string        `json:"type"`
-	PriceMatch          string        `json:"price_match"`
-	OrderID             string        `json:"order_id"`
-	ClientOrderID       string        `json:"client_order_id"`
-	MarginMode          string        `json:"margin_mode"`
-	Price               types.Number  `json:"price"`
-	Volume              types.Number  `json:"volume"`
-	LeverageRate        types.Number  `json:"lever_rate"`
-	State               string        `json:"state"`
-	OrderSource         string        `json:"order_source"`
-	ReduceOnly          types.Boolean `json:"reduce_only"`
-	TimeInForce         string        `json:"time_in_force"`
-	TakeProfitTrigger   types.Number  `json:"tp_trigger_price"`
-	TakeProfitPrice     types.Number  `json:"tp_order_price"`
-	TakeProfitType      string        `json:"tp_type"`
-	TakeProfitPriceType string        `json:"tp_trigger_price_type"`
-	StopLossTrigger     types.Number  `json:"sl_trigger_price"`
-	StopLossPrice       types.Number  `json:"sl_order_price"`
-	StopLossType        string        `json:"sl_type"`
-	StopLossPriceType   string        `json:"sl_trigger_price_type"`
-	TradeAveragePrice   types.Number  `json:"trade_avg_price"`
-	TradeVolume         types.Number  `json:"trade_volume"`
-	TradeTurnover       types.Number  `json:"trade_turnover"`
-	FeeCurrency         string        `json:"fee_currency"`
-	Fee                 types.Number  `json:"fee"`
-	PriceProtect        types.Boolean `json:"price_protect"`
-	Profit              types.Number  `json:"profit"`
-	ContractType        string        `json:"contract_type"`
-	CreatedTime         types.Time    `json:"created_time"`
-	UpdatedTime         types.Time    `json:"updated_time"`
-	CancelReason        string        `json:"cancel_reason"`
-	SelfMatchPrevent    string        `json:"self_match_prevent"`
+	ID                  string       `json:"id"`
+	ContractCode        string       `json:"contract_code"`
+	Side                string       `json:"side"`
+	PositionSide        string       `json:"position_side"`
+	Type                string       `json:"type"`
+	PriceMatch          string       `json:"price_match"`
+	OrderID             string       `json:"order_id"`
+	ClientOrderID       string       `json:"client_order_id"`
+	MarginMode          string       `json:"margin_mode"`
+	Price               types.Number `json:"price"`
+	Volume              types.Number `json:"volume"`
+	LeverageRate        types.Number `json:"lever_rate"`
+	State               V5OrderState `json:"state"`
+	OrderSource         string       `json:"order_source"`
+	ReduceOnly          V5Boolean    `json:"reduce_only"`
+	TimeInForce         string       `json:"time_in_force"`
+	TakeProfitTrigger   types.Number `json:"tp_trigger_price"`
+	TakeProfitPrice     types.Number `json:"tp_order_price"`
+	TakeProfitType      string       `json:"tp_type"`
+	TakeProfitPriceType string       `json:"tp_trigger_price_type"`
+	StopLossTrigger     types.Number `json:"sl_trigger_price"`
+	StopLossPrice       types.Number `json:"sl_order_price"`
+	StopLossType        string       `json:"sl_type"`
+	StopLossPriceType   string       `json:"sl_trigger_price_type"`
+	TradeAveragePrice   types.Number `json:"trade_avg_price"`
+	TradeVolume         types.Number `json:"trade_volume"`
+	TradeTurnover       types.Number `json:"trade_turnover"`
+	FeeCurrency         string       `json:"fee_currency"`
+	Fee                 types.Number `json:"fee"`
+	PriceProtect        V5Boolean    `json:"price_protect"`
+	Profit              types.Number `json:"profit"`
+	ContractType        string       `json:"contract_type"`
+	CreatedTime         types.Time   `json:"created_time"`
+	UpdatedTime         types.Time   `json:"updated_time"`
+	CancelReason        string       `json:"cancel_reason"`
+	SelfMatchPrevent    string       `json:"self_match_prevent"`
 }

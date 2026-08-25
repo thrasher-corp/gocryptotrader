@@ -102,7 +102,7 @@ func (e *Exchange) V5UniversalTransfer(ctx context.Context, req *V5UniversalTran
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5UniversalTransferResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/universal_transfer", nil, req, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", nil, req, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -139,7 +139,7 @@ func (e *Exchange) GetV5UniversalTransferRecords(ctx context.Context, req *V5Uni
 		params.Set("direct", req.Direction)
 	}
 	var resp *V5UniversalTransferRecordsResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/universal_transfer_records", params, nil, &resp); err != nil {
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/universal_transfer_records", params, nil, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil

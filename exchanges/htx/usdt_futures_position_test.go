@@ -3,13 +3,16 @@ package htx
 import (
 	"io"
 	"net/http"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -80,12 +83,31 @@ func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 
 func TestSwitchLinearSwapLeverage(t *testing.T) {
 	t.Parallel()
+	var calls atomic.Int64
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"message":"Success","data":{"contract_code":"BTC-USDT","lever_rate":"5"}}`, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err, "request body should be readable")
-		assert.Contains(t, string(body), `"margin_mode"`, "V5 leverage request should include margin mode")
-		assert.Contains(t, string(body), `"lever_rate":"5"`, "V5 leverage request should encode leverage as documented")
+		if !assert.NoError(t, err, "request body should be readable") {
+			return
+		}
+		var request V5SetLeverageRequest
+		if !assert.NoError(t, json.Unmarshal(body, &request), "request body should decode") {
+			return
+		}
+		assert.Equal(t, types.Number(5), request.LeverageRate, "V5 leverage request should encode leverage as documented")
+		switch calls.Add(1) {
+		case 1:
+			assert.Equal(t, "isolated", request.MarginMode, "isolated leverage should use isolated margin mode")
+			assert.Equal(t, "long", request.PositionSide, "buy leverage should target the long position")
+			return
+		case 2:
+			assert.Equal(t, "cross", request.MarginMode, "cross leverage should use cross margin mode")
+			assert.Equal(t, "short", request.PositionSide, "sell leverage should target the short position")
+			return
+		default:
+			assert.Equal(t, "both", request.PositionSide, "unspecified leverage should target both positions")
+		}
 	})
-	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false), "isolated SwitchLinearSwapLeverage must not error")
-	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, true), "cross SwitchLinearSwapLeverage must not error")
+	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false, order.Buy), "isolated SwitchLinearSwapLeverage must not error")
+	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, true, order.Sell), "cross SwitchLinearSwapLeverage must not error")
+	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false, order.UnknownSide), "unspecified SwitchLinearSwapLeverage must not error")
 }

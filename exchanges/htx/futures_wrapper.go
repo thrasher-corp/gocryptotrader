@@ -154,7 +154,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 }
 
 // SetLeverage changes the account leverage for an HTX derivatives contract.
-func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, _ order.Side) error {
+func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, side order.Side) error {
 	if pair.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
@@ -176,9 +176,9 @@ func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curren
 	case asset.USDTMarginedFutures:
 		switch marginType {
 		case margin.Isolated, margin.Unset:
-			return e.SwitchLinearSwapLeverage(ctx, pair, leverage, false)
+			return e.SwitchLinearSwapLeverage(ctx, pair, leverage, false, side)
 		case margin.Multi:
-			return e.SwitchLinearSwapLeverage(ctx, pair, leverage, true)
+			return e.SwitchLinearSwapLeverage(ctx, pair, leverage, true, side)
 		default:
 			return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
 		}
@@ -258,7 +258,7 @@ func (e *Exchange) GetCollateralMode(ctx context.Context, item asset.Item) (coll
 	switch resp.Data.AssetMode {
 	case 1:
 		return collateral.MultiMode, nil
-	case 2:
+	case 0, 2:
 		return collateral.SingleMode, nil
 	default:
 		return collateral.UnsetMode, fmt.Errorf("%w %d", collateral.ErrInvalidCollateralMode, resp.Data.AssetMode)

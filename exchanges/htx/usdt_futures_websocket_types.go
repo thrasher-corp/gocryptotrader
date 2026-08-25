@@ -89,22 +89,22 @@ type V5WsOrderData struct {
 
 // V5WsTradeUpdate contains an authenticated V5 USDT-margined execution update.
 type V5WsTradeUpdate struct {
-	Operation    string          `json:"op"`
-	Topic        string          `json:"topic"`
-	ContractCode string          `json:"contract_code"`
-	Timestamp    types.Time      `json:"ts"`
-	UID          string          `json:"uid"`
-	Data         json.RawMessage `json:"data"`
+	Operation    string        `json:"op"`
+	Topic        string        `json:"topic"`
+	ContractCode string        `json:"contract_code"`
+	Timestamp    types.Time    `json:"ts"`
+	UID          string        `json:"uid"`
+	Data         V5WsOrderData `json:"data"`
 }
 
 // V5WsTradeDetailUpdate contains an authenticated V5 USDT-margined execution-detail update.
 type V5WsTradeDetailUpdate struct {
-	Operation    string          `json:"op"`
-	Topic        string          `json:"topic"`
-	ContractCode string          `json:"contract_code"`
-	Timestamp    types.Time      `json:"ts"`
-	UID          string          `json:"uid"`
-	Data         json.RawMessage `json:"data"`
+	Operation    string        `json:"op"`
+	Topic        string        `json:"topic"`
+	ContractCode string        `json:"contract_code"`
+	Timestamp    types.Time    `json:"ts"`
+	UID          string        `json:"uid"`
+	Data         V5WsOrderData `json:"data"`
 }
 
 // V5WsPositionUpdate contains an authenticated V5 USDT-margined position update.
@@ -119,21 +119,21 @@ type V5WsPositionUpdate struct {
 
 // V5WsAccountUpdate contains an authenticated V5 USDT-margined account update.
 type V5WsAccountUpdate struct {
-	Operation string          `json:"op"`
-	Topic     string          `json:"topic"`
-	Timestamp types.Time      `json:"ts"`
-	UID       string          `json:"uid"`
-	Data      json.RawMessage `json:"data"`
+	Operation string           `json:"op"`
+	Topic     string           `json:"topic"`
+	Timestamp types.Time       `json:"ts"`
+	UID       string           `json:"uid"`
+	Data      V5AccountBalance `json:"data"`
 }
 
 // V5WsMatchOrderUpdate contains an authenticated V5 USDT-margined match-order update.
 type V5WsMatchOrderUpdate struct {
-	Operation    string          `json:"op"`
-	Topic        string          `json:"topic"`
-	ContractCode string          `json:"contract_code"`
-	Timestamp    types.Time      `json:"ts"`
-	UID          string          `json:"uid"`
-	Data         json.RawMessage `json:"data"`
+	Operation    string        `json:"op"`
+	Topic        string        `json:"topic"`
+	ContractCode string        `json:"contract_code"`
+	Timestamp    types.Time    `json:"ts"`
+	UID          string        `json:"uid"`
+	Data         V5WsOrderData `json:"data"`
 }
 
 // V5WsAlgoOrderUpdate contains an authenticated V5 USDT-margined strategy-order update.

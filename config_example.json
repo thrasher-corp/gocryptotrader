@@ -2246,6 +2246,19 @@
        "delimiter": "-"
       }
      },
+     "usdtmarginedfutures": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT",
+      "available": "BTC-USDT",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
      "spot": {
       "assetEnabled": true,
       "enabled": "BTC-USDT",
@@ -2332,6 +2345,182 @@
      {
       "enabled": true,
       "channel": "myAccount",
+      "asset": "spot",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "futures"
+     },
+     {
+      "enabled": true,
+      "channel": "candles",
+      "asset": "futures",
+      "interval": "1m"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "futures"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "futures"
+     },
+     {
+      "enabled": false,
+      "channel": "myOrders",
+      "asset": "futures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "myTrades",
+      "asset": "futures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "myAccount",
+      "asset": "futures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "positions",
+      "asset": "futures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "triggerOrders",
+      "asset": "futures",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "coinmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "candles",
+      "asset": "coinmarginedfutures",
+      "interval": "1m"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "coinmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "coinmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "public.%s.funding_rate",
+      "asset": "coinmarginedfutures"
+     },
+     {
+      "enabled": false,
+      "channel": "myOrders",
+      "asset": "coinmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "myTrades",
+      "asset": "coinmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "myAccount",
+      "asset": "coinmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "positions",
+      "asset": "coinmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "triggerOrders",
+      "asset": "coinmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "usdtmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "candles",
+      "asset": "usdtmarginedfutures",
+      "interval": "1m"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "usdtmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "usdtmarginedfutures"
+     },
+     {
+      "enabled": true,
+      "channel": "public.%s.funding_rate",
+      "asset": "usdtmarginedfutures"
+     },
+     {
+      "enabled": false,
+      "channel": "myOrders",
+      "asset": "usdtmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "tradeUpdates",
+      "asset": "usdtmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "executionDetails",
+      "asset": "usdtmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "myAccount",
+      "asset": "usdtmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "positions",
+      "asset": "usdtmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "myTrades",
+      "asset": "usdtmarginedfutures",
+      "authenticated": true
+     },
+     {
+      "enabled": false,
+      "channel": "triggerOrders",
+      "asset": "usdtmarginedfutures",
       "authenticated": true
      }
     ]

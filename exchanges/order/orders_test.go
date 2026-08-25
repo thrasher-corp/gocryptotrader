@@ -920,6 +920,7 @@ var stringsToOrderStatus = []struct {
 	{"INSUFFICIENT_BALANCE", InsufficientBalance, nil},
 	{"iNsUfFiCiEnT_bAlAnCe", InsufficientBalance, nil},
 	{"PARTIALLY_CANCELLEd", PartiallyCancelled, nil},
+	{"PARTIALLY_CANCELED", PartiallyCancelled, nil},
 	{"partially canceLLed", PartiallyCancelled, nil},
 	{"opeN", Open, nil},
 	{"cLosEd", Closed, nil},

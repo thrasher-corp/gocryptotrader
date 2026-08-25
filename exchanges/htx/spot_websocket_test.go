@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -130,6 +131,48 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 		}
 	}
 	require.Empty(t, e.Websocket.DataHandler.C, "Must not see any errors going to datahandler")
+}
+
+func TestWsTradeIDUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		input       []byte
+		expected    WsTradeID
+		expectedErr error
+		wantErr     bool
+	}{
+		{name: "numeric", input: []byte(`137005445109359290000000000`), expected: "137005445109359290000000000"},
+		{name: "quoted", input: []byte(`"137005445109359290000000000"`), expected: "137005445109359290000000000"},
+		{name: "whitespace", input: []byte(" 123 "), expected: "123"},
+		{name: "empty", expectedErr: errInvalidTradeID},
+		{name: "non-integer", input: []byte(`12.3`), expectedErr: errInvalidTradeID},
+		{name: "malformed string", input: []byte(`"123`), wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var id WsTradeID
+			err := id.UnmarshalJSON(tc.input)
+			if tc.wantErr || tc.expectedErr != nil {
+				if tc.expectedErr != nil {
+					require.ErrorIs(t, err, tc.expectedErr, "UnmarshalJSON must return the expected error")
+				} else {
+					require.Error(t, err, "UnmarshalJSON must reject malformed input")
+				}
+				return
+			}
+			require.NoError(t, err, "UnmarshalJSON must decode the trade ID")
+			assert.Equal(t, tc.expected, id, "trade ID should retain its exact value")
+		})
+	}
+
+	t.Run("feed payload", func(t *testing.T) {
+		t.Parallel()
+		var response WsTrade
+		require.NoError(t, json.Unmarshal([]byte(`{"tick":{"data":[{"id":137005445109359290000000000}]}}`), &response), "large derivative trade ID must decode")
+		require.Len(t, response.Tick.Data, 1, "one trade must decode")
+		assert.Equal(t, WsTradeID("137005445109359290000000000"), response.Tick.Data[0].ID, "trade ID should retain full precision")
+	})
 }
 
 func TestWSHandleTickerMsg(t *testing.T) {
@@ -580,9 +623,9 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "ExpandTemplates must not error")
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
-	conn, err := e.Websocket.GetConnection(exchange.WebsocketSpot)
+	_, err = e.Websocket.GetConnection(exchange.WebsocketSpot)
 	require.NoError(t, err, "spot websocket connection must be available")
-	got := conn.Subscriptions().List()
+	got := e.Websocket.GetSubscriptions()
 	require.Equal(t, 8, len(got), "Must get correct number of subscriptions")
 	for _, s := range got {
 		assert.Equal(t, subscription.SubscribedState, s.State())
@@ -613,11 +656,11 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, err, "ExpandTemplates must not error")
 	err = h.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
-	publicConn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+	_, err = h.Websocket.GetConnection(exchange.WebsocketSpot)
 	require.NoError(t, err, "spot public websocket connection must be available")
-	privateConn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
+	_, err = h.Websocket.GetConnection(exchange.WebsocketPrivate)
 	require.NoError(t, err, "spot private websocket connection must be available")
-	got := append(publicConn.Subscriptions().List(), privateConn.Subscriptions().List()...)
+	got := h.Websocket.GetSubscriptions()
 	require.Equal(t, 11, len(got), "Must get correct number of subscriptions")
 	for _, s := range got {
 		assert.Equal(t, subscription.SubscribedState, s.State())
