@@ -240,9 +240,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, private: true},
 		{endpoint: exchange.WebsocketTrade, asset: asset.USDTMarginedFutures, private: true, trade: true},
 	} {
-		if ws.trade && !exch.API.AuthenticatedWebsocketSupport {
-			continue
-		}
 		runningURL, err := e.API.Endpoints.GetURL(ws.endpoint)
 		if err != nil {
 			return err
@@ -274,6 +271,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		}
 		if ws.private {
 			setup.Authenticate = e.wsAuthenticateConnection
+		}
+		if ws.trade {
+			setup.ConnectionEnabled = e.Websocket.CanUseAuthenticatedEndpoints
 		}
 		if err := e.Websocket.SetupNewConnection(setup); err != nil {
 			return err
@@ -1979,17 +1979,25 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if responseID != orderID {
 			return nil, fmt.Errorf("%s - GetOrderInfo order ID mismatch; expected %s, received %s", e.Name, orderID, responseID)
 		}
-		typeDetails := strings.Split(respData.Type, "-")
-		if len(typeDetails) < 2 {
+		if !strings.Contains(respData.Type, "-") {
 			return nil, fmt.Errorf("%w %q", errInvalidOrderPriceType, respData.Type)
 		}
-		orderSide, err := order.StringToOrderSide(typeDetails[0])
+		orderSide, err := stringToOrderSide(respData.Type)
 		if err != nil {
 			return nil, err
 		}
-		orderType, err := order.StringToOrderType(typeDetails[1])
+		orderType, err := stringToOrderType(respData.Type)
 		if err != nil {
 			return nil, err
+		}
+		timeInForce := order.UnknownTIF
+		switch {
+		case strings.Contains(respData.Type, "maker"):
+			timeInForce = order.PostOnly
+		case strings.HasSuffix(respData.Type, "-fok"):
+			timeInForce = order.FillOrKill
+		case strings.HasSuffix(respData.Type, "-ioc"):
+			timeInForce = order.ImmediateOrCancel
 		}
 		orderStatus, err := order.StringToOrderStatus(respData.State)
 		if err != nil {
@@ -2008,6 +2016,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Pair:           p,
 			Type:           orderType,
 			Side:           orderSide,
+			TimeInForce:    timeInForce,
 			Date:           respData.CreatedAt.Time(),
 			Status:         orderStatus,
 			Price:          respData.Price.Float64(),
@@ -2066,19 +2075,25 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		orderDetail.InferCostsAndTimes()
 	case asset.USDTMarginedFutures:
 		var orderInfo *V5OrderQueryResponse
-		var err error
+		var lookupErr error
 		for _, marginMode := range []string{"cross", "isolated"} {
+			var err error
 			orderInfo, err = e.GetV5Order(ctx, pair, marginMode, orderID, "")
 			if err != nil {
-				return nil, err
+				lookupErr = common.AppendError(lookupErr, fmt.Errorf("%s margin order lookup: %w", marginMode, err))
+				continue
 			}
 			if orderInfo != nil && orderInfo.Data.OrderID != "" {
 				break
 			}
 		}
 		if orderInfo == nil || orderInfo.Data.OrderID == "" {
+			if lookupErr != nil {
+				return nil, lookupErr
+			}
 			return nil, errEmptyResult
 		}
+		var err error
 		orderDetail, err = e.formatV5OrderDetail(&orderInfo.Data, assetType)
 		if err != nil {
 			return nil, err

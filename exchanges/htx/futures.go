@@ -578,7 +578,7 @@ func (e *Exchange) FGetSingleSubPositions(ctx context.Context, symbol, subUID st
 }
 
 // FGetFinancialRecords gets financial records for futures
-func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType string, createDate, pageIndex, _ int64) (FFinancialRecords, error) {
+func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType string, createDate, pageIndex, pageSize int64) (FFinancialRecords, error) {
 	var resp FFinancialRecords
 	req := make(map[string]any)
 	if symbol != "" {
@@ -596,6 +596,9 @@ func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType 
 	}
 	if pageIndex != 0 {
 		req["from_id"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["limit"] = pageSize
 	}
 	req["direct"] = v3HistoryDirectionNext
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fFinancialRecords, nil, req, &resp); err != nil {
@@ -1091,7 +1094,7 @@ func (e *Exchange) FGetOrderHistoryByTimeRange(ctx context.Context, contractCode
 }
 
 // FTradeHistory gets trade history data for futures
-func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, lookbackDays, pageIndex, _ int64) (FTradeHistoryData, error) {
+func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, lookbackDays, pageIndex, pageSize int64) (FTradeHistoryData, error) {
 	var resp FTradeHistoryData
 	req := make(map[string]any)
 	req["symbol"] = symbol
@@ -1116,6 +1119,9 @@ func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair
 	req["direct"] = v3HistoryDirectionNext
 	if pageIndex != 0 {
 		req["from_id"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["limit"] = pageSize
 	}
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fMatchResult, nil, req, &resp); err != nil {
 		return resp, err

@@ -493,7 +493,7 @@ func (e *Exchange) GetSubAccPositionInfo(ctx context.Context, code currency.Pair
 }
 
 // GetAccountFinancialRecords gets the account's financial records
-func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, createDate, pageIndex, _ int64) (FinancialRecordData, error) {
+func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, createDate, pageIndex, pageSize int64) (FinancialRecordData, error) {
 	var resp FinancialRecordData
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -511,6 +511,9 @@ func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency
 	}
 	if pageIndex != 0 {
 		req["from_id"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["limit"] = pageSize
 	}
 	req["direct"] = v3HistoryDirectionNext
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_financial_record", nil, req, &resp); err != nil {
@@ -941,7 +944,7 @@ func (e *Exchange) GetSwapOrderHistoryByTimeRange(ctx context.Context, contractC
 }
 
 // GetSwapTradeHistory gets swap trade history
-func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, lookbackDays, pageIndex, _ int64) (AccountTradeHistoryData, error) {
+func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, lookbackDays, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
 	var resp AccountTradeHistoryData
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -963,6 +966,9 @@ func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currenc
 	req["direct"] = v3HistoryDirectionNext
 	if pageIndex != 0 {
 		req["from_id"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["limit"] = pageSize
 	}
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_matchresults", nil, req, &resp); err != nil {
 		return resp, err

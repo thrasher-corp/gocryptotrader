@@ -284,7 +284,13 @@ func TestFGetSingleSubPositions(t *testing.T) {
 
 func TestFGetFinancialRecords(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fFinancialRecords, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fFinancialRecords, emptySuccessResponse, func(r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err, "request body must be readable")
+		var requestBody map[string]any
+		require.NoError(t, json.Unmarshal(body, &requestBody), "request body must decode")
+		assert.Equal(t, float64(20), requestBody["limit"], "page size should be sent as the V3 limit")
+	})
 	_, err := h.FGetFinancialRecords(t.Context(), "BTC", "closeLong", 2, 1, 20)
 	require.NoError(t, err, "FGetFinancialRecords must not error")
 }
@@ -467,7 +473,13 @@ func TestFGetOrderHistoryByTimeRange(t *testing.T) {
 
 func TestFTradeHistory(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fMatchResult, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fMatchResult, emptySuccessResponse, func(r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err, "request body must be readable")
+		var requestBody map[string]any
+		require.NoError(t, json.Unmarshal(body, &requestBody), "request body must decode")
+		assert.Equal(t, float64(20), requestBody["limit"], "page size should be sent as the V3 limit")
+	})
 	_, err := h.FTradeHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", 2, 1, 20)
 	require.NoError(t, err, "FTradeHistory must not error")
 }

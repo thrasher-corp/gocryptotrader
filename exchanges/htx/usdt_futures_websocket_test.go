@@ -2,7 +2,6 @@ package htx
 
 import (
 	"context"
-	"net/http"
 	"testing"
 	"time"
 
@@ -12,11 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -24,26 +21,35 @@ import (
 )
 
 // newV5TradeWebsocketTestExchange configures the dedicated trade connection used by V5 websocket tests.
-func newV5TradeWebsocketTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
+func newV5TradeWebsocketTestExchange(t *testing.T, handler mockws.WsMockFunc) *Exchange {
 	t.Helper()
-	h := testexch.MockWsInstance[Exchange](t, handler)
-	spotConn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
-	require.NoError(t, err, "spot connection must be available")
-	require.NoError(t, h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      spotConn.GetURL(),
-		RateLimit:                request.NewWeightedRateLimitByDuration(3 * time.Second / 24),
-		ResponseCheckTimeout:     time.Second,
-		ResponseMaxLimit:         time.Second,
-		Connector:                h.wsConnect,
-		Handler:                  h.wsHandleData,
-		MessageFilter:            exchange.WebsocketTrade,
-		SubscriptionsNotRequired: true,
-	}), "trade connection must be configured")
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+		tb.Helper()
+		operation, _ := jsonparser.GetString(message, "op")
+		if operation == wsAuthChannel {
+			return wsFixture(tb, message, conn)
+		}
+		return handler(tb, message, conn)
+	}))
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.NoError(t, h.Websocket.Shutdown(), "existing websocket connections must shut down")
 	require.NoError(t, h.Websocket.Connect(t.Context()), "websocket connections must reconnect with the trade endpoint")
-	_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
+	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
 	require.NoError(t, err, "trade connection must be available")
 	return h
+}
+
+func TestV5TradeConnectionRuntimeGate(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+	require.Error(t, err, "trade connection must be skipped while authenticated endpoints are disabled")
+
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.NoError(t, h.Websocket.Shutdown(), "existing websocket connections must shut down")
+	require.NoError(t, h.Websocket.Connect(t.Context()), "websocket connections must reconnect after authentication is enabled")
+	_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
+	require.NoError(t, err, "trade connection must become available after authentication is enabled")
 }
 
 func TestSendV5TradeRequest(t *testing.T) {
@@ -58,7 +64,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 			name: "success",
 			setup: func(t *testing.T) *Exchange {
 				t.Helper()
-				return newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+				return newV5TradeWebsocketTestExchange(t, wsFixture)
 			},
 		},
 		{
@@ -75,7 +81,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 			name: "cancelled context",
 			setup: func(t *testing.T) *Exchange {
 				t.Helper()
-				return newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+				return newV5TradeWebsocketTestExchange(t, wsFixture)
 			},
 			expectedErr: true,
 			cancel:      true,
@@ -92,7 +98,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 					}
 					return conn.WriteMessage(gws.TextMessage, []byte(`{"code":400,"message":"invalid request","cid":"`+cid+`"}`))
 				}
-				return newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, fixture))
+				return newV5TradeWebsocketTestExchange(t, fixture)
 			},
 			expectedErr: true,
 		},
@@ -100,7 +106,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 			name: "send error",
 			setup: func(t *testing.T) *Exchange {
 				t.Helper()
-				h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+				h := newV5TradeWebsocketTestExchange(t, wsFixture)
 				conn, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
 				require.NoError(t, err, "trade connection must be available")
 				require.NoError(t, conn.Shutdown(), "trade connection must shut down")
@@ -120,7 +126,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 					}
 					return conn.WriteMessage(gws.TextMessage, []byte(`{"code":200,"cid":"`+cid+`","data":[]}`))
 				}
-				return newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, fixture))
+				return newV5TradeWebsocketTestExchange(t, fixture)
 			},
 			expectedErr: true,
 		},
@@ -149,7 +155,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 
 func TestWSPlaceV5Order(t *testing.T) {
 	t.Parallel()
-	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WSPlaceV5Order(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSPlaceV5Order must reject nil request")
 	resp, err := h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1})
@@ -160,7 +166,7 @@ func TestWSPlaceV5Order(t *testing.T) {
 
 func TestWSPlaceV5BatchOrders(t *testing.T) {
 	t.Parallel()
-	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WSPlaceV5BatchOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams, "WSPlaceV5BatchOrders must reject empty request")
 	resp, err := h.WSPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1}})
@@ -171,7 +177,7 @@ func TestWSPlaceV5BatchOrders(t *testing.T) {
 
 func TestWSCancelV5Order(t *testing.T) {
 	t.Parallel()
-	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WSCancelV5Order(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelV5Order must reject nil request")
 	resp, err := h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
@@ -181,7 +187,7 @@ func TestWSCancelV5Order(t *testing.T) {
 
 func TestWSCancelV5BatchOrders(t *testing.T) {
 	t.Parallel()
-	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WSCancelV5BatchOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelV5BatchOrders must reject nil request")
 	resp, err := h.WSCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1"}})
@@ -192,7 +198,7 @@ func TestWSCancelV5BatchOrders(t *testing.T) {
 
 func TestWSCancelAllV5Orders(t *testing.T) {
 	t.Parallel()
-	h := newV5TradeWebsocketTestExchange(t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	_, err := h.WSCancelAllV5Orders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelAllV5Orders must reject nil request")
 	resp, err := h.WSCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "BTC-USDT"})

@@ -559,6 +559,24 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			err := ws.Connect(t.Context())
 			require.ErrorIs(t, err, common.ErrFatal, "must error on connect when no subscriptions are required")
 		})
+
+		t.Run("runtime disabled connection", func(t *testing.T) {
+			var connectorCalled bool
+			ws := newConfiguredMultiManager(t, &ConnectionSetup{
+				URL:                      mockURL,
+				SubscriptionsNotRequired: true,
+				ConnectionEnabled:        func() bool { return false },
+				Connector: func(context.Context, Connection) error {
+					connectorCalled = true
+					return errDastardlyReason
+				},
+				Handler: noopHandler,
+			})
+
+			require.NoError(t, ws.Connect(t.Context()), "runtime-disabled connection must be skipped")
+			assert.False(t, connectorCalled, "runtime-disabled connection should not call its connector")
+			require.NoError(t, ws.Shutdown(), "runtime-disabled manager must shut down")
+		})
 	})
 }
 

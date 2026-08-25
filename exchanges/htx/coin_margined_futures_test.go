@@ -167,7 +167,13 @@ func TestSwapSingleSubAccAssets(t *testing.T) {
 
 func TestGetAccountFinancialRecords(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_financial_record", emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_financial_record", emptySuccessResponse, func(r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err, "request body must be readable")
+		var requestBody map[string]any
+		require.NoError(t, json.Unmarshal(body, &requestBody), "request body must decode")
+		assert.Equal(t, float64(20), requestBody["limit"], "page size should be sent as the V3 limit")
+	})
 	_, err := h.GetAccountFinancialRecords(t.Context(), ethusdPair, "3,4", 2, 1, 20)
 	require.NoError(t, err, "GetAccountFinancialRecords must not error")
 }
@@ -329,7 +335,13 @@ func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
 
 func TestGetSwapTradeHistory(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_matchresults", emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_matchresults", emptySuccessResponse, func(r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err, "request body must be readable")
+		var requestBody map[string]any
+		require.NoError(t, json.Unmarshal(body, &requestBody), "request body must decode")
+		assert.Equal(t, float64(20), requestBody["limit"], "page size should be sent as the V3 limit")
+	})
 	_, err := h.GetSwapTradeHistory(t.Context(), ethusdPair, "liquidateShort", 2, 1, 20)
 	require.NoError(t, err, "GetSwapTradeHistory must not error")
 }

@@ -77,6 +77,9 @@ type ConnectionSetup struct {
 	// exchange's websocket server. This will be called once when the stream
 	// service is started. Any bespoke connection logic should be handled here.
 	Connector func(ctx context.Context, conn Connection) error
+	// ConnectionEnabled allows runtime state to suppress a connection without
+	// treating it as a fatal connection failure.
+	ConnectionEnabled func() bool
 	// GenerateSubscriptions is a function that will be called to generate a
 	// list of subscriptions to be made to the exchange's websocket server.
 	GenerateSubscriptions func() (subscription.List, error)
