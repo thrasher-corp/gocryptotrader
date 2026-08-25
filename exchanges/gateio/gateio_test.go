@@ -2940,8 +2940,9 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"user":20011}`))
-		require.NoError(t, err, "Mock futures account response must be written")
+		if _, err := w.Write([]byte(`{"user":20011}`)); err != nil {
+			t.Errorf("Mock futures account response should be written: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 	require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
