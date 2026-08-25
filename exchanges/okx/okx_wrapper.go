@@ -419,7 +419,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			BidSize:      spreadTicker[0].BidSize.Float64(),
 			Ask:          spreadTicker[0].AskPrice.Float64(),
 			AskSize:      spreadTicker[0].AskSize.Float64(),
-			Volume:       spreadTicker[0].Volume24Hour.Float64(),
+			BaseVolume:   spreadTicker[0].Volume24Hour.Float64(),
 			Open:         spreadTicker[0].Open24Hour.Float64(),
 			LastUpdated:  spreadTicker[0].Timestamp.Time(),
 			Pair:         p,
@@ -450,7 +450,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			BidSize:      mdata.BestBidSize.Float64(),
 			Ask:          mdata.BestAskPrice.Float64(),
 			AskSize:      mdata.BestAskSize.Float64(),
-			Volume:       baseVolume,
+			BaseVolume:   baseVolume,
 			QuoteVolume:  quoteVolume,
 			Open:         mdata.Open24H.Float64(),
 			Pair:         p,
@@ -538,7 +538,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 					BidSize:      ticks[y].BestBidSize.Float64(),
 					Ask:          ticks[y].BestAskPrice.Float64(),
 					AskSize:      ticks[y].BestAskSize.Float64(),
-					Volume:       ticks[y].Vol24H.Float64(),
+					BaseVolume:   ticks[y].Vol24H.Float64(),
 					QuoteVolume:  ticks[y].VolCcy24H.Float64(),
 					Open:         ticks[y].Open24H.Float64(),
 					Pair:         pairFmt,
@@ -582,6 +582,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 				Pair:              pair,
 				Asset:             assetType,
 				ValidateOrderbook: e.ValidateOrderbook,
+				LastUpdated:       spreadOrderbook[y].Timestamp.Time(),
 			}
 			book.Bids = make(orderbook.Levels, 0, len(spreadOrderbook[y].Bids))
 			for b := range spreadOrderbook[y].Bids {
@@ -652,6 +653,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 				Price:  orderBookD.Asks[x].DepthPrice.Float64(),
 			}
 		}
+		book.LastUpdated = orderBookD.GenerationTimestamp.Time()
 		err = book.Process()
 		if err != nil {
 			return book, err

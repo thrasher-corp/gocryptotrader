@@ -2280,6 +2280,36 @@ func TestCreateSubUIDAPIKey(t *testing.T) {
 	}
 }
 
+// Bybit rejects ips or apikey sent empty, so both must be omitted from the wire when unset
+func TestAPIKeyParamIPsMarshal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"create, ips unset", &SubUIDAPIKeyParam{Subuid: 1, Note: "n"}, `{"subuid":1,"note":"n","readOnly":0}`},
+		{"create, ips set", &SubUIDAPIKeyParam{Subuid: 1, Note: "n", IPs: "*"}, `{"subuid":1,"note":"n","readOnly":0,"ips":"*"}`},
+		{"create, IPAddresses is not sent directly", &SubUIDAPIKeyParam{Subuid: 1, Note: "n", IPAddresses: []string{"192.168.0.1"}}, `{"subuid":1,"note":"n","readOnly":0}`},
+		{"update, ips and apikey unset", &SubUIDAPIKeyUpdateParam{}, `{"permissions":{}}`},
+		{"update, ips and apikey set", &SubUIDAPIKeyUpdateParam{APIKey: "k", IPs: "192.168.0.1,192.168.0.2"}, `{"apikey":"k","ips":"192.168.0.1,192.168.0.2","permissions":{}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := json.Marshal(tc.in)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, tc.want, string(out), "request body should match")
+		})
+	}
+}
+
+func TestJoinIPAddresses(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, joinIPAddresses("", nil), "neither field set should stay empty so ips is omitted")
+	assert.Equal(t, "192.168.0.1,192.168.0.2", joinIPAddresses("", []string{"192.168.0.1", "192.168.0.2"}), "IPAddresses should be joined into the documented comma separated string")
+	assert.Equal(t, "*", joinIPAddresses("*", []string{"192.168.0.1"}), "an explicitly set ips should take precedence")
+}
+
 func TestGetSubUIDList(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3261,7 +3291,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 21109.77, v.Last, "Last should be correct")
 				assert.Equal(t, 21426.99, v.High, "High should be correct")
 				assert.Equal(t, 20575.00, v.Low, "Low should be correct")
-				assert.Equal(t, 6780.866843, v.Volume, "Volume should be correct")
+				assert.Equal(t, 6780.866843, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, asset.Spot, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			case 2: // Option
@@ -3269,7 +3299,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 3565.00, v.Last, "Last should be correct")
 				assert.Equal(t, 3715.00, v.High, "High should be correct")
 				assert.Equal(t, 3555.00, v.Low, "Low should be correct")
-				assert.Equal(t, 1.62, v.Volume, "Volume should be correct")
+				assert.Equal(t, 1.62, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 3475.00, v.Bid, "Bid should be correct")
 				assert.Equal(t, 10.14, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 3520.00, v.Ask, "Ask should be correct")
@@ -3286,7 +3316,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
 				assert.Equal(t, 62752.90, v.High, "High should be correct")
 				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
-				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 98430.1050, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61873.9, v.Bid, "Bid should be correct")
 				assert.Equal(t, 3.783, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
@@ -3302,7 +3332,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
 				assert.Equal(t, 62752.90, v.High, "High should be correct")
 				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
-				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 98430.1050, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61873.90, v.Bid, "Bid should be correct")
 				assert.Equal(t, 3.543, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
@@ -3318,7 +3348,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
 				assert.Equal(t, 62242.2, v.High, "High should be correct")
 				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
-				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 427.375, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61909.2, v.Bid, "Bid should be correct")
 				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
@@ -3334,7 +3364,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
 				assert.Equal(t, 62242.2, v.High, "High should be correct")
 				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
-				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 427.375, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61909.5, v.Bid, "Bid should be correct")
 				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
@@ -3350,7 +3380,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
 				assert.Equal(t, 62265.5, v.High, "High should be correct")
 				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
-				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 391976479.0, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
 				assert.Equal(t, 12667.0, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")
@@ -3366,7 +3396,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
 				assert.Equal(t, 62265.5, v.High, "High should be correct")
 				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
-				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 391976479.0, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
 				assert.Equal(t, 27634.0, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")

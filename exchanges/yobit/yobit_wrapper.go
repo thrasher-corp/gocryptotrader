@@ -170,7 +170,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Bid:          resultCurr.Buy,
 			High:         resultCurr.High,
 			Low:          resultCurr.Low,
-			Volume:       resultCurr.BaseVolume,
+			BaseVolume:   resultCurr.BaseVolume,
 			QuoteVolume:  resultCurr.QuoteVolume,
 			ExchangeName: e.Name,
 			AssetType:    a,

@@ -1417,7 +1417,7 @@ func TestWSTicker(t *testing.T) {
 		High:         52924.14,
 		Low:          51000,
 		Bid:          0,
-		Volume:       13991.028076056185,
+		BaseVolume:   13991.028076056185,
 		QuoteVolume:  7.27676440200527e+08,
 		Open:         51823.62,
 		Close:        52379.99,

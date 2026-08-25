@@ -33,13 +33,13 @@ type MarketPair struct {
 	LowestAsk           float64             `json:"lowestAsk"`
 	HighestBid          float64             `json:"highestBid"`
 	PercentageChange    float64             `json:"percentageChange"`
-	Volume              float64             `json:"volume"`
+	Volume              float64             `json:"volume"` // 24h volume in the quote currency; Size carries the base
 	High24Hr            float64             `json:"high24Hr"`
 	Low24Hr             float64             `json:"low24Hr"`
 	Base                currency.Code       `json:"base"`
 	Quote               currency.Code       `json:"quote"`
 	Active              bool                `json:"active"`
-	Size                float64             `json:"size"`
+	Size                float64             `json:"size"` // 24h volume in the base currency
 	MinValidPrice       float64             `json:"minValidPrice"`
 	MinPriceIncrement   float64             `json:"minPriceIncrement"`
 	MinOrderSize        float64             `json:"minOrderSize"`

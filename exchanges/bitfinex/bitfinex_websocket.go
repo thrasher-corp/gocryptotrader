@@ -834,7 +834,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[6].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[7].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[7].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[8].(float64); !ok {
@@ -868,7 +868,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[10].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[10].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[11].(float64); !ok {

@@ -308,7 +308,7 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 		Low:          1337,
 		Bid:          1337,
 		Ask:          1337,
-		Volume:       1337,
+		BaseVolume:   1337,
 		QuoteVolume:  1337,
 		PriceATH:     1337,
 		Open:         1337,

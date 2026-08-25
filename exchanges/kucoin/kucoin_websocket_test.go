@@ -615,7 +615,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
 				assert.Equal(t, 0.004191, v.Low, "low")
 				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 13097.3357, v.Volume, "volume")
+				assert.Equal(t, 13097.3357, v.BaseVolume, "volume")
 				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
 			case 2, 1:
 				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
@@ -626,7 +626,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
 				assert.Equal(t, 0.05364, v.Low, "low")
 				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2958.3139116, v.Volume, "volume")
+				assert.Equal(t, 2958.3139116, v.BaseVolume, "volume")
 				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
 			case 0:
 				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
@@ -635,7 +635,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
 				assert.Equal(t, 36700.0, v.Low, "low")
 				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2900.37846402, v.Volume, "volume")
+				assert.Equal(t, 2900.37846402, v.BaseVolume, "volume")
 				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
 			}
 		case error:

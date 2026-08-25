@@ -340,7 +340,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Bid:          tick.Bid.Float64(),
 				High:         tick.High.Float64(),
 				QuoteVolume:  tick.QuoteAmount.Float64(),
-				Volume:       tick.BaseAmount.Float64(),
+				BaseVolume:   tick.BaseAmount.Float64(),
 			}); err != nil {
 				return err
 			}
@@ -356,7 +356,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				AssetType:    assetType,
 				Pair:         tick.Symbol,
 				LastUpdated:  tick.EndTime.Time(),
-				Volume:       tick.BaseAmount.Float64(),
+				BaseVolume:   tick.BaseAmount.Float64(),
 				QuoteVolume:  tick.QuoteAmount.Float64(),
 				BidSize:      tick.BestBidSize.Float64(),
 				Bid:          tick.BestBidPrice.Float64(),
@@ -392,7 +392,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 			Ask:          tickerResult.Ask.Float64(),
 			AskSize:      tickerResult.AskQuantity.Float64(),
 			QuoteVolume:  tickerResult.QuoteAmount.Float64(),
-			Volume:       tickerResult.BaseAmount.Float64(),
+			BaseVolume:   tickerResult.BaseAmount.Float64(),
 			Open:         tickerResult.Open.Float64(),
 			Close:        tickerResult.Close.Float64(),
 			MarkPrice:    tickerResult.MarkPrice.Float64(),
@@ -423,7 +423,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 			BidSize:      tickerResult[0].BestBidSize.Float64(),
 			Ask:          tickerResult[0].BestAskPrice.Float64(),
 			AskSize:      tickerResult[0].BestAskSize.Float64(),
-			Volume:       tickerResult[0].BaseAmount.Float64(),
+			BaseVolume:   tickerResult[0].BaseAmount.Float64(),
 			QuoteVolume:  tickerResult[0].QuoteAmount.Float64(),
 			Open:         tickerResult[0].OpeningPrice.Float64(),
 			Close:        tickerResult[0].ClosingPrice.Float64(),

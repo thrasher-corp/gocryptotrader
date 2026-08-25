@@ -240,7 +240,7 @@ func TestUpdateTicker(t *testing.T) {
 	assert.Positive(t, tick.High, "High should be positive")
 	assert.Positive(t, tick.Low, "Low should be positive")
 	assert.Positive(t, tick.Open, "Open should be positive")
-	assert.Positive(t, tick.Volume, "Volume should be positive")
+	assert.Positive(t, tick.BaseVolume, "Volume should be positive")
 	assert.NotEmpty(t, tick.Pair, "Pair should not be empty")
 	assert.NotEmpty(t, tick.ExchangeName, "ExchangeName should not be empty")
 	assert.NotEmpty(t, tick.LastUpdated, "LastUpdated should not be empty")

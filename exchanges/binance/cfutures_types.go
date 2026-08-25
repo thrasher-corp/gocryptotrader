@@ -142,7 +142,7 @@ type BatchCancelOrderData struct {
 	ClientOrderID string     `json:"clientOrderId"`
 	CumQty        float64    `json:"cumQty,string"`
 	CumBase       float64    `json:"cumBase,string"`
-	ExecuteQty    float64    `json:"executeQty,string"`
+	ExecuteQty    float64    `json:"executedQty,string"`
 	OrderID       int64      `json:"orderId,string"`
 	AvgPrice      float64    `json:"avgPrice,string"`
 	OrigQty       float64    `json:"origQty,string"`
@@ -228,7 +228,7 @@ type FuturesOrderGetData struct {
 	OriginalType       string     `json:"origType"`
 	Price              float64    `json:"price,string"`
 	ReduceOnly         bool       `json:"reduceOnly"`
-	Side               string     `json:"buy"`
+	Side               string     `json:"side"`
 	PositionSide       string     `json:"positionSide"`
 	Status             string     `json:"status"`
 	StopPrice          float64    `json:"stopPrice,string"`
@@ -541,7 +541,7 @@ type CExchangeInfo struct {
 	ExchangeFilters []any `json:"exchangeFilters"`
 	RateLimits      []struct {
 		Interval      string `json:"interval"`
-		IntervalNum   int64  `json:"intervalNul"`
+		IntervalNum   int64  `json:"intervalNum"`
 		Limit         int64  `json:"limit"`
 		RateLimitType string `json:"rateLimitType"`
 	} `json:"rateLimits"`
@@ -560,7 +560,7 @@ type CExchangeInfo struct {
 			MultiplierUp      float64 `json:"multiplierUp,string"`
 			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
 		} `json:"filters"`
-		OrderTypes            []string   `json:"orderType"`
+		OrderTypes            []string   `json:"orderTypes"`
 		TimeInForce           []string   `json:"timeInForce"`
 		Symbol                string     `json:"symbol"`
 		Pair                  string     `json:"pair"`

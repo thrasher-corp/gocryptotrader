@@ -269,7 +269,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Low:          tick.Low24,
 		Bid:          tick.HighestBuy,
 		Ask:          tick.LowestSell,
-		Volume:       tick.Volume24,
+		BaseVolume:   tick.Volume24,
 		Pair:         p,
 		LastUpdated:  tick.Timestamp.Time(),
 		ExchangeName: e.Name,

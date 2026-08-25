@@ -1,6 +1,10 @@
 // Package json is an abstraction middleware package to allow switching between json encoder/decoder implementations
 // The default implementation is golang.org/encoding/json/v2.
 // Build with `sonic_on` tag to switch to using github.com/bytedance/sonic
+//
+// Encoder and Decoder expose the intersection of what both implementations provide. Relative to a
+// v1 *encoding/json.Decoder this drops UseNumber, which json/v2 has no exported equivalent for,
+// and Token and InputOffset, which sonic never provided.
 package json
 
 import (

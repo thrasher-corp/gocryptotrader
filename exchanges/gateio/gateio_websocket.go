@@ -267,7 +267,7 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			out = append(out, ticker.Price{
 				ExchangeName: e.Name,
-				Volume:       data.BaseVolume.Float64(),
+				BaseVolume:   data.BaseVolume.Float64(),
 				QuoteVolume:  data.QuoteVolume.Float64(),
 				High:         data.High24H.Float64(),
 				Low:          data.Low24H.Float64(),

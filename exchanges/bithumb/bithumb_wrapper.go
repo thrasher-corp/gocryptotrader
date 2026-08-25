@@ -232,7 +232,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         t.MaxPrice,
 			Low:          t.MinPrice,
-			Volume:       t.UnitsTraded24Hr,
+			BaseVolume:   t.UnitsTraded24Hr,
 			Open:         t.OpeningPrice,
 			Close:        t.ClosingPrice,
 			Pair:         p,

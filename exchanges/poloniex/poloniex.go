@@ -446,10 +446,10 @@ func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAcc
 		params.Set("currency", arg.Currency.String())
 	}
 	if arg.FromAccountID != "" {
-		params.Set("fromAccountID", arg.FromAccountID)
+		params.Set("fromAccountId", arg.FromAccountID)
 	}
 	if arg.ToAccountID != "" {
-		params.Set("toAccountID", arg.ToAccountID)
+		params.Set("toAccountId", arg.ToAccountID)
 	}
 	if arg.FromAccountType != "" {
 		params.Set("fromAccountType", arg.FromAccountType)

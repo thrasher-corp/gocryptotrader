@@ -553,7 +553,7 @@ func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
 		tick.Low = resp.LowPrice24H.Float64()
 	}
 	if resp.Volume24H.Float64() != 0 {
-		tick.Volume = resp.Volume24H.Float64()
+		tick.BaseVolume = resp.Volume24H.Float64()
 	}
 
 	if tick.AssetType == asset.Spot {

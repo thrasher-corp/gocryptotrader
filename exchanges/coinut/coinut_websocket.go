@@ -236,7 +236,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			ExchangeName: e.Name,
-			Volume:       wsTicker.Volume24,
+			BaseVolume:   wsTicker.Volume24,
 			QuoteVolume:  wsTicker.Volume24Quote,
 			Bid:          wsTicker.HighestBuy,
 			Ask:          wsTicker.LowestSell,

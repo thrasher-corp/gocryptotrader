@@ -134,7 +134,7 @@ func TestGetTicker(t *testing.T) {
 		Low:          1148,
 		Bid:          1195,
 		Ask:          1220,
-		Volume:       5,
+		BaseVolume:   5,
 		PriceATH:     1337,
 		ExchangeName: "bitfinex",
 		AssetType:    asset.Spot,
@@ -236,13 +236,13 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	}
 
 	priceStruct := Price{
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
+		Last:       1200,
+		High:       1298,
+		Low:        1148,
+		Bid:        1195,
+		Ask:        1220,
+		BaseVolume: 5,
+		PriceATH:   1337,
 	}
 
 	err = ProcessTicker(&priceStruct)

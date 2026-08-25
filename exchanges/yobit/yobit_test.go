@@ -121,7 +121,7 @@ func TestUpdateTickersMapsEveryField(t *testing.T) {
 	assert.Equal(t, 80000.24, tick.Low, "Low should map from low")
 	assert.Equal(t, 80001.1, tick.Bid, "Bid should map from buy")
 	assert.Equal(t, 82750.2, tick.Ask, "Ask should map from sell")
-	assert.Equal(t, 0.00050072, tick.Volume, "Volume should map from vol_cur, the base currency total")
+	assert.Equal(t, 0.00050072, tick.BaseVolume, "Volume should map from vol_cur, the base currency total")
 	assert.Equal(t, 40.81311859, tick.QuoteVolume, "QuoteVolume should map from vol, the quote currency total")
 	assert.Equal(t, int64(1787211897), tick.LastUpdated.Unix(), "LastUpdated should map from updated")
 	assert.True(t, tick.Pair.Equal(testPair), "Pair should be set")

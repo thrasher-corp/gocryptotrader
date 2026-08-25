@@ -460,7 +460,7 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		Low:         t.Low,
 		Bid:         t.Bid,
 		Ask:         t.Ask,
-		Volume:      t.Volume,
+		Volume:      t.BaseVolume,
 		PriceAth:    t.PriceATH,
 	}
 
@@ -487,7 +487,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 				Low:         val.Low,
 				Bid:         val.Bid,
 				Ask:         val.Ask,
-				Volume:      val.Volume,
+				Volume:      val.BaseVolume,
 				PriceAth:    val.PriceATH,
 			}
 		}
@@ -2235,7 +2235,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			Low:         t.Low,
 			Bid:         t.Bid,
 			Ask:         t.Ask,
-			Volume:      t.Volume,
+			Volume:      t.BaseVolume,
 			PriceAth:    t.PriceATH,
 		})
 		if err != nil {
@@ -2289,7 +2289,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			Low:         t.Low,
 			Bid:         t.Bid,
 			Ask:         t.Ask,
-			Volume:      t.Volume,
+			Volume:      t.BaseVolume,
 			PriceAth:    t.PriceATH,
 		})
 		if err != nil {

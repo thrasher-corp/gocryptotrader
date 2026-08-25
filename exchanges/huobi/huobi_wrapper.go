@@ -354,7 +354,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          ticks.Data[i].Low,
 				Bid:          ticks.Data[i].Bid,
 				Ask:          ticks.Data[i].Ask,
-				Volume:       ticks.Data[i].Amount,
+				BaseVolume:   ticks.Data[i].Amount,
 				QuoteVolume:  ticks.Data[i].Volume,
 				Open:         ticks.Data[i].Open,
 				Close:        ticks.Data[i].Close,
@@ -387,7 +387,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Amount.Float64(),
+				BaseVolume:   ticks[i].Amount.Float64(),
 				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
 				Close:        ticks[i].Close.Float64(),
@@ -440,7 +440,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Amount.Float64(),
+				BaseVolume:   ticks[i].Amount.Float64(),
 				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
 				Close:        ticks[i].Close.Float64(),
@@ -480,7 +480,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         tickerData.Tick.High,
 			Low:          tickerData.Tick.Low,
-			Volume:       tickerData.Tick.Amount,
+			BaseVolume:   tickerData.Tick.Amount,
 			QuoteVolume:  tickerData.Tick.Volume,
 			Open:         tickerData.Tick.Open,
 			Close:        tickerData.Tick.Close,
@@ -507,7 +507,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
-			Volume:       marketData.Tick.Amount,
+			BaseVolume:   marketData.Tick.Amount,
 			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,
@@ -529,7 +529,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
-			Volume:       marketData.Tick.Amount,
+			BaseVolume:   marketData.Tick.Amount,
 			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,

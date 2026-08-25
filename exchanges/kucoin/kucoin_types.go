@@ -1492,7 +1492,7 @@ type WsFuturesTradeOrder struct {
 	TradeID          string     `json:"tradeId"`             // Trade ID (when the type is "match")
 	ClientOid        string     `json:"clientOid"`           // Client supplied order id
 	OrderTime        types.Time `json:"orderTime"`
-	OldSize          string     `json:"oldSize "`  // Size Before Update (when the type is "update")
+	OldSize          string     `json:"oldSize"`   // Size Before Update (when the type is "update")
 	TradingDirection string     `json:"liquidity"` // Liquidity, Trading direction, buy or sell in taker
 	Timestamp        types.Time `json:"ts"`
 }

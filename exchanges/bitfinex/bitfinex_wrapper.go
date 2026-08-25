@@ -314,7 +314,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          val.Low,
 			Bid:          val.Bid,
 			Ask:          val.Ask,
-			Volume:       val.Volume,
+			BaseVolume:   val.Volume,
 			Pair:         pair,
 			LastUpdated:  val.Timestamp.Time(),
 			AssetType:    a,

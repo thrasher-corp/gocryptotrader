@@ -81,7 +81,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 					Ask:          tick.BestAskPrice.Float64(),
 					BidSize:      tick.BestBidSize,
 					AskSize:      tick.BestAskSize,
-					Volume:       tick.Size,
+					BaseVolume:   tick.Size,
 					Pair:         p,
 					LastUpdated:  tick.FilledTime.Time(),
 					ExchangeName: e.Name,

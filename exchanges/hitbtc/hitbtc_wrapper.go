@@ -238,7 +238,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          tick[x].Low,
 			Bid:          tick[x].Bid,
 			Ask:          tick[x].Ask,
-			Volume:       tick[x].Volume,
+			BaseVolume:   tick[x].Volume,
 			QuoteVolume:  tick[x].VolumeQuote,
 			Open:         tick[x].Open,
 			Pair:         pair,

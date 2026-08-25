@@ -172,7 +172,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Last:         tickerInfo[j].Ticker.Latest,
 				High:         tickerInfo[j].Ticker.High,
 				Low:          tickerInfo[j].Ticker.Low,
-				Volume:       tickerInfo[j].Ticker.Volume,
+				BaseVolume:   tickerInfo[j].Ticker.Volume,
 				Pair:         tickerInfo[j].Symbol,
 				LastUpdated:  tickerInfo[j].Timestamp.Time(),
 				ExchangeName: e.Name,

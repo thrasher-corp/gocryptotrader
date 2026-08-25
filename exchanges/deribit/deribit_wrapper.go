@@ -272,7 +272,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		High:         tickerData.Stats.High,
 		Low:          tickerData.Stats.Low,
 		Last:         tickerData.LastPrice,
-		Volume:       tickerData.Stats.Volume,
+		BaseVolume:   tickerData.Stats.Volume,
 		Close:        tickerData.LastPrice,
 		IndexPrice:   tickerData.IndexPrice,
 		MarkPrice:    tickerData.MarkPrice,

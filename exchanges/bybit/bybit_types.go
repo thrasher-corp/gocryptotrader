@@ -1286,11 +1286,14 @@ type SubUIDAPIKeyParam struct {
 
 	ReadOnly int64 `json:"readOnly"`
 
-	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
-	// don't pass ips or pass with ["*"] means no bind
+	// Set the IP bind, as a comma separated list. example: "192.168.0.1,192.168.0.2"
+	// don't pass ips or pass with "*" means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
-	IPs []string `json:"ips"`
+	IPs string `json:"ips,omitempty"`
+
+	// You can provide the IP addresses as a list of strings.
+	IPAddresses []string `json:"-"`
 
 	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
 	Permissions map[string][]string `json:"permissions,omitempty"`
@@ -1370,8 +1373,8 @@ type SubUIDAPIKeyUpdateParam struct {
 	// when calling with the sub account's own key
 	APIKey   string `json:"apikey,omitempty"`
 	ReadOnly int64  `json:"readOnly,omitempty"`
-	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
-	// don't pass ips or pass with ["*"] means no bind
+	// Set the IP bind, as a comma separated list. example: "192.168.0.1,192.168.0.2"
+	// don't pass ips or pass with "*" means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
 	IPs string `json:"ips,omitempty"`

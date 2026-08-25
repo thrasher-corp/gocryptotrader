@@ -26,6 +26,12 @@ var v1Compat = jsonv2.JoinOptions(
 	jsonv1.OmitEmptyWithLegacySemantics(true),    // v2 reads omitempty as empty JSON, not zero Go value
 	jsonv2.Deterministic(true),                   // v1 sorted map keys; mocks and signed bodies rely on it
 	jsonv1.ReportErrorsWithLegacySemantics(true), // v2 returns partial output alongside an error
+	jsonv2.FormatNilSliceAsNull(true),            // v1 marshalled a nil slice as null, not []
+	jsonv2.FormatNilMapAsNull(true),              // and a nil map as null, not {}
+	jsontext.EscapeForHTML(true),                 // v1 escaped <, > and &
+	jsontext.EscapeForJS(true),                   // and U+2028/U+2029
+	jsontext.PreserveRawStrings(true),            // a RawMessage keeps the escaping it arrived with
+	jsontext.AllowInvalidUTF8(true),              // v1 substituted U+FFFD rather than failing the decode
 )
 
 // The three name-matching options are interdependent: matching case-insensitively makes "e" and "E"
@@ -48,22 +54,65 @@ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 func Valid(data []byte) bool { return jsontext.Value(data).IsValid(v1Compat) }
 
 // Encoder writes JSON values to an output stream
-type Encoder struct{ enc *jsontext.Encoder }
+type Encoder struct {
+	enc     *jsontext.Encoder
+	w       io.Writer
+	rawHTML bool
+}
 
 // NewEncoder returns a new encoder that writes to w
-func NewEncoder(w io.Writer) *Encoder { return &Encoder{enc: jsontext.NewEncoder(w)} }
+func NewEncoder(w io.Writer) *Encoder { return &Encoder{enc: jsontext.NewEncoder(w), w: w} }
+
+// SetIndent instructs the encoder to format each subsequent encoded value as if indented by
+// prefix and indent. SetIndent("", "") disables indentation.
+// json/v2 fixes formatting for an encoder's lifetime, so this rebuilds it
+func (e *Encoder) SetIndent(prefix, indent string) {
+	if prefix == "" && indent == "" {
+		e.enc.Reset(e.w)
+		return
+	}
+	e.enc.Reset(e.w, jsontext.WithIndentPrefix(prefix), jsontext.WithIndent(indent))
+}
+
+// SetEscapeHTML specifies whether <, > and & should be escaped inside JSON quoted strings.
+// U+2028 and U+2029 stay escaped either way, matching v1
+func (e *Encoder) SetEscapeHTML(on bool) { e.rawHTML = !on }
 
 // Encode writes the JSON encoding of v to the stream, followed by a newline character
-func (e *Encoder) Encode(v any) error { return jsonv2.MarshalEncode(e.enc, v, v1Compat) }
+func (e *Encoder) Encode(v any) error {
+	if e.rawHTML {
+		// applied here rather than on the encoder, since v1Compat would otherwise override it
+		return jsonv2.MarshalEncode(e.enc, v, v1Compat, jsontext.EscapeForHTML(false))
+	}
+	return jsonv2.MarshalEncode(e.enc, v, v1Compat)
+}
 
 // Decoder reads and decodes JSON values from an input stream
-type Decoder struct{ dec *jsontext.Decoder }
+type Decoder struct {
+	dec           *jsontext.Decoder
+	rejectUnknown bool
+}
 
 // NewDecoder returns a new decoder that reads from r
 func NewDecoder(r io.Reader) *Decoder { return &Decoder{dec: jsontext.NewDecoder(r)} }
 
+// DisallowUnknownFields causes the Decoder to error when the destination is a struct and the
+// input contains object members matching no non-ignored, exported field
+func (d *Decoder) DisallowUnknownFields() { d.rejectUnknown = true }
+
+// More reports whether there is another element in the current array or object being parsed
+func (d *Decoder) More() bool {
+	k := d.dec.PeekKind()
+	return k != 0 && k != ']' && k != '}'
+}
+
 // Decode reads the next JSON-encoded value from its input and stores it in the value pointed to by v
-func (d *Decoder) Decode(v any) error { return jsonv2.UnmarshalDecode(d.dec, v, v1Compat) }
+func (d *Decoder) Decode(v any) error {
+	if d.rejectUnknown {
+		return jsonv2.UnmarshalDecode(d.dec, v, v1Compat, jsonv2.RejectUnknownMembers(true))
+	}
+	return jsonv2.UnmarshalDecode(d.dec, v, v1Compat)
+}
 
 // Buffered returns a reader of the data remaining in the Decoder's buffer
 func (d *Decoder) Buffered() io.Reader { return bytes.NewReader(d.dec.UnreadBuffer()) }

@@ -548,7 +548,9 @@ type TriggerBracketPNL struct {
 type TWAPBucketMetadata struct {
 	BucketDuration string       `json:"bucket_duration"`
 	BucketSize     types.Number `json:"bucket_size"`
-	BucketNumber   Integer      `json:"bucket_number"`
+	NumberBuckets  Integer      `json:"number_buckets"`
+	StartTime      time.Time    `json:"start_time"`
+	EndTime        time.Time    `json:"end_time"`
 }
 
 // MarginRatioData is a sub-struct used in the type PreviewOrderResp

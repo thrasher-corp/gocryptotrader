@@ -170,7 +170,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Ask:          tickerNew.BestAsk,
 		Bid:          tickerNew.BestBid,
 		Last:         tickerNew.Last,
-		Volume:       tickerNew.Volume,
+		BaseVolume:   tickerNew.Volume,
 		ExchangeName: e.Name,
 		AssetType:    a,
 	})

@@ -118,7 +118,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			Low:          tick.LowPrice,
 			High:         tick.HighPrice,
 			QuoteVolume:  tick.Value,
-			Volume:       tick.Volume,
+			BaseVolume:   tick.Volume,
 			LastUpdated:  lu,
 		})
 	case "transaction":

@@ -118,7 +118,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 				High:         wsTickers[i].Tickers[j].High24H.Float64(),
 				Low:          wsTickers[i].Tickers[j].Low24H.Float64(),
 				Last:         wsTickers[i].Tickers[j].Price.Float64(),
-				Volume:       wsTickers[i].Tickers[j].Volume24H.Float64(),
+				BaseVolume:   wsTickers[i].Tickers[j].Volume24H.Float64(),
 				Bid:          wsTickers[i].Tickers[j].BestBid.Float64(),
 				BidSize:      wsTickers[i].Tickers[j].BestBidQuantity.Float64(),
 				Ask:          wsTickers[i].Tickers[j].BestAsk.Float64(),

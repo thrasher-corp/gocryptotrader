@@ -1313,7 +1313,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 			tickData := &ticker.Price{
 				ExchangeName: e.Name,
 				Open:         response.Data[i].Open24H.Float64(),
-				Volume:       baseVolume,
+				BaseVolume:   baseVolume,
 				QuoteVolume:  quoteVolume,
 				High:         response.Data[i].High24H.Float64(),
 				Low:          response.Data[i].Low24H.Float64(),

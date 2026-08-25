@@ -228,7 +228,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          tickers[x].Low24h,
 			Bid:          tickers[x].BestBID,
 			Ask:          tickers[x].BestAsk,
-			Volume:       tickers[x].Volume,
+			BaseVolume:   tickers[x].Volume,
 			LastUpdated:  time.Now(),
 			ExchangeName: e.Name,
 			AssetType:    a,

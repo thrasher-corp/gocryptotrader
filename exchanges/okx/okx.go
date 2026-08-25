@@ -5735,7 +5735,7 @@ func (e *Exchange) GetDepositOrderDetail(ctx context.Context, orderID string) (*
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	params.Set("ordID", orderID)
+	params.Set("ordId", orderID)
 	var resp *FiatOrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderDetailEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit", params), nil, &resp, request.AuthenticatedRequest)
 }

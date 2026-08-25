@@ -708,9 +708,12 @@ func TestDurationFieldsUnmarshal(t *testing.T) {
 	assert.Equal(t, 1814400000.0, fp.TimeToExpiryMilliseconds.Float64(), "TimeToExpiryMilliseconds should decode as milliseconds")
 
 	var bm TWAPBucketMetadata
-	require.NoError(t, json.Unmarshal([]byte(`{"bucket_duration":"3600s","bucket_size":"0.5","bucket_number":"4"}`), &bm), "Unmarshal must not error")
+	require.NoError(t, json.Unmarshal([]byte(`{"bucket_duration":"3600s","bucket_size":"0.5","number_buckets":"4","start_time":"2026-08-21T07:52:43Z","end_time":"2026-08-21T08:52:43Z"}`), &bm), "Unmarshal must not error")
 	assert.Equal(t, "3600s", bm.BucketDuration, "BucketDuration should decode as the exchange's duration string")
 	assert.Equal(t, 0.5, bm.BucketSize.Float64(), "BucketSize should decode")
+	assert.Equal(t, int64(4), int64(bm.NumberBuckets), "NumberBuckets should decode")
+	assert.Equal(t, time.Date(2026, 8, 21, 7, 52, 43, 0, time.UTC), bm.StartTime, "StartTime should decode")
+	assert.Equal(t, time.Date(2026, 8, 21, 8, 52, 43, 0, time.UTC), bm.EndTime, "EndTime should decode")
 }
 
 func TestGetAllProducts(t *testing.T) {

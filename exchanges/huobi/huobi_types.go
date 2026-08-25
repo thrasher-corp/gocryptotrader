@@ -58,7 +58,7 @@ type CurrenciesChainData struct {
 		WithdrawStatus            string  `json:"withdrawStatus"`
 		MinimumWithdrawalAmount   float64 `json:"minWithdrawAmt,string"`
 		WithdrawPrecision         int16   `json:"withdrawPrecision"`
-		MaximumWithdrawAmount     float64 `json:"maxWithdrawwAmt,string"`
+		MaximumWithdrawAmount     float64 `json:"maxWithdrawAmt,string"`
 		WithdrawQuotaPerDay       float64 `json:"withdrawQuotaPerDay,string"`
 		WithdrawQuotaPerYear      float64 `json:"withdrawQuotaPerYear,string"`
 		WithdrawQuotaTotal        float64 `json:"withdrawQuotaTotal,string"`

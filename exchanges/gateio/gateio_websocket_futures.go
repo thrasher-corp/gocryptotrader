@@ -338,7 +338,7 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, asset
 	for x := range resp.Result {
 		tickerPriceDatas[x] = ticker.Price{
 			ExchangeName: e.Name,
-			Volume:       resp.Result[x].Volume24HBase.Float64(),
+			BaseVolume:   resp.Result[x].Volume24HBase.Float64(),
 			QuoteVolume:  resp.Result[x].Volume24HQuote.Float64(),
 			High:         resp.Result[x].High24H.Float64(),
 			Low:          resp.Result[x].Low24H.Float64(),

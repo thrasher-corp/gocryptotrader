@@ -136,6 +136,7 @@ type Instrument struct {
 	FairBasisRate                  float64       `json:"fairBasisRate"`
 	FairMethod                     string        `json:"fairMethod"`
 	FairPrice                      float64       `json:"fairPrice"`
+	ForeignNotional24h             float64       `json:"foreignNotional24h"`
 	Front                          string        `json:"front"`
 	FundingBaseSymbol              string        `json:"fundingBaseSymbol"`
 	FundingInterval                time.Time     `json:"fundingInterval"`
@@ -145,6 +146,7 @@ type Instrument struct {
 	FundingTimestamp               time.Time     `json:"fundingTimestamp"`
 	HasLiquidity                   bool          `json:"hasLiquidity"`
 	HighPrice                      float64       `json:"highPrice"`
+	HomeNotional24h                float64       `json:"homeNotional24h"`
 	ImpactAskPrice                 float64       `json:"impactAskPrice"`
 	ImpactBidPrice                 float64       `json:"impactBidPrice"`
 	ImpactMidPrice                 float64       `json:"impactMidPrice"`
@@ -221,7 +223,7 @@ type Instrument struct {
 	UnderlyingToPositionMultiplier float64       `json:"underlyingToPositionMultiplier"`
 	UnderlyingToSettleMultiplier   float64       `json:"underlyingToSettleMultiplier"`
 	Volume                         float64       `json:"volume"`
-	Volume24h                      float64       `json:"volume24h"`
+	Volume24h                      float64       `json:"volume24h"` // contract count, not an amount; see HomeNotional24h and ForeignNotional24h
 	Vwap                           float64       `json:"vwap"`
 }
 

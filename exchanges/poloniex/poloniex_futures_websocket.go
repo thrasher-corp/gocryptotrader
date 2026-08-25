@@ -445,7 +445,7 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 			BidSize:      r.BestBidSize.Float64(),
 			Ask:          r.BestAskPrice.Float64(),
 			AskSize:      r.BestAskSize.Float64(),
-			Volume:       r.BaseAmount.Float64(),
+			BaseVolume:   r.BaseAmount.Float64(),
 			QuoteVolume:  r.QuoteAmount.Float64(),
 			Open:         r.OpeningPrice.Float64(),
 			Close:        r.ClosingPrice.Float64(),

@@ -175,3 +175,116 @@ func TestUnmarshalError(t *testing.T) {
 	assert.Error(t, Unmarshal([]byte(`{"a":"not-a-number"}`), &v), "type mismatch should error")
 	assert.Error(t, Unmarshal([]byte(`{"a":`), &v), "malformed JSON should error")
 }
+
+// v1 marshalled nil slices and maps as null; exchange request bodies are signed as sent.
+func TestNilSliceAndMapAsNull(t *testing.T) {
+	t.Parallel()
+	out, err := Marshal(&struct {
+		Slice []string          `json:"slice"`
+		Map   map[string]string `json:"map"`
+		Bytes []byte            `json:"bytes"`
+	}{})
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, `{"slice":null,"map":null,"bytes":null}`, string(out), "nil slice, map and byte slice should marshal as null")
+}
+
+// v1 escaped HTML characters and the JS line separators by default.
+func TestEscaping(t *testing.T) {
+	t.Parallel()
+	out, err := Marshal(map[string]string{"a": "a<b>c&d\u2028\u2029"})
+	require.NoError(t, err, "Marshal must not error")
+	//nolint:testifylint // JSONEq compares semantically, which would pass with or without the escaping under test
+	assert.Equal(t, `{"a":"a\u003cb\u003ec\u0026d\u2028\u2029"}`, string(out), "HTML characters and JS line separators should be escaped")
+}
+
+// v1 emitted a RawMessage with the escaping it arrived with; mock recordings are re-encoded verbatim.
+func TestRawMessagePreservesEscaping(t *testing.T) {
+	t.Parallel()
+	out, err := Marshal(map[string]any{"r": RawMessage(`{"a":"\u0041"}`)})
+	require.NoError(t, err, "Marshal must not error")
+	//nolint:testifylint // JSONEq compares semantically, which would pass with or without the escaping under test
+	assert.Equal(t, `{"r":{"a":"\u0041"}}`, string(out), "pre-escaped sequences should be preserved rather than canonicalised")
+}
+
+// v1 substituted U+FFFD for invalid UTF-8; v2 fails the whole decode instead.
+func TestInvalidUTF8(t *testing.T) {
+	t.Parallel()
+	const payload = "{\"a\":\"\xff\"}"
+	var v struct {
+		A string `json:"a"`
+	}
+	require.NoError(t, Unmarshal([]byte(payload), &v), "Unmarshal must not error on invalid UTF-8")
+	assert.Equal(t, "\uFFFD", v.A, "invalid UTF-8 should decode to the replacement character")
+	assert.True(t, Valid([]byte(payload)), "invalid UTF-8 should still report valid")
+}
+
+// Binance sends "e" and "E" in one object; an exact match must beat the case insensitive fallback.
+func TestExactCaseMatchWins(t *testing.T) {
+	t.Parallel()
+	type payload struct {
+		EventType string `json:"e"`
+		EventTime int64  `json:"E"`
+	}
+	for _, in := range []string{
+		`{"e":"executionReport","E":1700000000123}`,
+		`{"E":1700000000123,"e":"executionReport"}`,
+	} {
+		var p payload
+		require.NoErrorf(t, Unmarshal([]byte(in), &p), "Unmarshal must not error for %s", in)
+		assert.Equalf(t, "executionReport", p.EventType, "e should decode into the exactly matching field for %s", in)
+		assert.Equalf(t, int64(1700000000123), p.EventTime, "E should decode into the exactly matching field for %s", in)
+	}
+
+	var p payload
+	require.NoError(t, Unmarshal([]byte(`{"E":1700000000123}`), &p), "Unmarshal must not error")
+	assert.Empty(t, p.EventType, "the case insensitive fallback should not claim E when a field tagged E exists")
+	assert.Equal(t, int64(1700000000123), p.EventTime, "E should still decode")
+}
+
+// v1 took these as setters where json/v2 takes them as construction options.
+func TestEncoderDecoderSettings(t *testing.T) {
+	t.Parallel()
+	t.Run("SetIndent", func(t *testing.T) {
+		t.Parallel()
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+		require.NoError(t, enc.Encode(map[string]int{"a": 1}), "Encode must not error")
+		enc.SetIndent("", "  ")
+		require.NoError(t, enc.Encode(map[string]int{"b": 2}), "Encode must not error")
+		assert.Equal(t, "{\"a\":1}\n{\n  \"b\": 2\n}\n", buf.String(), "SetIndent should apply from the next value on, as it did in v1")
+	})
+
+	t.Run("SetEscapeHTML", func(t *testing.T) {
+		t.Parallel()
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		require.NoError(t, enc.Encode(map[string]string{"a": "a<b>c&d\u2028"}), "Encode must not error")
+		//nolint:testifylint // JSONEq compares semantically, which would pass with or without the escaping under test
+		assert.Equal(t, "{\"a\":\"a<b>c&d\\u2028\"}\n", buf.String(), "disabling HTML escaping should leave the JS line separators escaped, as it did in v1")
+	})
+
+	t.Run("DisallowUnknownFields", func(t *testing.T) {
+		t.Parallel()
+		var v struct {
+			A int `json:"a"`
+		}
+		dec := NewDecoder(bytes.NewReader([]byte(`{"a":1,"b":2}`)))
+		require.NoError(t, dec.Decode(&v), "an unknown member must decode by default")
+
+		dec = NewDecoder(bytes.NewReader([]byte(`{"a":1,"b":2}`)))
+		dec.DisallowUnknownFields()
+		assert.Error(t, dec.Decode(&v), "an unknown member should error once disallowed")
+	})
+
+	t.Run("More", func(t *testing.T) {
+		t.Parallel()
+		dec := NewDecoder(bytes.NewReader([]byte(`{"a":1} {"b":2}`)))
+		var m map[string]int
+		assert.True(t, dec.More(), "a fresh stream should report more")
+		require.NoError(t, dec.Decode(&m), "Decode must not error")
+		assert.True(t, dec.More(), "a stream with a value left should report more")
+		require.NoError(t, dec.Decode(&m), "Decode must not error")
+		assert.False(t, dec.More(), "an exhausted stream should not report more")
+	})
+}

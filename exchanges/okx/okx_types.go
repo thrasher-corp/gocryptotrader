@@ -2314,8 +2314,8 @@ type CancelRFQRequestParam struct {
 
 // CancelRFQRequestsParam represents cancel multiple RFQ orders request params
 type CancelRFQRequestsParam struct {
-	RFQIDs       []string `json:"rfqIds"`
-	ClientRFQIDs []string `json:"clRfqIds"`
+	RFQIDs       []string `json:"rfqIds,omitempty"`
+	ClientRFQIDs []string `json:"clRfqIds,omitempty"`
 }
 
 // CancelRFQResponse represents cancel RFQ orders response
@@ -2377,7 +2377,6 @@ type QuoteProduct struct {
 		MaxBlockSize   types.Number `json:"maxBlockSz"`
 		MakerPriceBand types.Number `json:"makerPxBand"`
 	} `json:"data"`
-	InstrumentType0 string `json:"instType:,omitempty"`
 }
 
 // OrderLeg represents legs information for both websocket and REST available Quote information
