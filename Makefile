@@ -10,8 +10,11 @@ GO_FILES_TO_FORMAT := $(shell find . -type f -name '*.go' 	-not -path "./databas
 DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
+DECIMAL_BENCH_COUNT ?= 5
+DECIMAL_BENCH_TIME ?= 500ms
+DECIMAL_BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime $(DECIMAL_BENCH_TIME) -count $(DECIMAL_BENCH_COUNT)
 
-.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps sonic udecimal
+.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
 
 all: check build
 
@@ -94,3 +97,13 @@ sonic:
 
 udecimal:
 	go build $(LDFLAGS) -tags "udecimal_on"
+
+decimal_bench: decimal_bench_shopspring decimal_bench_udecimal
+
+decimal_bench_shopspring:
+	@printf '\nshopspring/decimal backend\n'
+	go test ./types/decimal $(DECIMAL_BENCH_FLAGS)
+
+decimal_bench_udecimal:
+	@printf '\nquagmt/udecimal backend\n'
+	go test -tags "udecimal_on" ./types/decimal $(DECIMAL_BENCH_FLAGS)

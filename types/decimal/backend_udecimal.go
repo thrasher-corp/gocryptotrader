@@ -12,10 +12,38 @@ import (
 // Implementation identifies the selected decimal backend.
 const Implementation = "quagmt/udecimal"
 
+const (
+	limitedPrecision = true
+	maxPrecision     = 19
+)
+
 type backendDecimal = udecimal.Decimal
 
-func parseBackend(value string) (backendDecimal, error) {
-	return udecimal.Parse(value)
+func mustParseBackend(value string) backendDecimal {
+	return udecimal.MustParse(value)
+}
+
+func normalisePrecision(digits string, scale int64, truncate bool, original string) (normalised string, normalisedScale int64, err error) {
+	if digits == "" {
+		return "0", 0, nil
+	}
+	if scale <= maxPrecision {
+		return digits, scale, nil
+	}
+	if !truncate {
+		return "", 0, fmt.Errorf("%w: %q requires %d fractional digits", ErrPrecisionOutOfRange, original, scale)
+	}
+	excess := int(scale - maxPrecision)
+	if excess >= len(digits) {
+		return "0", 0, nil
+	}
+	digits = digits[:len(digits)-excess]
+	scale = maxPrecision
+	for scale > 0 && strings.HasSuffix(digits, "0") {
+		digits = strings.TrimSuffix(digits, "0")
+		scale--
+	}
+	return digits, scale, nil
 }
 
 func mulBackend(left, right backendDecimal) backendDecimal {

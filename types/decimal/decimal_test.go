@@ -29,8 +29,12 @@ func TestNewFromInt32(t *testing.T) {
 func TestNewFromFloat(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "1.25", NewFromFloat(1.25).String(), "NewFromFloat should preserve the value")
-	assert.Equal(t, "0.000305375625", NewFromFloat(0.00030537562500000003).String(),
-		"NewFromFloat should truncate binary noise beyond the common precision")
+	expected := "0.00030537562500000003"
+	if limitedPrecision {
+		expected = "0.000305375625"
+	}
+	assert.Equal(t, expected, NewFromFloat(0.00030537562500000003).String(),
+		"NewFromFloat should apply the selected backend precision")
 	assert.Panics(t, func() { NewFromFloat(math.Inf(1)) }, "NewFromFloat should panic for infinity")
 }
 
@@ -54,8 +58,14 @@ func TestNewFromString(t *testing.T) {
 		})
 	}
 
-	_, err := NewFromString("0." + strings.Repeat("1", maxPrecision+1))
-	assert.ErrorIs(t, err, ErrPrecisionOutOfRange, "NewFromString should reject excess precision")
+	highPrecision := "0." + strings.Repeat("1", 20)
+	result, err := NewFromString(highPrecision)
+	if limitedPrecision {
+		assert.ErrorIs(t, err, ErrPrecisionOutOfRange, "NewFromString should reject excess precision")
+	} else {
+		require.NoError(t, err, "NewFromString must accept shopspring high precision")
+		assert.Equal(t, highPrecision, result.String(), "NewFromString should preserve shopspring high precision")
+	}
 	_, err = NewFromString("not-a-number")
 	assert.ErrorIs(t, err, ErrInvalidDecimal, "NewFromString should reject invalid input")
 }
@@ -81,7 +91,11 @@ func TestDecimalSub(t *testing.T) {
 func TestDecimalMul(t *testing.T) {
 	t.Parallel()
 	result := RequireFromString("0.1234567890123456789").Mul(RequireFromString("0.1"))
-	assert.Equal(t, "0.0123456789012345678", result.String(), "Mul should truncate beyond the common precision")
+	expected := "0.01234567890123456789"
+	if limitedPrecision {
+		expected = "0.0123456789012345678"
+	}
+	assert.Equal(t, expected, result.String(), "Mul should apply the selected backend precision")
 }
 
 func TestDecimalDiv(t *testing.T) {
@@ -199,8 +213,23 @@ func TestDecimalString(t *testing.T) {
 
 func TestDecimalStringFixed(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "1.24", RequireFromString("1.235").StringFixed(2), "StringFixed should round to the requested places")
-	assert.Equal(t, "1.2000", RequireFromString("1.2").StringFixed(4), "StringFixed should pad trailing zeroes")
+	for _, tc := range []struct {
+		name     string
+		value    string
+		places   int32
+		expected string
+	}{
+		{name: "rounded", value: "1.235", places: 2, expected: "1.24"},
+		{name: "padded", value: "1.2", places: 4, expected: "1.2000"},
+		{name: "integer", value: "1", places: 2, expected: "1.00"},
+		{name: "zero places", value: "1.6", places: 0, expected: "2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, RequireFromString(tc.value).StringFixed(tc.places),
+				"StringFixed should return the expected representation")
+		})
+	}
 }
 
 func TestDecimalFloat64(t *testing.T) {
@@ -239,6 +268,10 @@ func TestDecimalUnmarshalJSON(t *testing.T) {
 	result := NewFromInt(2)
 	require.NoError(t, result.UnmarshalJSON([]byte("null")), "UnmarshalJSON must accept null")
 	assert.Equal(t, "2", result.String(), "UnmarshalJSON should leave the value unchanged for null")
+	for _, input := range []string{`"\x"`, `invalid`} {
+		assert.ErrorIs(t, result.UnmarshalJSON([]byte(input)), ErrInvalidDecimal,
+			"UnmarshalJSON should reject invalid input")
+	}
 }
 
 func TestDecimalMarshalText(t *testing.T) {
@@ -253,6 +286,8 @@ func TestDecimalUnmarshalText(t *testing.T) {
 	var result Decimal
 	require.NoError(t, result.UnmarshalText([]byte("1.25")), "UnmarshalText must parse valid input")
 	assert.Equal(t, "1.25", result.String(), "UnmarshalText should preserve the value")
+	assert.ErrorIs(t, result.UnmarshalText([]byte("invalid")), ErrInvalidDecimal,
+		"UnmarshalText should reject invalid input")
 }
 
 func TestDecimalMarshalBinary(t *testing.T) {
@@ -291,38 +326,119 @@ func TestDecimalValue(t *testing.T) {
 
 func TestNormalise(t *testing.T) {
 	t.Parallel()
-	result, err := normalise("-1.25e2", false)
-	require.NoError(t, err, "normalise must parse valid scientific notation")
-	assert.Equal(t, "-125", result, "normalise should return fixed notation")
-	_, err = normalise("1e999999999999", false)
-	assert.ErrorIs(t, err, ErrInvalidDecimal, "normalise should reject an out-of-range exponent")
-	result, err = normalise("0.12345678901234567899", true)
-	require.NoError(t, err, "normalise must truncate excess precision when requested")
-	assert.Equal(t, "0.1234567890123456789", result, "normalise should truncate to the common precision")
+	truncatedExpected := "0.12345678901234567899"
+	if limitedPrecision {
+		truncatedExpected = "0.1234567890123456789"
+	}
+	for _, tc := range []struct {
+		name     string
+		input    string
+		truncate bool
+		expected string
+	}{
+		{name: "scientific", input: "-1.25e2", expected: "-125"},
+		{name: "expand exponent", input: "1e2", expected: "100"},
+		{name: "zero", input: "000.000", expected: "0"},
+		{name: "truncate", input: "0.12345678901234567899", truncate: true, expected: truncatedExpected},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := normalise(tc.input, tc.truncate)
+			require.NoError(t, err, "normalise must parse valid input")
+			assert.Equal(t, tc.expected, result, "normalise should return the expected value")
+		})
+	}
+	result, err := normalise("1e-20", true)
+	require.NoError(t, err, "normalise must truncate excess backend precision")
+	expected := "0"
+	if !limitedPrecision {
+		expected = "0." + strings.Repeat("0", 19) + "1"
+	}
+	assert.Equal(t, expected, result, "normalise should apply the selected backend precision")
+
+	errorTests := []struct {
+		name, input string
+		expected    error
+	}{
+		{name: "empty", input: "", expected: ErrInvalidDecimal},
+		{name: "out of range exponent", input: "1e999999999999", expected: ErrInvalidDecimal},
+		{name: "missing mantissa", input: "+", expected: ErrInvalidDecimal},
+		{name: "multiple decimal points", input: "1.2.3", expected: ErrInvalidDecimal},
+		{name: "decimal point only", input: ".", expected: ErrInvalidDecimal},
+		{name: "expanded value too long", input: "1e200", expected: ErrInvalidDecimal},
+		{name: "negative expanded value too long", input: "-1e199", expected: ErrInvalidDecimal},
+	}
+	if limitedPrecision {
+		errorTests = append(errorTests, struct {
+			name, input string
+			expected    error
+		}{name: "precision", input: "0.12345678901234567899", expected: ErrPrecisionOutOfRange})
+	} else {
+		errorTests = append(errorTests, struct {
+			name, input string
+			expected    error
+		}{name: "fractional value too long", input: "1e-200", expected: ErrInvalidDecimal})
+	}
+	for _, tc := range errorTests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := normalise(tc.input, false)
+			assert.ErrorIs(t, err, tc.expected, "normalise should return the expected error")
+		})
+	}
 }
 
-func TestParseBackend(t *testing.T) {
+func TestNormalisePrecision(t *testing.T) {
 	t.Parallel()
-	result, err := parseBackend("1.25")
-	require.NoError(t, err, "parseBackend must parse valid input")
-	assert.Equal(t, "1.25", result.String(), "parseBackend should preserve the value")
+	result, scale, err := normalisePrecision("123", 2, false, "1.23")
+	require.NoError(t, err, "normalisePrecision must accept supported precision")
+	assert.Equal(t, "123", result, "normalisePrecision should preserve supported digits")
+	assert.Equal(t, int64(2), scale, "normalisePrecision should preserve supported scale")
+
+	result, scale, err = normalisePrecision("", 2, false, "0.00")
+	require.NoError(t, err, "normalisePrecision must accept zero")
+	assert.Equal(t, "0", result, "normalisePrecision should canonicalise zero")
+	assert.Zero(t, scale, "normalisePrecision should remove zero scale")
+
+	if !limitedPrecision {
+		result, scale, err = normalisePrecision("123", 20, true, "0.00000000000000000123")
+		require.NoError(t, err, "normalisePrecision must retain shopspring precision")
+		assert.Equal(t, "123", result, "normalisePrecision should retain shopspring digits")
+		assert.Equal(t, int64(20), scale, "normalisePrecision should retain shopspring scale")
+		_, _, err = normalisePrecision("1", maxStringLength, false, "1e-200")
+		assert.ErrorIs(t, err, ErrInvalidDecimal, "normalisePrecision should reject unsafe fixed notation")
+		return
+	}
+
+	_, _, err = normalisePrecision("123", 20, false, "0.00000000000000000123")
+	assert.ErrorIs(t, err, ErrPrecisionOutOfRange, "normalisePrecision should reject excess udecimal precision")
+	result, scale, err = normalisePrecision("1", 20, true, "0.00000000000000000001")
+	require.NoError(t, err, "normalisePrecision must truncate a sub-precision value")
+	assert.Equal(t, "0", result, "normalisePrecision should truncate a sub-precision value to zero")
+	assert.Zero(t, scale, "normalisePrecision should remove truncated zero scale")
+	result, scale, err = normalisePrecision("101", 20, true, "0.00000000000000000101")
+	require.NoError(t, err, "normalisePrecision must truncate excess udecimal precision")
+	assert.Equal(t, "1", result, "normalisePrecision should remove trailing zeroes after truncation")
+	assert.Equal(t, int64(18), scale, "normalisePrecision should adjust scale after removing trailing zeroes")
+}
+
+func TestMustParseBackend(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "1.25", mustParseBackend("1.25").String(), "backend parser must preserve the value")
+	require.Panics(t, func() { mustParseBackend("invalid") }, "backend parser must panic for invalid input")
 }
 
 func TestMulBackend(t *testing.T) {
 	t.Parallel()
-	left, err := parseBackend("2")
-	require.NoError(t, err, "parseBackend must parse the left value")
-	right, err := parseBackend("3")
-	require.NoError(t, err, "parseBackend must parse the right value")
+	left := mustParseBackend("2")
+	right := mustParseBackend("3")
 	assert.Equal(t, "6", mulBackend(left, right).String(), "mulBackend should multiply values")
 }
 
 func TestDivBackend(t *testing.T) {
 	t.Parallel()
-	left, err := parseBackend("2")
-	require.NoError(t, err, "parseBackend must parse the left value")
-	right, err := parseBackend("3")
-	require.NoError(t, err, "parseBackend must parse the right value")
+	left := mustParseBackend("2")
+	right := mustParseBackend("3")
 	result, err := divBackend(left, right)
 	require.NoError(t, err, "divBackend must divide valid values")
 	assert.Equal(t, "0.6666666666666667", result.String(), "divBackend should apply common rounding")
@@ -330,10 +446,8 @@ func TestDivBackend(t *testing.T) {
 
 func TestModBackend(t *testing.T) {
 	t.Parallel()
-	left, err := parseBackend("7")
-	require.NoError(t, err, "parseBackend must parse the left value")
-	right, err := parseBackend("3")
-	require.NoError(t, err, "parseBackend must parse the right value")
+	left := mustParseBackend("7")
+	right := mustParseBackend("3")
 	result, err := modBackend(left, right)
 	require.NoError(t, err, "modBackend must calculate a valid remainder")
 	assert.Equal(t, "1", result.String(), "modBackend should return the remainder")
@@ -341,10 +455,8 @@ func TestModBackend(t *testing.T) {
 
 func TestPowBackend(t *testing.T) {
 	t.Parallel()
-	value, err := parseBackend("2")
-	require.NoError(t, err, "parseBackend must parse the value")
-	exponent, err := parseBackend("3")
-	require.NoError(t, err, "parseBackend must parse the exponent")
+	value := mustParseBackend("2")
+	exponent := mustParseBackend("3")
 	result, err := powBackend(value, exponent)
 	require.NoError(t, err, "powBackend must apply an integer exponent")
 	assert.Equal(t, "8", result.String(), "powBackend should return the power")
@@ -352,28 +464,34 @@ func TestPowBackend(t *testing.T) {
 
 func TestIsPositiveBackend(t *testing.T) {
 	t.Parallel()
-	value, err := parseBackend("1")
-	require.NoError(t, err, "parseBackend must parse the value")
+	value := mustParseBackend("1")
 	assert.True(t, isPositiveBackend(value), "isPositiveBackend should identify positive values")
 }
 
 func TestIsNegativeBackend(t *testing.T) {
 	t.Parallel()
-	value, err := parseBackend("-1")
-	require.NoError(t, err, "parseBackend must parse the value")
+	value := mustParseBackend("-1")
 	assert.True(t, isNegativeBackend(value), "isNegativeBackend should identify negative values")
 }
 
 func TestRoundBackend(t *testing.T) {
 	t.Parallel()
-	value, err := parseBackend("1.25")
-	require.NoError(t, err, "parseBackend must parse the value")
+	value := mustParseBackend("1.25")
 	assert.Equal(t, "1.3", roundBackend(value, 1).String(), "roundBackend should round half away from zero")
+	if limitedPrecision {
+		assert.Equal(t, value, roundBackend(value, 19),
+			"roundBackend should leave values unchanged beyond maximum precision")
+		assert.Panics(t, func() { roundBackend(value, -maxStringLength) },
+			"roundBackend should panic when negative precision exceeds the supported range")
+	}
 }
 
 func TestTruncateBackend(t *testing.T) {
 	t.Parallel()
-	value, err := parseBackend("1.29")
-	require.NoError(t, err, "parseBackend must parse the value")
+	value := mustParseBackend("1.29")
 	assert.Equal(t, "1.2", truncateBackend(value, 1).String(), "truncateBackend should remove excess digits")
+	if limitedPrecision {
+		assert.Equal(t, value, truncateBackend(value, 19),
+			"truncateBackend should leave values unchanged beyond maximum precision")
+	}
 }

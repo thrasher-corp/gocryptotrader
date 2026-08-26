@@ -7,14 +7,12 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 	"strings"
 )
 
 const (
-	maxPrecision      = 19
 	divisionPrecision = 16
 	maxStringLength   = 200
 )
@@ -22,7 +20,7 @@ const (
 var (
 	// ErrInvalidDecimal is returned when input cannot be represented as a decimal.
 	ErrInvalidDecimal = errors.New("invalid decimal")
-	// ErrPrecisionOutOfRange is returned when input has more than 19 fractional digits.
+	// ErrPrecisionOutOfRange is returned when input exceeds the selected backend's precision.
 	ErrPrecisionOutOfRange = errors.New("decimal precision out of range")
 	// ErrDivideByZero is returned when a division operation has a zero divisor.
 	ErrDivideByZero = errors.New("decimal division by zero")
@@ -38,11 +36,7 @@ type Decimal struct {
 
 // NewFromInt returns a Decimal equal to value.
 func NewFromInt(value int64) Decimal {
-	result, err := NewFromString(strconv.FormatInt(value, 10))
-	if err != nil {
-		panic(err)
-	}
-	return result
+	return RequireFromString(strconv.FormatInt(value, 10))
 }
 
 // NewFromInt32 returns a Decimal equal to value.
@@ -51,19 +45,14 @@ func NewFromInt32(value int32) Decimal {
 }
 
 // NewFromFloat returns the shortest decimal representation that round-trips
-// to value, truncating binary-float noise beyond 19 fractional digits. It
-// panics for non-finite values, matching the established constructor's must
-// semantics.
+// to value. It truncates beyond the selected backend's precision and panics
+// for non-finite values, matching the established constructor's must semantics.
 func NewFromFloat(value float64) Decimal {
 	normalised, err := normalise(strconv.FormatFloat(value, 'f', -1, 64), true)
 	if err != nil {
 		panic(err)
 	}
-	parsed, err := parseBackend(normalised)
-	if err != nil {
-		panic(fmt.Errorf("%w: %w", ErrInvalidDecimal, err))
-	}
-	return Decimal{value: parsed}
+	return Decimal{value: mustParseBackend(normalised)}
 }
 
 // NewFromString parses value using the common backend-independent decimal
@@ -73,11 +62,7 @@ func NewFromString(value string) (Decimal, error) {
 	if err != nil {
 		return Decimal{}, err
 	}
-	result, err := parseBackend(normalised)
-	if err != nil {
-		return Decimal{}, fmt.Errorf("%w: %w", ErrInvalidDecimal, err)
-	}
-	return Decimal{value: result}, nil
+	return Decimal{value: mustParseBackend(normalised)}, nil
 }
 
 // RequireFromString parses value and panics if it is invalid.
@@ -99,7 +84,7 @@ func (d Decimal) Sub(other Decimal) Decimal {
 	return Decimal{value: d.value.Sub(other.value)}
 }
 
-// Mul returns d*other, truncating fractional precision beyond 19 places.
+// Mul returns d*other, truncating beyond the selected backend's precision.
 func (d Decimal) Mul(other Decimal) Decimal {
 	return Decimal{value: mulBackend(d.value, other.value)}
 }
@@ -237,10 +222,7 @@ func (d Decimal) StringFixed(places int32) string {
 
 // Float64 returns the nearest float64 and whether the conversion was exact.
 func (d Decimal) Float64() (float64, bool) {
-	rational, okay := new(big.Rat).SetString(d.String())
-	if !okay {
-		return math.NaN(), false
-	}
+	rational, _ := new(big.Rat).SetString(d.String())
 	return rational.Float64()
 }
 
@@ -256,10 +238,7 @@ func (d Decimal) IntPart() int64 {
 	if decimalPoint := strings.IndexByte(value, '.'); decimalPoint >= 0 {
 		value = value[:decimalPoint]
 	}
-	integer, okay := new(big.Int).SetString(value, 10)
-	if !okay {
-		return 0
-	}
+	integer, _ := new(big.Int).SetString(value, 10)
 	return integer.Int64()
 }
 
@@ -385,28 +364,17 @@ func normalise(value string, truncate bool) (string, error) {
 	}
 
 	digits = strings.TrimLeft(digits, "0")
-	if digits == "" {
-		return "0", nil
-	}
 	scale := int64(len(fractionalPart)) - exponent
 	for scale > 0 && strings.HasSuffix(digits, "0") {
 		digits = strings.TrimSuffix(digits, "0")
 		scale--
 	}
-	if scale > maxPrecision {
-		if !truncate {
-			return "", fmt.Errorf("%w: %q requires %d fractional digits", ErrPrecisionOutOfRange, value, scale)
-		}
-		excess := int(scale - maxPrecision)
-		if excess >= len(digits) {
-			return "0", nil
-		}
-		digits = digits[:len(digits)-excess]
-		scale = maxPrecision
-		for scale > 0 && strings.HasSuffix(digits, "0") {
-			digits = strings.TrimSuffix(digits, "0")
-			scale--
-		}
+	digits, scale, err := normalisePrecision(digits, scale, truncate, value)
+	if err != nil {
+		return "", err
+	}
+	if digits == "0" {
+		return digits, nil
 	}
 	if scale < 0 {
 		if int64(len(digits))-scale > maxStringLength {
