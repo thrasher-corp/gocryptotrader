@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -1248,29 +1249,81 @@ func TestParseBinaryResponse(t *testing.T) {
 	require.NoError(t, err, "captured MEXC frame must decode")
 
 	testCases := []struct {
-		name    string
-		input   []byte
-		expect  []byte
-		wantErr bool
+		name   string
+		input  []byte
+		expect []byte
+		err    error
 	}{
 		{name: "gzip", input: gzipBuffer.Bytes(), expect: []byte("hello")},
-		{name: "uncompressed MEXC protobuf", input: mexcFrame, expect: mexcFrame},
+		{name: "uncompressed MEXC protobuf", input: mexcFrame, expect: bytes.Clone(mexcFrame)},
 		{name: "unrecognised binary", input: []byte{0x01, 0x02, 0x03}, expect: []byte{0x01, 0x02, 0x03}},
-		{name: "empty"},
-		{name: "corrupt gzip header", input: []byte{0x1f, 0x8b, 0x08}, wantErr: true},
-		{name: "corrupt gzip payload", input: corruptGZIPPayload, wantErr: true},
+		{name: "nil"},
+		{name: "empty frame", input: []byte{}, expect: []byte{}},
+		{name: "single byte", input: []byte{0x1f}, expect: []byte{0x1f}},
+		{name: "partial gzip magic", input: []byte{0x1f, 0x00}, expect: []byte{0x1f, 0x00}},
+		{name: "corrupt gzip header", input: []byte{0x1f, 0x8b, 0x08}, err: io.ErrUnexpectedEOF},
+		{name: "corrupt gzip payload", input: corruptGZIPPayload, err: gzip.ErrChecksum},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			resp, err := parseBinaryResponse(tc.input)
-			if tc.wantErr {
-				assert.Error(t, err, "parseBinaryResponse should return an error")
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "parseBinaryResponse should return the expected error")
+				assert.Nil(t, resp, "parseBinaryResponse should not return a payload with an error")
 				return
 			}
 			require.NoError(t, err, "parseBinaryResponse must not error")
 			assert.Equal(t, tc.expect, resp, "parseBinaryResponse should return the expected response")
+		})
+	}
+}
+
+// TestReadMessageBinary ensures binary frames reach the caller as the exchange handler expects
+func TestReadMessageBinary(t *testing.T) {
+	t.Parallel()
+
+	mock := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(_ testing.TB, p []byte, c *gws.Conn) error {
+		return c.WriteMessage(gws.BinaryMessage, p)
+	}))
+	defer mock.Close()
+
+	wc := &connection{
+		ExchangeName:     "test",
+		URL:              "ws" + mock.URL[len("http"):],
+		ResponseMaxLimit: time.Second * 5,
+		Match:            NewMatch(),
+	}
+	require.NoError(t, wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil), "Dial must not error")
+	defer func() { assert.NoError(t, wc.Connection.Close(), "Close should not error") }()
+
+	var gzipBuffer bytes.Buffer
+	g := gzip.NewWriter(&gzipBuffer)
+	_, err := g.Write([]byte("hello"))
+	require.NoError(t, err, "gzip.Write must not error")
+	require.NoError(t, g.Close(), "gzip.Close must not error")
+
+	mexcFrame, err := hex.DecodeString("0a3473706f74407075626c69632e61676772652e626f6f6b5469636b657" +
+		"22e76332e6170692e7062403130306d73404b4153555344541a074b41535553445430d4d882c2fc33da1335" +
+		"0a08302e3032363239331204313430371a08302e30323633353722053237372e352a0b3133303438393134" +
+		"3133393090d482c2fc33")
+	require.NoError(t, err, "captured MEXC frame must decode")
+
+	for _, tc := range []struct {
+		name   string
+		send   []byte
+		expect []byte
+	}{
+		{name: "gzip is decompressed", send: gzipBuffer.Bytes(), expect: []byte("hello")},
+		{name: "uncompressed protobuf is preserved", send: mexcFrame, expect: mexcFrame},
+		{name: "malformed gzip yields an empty non-nil response", send: []byte{0x1f, 0x8b, 0x08}, expect: []byte("")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, wc.Connection.WriteMessage(gws.BinaryMessage, tc.send), "WriteMessage must not error")
+			resp := wc.ReadMessage()
+			require.NotNil(t, resp.Raw, "Raw must not be nil; a nil response stops the reader")
+			assert.Equal(t, tc.expect, resp.Raw, "ReadMessage should return the expected payload")
 		})
 	}
 }

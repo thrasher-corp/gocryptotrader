@@ -315,7 +315,7 @@ func (c *connection) ReadMessage() Response {
 	return Response{Raw: standardMessage, Type: mType}
 }
 
-// parseBinaryResponse parses a websocket binary response into a usable byte array
+// parseBinaryResponse decompresses GZIP frames and returns all other payloads unchanged
 func parseBinaryResponse(resp []byte) ([]byte, error) {
 	if len(resp) < 2 || resp[0] != 0x1f || resp[1] != 0x8b {
 		return resp, nil // non-GZIP response, return as-is
