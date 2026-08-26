@@ -1282,8 +1282,7 @@ func TestParseBinaryResponse(t *testing.T) {
 
 // TestReadMessageBinary ensures binary frames reach the caller as the exchange handler expects
 func TestReadMessageBinary(t *testing.T) {
-	t.Parallel()
-
+	// Subtests share the one connection and write then read in order, so neither this test nor its subtests call t.Parallel.
 	mock := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(_ testing.TB, p []byte, c *gws.Conn) error {
 		return c.WriteMessage(gws.BinaryMessage, p)
 	}))
