@@ -660,7 +660,7 @@ func TestGetHistoricKlines(t *testing.T) {
 func TestGetAllProducts(t *testing.T) {
 	t.Parallel()
 	testPairs := []string{testPairFiat.String(), "ETH-USD"}
-	resp, err := e.GetAllProducts(t.Context(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
+	resp, err := e.GetAllProducts(t.Context(), 1000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}

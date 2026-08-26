@@ -3646,10 +3646,14 @@ func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futur
 			return pairAsset, response
 		}
 	}
-	if !receivedResponse && lastErr != nil {
-		t.Fatalf("GetOpenInterest must find a live pair for %s asset: last request error: %v", a, lastErr)
+	switch {
+	case !receivedResponse:
+		t.Fatalf("GetOpenInterest must find a live pair for %s asset: every request failed, last error: %v", a, lastErr)
+	case lastErr != nil:
+		t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset: no pair returned positive open interest and some requests failed, last error: %v", a, lastErr)
+	default:
+		t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset: no request errored, but no pair returned positive open interest", a)
 	}
-	t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset", a)
 	return key.PairAsset{}, nil
 }
 
