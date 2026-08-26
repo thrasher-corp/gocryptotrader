@@ -17,6 +17,13 @@ const (
 	supportedCurrencies = "AUD,BRL,CAD,CHF,CNH,CNY,DKK,EUR,GBP,ILS,JPY,NGN,NOK,NZD,PEN,SEK,THB,USD"
 )
 
+// A small number of response fields are declared as free-form objects by the
+// FXMacroData OpenAPI contract itself, because their keys vary with the
+// requested indicator, filter set or factor decomposition. Those fields are
+// intentionally left as map[string]any rather than being pinned to a struct
+// that the published contract does not guarantee. Every field with a stable
+// documented shape is strongly typed.
+
 // Date represents an ISO 8601 calendar date without a time or timezone.
 type Date time.Time
 
@@ -84,6 +91,89 @@ type PointInTimeCompleteness struct {
 	PointInTimeSafe              bool `json:"point_in_time_safe"`
 }
 
+// Provenance identifies the upstream publisher and storage backing a series.
+// Publisher, Storage, ServedBy, TimestampField and ValueField are returned by
+// every endpoint; the remaining fields are indicator-specific and decode to
+// their zero value when the endpoint omits them.
+type Provenance struct {
+	Publisher          string `json:"publisher"`
+	PublisherURL       string `json:"publisher_url"`
+	Storage            string `json:"storage"`
+	ServedBy           string `json:"served_by"`
+	TimestampField     string `json:"timestamp_field"`
+	ValueField         string `json:"value_field"`
+	SourceSeriesID     string `json:"source_series_id"`
+	SourceSeriesName   string `json:"source_series_name"`
+	SourceLocalName    string `json:"source_local_name"`
+	SeasonalAdjustment string `json:"seasonal_adjustment"`
+	PriceBasis         string `json:"price_basis"`
+	IsProxy            bool   `json:"is_proxy"`
+	ProxyNote          string `json:"proxy_note"`
+}
+
+// SourceLeg describes a single upstream pair used to build a rate, either
+// directly or as one leg of a derived cross.
+type SourceLeg struct {
+	Pair            string `json:"pair"`
+	SourceProvider  string `json:"source_provider"`
+	SourceName      string `json:"source_name"`
+	SourceURL       string `json:"source_url"`
+	SourceFrequency string `json:"source_frequency"`
+}
+
+// PairMetadata describes how a returned FX pair was sourced or derived.
+type PairMetadata struct {
+	DirectAvailable       bool        `json:"direct_available"`
+	InverseAvailable      bool        `json:"inverse_available"`
+	DerivedFromInverse    bool        `json:"derived_from_inverse"`
+	DerivedFromCross      bool        `json:"derived_from_cross"`
+	DerivedFromSourceLegs bool        `json:"derived_from_source_legs"`
+	IsDerived             bool        `json:"is_derived"`
+	DerivationMethod      string      `json:"derivation_method"`
+	SourcePair            string      `json:"source_pair"`
+	AnchorCurrency        string      `json:"anchor_currency"`
+	PairConsistencyCheck  string      `json:"pair_consistency_check"`
+	SourceLegs            []SourceLeg `json:"source_legs"`
+}
+
+// DataPointSource describes the derivation of an individual observation.
+type DataPointSource struct {
+	SourcePair            string      `json:"source_pair"`
+	IsDerived             bool        `json:"is_derived"`
+	DerivedFromSourceLegs bool        `json:"derived_from_source_legs"`
+	DerivationMethod      string      `json:"derivation_method"`
+	AnchorCurrency        string      `json:"anchor_currency"`
+	PairConsistencyCheck  string      `json:"pair_consistency_check"`
+	SourceLegs            []SourceLeg `json:"source_legs"`
+}
+
+// FxSourcePolicy describes the redistribution policy applied to FX reference
+// sources served by the public endpoints.
+type FxSourcePolicy struct {
+	PublicDataPolicy           string `json:"public_data_policy"`
+	RequestTimeUpstreamFetches bool   `json:"request_time_upstream_fetches"`
+	ValueField                 string `json:"value_field"`
+	LegacyDailyForexValueField string `json:"legacy_daily_forex_value_field"`
+}
+
+// FxSource describes a single official FX reference-rate source.
+type FxSource struct {
+	ID                     string   `json:"id"`
+	Name                   string   `json:"name"`
+	AuthorityType          string   `json:"authority_type"`
+	CountryOrArea          string   `json:"country_or_area"`
+	URL                    string   `json:"url"`
+	AttributionText        string   `json:"attribution_text"`
+	Tier                   string   `json:"tier"`
+	IsOfficial             bool     `json:"is_official"`
+	IsAggregator           bool     `json:"is_aggregator"`
+	DefaultTimezone        string   `json:"default_timezone"`
+	NativePairs            []string `json:"native_pairs"`
+	PublicationFrequency   string   `json:"publication_frequency"`
+	NativePairCount        int64    `json:"native_pair_count"`
+	SourceUniverseEndpoint string   `json:"source_universe_endpoint"`
+}
+
 // DataQuality describes the source and freshness characteristics of a result.
 type DataQuality struct {
 	IsOfficial                             bool                    `json:"is_official"`
@@ -115,7 +205,7 @@ type DataQuality struct {
 	DatetimeField                          string                  `json:"datetime_field"`
 	DatetimePrecision                      string                  `json:"datetime_precision"`
 	DatetimeSemantics                      string                  `json:"datetime_semantics"`
-	SourceLegs                             []map[string]any        `json:"source_legs"`
+	SourceLegs                             []SourceLeg             `json:"source_legs"`
 	HistoricalPointInTime                  PointInTimeCompleteness `json:"historical_point_in_time"`
 }
 
@@ -238,7 +328,7 @@ type AnnouncementResponse struct {
 	PriceBasis                  string                  `json:"price_basis"`
 	IsProxy                     bool                    `json:"is_proxy"`
 	ProxyNote                   string                  `json:"proxy_note"`
-	Provenance                  map[string]any          `json:"provenance"`
+	Provenance                  Provenance              `json:"provenance"`
 	PolicyRole                  string                  `json:"policy_role"`
 	PolicyStructure             string                  `json:"policy_structure"`
 	ComparisonCompatible        bool                    `json:"comparison_compatible"`
@@ -319,7 +409,7 @@ type AnnouncementDataPoint struct {
 type LatestAnnouncementsResponse struct {
 	Currency   string                   `json:"currency"`
 	Source     string                   `json:"source"`
-	Provenance map[string]any           `json:"provenance"`
+	Provenance Provenance               `json:"provenance"`
 	AsOf       Date                     `json:"as_of"`
 	Count      int                      `json:"count"`
 	Data       []LatestAnnouncementItem `json:"data"`
@@ -338,7 +428,7 @@ type LatestAnnouncementItem struct {
 	PriceBasis          string                  `json:"price_basis"`
 	IsProxy             bool                    `json:"is_proxy"`
 	ProxyNote           string                  `json:"proxy_note"`
-	Provenance          map[string]any          `json:"provenance"`
+	Provenance          Provenance              `json:"provenance"`
 	Unit                string                  `json:"unit"`
 	Frequency           string                  `json:"frequency"`
 	HasOfficialForecast bool                    `json:"has_official_forecast"`
@@ -566,14 +656,14 @@ type CommodityResponse struct {
 	Indicator           string               `json:"indicator"`
 	Source              string               `json:"source"`
 	SourceURL           string               `json:"source_url"`
-	Provenance          map[string]any       `json:"provenance"`
+	Provenance          Provenance           `json:"provenance"`
 	HasOfficialForecast bool                 `json:"has_official_forecast"`
 	LastUpdated         string               `json:"last_updated"`
 	LatestAvailableDate Date                 `json:"latest_available_date"`
 	DataQuality         DataQuality          `json:"data_quality"`
 	StartDate           Date                 `json:"start_date"`
 	EndDate             Date                 `json:"end_date"`
-	Pagination          map[string]any       `json:"pagination"`
+	Pagination          PaginationInfo       `json:"pagination"`
 	Data                []CommodityDataPoint `json:"data"`
 }
 
@@ -634,7 +724,7 @@ type RateDifferentialResponse struct {
 	Sources                      map[string]any          `json:"sources"`
 	OfficialForwardSourceSupport map[string]any          `json:"official_forward_source_support"`
 	DataQuality                  DataQuality             `json:"data_quality"`
-	Pagination                   map[string]any          `json:"pagination"`
+	Pagination                   PaginationInfo          `json:"pagination"`
 	Data                         []RateDifferentialPoint `json:"data"`
 }
 
@@ -666,12 +756,12 @@ type ForexResponse struct {
 	Base                    string           `json:"base"`
 	Quote                   string           `json:"quote"`
 	Source                  string           `json:"source"`
-	Provenance              map[string]any   `json:"provenance"`
-	PairMetadata            map[string]any   `json:"pair_metadata"`
+	Provenance              Provenance       `json:"provenance"`
+	PairMetadata            PairMetadata     `json:"pair_metadata"`
 	DataQuality             DataQuality      `json:"data_quality"`
 	StartDate               Date             `json:"start_date"`
 	EndDate                 Date             `json:"end_date"`
-	Pagination              map[string]any   `json:"pagination"`
+	Pagination              PaginationInfo   `json:"pagination"`
 	Data                    []ForexDataPoint `json:"data"`
 	Indicators              map[string]any   `json:"indicators"`
 	DailyOHLCBasis          map[string]any   `json:"daily_ohlc_basis"`
@@ -680,46 +770,46 @@ type ForexResponse struct {
 
 // ForexDataPoint is one FX observation.
 type ForexDataPoint struct {
-	Date                         Date           `json:"date"`
-	Val                          float64        `json:"val"`
-	Open                         float64        `json:"open"`
-	High                         float64        `json:"high"`
-	Low                          float64        `json:"low"`
-	Close                        float64        `json:"close"`
-	OHLCPointCount               int            `json:"ohlc_point_count"`
-	OHLCSourceCount              int            `json:"ohlc_source_count"`
-	OHLCTimestampStartUTC        string         `json:"ohlc_timestamp_start_utc"`
-	OHLCTimestampEndUTC          string         `json:"ohlc_timestamp_end_utc"`
-	OHLCType                     string         `json:"ohlc_type"`
-	AnnouncementDatetime         types.Time     `json:"announcement_datetime"`
-	ObservationDatetime          types.Time     `json:"observation_datetime"`
-	ObservationDatetimeISO       string         `json:"observation_datetime_iso"`
-	ObservationDatetimePrecision string         `json:"observation_datetime_precision"`
-	Source                       map[string]any `json:"source"`
-	SMA20                        float64        `json:"sma_20"`
-	SMA50                        float64        `json:"sma_50"`
-	SMA200                       float64        `json:"sma_200"`
-	EMA12                        float64        `json:"ema_12"`
-	EMA20                        float64        `json:"ema_20"`
-	EMA26                        float64        `json:"ema_26"`
-	EMA50                        float64        `json:"ema_50"`
-	EMA200                       float64        `json:"ema_200"`
-	RSI14                        float64        `json:"rsi_14"`
-	ATR14                        float64        `json:"atr_14"`
-	ADX14                        float64        `json:"adx_14"`
-	StochasticK14                float64        `json:"stoch_k_14"`
-	StochasticD3                 float64        `json:"stoch_d_3"`
-	WilliamsR14                  float64        `json:"williams_r_14"`
-	CCI20                        float64        `json:"cci_20"`
-	DonchianUpper20              float64        `json:"donchian_upper_20"`
-	DonchianMiddle20             float64        `json:"donchian_middle_20"`
-	DonchianLower20              float64        `json:"donchian_lower_20"`
-	MACD                         float64        `json:"macd"`
-	MACDSignal                   float64        `json:"macd_signal"`
-	MACDHistogram                float64        `json:"macd_histogram"`
-	BollingerUpper               float64        `json:"bb_upper"`
-	BollingerMiddle              float64        `json:"bb_middle"`
-	BollingerLower               float64        `json:"bb_lower"`
+	Date                         Date            `json:"date"`
+	Val                          float64         `json:"val"`
+	Open                         float64         `json:"open"`
+	High                         float64         `json:"high"`
+	Low                          float64         `json:"low"`
+	Close                        float64         `json:"close"`
+	OHLCPointCount               int             `json:"ohlc_point_count"`
+	OHLCSourceCount              int             `json:"ohlc_source_count"`
+	OHLCTimestampStartUTC        string          `json:"ohlc_timestamp_start_utc"`
+	OHLCTimestampEndUTC          string          `json:"ohlc_timestamp_end_utc"`
+	OHLCType                     string          `json:"ohlc_type"`
+	AnnouncementDatetime         types.Time      `json:"announcement_datetime"`
+	ObservationDatetime          types.Time      `json:"observation_datetime"`
+	ObservationDatetimeISO       string          `json:"observation_datetime_iso"`
+	ObservationDatetimePrecision string          `json:"observation_datetime_precision"`
+	Source                       DataPointSource `json:"source"`
+	SMA20                        float64         `json:"sma_20"`
+	SMA50                        float64         `json:"sma_50"`
+	SMA200                       float64         `json:"sma_200"`
+	EMA12                        float64         `json:"ema_12"`
+	EMA20                        float64         `json:"ema_20"`
+	EMA26                        float64         `json:"ema_26"`
+	EMA50                        float64         `json:"ema_50"`
+	EMA200                       float64         `json:"ema_200"`
+	RSI14                        float64         `json:"rsi_14"`
+	ATR14                        float64         `json:"atr_14"`
+	ADX14                        float64         `json:"adx_14"`
+	StochasticK14                float64         `json:"stoch_k_14"`
+	StochasticD3                 float64         `json:"stoch_d_3"`
+	WilliamsR14                  float64         `json:"williams_r_14"`
+	CCI20                        float64         `json:"cci_20"`
+	DonchianUpper20              float64         `json:"donchian_upper_20"`
+	DonchianMiddle20             float64         `json:"donchian_middle_20"`
+	DonchianLower20              float64         `json:"donchian_lower_20"`
+	MACD                         float64         `json:"macd"`
+	MACDSignal                   float64         `json:"macd_signal"`
+	MACDHistogram                float64         `json:"macd_histogram"`
+	BollingerUpper               float64         `json:"bb_upper"`
+	BollingerMiddle              float64         `json:"bb_middle"`
+	BollingerLower               float64         `json:"bb_lower"`
 }
 
 // FxIntradayReferenceRatesResponse contains subscriber intraday reference rates.
@@ -732,24 +822,24 @@ type FxIntradayReferenceRatesResponse struct {
 
 // FxIntradayReferenceRatePoint is one intraday reference-rate observation.
 type FxIntradayReferenceRatePoint struct {
-	Timestamp        string         `json:"timestamp"`
-	Price            float64        `json:"price"`
-	ReferenceDate    Date           `json:"reference_date"`
-	TimestampType    string         `json:"timestamp_type"`
-	Source           map[string]any `json:"source"`
-	SourcePair       string         `json:"source_pair"`
-	DerivationMethod string         `json:"derivation_method"`
+	Timestamp        string          `json:"timestamp"`
+	Price            float64         `json:"price"`
+	ReferenceDate    Date            `json:"reference_date"`
+	TimestampType    string          `json:"timestamp_type"`
+	Source           DataPointSource `json:"source"`
+	SourcePair       string          `json:"source_pair"`
+	DerivationMethod string          `json:"derivation_method"`
 }
 
 // FxSourcesResponse contains public FX source metadata.
 type FxSourcesResponse struct {
-	SourcePolicy map[string]any   `json:"source_policy"`
-	Sources      []map[string]any `json:"sources"`
+	SourcePolicy FxSourcePolicy `json:"source_policy"`
+	Sources      []FxSource     `json:"sources"`
 }
 
 // FxSourceUniverseResponse contains the pair universe available from public FX sources.
 type FxSourceUniverseResponse struct {
-	SourcePolicy map[string]any   `json:"source_policy"`
+	SourcePolicy FxSourcePolicy   `json:"source_policy"`
 	Currency     string           `json:"currency"`
 	Source       string           `json:"source"`
 	Data         []map[string]any `json:"data"`
@@ -773,7 +863,7 @@ type FactorResponse struct {
 	StartDate           Date              `json:"start_date"`
 	EndDate             Date              `json:"end_date"`
 	DataQuality         DataQuality       `json:"data_quality"`
-	Pagination          map[string]any    `json:"pagination"`
+	Pagination          PaginationInfo    `json:"pagination"`
 	Data                []FactorDataPoint `json:"data"`
 }
 

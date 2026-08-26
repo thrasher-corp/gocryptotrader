@@ -3,7 +3,6 @@ package fxmacrodata
 import (
 	"net/http"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -285,7 +284,10 @@ func TestFXSources(t *testing.T) {
 	response, err := provider.FXSources(t.Context(), nil)
 	require.NoError(t, err, "FXSources must decode a documented response")
 	require.Len(t, response.Sources, 1, "FXSources must decode one source")
-	assert.Equal(t, "official-source", response.Sources[0]["id"], "FXSources should decode source identifiers")
+	assert.Equal(t, "official-source", response.Sources[0].ID, "FXSources should decode source identifiers")
+	assert.True(t, response.Sources[0].IsOfficial, "FXSources should decode the official flag")
+	assert.Equal(t, []string{"USD/AUD"}, response.Sources[0].NativePairs, "FXSources should decode native pairs")
+	assert.False(t, response.SourcePolicy.RequestTimeUpstreamFetches, "FXSources should decode the source policy")
 }
 
 func TestFXSourceUniverse(t *testing.T) {
@@ -353,16 +355,13 @@ func TestPressReleases(t *testing.T) {
 }
 
 func TestAuthenticatedEndpointsLive(t *testing.T) {
-	if os.Getenv("GCT_RUN_FXMACRODATA_AUTH_TESTS") != "true" {
-		t.Skip("set GCT_RUN_FXMACRODATA_AUTH_TESTS=true to run the authenticated FXMacroData smoke test")
+	if !authTestsEnabled() {
+		t.Skip("set testAuth = true or GCT_RUN_FXMACRODATA_AUTH_TESTS=true to run the authenticated FXMacroData smoke test")
 	}
 
-	apiKey := os.Getenv("FXMACRODATA_API_KEY")
+	apiKey := liveTestAPIKey()
 	if apiKey == "" {
-		apiKey = os.Getenv("FXMD_API_KEY")
-	}
-	if apiKey == "" {
-		t.Skip("set FXMACRODATA_API_KEY or FXMD_API_KEY to run the authenticated smoke test")
+		t.Skip("set testAPIKey, FXMACRODATA_API_KEY or FXMD_API_KEY to run the authenticated smoke test")
 	}
 
 	provider := new(FXMacroData)
