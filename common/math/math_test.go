@@ -4,9 +4,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestCalculateFee(t *testing.T) {

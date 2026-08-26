@@ -3,8 +3,8 @@ package types
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // TestNumberUnmarshalJSON asserts the following behaviour:

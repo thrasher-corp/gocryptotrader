@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -22,6 +21,7 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
@@ -335,7 +335,8 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 		// create a breakdown of USD values and currency contributions over the span of run
 		var pricingOverTime []ItemSnapshot
 	snaps:
-		for _, snapshot := range f.items[x].snapshot {
+		for y := range f.items[x].snapshot {
+			snapshot := f.items[x].snapshot[y]
 			pricingOverTime = append(pricingOverTime, snapshot)
 			if f.items[x].asset.IsFutures() || f.disableUSDTracking {
 				// futures contracts / collateral does not contribute to USD value

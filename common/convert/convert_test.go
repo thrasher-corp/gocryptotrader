@@ -3,8 +3,8 @@ package convert
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestFloatFromString(t *testing.T) {

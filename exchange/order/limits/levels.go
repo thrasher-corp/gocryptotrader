@@ -3,8 +3,8 @@ package limits
 import (
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Validate ensures MinMaxLevel fields are valid

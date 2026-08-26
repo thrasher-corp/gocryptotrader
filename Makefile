@@ -11,7 +11,7 @@ DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps
+.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps sonic udecimal
 
 all: check build
 
@@ -89,6 +89,8 @@ check-jq:
 	@printf "Checking if jq is installed... "
 	@command -v jq >/dev/null 2>&1 && { printf "OK\n"; } || { printf "FAILED. Please install jq to proceed.\n"; exit 1; }
 
-.PHONY: sonic
 sonic:
 	go build $(LDFLAGS) -tags "sonic_on" 
+
+udecimal:
+	go build $(LDFLAGS) -tags "udecimal_on"

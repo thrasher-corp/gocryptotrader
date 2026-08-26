@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var (

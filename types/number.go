@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var errInvalidNumberValue = errors.New("invalid value for Number type")

@@ -129,6 +129,16 @@ To enable sonic, build with the sonic_on tag:
 go build -tags=sonic_on
 ```
 
+### Decimal handling
+
+GoCryptoTrader uses shopspring/decimal by default through the shared `types/decimal` package. To use the udecimal backend instead, build with the `udecimal_on` tag:
+
+```bash
+go build -tags=udecimal_on
+```
+
+Both backends expose the same `decimal.Decimal` type and support up to 19 fractional digits. Parsing rejects values beyond that precision. Division retains the existing 16-place, half-away-from-zero rounding behaviour under either backend.
+
 ## Donations
 
 <img src="/docs/assets/donate.png" hspace="70">

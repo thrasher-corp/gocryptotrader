@@ -3,8 +3,8 @@ package collateral
 import (
 	"errors"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Mode defines the different collateral types supported by exchanges

@@ -3,9 +3,9 @@ package slippage
 import (
 	"math/rand"
 
-	"github.com/shopspring/decimal"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // EstimateSlippagePercentage takes in an int range of numbers
