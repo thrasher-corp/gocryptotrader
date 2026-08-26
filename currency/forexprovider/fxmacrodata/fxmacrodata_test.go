@@ -14,6 +14,41 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 )
 
+// Live test toggles. The unit and contract tests are hermetic and always run;
+// the two smoke tests below reach the live FXMacroData API and are opt-in.
+// Set these to true, or set the matching environment variable, to enable them.
+//
+//	testLive   / GCT_RUN_LIVE_TESTS               public endpoints, no key needed
+//	testAuth   / GCT_RUN_FXMACRODATA_AUTH_TESTS   authenticated endpoints
+//	testAPIKey / FXMACRODATA_API_KEY, FXMD_API_KEY  key for the authenticated test
+var (
+	testLive   = false
+	testAuth   = false
+	testAPIKey = ""
+)
+
+// liveTestsEnabled reports whether the public live smoke test should run.
+func liveTestsEnabled() bool {
+	return testLive || os.Getenv("GCT_RUN_LIVE_TESTS") == "true"
+}
+
+// authTestsEnabled reports whether the authenticated live smoke test should run.
+func authTestsEnabled() bool {
+	return testAuth || os.Getenv("GCT_RUN_FXMACRODATA_AUTH_TESTS") == "true"
+}
+
+// liveTestAPIKey returns the API key used by the authenticated smoke test,
+// preferring the package variable over the environment.
+func liveTestAPIKey() string {
+	if testAPIKey != "" {
+		return testAPIKey
+	}
+	if key := os.Getenv("FXMACRODATA_API_KEY"); key != "" {
+		return key
+	}
+	return os.Getenv("FXMD_API_KEY")
+}
+
 func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData, closeServer func()) {
 	t.Helper()
 	server := httptest.NewServer(handler)
@@ -212,8 +247,8 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 }
 
 func TestPublicEndpointsLive(t *testing.T) {
-	if os.Getenv("GCT_RUN_LIVE_TESTS") != "true" {
-		t.Skip("set GCT_RUN_LIVE_TESTS=true to run the public FXMacroData smoke test")
+	if !liveTestsEnabled() {
+		t.Skip("set testLive = true or GCT_RUN_LIVE_TESTS=true to run the public FXMacroData smoke test")
 	}
 
 	provider := new(FXMacroData)
