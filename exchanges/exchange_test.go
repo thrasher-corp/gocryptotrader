@@ -1446,7 +1446,7 @@ func TestVerifyKlineParameters(t *testing.T) {
 	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Index, kline.OneYear), currency.ErrAssetNotFound)
 	assert.ErrorIs(t, b.verifyKlineParameters(currency.EMPTYPAIR, asset.Spot, kline.OneMin), currency.ErrCurrencyPairEmpty)
 	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[1], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
-	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
+	assert.ErrorIs(t, b.verifyKlineParameters(currency.NewPair(currency.DOGE, currency.XRP), asset.Spot, kline.OneMin), currency.ErrCurrencyNotSupported)
 	assert.NoError(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneMin), "verifyKlineParameters should not error")
 }
 

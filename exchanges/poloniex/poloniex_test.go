@@ -851,8 +851,13 @@ func TestUpdateTicker(t *testing.T) {
 	if !mockTests {
 		t.Skip("skipped: downstream test data is intentionally malformed and only valid for mock tests")
 	}
-	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter), asset.Futures)
-	assert.ErrorIs(t, err, currency.ErrPairNotFound)
+	testExchange := new(Exchange)
+	require.NoError(t, testexch.Setup(testExchange))
+	require.NoError(t, testexch.MockHTTPInstance(testExchange))
+	malformedPair := currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter)
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{malformedPair}, false))
+	_, err = testExchange.UpdateTicker(t.Context(), malformedPair, asset.Futures)
+	assert.ErrorIs(t, err, common.ErrInvalidResponse)
 }
 
 func TestUpdateTickerUsesAvailablePairs(t *testing.T) {

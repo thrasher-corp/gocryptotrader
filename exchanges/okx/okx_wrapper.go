@@ -473,7 +473,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		if err != nil {
 			return err
 		}
-		pairs, err := e.GetAvailablePairs(assetType)
+		// OKX exposes spread tickers individually, so using available pairs would
+		// fan out into a rate-limited request for every spread.
+		pairs, err := e.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
 		}
@@ -1505,9 +1507,9 @@ ordersLoop:
 		}
 		for y := range response {
 			if response[y].StatusCode == 0 {
-				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
+				cancelAllResponse.Add(response[y].OrderID, order.Cancelled.String())
 			} else {
-				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
+				cancelAllResponse.Add(response[y].OrderID, response[y].StatusMessage)
 			}
 		}
 	}

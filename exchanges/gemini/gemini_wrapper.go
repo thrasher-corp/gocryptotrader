@@ -493,7 +493,10 @@ func (e *Exchange) GetServerTime(_ context.Context, _ asset.Item) (time.Time, er
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (*order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order.CancelAllResponse, error) {
+	if o != nil && !o.Pair.IsEmpty() {
+		return nil, common.ErrFunctionNotSupported
+	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	resp, err := e.CancelExistingOrders(ctx, false)
 	if err != nil {
@@ -504,7 +507,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (*order
 	}
 
 	for i := range resp.Details.CancelRejects {
-		cancelAllOrdersResponse.Status[resp.Details.CancelRejects[i]] = "Could not cancel order"
+		cancelAllOrdersResponse.Add(resp.Details.CancelRejects[i], "Could not cancel order")
 	}
 
 	return &cancelAllOrdersResponse, nil

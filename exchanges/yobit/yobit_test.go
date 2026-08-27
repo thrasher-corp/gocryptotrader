@@ -3,6 +3,8 @@ package yobit
 import (
 	"log"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -65,8 +67,27 @@ func TestGetInfo(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTicker(t.Context(), testPair.String())
-	assert.NoError(t, err, "GetTicker should not error")
+	t.Run("valid ticker", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetTicker(t.Context(), testPair.String())
+		assert.NoError(t, err, "GetTicker should not error")
+	})
+	t.Run("invalid single symbol response", func(t *testing.T) {
+		t.Parallel()
+		testExchange := new(Exchange)
+		require.NoError(t, testexch.Setup(testExchange), "Setup must not error")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/3/ticker/btc_usd", r.URL.Path, "GetTicker request path should be correct")
+			_, err := w.Write([]byte(`{"btc_usd":"invalid pair"}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, testExchange.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, testExchange.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		_, err := testExchange.GetTicker(t.Context(), "btc_usd")
+		assert.ErrorIs(t, err, errTickerDataNotFound, "GetTicker should return the ticker data sentinel")
+	})
 }
 
 func TestGetDepth(t *testing.T) {

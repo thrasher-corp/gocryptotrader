@@ -215,6 +215,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
+	if len(pairs) != len(tickers) {
+		return fmt.Errorf("%w: available pairs differ from returned tickers", common.ErrInvalidResponse)
+	}
 	for x := range tickers {
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Pair:         tickers[x].MarketID,

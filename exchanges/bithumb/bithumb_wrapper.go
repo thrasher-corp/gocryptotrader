@@ -468,7 +468,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			allOrders.Data[i].OrderID,
 			orderCancellation.Pair.Base.String())
 		if err != nil {
-			cancelAllOrdersResponse.Status[allOrders.Data[i].OrderID] = err.Error()
+			cancelAllOrdersResponse.Add(allOrders.Data[i].OrderID, err.Error())
 		}
 	}
 

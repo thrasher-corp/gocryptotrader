@@ -214,7 +214,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 			pair, err := e.MatchSymbolWithAvailablePairs(result[i].Symbol, asset.Spot, false)
 			if err != nil {
-				return err
+				log.Errorf(log.WebsocketMgr, "%s order update pair matching failed for symbol %q: %v", e.Name, result[i].Symbol, err)
+				continue
 			}
 
 			if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{

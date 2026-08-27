@@ -3442,6 +3442,10 @@ func TestChangePositionMargin(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.ChangePositionMargin(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangePositionMargin should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),
@@ -3496,6 +3500,10 @@ func TestSetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.SetLeverage(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "SetLeverage should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),
@@ -3561,6 +3569,10 @@ func TestGetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetLeverage(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),
@@ -3629,6 +3641,10 @@ func TestSetMarginType(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.SetMarginType(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "SetMarginType should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),

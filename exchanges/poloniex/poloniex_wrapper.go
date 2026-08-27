@@ -326,22 +326,22 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spot:
-		availablePairs, err := e.GetAvailablePairs(assetType)
-		if err != nil {
-			return err
-		}
 		ticks, err := e.GetTickers(ctx)
 		if err != nil {
 			return err
 		}
 		for _, tick := range ticks {
-			if !availablePairs.Contains(tick.Symbol, true) {
-				continue
+			pair, err := e.MatchSymbolWithAvailablePairs(tick.Symbol.String(), assetType, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
 			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				ExchangeName: e.Name,
 				AssetType:    assetType,
-				Pair:         tick.Symbol,
+				Pair:         pair,
 				Last:         tick.MarkPrice.Float64(),
 				Low:          tick.Low.Float64(),
 				Ask:          tick.Ask.Float64(),
@@ -354,22 +354,22 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Futures:
-		availablePairs, err := e.GetAvailablePairs(assetType)
-		if err != nil {
-			return err
-		}
 		ticks, err := e.GetFuturesMarket(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
 		for _, tick := range ticks {
-			if !availablePairs.Contains(tick.Symbol, true) {
-				continue
+			pair, err := e.MatchSymbolWithAvailablePairs(tick.Symbol.String(), assetType, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
 			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				ExchangeName: e.Name,
 				AssetType:    assetType,
-				Pair:         tick.Symbol,
+				Pair:         pair,
 				LastUpdated:  tick.EndTime.Time(),
 				Volume:       tick.BaseAmount.Float64(),
 				QuoteVolume:  tick.QuoteAmount.Float64(),

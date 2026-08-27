@@ -139,11 +139,11 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
-	availablePairs, err := e.GetAvailablePairs(a)
+	enabledPairs, err := e.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
-	pairsCollated, err := e.FormatExchangeCurrencies(availablePairs, a)
+	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, a)
 	if err != nil {
 		return err
 	}
@@ -153,8 +153,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
-	for i := range availablePairs {
-		fPair, err := e.FormatExchangeCurrency(availablePairs[i], a)
+	for i := range enabledPairs {
+		fPair, err := e.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
 			return err
 		}
@@ -165,7 +165,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 		resultCurr := result[curr]
 		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         availablePairs[i],
+			Pair:         enabledPairs[i],
 			Last:         resultCurr.Last,
 			Ask:          resultCurr.Sell,
 			Bid:          resultCurr.Buy,

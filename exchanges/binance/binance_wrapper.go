@@ -341,39 +341,30 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		pairs, err := e.GetAvailablePairs(a)
-		if err != nil {
-			return err
-		}
-
-		for i := range pairs {
-			for y := range tick {
-				pairFmt, err := e.FormatExchangeCurrency(pairs[i], a)
-				if err != nil {
-					return err
-				}
-
-				if tick[y].Symbol != pairFmt.String() {
+		for y := range tick {
+			pair, err := e.MatchSymbolWithAvailablePairs(tick[y].Symbol, a, false)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
 					continue
 				}
+				return err
+			}
 
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice.Float64(),
-					High:         tick[y].HighPrice.Float64(),
-					Low:          tick[y].LowPrice.Float64(),
-					Bid:          tick[y].BidPrice.Float64(),
-					Ask:          tick[y].AskPrice.Float64(),
-					Volume:       tick[y].Volume.Float64(),
-					QuoteVolume:  tick[y].QuoteVolume.Float64(),
-					Open:         tick[y].OpenPrice.Float64(),
-					Close:        tick[y].PrevClosePrice.Float64(),
-					Pair:         pairFmt,
-					ExchangeName: e.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
+			if err := ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice.Float64(),
+				High:         tick[y].HighPrice.Float64(),
+				Low:          tick[y].LowPrice.Float64(),
+				Bid:          tick[y].BidPrice.Float64(),
+				Ask:          tick[y].AskPrice.Float64(),
+				Volume:       tick[y].Volume.Float64(),
+				QuoteVolume:  tick[y].QuoteVolume.Float64(),
+				Open:         tick[y].OpenPrice.Float64(),
+				Close:        tick[y].PrevClosePrice.Float64(),
+				Pair:         pair,
+				ExchangeName: e.Name,
+				AssetType:    a,
+			}); err != nil {
+				return err
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -1026,7 +1017,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 				openOrders[i].OrderID,
 				"")
 			if err != nil {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
+				cancelAllOrdersResponse.Add(strconv.FormatInt(openOrders[i].OrderID, 10), err.Error())
 			}
 		}
 	case asset.CoinMarginedFutures:

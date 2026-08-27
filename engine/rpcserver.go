@@ -5540,7 +5540,7 @@ func (s *RPCServer) SetMarginType(ctx context.Context, r *gctrpc.SetMarginTypeRe
 	if r == nil {
 		return nil, fmt.Errorf("%w SetMarginTypeRequest", common.ErrNilPointer)
 	}
-	if r.Pair == nil {
+	if r.Pair == nil || r.Pair.Base == "" || r.Pair.Quote == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -5581,7 +5581,7 @@ func (s *RPCServer) GetLeverage(ctx context.Context, r *gctrpc.GetLeverageReques
 	if r == nil {
 		return nil, fmt.Errorf("%w GetLeverageRequest", common.ErrNilPointer)
 	}
-	if r.Pair == nil {
+	if r.Pair == nil || r.Pair.Base == "" || r.Pair.Quote == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -5637,7 +5637,7 @@ func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageReques
 	if r == nil {
 		return nil, fmt.Errorf("%w SetLeverageRequest", common.ErrNilPointer)
 	}
-	if r.Pair == nil {
+	if r.Pair == nil || r.Pair.Base == "" || r.Pair.Quote == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -5692,7 +5692,7 @@ func (s *RPCServer) ChangePositionMargin(ctx context.Context, r *gctrpc.ChangePo
 	if r == nil {
 		return nil, fmt.Errorf("%w ChangePositionMarginRequest", common.ErrNilPointer)
 	}
-	if r.Pair == nil {
+	if r.Pair == nil || r.Pair.Base == "" || r.Pair.Quote == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	exch, err := s.GetExchangeByName(r.Exchange)

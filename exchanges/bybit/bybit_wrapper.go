@@ -1041,7 +1041,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			return nil, err
 		}
 		for i := range activeOrder {
-			cancelAllOrdersResponse.Status[activeOrder[i].OrderID] = status
+			cancelAllOrdersResponse.Add(activeOrder[i].OrderID, status)
 		}
 	default:
 		return nil, fmt.Errorf("%s %w", orderCancellation.AssetType, asset.ErrNotSupported)

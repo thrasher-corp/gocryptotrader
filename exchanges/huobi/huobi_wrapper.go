@@ -1147,10 +1147,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		split := strings.Split(a.Successes, ",")
 		for x := range split {
-			cancelAllOrdersResponse.Status[split[x]] = "success"
+			cancelAllOrdersResponse.Add(split[x], "success")
 		}
 		for y := range a.Errors {
-			cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
+			cancelAllOrdersResponse.Add(a.Errors[y].OrderID, "fail: "+a.Errors[y].ErrMsg)
 		}
 	case asset.Futures:
 		if orderCancellation.Pair.IsEmpty() {
@@ -1165,10 +1165,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		split := strings.Split(a.Data.Successes, ",")
 		for x := range split {
-			cancelAllOrdersResponse.Status[split[x]] = "success"
+			cancelAllOrdersResponse.Add(split[x], "success")
 		}
 		for y := range a.Data.Errors {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
+			cancelAllOrdersResponse.Add(strconv.FormatInt(a.Data.Errors[y].OrderID, 10), "fail: "+a.Data.Errors[y].ErrMsg)
 		}
 	}
 	return &cancelAllOrdersResponse, nil
@@ -2266,7 +2266,8 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 	}
 	var resp []futures.OpenInterest
-	for _, a := range e.GetAssetTypes(false) {
+	assetTypes := e.GetAssetTypes(len(k) == 0)
+	for _, a := range assetTypes {
 		switch a {
 		case asset.Futures:
 			data, err := e.FContractOpenInterest(ctx, "", "", currency.EMPTYPAIR)

@@ -1,8 +1,12 @@
 package btcmarkets
 
 import (
+	"context"
 	"encoding/base64"
 	"log"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -488,11 +492,44 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
-	err := e.UpdateTickers(t.Context(), asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	t.Run("updates available pairs", func(t *testing.T) {
+		t.Parallel()
+		testexch.UpdatePairsOnce(t, e)
+		err := e.UpdateTickers(t.Context(), asset.Spot)
+		assert.NoError(t, err, "UpdateTickers should not error")
+	})
+	t.Run("rejects a short response", func(t *testing.T) {
+		t.Parallel()
+		testExchange := new(Exchange)
+		require.NoError(t, testexch.Setup(testExchange), "Setup must not error")
+		availablePairs := currency.Pairs{
+			currency.NewPair(currency.BTC, currency.AUD),
+			currency.NewPair(currency.ETH, currency.AUD),
+		}
+		require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, availablePairs, false), "StorePairs must not error")
+		require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, availablePairs[:1], true), "StorePairs must not error")
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/v3/markets/tickers", r.URL.Path, "GetTickers request path should be correct")
+			assert.Equal(t, "marketId=BTC-AUD&marketId=ETH-AUD", r.URL.RawQuery, "GetTickers request query should contain available pairs")
+			_, err := w.Write([]byte("[]"))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		t.Cleanup(server.Close)
+
+		baseTransport, ok := server.Client().Transport.(*http.Transport)
+		require.True(t, ok, "HTTP transport must be the standard transport")
+		transport := baseTransport.Clone()
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+		transport.TLSClientConfig.ServerName = "example.com"
+		transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+			dialer := net.Dialer{}
+			return dialer.DialContext(ctx, network, server.Listener.Addr().String())
+		}
+		require.NoError(t, testExchange.SetHTTPClient(&http.Client{Transport: transport}), "SetHTTPClient must not error")
+
+		err := testExchange.UpdateTickers(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, common.ErrInvalidResponse, "UpdateTickers should reject an incomplete ticker response")
+	})
 }
 
 func TestGetActiveOrders(t *testing.T) {

@@ -618,7 +618,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		return errs
 	case asset.Options:
-		pairs, err := e.GetAvailablePairs(a)
+		pairs, err := e.GetEnabledPairs(a)
 		if err != nil {
 			return err
 		}

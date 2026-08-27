@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -70,8 +71,14 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 		}
 		result[k] = t
 	}
-	if len(raw) > 0 && len(result) == 0 && !strings.Contains(symbol, "-") {
-		return nil, fmt.Errorf("%w for symbol request %q", errTickerDataNotFound, symbol)
+	if len(raw) > 0 && len(result) == 0 {
+		format, err := e.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			return nil, err
+		}
+		if !strings.Contains(symbol, format.Separator) {
+			return nil, fmt.Errorf("%w for symbol request %q", errTickerDataNotFound, symbol)
+		}
 	}
 	return result, nil
 }
