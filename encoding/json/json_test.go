@@ -2,15 +2,20 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"math"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// sonic differs from v1 in the few places tested below; the wrapper is otherwise v1 for both
+const sonicImpl = "bytedance/sonic"
 
 // number mirrors types.Number, which cannot be imported here without a cycle
 type number float64
@@ -260,8 +265,16 @@ func TestEncoderDecoderSettings(t *testing.T) {
 		enc := NewEncoder(&buf)
 		enc.SetEscapeHTML(false)
 		require.NoError(t, enc.Encode(map[string]string{"a": "a<b>c&d\u2028"}), "Encode must not error")
+		// compared literally rather than with JSONEq, which would pass with or without the escaping under test
+		const escaped = "{\"a\":\"a<b>c&d\\u2028\"}\n"
+		if Implementation == sonicImpl {
+			// sonic ties the JS line separators to HTML escaping, but falls back to encoding/json on
+			// the platforms its native backend does not cover, where they stay escaped as in v1
+			assert.Contains(t, []string{escaped, "{\"a\":\"a<b>c&d\u2028\"}\n"}, buf.String(), "disabling HTML escaping should either leave the JS line separators escaped or, under native sonic, emit them raw")
+			return
+		}
 		//nolint:testifylint // JSONEq compares semantically, which would pass with or without the escaping under test
-		assert.Equal(t, "{\"a\":\"a<b>c&d\\u2028\"}\n", buf.String(), "disabling HTML escaping should leave the JS line separators escaped, as it did in v1")
+		assert.Equal(t, escaped, buf.String(), "disabling HTML escaping should leave the JS line separators escaped, as it did in v1")
 	})
 
 	t.Run("DisallowUnknownFields", func(t *testing.T) {
@@ -286,5 +299,124 @@ func TestEncoderDecoderSettings(t *testing.T) {
 		assert.True(t, dec.More(), "a stream with a value left should report more")
 		require.NoError(t, dec.Decode(&m), "Decode must not error")
 		assert.False(t, dec.More(), "an exhausted stream should not report more")
+
+		assert.False(t, NewDecoder(bytes.NewReader([]byte(" \n\t"))).More(), "trailing whitespace should not report more")
+		assert.True(t, NewDecoder(bytes.NewReader([]byte("xyz"))).More(), "malformed input should report more, so a `for More` loop surfaces the decode error as it did in v1")
 	})
+}
+
+// v1 accepted any indent string; jsontext panics on anything but spaces and tabs.
+func TestIndentAcceptsAnyString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ prefix, indent, exp string }{
+		{">>", "  ", "{\n>>  \"a\": 1\n>>}"},
+		{"", "--", "{\n--\"a\": 1\n}"},
+		{"// ", "  ", "{\n//   \"a\": 1\n// }"},
+		{"\t", " ", "{\n\t \"a\": 1\n\t}"},
+	} {
+		out, err := MarshalIndent(map[string]int{"a": 1}, tc.prefix, tc.indent)
+		require.NoErrorf(t, err, "MarshalIndent must not error for prefix %q indent %q", tc.prefix, tc.indent)
+		assert.Equalf(t, tc.exp, string(out), "MarshalIndent should match v1 for prefix %q indent %q", tc.prefix, tc.indent)
+
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+		enc.SetIndent(tc.prefix, tc.indent)
+		require.NoErrorf(t, enc.Encode(map[string]int{"a": 1}), "Encode must not error for prefix %q indent %q", tc.prefix, tc.indent)
+		assert.Equalf(t, tc.exp+"\n", buf.String(), "SetIndent should match v1 for prefix %q indent %q", tc.prefix, tc.indent)
+	}
+}
+
+var errWrite = errors.New("write failed")
+
+// errWriter fails only its first write, so a later Encode returning errWrite can only be the
+// latched error rather than a fresh one
+type errWriter struct {
+	calls   int
+	written bytes.Buffer
+}
+
+func (w *errWriter) Write(p []byte) (int, error) {
+	w.calls++
+	if w.calls == 1 {
+		return 0, errWrite
+	}
+	return w.written.Write(p)
+}
+
+// v1's Encoder marshalled into a buffer before writing, so a value that failed to marshal left the
+// stream untouched; json/v2 streams a failing value's prefix out and then re-encodes it.
+func TestEncodeWritesNothingOnMarshalError(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	require.Error(t, enc.Encode(&struct {
+		Pad     string   `json:"pad"`
+		Channel chan int `json:"channel"`
+	}{Pad: strings.Repeat("x", 4096)}), "Encode must error on an unsupported type")
+	assert.Empty(t, buf.String(), "a failed Encode should leave the stream untouched")
+
+	require.NoError(t, enc.Encode(map[string]int{"ok": 7}), "Encode must not error")
+	assert.JSONEq(t, `{"ok":7}`, buf.String(), "the next value should be the only thing on the stream")
+}
+
+// v1 latched the first write error and returned it from every later Encode.
+func TestEncodeLatchesWriteError(t *testing.T) {
+	t.Parallel()
+	w := &errWriter{}
+	enc := NewEncoder(w)
+	require.ErrorIs(t, enc.Encode(1), errWrite, "Encode must return the writer error")
+	if Implementation == sonicImpl {
+		// sonic re-attempts the write rather than latching, except where it falls back to
+		// encoding/json, which latches as v1 does
+		if err := enc.Encode(2); err == nil {
+			assert.Equal(t, "2\n", w.written.String(), "an encoder that retries should write the second value")
+		} else {
+			assert.ErrorIs(t, err, errWrite, "an encoder that latches should return the first write error")
+		}
+		return
+	}
+	assert.ErrorIs(t, enc.Encode(2), errWrite, "a later Encode should return the latched error")
+	assert.Equal(t, 1, w.calls, "a latched encoder should not write again")
+	assert.Empty(t, w.written.String(), "a latched encoder should write nothing further")
+}
+
+// v1's MarshalIndent runs Indent even for an empty prefix and indent, so the output still breaks
+// onto lines; only Encoder.SetIndent("", "") means "no indentation".
+func TestMarshalIndentEmptyStillExpands(t *testing.T) {
+	t.Parallel()
+	out, err := MarshalIndent(map[string]int{"a": 1, "b": 2}, "", "")
+	require.NoError(t, err, "MarshalIndent must not error")
+	assert.Equal(t, "{\n\"a\": 1,\n\"b\": 2\n}", string(out), "an empty prefix and indent should still expand onto lines, as v1 did")
+
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	enc.SetIndent("", "")
+	require.NoError(t, enc.Encode(map[string]int{"a": 1}), "Encode must not error")
+	assert.Equal(t, "{\"a\":1}\n", buf.String(), "SetIndent(\"\", \"\") should disable indentation instead")
+}
+
+// v1 read the encoder's indentation settings after marshalling, so a MarshalJSON that changes them
+// affects the value it belongs to.
+func TestEncodeReadsIndentAfterMarshal(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	require.NoError(t, enc.Encode(indentMutator{enc: enc, indent: "  "}), "Encode must not error")
+	assert.Equal(t, "{\n  \"a\": 1\n}\n", buf.String(), "indentation set during MarshalJSON should apply to that value")
+
+	buf.Reset()
+	require.NoError(t, enc.Encode(indentMutator{enc: enc}), "Encode must not error")
+	assert.Equal(t, "{\"a\":1}\n", buf.String(), "indentation cleared during MarshalJSON should apply to that value")
+}
+
+// indentMutator changes the encoder's indentation from inside its own MarshalJSON. The encoder is
+// held as an interface so this builds against sonic's encoder type too
+type indentMutator struct {
+	enc    interface{ SetIndent(prefix, indent string) }
+	indent string
+}
+
+func (m indentMutator) MarshalJSON() ([]byte, error) {
+	m.enc.SetIndent("", m.indent)
+	return []byte(`{"a":1}`), nil
 }

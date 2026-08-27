@@ -39,7 +39,7 @@ type MarketPair struct {
 	Base                currency.Code       `json:"base"`
 	Quote               currency.Code       `json:"quote"`
 	Active              bool                `json:"active"`
-	Size                float64             `json:"size"` // 24h volume in the base currency
+	Size                float64             `json:"size"` // 24h volume in the base currency; spot only, the futures summary omits it
 	MinValidPrice       float64             `json:"minValidPrice"`
 	MinPriceIncrement   float64             `json:"minPriceIncrement"`
 	MinOrderSize        float64             `json:"minOrderSize"`

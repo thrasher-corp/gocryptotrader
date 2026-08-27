@@ -5,6 +5,11 @@
 // Encoder and Decoder expose the intersection of what both implementations provide. Relative to a
 // v1 *encoding/json.Decoder this drops UseNumber, which json/v2 has no exported equivalent for,
 // and Token and InputOffset, which sonic never provided.
+//
+// Three behaviours still differ by build, all on sonic's side: it ties U+2028 and U+2029 escaping
+// to SetEscapeHTML where v1 escaped them either way; it re-attempts a failed write rather than
+// latching it; and it writes each value's trailing newline separately and discards that write's
+// error, so two values can run together in the stream.
 package json
 
 import (

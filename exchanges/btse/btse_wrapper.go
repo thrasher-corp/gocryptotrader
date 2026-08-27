@@ -243,7 +243,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Bid:          tickers[x].HighestBid,
 				Low:          tickers[x].Low24Hr,
 				Last:         tickers[x].Last,
-				BaseVolume:   tickers[x].Size,
+				BaseVolume:   tickers[x].Size, // zero for futures: that summary omits size and reports turnover in the quote currency only
 				QuoteVolume:  tickers[x].Volume,
 				High:         tickers[x].High24Hr,
 				OpenInterest: tickers[x].OpenInterest,
@@ -284,7 +284,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Bid:          ticks[0].HighestBid,
 		Low:          ticks[0].Low24Hr,
 		Last:         ticks[0].Last,
-		BaseVolume:   ticks[0].Size,
+		BaseVolume:   ticks[0].Size, // zero for futures: that summary omits size and reports turnover in the quote currency only
 		QuoteVolume:  ticks[0].Volume,
 		High:         ticks[0].High24Hr,
 		ExchangeName: e.Name,

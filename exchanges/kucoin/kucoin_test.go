@@ -3546,6 +3546,32 @@ func TestSendPlaceMarginHFOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 }
 
+// KuCoin documents postOnly as boolean and cancelAfter as long on /v3/hf/margin/order, with price
+// and size as strings; the sibling /v3/margin/order call already encodes them that way.
+func TestPlaceMarginHFOrderParamEncoding(t *testing.T) {
+	t.Parallel()
+	body, err := json.Marshal(&PlaceMarginHFOrderParam{
+		ClientOrderID: "first-order",
+		Side:          "buy",
+		Symbol:        currency.NewBTCUSDT(),
+		OrderType:     "limit",
+		IsIsolated:    true,
+		Price:         1234,
+		Size:          1,
+		TimeInForce:   "GTT",
+		CancelAfter:   60,
+		PostOnly:      true,
+		Hidden:        true,
+		Iceberg:       true,
+		VisibleSize:   0.5,
+	})
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, `{"clientOid":"first-order","side":"buy","symbol":"BTCUSDT","type":"limit","isIsolated":true,`+
+		`"price":"1234","size":"1","timeInForce":"GTT","cancelAfter":60,"postOnly":true,"hidden":true,`+
+		`"iceberg":true,"visibleSize":"0.5"}`, string(body),
+		"each field should be sent as the type KuCoin documents")
+}
+
 func TestPlaceMarginHFOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.PlaceMarginHFOrder(t.Context(), &PlaceMarginHFOrderParam{})

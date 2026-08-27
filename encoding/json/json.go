@@ -8,6 +8,7 @@ import (
 	"encoding/json/jsontext"  //nolint:depguard // Acceptable use in gct json wrapper
 	jsonv2 "encoding/json/v2" //nolint:depguard // Acceptable use in gct json wrapper
 	"io"
+	"strings"
 )
 
 // Implementation is a constant string that represents the current JSON implementation package
@@ -47,44 +48,82 @@ func Unmarshal(data []byte, v any) error { return jsonv2.Unmarshal(data, v, v1Co
 
 // MarshalIndent is like Marshal but applies Indent to format the output. See the "encoding/json/v2" documentation for Marshal
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
-	return jsonv2.Marshal(v, v1Compat, jsontext.WithIndentPrefix(prefix), jsontext.WithIndent(indent))
+	if spacesAndTabs(prefix) && spacesAndTabs(indent) {
+		return jsonv2.Marshal(v, v1Compat, jsontext.WithIndentPrefix(prefix), jsontext.WithIndent(indent))
+	}
+	// jsontext panics on an indent holding anything other than spaces and tabs, where v1 and sonic
+	// both accept any string, so those fall back to v1's Indent over the compact form
+	b, err := Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := jsonv1.Indent(&buf, b, prefix, indent); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
+
+// encodeOpts is v1Compat with HTML escaping lifted when the caller has turned it off, applied
+// last since v1Compat would otherwise override it
+func encodeOpts(rawHTML bool) []jsonv2.Options {
+	if rawHTML {
+		return []jsonv2.Options{v1Compat, jsontext.EscapeForHTML(false)}
+	}
+	return []jsonv2.Options{v1Compat}
+}
+
+// spacesAndTabs reports whether s holds only the characters jsontext allows in an indent
+func spacesAndTabs(s string) bool { return strings.Trim(s, " \t") == "" }
 
 // Valid reports whether data is a valid JSON encoding. See the "encoding/json/jsontext" documentation for Value.IsValid
 func Valid(data []byte) bool { return jsontext.Value(data).IsValid(v1Compat) }
 
 // Encoder writes JSON values to an output stream
 type Encoder struct {
-	enc     *jsontext.Encoder
-	w       io.Writer
-	rawHTML bool
+	w              io.Writer
+	err            error
+	prefix, indent string
+	rawHTML        bool
 }
 
 // NewEncoder returns a new encoder that writes to w
-func NewEncoder(w io.Writer) *Encoder { return &Encoder{enc: jsontext.NewEncoder(w), w: w} }
+func NewEncoder(w io.Writer) *Encoder { return &Encoder{w: w} }
 
 // SetIndent instructs the encoder to format each subsequent encoded value as if indented by
-// prefix and indent. SetIndent("", "") disables indentation.
-// json/v2 fixes formatting for an encoder's lifetime, so this rebuilds it
-func (e *Encoder) SetIndent(prefix, indent string) {
-	if prefix == "" && indent == "" {
-		e.enc.Reset(e.w)
-		return
-	}
-	e.enc.Reset(e.w, jsontext.WithIndentPrefix(prefix), jsontext.WithIndent(indent))
-}
+// prefix and indent. SetIndent("", "") disables indentation
+func (e *Encoder) SetIndent(prefix, indent string) { e.prefix, e.indent = prefix, indent }
 
 // SetEscapeHTML specifies whether <, > and & should be escaped inside JSON quoted strings.
 // U+2028 and U+2029 stay escaped either way, matching v1
 func (e *Encoder) SetEscapeHTML(on bool) { e.rawHTML = !on }
 
-// Encode writes the JSON encoding of v to the stream, followed by a newline character
+// Encode writes the JSON encoding of v to the stream, followed by a newline character.
+// The value is encoded in full before anything is written, so a value that fails to marshal
+// leaves the stream untouched, and the first write error is latched, both as v1 did. json/v2
+// would otherwise stream a failing value's prefix out and then re-encode it on the next call
 func (e *Encoder) Encode(v any) error {
-	if e.rawHTML {
-		// applied here rather than on the encoder, since v1Compat would otherwise override it
-		return jsonv2.MarshalEncode(e.enc, v, v1Compat, jsontext.EscapeForHTML(false))
+	if e.err != nil {
+		return e.err
 	}
-	return jsonv2.MarshalEncode(e.enc, v, v1Compat)
+	b, err := jsonv2.Marshal(v, encodeOpts(e.rawHTML)...)
+	if err != nil {
+		return err
+	}
+	// read after marshalling, as v1 does, so a MarshalJSON that calls SetIndent affects the value
+	// it belongs to. SetIndent("", "") disables indentation
+	if e.prefix != "" || e.indent != "" {
+		var buf bytes.Buffer
+		if err := jsonv1.Indent(&buf, b, e.prefix, e.indent); err != nil {
+			return err
+		}
+		b = buf.Bytes()
+	}
+	if _, err := e.w.Write(append(b, '\n')); err != nil {
+		e.err = err
+		return err
+	}
+	return nil
 }
 
 // Decoder reads and decodes JSON values from an input stream
@@ -102,8 +141,16 @@ func (d *Decoder) DisallowUnknownFields() { d.rejectUnknown = true }
 
 // More reports whether there is another element in the current array or object being parsed
 func (d *Decoder) More() bool {
-	k := d.dec.PeekKind()
-	return k != 0 && k != ']' && k != '}'
+	switch d.dec.PeekKind() {
+	case ']', '}':
+		return false
+	case 0:
+		// PeekKind reports 0 for a malformed token as well as for end of input; v1 reported the
+		// former as more, so `for d.More()` surfaces the decode error rather than exiting silently
+		return len(bytes.TrimLeft(d.dec.UnreadBuffer(), " \t\r\n")) > 0
+	default:
+		return true
+	}
 }
 
 // Decode reads the next JSON-encoded value from its input and stores it in the value pointed to by v

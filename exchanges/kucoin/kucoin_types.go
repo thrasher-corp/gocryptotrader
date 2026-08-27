@@ -1892,10 +1892,10 @@ type PlaceMarginHFOrderParam struct {
 	Price               float64       `json:"price,string"`
 	Size                float64       `json:"size,string"`
 	TimeInForce         string        `json:"timeInForce,omitempty"`
-	CancelAfter         int64         `json:"cancelAfter,omitempty,string"`
-	PostOnly            bool          `json:"postOnly,omitempty,string"`
-	Hidden              bool          `json:"hidden,omitempty,string"`
-	Iceberg             bool          `json:"iceberg,omitempty,string"`
+	CancelAfter         int64         `json:"cancelAfter,omitempty"`
+	PostOnly            bool          `json:"postOnly,omitempty"`
+	Hidden              bool          `json:"hidden,omitempty"`
+	Iceberg             bool          `json:"iceberg,omitempty"`
 	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               string        `json:"funds,omitempty"`
 }
