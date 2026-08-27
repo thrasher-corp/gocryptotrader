@@ -179,14 +179,6 @@ type Movement struct {
 	FullBookSideConsumed bool
 }
 
-// SideAmounts define the amounts total for the Levels, total value in
-// quotation and the cumulative base amounts.
-type SideAmounts struct {
-	Levels     int64
-	QuoteValue float64
-	BaseAmount float64
-}
-
 // LevelsArrayPriceAmount used to unmarshal orderbook levels from JSON slice of arrays
 // e.g. [[price, amount], [price, amount]] or [][2]types.Number type declaration
 type LevelsArrayPriceAmount Levels

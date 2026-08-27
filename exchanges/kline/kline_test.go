@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -1428,16 +1429,122 @@ func TestGetIntervalResultLimit(t *testing.T) {
 	}
 }
 
-func TestUnmarshalJSON(t *testing.T) {
+func TestUnmarshalText(t *testing.T) {
 	t.Parallel()
-	var i Interval
 	for _, tt := range []struct {
 		in  string
 		exp Interval
-	}{{`"3m"`, ThreeMin}, {`"15s"`, FifteenSecond}, {`720000000000`, OneMin * 12}, {`"-1ns"`, Raw}, {`"raw"`, Raw}} {
-		err := i.UnmarshalJSON([]byte(tt.in))
-		assert.NoErrorf(t, err, "UnmarshalJSON should not error on %q", tt.in)
+	}{
+		{`"3m"`, ThreeMin},
+		{`"15s"`, FifteenSecond},
+		{`"30sec"`, ThirtySecond},
+		{`"10seconds"`, TenSecond},
+		{`"-1ns"`, Raw},
+		{`"raw"`, Raw},
+		{`"1h"`, OneHour},
+		{`"1h30m"`, OneHour + ThirtyMin},
+		{`"1d"`, OneDay},
+		{`"1w"`, OneWeek},
+		{`"7days"`, OneWeek},
+		{`"1M"`, OneMonth},
+		{`"2mo"`, 2 * OneMonth},
+		{`"1m"`, OneMin},
+		{`"5MIN"`, 5 * OneMin},
+		{`"12Hours"`, TwelveHour},
+	} {
+		var i Interval
+		require.NoErrorf(t, i.UnmarshalText([]byte(tt.in)), "UnmarshalText must not error on %q", tt.in)
+		assert.Equalf(t, tt.exp, i, "UnmarshalText should parse %q correctly", tt.in)
 	}
-	err := i.UnmarshalJSON([]byte(`"6hedgehogs"`))
-	assert.ErrorContains(t, err, "unknown unit", "UnmarshalJSON should error")
+}
+
+func TestUnmarshalTextError(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{
+		``, `""`, `"m"`, `"hedgehogs"`, `"6hedgehogs"`, `"1x"`, `"99999999999999999999"`,
+		// Bare counts are exchange interval codes, not nanoseconds; only UnmarshalJSON accepts them
+		`"60"`, `"720000000000"`,
+		// Scaling these would wrap int64 nanoseconds
+		`"106752d"`, `"2147483647d"`, `"15251w"`, `"9223372036854775807mo"`,
+	} {
+		var i Interval
+		err := i.UnmarshalText([]byte(in))
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "UnmarshalText should error on %q", in)
+	}
+}
+
+// TestParseIntervalRejectsExchangeCodes covers bare exchange interval codes, which must not
+// be mistaken for a nanosecond count; Bybit uses "60" for one hour and "D"/"W"/"M" for the
+// longer intervals
+func TestParseIntervalRejectsExchangeCodes(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{"60", "120", "240", "D", "W"} {
+		_, err := ParseInterval(in)
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "ParseInterval should error on the bare exchange code %q", in)
+	}
+}
+
+// TestParseIntervalOverflow ensures unit scaling that would wrap int64 nanoseconds is
+// rejected rather than yielding a wrapped interval, which for some inputs stays positive
+// and so would pass the non-positive check
+func TestParseIntervalOverflow(t *testing.T) {
+	t.Parallel()
+	// The last count exceeds int64 itself, failing before it reaches the scaling guard
+	for _, in := range []string{"106752d", "2147483647d", "15251w", "3559mo", "9223372036854775807mo", "99999999999999999999d"} {
+		_, err := ParseInterval(in)
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "ParseInterval should error on overflowing input %q", in)
+	}
+
+	// The largest day count that still fits is accepted
+	i, err := ParseInterval("106751d")
+	require.NoError(t, err, "ParseInterval must not error on the largest representable day count")
+	assert.Equal(t, 106751*OneDay, i, "ParseInterval should parse the largest representable day count")
+}
+
+func TestParseInterval(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		in  string
+		exp Interval
+	}{{"1m", OneMin}, {"1M", OneMonth}, {"4h", FourHour}, {"1d", OneDay}} {
+		i, err := ParseInterval(tt.in)
+		require.NoErrorf(t, err, "ParseInterval must not error on %q", tt.in)
+		assert.Equalf(t, tt.exp, i, "ParseInterval should parse %q correctly", tt.in)
+	}
+
+	// Raw and other non-positive intervals are not valid candle intervals
+	for _, in := range []string{"raw", "-1ns", "0", "hedgehogs"} {
+		_, err := ParseInterval(in)
+		assert.ErrorIsf(t, err, ErrInvalidInterval, "ParseInterval should error on %q", in)
+	}
+}
+
+// TestIntervalJSON ensures Interval still round-trips through encoding/json now that it
+// also implements TextUnmarshaler, in particular the bare nanosecond counts that stored
+// strategy configs record
+func TestIntervalJSON(t *testing.T) {
+	t.Parallel()
+	var s struct {
+		Interval Interval `json:"interval"`
+	}
+
+	require.NoError(t, json.Unmarshal([]byte(`{"interval":"1M"}`), &s), "Unmarshal must not error on a quoted interval")
+	assert.Equal(t, OneMonth, s.Interval, "Unmarshal should parse a quoted interval")
+
+	require.NoError(t, json.Unmarshal([]byte(`{"interval":720000000000}`), &s), "Unmarshal must not error on a bare nanosecond count")
+	assert.Equal(t, OneMin*12, s.Interval, "Unmarshal should parse a bare nanosecond count")
+
+	// Quoted values are interval text, never a nanosecond count; exchanges quote their own
+	// numeric interval codes, such as Bybit's "60" for one hour
+	for _, in := range []string{`{"interval":"60"}`, `{"interval":"5"}`, `{"interval":"720000000000"}`} {
+		assert.ErrorIsf(t, json.Unmarshal([]byte(in), &s), ErrInvalidInterval, "Unmarshal should error on the quoted numeric code in %s", in)
+	}
+
+	s.Interval = FourHour
+	b, err := json.Marshal(&s)
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, `{"interval":"4h"}`, string(b), "Marshal should emit the short form")
+
+	require.NoError(t, json.Unmarshal(b, &s), "Unmarshal must not error on marshalled output")
+	assert.Equal(t, FourHour, s.Interval, "Interval should round-trip through JSON")
 }

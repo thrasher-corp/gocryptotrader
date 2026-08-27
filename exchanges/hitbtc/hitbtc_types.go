@@ -80,20 +80,6 @@ type Currencies struct {
 	PayoutFee          types.Number `json:"payoutFee"`          // Default withdraw fee
 }
 
-// LoanOrder contains information about your loans
-type LoanOrder struct {
-	Rate     float64 `json:"rate,string"`
-	Amount   float64 `json:"amount,string"`
-	RangeMin int     `json:"rangeMin"`
-	RangeMax int     `json:"rangeMax"`
-}
-
-// LoanOrders holds information on the full range of loan orders
-type LoanOrders struct {
-	Offers  []LoanOrder `json:"offers"`
-	Demands []LoanOrder `json:"demands"`
-}
-
 // Balance is a simple balance type
 type Balance struct {
 	Currency  currency.Code `json:"currency"`
@@ -132,16 +118,6 @@ type Order struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 	StopPrice   float64   `json:"stopPrice,string"`
 	ExpireTime  time.Time `json:"expireTime"`
-}
-
-// OpenOrdersResponseAll holds the full open order response
-type OpenOrdersResponseAll struct {
-	Data map[string][]Order
-}
-
-// OpenOrdersResponse contains open order information
-type OpenOrdersResponse struct {
-	Data []Order
 }
 
 // AuthentictedTradeHistory contains trade history data
@@ -208,14 +184,6 @@ type GenericResponse struct {
 	Error   string `json:"error"`
 }
 
-// MoveOrderResponse holds information about a move order
-type MoveOrderResponse struct {
-	Success     int                          `json:"success"`
-	Error       string                       `json:"error"`
-	OrderNumber int64                        `json:"orderNumber,string"`
-	Trades      map[string][]ResultingTrades `json:"resultingTrades"`
-}
-
 // Withdraw holds response for a withdrawal process
 type Withdraw struct {
 	Response string `json:"response"`
@@ -226,57 +194,6 @@ type Withdraw struct {
 type Fee struct {
 	TakeLiquidityRate    float64 `json:"takeLiquidityRate,string"`    // Taker
 	ProvideLiquidityRate float64 `json:"provideLiquidityRate,string"` // Maker
-}
-
-// Margin holds full margin information
-type Margin struct {
-	TotalValue    float64 `json:"totalValue,string"`
-	ProfitLoss    float64 `json:"pl,string"`
-	LendingFees   float64 `json:"lendingFees,string"`
-	NetValue      float64 `json:"netValue,string"`
-	BorrowedValue float64 `json:"totalBorrowedValue,string"`
-	CurrentMargin float64 `json:"currentMargin,string"`
-}
-
-// MarginPosition holds information about your current margin position
-type MarginPosition struct {
-	Amount           float64 `json:"amount,string"`
-	Total            float64 `json:"total,string"`
-	BasePrice        float64 `json:"basePrice,string"`
-	LiquidationPrice float64 `json:"liquidationPrice"`
-	ProfitLoss       float64 `json:"pl,string"`
-	LendingFees      float64 `json:"lendingFees,string"`
-	Type             string  `json:"type"`
-}
-
-// LoanOffer holds information about your loan offers
-type LoanOffer struct {
-	ID        int64   `json:"id"`
-	Rate      float64 `json:"rate,string"`
-	Amount    float64 `json:"amount,string"`
-	Duration  int     `json:"duration"`
-	AutoRenew bool    `json:"autoRenew"`
-	Date      string  `json:"date"`
-}
-
-// ActiveLoans holds information about your active loans
-type ActiveLoans struct {
-	Provided []LoanOffer `json:"provided"`
-	Used     []LoanOffer `json:"used"`
-}
-
-// LendingHistory contains lending history data
-type LendingHistory struct {
-	ID       int64   `json:"id"`
-	Currency string  `json:"currency"`
-	Rate     float64 `json:"rate,string"`
-	Amount   float64 `json:"amount,string"`
-	Duration float64 `json:"duration,string"`
-	Interest float64 `json:"interest,string"`
-	Fee      float64 `json:"fee,string"`
-	Earned   float64 `json:"earned,string"`
-	Open     string  `json:"open"`
-	Close    string  `json:"close"`
 }
 
 type capture struct {
@@ -423,34 +340,6 @@ type wsOrderData struct {
 	TradeFee                     float64   `json:"tradeFee,string"`
 }
 
-// WsReportResponse report response for auth subscription to reports
-type WsReportResponse struct {
-	Params WsReportResponseData `json:"params"`
-	Error  ResponseError        `json:"error"`
-}
-
-// WsReportResponseData Report data for WsReportResponse
-type WsReportResponseData struct {
-	ID            string    `json:"id"`
-	ClientOrderID string    `json:"clientOrderId,omitempty"`
-	Symbol        string    `json:"symbol"`
-	Side          string    `json:"side"`
-	Status        string    `json:"status"`
-	Type          string    `json:"type"`
-	TimeInForce   string    `json:"timeInForce"`
-	Quantity      float64   `json:"quantity,string"`
-	Price         float64   `json:"price,string"`
-	CumQuantity   float64   `json:"cumQuantity,string"`
-	PostOnly      bool      `json:"postOnly"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
-	ReportType    string    `json:"reportType"`
-	TradeQuantity float64   `json:"tradeQuantity,string"`
-	TradePrice    float64   `json:"tradePrice,string"`
-	TradeID       int64     `json:"tradeId"`
-	TradeFee      float64   `json:"tradeFee,string"`
-}
-
 // WsSubmitOrderRequest WS request
 type WsSubmitOrderRequest struct {
 	Method string                   `json:"method"`
@@ -492,19 +381,6 @@ type WsSubmitOrderSuccessResponseData struct {
 	ReportType    string    `json:"reportType"`
 }
 
-// WsSubmitOrderErrorResponse WS error response
-type WsSubmitOrderErrorResponse struct {
-	Error WsSubmitOrderErrorResponseData `json:"error"`
-	ID    int64                          `json:"id"`
-}
-
-// WsSubmitOrderErrorResponseData WS error response data
-type WsSubmitOrderErrorResponseData struct {
-	Code        int64  `json:"code"`
-	Message     string `json:"message"`
-	Description string `json:"description"`
-}
-
 // WsCancelOrderResponse WS response
 type WsCancelOrderResponse struct {
 	Result WsCancelOrderResponseData `json:"result"`
@@ -539,32 +415,6 @@ type WsReplaceOrderResponse struct {
 
 // WsReplaceOrderResponseData WS response data
 type WsReplaceOrderResponseData struct {
-	ID                           string    `json:"id"`
-	ClientOrderID                string    `json:"clientOrderId,omitempty"`
-	Symbol                       string    `json:"symbol"`
-	Side                         string    `json:"side"`
-	Status                       string    `json:"status"`
-	Type                         string    `json:"type"`
-	TimeInForce                  string    `json:"timeInForce"`
-	Quantity                     float64   `json:"quantity,string"`
-	Price                        float64   `json:"price,string"`
-	CumQuantity                  float64   `json:"cumQuantity,string"`
-	PostOnly                     bool      `json:"postOnly"`
-	CreatedAt                    time.Time `json:"createdAt"`
-	UpdatedAt                    time.Time `json:"updatedAt"`
-	ReportType                   string    `json:"reportType"`
-	OriginalRequestClientOrderID string    `json:"originalRequestClientOrderId"`
-}
-
-// WsGetActiveOrdersResponse WS response
-type WsGetActiveOrdersResponse struct {
-	Result []WsGetActiveOrdersResponseData `json:"result"`
-	ID     string                          `json:"id"`
-	Error  ResponseError                   `json:"error"`
-}
-
-// WsGetActiveOrdersResponseData WS response data
-type WsGetActiveOrdersResponseData struct {
 	ID                           string    `json:"id"`
 	ClientOrderID                string    `json:"clientOrderId,omitempty"`
 	Symbol                       string    `json:"symbol"`
