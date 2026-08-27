@@ -324,11 +324,11 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	msg, readErr := io.ReadAll(reader)
-	if err := errors.Join(readErr, reader.Close()); err != nil {
+	msg, err := io.ReadAll(reader)
+	if err != nil {
 		return nil, err
 	}
-	return msg, nil
+	return msg, reader.Close()
 }
 
 // Shutdown shuts down and closes specific connection
