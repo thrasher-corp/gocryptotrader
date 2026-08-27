@@ -30,7 +30,7 @@ newSettings := base.Settings{
 
 c.Setup(newSettings)
 
-mapstringfloat, err := c.GetRates(context.Background(), "USD", "EUR,AUD")
+mapstringfloat, err := c.GetRates("USD", "EUR,AUD")
 // Handle error
 ```
 
