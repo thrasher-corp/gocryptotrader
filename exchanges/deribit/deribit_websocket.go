@@ -74,7 +74,7 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel:          tradesChannel,
 	subscription.MyTradesChannel:           userTradesChannel,
 	subscription.MyOrdersChannel:           userOrdersChannel,
-	subscription.MyAccountChannel:          userChangesInstrumentsChannel,
+	subscription.MyAccountChannel:          userPortfolioChannel,
 	announcementsChannel:                   announcementsChannel,
 	priceIndexChannel:                      priceIndexChannel,
 	priceRankingChannel:                    priceRankingChannel,
@@ -104,7 +104,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
-	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
+	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
 // WsConnect starts a new connection with the websocket API
@@ -872,7 +872,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
-		"fmt":             formatChannelPair,
+		"fmt":             formatPairString,
 		"symbolSep":       symbolChannelSeparator,
 	}).
 		Parse(subTplText)
@@ -944,6 +944,9 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 }
 
 func channelName(s *subscription.Subscription) string {
+	if s.Channel == subscription.MyAccountChannel {
+		return userPortfolioChannel + ".any"
+	}
 	if name, ok := subscriptionNames[s.Channel]; ok {
 		return name
 	}
@@ -985,13 +988,6 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
-func formatChannelPair(pair currency.Pair) string {
-	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
-		pair.Delimiter = "_"
-	}
-	return pair.String()
-}
-
 func symbolChannelSeparator(s *subscription.Subscription) string {
 	if strings.HasSuffix(channelName(s), ".") {
 		return ""
@@ -1003,7 +999,7 @@ const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}}{{- symbolSep $.S -}}{{- fmt $p }}
+			{{- channelName $.S -}}{{- symbolSep $.S -}}{{- fmt $asset $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

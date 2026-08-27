@@ -168,7 +168,7 @@ type WebsocketFuturesAmendOrder struct {
 	Asset     asset.Item    `json:"-"` // Only used internally for routing
 	AmendText string        `json:"amend_text,omitempty"`
 	Price     string        `json:"price,omitempty"`
-	Size      float64       `json:"size,omitempty"`
+	Size      types.Number  `json:"size,omitempty"`
 }
 
 // WebsocketFutureOrdersList defines a websocket future orders list

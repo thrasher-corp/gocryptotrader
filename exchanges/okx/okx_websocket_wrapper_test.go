@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -230,6 +231,23 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		Price:     1,
 	})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+
+	resolveError := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+	instrumentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "failed", http.StatusInternalServerError)
+	}))
+	t.Cleanup(instrumentServer.Close)
+	require.NoError(t, resolveError.API.Endpoints.SetRunningURL("RestSpotURL", instrumentServer.URL+"/"))
+	_, err = resolveError.WebsocketSubmitOrder(t.Context(), &order.Submit{
+		Exchange:  resolveError.Name,
+		Pair:      mainPair,
+		AssetType: asset.Options,
+		Side:      order.Long,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	assert.Error(t, err, "instrument resolution failure should stop websocket order submission")
 }
 
 func TestWebsocketModifyOrder(t *testing.T) {
@@ -800,7 +818,7 @@ func TestIsInstFamilyChannel(t *testing.T) {
 		},
 		{
 			name: "options summary",
-			sub:  &subscription.Subscription{Asset: asset.Options, Channel: subscription.TickerChannel},
+			sub:  &subscription.Subscription{Asset: asset.Options, Channel: channelOptSummary},
 			want: true,
 		},
 		{
@@ -870,12 +888,18 @@ func TestResolveInstrumentIDCode(t *testing.T) {
 	t.Parallel()
 
 	const instrumentID = "BTC-USDT-260101-100000-C"
+	var requests atomic.Int64
+	var invalidOptionsQuery atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
 		w.Header().Set("Content-Type", "application/json")
-		switch r.URL.Query().Get("instId") {
-		case instrumentID:
+		switch {
+		case r.URL.Query().Get("instFamily") == "BTC-USDT":
+			if r.URL.Query().Get("uly") != "" || r.URL.Query().Get("instId") != "" {
+				invalidOptionsQuery.Store(true)
+			}
 			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"BTC-USDT-260101-100000-C","instIdCode":"42"}]}`))
-		case "FAIL-USDT":
+		case r.URL.Query().Get("instId") == "FAIL-USDT":
 			http.Error(w, "failed", http.StatusInternalServerError)
 		default:
 			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
@@ -890,6 +914,13 @@ func TestResolveInstrumentIDCode(t *testing.T) {
 	code, err := ex.resolveInstrumentIDCode(t.Context(), asset.Options, instrumentID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(42), code, "resolveInstrumentIDCode should return the exchange code")
+	assert.False(t, invalidOptionsQuery.Load(), "options lookup should use only the instrument family selector")
+	assert.Equal(t, int64(1), requests.Load(), "first lookup should make one instrument request")
+
+	code, err = ex.resolveInstrumentIDCode(t.Context(), asset.Options, instrumentID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(42), code, "cached lookup should return the exchange code")
+	assert.Equal(t, int64(1), requests.Load(), "cached lookup should not make another instrument request")
 
 	_, err = ex.resolveInstrumentIDCode(t.Context(), asset.Options, "")
 	assert.ErrorIs(t, err, errMissingInstrumentID, "resolveInstrumentIDCode should reject an empty instrument")

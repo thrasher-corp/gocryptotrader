@@ -3294,14 +3294,14 @@ func TestGetSideAndAmountFromSize(t *testing.T) {
 
 func TestGetFutureOrderSize(t *testing.T) {
 	t.Parallel()
-	_, err := getFutureOrderSize(&order.Submit{Side: order.CouldNotCloseShort, Amount: 1})
+	_, err := getFutureOrderSize(order.CouldNotCloseShort, 1)
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	ret, err := getFutureOrderSize(&order.Submit{Side: order.Buy, Amount: 1})
+	ret, err := getFutureOrderSize(order.Buy, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 1.0, ret)
 
-	ret, err = getFutureOrderSize(&order.Submit{Side: order.Sell, Amount: 1})
+	ret, err = getFutureOrderSize(order.Sell, 1)
 	require.NoError(t, err)
 	assert.Equal(t, -1.0, ret)
 }

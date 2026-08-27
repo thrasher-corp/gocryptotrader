@@ -4051,6 +4051,41 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
+
+	t.Run("linear dated futures use an underscore", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		pair := currency.NewPairWithDelimiter("AVAX", "USDC-27AUG26", currency.DashDelimiter)
+		require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{pair}, asset.Futures, false), "SetPairs available must not error")
+		require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{pair}, asset.Futures, true), "SetPairs must not error")
+		ex.Features.Subscriptions = subscription.List{{
+			Enabled:  true,
+			Asset:    asset.Futures,
+			Channel:  subscription.TickerChannel,
+			Interval: kline.HundredMilliseconds,
+		}}
+
+		generated, err := ex.generateSubscriptions()
+		require.NoError(t, err)
+		require.Len(t, generated, 1, "one subscription must be generated")
+		assert.Equal(t, "ticker.AVAX_USDC-27AUG26.100ms", generated[0].QualifiedChannel, "dated linear future should use the exchange delimiter")
+	})
+
+	t.Run("account subscription uses portfolio", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true}}
+
+		generated, err := ex.generateSubscriptions()
+		require.NoError(t, err)
+		require.Len(t, generated, 1, "one account subscription must be generated")
+		assert.Equal(t, "user.portfolio.any", generated[0].QualifiedChannel, "account subscription should use the portfolio channel")
+	})
 }
 
 func TestChannelInterval(t *testing.T) {
@@ -4088,6 +4123,7 @@ func TestChannelInterval(t *testing.T) {
 func TestChannelName(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, tickerChannel, channelName(&subscription.Subscription{Channel: subscription.TickerChannel}))
+	assert.Equal(t, userPortfolioChannel+".any", channelName(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
 	assert.Equal(t, userLockChannel, channelName(&subscription.Subscription{Channel: userLockChannel}))
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: "wibble"}) }, "Unknown channels should panic")
 }
@@ -4266,6 +4302,7 @@ func TestGetAssetFromInstrument(t *testing.T) {
 		{"BTC-PCAL-14NOV25_7NOV25-112000", asset.OptionCombo, nil},
 		{"XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4", asset.OptionCombo, nil},
 		{"ETH-CS-26SEP25-5000_5500", asset.OptionCombo, nil},
+		{"BTC-STRD-25JUN27-64000", asset.OptionCombo, nil},
 		{"HELLOMOTO", asset.Empty, errUnsupportedInstrumentFormat},
 		{"hi-my-name-is-moto", asset.Empty, errUnsupportedInstrumentFormat},
 	}

@@ -1140,7 +1140,11 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 			Asset:    action.AssetType,
 		}
 		if action.Amount != 0 {
-			req.Size = action.Amount
+			size, err := getFutureOrderSize(action.Side, action.Amount)
+			if err != nil {
+				return nil, err
+			}
+			req.Size = types.Number(size)
 		}
 		if action.Price != 0 {
 			req.Price = strconv.FormatFloat(action.Price, 'f', -1, 64)
@@ -2745,12 +2749,12 @@ func getSideAndAmountFromSize(size, left float64) (side order.Side, amount, rema
 }
 
 // getFutureOrderSize sets the amount to a negative value if shorting.
-func getFutureOrderSize(s *order.Submit) (float64, error) {
+func getFutureOrderSize(side order.Side, amount float64) (float64, error) {
 	switch {
-	case s.Side.IsLong():
-		return s.Amount, nil
-	case s.Side.IsShort():
-		return -s.Amount, nil
+	case side.IsLong():
+		return amount, nil
+	case side.IsShort():
+		return -amount, nil
 	default:
 		return 0, order.ErrSideIsInvalid
 	}
@@ -2840,7 +2844,7 @@ func (e *Exchange) formatOrderClientIDAndPair(s *order.Submit) error {
 }
 
 func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) {
-	amountWithDirection, err := getFutureOrderSize(s)
+	amountWithDirection, err := getFutureOrderSize(s.Side, s.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -2859,7 +2863,7 @@ func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) 
 }
 
 func getDeliveryOrderRequest(s *order.Submit) (*DeliveryOrderCreateParams, error) {
-	amountWithDirection, err := getFutureOrderSize(s)
+	amountWithDirection, err := getFutureOrderSize(s.Side, s.Amount)
 	if err != nil {
 		return nil, err
 	}

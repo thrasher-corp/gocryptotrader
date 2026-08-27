@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -3556,6 +3557,23 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	websocketExchange := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+		tb.Helper()
+		require.Contains(tb, string(payload), `"instIdCode":42`, "websocket order request must include the resolved instrument ID code")
+		return okxOrderWsMock(tb, payload, conn)
+	})
+	result, err := websocketExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  websocketExchange.Name,
+		Pair:      mainPair,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.NoError(t, err, "SubmitOrder must place the websocket order")
+	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket order ID")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{
 		Pair: currency.Pair{
@@ -3570,7 +3588,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
-	result, err := e.SubmitOrder(contextGenerate(), arg)
+	result, err = e.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 

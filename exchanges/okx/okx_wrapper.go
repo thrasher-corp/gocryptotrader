@@ -981,6 +981,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			}
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, s.AssetType, orderRequest.InstrumentID)
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			orderRequest.InstrumentIDCode = instrumentIDCode
 			placeOrderResponse, err = e.WSPlaceOrder(ctx, orderRequest)
 		} else {
 			placeOrderResponse, err = e.PlaceOrder(ctx, orderRequest)
@@ -1184,9 +1189,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, action.AssetType, amendRequest.InstrumentID)
-			if resolveErr == nil {
-				amendRequest.InstrumentIDCode = instrumentIDCode
+			if resolveErr != nil {
+				return nil, resolveErr
 			}
+			amendRequest.InstrumentIDCode = instrumentIDCode
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
 		} else {
 			_, err = e.AmendOrder(ctx, &amendRequest)
@@ -1287,10 +1293,11 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if err != nil {
 		return nil, err
 	}
-	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, action.AssetType, arg.InstrumentID)
-	if resolveErr == nil {
-		arg.InstrumentIDCode = instrumentIDCode
+	instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, action.AssetType, arg.InstrumentID)
+	if err != nil {
+		return nil, err
 	}
+	arg.InstrumentIDCode = instrumentIDCode
 	if _, err = e.WSAmendOrder(ctx, arg); err != nil {
 		return nil, err
 	}
@@ -1328,9 +1335,10 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, req.InstrumentID)
-			if resolveErr == nil {
-				req.InstrumentIDCode = instrumentIDCode
+			if resolveErr != nil {
+				return resolveErr
 			}
+			req.InstrumentIDCode = instrumentIDCode
 			_, err = e.WSCancelOrder(ctx, &req)
 		} else {
 			_, err = e.CancelSingleOrder(ctx, &req)
@@ -1517,10 +1525,11 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if err != nil {
 		return err
 	}
-	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, arg.InstrumentID)
-	if resolveErr == nil {
-		arg.InstrumentIDCode = instrumentIDCode
+	instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, arg.InstrumentID)
+	if err != nil {
+		return err
 	}
+	arg.InstrumentIDCode = instrumentIDCode
 	_, err = e.WSCancelOrder(ctx, arg)
 	return err
 }
@@ -1559,10 +1568,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				ClientOrderID: ord.ClientOrderID,
 			})
 			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, cancelOrderParams[len(cancelOrderParams)-1].InstrumentID)
-				if resolveErr == nil {
-					cancelOrderParams[len(cancelOrderParams)-1].InstrumentIDCode = instrumentIDCode
+				instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, cancelOrderParams[len(cancelOrderParams)-1].InstrumentID)
+				if err != nil {
+					return nil, err
 				}
+				cancelOrderParams[len(cancelOrderParams)-1].InstrumentIDCode = instrumentIDCode
 			}
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
@@ -1651,10 +1661,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, s.AssetType, arg.InstrumentID)
-	if resolveErr == nil {
-		arg.InstrumentIDCode = instrumentIDCode
+	instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, s.AssetType, arg.InstrumentID)
+	if err != nil {
+		return nil, err
 	}
+	arg.InstrumentIDCode = instrumentIDCode
 	resp, err := e.WSPlaceOrder(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -1670,47 +1681,49 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 		return 0, fmt.Errorf("%w: %v", errInvalidInstrumentType, ai)
 	}
 	instType := GetInstrumentTypeFromAssetItem(ai)
-	fetchParams := make([]InstrumentsFetchParams, 0, 4)
+	e.instrumentsInfoMapLock.Lock()
+	instrumentIDCode := lookupInstrumentIDCode(e.instrumentsInfoMap[instType], instrumentID)
+	e.instrumentsInfoMapLock.Unlock()
+	if instrumentIDCode > 0 {
+		return instrumentIDCode, nil
+	}
+
+	params := InstrumentsFetchParams{InstrumentType: instType}
 	if ai == asset.Options {
-		selector := optionInstrumentSelector(instrumentID)
-		fetchParams = append(fetchParams,
-			InstrumentsFetchParams{
-				InstrumentType:   instType,
-				Underlying:       selector,
-				InstrumentFamily: selector,
-				InstrumentID:     instrumentID,
-			},
-			InstrumentsFetchParams{
-				InstrumentType: instType,
-				Underlying:     selector,
-				InstrumentID:   instrumentID,
-			},
-			InstrumentsFetchParams{
-				InstrumentType:   instType,
-				InstrumentFamily: selector,
-				InstrumentID:     instrumentID,
-			})
+		params.InstrumentFamily = optionInstrumentSelector(instrumentID)
+	} else {
+		params.InstrumentID = instrumentID
 	}
-	fetchParams = append(fetchParams, InstrumentsFetchParams{
-		InstrumentType: instType,
-		InstrumentID:   instrumentID,
-	})
-	var fetchErr error
-	for _, params := range fetchParams {
-		instruments, err := e.GetInstruments(ctx, &params)
-		if err != nil {
-			fetchErr = err
-			continue
+	instruments, err := e.GetInstruments(ctx, &params)
+	if err != nil {
+		return 0, err
+	}
+	instrumentIDCode = lookupInstrumentIDCode(instruments, instrumentID)
+	if instrumentIDCode <= 0 {
+		return 0, fmt.Errorf("%w: %s", errInstrumentIDCodeNotFound, instrumentID)
+	}
+
+	e.instrumentsInfoMapLock.Lock()
+	if e.instrumentsInfoMap == nil {
+		e.instrumentsInfoMap = make(map[string][]Instrument)
+	}
+	cached := e.instrumentsInfoMap[instType]
+	for i := range instruments {
+		updated := false
+		for j := range cached {
+			if strings.EqualFold(cached[j].InstrumentID.String(), instruments[i].InstrumentID.String()) {
+				cached[j] = instruments[i]
+				updated = true
+				break
+			}
 		}
-		instrumentIDCode := lookupInstrumentIDCode(instruments, instrumentID)
-		if instrumentIDCode > 0 {
-			return instrumentIDCode, nil
+		if !updated {
+			cached = append(cached, instruments[i])
 		}
 	}
-	if fetchErr != nil {
-		return 0, fetchErr
-	}
-	return 0, fmt.Errorf("%w: %s", errInstrumentIDCodeNotFound, instrumentID)
+	e.instrumentsInfoMap[instType] = cached
+	e.instrumentsInfoMapLock.Unlock()
+	return instrumentIDCode, nil
 }
 
 func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
@@ -1824,10 +1837,11 @@ ordersLoop:
 			if remaining[i].InstrumentID == "" {
 				continue
 			}
-			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, orderCancellation.AssetType, remaining[i].InstrumentID)
-			if resolveErr == nil {
-				remaining[i].InstrumentIDCode = instrumentIDCode
+			instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, orderCancellation.AssetType, remaining[i].InstrumentID)
+			if err != nil {
+				return order.CancelAllResponse{}, err
 			}
+			remaining[i].InstrumentIDCode = instrumentIDCode
 		}
 	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))

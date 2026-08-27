@@ -222,6 +222,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Options, Channel: channelOptSummary},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
 	{Enabled: true, Channel: channelBalanceAndPosition, Authenticated: true},
@@ -1497,13 +1498,8 @@ func (e *Exchange) wsProcessPushData(ctx context.Context, data []byte, resp any)
 
 // channelName converts global subscription channel names to exchange specific names
 func channelName(s *subscription.Subscription) string {
-	if s.Asset == asset.Options {
-		switch s.Channel {
-		case subscription.AllTradesChannel:
-			return channelOptionTrades
-		case subscription.TickerChannel:
-			return channelOptSummary
-		}
+	if s.Asset == asset.Options && s.Channel == subscription.AllTradesChannel {
+		return channelOptionTrades
 	}
 	if s, ok := subscriptionNames[s.Channel]; ok {
 		return s
@@ -1517,7 +1513,7 @@ func isAssetChannel(s *subscription.Subscription) bool {
 }
 
 func isInstFamilyChannel(s *subscription.Subscription) bool {
-	return (s.Asset == asset.Options && s.Channel == subscription.AllTradesChannel) || channelName(s) == channelOptSummary
+	return s.Asset == asset.Options && (s.Channel == subscription.AllTradesChannel || s.Channel == channelOptSummary)
 }
 
 // subscriptionForAsset applies the current template expansion asset to a clone so

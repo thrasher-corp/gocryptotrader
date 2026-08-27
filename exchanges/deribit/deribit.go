@@ -3207,7 +3207,7 @@ func getAssetFromInstrument(instrument string) (asset.Item, error) {
 		return asset.FutureCombo, nil
 	case lastSplit == "C" || lastSplit == "P": // Options end with their call or put designation.
 		return asset.Options, nil
-	case splitLen >= 3 && hasUnderscore: // Option combos encode multiple strikes or expiries in the final underscore-delimited segment.
+	case splitLen >= 3 && hasUnderscore, splitLen == 4: // Option combos encode multiple strikes or expiries, or a single strike with a strategy code.
 		return asset.OptionCombo, nil
 	default:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)

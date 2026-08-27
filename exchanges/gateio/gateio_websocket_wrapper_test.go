@@ -9,6 +9,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
@@ -232,11 +234,40 @@ func TestWebsocketModifyOrder(t *testing.T) {
 		OrderID:   "futures-1",
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Side:      order.Buy,
 		Amount:    0.5,
 		Price:     101,
 	})
 	require.NoError(t, err)
 	require.Equal(t, "999", futuresResp.OrderID)
+
+	shortSizes := make(chan types.Number, 1)
+	short := connectGateioWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+		tb.Helper()
+		var req WebsocketRequest
+		if err := json.Unmarshal(payload, &req); err != nil {
+			return err
+		}
+		if req.Channel == "futures.order_amend" {
+			assert.Contains(tb, string(req.Payload.RequestParam), `"size":"-0.5"`, "futures amendment should encode decimal size as a string")
+			var amend WebsocketFuturesAmendOrder
+			if err := json.Unmarshal(req.Payload.RequestParam, &amend); err != nil {
+				return err
+			}
+			shortSizes <- amend.Size
+		}
+		return gateioOrderWsMock(tb, payload, conn)
+	})
+	_, err = short.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID:   "futures-short",
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Side:      order.Sell,
+		Amount:    0.5,
+		Price:     101,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, types.Number(-0.5), <-shortSizes, "short futures amendment should send a negative decimal size")
 
 	closed := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("cancelled"))
 	closedResp, err := closed.WebsocketModifyOrder(t.Context(), &order.Modify{
@@ -251,6 +282,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 		OrderID:   "futures-closed",
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Side:      order.Buy,
 		Amount:    1,
 	})
 	require.NoError(t, err)
@@ -268,6 +300,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 		OrderID:   "futures-invalid-status",
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Side:      order.Buy,
 		Amount:    1,
 	})
 	require.Error(t, err)
@@ -284,6 +317,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 		OrderID:   "futures-error",
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      getPair(t, asset.USDTMarginedFutures),
+		Side:      order.Buy,
 		Amount:    1,
 	})
 	require.Error(t, err)

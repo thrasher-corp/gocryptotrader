@@ -63,36 +63,8 @@ func connectDeribitWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc
 func TestSymbolChannelSeparator(t *testing.T) {
 	t.Parallel()
 
-	assert.Empty(t, symbolChannelSeparator(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
+	assert.Empty(t, symbolChannelSeparator(&subscription.Subscription{Channel: userChangesInstrumentsChannel}))
 	assert.Equal(t, ".", symbolChannelSeparator(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
-}
-
-func TestFormatChannelPair(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name string
-		pair currency.Pair
-		want string
-	}{
-		{
-			name: "standard option pair unchanged",
-			pair: currency.NewPairWithDelimiter("BTC", "USD-230224-18000-C", "-"),
-			want: "BTC-USD-230224-18000-C",
-		},
-		{
-			name: "perpetual quote with dash uses underscore delimiter",
-			pair: currency.NewPair(currency.BTC, currency.NewCode("USDT-PERPETUAL")),
-			want: "BTC_USDT-PERPETUAL",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.Equal(t, tc.want, formatChannelPair(tc.pair))
-		})
-	}
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {

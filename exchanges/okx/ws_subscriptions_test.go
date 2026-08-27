@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -422,11 +423,12 @@ func TestGenerateSubscriptionsOptionTradesUseInstrumentFamily(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	pair := currency.NewPairWithDelimiter("BTC", "USD-230224-18000-C", currency.DashDelimiter)
 	require.NoError(t,
-		ex.GetBase().SetPairs(currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")}, asset.Options, false),
+		ex.GetBase().SetPairs(currency.Pairs{pair}, asset.Options, false),
 		"SetPairs available must not error")
 	require.NoError(t,
-		ex.GetBase().SetPairs(currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")}, asset.Options, true),
+		ex.GetBase().SetPairs(currency.Pairs{pair}, asset.Options, true),
 		"SetPairs must not error")
 	ex.Features.Subscriptions = subscription.List{
 		{
@@ -457,7 +459,7 @@ func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
 		"SetPairs must not error")
 	ex.Features.Subscriptions = subscription.List{
 		{
-			Channel: subscription.TickerChannel,
+			Channel: channelOptSummary,
 			Asset:   asset.Options,
 		},
 	}
@@ -469,6 +471,13 @@ func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
 	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
 	require.NotContains(t, subs[0].QualifiedChannel, `"uly"`, "opt-summary must use instFamily instead of uly")
+
+	ex.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Options}}
+	subs, err = ex.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	require.Len(t, subs, 1, "one options ticker subscription must be generated")
+	assert.Contains(t, subs[0].QualifiedChannel, `"channel":"tickers"`, "options ticker should retain price updates")
+	assert.Contains(t, subs[0].QualifiedChannel, `"instID":"BTC-USD"`, "options ticker should remain symbol-based")
 }
 
 func TestChunkRequestsDeduplicatesOptionFamilyArguments(t *testing.T) {
