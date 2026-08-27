@@ -8,7 +8,6 @@ import (
 	"encoding/json/jsontext"  //nolint:depguard // Acceptable use in gct json wrapper
 	jsonv2 "encoding/json/v2" //nolint:depguard // Acceptable use in gct json wrapper
 	"io"
-	"strings"
 )
 
 // Implementation is a constant string that represents the current JSON implementation package
@@ -48,15 +47,18 @@ func Unmarshal(data []byte, v any) error { return jsonv2.Unmarshal(data, v, v1Co
 
 // MarshalIndent is like Marshal but applies Indent to format the output. See the "encoding/json/v2" documentation for Marshal
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
-	if spacesAndTabs(prefix) && spacesAndTabs(indent) {
-		return jsonv2.Marshal(v, v1Compat, jsontext.WithIndentPrefix(prefix), jsontext.WithIndent(indent))
-	}
-	// jsontext panics on an indent holding anything other than spaces and tabs, where v1 and sonic
-	// both accept any string, so those fall back to v1's Indent over the compact form
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
 	}
+	return indentBytes(b, prefix, indent)
+}
+
+// indentBytes formats already-marshalled JSON with v1's Indent. jsontext's indent options are
+// deliberately not used: they reach a jsonv2.MarshalerTo through its encoder's Options, so the
+// value emitted would depend on the indentation, and jsontext panics outright on an indent holding
+// anything other than spaces and tabs, where v1 and sonic both accept any string
+func indentBytes(b []byte, prefix, indent string) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := jsonv1.Indent(&buf, b, prefix, indent); err != nil {
 		return nil, err
@@ -72,9 +74,6 @@ func encodeOpts(rawHTML bool) []jsonv2.Options {
 	}
 	return []jsonv2.Options{v1Compat}
 }
-
-// spacesAndTabs reports whether s holds only the characters jsontext allows in an indent
-func spacesAndTabs(s string) bool { return strings.Trim(s, " \t") == "" }
 
 // Valid reports whether data is a valid JSON encoding. See the "encoding/json/jsontext" documentation for Value.IsValid
 func Valid(data []byte) bool { return jsontext.Value(data).IsValid(v1Compat) }
@@ -113,11 +112,9 @@ func (e *Encoder) Encode(v any) error {
 	// read after marshalling, as v1 does, so a MarshalJSON that calls SetIndent affects the value
 	// it belongs to. SetIndent("", "") disables indentation
 	if e.prefix != "" || e.indent != "" {
-		var buf bytes.Buffer
-		if err := jsonv1.Indent(&buf, b, e.prefix, e.indent); err != nil {
+		if b, err = indentBytes(b, e.prefix, e.indent); err != nil {
 			return err
 		}
-		b = buf.Bytes()
 	}
 	if _, err := e.w.Write(append(b, '\n')); err != nil {
 		e.err = err

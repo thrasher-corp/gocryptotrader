@@ -420,3 +420,13 @@ func (m indentMutator) MarshalJSON() ([]byte, error) {
 	m.enc.SetIndent("", m.indent)
 	return []byte(`{"a":1}`), nil
 }
+
+// v1 returns nil bytes when the value cannot be marshalled, whatever the indentation.
+func TestMarshalIndentReturnsNilOnMarshalError(t *testing.T) {
+	t.Parallel()
+	for _, ind := range [][2]string{{"", "  "}, {">>", "--"}} {
+		out, err := MarshalIndent(make(chan int), ind[0], ind[1])
+		require.Errorf(t, err, "MarshalIndent must error on an unsupported type for prefix %q indent %q", ind[0], ind[1])
+		assert.Nilf(t, out, "MarshalIndent should return nil bytes on error for prefix %q indent %q", ind[0], ind[1])
+	}
+}

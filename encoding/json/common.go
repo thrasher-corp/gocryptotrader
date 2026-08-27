@@ -2,14 +2,21 @@
 // The default implementation is golang.org/encoding/json/v2.
 // Build with `sonic_on` tag to switch to using github.com/bytedance/sonic
 //
-// Encoder and Decoder expose the intersection of what both implementations provide. Relative to a
-// v1 *encoding/json.Decoder this drops UseNumber, which json/v2 has no exported equivalent for,
-// and Token and InputOffset, which sonic never provided.
+// Neither build is a full v1 *encoding/json, and the gaps are not the same on each. Both drop
+// Token and InputOffset, which sonic's Decoder interface does not expose. The default build
+// additionally drops UseNumber, which json/v2 has no exported equivalent for, while sonic keeps it
+// but exposes no Encoder or Decoder type of its own, so only the default build satisfies
+// var _ *json.Encoder.
 //
-// Three behaviours still differ by build, all on sonic's side: it ties U+2028 and U+2029 escaping
-// to SetEscapeHTML where v1 escaped them either way; it re-attempts a failed write rather than
-// latching it; and it writes each value's trailing newline separately and discards that write's
-// error, so two values can run together in the stream.
+// Behaviour differs by build in both directions. The sonic notes below describe its native
+// backend; on the platforms it does not cover it falls back to encoding/json and behaves as v1.
+// The default build is the outlier on a bytes.Buffer that grows between Decode calls, erroring
+// where v1 and sonic both read the next value, and all three disagree on a truncated "{": v1
+// reports io.ErrUnexpectedEOF, the default build a *SyntaxError and sonic io.EOF. sonic is the
+// outlier elsewhere: it ties U+2028 and U+2029 escaping to SetEscapeHTML where v1 escaped them
+// either way, re-attempts a failed write rather than latching it, and with indentation disabled
+// writes each value's trailing newline separately while discarding that write's error, so two
+// values can run together in the stream.
 package json
 
 import (

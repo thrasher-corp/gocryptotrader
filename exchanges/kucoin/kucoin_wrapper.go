@@ -660,14 +660,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          s.Amount,
 			Price:         s.Price,
 			Leverage:      s.Leverage,
-			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),
-			Hidden:        s.Hidden,
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
 			StopPriceType: stopOrderType,
-			Iceberg:       s.Iceberg,
 		})
 		if err != nil {
 			return nil, err
@@ -712,7 +709,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					s.Pair.String(),
 					oType.Lower(), "", stopType, "", SpotTradeType,
 					timeInForce, s.Amount, s.Price, stopPrice, 0,
-					0, 0, s.TimeInForce.Is(order.PostOnly), s.Hidden, s.Iceberg)
+					0, s.TimeInForce.Is(order.PostOnly))
 				if err != nil {
 					return nil, err
 				}
@@ -726,9 +723,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				Size:          s.Amount,
 				Price:         s.Price,
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
-				Hidden:        s.Hidden,
 				TimeInForce:   timeInForce,
-				Iceberg:       s.Iceberg,
 				TradeType:     SpotTradeType,
 				ReduceOnly:    s.ReduceOnly,
 			})
@@ -784,12 +779,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				MarginModel:   MarginModeToString(s.MarginType),
 				Price:         s.Price,
 				Size:          s.Amount,
-				VisibleSize:   s.Amount,
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
-				Hidden:        s.Hidden,
 				AutoBorrow:    s.AutoBorrow,
 				AutoRepay:     s.AutoBorrow,
-				Iceberg:       s.Iceberg,
 			})
 		if err != nil {
 			return nil, err

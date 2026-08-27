@@ -434,9 +434,6 @@ type PlaceHFParam struct {
 	TimeInForce string  `json:"timeInForce"`
 	CancelAfter int64   `json:"cancelAfter"`
 	PostOnly    bool    `json:"postOnly"`
-	Hidden      bool    `json:"hidden"`
-	Iceberg     bool    `json:"iceberg"`
-	VisibleSize float64 `json:"visibleSize"`
 
 	// Additional 'market' parameters
 	Funds string `json:"funds"`
@@ -549,18 +546,20 @@ type OrderRequest struct {
 	TimeInForce         string  `json:"timeInForce,omitempty"` // optional
 	CancelAfter         int64   `json:"cancelAfter,omitempty"` // optional
 	PostOnly            bool    `json:"postOnly,omitempty"`    // optional
-	Hidden              bool    `json:"hidden,omitempty"`      // optional
-	Iceberg             bool    `json:"iceberg,omitempty"`     // optional
-	VisibleSize         string  `json:"visibleSize,omitempty"` // optional
 }
 
 // PostBulkOrderResp response data for submitting a bulk order
 type PostBulkOrderResp struct {
 	OrderRequest
-	ID      string `json:"id"`
-	Channel string `json:"channel"`
-	Status  string `json:"status"`
-	FailMsg string `json:"failMsg"`
+	// response only: /v1/orders/multi echoes these back even though order placement no longer
+	// accepts them, with visibleSize null
+	Hidden      bool         `json:"hidden"`
+	Iceberg     bool         `json:"iceberg"`
+	VisibleSize types.Number `json:"visibleSize"`
+	ID          string       `json:"id"`
+	Channel     string       `json:"channel"`
+	Status      string       `json:"status"`
+	FailMsg     string       `json:"failMsg"`
 }
 
 // OrdersListResponse represents an order list response
@@ -662,6 +661,12 @@ type StopOrderListResponse struct {
 // StopOrder holds a stop order detail
 type StopOrder struct {
 	OrderRequest
+	// response only: KuCoin stopped accepting these on order placement in August 2026 but still
+	// returns them here, with visibleSize null
+	Hidden      bool         `json:"hidden"`
+	Iceberg     bool         `json:"iceberg"`
+	VisibleSize types.Number `json:"visibleSize"`
+
 	ID              string     `json:"id"`
 	UserID          string     `json:"userId"`
 	Status          string     `json:"status"`
@@ -1750,10 +1755,7 @@ type FuturesOrderParam struct {
 	ForceHold           bool    `json:"forceHold,omitempty"`
 	SelfTradePrevention string  `json:"stp,omitempty"` // self trade prevention, CN, CO, CB. Not supported DC at the moment
 	TimeInForce         string  `json:"timeInForce,omitempty"`
-	VisibleSize         float64 `json:"visibleSize,omitempty,string"` // The maximum visible size of an iceberg order
 	PostOnly            bool    `json:"postOnly,omitempty"`
-	Hidden              bool    `json:"hidden,omitempty"`
-	Iceberg             bool    `json:"iceberg,omitempty"`
 }
 
 // FuturesOrderRespItem represents a single futures order placing response in placing multiple orders
@@ -1776,13 +1778,10 @@ type SpotOrderParam struct {
 	SelfTradePrevention string        `json:"stp,omitempty"`         // [Optional] self trade prevention , CN, CO, CB or DC. `CN` for Cancel newest, `DC` for Decrease and Cancel, `CO` for cancel oldest, and `CB` for Cancel both
 	TimeInForce         string        `json:"timeInForce,omitempty"` // [Optional] GTC, GTT, IOC, or FOK (default is GTC)
 	PostOnly            bool          `json:"postOnly,omitempty"`
-	Hidden              bool          `json:"hidden,omitempty"`
-	Iceberg             bool          `json:"iceberg,omitempty"`
 	ReduceOnly          bool          `json:"reduceOnly,omitempty"`
 	CancelAfter         int64         `json:"cancelAfter,omitempty"`
 	Size                float64       `json:"size,omitempty,string"`
 	Price               float64       `json:"price,string,omitempty"`
-	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
 }
 
@@ -1802,9 +1801,6 @@ type MarginOrderParam struct {
 	TimeInForce         string        `json:"timeInForce,omitempty"` // [Optional] GTC, GTT, IOC, or FOK (default is GTC)
 	CancelAfter         int64         `json:"cancelAfter,omitempty"` // [Optional] cancel after n seconds, requires timeInForce to be GTT
 	PostOnly            bool          `json:"postOnly,omitempty"`
-	Hidden              bool          `json:"hidden,omitempty"`
-	Iceberg             bool          `json:"iceberg,omitempty"`
-	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
 }
 
@@ -1894,9 +1890,6 @@ type PlaceMarginHFOrderParam struct {
 	TimeInForce         string        `json:"timeInForce,omitempty"`
 	CancelAfter         int64         `json:"cancelAfter,omitempty"`
 	PostOnly            bool          `json:"postOnly,omitempty"`
-	Hidden              bool          `json:"hidden,omitempty"`
-	Iceberg             bool          `json:"iceberg,omitempty"`
-	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               string        `json:"funds,omitempty"`
 }
 

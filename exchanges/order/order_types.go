@@ -94,12 +94,6 @@ type Submit struct {
 	RetrieveFeeDelay    time.Duration
 	RiskManagementModes RiskManagementModes
 
-	// Hidden when enabled orders not displaying in order book.
-	Hidden bool
-
-	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
-	Iceberg bool
-
 	// EndTime is the moment which a good til date order is valid until
 	EndTime time.Time
 
