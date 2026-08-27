@@ -1,9 +1,11 @@
 package kraken
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
@@ -1485,11 +1487,186 @@ func TestGetCharts(t *testing.T) {
 
 func TestGetFuturesTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesTrades(t.Context(), futuresTestPair, time.Time{}, time.Time{})
-	assert.NoError(t, err, "GetFuturesTrades should not error")
+	require.True(t, strings.HasSuffix(krakenFuturesSupplementaryURL, "/"), "krakenFuturesSupplementaryURL must end with a slash")
 
-	_, err = e.GetFuturesTrades(t.Context(), futuresTestPair, time.Now().Add(-time.Hour), time.Now())
-	assert.NoError(t, err, "GetFuturesTrades should not error")
+	type requestData struct {
+		path       string
+		rawQuery   string
+		requestURI string
+	}
+
+	since := time.UnixMilli(1700000000123)
+	before := time.UnixMilli(1700003600456)
+	for _, tc := range []struct {
+		name              string
+		since             time.Time
+		before            time.Time
+		response          string
+		expectedQuery     string
+		expectedLen       int64
+		expectedToken     string
+		expectedUID       string
+		expectedTime      time.Time
+		expectedJSONError string
+		errorContains     string
+	}{
+		{
+			name:     "no range",
+			response: `{"elements":[],"len":0}`,
+		},
+		{
+			name:          "since only",
+			since:         since,
+			response:      `{"elements":[],"len":0}`,
+			expectedQuery: "since=1700000000123",
+		},
+		{
+			name:          "before only",
+			before:        before,
+			response:      `{"elements":[],"len":0}`,
+			expectedQuery: "before=1700003600456",
+		},
+		{
+			name:          "complete range",
+			since:         since,
+			before:        before,
+			response:      `{"elements":[],"len":0}`,
+			expectedQuery: "before=1700003600456&since=1700000000123",
+		},
+		{
+			name:          "populated response",
+			response:      `{"continuationToken":"next-page","elements":[{"event":{"Execution":{"execution":{"makerOrder":{"direction":"Sell","limitPrice":"123.40","quantity":"1.00","timestamp":1699999999123},"price":"123.45","quantity":"0.25","timestamp":1700000000223,"uid":"execution-id"},"takerReducedQuantity":""}},"timestamp":1700000000123,"uid":"trade-id"}],"len":1}`,
+			expectedLen:   1,
+			expectedToken: "next-page",
+			expectedUID:   "trade-id",
+			expectedTime:  time.UnixMilli(1700000000123),
+		},
+		{
+			name:              "invalid response",
+			response:          `{"elements":`,
+			expectedJSONError: "syntax",
+		},
+		{
+			name:              "invalid trade data",
+			response:          `{"elements":"invalid"}`,
+			expectedJSONError: "type",
+		},
+		{
+			name:          "futures error response",
+			response:      `{"result":"error","error":"invalid range"}`,
+			errorContains: "invalid range",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			requestC := make(chan requestData, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				select {
+				case requestC <- requestData{path: r.URL.Path, rawQuery: r.URL.RawQuery, requestURI: r.RequestURI}:
+				default:
+					assert.Fail(t, "GetFuturesTrades should send one request")
+				}
+				_, err := w.Write([]byte(tc.response))
+				assert.NoError(t, err, "ResponseWriter.Write should not error")
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFuturesSupplementary.String(), server.URL+"/"), "SetRunningURL must not error")
+
+			resp, err := ex.GetFuturesTrades(t.Context(), futuresTestPair, tc.since, tc.before)
+			if tc.expectedJSONError != "" || tc.errorContains != "" {
+				switch tc.expectedJSONError {
+				case "syntax":
+					if json.Implementation == "bytedance/sonic" {
+						assert.ErrorContains(t, err, "Syntax error at index", "GetFuturesTrades should return the correct JSON syntax error")
+					} else {
+						var target *json.SyntaxError
+						assert.ErrorAs(t, err, &target, "GetFuturesTrades should return the correct JSON syntax error type")
+					}
+				case "type":
+					if json.Implementation == "bytedance/sonic" {
+						assert.ErrorContains(t, err, "Mismatch type", "GetFuturesTrades should return the correct JSON type error")
+					} else {
+						var target *json.UnmarshalTypeError
+						assert.ErrorAs(t, err, &target, "GetFuturesTrades should return the correct JSON type error type")
+					}
+				}
+				if tc.errorContains != "" {
+					assert.ErrorContains(t, err, tc.errorContains, "GetFuturesTrades should return the correct error")
+				}
+			} else {
+				require.NoError(t, err, "GetFuturesTrades must not error")
+				require.NotNil(t, resp, "GetFuturesTrades response must not be nil")
+				assert.Equal(t, tc.expectedLen, resp.Len, "GetFuturesTrades should return the correct response length")
+				assert.Equal(t, tc.expectedToken, resp.ContinuationToken, "GetFuturesTrades should return the correct continuation token")
+				require.Len(t, resp.Elements, int(tc.expectedLen), "GetFuturesTrades response elements must contain the correct number of entries")
+				if tc.expectedUID != "" {
+					element := resp.Elements[0]
+					execution := element.ExecutionEvent.OuterExecutionHolder.Execution
+					assert.Equal(t, tc.expectedUID, element.UID, "GetFuturesTrades should return the correct trade UID")
+					assert.Equal(t, tc.expectedTime, element.Timestamp.Time(), "GetFuturesTrades should return the correct trade timestamp")
+					assert.Equal(t, "execution-id", execution.UID, "GetFuturesTrades should return the correct execution UID")
+					assert.Equal(t, 123.45, execution.Price, "GetFuturesTrades should return the correct execution price")
+					assert.Equal(t, 0.25, execution.Quantity, "GetFuturesTrades should return the correct execution quantity")
+					assert.Equal(t, time.UnixMilli(1700000000223), execution.Timestamp.Time(), "GetFuturesTrades should return the correct execution timestamp")
+					assert.Equal(t, "Sell", execution.MakerOrder.Direction, "GetFuturesTrades should return the correct maker order direction")
+					assert.Equal(t, 123.4, execution.MakerOrder.LimitPrice, "GetFuturesTrades should return the correct maker order price")
+					assert.Equal(t, 1.0, execution.MakerOrder.Quantity, "GetFuturesTrades should return the correct maker order quantity")
+					assert.Equal(t, time.UnixMilli(1699999999123), execution.MakerOrder.Timestamp.Time(), "GetFuturesTrades should return the correct maker order timestamp")
+					assert.Empty(t, element.ExecutionEvent.OuterExecutionHolder.TakerReducedQuantity, "GetFuturesTrades should return the correct reduced quantity")
+				}
+			}
+			require.Len(t, requestC, 1, "GetFuturesTrades must send one request")
+			request := <-requestC
+			const expectedPath = "/history/v2/market/PF_XBTUSD/executions"
+			assert.Equal(t, expectedPath, request.path, "GetFuturesTrades should request the correct path")
+			assert.Equal(t, tc.expectedQuery, request.rawQuery, "GetFuturesTrades request query should match correctly")
+			expectedRequestURI := expectedPath
+			if tc.expectedQuery != "" {
+				expectedRequestURI += "?" + tc.expectedQuery
+			}
+			assert.Equal(t, expectedRequestURI, request.requestURI, "GetFuturesTrades should request the correct URI")
+		})
+	}
+
+	t.Run("pair format error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.CurrencyPairs.UseGlobalFormat = true
+		_, err := ex.GetFuturesTrades(t.Context(), futuresTestPair, time.Time{}, time.Time{})
+		assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetFuturesTrades should error correctly when pair format is missing")
+	})
+
+	t.Run("endpoint error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.API.Endpoints = ex.NewEndpoints()
+		_, err := ex.GetFuturesTrades(t.Context(), futuresTestPair, time.Time{}, time.Time{})
+		assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "GetFuturesTrades should error correctly when the futures endpoint is missing")
+	})
+
+	t.Run("request error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := ex.GetFuturesTrades(ctx, futuresTestPair, time.Time{}, time.Time{})
+		assert.ErrorIs(t, err, context.Canceled, "GetFuturesTrades should error correctly for a cancelled request")
+	})
+
+	t.Run("live request", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetFuturesTrades(t.Context(), futuresTestPair, time.Time{}, time.Time{})
+		assert.NoError(t, err, "GetFuturesTrades should not error")
+
+		_, err = e.GetFuturesTrades(t.Context(), futuresTestPair, time.Now().Add(-time.Hour), time.Now())
+		assert.NoError(t, err, "GetFuturesTrades should not error")
+	})
 }
 
 var websocketXDGUSDOrderbookUpdates = []string{

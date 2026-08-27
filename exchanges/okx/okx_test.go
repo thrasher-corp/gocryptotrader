@@ -346,58 +346,65 @@ func TestGetBlockTicker(t *testing.T) {
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPublicBlockTrades(contextGenerate(), "")
-	require.ErrorIs(t, err, errMissingInstrumentID)
+	t.Run("public block trades", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetPublicBlockTrades(contextGenerate(), "")
+		require.ErrorIs(t, err, errMissingInstrumentID)
 
-	trades, err := e.GetPublicBlockTrades(contextGenerate(), mainPair.String())
-	require.NoError(t, err)
-	if assert.NotEmpty(t, trades, "Should get some block trades") {
-		blockTrade := trades[0]
+		publicBlockTrades, err := e.GetPublicBlockTrades(contextGenerate(), mainPair.String())
+		require.NoError(t, err)
+		if len(publicBlockTrades) == 0 {
+			return // there aren't always block trades returned on mainPair
+		}
+		blockTrade := publicBlockTrades[0]
 		assert.Equal(t, mainPair.String(), blockTrade.InstrumentID, "InstrumentID should have correct value")
 		assert.NotEmpty(t, blockTrade.TradeID, "TradeID should not be empty")
 		assert.Positive(t, blockTrade.Price.Float64(), "Price should have a positive value")
 		assert.Positive(t, blockTrade.Size.Float64(), "Size should have a positive value")
 		assert.Contains(t, []order.Side{order.Buy, order.Sell}, blockTrade.Side, "Side should be a side")
 		assert.WithinRange(t, blockTrade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
-	}
+	})
 
-	testexch.UpdatePairsOnce(t, e)
+	t.Run("options", func(t *testing.T) {
+		t.Parallel()
+		testexch.UpdatePairsOnce(t, e)
 
-	pairs, err := e.GetAvailablePairs(asset.Options)
-	require.NoError(t, err)
-	require.NotEmpty(t, pairs)
+		pairs, err := e.GetAvailablePairs(asset.Options)
+		require.NoError(t, err)
+		require.NotEmpty(t, pairs)
 
-	publicTrades, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 100)
-	require.NoError(t, err)
+		publicTrades, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 100)
+		require.NoError(t, err)
 
-	tested := false
-LOOP:
-	for _, trade := range publicTrades {
-		for _, leg := range trade.Legs {
-			p, err := e.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
-			if err != nil {
-				continue
-			}
+		tested := false
+	LOOP:
+		for _, pt := range publicTrades {
+			for _, leg := range pt.Legs {
+				p, err := e.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
+				if err != nil {
+					continue
+				}
 
-			trades, err = e.GetPublicBlockTrades(contextGenerate(), p.String())
-			require.NoError(t, err, "GetBlockTrades must not error on Options")
-			for _, trade := range trades {
-				assert.Equal(t, p.String(), trade.InstrumentID, "InstrumentID should have correct value")
-				assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-				assert.Positive(t, trade.Price.Float64(), "Price should have a positive value")
-				assert.Positive(t, trade.Size.Float64(), "Size should have a positive value")
-				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-				assert.GreaterOrEqual(t, trade.FillVolatility.Float64(), float64(0), "FillVolatility should not be negative")
-				assert.Positive(t, trade.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
-				assert.Positive(t, trade.IndexPrice.Float64(), "IndexPrice should have a positive value")
-				assert.Positive(t, trade.MarkPrice.Float64(), "MarkPrice should have a positive value")
-				assert.NotEmpty(t, trade.Timestamp, "Timestamp should not be empty")
-				tested = true
-				break LOOP
+				publicBlockTrades, err := e.GetPublicBlockTrades(contextGenerate(), p.String())
+				require.NoError(t, err, "GetBlockTrades must not error on Options")
+				for _, pbt := range publicBlockTrades {
+					assert.Equal(t, p.String(), pbt.InstrumentID, "InstrumentID should have correct value")
+					assert.NotEmpty(t, pbt.TradeID, "TradeID should not be empty")
+					assert.Positive(t, pbt.Price.Float64(), "Price should have a positive value")
+					assert.Positive(t, pbt.Size.Float64(), "Size should have a positive value")
+					assert.Contains(t, []order.Side{order.Buy, order.Sell}, pbt.Side, "Side should be a side")
+					assert.GreaterOrEqual(t, pbt.FillVolatility.Float64(), float64(0), "FillVolatility should not be negative")
+					assert.Positive(t, pbt.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
+					assert.Positive(t, pbt.IndexPrice.Float64(), "IndexPrice should have a positive value")
+					assert.Positive(t, pbt.MarkPrice.Float64(), "MarkPrice should have a positive value")
+					assert.NotEmpty(t, pbt.Timestamp, "Timestamp should not be empty")
+					tested = true
+					break LOOP
+				}
 			}
 		}
-	}
-	assert.True(t, tested, "Should find at least one BlockTrade somewhere")
+		assert.True(t, tested, "Should find at least one BlockTrade somewhere")
+	})
 }
 
 func TestGetInstrument(t *testing.T) {
@@ -856,10 +863,8 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 const (
-	instrumentJSON                                = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
-	placeOrderArgs                                = `[{"side": "buy","instId": "BTC-USDT","tdMode": "cash","ordType": "market","sz": "100"},{"side": "buy","instId": "LTC-USDT","tdMode": "cash","ordType": "market","sz": "1"}]`
-	calculateOrderbookChecksumUpdateOrderbookJSON = `{"Bids":[{"Amount":56,"Price":0.07014,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":608,"Price":0.07011,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07009,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.07006,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2347,"Price":0.07004,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":279,"Price":0.07003,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":52,"Price":0.07001,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":91,"Price":0.06997,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4242,"Price":0.06996,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":486,"Price":0.06995,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.06992,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.06991,"ID":0,"Period":0,"LiquidationOrders":0,
-	"OrderCount":0},{"Amount":7518,"Price":0.06988,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.06976,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":71,"Price":0.06975,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1086,"Price":0.06973,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":513,"Price":0.06961,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4603,"Price":0.06959,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":186,"Price":0.0695,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3043,"Price":0.06946,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":103,"Price":0.06939,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5053,"Price":0.0693,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5039,"Price":0.06909,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5037,"Price":0.06888,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06886,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5008,"Price":0.06867,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5065,"Price":0.06846,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1572,"Price":0.06826,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1565,"Price":0.06801,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":67,"Price":0.06748,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":111,"Price":0.0674,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10038,"Price":0.0672,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.06652,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1526,"Price":0.06625,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10924,"Price":0.06619,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05986,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.05387,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04848,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.04363,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Asks":[{"Amount":5,"Price":0.07026,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":765,"Price":0.07027,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":110,"Price":0.07028,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1264,"Price":0.0703,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":280,"Price":0.07034,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":2255,"Price":0.07035,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":28,"Price":0.07036,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":63,"Price":0.07037,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":137,"Price":0.07039,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":48,"Price":0.0704,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":32,"Price":0.07041,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3985,"Price":0.07043,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":257,"Price":0.07057,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":7870,"Price":0.07058,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":161,"Price":0.07059,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":4539,"Price":0.07061,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1438,"Price":0.07068,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":3162,"Price":0.07088,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":99,"Price":0.07104,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5018,"Price":0.07108,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1540,"Price":0.07115,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5080,"Price":0.07129,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1512,"Price":0.07145,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5016,"Price":0.0715,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5026,"Price":0.07171,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":5062,"Price":0.07192,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1517,"Price":0.07197,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1511,"Price":0.0726,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10376,"Price":0.07314,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.07354,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":10277,"Price":0.07466,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07626,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":269,"Price":0.07636,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.0809,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.08899,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.09789,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0},{"Amount":1,"Price":0.10768,"ID":0,"Period":0,"LiquidationOrders":0,"OrderCount":0}],"Exchange":"Okx","Pair":"BTC-USDT","Asset":"spot","LastUpdated":"0001-01-01T00:00:00Z","LastUpdateID":0,"PriceDuplication":false,"IsFundingRate":false,"RestSnapshot":false,"IDAlignment":false}`
+	instrumentJSON               = `{"alias":"","baseCcy":"","category":"1","ctMult":"1","ctType":"linear","ctVal":"0.0001","ctValCcy":"BTC","expTime":"","instFamily":"BTC-USDC","instId":"BTC-USDC-SWAP","instType":"SWAP","lever":"125","listTime":"1666076190000","lotSz":"1","maxIcebergSz":"100000000.0000000000000000","maxLmtSz":"100000000","maxMktSz":"85000","maxStopSz":"85000","maxTriggerSz":"100000000.0000000000000000","maxTwapSz":"","minSz":"1","optType":"","quoteCcy":"","settleCcy":"USDC","state":"live","stk":"","tickSz":"0.1","uly":"BTC-USDC"}`
+	placeOrderArgs               = `[{"side": "buy","instId": "BTC-USDT","tdMode": "cash","ordType": "market","sz": "100"},{"side": "buy","instId": "LTC-USDT","tdMode": "cash","ordType": "market","sz": "1"}]`
 	placeMultipleOrderParamsJSON = `[{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b159","side":"buy","ordType":"limit","px":"2.15","sz":"2"},{"instId":"BTC-USDT","tdMode":"cash","clOrdId":"b15","side":"buy","ordType":"limit","px":"2.15","sz":"2"}]`
 )
 
@@ -4015,12 +4020,325 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGenerateOrderbookChecksum(t *testing.T) {
+func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	t.Parallel()
-	var orderbookBase orderbook.Book
-	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateOrderbookJSON), &orderbookBase)
-	require.NoError(t, err)
-	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
+
+	tracked := new(Exchange)
+	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+	data := &WsOrderBookData{
+		Bids:       [][4]types.Number{{100.5, 1.25, 0, 1}},
+		Asks:       [][4]types.Number{{100.6, 0.75, 0, 1}},
+		Timestamp:  types.Time(time.UnixMilli(1659792392540)),
+		SequenceID: 42,
+	}
+	pair := currency.NewPairWithDelimiter("SNAP", "USDT", "-")
+	require.NoError(t, tracked.WsProcessSnapshotOrderBook(data, pair, []asset.Item{asset.Spot}), "WsProcessSnapshotOrderBook must not error")
+
+	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Equal(t, int64(42), book.LastUpdateID, "LastUpdateID should match the snapshot sequence ID")
+	require.Len(t, book.Bids, 1, "Snapshot must contain one bid")
+	require.Len(t, book.Asks, 1, "Snapshot must contain one ask")
+	assert.Equal(t, 100.5, book.Bids[0].Price, "Bid price should match")
+	assert.Equal(t, 1.25, book.Bids[0].Amount, "Bid amount should match")
+	assert.Equal(t, 100.6, book.Asks[0].Price, "Ask price should match")
+	assert.Equal(t, 0.75, book.Asks[0].Amount, "Ask amount should match")
+}
+
+func TestWsProcessUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name               string
+		instrument         string
+		previousSequenceID int64
+		sequenceID         int64
+		expectedSequenceID int64
+		expectedError      error
+		multipleAssets     bool
+	}{
+		{
+			name:               "contiguous update",
+			instrument:         "CONT",
+			previousSequenceID: 10,
+			sequenceID:         11,
+			expectedSequenceID: 11,
+		},
+		{
+			name:               "documented sequence reset",
+			instrument:         "RESET",
+			previousSequenceID: 10,
+			sequenceID:         3,
+			expectedSequenceID: 3,
+		},
+		{
+			name:               "stale update",
+			instrument:         "STALE",
+			previousSequenceID: 9,
+			sequenceID:         10,
+			expectedSequenceID: 10,
+		},
+		{
+			name:               "sequence gap invalidates mapped assets",
+			instrument:         "GAP",
+			previousSequenceID: 9,
+			sequenceID:         11,
+			expectedError:      errInvalidOrderbookSequence,
+			multipleAssets:     true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tracked := new(Exchange)
+			require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+			pair := currency.NewPairWithDelimiter(tc.instrument, "USDT", "-")
+			assets := []asset.Item{asset.Spot}
+			if tc.multipleAssets {
+				assets = append(assets, asset.Margin)
+			}
+			for _, a := range assets {
+				require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+					Exchange:     tracked.Name,
+					Pair:         pair,
+					Asset:        a,
+					LastUpdateID: 10,
+					LastUpdated:  time.UnixMilli(1659792392540),
+					Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+					Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+				}), "LoadSnapshot must not error")
+			}
+
+			err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+				Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+				PreviousSequenceID: tc.previousSequenceID,
+				SequenceID:         tc.sequenceID,
+			}, pair, assets)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError, "WsProcessUpdateOrderbook must return the expected error")
+				for _, a := range assets {
+					_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, a)
+					require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must be invalidated", a)
+				}
+				return
+			}
+			require.NoError(t, err, "WsProcessUpdateOrderbook must not error")
+			book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			assert.Equal(t, tc.expectedSequenceID, book.LastUpdateID, "LastUpdateID should match the expected sequence")
+		})
+	}
+
+	t.Run("missing mapped asset invalidates existing depth", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		pair := currency.NewPairWithDelimiter("PART", "USDT", "-")
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     tracked.Name,
+			Pair:         pair,
+			Asset:        asset.Spot,
+			LastUpdateID: 20,
+			LastUpdated:  time.UnixMilli(1659792392540),
+			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+		}), "LoadSnapshot must not error")
+
+		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+			PreviousSequenceID: 20,
+			SequenceID:         21,
+		}, pair, []asset.Item{asset.Spot, asset.Margin})
+		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every mapped asset")
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Spot orderbook must be invalidated on mapped asset error")
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
+		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "Missing margin orderbook must remain missing")
+	})
+
+	t.Run("invalid book awaits replacement snapshot", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		pair := currency.NewPairWithDelimiter("PENDING", "USDT", "-")
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     tracked.Name,
+			Pair:         pair,
+			Asset:        asset.Spot,
+			LastUpdateID: 20,
+			LastUpdated:  time.UnixMilli(1659792392540),
+			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+		}), "LoadSnapshot must not error")
+		require.NoError(t, tracked.Websocket.Orderbook.InvalidateOrderbook(pair, asset.Spot), "InvalidateOrderbook must not error")
+
+		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+			PreviousSequenceID: 20,
+			SequenceID:         21,
+		}, pair, []asset.Item{asset.Spot})
+		require.ErrorIs(t, err, errOrderbookSnapshotPending, "WsProcessUpdateOrderbook must report that a replacement snapshot is pending")
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "WsProcessUpdateOrderbook must preserve the invalid orderbook error")
+	})
+
+	t.Run("dispatch error preserves mapped depths", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		pair := currency.NewPairWithDelimiter("DISPATCH", "USDT", "-")
+		assets := []asset.Item{asset.Spot, asset.Margin}
+		for _, a := range assets {
+			require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:     tracked.Name,
+				Pair:         pair,
+				Asset:        a,
+				LastUpdateID: 10,
+				LastUpdated:  time.UnixMilli(1659792392540),
+				Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+				Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+			}), "LoadSnapshot must not error")
+		}
+		for len(tracked.Websocket.DataHandler.C) < cap(tracked.Websocket.DataHandler.C) {
+			require.NoError(t, tracked.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
+		}
+
+		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			Bids:               [][4]types.Number{{100.5, 2, 0, 1}},
+			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+			PreviousSequenceID: 10,
+			SequenceID:         11,
+		}, pair, assets)
+		require.ErrorContains(t, err, "channel buffer is full", "WsProcessUpdateOrderbook must return the dispatch failure")
+		for _, a := range assets {
+			book, bookErr := tracked.Websocket.Orderbook.GetOrderbook(pair, a)
+			require.NoErrorf(t, bookErr, "The %s orderbook must remain valid after a dispatch failure", a)
+			assert.Equalf(t, int64(11), book.LastUpdateID, "The %s orderbook should remain aligned after a dispatch failure", a)
+		}
+	})
+}
+
+func TestWsProcessOrderBooks(t *testing.T) {
+	t.Parallel()
+
+	t.Run("recover from sequence gap", func(t *testing.T) {
+		t.Parallel()
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		tracked.ValidateOrderbook = true
+		conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
+		subs := subscription.List{
+			{
+				Asset:            asset.Spot,
+				Pairs:            currency.Pairs{mainPair},
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: "{\"channel\":\"books\",\"instId\":\"BTC-USDT\"}",
+				Levels:           400,
+			},
+			{
+				Asset:            asset.Margin,
+				Pairs:            currency.Pairs{mainPair},
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: "{\"channel\":\"books\",\"instId\":\"BTC-USDT\"}",
+				Levels:           400,
+			},
+		}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, subs...), "AddSuccessfulSubscriptions must not error")
+		for _, sub := range subs {
+			require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
+		}
+
+		snapshot := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"snapshot\",\"data\":[{\"asks\":[[\"101\",\"1\",\"0\",\"1\"]],\"bids\":[[\"100\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392540\",\"checksum\":0,\"prevSeqId\":-1,\"seqId\":10}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load snapshots without checksum validation")
+
+		gap := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[],\"ts\":\"1659792392640\",\"checksum\":0,\"prevSeqId\":12,\"seqId\":13}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover from a sequence gap")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+			require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must remain invalid until a new snapshot arrives", a)
+		}
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
+			"Recovery must send an unsubscribe and subscribe request")
+		requests := conn.Requests()
+		assert.Equal(t, operationUnsubscribe, requests[0].Operation, "Recovery should unsubscribe first")
+		require.Len(t, requests[0].Arguments, 1, "Recovery must deduplicate equivalent unsubscribe arguments")
+		assert.Equal(t, operationSubscribe, requests[1].Operation, "Recovery should resubscribe second")
+		require.Len(t, requests[1].Arguments, 1, "Recovery must deduplicate equivalent subscribe arguments")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must ignore updates while awaiting a replacement snapshot")
+		require.Never(t, func() bool { return len(conn.Requests()) > 2 }, 100*time.Millisecond, 10*time.Millisecond,
+			"Updates received before the replacement snapshot must not trigger another resubscription")
+
+		freshSnapshot := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"snapshot\",\"data\":[{\"asks\":[[\"101\",\"1\",\"0\",\"1\"]],\"bids\":[[\"100\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392740\",\"checksum\":0,\"prevSeqId\":-1,\"seqId\":50}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, freshSnapshot), "wsProcessOrderBooks must load a fresh snapshot after recovery")
+		validUpdate := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[[\"100\",\"2\",\"0\",\"1\"]],\"ts\":\"1659792392840\",\"checksum\":0,\"prevSeqId\":50,\"seqId\":51}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, validUpdate), "wsProcessOrderBooks must process updates after recovery")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+			require.NoErrorf(t, err, "GetOrderbook must return the recovered %s orderbook", a)
+			assert.Equalf(t, int64(51), book.LastUpdateID, "The recovered %s orderbook should accept subsequent updates", a)
+		}
+
+		invalidUpdate := []byte("{\"arg\":{\"channel\":\"books\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[[\"0\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392940\",\"checksum\":0,\"prevSeqId\":51,\"seqId\":52}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, invalidUpdate), "wsProcessOrderBooks must recover from an invalid orderbook update")
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			_, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, a)
+			require.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "The %s orderbook must be invalidated after an invalid update", a)
+		}
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 4 }, time.Second, 10*time.Millisecond,
+			"Invalid update recovery must send another unsubscribe and subscribe request")
+		requests = conn.Requests()
+		assert.Equal(t, operationUnsubscribe, requests[2].Operation, "Invalid update recovery should unsubscribe first")
+		assert.Equal(t, operationSubscribe, requests[3].Operation, "Invalid update recovery should resubscribe second")
+	})
+	t.Run("exchange-specific channel", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.TrackTestConnection(nil, conn), "TrackTestConnection must not error")
+		sub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Pairs:            currency.Pairs{mainPair},
+			Channel:          channelOrderBooksTBT,
+			QualifiedChannel: "{\"channel\":\"books-l2-tbt\",\"instId\":\"BTC-USDT\"}",
+		}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+		require.NoError(t, conn.Subscriptions().Add(sub), "Connection subscription tracking must not error")
+
+		snapshot := []byte("{\"arg\":{\"channel\":\"books-l2-tbt\",\"instId\":\"BTC-USDT\"},\"action\":\"snapshot\",\"data\":[{\"asks\":[[\"101\",\"1\",\"0\",\"1\"]],\"bids\":[[\"100\",\"1\",\"0\",\"1\"]],\"ts\":\"1659792392540\",\"prevSeqId\":-1,\"seqId\":10}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, snapshot), "wsProcessOrderBooks must load the exchange-specific channel snapshot")
+		gap := []byte("{\"arg\":{\"channel\":\"books-l2-tbt\",\"instId\":\"BTC-USDT\"},\"action\":\"update\",\"data\":[{\"asks\":[],\"bids\":[],\"ts\":\"1659792392640\",\"prevSeqId\":12,\"seqId\":13}]}")
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), conn, gap), "wsProcessOrderBooks must recover the exchange-specific channel")
+		require.Eventually(t, func() bool { return len(conn.Requests()) == 2 }, time.Second, 10*time.Millisecond,
+			"Recovery must send one unsubscribe and one subscribe request")
+		requests := conn.Requests()
+		require.Len(t, requests[0].Arguments, 1, "Unsubscribe must contain the exchange-specific channel")
+		assert.Equal(t, channelOrderBooksTBT, requests[0].Arguments[0].Channel, "Unsubscribe should use the exchange-specific channel")
+		require.Len(t, requests[1].Arguments, 1, "Subscribe must contain the exchange-specific channel")
+		assert.Equal(t, channelOrderBooksTBT, requests[1].Arguments[0].Channel, "Subscribe should use the exchange-specific channel")
+	})
+
+	t.Run("bbo-tbt push is a snapshot", func(t *testing.T) {
+		t.Parallel()
+
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+		tracked.Name = t.Name()
+		push := []byte(`{"arg":{"channel":"bbo-tbt","instId":"BTC-USDT"},"data":[{"asks":[["101","1","0","1"]],"bids":[["100","1","0","1"]],"ts":"1659792392540","prevSeqId":-1,"seqId":10}]}`)
+
+		require.NoError(t, tracked.wsProcessOrderBooks(t.Context(), nil, push), "wsProcessOrderBooks must load bbo-tbt pushes as snapshots")
+		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must return the bbo-tbt snapshot")
+		assert.Equal(t, int64(10), book.LastUpdateID, "The bbo-tbt snapshot should set the sequence ID")
+	})
 }
 
 func TestOrderPushData(t *testing.T) {
