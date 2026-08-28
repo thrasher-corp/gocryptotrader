@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -16,6 +17,15 @@ import (
 const (
 	// ErrUnableToCloseFile message to display when file handler is unable to be closed normally
 	ErrUnableToCloseFile string = "Unable to close file %v %v"
+)
+
+var (
+	// errDestinationIsSource is returned rather than letting the dest file be created over src,
+	// which would truncate the source before the walk reads it
+	errDestinationIsSource = errors.New("archive destination is the source")
+	// errDestinationWithinSource is returned for a dest under a directory src, where the archive
+	// would either truncate an entry it is about to read or add itself to its own output
+	errDestinationWithinSource = errors.New("archive destination is within the source directory")
 )
 
 var addFilesToZip func(z *zip.Writer, src string, isDir bool) error
@@ -106,10 +116,21 @@ func UnZip(src, dest string) (fileList []string, err error) {
 	return fileList, z.Close()
 }
 
-// Zip archives requested file or folder
+// Zip archives requested file or folder. The walk is rooted at src, so any symlink it cannot
+// resolve inside src fails the whole archive rather than being skipped: one pointing outside, a
+// dangling one, or any absolute symlink even where the target is inside. One resolving to a file is
+// stored under the link's own mode bits but carries the target's bytes, while one resolving to a
+// directory is recorded as an empty entry, its contents archived separately by the walk. A
+// directory src is resolved before the root is established, so one symlinked to a directory
+// outside archives that directory, but a file src is rooted at its parent and so is checked like
+// any other entry. dest may not be src nor sit inside a directory src.
 func Zip(src, dest string) error {
 	i, err := os.Stat(src)
 	if err != nil {
+		return err
+	}
+
+	if err := checkDestination(src, dest, i); err != nil {
 		return err
 	}
 
@@ -121,22 +142,69 @@ func Zip(src, dest string) error {
 	z := zip.NewWriter(f)
 
 	err = addFilesToZip(z, src, i.IsDir())
-	if err != nil {
-		z.Close()
-		errCls := f.Close()
-		if errCls != nil {
-			log.Errorf(log.Global, "Failed to close file handle, manual deletion required: %v", errCls)
-			return err
+	// zip.Writer.Close writes the central directory, so discarding its error would report success
+	// over a corrupt archive
+	if closeErr := z.Close(); err == nil {
+		err = closeErr
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		return nil
+	}
+
+	if errRemove := os.Remove(dest); errRemove != nil {
+		log.Errorf(log.Global, "Failed to remove archive, manual deletion required: %v", errRemove)
+	}
+	return err
+}
+
+// checkDestination rejects a dest that would destroy or include the source
+func checkDestination(src, dest string, srcInfo os.FileInfo) error {
+	switch di, err := os.Stat(dest); {
+	case err == nil:
+		if os.SameFile(srcInfo, di) {
+			return fmt.Errorf("%w: %s", errDestinationIsSource, dest)
 		}
-		errRemove := os.Remove(dest)
-		if errRemove != nil {
-			log.Errorf(log.Global, "Failed to remove archive, manual deletion required: %v", errRemove)
-		}
+	case !errors.Is(err, fs.ErrNotExist):
 		return err
 	}
 
-	z.Close()
-	f.Close()
+	if !srcInfo.IsDir() {
+		return nil
+	}
+
+	srcResolved, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return err
+	}
+	srcResolved, err = filepath.Abs(srcResolved)
+	if err != nil {
+		return err
+	}
+	// dest itself may be a symlink into src, so resolve it when it exists; otherwise resolve the
+	// directory it will be created in, which must exist for os.Create to succeed anyway
+	target := dest
+	if _, lErr := os.Lstat(dest); lErr != nil {
+		target = filepath.Dir(dest)
+	}
+	destResolved, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	destResolved, err = filepath.Abs(destResolved)
+	if err != nil {
+		return err
+	}
+	// paths that cannot be made relative are on different volumes, so dest is not inside src
+	if rel, relErr := filepath.Rel(srcResolved, destResolved); relErr == nil &&
+		(rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))) {
+		return fmt.Errorf("%w: %s", errDestinationWithinSource, dest)
+	}
 	return nil
 }
 
@@ -195,11 +263,19 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(w, f)
+		fi, err := f.Stat()
+		if err == nil && !fi.IsDir() {
+			// a symlink resolving to a directory inside the root has no contents to copy, so the
+			// entry records the link alone rather than failing the archive
+			_, err = io.Copy(w, f)
+		}
+		if closeErr := f.Close(); err == nil {
+			err = closeErr
+		}
 		if err != nil {
-			log.Errorf(log.Global, "Failed to Copy data: %v", err)
+			return fmt.Errorf("copying %s: %w", path, err)
 		}
 
-		return f.Close()
+		return nil
 	})
 }
