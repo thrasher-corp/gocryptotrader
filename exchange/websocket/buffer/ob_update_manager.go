@@ -27,7 +27,9 @@ const (
 )
 
 var (
+	errPendingUpdateKeyMismatch = errors.New("pending update key mismatch")
 	errPendingUpdatesNotApplied = errors.New("pending updates not applied")
+	errUpdatesNotSupplied       = errors.New("updates not supplied")
 	errUnhandledCacheState      = errors.New("unhandled cache state")
 )
 
@@ -240,9 +242,36 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 // applyPendingUpdates applies all pending updates to the orderbook
 // assumes lock already active on cache
 func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
+	if len(cache.updates) == 0 {
+		return errUpdatesNotSupplied
+	}
+
+	firstUpdate := cache.updates[0].update
+	if firstUpdate.Pair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if !firstUpdate.Asset.IsValid() {
+		return asset.ErrInvalidAsset
+	}
+
+	pendingKey := key.PairAsset{Base: firstUpdate.Pair.Base.Item, Quote: firstUpdate.Pair.Quote.Item, Asset: firstUpdate.Asset}
+	for _, data := range cache.updates[1:] {
+		currentKey := key.PairAsset{Base: data.update.Pair.Base.Item, Quote: data.update.Pair.Quote.Item, Asset: data.update.Asset}
+		if currentKey != pendingKey {
+			return fmt.Errorf("%w: expected %s.%s, got %s.%s", errPendingUpdateKeyMismatch, pendingKey.Asset, pendingKey.Pair(), currentKey.Asset, currentKey.Pair())
+		}
+	}
+
+	m.ob.m.RLock()
+	holder, ok := m.ob.ob[pendingKey]
+	m.ob.m.RUnlock()
+	if !ok {
+		return fmt.Errorf("%s %w: %s.%s", m.ob.exchangeName, orderbook.ErrDepthNotFound, firstUpdate.Asset, firstUpdate.Pair)
+	}
+
 	var updated bool
 	for _, data := range cache.updates {
-		bookLastUpdateID, err := m.ob.LastUpdateID(data.update.Pair, data.update.Asset)
+		bookLastUpdateID, err := holder.ob.LastUpdateID()
 		if err != nil {
 			return err
 		}
@@ -259,7 +288,7 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 			return fmt.Errorf("apply pending updates %w: last update ID %d, first update ID %d", ErrOrderbookSnapshotOutdated, bookLastUpdateID, data.firstUpdateID)
 		}
 
-		if err := m.ob.Update(data.update); err != nil {
+		if err := m.ob.updateHolder(holder, data.update); err != nil {
 			return err
 		}
 

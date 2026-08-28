@@ -185,13 +185,6 @@ func (h *HistoricalVolatilityData) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[2]any{&h.Timestamp, &h.Value})
 }
 
-// IndexPrice holds index price for the instruments
-type IndexPrice struct {
-	BTC float64 `json:"BTC"`
-	ETH float64 `json:"ETH"`
-	Edp float64 `json:"edp"`
-}
-
 // IndexPriceData gets index price data
 type IndexPriceData struct {
 	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
@@ -1443,11 +1436,6 @@ type BlockTradeMoveResponse struct {
 	InstrumentName      string  `json:"instrument_name"`
 	Direction           string  `json:"direction"`
 	Amount              float64 `json:"amount"`
-}
-
-// VersionInformation represents websocket version information
-type VersionInformation struct {
-	Version string `json:"version"`
 }
 
 // wsOrderbook represents orderbook push data for a book websocket subscription.
