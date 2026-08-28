@@ -1,8 +1,11 @@
+//go:build udecimal_on
+
 package decimal
 
 import (
 	"database/sql/driver"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -35,6 +38,10 @@ func TestNewFromFloat(t *testing.T) {
 	}
 	assert.Equal(t, expected, NewFromFloat(0.00030537562500000003).String(),
 		"NewFromFloat should apply the selected backend precision")
+	assert.Equal(t, "0", NewFromFloat(math.SmallestNonzeroFloat64).String(),
+		"NewFromFloat should truncate sub-precision finite values")
+	assert.NotPanics(t, func() { NewFromFloat(math.MaxFloat64) },
+		"NewFromFloat should accept every finite float64 value")
 	assert.Panics(t, func() { NewFromFloat(math.Inf(1)) }, "NewFromFloat should panic for infinity")
 }
 
@@ -102,6 +109,8 @@ func TestDecimalDiv(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "0.6666666666666667", NewFromInt(2).Div(NewFromInt(3)).String(),
 		"Div should round to the common division precision")
+	assert.Equal(t, "0.0003548616039744", NewFromInt(1).Div(NewFromInt(2818)).String(),
+		"Div should round directly to the common division precision")
 	assert.Panics(t, func() { NewFromInt(1).Div(Zero) }, "Div should panic when dividing by zero")
 }
 
@@ -117,6 +126,8 @@ func TestDecimalPow(t *testing.T) {
 	assert.True(t, Zero.Pow(NewFromInt(-1)).IsZero(), "Pow should preserve shopspring zero edge behaviour")
 	assert.Panics(t, func() { NewFromInt(2).Pow(RequireFromString("1.5")) },
 		"Pow should panic for a fractional exponent")
+	assert.Panics(t, func() { Zero.Pow(RequireFromString("1.5")) },
+		"Pow should reject a fractional exponent for a zero base")
 }
 
 func TestDecimalAbs(t *testing.T) {
@@ -366,7 +377,7 @@ func TestNormalise(t *testing.T) {
 		{name: "multiple decimal points", input: "1.2.3", expected: ErrInvalidDecimal},
 		{name: "decimal point only", input: ".", expected: ErrInvalidDecimal},
 		{name: "expanded value too long", input: "1e200", expected: ErrInvalidDecimal},
-		{name: "negative expanded value too long", input: "-1e199", expected: ErrInvalidDecimal},
+		{name: "negative expanded value too long", input: "-1e200", expected: ErrInvalidDecimal},
 	}
 	if limitedPrecision {
 		errorTests = append(errorTests, struct {
@@ -385,6 +396,10 @@ func TestNormalise(t *testing.T) {
 			_, err := normalise(tc.input, false)
 			assert.ErrorIs(t, err, tc.expected, "normalise should return the expected error")
 		})
+	}
+	for _, input := range []string{"1e199", "-1e199"} {
+		_, err := normalise(input, false)
+		require.NoError(t, err, "normalise must apply the digit cap independently of the sign")
 	}
 }
 
@@ -405,7 +420,7 @@ func TestNormalisePrecision(t *testing.T) {
 		require.NoError(t, err, "normalisePrecision must retain shopspring precision")
 		assert.Equal(t, "123", result, "normalisePrecision should retain shopspring digits")
 		assert.Equal(t, int64(20), scale, "normalisePrecision should retain shopspring scale")
-		_, _, err = normalisePrecision("1", maxStringLength, false, "1e-200")
+		_, _, err = normalisePrecision("1", maxStringDigits, false, "1e-200")
 		assert.ErrorIs(t, err, ErrInvalidDecimal, "normalisePrecision should reject unsafe fixed notation")
 		return
 	}
@@ -424,8 +439,51 @@ func TestNormalisePrecision(t *testing.T) {
 
 func TestMustParseBackend(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, "1.25", mustParseBackend("1.25").String(), "backend parser must preserve the value")
+	for _, tc := range []struct {
+		name  string
+		value string
+	}{
+		{name: "ordinary", value: "1.25"},
+		{name: "maximum negative integer", value: "-" + strings.Repeat("1", maxStringDigits)},
+		{name: "maximum negative decimal", value: "-" + strings.Repeat("1", 181) + "." + strings.Repeat("1", 19)},
+		{name: "multi-chunk internal value", value: strings.Repeat("1", maxStringDigits+50)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.value, mustParseBackend(tc.value).String(), "backend parser must preserve the value")
+		})
+	}
 	require.Panics(t, func() { mustParseBackend("invalid") }, "backend parser must panic for invalid input")
+}
+
+func TestNewFromFloatBackend(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		value    float64
+		expected string
+	}{
+		{name: "ordinary", value: 1.25, expected: "1.25"},
+		{name: "negative exponent", value: math.SmallestNonzeroFloat64, expected: "0"},
+		{name: "positive exponent", value: math.MaxFloat64, expected: strconv.FormatFloat(math.MaxFloat64, 'f', -1, 64)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, newFromFloatBackend(tc.value).String(),
+				"newFromFloatBackend should preserve the supported value")
+		})
+	}
+	assert.Panics(t, func() { newFromFloatBackend(math.NaN()) },
+		"newFromFloatBackend should panic for a non-finite value")
+}
+
+func TestPowerOfTenBackend(t *testing.T) {
+	t.Parallel()
+	for _, exponent := range []int{0, 1, maxStringDigits} {
+		expected := "1" + strings.Repeat("0", exponent)
+		assert.Equal(t, expected, powerOfTenBackend(exponent).String(),
+			"powerOfTenBackend should return the requested power")
+	}
 }
 
 func TestMulBackend(t *testing.T) {
@@ -481,7 +539,7 @@ func TestRoundBackend(t *testing.T) {
 	if limitedPrecision {
 		assert.Equal(t, value, roundBackend(value, 19),
 			"roundBackend should leave values unchanged beyond maximum precision")
-		assert.Panics(t, func() { roundBackend(value, -maxStringLength) },
+		assert.Panics(t, func() { roundBackend(value, -maxStringDigits) },
 			"roundBackend should panic when negative precision exceeds the supported range")
 	}
 }

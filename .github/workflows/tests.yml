@@ -50,7 +50,7 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
-            sonic: false
+            sonic: true
             udecimal: true
 
     runs-on: ${{ matrix.os }}

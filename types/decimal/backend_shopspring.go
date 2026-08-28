@@ -1,71 +1,56 @@
 //go:build !udecimal_on
 
+// Package decimal preserves shopspring/decimal as the default implementation
+// while allowing an alternative implementation to be selected at build time.
 package decimal
 
 import (
-	"fmt"
+	"errors"
 
-	shopspring "github.com/shopspring/decimal" //nolint:depguard // Backend implementation for the GCT decimal façade.
+	shopspring "github.com/shopspring/decimal" //nolint:depguard // Default backend implementation for the GCT decimal facade.
 )
 
 // Implementation identifies the selected decimal backend.
 const Implementation = "shopspring/decimal"
 
-const limitedPrecision = false
+var (
+	// ErrInvalidDecimal is returned when input cannot be represented as a decimal.
+	ErrInvalidDecimal = errors.New("invalid decimal")
+	// ErrPrecisionOutOfRange is returned when input exceeds the selected backend's precision.
+	ErrPrecisionOutOfRange = errors.New("decimal precision out of range")
+	// ErrDivideByZero is returned when a division operation has a zero divisor.
+	ErrDivideByZero = errors.New("decimal division by zero")
 
-type backendDecimal = shopspring.Decimal
+	// Zero is the zero-value Decimal.
+	Zero = shopspring.Zero
+)
 
-func mustParseBackend(value string) backendDecimal {
+// Decimal aliases shopspring.Decimal in the default build so existing library
+// consumers retain source compatibility with exported decimal fields.
+type Decimal = shopspring.Decimal
+
+// NewFromInt returns a Decimal equal to value.
+func NewFromInt(value int64) Decimal {
+	return shopspring.NewFromInt(value)
+}
+
+// NewFromInt32 returns a Decimal equal to value.
+func NewFromInt32(value int32) Decimal {
+	return shopspring.NewFromInt32(value)
+}
+
+// NewFromFloat returns the shortest decimal representation that round-trips
+// to value, matching shopspring.NewFromFloat.
+func NewFromFloat(value float64) Decimal {
+	return shopspring.NewFromFloat(value)
+}
+
+// NewFromString parses value using shopspring.NewFromString.
+func NewFromString(value string) (Decimal, error) {
+	return shopspring.NewFromString(value)
+}
+
+// RequireFromString parses value and panics if it is invalid.
+func RequireFromString(value string) Decimal {
 	return shopspring.RequireFromString(value)
-}
-
-func normalisePrecision(digits string, scale int64, _ bool, _ string) (normalised string, normalisedScale int64, err error) {
-	if digits == "" {
-		return "0", 0, nil
-	}
-	if scale >= maxStringLength {
-		return "", 0, fmt.Errorf("%w: fractional value exceeds %d characters", ErrInvalidDecimal, maxStringLength)
-	}
-	return digits, scale, nil
-}
-
-func mulBackend(left, right backendDecimal) backendDecimal {
-	return left.Mul(right)
-}
-
-func divBackend(left, right backendDecimal) (backendDecimal, error) {
-	if right.IsZero() {
-		return backendDecimal{}, ErrDivideByZero
-	}
-	return left.Div(right), nil
-}
-
-func modBackend(left, right backendDecimal) (backendDecimal, error) {
-	if right.IsZero() {
-		return backendDecimal{}, ErrDivideByZero
-	}
-	return left.Mod(right), nil
-}
-
-func powBackend(value, exponent backendDecimal) (backendDecimal, error) {
-	if !exponent.IsInteger() {
-		return backendDecimal{}, ErrInvalidDecimal
-	}
-	return value.Pow(exponent), nil
-}
-
-func isPositiveBackend(value backendDecimal) bool {
-	return value.IsPositive()
-}
-
-func isNegativeBackend(value backendDecimal) bool {
-	return value.IsNegative()
-}
-
-func roundBackend(value backendDecimal, places int32) backendDecimal {
-	return value.Round(places)
-}
-
-func truncateBackend(value backendDecimal, precision int32) backendDecimal {
-	return value.Truncate(precision)
 }

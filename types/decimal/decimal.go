@@ -1,3 +1,5 @@
+//go:build udecimal_on
+
 // Package decimal provides fixed-point decimal arithmetic with a backend
 // selected at build time. The shopspring backend is the default; build with
 // the udecimal_on tag to use github.com/quagmt/udecimal.
@@ -12,10 +14,7 @@ import (
 	"strings"
 )
 
-const (
-	divisionPrecision = 16
-	maxStringLength   = 200
-)
+const maxStringDigits = 200
 
 var (
 	// ErrInvalidDecimal is returned when input cannot be represented as a decimal.
@@ -48,11 +47,7 @@ func NewFromInt32(value int32) Decimal {
 // to value. It truncates beyond the selected backend's precision and panics
 // for non-finite values, matching the established constructor's must semantics.
 func NewFromFloat(value float64) Decimal {
-	normalised, err := normalise(strconv.FormatFloat(value, 'f', -1, 64), true)
-	if err != nil {
-		panic(err)
-	}
-	return Decimal{value: mustParseBackend(normalised)}
+	return Decimal{value: newFromFloatBackend(value)}
 }
 
 // NewFromString parses value using the common backend-independent decimal
@@ -377,8 +372,8 @@ func normalise(value string, truncate bool) (string, error) {
 		return digits, nil
 	}
 	if scale < 0 {
-		if int64(len(digits))-scale > maxStringLength {
-			return "", fmt.Errorf("%w: input exceeds %d characters", ErrInvalidDecimal, maxStringLength)
+		if int64(len(digits))-scale > maxStringDigits {
+			return "", fmt.Errorf("%w: input exceeds %d digits", ErrInvalidDecimal, maxStringDigits)
 		}
 		digits += strings.Repeat("0", int(-scale))
 		scale = 0
@@ -386,15 +381,15 @@ func normalise(value string, truncate bool) (string, error) {
 	if int64(len(digits)) <= scale {
 		digits = strings.Repeat("0", int(scale)-len(digits)+1) + digits
 	}
+	if digitCount := len(digits); digitCount > maxStringDigits {
+		return "", fmt.Errorf("%w: input exceeds %d digits", ErrInvalidDecimal, maxStringDigits)
+	}
 	if scale > 0 {
 		decimalIndex := len(digits) - int(scale)
 		digits = digits[:decimalIndex] + "." + digits[decimalIndex:]
 	}
 	if negative {
 		digits = "-" + digits
-	}
-	if len(digits) > maxStringLength {
-		return "", fmt.Errorf("%w: input exceeds %d characters", ErrInvalidDecimal, maxStringLength)
 	}
 	return digits, nil
 }
