@@ -530,13 +530,15 @@ func (m *Manager) connect(ctx context.Context) error {
 
 			var err error
 			subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+			var generationError error
 			if err != nil {
-				if errors.Is(err, ErrSubscriptionPartial) {
-					subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
-				} else {
-					multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-					break
-				}
+				generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+			}
+			var fatalErr error
+			subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, generationError)
+			if fatalErr != nil {
+				multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+				break
 			}
 
 			if len(subs) == 0 {

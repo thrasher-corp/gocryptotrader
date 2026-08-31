@@ -3502,7 +3502,9 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{
+	_, err := e.getOpenInterestContracts(t.Context(), asset.Options, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "options should remain unsupported by futures open interest endpoints")
+	_, err = e.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.NewCode("GOLDFISH").Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.USDTMarginedFutures,
@@ -3658,6 +3660,8 @@ func TestGetSettlementCurrency(t *testing.T) {
 		{asset.Futures, currency.EMPTYPAIR, currency.EMPTYCODE, asset.ErrNotSupported},
 		{asset.DeliveryFutures, currency.EMPTYPAIR, currency.USDT, nil},
 		{asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), currency.USDT, nil},
+		{asset.Options, currency.EMPTYPAIR, currency.USDT, nil},
+		{asset.Options, currency.NewPair(currency.BTC, currency.USDT), currency.USDT, nil},
 		{asset.USDTMarginedFutures, currency.EMPTYPAIR, currency.USDT, nil},
 		{asset.USDTMarginedFutures, getPair(t, asset.USDTMarginedFutures), currency.USDT, nil},
 		{asset.USDTMarginedFutures, getPair(t, asset.CoinMarginedFutures), currency.EMPTYCODE, errInvalidSettlementQuote},

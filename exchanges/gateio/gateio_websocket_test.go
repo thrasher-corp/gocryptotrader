@@ -153,7 +153,6 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 							Total:                  2214.191673190433,
 							Free:                   2214.191673190433,
 							AvailableWithoutBorrow: 2214.191673190433,
-							UpdatedAt:              time.UnixMilli(1755738515671),
 						},
 					},
 				},
@@ -172,7 +171,6 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 							Total:                  2214.189114310433,
 							Free:                   2214.189114310433,
 							AvailableWithoutBorrow: 2214.189114310433,
-							UpdatedAt:              time.UnixMilli(1755738516430),
 						},
 					},
 				},
@@ -219,6 +217,7 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	wantBalances := []float64{6625.2967002542, 6625.2967002542}
 
 	for i := range payloads {
+		startedAt := time.Now()
 		require.NoError(t, ex.processBalancePushData(ctx, payloads[i], asset.USDTMarginedFutures),
 			"processBalancePushData must process the captured balance update")
 		message := <-ex.Websocket.DataHandler.C
@@ -230,6 +229,7 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 		assert.Equal(t, wantBalances[i], balance.Total, "total balance should be preserved")
 		assert.Equal(t, 1500.0, balance.Hold, "held margin should survive a websocket balance update")
 		assert.Equal(t, wantBalances[i]-1500, balance.Free, "free balance should exclude held margin")
+		assert.False(t, balance.UpdatedAt.Before(startedAt), "websocket balance timestamp should use local arrival order")
 	}
 
 	credentials, err := ex.GetCredentials(ctx)
@@ -241,6 +241,28 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	require.NoError(t, err, "CurrencyBalances must return the collated futures balance")
 	assert.Equal(t, wantBalances[1], collated[currency.USDT].Total,
 		"websocket balance should replace the REST snapshot without being double counted")
+	refreshedRESTSnapshot := accounts.NewSubAccount(asset.USDTMarginedFutures, "")
+	refreshedRESTSnapshot.Balances.Set(currency.USDT, accounts.Balance{
+		Total: wantBalances[1],
+		Hold:  100,
+		Free:  wantBalances[1] - 100,
+	})
+	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{refreshedRESTSnapshot}, true),
+		"REST arrival must not be rejected after a websocket event stamped by Gate's clock")
+
+	staleHoldSnapshot := accounts.NewSubAccount(asset.USDTMarginedFutures, "")
+	staleHoldSnapshot.Balances.Set(currency.USDT, accounts.Balance{Total: 6106.7961637458, Hold: 5000, Free: 1106.7961637458})
+	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{staleHoldSnapshot}, true),
+		"Accounts.Save must seed a stale held margin")
+	require.NoError(t, ex.processBalancePushData(ctx,
+		[]byte(`[{"balance":1000.5,"time":1788148806,"time_ms":1788148806000,"user":"12870774","currency":"usdt"}]`),
+		asset.USDTMarginedFutures), "processBalancePushData must clamp stale held margin")
+	message := <-ex.Websocket.DataHandler.C
+	changes, ok := message.Data.(accounts.SubAccounts)
+	require.True(t, ok, "captured balance payload must emit subaccount changes")
+	clamped := changes[0].Balances[currency.USDT.Lower()]
+	assert.Equal(t, 1000.5, clamped.Hold, "held margin should not exceed total balance")
+	assert.Zero(t, clamped.Free, "free balance should not become negative")
 }
 
 func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *websocketBalancesTest) {
@@ -252,6 +274,16 @@ func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *w
 	require.Truef(t, ok, "Expected account changes, got %T", payload)
 
 	require.Lenf(t, received, len(tc.expected), "Expected %d changes, got %d", len(tc.expected), len(received))
+	for i := range tc.expected {
+		for c, expected := range tc.expected[i].Balances {
+			if expected.UpdatedAt.IsZero() {
+				receivedBalance := received[i].Balances[c]
+				assert.False(t, receivedBalance.UpdatedAt.IsZero(), "balance arrival timestamp should be populated")
+				expected.UpdatedAt = receivedBalance.UpdatedAt
+				tc.expected[i].Balances[c] = expected
+			}
+		}
+	}
 	require.Equal(t, tc.expected, received)
 
 	creds, err := exch.GetCredentials(ctx)

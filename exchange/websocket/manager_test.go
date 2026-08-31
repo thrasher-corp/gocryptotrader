@@ -399,26 +399,57 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		})
 
 		t.Run("partial generate subscriptions error", func(t *testing.T) {
-			ws := newConfiguredMultiManager(t, &ConnectionSetup{
+			partialSubs := make(subscription.List, 1, 2)
+			partialSubs[0] = &subscription.Subscription{Channel: "partial-connect"}
+			healthySubs := make(subscription.List, 1, 2)
+			healthySubs[0] = &subscription.Subscription{Channel: "healthy-connect"}
+			var partialCalls, healthyCalls int
+			ws := newConfiguredMultiManager(t, nil)
+			partialSetup := &ConnectionSetup{
 				URL: mockURL,
 				GenerateSubscriptions: func() (subscription.List, error) {
-					return testSubs, fmt.Errorf("%w: %w", ErrSubscriptionPartial, errDastardlyReason)
+					partialCalls++
+					return partialSubs, fmt.Errorf("%w: %w", ErrSubscriptionPartial, errDastardlyReason)
 				},
 				Connector: dial,
 				Handler:   noopHandler,
-			})
-			ws.connectionManager[0].setup.Subscriber = func(_ context.Context, _ Connection, subs subscription.List) error {
-				for _, sub := range subs {
-					if err := ws.connectionManager[0].subscriptions.Add(sub); err != nil {
-						return err
-					}
-				}
-				return nil
 			}
+			healthySetup := &ConnectionSetup{
+				URL: mockURL,
+				GenerateSubscriptions: func() (subscription.List, error) {
+					healthyCalls++
+					return healthySubs, nil
+				},
+				Connector: dial,
+				Handler:   noopHandler,
+			}
+			subscriber := func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			}
+			partialSetup.Subscriber = subscriber
+			healthySetup.Subscriber = subscriber
+			ws.connectionManager = []*websocket{{setup: partialSetup}, {setup: healthySetup}}
 
 			err := ws.Connect(t.Context())
 			require.ErrorIs(t, err, ErrSubscriptionPartial, "Connect must surface partial subscription generation")
 			assert.True(t, ws.IsConnected(), "websocket should remain connected after partial subscription generation")
+			require.NotNil(t, ws.connectionManager[0].subscriptions.Get(partialSubs[0]),
+				"Connect must retain subscriptions returned with a partial generation error")
+			require.NotNil(t, ws.connectionManager[1].subscriptions.Get(healthySubs[0]),
+				"Connect must continue through healthy generators after a partial generation error")
+
+			partialRefresh := &subscription.Subscription{Channel: "partial-refresh"}
+			healthyRefresh := &subscription.Subscription{Channel: "healthy-refresh"}
+			partialSubs = append(partialSubs, partialRefresh)
+			healthySubs = append(healthySubs, healthyRefresh)
+			err = ws.FlushChannels(t.Context())
+			require.ErrorIs(t, err, ErrSubscriptionPartial, "FlushChannels must surface partial subscription generation")
+			assert.Equal(t, 2, partialCalls, "partial generator should run during connect and flush")
+			assert.Equal(t, 2, healthyCalls, "healthy generator should run during connect and flush")
+			require.NotNil(t, ws.connectionManager[0].subscriptions.Get(partialRefresh),
+				"FlushChannels must retain subscriptions returned with a partial generation error")
+			require.NotNil(t, ws.connectionManager[1].subscriptions.Get(healthyRefresh),
+				"FlushChannels must continue through healthy generators after a partial generation error")
 			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
 		})
 

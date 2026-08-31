@@ -2575,6 +2575,9 @@ func getRequestedOpenInterestPair(e *Exchange, keys []key.PairAsset, a asset.Ite
 }
 
 func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p currency.Pair) (float64, error) {
+	if err := validateFuturesAsset(a); err != nil {
+		return 0, err
+	}
 	settle, err := getSettlementCurrency(p, a)
 	if err != nil {
 		return 0, err
@@ -2587,6 +2590,9 @@ func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p
 }
 
 func (e *Exchange) getOpenInterestContracts(ctx context.Context, a asset.Item, p currency.Pair) ([]openInterestContract, error) {
+	if err := validateFuturesAsset(a); err != nil {
+		return nil, err
+	}
 	settle, err := getSettlementCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -2976,7 +2982,7 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 
 func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error) {
 	switch a {
-	case asset.DeliveryFutures:
+	case asset.DeliveryFutures, asset.Options:
 		return currency.USDT, nil
 	case asset.USDTMarginedFutures:
 		if p.IsEmpty() || p.Quote.Equal(currency.USDT) {
@@ -2995,6 +3001,15 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 		return currency.BTC, nil
 	}
 	return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+}
+
+func validateFuturesAsset(a asset.Item) error {
+	switch a {
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		return nil
+	default:
+		return fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
 }
 
 // WebsocketSubmitOrders submits orders to the exchange through the websocket

@@ -798,45 +798,33 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-
 	// Gate's websocket user value identifies the same primary account that REST stores with an empty ID.
 	// Using it as a subaccount ID retains both snapshots and causes portfolio balances to be double counted.
 	subAcct := accounts.NewSubAccount(assetType, "")
 	for _, bal := range resp {
 		c := bal.Currency
 		if c.IsEmpty() {
-			if assetType == asset.Options {
-				c = currency.USDT // Settlement currency is USDT
-			} else {
-				c, err = getSettlementCurrency(currency.EMPTYPAIR, assetType)
-				if err != nil {
-					return err
-				}
+			var err error
+			c, err = getSettlementCurrency(currency.EMPTYPAIR, assetType)
+			if err != nil {
+				return err
 			}
 		}
-		balance, err := e.Accounts.GetBalance("", creds, assetType, c)
-		if err != nil && !errors.Is(err, accounts.ErrNoBalances) {
+		balance, err := e.Accounts.UpdateBalance(ctx, "", assetType, c, func(balance *accounts.Balance) {
+			balance.Total = bal.Balance.Float64()
+			if balance.Hold > balance.Total {
+				balance.Hold = balance.Total
+			}
+			balance.Free = balance.Total - balance.Hold
+			balance.AvailableWithoutBorrow = balance.Free
+			balance.UpdatedAt = time.Time{}
+		})
+		if err != nil {
 			return err
 		}
-		balance.Total = bal.Balance.Float64()
-		balance.Free = balance.Total - balance.Hold
-		balance.AvailableWithoutBorrow = balance.Free
-		updatedAt := bal.Time.Time()
-		if balance.UpdatedAt.After(updatedAt) {
-			updatedAt = balance.UpdatedAt
-		}
-		balance.UpdatedAt = updatedAt
 		subAcct.Balances.Set(c, balance)
 	}
-	subAccts := accounts.SubAccounts{subAcct}
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
-		return err
-	}
-	return e.Websocket.DataHandler.Send(ctx, subAccts)
+	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
 }
 
 func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context, data []byte) error {

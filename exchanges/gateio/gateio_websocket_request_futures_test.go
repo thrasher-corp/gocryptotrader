@@ -70,6 +70,8 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.Binary, out)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.Options, out)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
