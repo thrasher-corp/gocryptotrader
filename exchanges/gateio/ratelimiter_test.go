@@ -8,7 +8,7 @@ import (
 )
 
 func TestRateLimits(t *testing.T) {
-	for epl := request.EndpointLimit(1); epl <= perpetualUpdateRiskEPL; epl++ {
+	for epl := request.EndpointLimit(1); epl <= otcOrderDetailEPL; epl++ {
 		if epl == websocketRateLimitNotNeededEPL {
 			continue
 		}
