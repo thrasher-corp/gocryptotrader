@@ -210,6 +210,17 @@ func TestSetStream(t *testing.T) {
 	err = b.SetStream([]Event{nil})
 	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
+	err = b.SetStream([]Event{
+		&fakeEvent{Base: &event.Base{
+			Time:         time.Now(),
+			Exchange:     "test",
+			AssetType:    asset.Spot,
+			CurrencyPair: cp,
+		}},
+		nil,
+	})
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	b = nil
 	err = b.SetStream(nil)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
