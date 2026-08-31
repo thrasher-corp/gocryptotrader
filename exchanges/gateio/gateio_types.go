@@ -914,16 +914,6 @@ type OptionSettlement struct {
 	StrikePrice types.Number `json:"strike_price"`
 }
 
-// SwapCurrencies represents Flash Swap supported currencies.
-//
-// Deprecated: Use FlashSwapCurrencyPair.
-type SwapCurrencies struct {
-	Currency  string       `json:"currency"`
-	MinAmount types.Number `json:"min_amount"`
-	MaxAmount types.Number `json:"max_amount"`
-	Swappable []string     `json:"swappable"`
-}
-
 // FlashSwapCurrencyPair represents a supported flash swap pair.
 type FlashSwapCurrencyPair struct {
 	CurrencyPair  string       `json:"currency_pair"`

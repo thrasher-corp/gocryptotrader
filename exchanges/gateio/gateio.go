@@ -113,7 +113,7 @@ const (
 	gateioOptionsMyTrades              = "options/my_trades"
 
 	// Flash Swap
-	gateioFlashSwapCurrencies    = "flash_swap/currencies"
+	gateioFlashSwapCurrencyPairs = "flash_swap/currency_pairs"
 	gateioFlashSwapOrders        = "flash_swap/orders"
 	gateioFlashSwapOrdersPreview = "flash_swap/orders/preview"
 
@@ -3498,14 +3498,6 @@ func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency
 
 // ********************************** Flash_SWAP *************************
 
-// GetSupportedFlashSwapCurrencies retrieves all supported currencies in flash swap.
-//
-// Deprecated: Use GetSupportedFlashSwapCurrencyPairs.
-func (e *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
-	var currencies []SwapCurrencies
-	return currencies, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, gateioFlashSwapCurrencies, &currencies)
-}
-
 // GetSupportedFlashSwapCurrencyPairs retrieves the supported flash swap pairs.
 func (e *Exchange) GetSupportedFlashSwapCurrencyPairs(ctx context.Context, ccy currency.Code, limit, page uint64) ([]FlashSwapCurrencyPair, error) {
 	params := url.Values{}
@@ -3519,7 +3511,7 @@ func (e *Exchange) GetSupportedFlashSwapCurrencyPairs(ctx context.Context, ccy c
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	var pairs []FlashSwapCurrencyPair
-	return pairs, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, common.EncodeURLValues("flash_swap/currency_pairs", params), &pairs)
+	return pairs, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, common.EncodeURLValues(gateioFlashSwapCurrencyPairs, params), &pairs)
 }
 
 // CreateFlashSwapOrder creates a new flash swap order
