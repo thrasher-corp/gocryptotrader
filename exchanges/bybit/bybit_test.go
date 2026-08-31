@@ -3194,7 +3194,7 @@ func TestPositionCollateralCurrency(t *testing.T) {
 	}{
 		{name: "USDT margined", asset: asset.USDTMarginedFutures, pair: currency.NewPair(currency.BTC, currency.NewCode("USDT-04SEP26")), symbol: "BTC-USDT-04SEP26", expected: currency.USDT},
 		{name: "USDC margined", asset: asset.USDCMarginedFutures, pair: currency.NewPair(currency.BTC, currency.NewCode("PERP")), symbol: "BTC-PERP", expected: currency.USDC},
-		{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.BTC, currency.USD), symbol: "BTCUSD", expected: currency.BTC},
+		{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewBTCUSD(), symbol: "BTCUSD", expected: currency.BTC},
 		{name: "USDT option", asset: asset.Options, pair: currency.NewPair(currency.SOL, currency.NewCode("4MAR26-85-C-USDT")), symbol: "SOL-4MAR26-85-C-USDT", expected: currency.USDT},
 		{name: "USDC option", asset: asset.Options, pair: currency.NewPair(currency.BTC, currency.NewCode("29DEC23-70000-P")), symbol: "BTC-29DEC23-70000-P", expected: currency.USDC},
 		{name: "unsupported", asset: asset.Spot, pair: currency.NewBTCUSDT(), symbol: "BTCUSDT", err: asset.ErrNotSupported},

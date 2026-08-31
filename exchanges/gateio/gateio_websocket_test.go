@@ -194,6 +194,38 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 	}
 }
 
+func TestProcessBOBBalanceCapturedPayloads(t *testing.T) { //nolint:tparallel // Sequential updates verify account replacement.
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Name = "ProcessBOBBalanceCapturedPayloads"
+	ex.Accounts = accounts.MustNewAccounts(ex)
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+	payloads := [][]byte{
+		[]byte(`[{"balance":6625.2408877187,"change":-0.027052032,"text":"BOB_USDT:292452500978515718","time":1788148634,"time_ms":1788148634648,"type":"fee","user":"12870774","currency":"usdt"}]`),
+		[]byte(`[{"balance":6625.2375035267,"change":-0.003384192,"text":"BOB_USDT:292452500978515718","time":1788148634,"time_ms":1788148634648,"type":"fee","user":"12870774","currency":"usdt"}]`),
+	}
+	wantBalances := []float64{6625.2408877187, 6625.2375035267}
+
+	for i := range payloads {
+		require.NoError(t, ex.processBalancePushData(ctx, payloads[i], asset.USDTMarginedFutures),
+			"processBalancePushData must process the captured balance update")
+		message := <-ex.Websocket.DataHandler.C
+		changes, ok := message.Data.(accounts.SubAccounts)
+		require.True(t, ok, "captured balance payload must emit subaccount changes")
+		require.Len(t, changes, 1, "captured balance payload must emit one subaccount change")
+		balance, ok := changes[0].Balances[currency.USDT.Lower()]
+		require.True(t, ok, "captured balance payload must contain USDT")
+		assert.Equal(t, wantBalances[i], balance.Total, "total balance should be preserved")
+		assert.Equal(t, time.UnixMilli(1788148634648), balance.UpdatedAt, "balance update time should preserve milliseconds")
+	}
+
+	credentials, err := ex.GetCredentials(ctx)
+	require.NoError(t, err, "GetCredentials must not error")
+	stored, err := ex.Accounts.GetBalance("12870774", credentials, asset.USDTMarginedFutures, currency.USDT.Lower())
+	require.NoError(t, err, "GetBalance must return the latest captured balance")
+	assert.Equal(t, wantBalances[1], stored.Total, "stored balance should contain the latest update")
+}
+
 func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *websocketBalancesTest) {
 	t.Helper()
 

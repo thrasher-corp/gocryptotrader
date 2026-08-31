@@ -2655,6 +2655,56 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	})
 }
 
+func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
+	t.Parallel()
+	payloads := [][]byte{
+		[]byte(`{"time":1788148634,"time_ms":1788148634648,"channel":"futures.positions","event":"update","result":[{"time":1788148634,"time_ms":1788148634648,"size":"112","user":"12870774","leverage_max":10,"mode":"single","update_id":2498,"cross_leverage_limit":20,"liq_price":0,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.2543647646,"entry_price":0.005032,"leverage":1,"realised_pnl":-0.027052032,"contract":"BOB_USDT","history_point":0,"margin":56.4006688,"realised_point":0,"history_pnl":-274.6956184238,"pos_margin_mode":"isolated","lever":"1"}]}`),
+		[]byte(`{"time":1788148634,"time_ms":1788148634648,"channel":"futures.positions","event":"update","result":[{"time":1788148634,"time_ms":1788148634648,"size":"126","user":"12870774","leverage_max":10,"mode":"single","update_id":2499,"cross_leverage_limit":20,"liq_price":0,"maintenance_rate":0.9,"risk_limit":2500000,"last_close_pnl":-0.2543647646,"entry_price":0.005032444444,"leverage":1,"realised_pnl":-0.030436224,"contract":"BOB_USDT","history_point":0,"margin":63.4563566,"realised_point":0,"history_pnl":-274.6956184238,"pos_margin_mode":"isolated","lever":"1"}]}`),
+	}
+	wantSizes := []string{"112", "126"}
+	wantUpdateIDs := []int64{2498, 2499}
+	wantMargins := []float64{56.4006688, 63.4563566}
+	wantOpeningPrices := []float64{0.005032, 0.005032444444}
+	wantRealisedPNLs := []float64{-0.027052032, -0.030436224}
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures,
+		currency.Pairs{currency.NewPair(currency.NewCode("BOB"), currency.USDT)}, false),
+		"StorePairs must register the captured contract")
+	for i := range payloads {
+		response := struct {
+			Time      types.Time          `json:"time"`
+			TimeMilli types.Time          `json:"time_ms"`
+			Channel   string              `json:"channel"`
+			Event     string              `json:"event"`
+			Result    []WsFuturesPosition `json:"result"`
+		}{}
+		decoder := json.NewDecoder(bytes.NewReader(payloads[i]))
+		decoder.DisallowUnknownFields()
+		require.NoError(t, decoder.Decode(&response), "captured BOB position payload must unmarshal without unknown fields")
+		require.Len(t, response.Result, 1, "captured BOB payload must contain one position")
+		assert.Equal(t, "BOB_USDT", response.Result[0].Contract, "captured contract should be preserved")
+
+		require.NoError(t, ex.WsHandleFuturesData(t.Context(), nil, payloads[i], asset.USDTMarginedFutures),
+			"WsHandleFuturesData must process the captured position update")
+		message := <-ex.Websocket.DataHandler.C
+		positions, ok := message.Data.([]futures.Position)
+		require.True(t, ok, "captured payload must emit canonical futures positions")
+		require.Len(t, positions, 1, "captured payload must emit one position")
+		position := positions[0]
+		assert.Equal(t, order.Open, position.Status, "position status should be open")
+		assert.Equal(t, order.Long, position.LatestDirection, "positive position size should be long")
+		assert.Equal(t, wantSizes[i], position.LatestSize.String(), "position size should be preserved")
+		assert.Equal(t, "1", position.Leverage.String(), "isolated position should use the quoted lever field")
+		assert.Equal(t, wantUpdateIDs[i], position.UpdateID, "position update ID should be preserved")
+		assert.Equal(t, time.UnixMilli(1788148634648), position.LastUpdated, "position update time should preserve milliseconds")
+		assert.True(t, position.OpeningPrice.Equal(decimal.NewFromFloat(wantOpeningPrices[i])), "position opening price should be correct")
+		assert.True(t, position.PositionMargin.Equal(decimal.NewFromFloat(wantMargins[i])), "position margin should be correct")
+		assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(wantRealisedPNLs[i])), "position realised PNL should be correct")
+	}
+}
+
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
