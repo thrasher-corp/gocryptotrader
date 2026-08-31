@@ -371,6 +371,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			log.Infof(log.Fill, "%+v", d)
 		}
 	case []futures.Position:
+		// TODO: Apply canonical websocket snapshots once PositionController supports snapshot ingestion.
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket futures positions updated %+v", exchName, d)
 		}

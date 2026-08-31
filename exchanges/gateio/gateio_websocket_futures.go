@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -52,6 +53,8 @@ const (
 	futuresAutoOrdersChannel        = "futures.autoorders"
 
 	futuresOrderbookUpdateLimit uint64 = 20
+
+	invalidUserID = "invalidUserID"
 )
 
 var defaultFuturesSubscriptions = []string{
@@ -99,7 +102,7 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
 // TODO: Update to use the new subscription template system
-func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
+func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if a == asset.CoinMarginedFutures {
 		channelsToSubscribe = defaultCoinMarginedFuturesSubscriptions
@@ -119,21 +122,18 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 
 	var userID string
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		ctx := context.TODO()
-		if _, err := e.GetCredentials(ctx); err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		// TODO: Cache the user ID to avoid querying the account repeatedly
+		settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
+		if err != nil {
+			return nil, err
+		}
+		account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s: error querying futures account: %v", e.Name, err)
+		}
+		if account == nil || account.User == 0 {
+			userID = invalidUserID
 		} else {
-			settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
-			if err != nil {
-				return nil, err
-			}
-			account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
-			if err != nil {
-				return nil, err
-			}
-			if account == nil || account.User == 0 {
-				return nil, fmt.Errorf("%w: futures account user ID missing", common.ErrInvalidResponse)
-			}
 			userID = strconv.FormatInt(account.User, 10)
 		}
 	}
@@ -169,6 +169,7 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 		}
 	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	channels:
 		for _, channel := range []string{
 			futuresOrdersChannel,
 			futuresUserTradesChannel,
@@ -186,11 +187,19 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 				// Gate deprecated the user ID value but still requires its positional placeholder.
 				params[requiresUserPlaceholderParam] = true
 			case futuresBalancesChannel:
+				if userID == invalidUserID {
+					log.Errorf(log.WebsocketMgr, "%s: skipping authenticated channel subscription: invalid user ID for %s channel", e.Name, channel)
+					continue channels
+				}
 				delete(params, contractPayloadOverrideParam)
 				params[omitContractParam] = true
 				params["user"] = userID
 			case futuresAutoOrdersChannel:
 			default:
+				if userID == invalidUserID {
+					log.Errorf(log.WebsocketMgr, "%s: skipping authenticated channel subscription: invalid user ID for %s channel", e.Name, channel)
+					continue channels
+				}
 				params["user"] = userID
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
@@ -741,9 +750,9 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 		if err != nil {
 			return err
 		}
-		collateralCurrency := pair.Quote
-		if a == asset.CoinMarginedFutures {
-			collateralCurrency = pair.Base
+		collateralCurrency, err := getSettlementCurrency(pair, a)
+		if err != nil {
+			return err
 		}
 		positions[i] = futures.Position{
 			Exchange:           e.Name,
@@ -834,9 +843,9 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 		case resp.Result[i].Mode == "dual_short":
 			direction = order.Short
 		}
-		collateralCurrency := pair.Quote
-		if a == asset.CoinMarginedFutures {
-			collateralCurrency = pair.Base
+		collateralCurrency, err := getSettlementCurrency(pair, a)
+		if err != nil {
+			return err
 		}
 		leverage := resp.Result[i].Leverage.Decimal()
 		if resp.Result[i].PositionMarginMode != "" {

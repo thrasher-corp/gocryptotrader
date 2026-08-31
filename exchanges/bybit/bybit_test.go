@@ -3132,6 +3132,8 @@ func TestWsPositionUnmarshal(t *testing.T) {
 		{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
 		{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long, expectedMMFraction: "0.0214506530631264"},
 		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedMMFraction: "0.0214506530631264"},
+		{name: "closed long hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Long, expectedCloseDate: time.UnixMilli(1787197420648), expectedMMFraction: "0.0214506530631264"},
+		{name: "closed short hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":2`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Short, expectedCloseDate: time.UnixMilli(1787197420648), expectedMMFraction: "0.0214506530631264"},
 		{name: "liquidated", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Liquidated, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
 		{name: "auto deleveraged", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
 		{name: "zero notional", replacements: []string{`"positionValue":"7.403955"`, `"positionValue":"0"`}, expectedStatus: order.Open, expectedDirection: order.Short, expectedMMFraction: "0"},
@@ -3177,6 +3179,34 @@ func TestWsPositionUnmarshal(t *testing.T) {
 		require.ErrorIs(t, ex.wsProcessPosition(t.Context(), &wireResponse), order.ErrPositionSideUnsupported,
 			"wsProcessPosition must reject a non-directional position side")
 	})
+}
+
+func TestPositionCollateralCurrency(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		asset    asset.Item
+		pair     currency.Pair
+		symbol   string
+		expected currency.Code
+		err      error
+	}{
+		{name: "USDT margined", asset: asset.USDTMarginedFutures, pair: currency.NewPair(currency.BTC, currency.NewCode("USDT-04SEP26")), symbol: "BTC-USDT-04SEP26", expected: currency.USDT},
+		{name: "USDC margined", asset: asset.USDCMarginedFutures, pair: currency.NewPair(currency.BTC, currency.NewCode("PERP")), symbol: "BTC-PERP", expected: currency.USDC},
+		{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.BTC, currency.USD), symbol: "BTCUSD", expected: currency.BTC},
+		{name: "USDT option", asset: asset.Options, pair: currency.NewPair(currency.SOL, currency.NewCode("4MAR26-85-C-USDT")), symbol: "SOL-4MAR26-85-C-USDT", expected: currency.USDT},
+		{name: "USDC option", asset: asset.Options, pair: currency.NewPair(currency.BTC, currency.NewCode("29DEC23-70000-P")), symbol: "BTC-29DEC23-70000-P", expected: currency.USDC},
+		{name: "unsupported", asset: asset.Spot, pair: currency.NewBTCUSDT(), symbol: "BTCUSDT", err: asset.ErrNotSupported},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actual, err := positionCollateralCurrency(tt.asset, tt.pair, tt.symbol)
+			require.ErrorIs(t, err, tt.err, "positionCollateralCurrency must return the expected error")
+			assert.Equal(t, tt.expected, actual, "positionCollateralCurrency should return the settlement currency")
+		})
+	}
 }
 
 func TestWsWalletCurrentUnifiedPayload(t *testing.T) {

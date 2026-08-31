@@ -152,7 +152,8 @@ func (e *Exchange) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
-	e.Requester, err = request.New(e.Name,
+	e.Requester, err = request.New(
+		e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(packageRateLimits),
 	)
@@ -247,7 +248,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
 		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.USDTMarginedFutures)
 		},
 		Connector:     e.WsFuturesConnect,
 		Authenticate:  e.authenticateFutures,
@@ -268,7 +269,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
 		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.CoinMarginedFutures)
 		},
 		Connector:     e.WsFuturesConnect,
 		MessageFilter: asset.CoinMarginedFutures,

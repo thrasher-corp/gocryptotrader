@@ -433,13 +433,17 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			if err != nil {
 				return err
 			}
+		} else {
+			switch result[i].PositionIdx {
+			case 1:
+				direction = order.Long
+			case 2:
+				direction = order.Short
+			}
 		}
-		collateralCurrency := pair.Quote
-		switch a {
-		case asset.CoinMarginedFutures:
-			collateralCurrency = pair.Base
-		case asset.Options:
-			collateralCurrency = currency.USDC
+		collateralCurrency, err := positionCollateralCurrency(a, pair, result[i].Symbol)
+		if err != nil {
+			return err
 		}
 		openingDate := result[i].OpenTime.Time()
 		if openingDate.IsZero() {
@@ -496,6 +500,24 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, positions)
+}
+
+func positionCollateralCurrency(a asset.Item, pair currency.Pair, symbol string) (currency.Code, error) {
+	switch a {
+	case asset.CoinMarginedFutures:
+		return pair.Base, nil
+	case asset.USDTMarginedFutures:
+		return currency.USDT, nil
+	case asset.USDCMarginedFutures:
+		return currency.USDC, nil
+	case asset.Options:
+		if strings.HasSuffix(symbol, currency.DashDelimiter+currency.USDT.String()) {
+			return currency.USDT, nil
+		}
+		return currency.USDC, nil
+	default:
+		return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
 }
 
 func (e *Exchange) wsLeverageTokenNav(ctx context.Context, resp *WebsocketResponse) error {

@@ -2547,7 +2547,7 @@ func TestFuturesDataHandler(t *testing.T) {
 				sawPosition = true
 				assert.Equal(t, order.Open, positions[0].Status, "position status should be open")
 				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalized")
-				assert.True(t, positions[0].Leverage.IsZero(), "replacement cross-margin leverage should take precedence")
+				assert.Equal(t, "5", positions[0].Leverage.String(), "replacement cross-margin leverage should take precedence")
 				assert.True(t, positions[0].PositionMargin.Equal(decimal.NewFromFloat(49.999890611186)), "position margin should be populated")
 				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.005)), "maintenance margin rate should be populated")
 				assert.True(t, positions[0].EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.1)), "liquidation price should be populated")
@@ -2632,6 +2632,27 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 			assert.Equal(t, tt.direction, positions[0].LatestDirection, "zero-size dual-mode direction should be preserved")
 		})
 	}
+
+	t.Run("delivery collateral", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		deliveryPairs, err := ex.GetEnabledPairs(asset.DeliveryFutures)
+		require.NoError(t, err, "GetEnabledPairs must return delivery pairs")
+		require.NotEmpty(t, deliveryPairs, "delivery pairs must not be empty")
+		deliveryPair := deliveryPairs[0]
+		formattedPair, err := ex.FormatExchangeCurrency(deliveryPair, asset.DeliveryFutures)
+		require.NoError(t, err, "FormatExchangeCurrency must format the delivery pair")
+		deliveryPayload := []byte(strings.Replace(string(payload), "GPS_USDT", formattedPair.String(), 1))
+		require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), deliveryPayload, asset.DeliveryFutures),
+			"processFuturesPositionsNotification must process a delivery position")
+		message := <-ex.Websocket.DataHandler.C
+		positions, ok := message.Data.([]futures.Position)
+		require.True(t, ok, "delivery update must emit canonical futures positions")
+		require.Len(t, positions, 1, "delivery update must emit one position")
+		assert.Equal(t, currency.USDT, positions[0].CollateralCurrency,
+			"delivery collateral currency should exclude the dated contract suffix")
+	})
 }
 
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
@@ -2933,10 +2954,10 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	subs, err := e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -2953,7 +2974,7 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	e.API.AuthenticatedWebsocketSupport = true
 	e.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	authenticatedChannels := map[string]bool{
 		futuresOrdersChannel:            false,
@@ -3021,13 +3042,60 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	}
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, nil, true),
 		"StorePairs must clear enabled coin-margined futures pairs")
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "Enabled asset without pairs must error")
 	require.Empty(t, subs, "Enabled asset without pairs must return no subscriptions")
 	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "Disabled asset must not error")
 	require.Empty(t, subs, "Disabled asset must return no pairs")
+}
+
+func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.NoError(t, err, "Account lookup failure must not prevent futures subscription generation")
+
+	authenticatedChannels := map[string]bool{
+		futuresOrdersChannel:            false,
+		futuresUserTradesChannel:        false,
+		futuresLiquidatesChannel:        false,
+		futuresAutoDeleveragesChannel:   false,
+		futuresAutoPositionCloseChannel: false,
+		futuresBalancesChannel:          false,
+		futuresReduceRiskLimitsChannel:  false,
+		futuresPositionsChannel:         false,
+		futuresAutoOrdersChannel:        false,
+	}
+	for _, sub := range subs {
+		if _, ok := authenticatedChannels[sub.Channel]; ok {
+			authenticatedChannels[sub.Channel] = true
+		}
+	}
+	assert.True(t, authenticatedChannels[futuresPositionsChannel], "Positions subscription should not require a user ID")
+	assert.True(t, authenticatedChannels[futuresAutoOrdersChannel], "Auto-orders subscription should not require a user ID")
+	for channel, generated := range authenticatedChannels {
+		if channel == futuresPositionsChannel || channel == futuresAutoOrdersChannel {
+			continue
+		}
+		assert.Falsef(t, generated, "%s should be skipped without a valid user ID", channel)
+	}
 }
 
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
