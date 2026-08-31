@@ -776,21 +776,22 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 		return err
 	}
 
-	subAccts := accounts.SubAccounts{}
+	// Gate's websocket user value identifies the same primary account that REST stores with an empty ID.
+	// Using it as a subaccount ID retains both snapshots and causes portfolio balances to be double counted.
+	subAcct := accounts.NewSubAccount(assetType, "")
 	for _, bal := range resp {
 		c := bal.Currency
 		if assetType == asset.Options && c.IsEmpty() {
 			c = currency.USDT // Settlement currency is USDT
 		}
-		a := accounts.NewSubAccount(assetType, bal.User)
-		a.Balances.Set(c, accounts.Balance{
+		subAcct.Balances.Set(c, accounts.Balance{
 			Total:                  bal.Balance.Float64(),
 			Free:                   bal.Balance.Float64(),
 			AvailableWithoutBorrow: bal.Balance.Float64(),
 			UpdatedAt:              bal.Time.Time(),
 		})
-		subAccts = subAccts.Merge(a)
 	}
+	subAccts := accounts.SubAccounts{subAcct}
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}

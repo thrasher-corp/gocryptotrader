@@ -770,10 +770,12 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
+		// Preserve Gate's timestamp so REST and websocket snapshots for the same account remain ordered.
 		subAccts[0].Balances.Set(acc.Currency, accounts.Balance{
-			Total: acc.Total.Float64(),
-			Hold:  acc.Total.Float64() - acc.Available.Float64(),
-			Free:  acc.Available.Float64(),
+			Total:     acc.Total.Float64(),
+			Hold:      acc.Total.Float64() - acc.Available.Float64(),
+			Free:      acc.Available.Float64(),
+			UpdatedAt: acc.UpdateTime.Time(),
 		})
 	case asset.Options:
 		balance, err := e.GetOptionAccounts(ctx)
