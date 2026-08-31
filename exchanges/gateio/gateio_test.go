@@ -3661,7 +3661,7 @@ func TestGetSettlementCurrency(t *testing.T) {
 		{asset.DeliveryFutures, currency.EMPTYPAIR, currency.USDT, nil},
 		{asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), currency.USDT, nil},
 		{asset.Options, currency.EMPTYPAIR, currency.USDT, nil},
-		{asset.Options, currency.NewPair(currency.BTC, currency.USDT), currency.USDT, nil},
+		{asset.Options, currency.NewBTCUSDT(), currency.USDT, nil},
 		{asset.USDTMarginedFutures, currency.EMPTYPAIR, currency.USDT, nil},
 		{asset.USDTMarginedFutures, getPair(t, asset.USDTMarginedFutures), currency.USDT, nil},
 		{asset.USDTMarginedFutures, getPair(t, asset.CoinMarginedFutures), currency.EMPTYCODE, errInvalidSettlementQuote},
