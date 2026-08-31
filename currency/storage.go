@@ -547,7 +547,8 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
-	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.defaultBaseCurrency.String(),
+	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
+		s.defaultBaseCurrency.String(),
 		s.defaultFiatCurrencies.Strings())
 	if err != nil {
 		return err
