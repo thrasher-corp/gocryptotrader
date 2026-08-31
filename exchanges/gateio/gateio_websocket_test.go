@@ -196,7 +196,7 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 	}
 }
 
-func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) { //nolint:tparallel // Sequential updates verify account replacement.
+func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	ex := new(Exchange)
 	ex.SetDefaults()
 	ex.Name = "ProcessFuturesBalanceCapturedPayloads"
