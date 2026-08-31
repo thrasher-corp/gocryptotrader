@@ -892,24 +892,8 @@ func (bot *Engine) LoadExchange(name string) error {
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
-		var preferredAsset asset.Item
-		switch {
-		case enabledAssets.Contains(asset.Spot): // prioritise validating credentials with spot due to wide usage across GCT
-			preferredAsset = asset.Spot
-		default:
-			for _, a := range enabledAssets { // second priority to futures if spot isn't available
-				if a.IsFutures() {
-					preferredAsset = a
-					break
-				}
-			}
-			if preferredAsset == 0 {
-				preferredAsset = enabledAssets[0] // last resort pick first available
-			}
-		}
-
-		if err := exch.ValidateAPICredentials(ctx, preferredAsset); err != nil {
-			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v for %s", b.Name, err, preferredAsset)
+		if err := validateAPICredentials(ctx, enabledAssets, exch.ValidateAPICredentials); err != nil {
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v", b.Name, err)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
 			if b.Websocket != nil {
@@ -919,6 +903,33 @@ func (bot *Engine) LoadExchange(name string) error {
 	}
 
 	return exchange.Bootstrap(ctx, exch)
+}
+
+func validateAPICredentials(ctx context.Context, enabledAssets asset.Items, validate func(context.Context, asset.Item) error) error {
+	assets := make(asset.Items, 0, len(enabledAssets))
+	if enabledAssets.Contains(asset.Spot) {
+		assets = append(assets, asset.Spot)
+	}
+	for _, a := range enabledAssets {
+		if a != asset.Spot && a.IsFutures() {
+			assets = append(assets, a)
+		}
+	}
+	for _, a := range enabledAssets {
+		if a != asset.Spot && !a.IsFutures() {
+			assets = append(assets, a)
+		}
+	}
+
+	var errs error
+	for _, a := range assets {
+		if err := validate(ctx, a); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s: %w", a, err))
+			continue
+		}
+		return nil
+	}
+	return errs
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {

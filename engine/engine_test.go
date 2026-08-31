@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"os"
 	"slices"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
 )
@@ -437,6 +439,31 @@ func TestDryRunParamInteraction(t *testing.T) {
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
 	}
+}
+
+func TestValidateAPICredentials(t *testing.T) {
+	t.Parallel()
+
+	errDeliveryAccountMissing := errors.New("delivery account missing")
+	var validated asset.Items
+	err := validateAPICredentials(t.Context(), asset.Items{
+		asset.DeliveryFutures,
+		asset.USDTMarginedFutures,
+	}, func(_ context.Context, a asset.Item) error {
+		validated = append(validated, a)
+		if a == asset.DeliveryFutures {
+			return errDeliveryAccountMissing
+		}
+		return nil
+	})
+	require.NoError(t, err, "validation must succeed when another enabled account is available")
+	assert.Equal(t, asset.Items{asset.DeliveryFutures, asset.USDTMarginedFutures}, validated,
+		"validation should try another enabled futures account after an account-specific failure")
+
+	err = validateAPICredentials(t.Context(), asset.Items{asset.DeliveryFutures}, func(context.Context, asset.Item) error {
+		return errDeliveryAccountMissing
+	})
+	require.ErrorIs(t, err, errDeliveryAccountMissing, "validation must return an error when every enabled account fails")
 }
 
 func TestFlagSetWith(t *testing.T) {
