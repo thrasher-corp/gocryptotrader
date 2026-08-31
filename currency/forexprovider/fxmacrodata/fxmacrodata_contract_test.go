@@ -69,6 +69,8 @@ func TestAnnouncements(t *testing.T) {
 		"has_official_forecast":true,"start_date":"2026-07-31","end_date":"2026-07-31",
 		"data_quality":{"row_count":1,"reason":"current"},
 		"pagination":{"limit":1,"returned_count":1},
+		"freemium_window":{"applied":true,"max_days":90,"cutoff_date":"2026-05-14",
+		"message":"Anonymous access returns the most recent 90 days."},
 		"data":[{"announcement_id":"usd_inflation_2026-07-31","date":"2026-07-31","val":2.7,
 		"previous_value":2.6,"announcement_datetime":1786105800,"pct_change_yoy":2.7,
 		"revisions":[{"epoch":1786100000,"val":2.6}],"remap_applied":false}]
@@ -84,6 +86,26 @@ func TestAnnouncements(t *testing.T) {
 	assert.Equal(t, int64(1786105800), response.Data[0].AnnouncementDatetime.Time().Unix(),
 		"Announcements should decode Unix timestamps")
 	assert.Equal(t, "current", response.DataQuality.Reason, "Announcements should decode quality context")
+	assert.True(t, response.FreemiumWindow.Applied, "Announcements should report an applied freemium clamp")
+	assert.Equal(t, 90, response.FreemiumWindow.MaxDays, "Announcements should decode the freemium window length")
+	assert.Equal(t, "2026-05-14", response.FreemiumWindow.CutoffDate.String(),
+		"Announcements should decode the freemium cutoff date")
+}
+
+func TestAnnouncementsWithoutFreemiumWindow(t *testing.T) {
+	provider, closeServer := newContractProvider(t, "/api/v1/announcements/usd/inflation", `{
+		"currency":"USD","indicator":"inflation","freemium_window":null,
+		"pagination":{"limit":1,"returned_count":1},
+		"data":[{"announcement_id":"usd_inflation_2026-07-31","date":"2026-07-31","val":2.7}]
+	}`, true)
+	defer closeServer()
+
+	response, err := provider.Announcements(t.Context(), "USD", "inflation", nil)
+	require.NoError(t, err, "Announcements must decode a response without a freemium window")
+	assert.False(t, response.FreemiumWindow.Applied,
+		"Announcements should leave the freemium window at its zero value when the clamp did not apply")
+	assert.Empty(t, response.FreemiumWindow.CutoffDate.String(),
+		"Announcements should leave the freemium cutoff date empty when the clamp did not apply")
 }
 
 func TestLatestAnnouncements(t *testing.T) {
@@ -123,7 +145,8 @@ func TestCalendar(t *testing.T) {
 	provider, closeServer := newContractProvider(t, "/api/v1/calendar/usd", `{
 		"currency":"USD","timezone":"America/New_York","requested_timezone":"UTC",
 		"data_quality":{"row_count":1},"data":[{"announcement_datetime":1786105800,
-		"release":"inflation","announcement_datetime_utc":"2026-08-07T12:30:00Z",
+		"release":"inflation","calendar_event_id":"usd_inflation_2026-08-07",
+		"announcement_datetime_utc":"2026-08-07T12:30:00Z",
 		"release_date_confirmed":true,"release_time_assumed":false,"source":"BLS",
 		"source_url":"https://www.bls.gov/schedule/","event_importance":"high","market_tier":1}]
 	}`, true)
@@ -134,6 +157,8 @@ func TestCalendar(t *testing.T) {
 	require.Len(t, response.Data, 1, "Calendar must decode one release")
 	assert.True(t, response.Data[0].ReleaseDateConfirmed, "Calendar should preserve confirmed release state")
 	assert.False(t, response.Data[0].ReleaseTimeAssumed, "Calendar should preserve assumed-time state")
+	assert.Equal(t, "usd_inflation_2026-08-07", response.Data[0].CalendarEventID,
+		"Calendar should decode the calendar event identifier")
 }
 
 func TestPredictions(t *testing.T) {

@@ -313,6 +313,17 @@ type PolicyFamilyEntry struct {
 	Role      string `json:"role"`
 }
 
+// FreemiumWindow reports an anonymous-access history clamp. It is only
+// populated when the clamp shortened the response; without it a truncated
+// history is indistinguishable from a genuinely short one, because
+// Pagination.TotalCount counts the clamped series.
+type FreemiumWindow struct {
+	Applied    bool   `json:"applied"`
+	MaxDays    int    `json:"max_days"`
+	CutoffDate Date   `json:"cutoff_date"`
+	Message    string `json:"message"`
+}
+
 // AnnouncementResponse contains macroeconomic announcement observations.
 type AnnouncementResponse struct {
 	Currency                    string                  `json:"currency"`
@@ -350,6 +361,7 @@ type AnnouncementResponse struct {
 	SupportedOptions            map[string][]string     `json:"supported_options"`
 	DataQuality                 DataQuality             `json:"data_quality"`
 	Pagination                  PaginationInfo          `json:"pagination"`
+	FreemiumWindow              FreemiumWindow          `json:"freemium_window"`
 	Data                        []AnnouncementDataPoint `json:"data"`
 }
 
@@ -480,6 +492,7 @@ type CalendarResponse struct {
 type CalendarReleaseRow struct {
 	AnnouncementDatetime                  types.Time `json:"announcement_datetime"`
 	Release                               string     `json:"release"`
+	CalendarEventID                       string     `json:"calendar_event_id"`
 	AnnouncementDatetimeUTC               string     `json:"announcement_datetime_utc"`
 	AnnouncementDatetimeLocal             string     `json:"announcement_datetime_local"`
 	AnnouncementDatetimeRequestedTimezone string     `json:"announcement_datetime_requested_timezone"`
