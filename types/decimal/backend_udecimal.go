@@ -5,7 +5,6 @@ package decimal
 import (
 	"fmt"
 	"math"
-	"math/big"
 	"strconv"
 	"strings"
 
@@ -15,16 +14,11 @@ import (
 // Implementation identifies the selected decimal backend.
 const Implementation = "quagmt/udecimal"
 
-const (
-	limitedPrecision = true
-	maxPrecision     = 19
-	// divisionPrecision matches shopspring.DivisionPrecision's default.
-	divisionPrecision = 16
-)
+const maxPrecision = 19
 
-type backendDecimal = udecimal.Decimal
-
-func mustParseBackend(value string) backendDecimal {
+// mustParseUdecimal reconstructs values beyond udecimal's 200-character parser
+// limit because arithmetic can produce larger values that must still round-trip.
+func mustParseUdecimal(value string) udecimal.Decimal {
 	if len(value) <= maxStringDigits {
 		return udecimal.MustParse(value)
 	}
@@ -39,11 +33,11 @@ func mustParseBackend(value string) backendDecimal {
 	result := udecimal.Zero
 	for value != "" {
 		chunkLength := min(len(value), maxStringDigits)
-		result = result.Mul(powerOfTenBackend(chunkLength)).Add(udecimal.MustParse(value[:chunkLength]))
+		result = result.Mul(powerOfTenUdecimal(chunkLength)).Add(udecimal.MustParse(value[:chunkLength]))
 		value = value[chunkLength:]
 	}
 	if fractionalDigits > 0 {
-		result = result.MustDiv(powerOfTenBackend(fractionalDigits))
+		result = result.MustDiv(powerOfTenUdecimal(fractionalDigits))
 	}
 	if negative {
 		return result.Neg()
@@ -51,7 +45,10 @@ func mustParseBackend(value string) backendDecimal {
 	return result
 }
 
-func newFromFloatBackend(value float64) backendDecimal {
+// newFromFloatUdecimal accepts every finite float64 because udecimal's native
+// constructor uses fixed notation and rejects large finite values over its
+// parser length limit.
+func newFromFloatUdecimal(value float64) udecimal.Decimal {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		panic(fmt.Errorf("%w: non-finite float %v", ErrInvalidDecimal, value))
 	}
@@ -62,7 +59,7 @@ func newFromFloatBackend(value float64) backendDecimal {
 		if err != nil {
 			panic(err)
 		}
-		return mustParseBackend(normalised)
+		return mustParseUdecimal(normalised)
 	}
 	exponent, _ := strconv.Atoi(formatted[exponentIndex+1:])
 	if exponent < 0 {
@@ -70,16 +67,18 @@ func newFromFloatBackend(value float64) backendDecimal {
 		if err != nil {
 			panic(err)
 		}
-		return mustParseBackend(normalised)
+		return mustParseUdecimal(normalised)
 	}
 	mantissa, err := normalise(formatted[:exponentIndex], true)
 	if err != nil {
 		panic(err)
 	}
-	return mustParseBackend(mantissa).Mul(powerOfTenBackend(exponent))
+	return mustParseUdecimal(mantissa).Mul(powerOfTenUdecimal(exponent))
 }
 
-func powerOfTenBackend(exponent int) backendDecimal {
+// powerOfTenUdecimal builds large powers in parser-sized chunks because
+// udecimal.MustParse rejects strings longer than 200 characters.
+func powerOfTenUdecimal(exponent int) udecimal.Decimal {
 	result := udecimal.One
 	for exponent > 0 {
 		chunkLength := min(exponent, maxStringDigits-1)
@@ -89,7 +88,9 @@ func powerOfTenBackend(exponent int) backendDecimal {
 	return result
 }
 
-func normalisePrecision(digits string, scale int64, truncate bool, original string) (normalised string, normalisedScale int64, err error) {
+// normaliseUdecimalPrecision applies udecimal's native 19-place precision limit after
+// the package has expanded scientific notation unsupported by udecimal.Parse.
+func normaliseUdecimalPrecision(digits string, scale int64, truncate bool, original string) (normalised string, normalisedScale int64, err error) {
 	if digits == "" {
 		return "0", 0, nil
 	}
@@ -112,42 +113,21 @@ func normalisePrecision(digits string, scale int64, truncate bool, original stri
 	return digits, scale, nil
 }
 
-func mulBackend(left, right backendDecimal) backendDecimal {
-	return left.Mul(right)
-}
-
-func divBackend(left, right backendDecimal) (backendDecimal, error) {
-	if right.IsZero() {
-		return backendDecimal{}, udecimal.ErrDivideByZero
-	}
-	leftRat, _ := new(big.Rat).SetString(left.String())
-	rightRat, _ := new(big.Rat).SetString(right.String())
-	return mustParseBackend(new(big.Rat).Quo(leftRat, rightRat).FloatString(divisionPrecision)), nil
-}
-
-func modBackend(left, right backendDecimal) (backendDecimal, error) {
-	return left.Mod(right)
-}
-
-func powBackend(value, exponent backendDecimal) (backendDecimal, error) {
+// powUdecimal rejects fractional exponents because udecimal.PowToIntPart
+// silently truncates them, which would make the existing Pow API misleading.
+func powUdecimal(value, exponent udecimal.Decimal) (udecimal.Decimal, error) {
 	if !exponent.Trunc(0).Equal(exponent) {
-		return backendDecimal{}, ErrInvalidDecimal
+		return udecimal.Decimal{}, ErrInvalidDecimal
 	}
 	if value.IsZero() {
-		return backendDecimal{}, nil
+		return udecimal.Decimal{}, nil
 	}
 	return value.PowToIntPart(exponent)
 }
 
-func isPositiveBackend(value backendDecimal) bool {
-	return value.IsPos()
-}
-
-func isNegativeBackend(value backendDecimal) bool {
-	return value.IsNeg()
-}
-
-func roundBackend(value backendDecimal, places int32) backendDecimal {
+// roundUdecimal handles negative places because udecimal.RoundHAZ accepts only
+// an unsigned fractional precision while the existing Round API accepts int32.
+func roundUdecimal(value udecimal.Decimal, places int32) udecimal.Decimal {
 	if places >= 0 {
 		if places >= maxPrecision {
 			return value
@@ -161,14 +141,4 @@ func roundBackend(value backendDecimal, places int32) backendDecimal {
 	}
 	scale := udecimal.MustParse("1" + strings.Repeat("0", int(zeroes)))
 	return value.MustDiv(scale).RoundHAZ(0).Mul(scale)
-}
-
-func truncateBackend(value backendDecimal, precision int32) backendDecimal {
-	if precision < 0 {
-		return value
-	}
-	if precision >= maxPrecision {
-		return value
-	}
-	return value.Trunc(uint8(precision))
 }

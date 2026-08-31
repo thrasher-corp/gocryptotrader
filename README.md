@@ -137,7 +137,7 @@ GoCryptoTrader uses shopspring/decimal by default through the shared `types/deci
 go build -tags=udecimal_on
 ```
 
-In the default build, `types/decimal.Decimal` is an alias of `shopspring.Decimal`, preserving source compatibility for library consumers and retaining shopspring's high-precision behaviour. The opt-in udecimal build substitutes the concrete decimal type, supports up to 19 fractional digits, and returns `ErrPrecisionOutOfRange` when parsing values beyond that limit. Division retains the existing 16-place, half-away-from-zero rounding behaviour under either backend.
+In the default build, `types/decimal.Decimal` is an alias of `shopspring.Decimal`, preserving source compatibility for library consumers and retaining shopspring's native high-precision behaviour. The opt-in udecimal build substitutes the concrete decimal type and uses udecimal's native arithmetic semantics. It supports up to 19 fractional digits, returns `ErrPrecisionOutOfRange` when parsing values beyond that limit, and truncates arithmetic results beyond that precision rather than applying shopspring's rounding rules.
 
 Run the same benchmark suite against both implementations with:
 

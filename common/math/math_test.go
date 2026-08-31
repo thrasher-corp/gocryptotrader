@@ -59,12 +59,18 @@ func BenchmarkPercentageDifference(b *testing.B) {
 
 func TestPercentageDifferenceDecimal(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, "196.03960396039604", PercentageDifferenceDecimal(decimal.NewFromFloat(1), decimal.NewFromFloat(100)).String())
-	require.Equal(t, "196.03960396039604", PercentageDifferenceDecimal(decimal.NewFromFloat(100), decimal.NewFromFloat(1)).String())
-	require.Equal(t, "0.13605442176871", PercentageDifferenceDecimal(decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)).String())
-	require.Equal(t, "0.13605442176871", PercentageDifferenceDecimal(decimal.NewFromFloat(1.471), decimal.NewFromFloat(1.469)).String())
-	require.Equal(t, "0", PercentageDifferenceDecimal(decimal.NewFromFloat(1.0), decimal.NewFromFloat(1.0)).String())
-	require.Equal(t, "0", PercentageDifferenceDecimal(decimal.Zero, decimal.Zero).String())
+	assert.Equal(t, expectedDecimalPercentageDifferenceLarge, PercentageDifferenceDecimal(decimal.NewFromFloat(1), decimal.NewFromFloat(100)).String(),
+		"PercentageDifferenceDecimal should use the selected implementation's arithmetic")
+	assert.Equal(t, expectedDecimalPercentageDifferenceLarge, PercentageDifferenceDecimal(decimal.NewFromFloat(100), decimal.NewFromFloat(1)).String(),
+		"PercentageDifferenceDecimal should be independent of operand order")
+	assert.Equal(t, expectedDecimalPercentageDifferenceSmall, PercentageDifferenceDecimal(decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)).String(),
+		"PercentageDifferenceDecimal should use the selected implementation's precision")
+	assert.Equal(t, expectedDecimalPercentageDifferenceSmall, PercentageDifferenceDecimal(decimal.NewFromFloat(1.471), decimal.NewFromFloat(1.469)).String(),
+		"PercentageDifferenceDecimal should be independent of operand order")
+	assert.Equal(t, "0", PercentageDifferenceDecimal(decimal.NewFromFloat(1.0), decimal.NewFromFloat(1.0)).String(),
+		"PercentageDifferenceDecimal should return zero for equal non-zero values")
+	assert.Equal(t, "0", PercentageDifferenceDecimal(decimal.Zero, decimal.Zero).String(),
+		"PercentageDifferenceDecimal should return zero for two zero values")
 }
 
 // 1585596	       751.8 ns/op	     792 B/op	      27 allocs/op
@@ -491,7 +497,8 @@ func TestDecimalSortinoRatio(t *testing.T) {
 	require.NoError(t, err)
 	r, err = DecimalSortinoRatio(figures, rfr, avg)
 	assert.ErrorIs(t, err, ErrInexactConversion)
-	assert.True(t, r.Equal(decimal.NewFromFloat(2.8712802265603243)))
+	assert.Equal(t, expectedDecimalSortinoRatio, r.String(),
+		"Sortino ratio should use the selected implementation's arithmetic")
 
 	// this follows and matches the example calculation from
 	// https://www.wallstreetmojo.com/sortino-ratio/
@@ -560,10 +567,12 @@ func TestDecimalInformationRatio(t *testing.T) {
 	}
 	stdDev, err := DecimalPopulationStandardDeviation(eachDiff)
 	require.ErrorIs(t, err, ErrInexactConversion)
-	assert.Equal(t, decimal.NewFromFloat(0.028992588851865227), stdDev)
+	assert.Equal(t, expectedDecimalInformationDeviation, stdDev.String(),
+		"standard deviation should use the selected implementation's arithmetic")
 
 	information := avg.Sub(avgComparison).Div(stdDev)
-	assert.Equal(t, decimal.NewFromFloat(0.2078117283966652), information)
+	assert.Equal(t, expectedDecimalInformationRatio, information.String(),
+		"information ratio should use the selected implementation's arithmetic")
 
 	information2, err := DecimalInformationRatio(figures, comparisonFigures, avg, avgComparison)
 	require.NoError(t, err)
@@ -587,9 +596,8 @@ func TestDecimalCalmarRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !ratio.Equal(decimal.NewFromFloat(0.1428571428571429)) {
-		t.Error(ratio)
-	}
+	assert.Equal(t, expectedDecimalCalmarRatio, ratio.String(),
+		"Calmar ratio should use the selected implementation's arithmetic")
 }
 
 func TestDecimalCalculateSharpeRatio(t *testing.T) {

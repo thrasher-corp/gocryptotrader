@@ -12,6 +12,8 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/quagmt/udecimal" //nolint:depguard // Selected implementation for the udecimal_on build.
 )
 
 const maxStringDigits = 200
@@ -21,8 +23,8 @@ var (
 	ErrInvalidDecimal = errors.New("invalid decimal")
 	// ErrPrecisionOutOfRange is returned when input exceeds the selected backend's precision.
 	ErrPrecisionOutOfRange = errors.New("decimal precision out of range")
-	// ErrDivideByZero is returned when a division operation has a zero divisor.
-	ErrDivideByZero = errors.New("decimal division by zero")
+	// ErrDivideByZero exposes udecimal's native division error in this build.
+	ErrDivideByZero = udecimal.ErrDivideByZero
 
 	// Zero is the zero-value Decimal.
 	Zero Decimal
@@ -30,7 +32,7 @@ var (
 
 // Decimal is an immutable fixed-point decimal value.
 type Decimal struct {
-	value backendDecimal
+	value udecimal.Decimal
 }
 
 // NewFromInt returns a Decimal equal to value.
@@ -44,20 +46,21 @@ func NewFromInt32(value int32) Decimal {
 }
 
 // NewFromFloat returns the shortest decimal representation that round-trips
-// to value. It truncates beyond the selected backend's precision and panics
-// for non-finite values, matching the established constructor's must semantics.
+// to value. The adapter preserves support for every finite float64 because
+// udecimal's native constructor rejects large finite values over its parser
+// length limit.
 func NewFromFloat(value float64) Decimal {
-	return Decimal{value: newFromFloatBackend(value)}
+	return Decimal{value: newFromFloatUdecimal(value)}
 }
 
-// NewFromString parses value using the common backend-independent decimal
-// syntax and precision contract.
+// NewFromString parses value. Scientific notation is normalised before using
+// udecimal because its native parser does not support exponent notation.
 func NewFromString(value string) (Decimal, error) {
 	normalised, err := normalise(value, false)
 	if err != nil {
 		return Decimal{}, err
 	}
-	return Decimal{value: mustParseBackend(normalised)}, nil
+	return Decimal{value: mustParseUdecimal(normalised)}, nil
 }
 
 // RequireFromString parses value and panics if it is invalid.
@@ -81,31 +84,26 @@ func (d Decimal) Sub(other Decimal) Decimal {
 
 // Mul returns d*other, truncating beyond the selected backend's precision.
 func (d Decimal) Mul(other Decimal) Decimal {
-	return Decimal{value: mulBackend(d.value, other.value)}
+	return Decimal{value: d.value.Mul(other.value)}
 }
 
-// Div returns d/other rounded half away from zero to 16 fractional places.
-// It panics when other is zero, matching the established shopspring contract.
+// Div returns d/other using udecimal's native division, which truncates results
+// beyond its configured precision. MustDiv adapts udecimal's error-returning
+// API to the shopspring-shaped method signature exposed by this build tag.
 func (d Decimal) Div(other Decimal) Decimal {
-	result, err := divBackend(d.value, other.value)
-	if err != nil {
-		panic(fmt.Errorf("%w: %w", ErrDivideByZero, err))
-	}
-	return Decimal{value: result}
+	return Decimal{value: d.value.MustDiv(other.value)}
 }
 
-// Mod returns the remainder of d/other. It panics when other is zero.
+// Mod returns the remainder of d/other. MustMod adapts udecimal's
+// error-returning API to the shopspring-shaped method signature exposed by
+// this build tag.
 func (d Decimal) Mod(other Decimal) Decimal {
-	result, err := modBackend(d.value, other.value)
-	if err != nil {
-		panic(fmt.Errorf("%w: %w", ErrDivideByZero, err))
-	}
-	return Decimal{value: result}
+	return Decimal{value: d.value.MustMod(other.value)}
 }
 
 // Pow returns d raised to other. The common contract requires an integer exponent.
 func (d Decimal) Pow(other Decimal) Decimal {
-	result, err := powBackend(d.value, other.value)
+	result, err := powUdecimal(d.value, other.value)
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", ErrInvalidDecimal, err))
 	}
@@ -164,23 +162,28 @@ func (d Decimal) IsZero() bool {
 
 // IsPositive reports whether d is greater than zero.
 func (d Decimal) IsPositive() bool {
-	return isPositiveBackend(d.value)
+	return d.value.IsPos()
 }
 
 // IsNegative reports whether d is less than zero.
 func (d Decimal) IsNegative() bool {
-	return isNegativeBackend(d.value)
+	return d.value.IsNeg()
 }
 
 // Round rounds d half away from zero to places fractional digits. Negative
 // places round digits in the integer component.
 func (d Decimal) Round(places int32) Decimal {
-	return Decimal{value: roundBackend(d.value, places)}
+	return Decimal{value: roundUdecimal(d.value, places)}
 }
 
 // Truncate removes fractional digits beyond precision without rounding.
 func (d Decimal) Truncate(precision int32) Decimal {
-	return Decimal{value: truncateBackend(d.value, precision)}
+	// udecimal.Trunc accepts only an unsigned fractional precision, while this
+	// shopspring-shaped API permits negative and out-of-range values as no-ops.
+	if precision < 0 || precision >= maxPrecision {
+		return d
+	}
+	return Decimal{value: d.value.Trunc(uint8(precision))}
 }
 
 // Floor returns the greatest integer less than or equal to d.
@@ -200,6 +203,8 @@ func (d Decimal) String() string {
 
 // StringFixed returns d rounded to places and padded with trailing zeroes.
 func (d Decimal) StringFixed(places int32) string {
+	// udecimal.StringFixed neither accepts negative places nor rounds when the
+	// requested precision is smaller, so adapt it to this method's public API.
 	rounded := d.Round(places).String()
 	if places <= 0 {
 		return rounded
@@ -223,12 +228,13 @@ func (d Decimal) Float64() (float64, bool) {
 
 // InexactFloat64 returns the nearest float64 representation of d.
 func (d Decimal) InexactFloat64() float64 {
-	value, _ := d.Float64()
-	return value
+	return d.value.InexactFloat64()
 }
 
 // IntPart returns the integer component of d, truncated toward zero.
 func (d Decimal) IntPart() int64 {
+	// udecimal.Int64 returns an error for large values, while this established
+	// method cannot return one and follows big.Int's wrapping conversion.
 	value := d.String()
 	if decimalPoint := strings.IndexByte(value, '.'); decimalPoint >= 0 {
 		value = value[:decimalPoint]
@@ -239,79 +245,42 @@ func (d Decimal) IntPart() int64 {
 
 // MarshalJSON implements json.Marshaler using a quoted decimal string.
 func (d Decimal) MarshalJSON() ([]byte, error) {
-	return []byte(strconv.Quote(d.String())), nil
+	return d.value.MarshalJSON()
 }
 
 // UnmarshalJSON implements json.Unmarshaler for quoted or bare decimals.
 func (d *Decimal) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" {
-		return nil
-	}
-	value := string(data)
-	if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
-		unquoted, err := strconv.Unquote(value)
-		if err != nil {
-			return fmt.Errorf("%w: %w", ErrInvalidDecimal, err)
-		}
-		value = unquoted
-	}
-	result, err := NewFromString(value)
-	if err != nil {
-		return err
-	}
-	*d = result
-	return nil
+	return d.value.UnmarshalJSON(data)
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (d Decimal) MarshalText() ([]byte, error) {
-	return []byte(d.String()), nil
+	return d.value.MarshalText()
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (d *Decimal) UnmarshalText(data []byte) error {
-	result, err := NewFromString(string(data))
-	if err != nil {
-		return err
-	}
-	*d = result
-	return nil
+	return d.value.UnmarshalText(data)
 }
 
-// MarshalBinary implements encoding.BinaryMarshaler using the canonical text form.
+// MarshalBinary implements encoding.BinaryMarshaler using udecimal's native format.
 func (d Decimal) MarshalBinary() ([]byte, error) {
-	return d.MarshalText()
+	return d.value.MarshalBinary()
 }
 
-// UnmarshalBinary implements encoding.BinaryUnmarshaler.
+// UnmarshalBinary implements encoding.BinaryUnmarshaler using udecimal's native format.
 func (d *Decimal) UnmarshalBinary(data []byte) error {
-	return d.UnmarshalText(data)
+	return d.value.UnmarshalBinary(data)
 }
 
-// Scan implements sql.Scanner.
+// Scan implements sql.Scanner using udecimal's native supported input types.
 func (d *Decimal) Scan(value any) error {
-	var input string
-	switch converted := value.(type) {
-	case nil:
-		*d = Zero
-		return nil
-	case string:
-		input = converted
-	case []byte:
-		input = string(converted)
-	case int64:
-		input = strconv.FormatInt(converted, 10)
-	case float64:
-		input = strconv.FormatFloat(converted, 'f', -1, 64)
-	default:
-		return fmt.Errorf("%w: unsupported scan type %T", ErrInvalidDecimal, value)
-	}
-	return d.UnmarshalText([]byte(input))
+	return d.value.Scan(value)
 }
 
 // Value implements driver.Valuer using the canonical decimal string.
 func (d Decimal) Value() (driver.Value, error) {
-	return d.String(), nil
+	return d.value.Value()
 }
 
 func normalise(value string, truncate bool) (string, error) {
@@ -364,7 +333,7 @@ func normalise(value string, truncate bool) (string, error) {
 		digits = strings.TrimSuffix(digits, "0")
 		scale--
 	}
-	digits, scale, err := normalisePrecision(digits, scale, truncate, value)
+	digits, scale, err := normaliseUdecimalPrecision(digits, scale, truncate, value)
 	if err != nil {
 		return "", err
 	}
