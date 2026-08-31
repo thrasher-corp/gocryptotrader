@@ -1108,6 +1108,48 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
+func TestSendRawMessage(t *testing.T) {
+	t.Parallel()
+
+	wc := new(connection)
+	err := wc.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
+	require.ErrorIs(t, err, errWebsocketIsDisconnected, "sendRawMessage must reject a disconnected connection")
+}
+
+func TestSendMessageReturnResponses(t *testing.T) {
+	t.Parallel()
+
+	t.Run("marshal error", func(t *testing.T) {
+		t.Parallel()
+
+		wc := &connection{Match: NewMatch()}
+		_, err := wc.SendMessageReturnResponses(t.Context(), request.Unset, "signature", make(chan struct{}), 1)
+		require.Error(t, err, "SendMessageReturnResponses must return a JSON encoding error")
+	})
+
+	t.Run("public response wrapper", func(t *testing.T) {
+		t.Parallel()
+
+		mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		defer mock.Close()
+
+		wc := &connection{
+			URL:              "ws" + mock.URL[len("http"):] + "/ws",
+			ResponseMaxLimit: time.Second,
+			Match:            NewMatch(),
+		}
+		require.NoError(t, wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil), "Dial must not error")
+		go readMessages(t, wc)
+
+		req := testRequest{RequestID: 12345}
+		responses, err := wc.SendMessageReturnResponses(t.Context(), request.Unset, req.RequestID, req, 1)
+		require.NoError(t, err, "SendMessageReturnResponses must not error")
+		require.Len(t, responses, 1, "SendMessageReturnResponses must return one response")
+	})
+}
+
 func TestWaitForResponses(t *testing.T) {
 	t.Parallel()
 	dummy := &connection{

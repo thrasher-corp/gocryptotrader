@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -45,9 +43,10 @@ type RateLimitDefinitions map[any]*RateLimiterWithWeight
 // RateLimiterWithWeight is a rate limiter coupled with a weight which refers to the number or weighting of the request.
 // This is used to define the rate limit for a specific endpoint.
 type RateLimiterWithWeight struct {
-	limiter *rate.Limiter
-	weight  Weight
-	m       sync.Mutex
+	limiter     *rate.Limiter
+	weight      Weight
+	m           sync.Mutex
+	lockOrderID uint64
 }
 
 // NewRateLimit creates a new RateLimit based of time interval and how many actions allowed and breaks it down to an
@@ -79,7 +78,11 @@ func NewWeightedRateLimitByDuration(interval time.Duration) *RateLimiterWithWeig
 // GetRateLimiterWithWeight couples a rate limiter with a weight count into an accepted defined rate limiter with weight
 // struct.
 func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWeight {
-	return &RateLimiterWithWeight{limiter: l, weight: weight}
+	return &RateLimiterWithWeight{
+		limiter:     l,
+		weight:      weight,
+		lockOrderID: rateLimiterLockOrder.Add(1),
+	}
 }
 
 // Weight returns the number of reservations consumed by each request.
@@ -96,51 +99,24 @@ func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateL
 	return RateLimitDefinitions{Unset: rl, Auth: rl, UnAuth: rl}
 }
 
-// InitiateRateLimit sleeps for designated end point rate limits.
-func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
-		return nil
-	}
-	if err := common.NilGuard(r.limiter); err != nil {
-		return err
-	}
-	if err := r.limiter[e].RateLimit(ctx); err != nil {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
-	}
-	return nil
-}
-
-// GetRateLimiterDefinitions returns the rate limiter definitions for the requester.
-func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
-	if r == nil {
-		return nil
-	}
-	return r.limiter
-}
-
 // RateLimit throttles a request based on weight, delaying the request.
 // Errors if no delay is permitted via the context and a delay is required.
 func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	if err := common.NilGuard(r); err != nil {
 		return err
 	}
+	additionalRateLimits := additionalRateLimitsFromContext(ctx)
+	if len(additionalRateLimits) > 0 {
+		return r.applyMultipleRateLimits(ctx, endpointRateLimitWeightFromContext(ctx), additionalRateLimits)
+	}
 
 	r.m.Lock()
-	if r.weight == 0 {
-		r.m.Unlock()
-		return errInvalidWeight
-	}
-
 	tn := time.Now()
-	reserved := make([]*rate.Reservation, 0, r.weight)
-	for range r.weight {
-		// This avoids needing burst capacity in the limiter, which would otherwise allow the rate limit to be exceeded over short periods
-		reserved = append(reserved, r.limiter.ReserveN(tn, 1))
+	reservations, finalDelay, err := r.reserve(tn, 0)
+	if err != nil {
+		r.m.Unlock()
+		return err
 	}
-	finalDelay := reserved[len(reserved)-1].DelayFrom(tn)
 
 	if finalDelay == 0 {
 		r.m.Unlock()
@@ -148,13 +124,13 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 
 	if hasDelayNotAllowed(ctx) {
-		cancelAll(reserved, tn)
+		cancelAll(reservations, tn)
 		r.m.Unlock()
 		return ErrDelayNotAllowed
 	}
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
-		cancelAll(reserved, tn)
+		cancelAll(reservations, tn)
 		r.m.Unlock()
 		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
 	}
@@ -162,39 +138,36 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		r.m.Lock()
+		cancelAll(reservations, time.Now())
+		r.m.Unlock()
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
 	}
 }
 
-// cancelAll cancels all reservations at a specific time.
-// Does not provide locking protection, so callers can maintain a single lock throughout.
+// reserve keeps a weighted reservation contiguous while its caller holds the limiter mutex.
+func (r *RateLimiterWithWeight) reserve(tn time.Time, weightOverride Weight) ([]*rate.Reservation, time.Duration, error) {
+	weight := weightOverride
+	if weight == 0 {
+		weight = r.weight
+	}
+	if weight == 0 {
+		return nil, 0, errInvalidWeight
+	}
+
+	reservations := make([]*rate.Reservation, 0, weight)
+	for range weight {
+		// Reserving one token at a time avoids requiring burst capacity.
+		reservations = append(reservations, r.limiter.ReserveN(tn, 1))
+	}
+	return reservations, reservations[len(reservations)-1].DelayFrom(tn), nil
+}
+
+// cancelAll reimburses reservations in reverse order while its caller holds the limiter mutex.
 func cancelAll(reservations []*rate.Reservation, at time.Time) {
-	slices.Reverse(reservations) // cancel in reverse order for correct token reimbursement
-	for _, r := range reservations {
-		r.CancelAt(at)
+	for i := len(reservations) - 1; i >= 0; i-- {
+		reservations[i].CancelAt(at)
 	}
-}
-
-// DisableRateLimiter disables the rate limiting system for the exchange.
-func (r *Requester) DisableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
-		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
-	}
-	return nil
-}
-
-// EnableRateLimiter enables the rate limiting system for the exchange.
-func (r *Requester) EnableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
-		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
-	}
-	return nil
 }
