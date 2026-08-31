@@ -1897,7 +1897,7 @@ type FuturesOrder struct {
 	Status                    string        `json:"status"`
 	FinishTime                types.Time    `json:"finish_time"`
 	FinishAs                  string        `json:"finish_as"`
-	SelfTradePreventionID     int64         `json:"stp_id"`
+	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
 	OrderValue                types.Number  `json:"order_value"`
