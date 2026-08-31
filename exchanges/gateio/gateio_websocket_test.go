@@ -206,8 +206,9 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	// Both transports must update one holding or portfolio aggregation will sum the same futures balance twice.
 	restSnapshot := accounts.NewSubAccount(asset.USDTMarginedFutures, "")
 	restSnapshot.Balances.Set(currency.USDT, accounts.Balance{
-		Total:     6106.7961637458,
-		UpdatedAt: time.UnixMilli(1788148805000),
+		Total: 6106.7961637458,
+		Hold:  1500,
+		Free:  4606.7961637458,
 	})
 	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{restSnapshot}, true),
 		"Accounts.Save must seed the REST balance snapshot")
@@ -227,7 +228,8 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 		balance, ok := changes[0].Balances[currency.USDT.Lower()]
 		require.True(t, ok, "captured balance payload must contain USDT")
 		assert.Equal(t, wantBalances[i], balance.Total, "total balance should be preserved")
-		assert.Equal(t, time.UnixMilli(1788148805954), balance.UpdatedAt, "balance update time should preserve milliseconds")
+		assert.Equal(t, 1500.0, balance.Hold, "held margin should survive a websocket balance update")
+		assert.Equal(t, wantBalances[i]-1500, balance.Free, "free balance should exclude held margin")
 	}
 
 	credentials, err := ex.GetCredentials(ctx)

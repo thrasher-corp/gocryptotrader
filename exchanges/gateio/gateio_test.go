@@ -2655,6 +2655,42 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	})
 }
 
+func TestProcessPositionCloseData(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name   string
+		text   string
+		status order.Status
+	}{
+		{name: "web", text: "web", status: order.Closed},
+		{name: "liquidation", text: "liquidation", status: order.Liquidated},
+		{name: "liquidation prefix", text: "liq-123", status: order.Liquidated},
+		{name: "hedge liquidation prefix", text: "hedge-liq-123", status: order.Liquidated},
+		{name: "portfolio margin liquidation", text: "pm_liquidate", status: order.Liquidated},
+		{name: "combined margin liquidation", text: "comb_margin_liquidate", status: order.Liquidated},
+		{name: "single currency margin liquidation", text: "scm_liquidate", status: order.Liquidated},
+		{name: "insurance", text: "insurance", status: order.Liquidated},
+		{name: "auto deleveraging", text: "auto_deleveraging", status: order.AutoDeleverage},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			payload := []byte(`{"time":1541505434,"channel":"futures.position_closes","event":"update","result":[{"contract":"BTC_USD","pnl":-0.000624354791,"side":"long","text":"` + tt.text + `","time":1547198562,"time_ms":1547198562123,"user":"211xxxx"}]}`)
+			require.NoError(t, ex.processPositionCloseData(t.Context(), payload, asset.CoinMarginedFutures),
+				"processPositionCloseData must process the close update")
+			message := <-ex.Websocket.DataHandler.C
+			positions, ok := message.Data.([]futures.Position)
+			require.True(t, ok, "position close must emit canonical futures positions")
+			require.Len(t, positions, 1, "position close must emit one position")
+			assert.Equal(t, tt.status, positions[0].Status, "position close status should preserve its source")
+			assert.Equal(t, order.Long, positions[0].OpeningDirection, "opening direction should be preserved")
+			assert.Equal(t, order.Long, positions[0].LatestDirection, "latest direction should be preserved")
+		})
+	}
+}
+
 func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
 	t.Parallel()
 	payloads := [][]byte{
@@ -3093,12 +3129,39 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, nil, true),
 		"StorePairs must clear enabled coin-margined futures pairs")
 	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "Enabled asset without pairs must error")
+	require.NoError(t, err, "Enabled asset without pairs must not tear down other Gate connections")
 	require.Empty(t, subs, "Enabled asset without pairs must return no subscriptions")
 	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
 	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "Disabled asset must not error")
 	require.Empty(t, subs, "Disabled asset must return no pairs")
+}
+
+func TestGenerateFuturesDefaultSubscriptionsMissingCredentials(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.NoError(t, err, "Missing credentials must degrade to public futures subscriptions")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "authenticated websocket support should be disabled")
+	for _, sub := range subs {
+		assert.NotContains(t, []string{
+			futuresOrdersChannel,
+			futuresUserTradesChannel,
+			futuresLiquidatesChannel,
+			futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel,
+			futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel,
+			futuresPositionsChannel,
+			futuresAutoOrdersChannel,
+		}, sub.Channel, "private channel should not be generated without credentials")
+	}
 }
 
 func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
@@ -3120,7 +3183,8 @@ func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
-	require.NoError(t, err, "Account lookup failure must not prevent futures subscription generation")
+	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial,
+		"Account lookup failure must be surfaced without preventing futures subscription generation")
 
 	authenticatedChannels := map[string]bool{
 		futuresOrdersChannel:            false,

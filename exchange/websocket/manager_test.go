@@ -398,6 +398,30 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.ErrorIs(t, err, errDastardlyReason)
 		})
 
+		t.Run("partial generate subscriptions error", func(t *testing.T) {
+			ws := newConfiguredMultiManager(t, &ConnectionSetup{
+				URL: mockURL,
+				GenerateSubscriptions: func() (subscription.List, error) {
+					return testSubs, fmt.Errorf("%w: %w", ErrSubscriptionPartial, errDastardlyReason)
+				},
+				Connector: dial,
+				Handler:   noopHandler,
+			})
+			ws.connectionManager[0].setup.Subscriber = func(_ context.Context, _ Connection, subs subscription.List) error {
+				for _, sub := range subs {
+					if err := ws.connectionManager[0].subscriptions.Add(sub); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+
+			err := ws.Connect(t.Context())
+			require.ErrorIs(t, err, ErrSubscriptionPartial, "Connect must surface partial subscription generation")
+			assert.True(t, ws.IsConnected(), "websocket should remain connected after partial subscription generation")
+			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		})
+
 		t.Run("missing connector", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,

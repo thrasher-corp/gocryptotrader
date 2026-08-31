@@ -14,6 +14,7 @@ import (
 // Public subscription errors
 var (
 	ErrSubscriptionFailure     = errors.New("subscription failure")
+	ErrSubscriptionPartial     = errors.New("partial subscription generation")
 	ErrSubscriptionsNotAdded   = errors.New("subscriptions not added")
 	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
 )

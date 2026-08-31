@@ -117,24 +117,33 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 	}
 
 	if len(pairs) == 0 {
-		return nil, fmt.Errorf("%w: no enabled pairs for asset %s", currency.ErrCurrencyPairsEmpty, a)
+		return nil, nil
 	}
 
 	var userID string
+	var subscriptionErr error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		// TODO: Cache the user ID to avoid querying the account repeatedly
-		settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
-		if err != nil {
-			return nil, err
-		}
-		account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s: error querying futures account: %v", e.Name, err)
-		}
-		if account == nil || account.User == 0 {
-			userID = invalidUserID
+		if _, err := e.GetCredentials(ctx); err != nil {
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		} else {
-			userID = strconv.FormatInt(account.User, 10)
+			// TODO: Cache the user ID to avoid querying the account repeatedly
+			settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
+			if err != nil {
+				return nil, err
+			}
+			account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s: error querying futures account: %v", e.Name, err)
+				subscriptionErr = fmt.Errorf("%w: unable to query futures account user ID: %w", websocket.ErrSubscriptionPartial, err)
+			}
+			if account == nil || account.User == 0 {
+				userID = invalidUserID
+				if subscriptionErr == nil {
+					subscriptionErr = fmt.Errorf("%w: futures account user ID missing", websocket.ErrSubscriptionPartial)
+				}
+			} else {
+				userID = strconv.FormatInt(account.User, 10)
+			}
 		}
 	}
 
@@ -210,7 +219,7 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 			})
 		}
 	}
-	return subscriptions, nil
+	return subscriptions, subscriptionErr
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
@@ -754,14 +763,28 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 		if err != nil {
 			return err
 		}
+		status := order.Closed
+		switch {
+		case resp.Result[i].Text == "auto_deleveraging":
+			status = order.AutoDeleverage
+		case resp.Result[i].Text == "liquidation",
+			resp.Result[i].Text == "pm_liquidate",
+			resp.Result[i].Text == "comb_margin_liquidate",
+			resp.Result[i].Text == "scm_liquidate",
+			resp.Result[i].Text == "insurance",
+			strings.HasPrefix(resp.Result[i].Text, "liq-"),
+			strings.HasPrefix(resp.Result[i].Text, "hedge-liq-"):
+			status = order.Liquidated
+		}
 		positions[i] = futures.Position{
 			Exchange:           e.Name,
 			Asset:              a,
 			Pair:               pair,
 			Underlying:         pair.Base,
 			CollateralCurrency: collateralCurrency,
-			Status:             order.Closed,
+			Status:             status,
 			RealisedPNL:        resp.Result[i].ProfitAndLoss.Decimal(),
+			OpeningDirection:   direction,
 			LatestDirection:    direction,
 			LastUpdated:        resp.Result[i].Time.Time(),
 			CloseDate:          resp.Result[i].Time.Time(),
@@ -775,21 +798,39 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 
 	// Gate's websocket user value identifies the same primary account that REST stores with an empty ID.
 	// Using it as a subaccount ID retains both snapshots and causes portfolio balances to be double counted.
 	subAcct := accounts.NewSubAccount(assetType, "")
 	for _, bal := range resp {
 		c := bal.Currency
-		if assetType == asset.Options && c.IsEmpty() {
-			c = currency.USDT // Settlement currency is USDT
+		if c.IsEmpty() {
+			if assetType == asset.Options {
+				c = currency.USDT // Settlement currency is USDT
+			} else {
+				c, err = getSettlementCurrency(currency.EMPTYPAIR, assetType)
+				if err != nil {
+					return err
+				}
+			}
 		}
-		subAcct.Balances.Set(c, accounts.Balance{
-			Total:                  bal.Balance.Float64(),
-			Free:                   bal.Balance.Float64(),
-			AvailableWithoutBorrow: bal.Balance.Float64(),
-			UpdatedAt:              bal.Time.Time(),
-		})
+		balance, err := e.Accounts.GetBalance("", creds, assetType, c)
+		if err != nil && !errors.Is(err, accounts.ErrNoBalances) {
+			return err
+		}
+		balance.Total = bal.Balance.Float64()
+		balance.Free = balance.Total - balance.Hold
+		balance.AvailableWithoutBorrow = balance.Free
+		updatedAt := bal.Time.Time()
+		if balance.UpdatedAt.After(updatedAt) {
+			updatedAt = balance.UpdatedAt
+		}
+		balance.UpdatedAt = updatedAt
+		subAcct.Balances.Set(c, balance)
 	}
 	subAccts := accounts.SubAccounts{subAcct}
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
