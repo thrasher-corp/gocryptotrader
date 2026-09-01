@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -16,14 +17,21 @@ import (
 const Implementation = "quagmt/udecimal"
 
 const (
-	maxPrecision    = 19
-	maxStringDigits = 200
+	maxPrecision             = 19
+	maxStringDigits          = 200
+	u128MaxDecimalDigits     = 39
+	udecimalDivisionOverflow = "runtime error: integer overflow"
 )
 
 var (
 	errInvalidDecimal      = errors.New("invalid decimal")
 	errPrecisionOutOfRange = errors.New("decimal precision out of range")
 )
+
+// udecimalBigIntDivisionFactor exceeds u128 while retaining zero precision.
+// Multiplying both operands by it preserves their quotient and precision but
+// makes udecimal select its native big.Int division path.
+var udecimalBigIntDivisionFactor = udecimal.MustParse("1" + strings.Repeat("0", u128MaxDecimalDigits))
 
 // parseUdecimal reconstructs values beyond udecimal's 200-character parser
 // limit because internal arithmetic can produce larger values.
@@ -56,6 +64,33 @@ func parseUdecimal(value string) (udecimal.Decimal, error) {
 		return result.Neg(), nil
 	}
 	return result, nil
+}
+
+// divideUdecimal preserves udecimal's native zero-allocation division path
+// while repairing a specific valid-operand overflow in its u128 implementation.
+func divideUdecimal(left, right udecimal.Decimal) (result udecimal.Decimal) {
+	// udecimal v1.10.1's u128 fast division can violate bits.Div64's divisor
+	// precondition for a narrow operand range. Recover only that known runtime
+	// failure so divide-by-zero and any unrelated backend panic remain visible.
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			return
+		}
+		runtimeError, ok := recovered.(runtime.Error)
+		if !ok || runtimeError.Error() != udecimalDivisionOverflow {
+			panic(recovered)
+		}
+
+		// Multiplying both operands by the same precision-zero factor leaves the
+		// quotient unchanged. Because the factor exceeds u128, both products use
+		// udecimal's big.Int representation and MustDiv bypasses the faulty fast
+		// path. Its native fallback retains sign handling and 19-place truncation.
+		scaledLeft := left.Mul(udecimalBigIntDivisionFactor)
+		scaledRight := right.Mul(udecimalBigIntDivisionFactor)
+		result = scaledLeft.MustDiv(scaledRight)
+	}()
+	return left.MustDiv(right)
 }
 
 // newUdecimalFromFloat accepts every finite float64 because udecimal's native
@@ -229,9 +264,6 @@ func normalise(value string, truncate bool) (string, error) {
 	}
 	if int64(len(digits)) <= scale {
 		digits = strings.Repeat("0", int(scale)-len(digits)+1) + digits
-	}
-	if digitCount := len(digits); digitCount > maxStringDigits {
-		return "", fmt.Errorf("%w: input exceeds %d digits", errInvalidDecimal, maxStringDigits)
 	}
 	if scale > 0 {
 		decimalIndex := len(digits) - int(scale)

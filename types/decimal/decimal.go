@@ -81,7 +81,7 @@ func (d Decimal) Mul(other Decimal) Decimal {
 // Div returns d/other, truncating beyond udecimal's 19-place precision. It
 // panics for a zero divisor because the Decimal API has no error return.
 func (d Decimal) Div(other Decimal) Decimal {
-	return Decimal{value: d.value.MustDiv(other.value)}
+	return Decimal{value: divideUdecimal(d.value, other.value)}
 }
 
 // Mod returns the remainder of d/other. It panics for a zero divisor because
@@ -239,7 +239,18 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler for quoted or bare decimals.
 func (d *Decimal) UnmarshalJSON(data []byte) error {
-	return d.value.UnmarshalJSON(data)
+	if len(data) <= maxStringDigits {
+		return d.value.UnmarshalJSON(data)
+	}
+	if data[0] == '"' && data[len(data)-1] == '"' {
+		data = data[1 : len(data)-1]
+	}
+	result, err := NewFromString(string(data))
+	if err != nil {
+		return fmt.Errorf("error unmarshalling decimal JSON: %w", err)
+	}
+	*d = result
+	return nil
 }
 
 // MarshalText implements encoding.TextMarshaler.
@@ -249,7 +260,15 @@ func (d Decimal) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (d *Decimal) UnmarshalText(data []byte) error {
-	return d.value.UnmarshalText(data)
+	if len(data) <= maxStringDigits {
+		return d.value.UnmarshalText(data)
+	}
+	result, err := NewFromString(string(data))
+	if err != nil {
+		return fmt.Errorf("error unmarshalling decimal text: %w", err)
+	}
+	*d = result
+	return nil
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler using udecimal's native format.
@@ -264,7 +283,27 @@ func (d *Decimal) UnmarshalBinary(data []byte) error {
 
 // Scan implements sql.Scanner using udecimal's native supported input types.
 func (d *Decimal) Scan(value any) error {
-	return d.value.Scan(value)
+	var text string
+	switch value := value.(type) {
+	case string:
+		if len(value) <= maxStringDigits {
+			return d.value.Scan(value)
+		}
+		text = value
+	case []byte:
+		if len(value) <= maxStringDigits {
+			return d.value.Scan(value)
+		}
+		text = string(value)
+	default:
+		return d.value.Scan(value)
+	}
+	result, err := NewFromString(text)
+	if err != nil {
+		return fmt.Errorf("error scanning decimal: %w", err)
+	}
+	*d = result
+	return nil
 }
 
 // Value implements driver.Valuer using the canonical decimal string.

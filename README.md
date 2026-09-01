@@ -131,13 +131,20 @@ go build -tags=sonic_on
 
 ### Decimal handling
 
-GoCryptoTrader uses shopspring/decimal by default through the shared `types/decimal` package. To use the udecimal backend instead, build with the `udecimal_on` tag:
+GoCryptoTrader uses shopspring/decimal by default through the shared `types/decimal` package. Build with `udecimal_on` to use udecimal instead:
 
 ```bash
 go build -tags=udecimal_on
 ```
 
-The default `Decimal` aliases shopspring's type. The tagged build instead uses udecimal's native semantics: 19 fractional digits with truncation, a larger value type, and a 200-character parse limit. Its binary encoding is not compatible with shopspring's, and larger arithmetic results might not round-trip through text, JSON, or SQL codecs.
+The tag changes both the implementation and some decimal behaviour. Before enabling it, note these differences:
+
+- **Precision:** udecimal retains up to 19 fractional digits and truncates any additional digits without returning an error. A non-zero multiplication or division result with a magnitude below `1e-19` therefore becomes zero.
+- **Large values:** Plain decimal values round-trip through text, JSON and SQL codecs even when they exceed udecimal's native 200-character parser limit. Scientific notation is rejected when expanding it would produce more than 200 digits.
+- **API behaviour:** Fractional `Pow` exponents and `Scan(nil)` are rejected.
+- **Representation:** A udecimal-backed `Decimal` occupies 32 bytes instead of 16 bytes. Its binary encoding is not compatible with shopspring's.
+
+Without the tag, `Decimal` remains an alias of shopspring's type.
 
 Run the same benchmark suite against both implementations with:
 
