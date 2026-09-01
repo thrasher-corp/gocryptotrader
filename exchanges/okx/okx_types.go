@@ -187,19 +187,19 @@ type PremiumInfo struct {
 
 // TickerResponse represents the detailed data from the market ticker endpoint.
 type TickerResponse struct {
-	InstrumentType string        `json:"instType"`
-	InstrumentID   currency.Pair `json:"instId"`
-	LastTradePrice types.Number  `json:"last"`
-	LastTradeSize  types.Number  `json:"lastSz"`
-	BestAskPrice   types.Number  `json:"askPx"`
-	BestAskSize    types.Number  `json:"askSz"`
-	BestBidPrice   types.Number  `json:"bidPx"`
-	BestBidSize    types.Number  `json:"bidSz"`
-	Open24H        types.Number  `json:"open24h"`
-	High24H        types.Number  `json:"high24h"`
-	Low24H         types.Number  `json:"low24h"`
-	VolCcy24H      types.Number  `json:"volCcy24h"`
-	Vol24H         types.Number  `json:"vol24h"`
+	InstrumentType                string        `json:"instType"`
+	InstrumentID                  currency.Pair `json:"instId"`
+	LastTradePrice                types.Number  `json:"last"`
+	LastTradeSize                 types.Number  `json:"lastSz"`
+	BestAskPrice                  types.Number  `json:"askPx"`
+	BestAskSize                   types.Number  `json:"askSz"`
+	BestBidPrice                  types.Number  `json:"bidPx"`
+	BestBidSize                   types.Number  `json:"bidSz"`
+	OpenPrice24Hour               types.Number  `json:"open24h"`
+	HighestPrice24Hour            types.Number  `json:"high24h"`
+	LowestPrice24Hour             types.Number  `json:"low24h"`
+	TradingVolume24HourInCurrency types.Number  `json:"volCcy24h"` // number of base currency on a derivative, quantity in quote currency on spot and margin
+	TradingVolume24HourInContract types.Number  `json:"vol24h"`    // number of contracts on a derivative, quantity in base currency on spot and margin
 
 	OpenPriceInUTC0          string     `json:"sodUtc0"`
 	OpenPriceInUTC8          string     `json:"sodUtc8"`
@@ -208,14 +208,14 @@ type TickerResponse struct {
 
 // IndexTicker represents data from the index ticker.
 type IndexTicker struct {
-	InstID    string       `json:"instId"`
-	IdxPx     types.Number `json:"idxPx"`
-	High24H   types.Number `json:"high24h"`
-	SodUtc0   types.Number `json:"sodUtc0"`
-	Open24H   types.Number `json:"open24h"`
-	Low24H    types.Number `json:"low24h"`
-	SodUtc8   types.Number `json:"sodUtc8"`
-	Timestamp types.Time   `json:"ts"`
+	InstrumentID       string       `json:"instId"`
+	IndexPrice         types.Number `json:"idxPx"`
+	HighestPrice24Hour types.Number `json:"high24h"`
+	OpenPriceInUTC0    types.Number `json:"sodUtc0"`
+	OpenPrice24Hour    types.Number `json:"open24h"`
+	LowestPrice24Hour  types.Number `json:"low24h"`
+	OpenPriceInUTC8    types.Number `json:"sodUtc8"`
+	Timestamp          types.Time   `json:"ts"`
 }
 
 // OrderBookResponseDetail contains the ask and bid orders, structured with fields that include the timestamp of order generation.
@@ -292,16 +292,19 @@ type TradeResponse struct {
 // InstrumentFamilyTrade represents transaction information of instrument.
 // instrument family, e.g. BTC-USD Applicable to OPTION
 type InstrumentFamilyTrade struct {
-	Vol24H    types.Number `json:"vol24h"`
-	TradeInfo []struct {
-		InstrumentID string       `json:"instId"`
-		TradeID      string       `json:"tradeId"`
-		Side         string       `json:"side"`
-		Size         types.Number `json:"sz"`
-		Price        types.Number `json:"px"`
-		Timestamp    types.Time   `json:"ts"`
-	} `json:"tradeInfo"`
-	OptionType string `json:"optType"`
+	TradingVolume24HourInContract types.Number                `json:"vol24h"`
+	TradeInfo                     []InstrumentFamilyTradeInfo `json:"tradeInfo"`
+	OptionType                    string                      `json:"optType"`
+}
+
+// InstrumentFamilyTradeInfo is a single trade within an instrument family's transaction info
+type InstrumentFamilyTradeInfo struct {
+	InstrumentID string       `json:"instId"`
+	TradeID      string       `json:"tradeId"`
+	Side         string       `json:"side"`
+	Size         types.Number `json:"sz"` // in contracts
+	Price        types.Number `json:"px"`
+	Timestamp    types.Time   `json:"ts"`
 }
 
 // OptionTrade holds option trade item
@@ -2867,11 +2870,11 @@ type SystemStatusResponse struct {
 
 // BlockTicker holds block trading information
 type BlockTicker struct {
-	InstrumentType           string       `json:"instType"`
-	InstrumentID             string       `json:"instId"`
-	TradingVolumeInCCY24Hour types.Number `json:"volCcy24h"`
-	TradingVolumeInUSD24Hour types.Number `json:"vol24h"`
-	Timestamp                types.Time   `json:"ts"`
+	InstrumentType                string       `json:"instType"`
+	InstrumentID                  string       `json:"instId"`
+	TradingVolume24HourInCurrency types.Number `json:"volCcy24h"`
+	TradingVolume24HourInContract types.Number `json:"vol24h"`
+	Timestamp                     types.Time   `json:"ts"`
 }
 
 // BlockTrade represents a block trade
@@ -3032,18 +3035,18 @@ type SpreadOrderbook struct {
 
 // SpreadTicker represents a ticker instance
 type SpreadTicker struct {
-	SpreadID     string       `json:"sprdId"`
-	Last         types.Number `json:"last"`
-	LastSize     types.Number `json:"lastSz"`
-	AskPrice     types.Number `json:"askPx"`
-	AskSize      types.Number `json:"askSz"`
-	BidPrice     types.Number `json:"bidPx"`
-	BidSize      types.Number `json:"bidSz"`
-	Open24Hour   types.Number `json:"open24h"`
-	High24Hour   types.Number `json:"high24h"`
-	Low24Hour    types.Number `json:"low24h"`
-	Volume24Hour types.Number `json:"vol24h"`
-	Timestamp    types.Time   `json:"ts"`
+	SpreadID            string       `json:"sprdId"`
+	Last                types.Number `json:"last"`
+	LastSize            types.Number `json:"lastSz"`
+	AskPrice            types.Number `json:"askPx"`
+	AskSize             types.Number `json:"askSz"`
+	BidPrice            types.Number `json:"bidPx"`
+	BidSize             types.Number `json:"bidSz"`
+	OpenPrice24Hour     types.Number `json:"open24h"`
+	HighestPrice24Hour  types.Number `json:"high24h"`
+	LowestPrice24Hour   types.Number `json:"low24h"`
+	TradingVolume24Hour types.Number `json:"vol24h"` // USD on an inverse spread, the base currency on a linear or hybrid one
+	Timestamp           types.Time   `json:"ts"`
 }
 
 // SpreadPublicTradeItem represents publicly available trade order instance

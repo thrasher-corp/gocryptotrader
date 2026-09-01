@@ -1829,14 +1829,6 @@ func (e *Exchange) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserPar
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-member", nil, &arg, &resp, userCreateSubMemberEPL)
 }
 
-// joinIPAddresses collapses IPAddresses into the comma separated ips string the exchange documents
-func joinIPAddresses(ips string, addresses []string) string {
-	if ips == "" && len(addresses) > 0 {
-		return strings.Join(addresses, ",")
-	}
-	return ips
-}
-
 // CreateSubUIDAPIKey create new API key for those newly created sub UID. Use master user's api key only.
 func (e *Exchange) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam) (*SubUIDAPIResponse, error) {
 	if arg == nil {
@@ -1845,7 +1837,6 @@ func (e *Exchange) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyPara
 	if arg.Subuid <= 0 {
 		return nil, fmt.Errorf("%w, subuid", errMissingUserID)
 	}
-	arg.IPs = joinIPAddresses(arg.IPs, arg.IPAddresses)
 	var resp *SubUIDAPIResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-api", nil, arg, &resp, userCreateSubAPIKeyEPL)
 }
@@ -1917,7 +1908,6 @@ func (e *Exchange) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpda
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
-	arg.IPs = joinIPAddresses(arg.IPs, arg.IPAddresses)
 	var resp *SubUIDAPIResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-api", nil, arg, &resp, userUpdateAPIEPL)
 }
@@ -1927,7 +1917,6 @@ func (e *Exchange) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateP
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
-	arg.IPs = joinIPAddresses(arg.IPs, arg.IPAddresses)
 	var resp *SubUIDAPIResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-sub-api", nil, &arg, &resp, userUpdateSubAPIEPL)
 }

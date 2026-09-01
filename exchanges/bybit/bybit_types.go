@@ -1290,10 +1290,7 @@ type SubUIDAPIKeyParam struct {
 	// don't pass ips or pass with "*" means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
-	IPs string `json:"ips,omitempty"`
-
-	// You can provide the IP addresses as a list of strings.
-	IPAddresses []string `json:"-"`
+	IPAddressesCommaSeparated string `json:"ips,omitempty"`
 
 	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
 	Permissions map[string][]string `json:"permissions,omitempty"`
@@ -1330,33 +1327,36 @@ type SubUIDAPIResponse struct {
 
 // SubAccountAPIKeys holds list of sub-account API Keys
 type SubAccountAPIKeys struct {
-	Result []struct {
-		ID          string    `json:"id"`
-		Ips         []string  `json:"ips"`
-		APIKey      string    `json:"apiKey"`
-		Note        string    `json:"note"`
-		Status      int64     `json:"status"`
-		ExpiredAt   time.Time `json:"expiredAt"`
-		CreatedAt   time.Time `json:"createdAt"`
-		Type        int64     `json:"type"`
-		Permissions struct {
-			ContractTrade []string `json:"ContractTrade"`
-			Spot          []string `json:"Spot"`
-			Wallet        []string `json:"Wallet"`
-			Options       []string `json:"Options"`
-			Derivatives   []string `json:"Derivatives"`
-			CopyTrading   []string `json:"CopyTrading"`
-			BlockTrade    []string `json:"BlockTrade"`
-			Exchange      []string `json:"Exchange"`
-			Nft           []string `json:"NFT"`
-			Affiliate     []string `json:"Affiliate"`
-		} `json:"permissions"`
-		Secret      string `json:"secret"`
-		ReadOnly    bool   `json:"readOnly"`
-		DeadlineDay int64  `json:"deadlineDay"`
-		Flag        string `json:"flag"`
-	} `json:"result"`
-	NextPageCursor string `json:"nextPageCursor"`
+	Result         []SubAccountAPIKey `json:"result"`
+	NextPageCursor string             `json:"nextPageCursor"`
+}
+
+// SubAccountAPIKey is a single sub-account API key
+type SubAccountAPIKey struct {
+	ID          string    `json:"id"`
+	Ips         []string  `json:"ips"`
+	APIKey      string    `json:"apiKey"`
+	Note        string    `json:"note"`
+	Status      int64     `json:"status"`
+	ExpiredAt   time.Time `json:"expiredAt"`
+	CreatedAt   time.Time `json:"createdAt"`
+	Type        int64     `json:"type"`
+	Permissions struct {
+		ContractTrade []string `json:"ContractTrade"`
+		Spot          []string `json:"Spot"`
+		Wallet        []string `json:"Wallet"`
+		Options       []string `json:"Options"`
+		Derivatives   []string `json:"Derivatives"`
+		CopyTrading   []string `json:"CopyTrading"`
+		BlockTrade    []string `json:"BlockTrade"`
+		Exchange      []string `json:"Exchange"`
+		Nft           []string `json:"NFT"`
+		Affiliate     []string `json:"Affiliate"`
+	} `json:"permissions"`
+	Secret      string `json:"secret"`
+	ReadOnly    bool   `json:"readOnly"`
+	DeadlineDay int64  `json:"deadlineDay"`
+	Flag        string `json:"flag"`
 }
 
 // WalletType represents available wallet types for the master account or sub account
@@ -1377,10 +1377,7 @@ type SubUIDAPIKeyUpdateParam struct {
 	// don't pass ips or pass with "*" means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
-	IPs string `json:"ips,omitempty"`
-
-	// You can provide the IP addresses as a list of strings.
-	IPAddresses []string `json:"-"`
+	IPAddressesCommaSeparated string `json:"ips,omitempty"`
 
 	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
 	Permissions PermissionsList `json:"permissions"`

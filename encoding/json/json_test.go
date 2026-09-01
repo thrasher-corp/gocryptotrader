@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// sonic differs from v1 in the few places tested below; the wrapper is otherwise v1 for both
+// sonic differs from v1 in the few places tested below; for the unpinned options see the package comment
 const sonicImpl = "bytedance/sonic"
 
 // number mirrors types.Number, which cannot be imported here without a cycle

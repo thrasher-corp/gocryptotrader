@@ -739,6 +739,7 @@ type FuturesTicker struct {
 	Volume24HBase         types.Number `json:"volume_24h_base"`
 	Volume24HQuote        types.Number `json:"volume_24h_quote"`
 	Volume24HSettle       types.Number `json:"volume_24h_settle"`
+	QuantoMultiplier      types.Number `json:"quanto_multiplier"`
 	MarkPrice             types.Number `json:"mark_price"`
 	FundingRate           types.Number `json:"funding_rate"`
 	FundingRateIndicative string       `json:"funding_rate_indicative"`

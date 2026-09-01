@@ -2289,10 +2289,9 @@ func TestAPIKeyParamIPsMarshal(t *testing.T) {
 		want string
 	}{
 		{"create, ips unset", &SubUIDAPIKeyParam{Subuid: 1, Note: "n"}, `{"subuid":1,"note":"n","readOnly":0}`},
-		{"create, ips set", &SubUIDAPIKeyParam{Subuid: 1, Note: "n", IPs: "*"}, `{"subuid":1,"note":"n","readOnly":0,"ips":"*"}`},
-		{"create, IPAddresses is not sent directly", &SubUIDAPIKeyParam{Subuid: 1, Note: "n", IPAddresses: []string{"192.168.0.1"}}, `{"subuid":1,"note":"n","readOnly":0}`},
+		{"create, ips set", &SubUIDAPIKeyParam{Subuid: 1, Note: "n", IPAddressesCommaSeparated: "*"}, `{"subuid":1,"note":"n","readOnly":0,"ips":"*"}`},
 		{"update, ips and apikey unset", &SubUIDAPIKeyUpdateParam{}, `{"permissions":{}}`},
-		{"update, ips and apikey set", &SubUIDAPIKeyUpdateParam{APIKey: "k", IPs: "192.168.0.1,192.168.0.2"}, `{"apikey":"k","ips":"192.168.0.1,192.168.0.2","permissions":{}}`},
+		{"update, ips and apikey set", &SubUIDAPIKeyUpdateParam{APIKey: "k", IPAddressesCommaSeparated: "192.168.0.1,192.168.0.2"}, `{"apikey":"k","ips":"192.168.0.1,192.168.0.2","permissions":{}}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2301,13 +2300,6 @@ func TestAPIKeyParamIPsMarshal(t *testing.T) {
 			assert.JSONEq(t, tc.want, string(out), "request body should match")
 		})
 	}
-}
-
-func TestJoinIPAddresses(t *testing.T) {
-	t.Parallel()
-	assert.Empty(t, joinIPAddresses("", nil), "neither field set should stay empty so ips is omitted")
-	assert.Equal(t, "192.168.0.1,192.168.0.2", joinIPAddresses("", []string{"192.168.0.1", "192.168.0.2"}), "IPAddresses should be joined into the documented comma separated string")
-	assert.Equal(t, "*", joinIPAddresses("*", []string{"192.168.0.1"}), "an explicitly set ips should take precedence")
 }
 
 func TestGetSubUIDList(t *testing.T) {
@@ -2368,8 +2360,8 @@ func TestModifyMasterAPIKey(t *testing.T) {
 	require.ErrorIs(t, err, errNilArgument)
 
 	_, err = e.ModifyMasterAPIKey(t.Context(), &SubUIDAPIKeyUpdateParam{
-		ReadOnly: 0,
-		IPs:      "*",
+		ReadOnly:                  0,
+		IPAddressesCommaSeparated: "*",
 		Permissions: PermissionsList{
 			ContractTrade: []string{"Order", "Position"},
 			Spot:          []string{"SpotTrade"},
@@ -2394,9 +2386,9 @@ func TestModifySubAPIKey(t *testing.T) {
 	require.ErrorIs(t, err, errNilArgument)
 
 	_, err = e.ModifySubAPIKey(t.Context(), &SubUIDAPIKeyUpdateParam{
-		APIKey:   "lnqQ8ACaoMLi4168He",
-		ReadOnly: 0,
-		IPs:      "*",
+		APIKey:                    "lnqQ8ACaoMLi4168He",
+		ReadOnly:                  0,
+		IPAddressesCommaSeparated: "*",
 		Permissions: PermissionsList{
 			ContractTrade: []string{"Order", "Position"},
 			Spot:          []string{"SpotTrade"},

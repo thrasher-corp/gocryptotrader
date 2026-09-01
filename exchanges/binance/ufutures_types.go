@@ -391,15 +391,18 @@ type UAccountIncomeHistory struct {
 
 // UNotionalLeverageAndBrakcetsData stores notional and leverage brackets data for the account
 type UNotionalLeverageAndBrakcetsData struct {
-	Symbol   string `json:"symbol"`
-	Brackets []struct {
-		Bracket                int64   `json:"bracket"`
-		InitialLeverage        float64 `json:"initialLeverage"`
-		NotionalCap            float64 `json:"notionalCap"`
-		NotionalFloor          float64 `json:"notionalFloor"`
-		MaintenanceMarginRatio float64 `json:"maintMarginRatio"`
-		Cumulative             float64 `json:"cum"`
-	} `json:"brackets"`
+	Symbol   string             `json:"symbol"`
+	Brackets []UNotionalBracket `json:"brackets"`
+}
+
+// UNotionalBracket is a single notional and leverage bracket
+type UNotionalBracket struct {
+	Bracket                int64   `json:"bracket"`
+	InitialLeverage        float64 `json:"initialLeverage"`
+	NotionalCap            float64 `json:"notionalCap"`
+	NotionalFloor          float64 `json:"notionalFloor"`
+	MaintenanceMarginRatio float64 `json:"maintMarginRatio"`
+	Cumulative             float64 `json:"cum"`
 }
 
 // UPositionADLEstimationData stores ADL estimation data for a position

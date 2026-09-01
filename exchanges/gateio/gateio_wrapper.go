@@ -309,6 +309,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	})
 }
 
+// futuresBaseVolume returns a futures ticker's 24h volume in the base currency. Gate truncates
+// both of the figures it publishes, so each is a lower bound and the larger is the one that lost
+// less: volume_24h_base drops the fraction of a base unit, which rounds the thinner contracts away
+// entirely and some to zero against a live contract count, while volume_24h drops the fraction of
+// a contract, which costs a whole lot on the contracts Gate lists with enable_decimal. Delivery
+// futures omit quanto_multiplier and coin-margined reports 0, which zeroes the product and leaves
+// the explicit field standing on its own, as it would too if Gate stopped serving the multiplier
+// here: the live ticker carries it, but Gate documents it only on the contract
+func futuresBaseVolume(t *FuturesTicker) float64 {
+	return max(t.Volume24H.Float64()*t.QuantoMultiplier.Float64(), t.Volume24HBase.Float64())
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if !e.SupportsAsset(a) {
@@ -343,6 +355,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			Bid:          tickerNew.HighestBid.Float64(),
 			Ask:          tickerNew.LowestAsk.Float64(),
 			Last:         tickerNew.Last.Float64(),
+			BaseVolume:   tickerNew.BaseVolume.Float64(),
+			QuoteVolume:  tickerNew.QuoteVolume.Float64(),
 			ExchangeName: e.Name,
 			AssetType:    a,
 		}
@@ -368,7 +382,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			Low:          tickers[0].Low24H.Float64(),
 			High:         tickers[0].High24H.Float64(),
 			Last:         tickers[0].Last.Float64(),
-			BaseVolume:   tickers[0].Volume24HBase.Float64(),
+			BaseVolume:   futuresBaseVolume(&tickers[0]),
 			QuoteVolume:  tickers[0].Volume24HQuote.Float64(),
 			ExchangeName: e.Name,
 			AssetType:    a,
@@ -610,11 +624,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				errs = common.AppendError(errs, err)
 				continue
 			}
+			// volume_24h counts contracts, so the base volume is derived as it is in UpdateTicker
 			if err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers[i].Last.Float64(),
 				High:         tickers[i].High24H.Float64(),
 				Low:          tickers[i].Low24H.Float64(),
-				BaseVolume:   tickers[i].Volume24H.Float64(),
+				BaseVolume:   futuresBaseVolume(&tickers[i]),
 				QuoteVolume:  tickers[i].Volume24HQuote.Float64(),
 				ExchangeName: e.Name,
 				Pair:         currencyPair,

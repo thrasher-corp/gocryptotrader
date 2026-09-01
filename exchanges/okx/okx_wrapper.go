@@ -390,6 +390,23 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 	return limits.Load(l)
 }
 
+// tickerVolumes maps a ticker's two volume figures onto base and quote. For spot and margin
+// vol24h is the base currency and volCcy24h the quote; the two swap over on the derivative
+// instrument types, where volCcy24h is the base currency and vol24h counts contracts. A contract
+// is neither currency, being worth ctVal of ctValCcy and the ticker carrying neither, so a
+// derivative reports no quote volume rather than a count the field name would misdescribe. Some
+// futures instruments serve volCcy24h badly and report no base volume either. An asset type the
+// exchange does not price this way reports neither, so a new one must be added here to carry volume
+func tickerVolumes(tick *TickerResponse, a asset.Item) (baseVolume, quoteVolume float64) {
+	switch a {
+	case asset.Spot, asset.Margin:
+		return tick.TradingVolume24HourInContract.Float64(), tick.TradingVolume24HourInCurrency.Float64()
+	case asset.PerpetualSwap, asset.Futures, asset.Options:
+		return tick.TradingVolume24HourInCurrency.Float64(), 0
+	}
+	return 0, 0
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if !e.SupportsAsset(a) {
@@ -413,14 +430,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         spreadTicker[0].Last.Float64(),
-			High:         spreadTicker[0].High24Hour.Float64(),
-			Low:          spreadTicker[0].Low24Hour.Float64(),
+			High:         spreadTicker[0].HighestPrice24Hour.Float64(),
+			Low:          spreadTicker[0].LowestPrice24Hour.Float64(),
 			Bid:          spreadTicker[0].BidPrice.Float64(),
 			BidSize:      spreadTicker[0].BidSize.Float64(),
 			Ask:          spreadTicker[0].AskPrice.Float64(),
 			AskSize:      spreadTicker[0].AskSize.Float64(),
-			BaseVolume:   spreadTicker[0].Volume24Hour.Float64(),
-			Open:         spreadTicker[0].Open24Hour.Float64(),
+			Open:         spreadTicker[0].OpenPrice24Hour.Float64(),
 			LastUpdated:  spreadTicker[0].Timestamp.Time(),
 			Pair:         p,
 			AssetType:    a,
@@ -433,26 +449,19 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-		var baseVolume, quoteVolume float64
-		switch a {
-		case asset.Spot, asset.Margin:
-			baseVolume = mdata.Vol24H.Float64()
-			quoteVolume = mdata.VolCcy24H.Float64()
-		case asset.PerpetualSwap, asset.Futures, asset.Options:
-			baseVolume = mdata.VolCcy24H.Float64()
-			quoteVolume = mdata.Vol24H.Float64()
-		}
+		baseVolume, quoteVolume := tickerVolumes(mdata, a)
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         mdata.LastTradePrice.Float64(),
-			High:         mdata.High24H.Float64(),
-			Low:          mdata.Low24H.Float64(),
+			High:         mdata.HighestPrice24Hour.Float64(),
+			Low:          mdata.LowestPrice24Hour.Float64(),
 			Bid:          mdata.BestBidPrice.Float64(),
 			BidSize:      mdata.BestBidSize.Float64(),
 			Ask:          mdata.BestAskPrice.Float64(),
 			AskSize:      mdata.BestAskSize.Float64(),
 			BaseVolume:   baseVolume,
 			QuoteVolume:  quoteVolume,
-			Open:         mdata.Open24H.Float64(),
+			Open:         mdata.OpenPrice24Hour.Float64(),
+			LastUpdated:  mdata.TickerDataGenerationTime.Time(),
 			Pair:         p,
 			ExchangeName: e.Name,
 			AssetType:    a,
@@ -487,12 +496,20 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				if err != nil {
 					return err
 				}
+				// the store overwrites wholesale, so every field UpdateTicker sets must be set
+				// here too; sprd/ticker sends no 24h figures today but market/sprd-ticker does.
+				// vol24h is deliberately not mapped: OKX reports it in USD on an inverse spread,
+				// so it is not a base volume, and SpreadTicker carries no sprdType to separate them
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         spreadTickers[x].Last.Float64(),
 					Bid:          spreadTickers[x].BidPrice.Float64(),
 					BidSize:      spreadTickers[x].BidSize.Float64(),
 					Ask:          spreadTickers[x].AskPrice.Float64(),
 					AskSize:      spreadTickers[x].AskSize.Float64(),
+					High:         spreadTickers[x].HighestPrice24Hour.Float64(),
+					Low:          spreadTickers[x].LowestPrice24Hour.Float64(),
+					Open:         spreadTickers[x].OpenPrice24Hour.Float64(),
+					LastUpdated:  spreadTickers[x].Timestamp.Time(),
 					Pair:         pair,
 					ExchangeName: e.Name,
 					AssetType:    assetType,
@@ -530,17 +547,19 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				if !pair.Equal(pairFmt) {
 					continue
 				}
+				baseVolume, quoteVolume := tickerVolumes(&ticks[y], assetType)
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         ticks[y].LastTradePrice.Float64(),
-					High:         ticks[y].High24H.Float64(),
-					Low:          ticks[y].Low24H.Float64(),
+					High:         ticks[y].HighestPrice24Hour.Float64(),
+					Low:          ticks[y].LowestPrice24Hour.Float64(),
 					Bid:          ticks[y].BestBidPrice.Float64(),
 					BidSize:      ticks[y].BestBidSize.Float64(),
 					Ask:          ticks[y].BestAskPrice.Float64(),
 					AskSize:      ticks[y].BestAskSize.Float64(),
-					BaseVolume:   ticks[y].Vol24H.Float64(),
-					QuoteVolume:  ticks[y].VolCcy24H.Float64(),
-					Open:         ticks[y].Open24H.Float64(),
+					BaseVolume:   baseVolume,
+					QuoteVolume:  quoteVolume,
+					Open:         ticks[y].OpenPrice24Hour.Float64(),
+					LastUpdated:  ticks[y].TickerDataGenerationTime.Time(),
 					Pair:         pairFmt,
 					ExchangeName: e.Name,
 					AssetType:    assetType,
