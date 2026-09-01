@@ -443,6 +443,16 @@ func TestDryRunParamInteraction(t *testing.T) {
 
 func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
+	t.Run("no enabled assets", func(t *testing.T) {
+		t.Parallel()
+		called := false
+		err := validateAPICredentials(t.Context(), testExchange, nil, func(context.Context, asset.Item) error {
+			called = true
+			return nil
+		})
+		require.ErrorIs(t, err, asset.ErrNotEnabled, "validation must fail when no assets are enabled")
+		assert.False(t, called, "validation should not run without an enabled asset")
+	})
 
 	errDeliveryAccountMissing := errors.New("delivery account missing")
 	var validated asset.Items

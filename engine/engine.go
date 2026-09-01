@@ -906,6 +906,10 @@ func (bot *Engine) LoadExchange(name string) error {
 }
 
 func validateAPICredentials(ctx context.Context, exchangeName string, enabledAssets asset.Items, validate func(context.Context, asset.Item) error) error {
+	if len(enabledAssets) == 0 {
+		return fmt.Errorf("%s: %w", exchangeName, asset.ErrNotEnabled)
+	}
+
 	// Spot covers the widest set of GCT functionality, followed by futures;
 	// other account types are fallbacks, and the first successful validation wins.
 	assets := make(asset.Items, 0, len(enabledAssets))
