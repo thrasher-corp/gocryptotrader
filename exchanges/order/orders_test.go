@@ -1156,13 +1156,13 @@ func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
 	}
 
 	od := &Detail{OrderID: "abc", Amount: 10}
-	require.NoError(t, od.UpdateOrderFromDetail(om))
+	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
 
-	assert.Equal(t, 10.0, od.Amount)
-	assert.Equal(t, 4.0, od.ExecutedAmount)
-	assert.Equal(t, 6.0, od.RemainingAmount, "RemainingAmount is the authoritative remaining, not reduced by trade amounts")
-	assert.Equal(t, od.Amount, od.ExecutedAmount+od.RemainingAmount, "ExecutedAmount + RemainingAmount equals Amount")
-	assert.Equal(t, 6.0, om.RemainingAmount, "incoming detail is not mutated")
+	assert.Equal(t, 10.0, od.Amount, "Amount should be unchanged")
+	assert.Equal(t, 4.0, od.ExecutedAmount, "ExecutedAmount should come from the incoming detail")
+	assert.Equal(t, 6.0, od.RemainingAmount, "RemainingAmount should be the authoritative remaining, not reduced by trade amounts")
+	assert.Equal(t, od.Amount, od.ExecutedAmount+od.RemainingAmount, "ExecutedAmount + RemainingAmount should equal Amount")
+	assert.Equal(t, 6.0, om.RemainingAmount, "incoming detail should not be mutated")
 }
 
 func TestClassificationError_Error(t *testing.T) {
