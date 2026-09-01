@@ -296,8 +296,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 			d.Trades = append(d.Trades, m.Trades[x])
 			updated = true
 		}
-		m.RemainingAmount -= m.Trades[x].Amount
 	}
+	// RemainingAmount is an authoritative value reported by the exchange
+	// (Amount - ExecutedAmount); it must be used as-is and never re-derived by
+	// subtracting trade amounts, which would double-count fills.
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true

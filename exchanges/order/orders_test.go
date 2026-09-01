@@ -1138,6 +1138,33 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
 }
 
+// TestUpdateOrderFromDetailRemainingAmountInvariant ensures that when an
+// incoming detail carries an authoritative RemainingAmount (Amount -
+// ExecutedAmount, as every exchange populates it) alongside the fill(s) that
+// produced it, the stored RemainingAmount is trusted rather than re-derived by
+// subtracting trade amounts. Re-deriving double-counts fills and violates the
+// invariant ExecutedAmount + RemainingAmount == Amount.
+func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
+	t.Parallel()
+
+	om := &Detail{
+		OrderID:         "abc",
+		Amount:          10,
+		ExecutedAmount:  4,
+		RemainingAmount: 6, // authoritative: 10 - 4
+		Trades:          []TradeHistory{{TID: "1", Price: 100, Amount: 4}},
+	}
+
+	od := &Detail{OrderID: "abc", Amount: 10}
+	require.NoError(t, od.UpdateOrderFromDetail(om))
+
+	assert.Equal(t, 10.0, od.Amount)
+	assert.Equal(t, 4.0, od.ExecutedAmount)
+	assert.Equal(t, 6.0, od.RemainingAmount, "RemainingAmount must equal the authoritative remaining, not be reduced by trade amounts")
+	assert.Equal(t, od.Amount, od.ExecutedAmount+od.RemainingAmount, "ExecutedAmount + RemainingAmount must equal Amount")
+	assert.Equal(t, 6.0, om.RemainingAmount, "incoming detail must not be mutated")
+}
+
 func TestClassificationError_Error(t *testing.T) {
 	class := ClassificationError{OrderID: "1337", Exchange: "test", Err: errors.New("test error")}
 	require.Equal(t, "Exchange test: OrderID: 1337 classification error: test error", class.Error())
