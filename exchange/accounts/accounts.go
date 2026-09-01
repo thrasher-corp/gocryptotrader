@@ -215,7 +215,7 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 	return b.Balance(), nil
 }
 
-// UpdateBalance atomically modifies one stored balance and publishes the change.
+// UpdateBalance atomically modifies one stored balance, stamps material changes with the local arrival time, and publishes the change.
 // The update callback must not call another Accounts method.
 func (a *Accounts) UpdateBalance(ctx context.Context, subAccount string, aType asset.Item, c currency.Code, update func(*Balance)) (Balance, error) {
 	if err := common.NilGuard(a); err != nil {
@@ -247,8 +247,11 @@ func (a *Accounts) UpdateBalance(ctx context.Context, subAccount string, aType a
 	balances := a.currencyBalances(creds, subAccount, aType)
 	stored := balances.balance(c.Item)
 	balance := stored.Balance()
+	previous := balance
 	update(&balance)
-	if balance.UpdatedAt.IsZero() {
+	// UpdateBalance owns arrival timestamps so callbacks cannot accidentally retain stale transport times.
+	balance.UpdatedAt = previous.UpdatedAt
+	if previous.UpdatedAt.IsZero() || balance != previous {
 		balance.UpdatedAt = time.Now()
 	}
 	if balance.Currency.IsEmpty() {

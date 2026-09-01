@@ -846,7 +846,6 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 			balance.Total = bal.Balance.Float64()
 			balance.Free = max(balance.Total-balance.Hold, 0)
 			balance.AvailableWithoutBorrow = balance.Free
-			balance.UpdatedAt = time.Time{}
 		})
 		if err != nil {
 			return err

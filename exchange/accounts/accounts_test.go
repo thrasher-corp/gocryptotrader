@@ -228,6 +228,7 @@ func TestAccountsUpdateBalance(t *testing.T) {
 
 	a := accountsFixture(t)
 	ctx := DeployCredentialsToContext(t.Context(), creds1)
+	beforeUpdate := time.Now()
 	updated, err := a.UpdateBalance(ctx, "1b", asset.Spot, currency.BTC, func(balance *Balance) {
 		balance.Total = 3
 		balance.Free = 2
@@ -235,7 +236,7 @@ func TestAccountsUpdateBalance(t *testing.T) {
 	require.NoError(t, err, "UpdateBalance must update an existing balance")
 	assert.Equal(t, 3.0, updated.Total, "updated total should be returned")
 	assert.Equal(t, 2.0, updated.Free, "updated free balance should be returned")
-	assert.False(t, updated.UpdatedAt.IsZero(), "updated balance should receive an arrival timestamp")
+	assert.WithinRange(t, updated.UpdatedAt, beforeUpdate, time.Now(), "updated balance should receive the current arrival timestamp")
 
 	stored, err := a.GetBalance("1b", creds1, asset.Spot, currency.BTC)
 	require.NoError(t, err, "GetBalance must return the atomically updated balance")

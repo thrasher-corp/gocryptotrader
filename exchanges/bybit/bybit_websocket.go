@@ -325,8 +325,6 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 				// Unified wallet pushes cannot refresh spendable funds because availableToWithdraw
 				// is deprecated; preserve the REST-derived Free, Hold, and Borrowed values.
 				balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
-				// Reset the REST timestamp so UpdateBalance stamps this websocket update's local arrival time.
-				balance.UpdatedAt = time.Time{}
 			})
 			if err != nil {
 				return err
