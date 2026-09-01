@@ -178,14 +178,14 @@ func (e *Exchange) CancelOrders(ctx context.Context, orders []CancelOrders) (Can
 }
 
 // GetTradeHistory returns trade history for a specific instrument.
-func (e *Exchange) GetTradeHistory(ctx context.Context, instrumentID, start, limit int64) (TradeHistory, error) {
+func (e *Exchange) GetTradeHistory(ctx context.Context, instrumentID int64, start, limit uint64) (TradeHistory, error) {
 	var result TradeHistory
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
-	if start >= 0 && start <= 100 {
+	if start != 0 {
 		params["start"] = start
 	}
-	if limit >= 0 && start <= 100 {
+	if limit != 0 {
 		params["limit"] = limit
 	}
 
