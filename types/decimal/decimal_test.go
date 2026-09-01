@@ -306,9 +306,9 @@ func TestDecimalUnmarshalJSON(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var result Decimal
-			require.NoError(t, result.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must decode extended plain decimal values")
-			assert.Equal(t, tc.expected, result.String(), "UnmarshalJSON should preserve extended plain decimal values")
+			var decoded Decimal
+			require.NoError(t, decoded.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must decode extended plain decimal values")
+			assert.Equal(t, tc.expected, decoded.String(), "UnmarshalJSON should preserve extended plain decimal values")
 		})
 	}
 	assert.ErrorIs(t, result.UnmarshalJSON([]byte(`"`+largeInteger+`x"`)), errInvalidDecimal,
@@ -333,9 +333,9 @@ func TestDecimalUnmarshalText(t *testing.T) {
 		strings.Repeat("1", maxStringDigits+1),
 		"-" + strings.Repeat("9", maxStringDigits+1) + ".1234567890123456789",
 	} {
-		var result Decimal
-		require.NoError(t, result.UnmarshalText([]byte(value)), "UnmarshalText must decode extended plain decimal values")
-		assert.Equal(t, value, result.String(), "UnmarshalText should preserve extended plain decimal values")
+		var decoded Decimal
+		require.NoError(t, decoded.UnmarshalText([]byte(value)), "UnmarshalText must decode extended plain decimal values")
+		assert.Equal(t, value, decoded.String(), "UnmarshalText should preserve extended plain decimal values")
 	}
 	assert.ErrorIs(t, result.UnmarshalText([]byte(strings.Repeat("1", maxStringDigits+1)+"x")), errInvalidDecimal,
 		"UnmarshalText should wrap the extended parser error")
@@ -380,9 +380,9 @@ func TestDecimalScan(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var result Decimal
-			require.NoError(t, result.Scan(tc.input), "Scan must decode extended plain decimal values")
-			assert.Equal(t, tc.expected, result.String(), "Scan should preserve extended plain decimal values")
+			var scanned Decimal
+			require.NoError(t, scanned.Scan(tc.input), "Scan must decode extended plain decimal values")
+			assert.Equal(t, tc.expected, scanned.String(), "Scan should preserve extended plain decimal values")
 		})
 	}
 	assert.ErrorIs(t, result.Scan(strings.Repeat("1", maxStringDigits+1)+"x"), errInvalidDecimal,
@@ -516,8 +516,8 @@ func TestDivideUdecimal(t *testing.T) {
 			func() { divideUdecimal(udecimal.One, udecimal.Zero) },
 			"divideUdecimal should preserve unrelated backend panics")
 	})
-	_, _, _, _, fitsU128 := udecimalBigIntDivisionFactor.ToHiLo()
-	assert.False(t, fitsU128, "udecimalBigIntDivisionFactor should force the native big.Int path")
+	assert.Len(t, udecimalBigIntDivisionFactor.String(), u128MaxDecimalDigits+1,
+		"udecimalBigIntDivisionFactor should exceed u128's maximum decimal length")
 }
 
 func TestNewUdecimalFromFloat(t *testing.T) {
