@@ -892,7 +892,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
-		if err := validateAPICredentials(ctx, enabledAssets, exch.ValidateAPICredentials); err != nil {
+		if err := validateAPICredentials(ctx, b.Name, enabledAssets, exch.ValidateAPICredentials); err != nil {
 			gctlog.Warnf(gctlog.ExchangeSys, "%s: Credential validation failed; disabling authenticated support", b.Name)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
@@ -905,7 +905,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	return exchange.Bootstrap(ctx, exch)
 }
 
-func validateAPICredentials(ctx context.Context, enabledAssets asset.Items, validate func(context.Context, asset.Item) error) error {
+func validateAPICredentials(ctx context.Context, exchangeName string, enabledAssets asset.Items, validate func(context.Context, asset.Item) error) error {
 	// Spot covers the widest set of GCT functionality, followed by futures;
 	// other account types are fallbacks, and the first successful validation wins.
 	assets := make(asset.Items, 0, len(enabledAssets))
@@ -927,7 +927,7 @@ func validateAPICredentials(ctx context.Context, enabledAssets asset.Items, vali
 	for _, a := range assets {
 		if err := validate(ctx, a); err != nil {
 			assetErr := fmt.Errorf("%s: %w", a, err)
-			gctlog.Warnf(gctlog.ExchangeSys, "Error validating credentials: %v", assetErr)
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v", exchangeName, assetErr)
 			errs = common.AppendError(errs, assetErr)
 			if errors.Is(err, exchange.ErrCredentialsAreEmpty) || errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 				break

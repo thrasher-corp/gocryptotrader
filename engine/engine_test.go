@@ -446,7 +446,7 @@ func TestValidateAPICredentials(t *testing.T) {
 
 	errDeliveryAccountMissing := errors.New("delivery account missing")
 	var validated asset.Items
-	err := validateAPICredentials(t.Context(), asset.Items{
+	err := validateAPICredentials(t.Context(), testExchange, asset.Items{
 		asset.DeliveryFutures,
 		asset.USDTMarginedFutures,
 	}, func(_ context.Context, a asset.Item) error {
@@ -460,13 +460,13 @@ func TestValidateAPICredentials(t *testing.T) {
 	assert.Equal(t, asset.Items{asset.DeliveryFutures, asset.USDTMarginedFutures}, validated,
 		"validation should try another enabled futures account after an account-specific failure")
 
-	err = validateAPICredentials(t.Context(), asset.Items{asset.DeliveryFutures}, func(context.Context, asset.Item) error {
+	err = validateAPICredentials(t.Context(), testExchange, asset.Items{asset.DeliveryFutures}, func(context.Context, asset.Item) error {
 		return errDeliveryAccountMissing
 	})
 	require.ErrorIs(t, err, errDeliveryAccountMissing, "validation must return an error when every enabled account fails")
 
 	var seen asset.Items
-	err = validateAPICredentials(t.Context(), asset.Items{
+	err = validateAPICredentials(t.Context(), testExchange, asset.Items{
 		asset.Options,
 		asset.USDTMarginedFutures,
 		asset.Margin,
@@ -492,7 +492,7 @@ func TestValidateAPICredentials(t *testing.T) {
 		exchange.ErrAuthenticationSupportNotEnabled,
 	} {
 		validated = nil
-		err = validateAPICredentials(t.Context(), asset.Items{asset.Spot, asset.USDTMarginedFutures}, func(_ context.Context, a asset.Item) error {
+		err = validateAPICredentials(t.Context(), testExchange, asset.Items{asset.Spot, asset.USDTMarginedFutures}, func(_ context.Context, a asset.Item) error {
 			validated = append(validated, a)
 			return assetIndependentErr
 		})
