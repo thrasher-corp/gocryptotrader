@@ -37,7 +37,7 @@ func CalculateSlippageByOrderbook(ob *orderbook.Book, side gctorder.Side, alloca
 		return price, amount, err
 	}
 	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
-	price = decimal.NewFromFloat(result.MinimumPrice * (rate + 1))
-	amount = decimal.NewFromFloat(result.Amount * (1 - feeRate.InexactFloat64()))
+	price = decimal.MustFromFloat(result.MinimumPrice * (rate + 1))
+	amount = decimal.MustFromFloat(result.Amount * (1 - feeRate.InexactFloat64()))
 	return price, amount, err
 }

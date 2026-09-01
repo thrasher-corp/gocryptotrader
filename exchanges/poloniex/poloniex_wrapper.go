@@ -1774,14 +1774,14 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:     fFundingRate.Symbol,
 			LatestRate: fundingrate.Rate{
 				Time: fFundingRate.FundingRateSettleTime.Time(),
-				Rate: decimal.NewFromFloat(fFundingRate.FundingRate.Float64()),
+				Rate: decimal.MustFromFloat(fFundingRate.FundingRate.Float64()),
 			},
 			TimeOfNextRate: fFundingRate.NextFundingTime.Time(),
 			TimeChecked:    timeChecked,
 		}
 		rate.PredictedUpcomingRate = fundingrate.Rate{
 			Time: fFundingRate.NextFundingTime.Time(),
-			Rate: decimal.NewFromFloat(fFundingRate.NextPredictedFundingRate.Float64()),
+			Rate: decimal.MustFromFloat(fFundingRate.NextPredictedFundingRate.Float64()),
 		}
 		resp = append(resp, rate)
 	}

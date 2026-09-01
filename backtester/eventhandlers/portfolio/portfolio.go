@@ -278,9 +278,9 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	}
 	prevSnap := complianceManager.GetLatestSnapshot()
 	if filledOrder := fillEvent.GetOrder(); filledOrder != nil {
-		price := decimal.NewFromFloat(filledOrder.Price)
-		amount := decimal.NewFromFloat(filledOrder.Amount)
-		fee := decimal.NewFromFloat(filledOrder.Fee)
+		price := decimal.MustFromFloat(filledOrder.Price)
+		amount := decimal.MustFromFloat(filledOrder.Amount)
+		fee := decimal.MustFromFloat(filledOrder.Fee)
 		snapOrder := compliance.SnapshotOrder{
 			ClosePrice:          fillEvent.GetClosePrice(),
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
@@ -411,7 +411,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 	if len(pos) == 0 {
 		return nil, fmt.Errorf("%w should not happen", errNoHoldings)
 	}
-	amount := decimal.NewFromFloat(detail.Amount)
+	amount := decimal.MustFromFloat(detail.Amount)
 	switch {
 	case ev.IsLiquidated():
 		collateralReleaser.Liquidate()

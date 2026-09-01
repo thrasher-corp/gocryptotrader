@@ -341,7 +341,7 @@ func DecimalPopulationStandardDeviation(values []decimal.Decimal) (decimal.Decim
 	if !exact {
 		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, diffAvg, f)
 	}
-	resp := decimal.NewFromFloat(math.Sqrt(f))
+	resp := decimal.MustFromFloat(math.Sqrt(f))
 	return resp, err
 }
 
@@ -370,7 +370,7 @@ func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, 
 		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, avg, f)
 	}
 	sqrt := math.Sqrt(f)
-	return decimal.NewFromFloat(sqrt), err
+	return decimal.MustFromFloat(sqrt), err
 }
 
 // DecimalGeometricMean is an average which indicates the central tendency or
@@ -401,7 +401,7 @@ func DecimalPow(x, y decimal.Decimal) decimal.Decimal {
 	if math.IsNaN(pow) || math.IsInf(pow, 0) {
 		return decimal.Zero
 	}
-	return decimal.NewFromFloat(pow)
+	return decimal.MustFromFloat(pow)
 }
 
 // DecimalFinancialGeometricMean is a modified geometric average to assess
@@ -432,7 +432,7 @@ func DecimalFinancialGeometricMean(values []decimal.Decimal) (decimal.Decimal, e
 		// we minus 1 because we manipulated the values to be non-zero/negative
 		geometricPower--
 	}
-	return decimal.NewFromFloat(geometricPower), nil
+	return decimal.MustFromFloat(geometricPower), nil
 }
 
 // DecimalArithmeticMean is the basic form of calculating an average.
@@ -468,7 +468,7 @@ func DecimalSortinoRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInt
 		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, totalNegativeResultsSquared, f)
 	}
 	fAverageDownsideDeviation := math.Sqrt(f / float64(len(movementPerCandle)))
-	averageDownsideDeviation := decimal.NewFromFloat(fAverageDownsideDeviation)
+	averageDownsideDeviation := decimal.MustFromFloat(fAverageDownsideDeviation)
 
 	return average.Sub(riskFreeRatePerInterval).Div(averageDownsideDeviation), err
 }

@@ -156,9 +156,9 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 		t.Error("expected 100")
 	}
 
-	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(decimal.NewFromInt(123), decimal.NewFromInt(1), decimal.NewFromInt(100), decimal.NewFromInt(99), decimal.NewFromFloat(0.8))
-	if !adjustedAmount.Equal(decimal.NewFromFloat(0.799999992)) {
-		t.Errorf("received: %v, expected: %v", adjustedAmount, decimal.NewFromFloat(0.799999992))
+	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(decimal.NewFromInt(123), decimal.NewFromInt(1), decimal.NewFromInt(100), decimal.NewFromInt(99), decimal.MustFromFloat(0.8))
+	if !adjustedAmount.Equal(decimal.MustFromFloat(0.799999992)) {
+		t.Errorf("received: %v, expected: %v", adjustedAmount, decimal.MustFromFloat(0.799999992))
 	}
 	if !adjustedPrice.Equal(decimal.NewFromInt(100)) {
 		t.Error("expected 100")
@@ -167,12 +167,12 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 
 func TestCalculateExchangeFee(t *testing.T) {
 	t.Parallel()
-	fee := calculateExchangeFee(decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.NewFromFloat(0.1))
-	if !fee.Equal(decimal.NewFromFloat(0.1)) {
+	fee := calculateExchangeFee(decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.MustFromFloat(0.1))
+	if !fee.Equal(decimal.MustFromFloat(0.1)) {
 		t.Error("expected 0.1")
 	}
-	fee = calculateExchangeFee(decimal.NewFromInt(2), decimal.NewFromFloat(1), decimal.NewFromFloat(0.005))
-	if !fee.Equal(decimal.NewFromFloat(0.01)) {
+	fee = calculateExchangeFee(decimal.NewFromInt(2), decimal.MustFromFloat(1), decimal.MustFromFloat(0.005))
+	if !fee.Equal(decimal.MustFromFloat(0.01)) {
 		t.Error("expected 0.01")
 	}
 }
@@ -249,8 +249,8 @@ func TestExecuteOrder(t *testing.T) {
 		UseRealOrders:       false,
 		Pair:                p,
 		Asset:               a,
-		MakerFee:            decimal.NewFromFloat(0.01),
-		TakerFee:            decimal.NewFromFloat(0.01),
+		MakerFee:            decimal.MustFromFloat(0.01),
+		TakerFee:            decimal.MustFromFloat(0.01),
 		MaximumSlippageRate: decimal.NewFromInt(1),
 	}
 	e := Exchange{}
@@ -368,13 +368,13 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		UseRealOrders: false,
 		Pair:          p,
 		Asset:         a,
-		MakerFee:      decimal.NewFromFloat(0.01),
-		TakerFee:      decimal.NewFromFloat(0.01),
+		MakerFee:      decimal.MustFromFloat(0.01),
+		TakerFee:      decimal.MustFromFloat(0.01),
 		BuySide: MinMax{
-			MaximumSize: decimal.NewFromFloat(0.01),
+			MaximumSize: decimal.MustFromFloat(0.01),
 		},
 		SellSide: MinMax{
-			MaximumSize: decimal.NewFromFloat(0.1),
+			MaximumSize: decimal.MustFromFloat(0.1),
 		},
 		MaximumSlippageRate: decimal.NewFromInt(1),
 		Limits:              l,
@@ -430,7 +430,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	cs.BuySide.MaximumSize = decimal.Zero
-	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
+	cs.BuySide.MinimumSize = decimal.MustFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	assert.NoError(t, err, "ExecuteOrder should not error when limitReducedAmount adjusted to 0.99999999, direction BUY {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
@@ -442,7 +442,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	cs.SellSide.MaximumSize = decimal.Zero
-	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
+	cs.SellSide.MinimumSize = decimal.MustFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	assert.NoError(t, err, "ExecuteOrder should not error when limitReducedAmount adjusted to 0.99999999, direction SELL {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
@@ -450,7 +450,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Sell,
-		Amount:         decimal.NewFromFloat(0.5),
+		Amount:         decimal.MustFromFloat(0.5),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	cs.SellSide.MaximumSize = decimal.Zero
@@ -462,12 +462,12 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Sell,
-		Amount:         decimal.NewFromFloat(0.02),
-		AllocatedFunds: decimal.NewFromFloat(0.01337),
-		ClosePrice:     decimal.NewFromFloat(1337),
+		Amount:         decimal.MustFromFloat(0.02),
+		AllocatedFunds: decimal.MustFromFloat(0.01337),
+		ClosePrice:     decimal.MustFromFloat(1337),
 	}
 	cs.SellSide.MaximumSize = decimal.Zero
-	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
+	cs.SellSide.MinimumSize = decimal.MustFromFloat(0.01)
 
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
@@ -480,28 +480,28 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 
 func TestApplySlippageToPrice(t *testing.T) {
 	t.Parallel()
-	resp, err := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	resp, err := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.MustFromFloat(0.9))
 	assert.NoError(t, err)
 
-	if !resp.Equal(decimal.NewFromFloat(1.1)) {
-		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1.1))
+	if !resp.Equal(decimal.MustFromFloat(1.1)) {
+		t.Errorf("received: %v, expected: %v", resp, decimal.MustFromFloat(1.1))
 	}
 
-	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.MustFromFloat(0.9))
 	assert.NoError(t, err)
 
-	if !resp.Equal(decimal.NewFromFloat(0.9)) {
-		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(0.9))
+	if !resp.Equal(decimal.MustFromFloat(0.9)) {
+		t.Errorf("received: %v, expected: %v", resp, decimal.MustFromFloat(0.9))
 	}
 
 	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.Zero)
 	assert.NoError(t, err)
 
-	if !resp.Equal(decimal.NewFromFloat(1)) {
-		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1))
+	if !resp.Equal(decimal.MustFromFloat(1)) {
+		t.Errorf("received: %v, expected: %v", resp, decimal.MustFromFloat(1))
 	}
 
-	_, err = applySlippageToPrice(gctorder.UnknownSide, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	_, err = applySlippageToPrice(gctorder.UnknownSide, decimal.NewFromInt(1), decimal.MustFromFloat(0.9))
 	assert.ErrorIs(t, err, gctorder.ErrSideIsInvalid)
 }
 
@@ -550,7 +550,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 		},
 	}
 	f.Base = &event.Base{}
-	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
+	err = verifyOrderWithinLimits(f, decimal.MustFromFloat(0.5), s)
 	assert.ErrorIs(t, err, errExceededPortfolioLimit)
 
 	f.Direction = gctorder.Buy
@@ -562,7 +562,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 		MinimumSize: decimal.NewFromInt(1),
 		MaximumSize: decimal.NewFromInt(1),
 	}
-	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
+	err = verifyOrderWithinLimits(f, decimal.MustFromFloat(0.5), s)
 	assert.ErrorIs(t, err, errExceededPortfolioLimit)
 
 	f.Direction = gctorder.Sell

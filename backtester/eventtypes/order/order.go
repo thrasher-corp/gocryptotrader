@@ -64,7 +64,7 @@ func (o *Order) GetID() string {
 
 // IsLeveraged returns if it is leveraged
 func (o *Order) IsLeveraged() bool {
-	return o.Leverage.GreaterThan(decimal.NewFromFloat(1))
+	return o.Leverage.GreaterThan(decimal.MustFromFloat(1))
 }
 
 // GetLeverage returns leverage rate

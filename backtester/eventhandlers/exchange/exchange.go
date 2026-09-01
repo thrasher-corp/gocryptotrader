@@ -149,10 +149,10 @@ func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.Order
 		ords[i].LastUpdated = o.GetTime()
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
-		f.PurchasePrice = decimal.NewFromFloat(ords[i].Price)
-		f.Amount = decimal.NewFromFloat(ords[i].Amount)
+		f.PurchasePrice = decimal.MustFromFloat(ords[i].Price)
+		f.Amount = decimal.MustFromFloat(ords[i].Amount)
 		if ords[i].Fee > 0 {
-			f.ExchangeFee = decimal.NewFromFloat(ords[i].Fee)
+			f.ExchangeFee = decimal.MustFromFloat(ords[i].Fee)
 		}
 		f.Total = f.PurchasePrice.Mul(f.Amount).Add(f.ExchangeFee)
 	}
@@ -445,7 +445,7 @@ func ensureOrderFitsWithinHLV(price, amount, high, low, volume decimal.Decimal) 
 		// it is slightly less than the total to still allow for the illusion
 		// that open high low close values are valid with the remaining volume
 		// this is very opinionated
-		adjustedAmount = volume.Mul(decimal.NewFromFloat(0.99999999))
+		adjustedAmount = volume.Mul(decimal.MustFromFloat(0.99999999))
 	}
 	return adjustedPrice, adjustedAmount
 }

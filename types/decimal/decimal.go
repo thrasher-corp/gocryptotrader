@@ -1,43 +1,28 @@
 //go:build udecimal_on
 
-// Package decimal provides fixed-point decimal arithmetic with a backend
-// selected at build time. The shopspring backend is the default; build with
-// the udecimal_on tag to use github.com/quagmt/udecimal.
 package decimal
 
 import (
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"github.com/quagmt/udecimal" //nolint:depguard // Selected implementation for the udecimal_on build.
 )
 
-const maxStringDigits = 200
-
-var (
-	// ErrInvalidDecimal is returned when input cannot be represented as a decimal.
-	ErrInvalidDecimal = errors.New("invalid decimal")
-	// ErrPrecisionOutOfRange is returned when input exceeds the selected backend's precision.
-	ErrPrecisionOutOfRange = errors.New("decimal precision out of range")
-	// ErrDivideByZero exposes udecimal's native division error in this build.
-	ErrDivideByZero = udecimal.ErrDivideByZero
-
-	// Zero is the zero-value Decimal.
-	Zero Decimal
-)
+// Zero is the zero-value Decimal.
+var Zero Decimal
 
 // Decimal is an immutable fixed-point decimal value.
 type Decimal struct {
 	value udecimal.Decimal
 }
 
-// NewFromInt returns a Decimal equal to value.
+// NewFromInt returns a Decimal equal to value. Udecimal's Must constructor is
+// safe here because zero precision is valid for every int64.
 func NewFromInt(value int64) Decimal {
-	return RequireFromString(strconv.FormatInt(value, 10))
+	return Decimal{value: udecimal.MustFromInt64(value, 0)}
 }
 
 // NewFromInt32 returns a Decimal equal to value.
@@ -45,12 +30,14 @@ func NewFromInt32(value int32) Decimal {
 	return NewFromInt(int64(value))
 }
 
-// NewFromFloat returns the shortest decimal representation that round-trips
-// to value. The adapter preserves support for every finite float64 because
-// udecimal's native constructor rejects large finite values over its parser
-// length limit.
-func NewFromFloat(value float64) Decimal {
-	return Decimal{value: newFromFloatUdecimal(value)}
+// MustFromFloat returns the shortest decimal representation that round-trips
+// to value. It panics for non-finite values.
+func MustFromFloat(value float64) Decimal {
+	result, err := newUdecimalFromFloat(value)
+	if err != nil {
+		panic(err)
+	}
+	return Decimal{value: result}
 }
 
 // NewFromString parses value. Scientific notation is normalised before using
@@ -60,11 +47,15 @@ func NewFromString(value string) (Decimal, error) {
 	if err != nil {
 		return Decimal{}, err
 	}
-	return Decimal{value: mustParseUdecimal(normalised)}, nil
+	result, err := parseUdecimal(normalised)
+	if err != nil {
+		return Decimal{}, fmt.Errorf("%w: %w", errInvalidDecimal, err)
+	}
+	return Decimal{value: result}, nil
 }
 
-// RequireFromString parses value and panics if it is invalid.
-func RequireFromString(value string) Decimal {
+// MustFromString parses value and panics if it is invalid.
+func MustFromString(value string) Decimal {
 	result, err := NewFromString(value)
 	if err != nil {
 		panic(err)
@@ -82,30 +73,28 @@ func (d Decimal) Sub(other Decimal) Decimal {
 	return Decimal{value: d.value.Sub(other.value)}
 }
 
-// Mul returns d*other, truncating beyond the selected backend's precision.
+// Mul returns d*other, truncating beyond udecimal's 19-place precision.
 func (d Decimal) Mul(other Decimal) Decimal {
 	return Decimal{value: d.value.Mul(other.value)}
 }
 
-// Div returns d/other using udecimal's native division, which truncates results
-// beyond its configured precision. MustDiv adapts udecimal's error-returning
-// API to the shopspring-shaped method signature exposed by this build tag.
+// Div returns d/other, truncating beyond udecimal's 19-place precision. It
+// panics for a zero divisor because the Decimal API has no error return.
 func (d Decimal) Div(other Decimal) Decimal {
 	return Decimal{value: d.value.MustDiv(other.value)}
 }
 
-// Mod returns the remainder of d/other. MustMod adapts udecimal's
-// error-returning API to the shopspring-shaped method signature exposed by
-// this build tag.
+// Mod returns the remainder of d/other. It panics for a zero divisor because
+// the Decimal API has no error return.
 func (d Decimal) Mod(other Decimal) Decimal {
 	return Decimal{value: d.value.MustMod(other.value)}
 }
 
-// Pow returns d raised to other. The common contract requires an integer exponent.
+// Pow returns d raised to other and panics if other has a fractional component.
 func (d Decimal) Pow(other Decimal) Decimal {
 	result, err := powUdecimal(d.value, other.value)
 	if err != nil {
-		panic(fmt.Errorf("%w: %w", ErrInvalidDecimal, err))
+		panic(err)
 	}
 	return Decimal{value: result}
 }
@@ -178,8 +167,8 @@ func (d Decimal) Round(places int32) Decimal {
 
 // Truncate removes fractional digits beyond precision without rounding.
 func (d Decimal) Truncate(precision int32) Decimal {
-	// udecimal.Trunc accepts only an unsigned fractional precision, while this
-	// shopspring-shaped API permits negative and out-of-range values as no-ops.
+	// udecimal.Trunc accepts only unsigned precision, while Decimal.Truncate
+	// treats negative and out-of-range precision as no-ops.
 	if precision < 0 || precision >= maxPrecision {
 		return d
 	}
@@ -203,8 +192,8 @@ func (d Decimal) String() string {
 
 // StringFixed returns d rounded to places and padded with trailing zeroes.
 func (d Decimal) StringFixed(places int32) string {
-	// udecimal.StringFixed neither accepts negative places nor rounds when the
-	// requested precision is smaller, so adapt it to this method's public API.
+	// udecimal.StringFixed does not accept negative places or round to smaller
+	// precision, so use the Decimal rounding contract before padding.
 	rounded := d.Round(places).String()
 	if places <= 0 {
 		return rounded
@@ -281,84 +270,4 @@ func (d *Decimal) Scan(value any) error {
 // Value implements driver.Valuer using the canonical decimal string.
 func (d Decimal) Value() (driver.Value, error) {
 	return d.value.Value()
-}
-
-func normalise(value string, truncate bool) (string, error) {
-	if value == "" {
-		return "", fmt.Errorf("%w: empty input", ErrInvalidDecimal)
-	}
-
-	mantissa := value
-	var exponent int64
-	if exponentIndex := strings.IndexAny(value, "eE"); exponentIndex >= 0 {
-		var err error
-		exponent, err = strconv.ParseInt(value[exponentIndex+1:], 10, 32)
-		if err != nil {
-			return "", fmt.Errorf("%w: invalid exponent in %q", ErrInvalidDecimal, value)
-		}
-		mantissa = value[:exponentIndex]
-	}
-
-	negative := false
-	if mantissa != "" && (mantissa[0] == '-' || mantissa[0] == '+') {
-		negative = mantissa[0] == '-'
-		mantissa = mantissa[1:]
-	}
-	if mantissa == "" {
-		return "", fmt.Errorf("%w: invalid input %q", ErrInvalidDecimal, value)
-	}
-
-	decimalPoint := strings.IndexByte(mantissa, '.')
-	if decimalPoint != strings.LastIndexByte(mantissa, '.') {
-		return "", fmt.Errorf("%w: invalid input %q", ErrInvalidDecimal, value)
-	}
-	integerPart, fractionalPart := mantissa, ""
-	if decimalPoint >= 0 {
-		integerPart = mantissa[:decimalPoint]
-		fractionalPart = mantissa[decimalPoint+1:]
-	}
-	if integerPart == "" && fractionalPart == "" {
-		return "", fmt.Errorf("%w: invalid input %q", ErrInvalidDecimal, value)
-	}
-	digits := integerPart + fractionalPart
-	for _, digit := range digits {
-		if digit < '0' || digit > '9' {
-			return "", fmt.Errorf("%w: invalid input %q", ErrInvalidDecimal, value)
-		}
-	}
-
-	digits = strings.TrimLeft(digits, "0")
-	scale := int64(len(fractionalPart)) - exponent
-	for scale > 0 && strings.HasSuffix(digits, "0") {
-		digits = strings.TrimSuffix(digits, "0")
-		scale--
-	}
-	digits, scale, err := normaliseUdecimalPrecision(digits, scale, truncate, value)
-	if err != nil {
-		return "", err
-	}
-	if digits == "0" {
-		return digits, nil
-	}
-	if scale < 0 {
-		if int64(len(digits))-scale > maxStringDigits {
-			return "", fmt.Errorf("%w: input exceeds %d digits", ErrInvalidDecimal, maxStringDigits)
-		}
-		digits += strings.Repeat("0", int(-scale))
-		scale = 0
-	}
-	if int64(len(digits)) <= scale {
-		digits = strings.Repeat("0", int(scale)-len(digits)+1) + digits
-	}
-	if digitCount := len(digits); digitCount > maxStringDigits {
-		return "", fmt.Errorf("%w: input exceeds %d digits", ErrInvalidDecimal, maxStringDigits)
-	}
-	if scale > 0 {
-		decimalIndex := len(digits) - int(scale)
-		digits = digits[:decimalIndex] + "." + digits[decimalIndex:]
-	}
-	if negative {
-		digits = "-" + digits
-	}
-	return digits, nil
 }

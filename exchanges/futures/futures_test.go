@@ -152,7 +152,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if c.latestDirection != order.Short {
 		t.Error("expected recognition that its short")
 	}
-	if !c.exposure.Equal(decimal.NewFromFloat(0.2)) {
+	if !c.exposure.Equal(decimal.MustFromFloat(0.2)) {
 		t.Errorf("expected %v received %v", 0.2, c.exposure)
 	}
 

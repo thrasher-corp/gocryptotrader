@@ -197,7 +197,7 @@ func (d *Data) enhanceCandles() error {
 				}
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
-				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Order.Amount)
+				enhancedCandle.OrderAmount = decimal.MustFromFloat(statsForCandles.FinalOrders.Orders[k].Order.Amount)
 				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Order.Price
 				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Order.Side
 				switch enhancedCandle.OrderDirection {

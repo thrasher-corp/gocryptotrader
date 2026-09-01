@@ -740,7 +740,7 @@ func TestSetFunding(t *testing.T) {
 	err = f.SetFunding(exchName, asset.Spot, bal, true)
 	assert.NoError(t, err)
 
-	if !f.items[0].available.Equal(decimal.NewFromFloat(bal.Total)) {
+	if !f.items[0].available.Equal(decimal.MustFromFloat(bal.Total)) {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
 	}
 	if !f.items[0].initialFunds.Equal(leet) {

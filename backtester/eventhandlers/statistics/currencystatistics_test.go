@@ -42,7 +42,7 @@ func TestCalculateResults(t *testing.T) {
 		Time:       tt1,
 		ClosePrice: decimal.NewFromInt(2000),
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
+			ChangeInTotalValuePercent: decimal.MustFromFloat(0.1333),
 			Timestamp:                 tt1,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
@@ -85,7 +85,7 @@ func TestCalculateResults(t *testing.T) {
 		Time:       tt2,
 		ClosePrice: decimal.NewFromInt(1337),
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
+			ChangeInTotalValuePercent: decimal.MustFromFloat(0.1337),
 			Timestamp:                 tt2,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
@@ -123,10 +123,10 @@ func TestCalculateResults(t *testing.T) {
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	err := cs.CalculateResults(decimal.NewFromFloat(0.03))
+	err := cs.CalculateResults(decimal.MustFromFloat(0.03))
 	assert.NoError(t, err)
 
-	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
+	if !cs.MarketMovement.Equal(decimal.MustFromFloat(-33.15)) {
 		t.Errorf("expected -33.15 received '%v'", cs.MarketMovement)
 	}
 	ev3 := ev2
@@ -142,13 +142,13 @@ func TestCalculateResults(t *testing.T) {
 	cs.Events[0].DataEvent = &kline.Kline{
 		Base: even2,
 	}
-	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
+	err = cs.CalculateResults(decimal.MustFromFloat(0.03))
 	assert.NoError(t, err)
 
 	cs.Events[1].DataEvent = &kline.Kline{
 		Base: even2,
 	}
-	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
+	err = cs.CalculateResults(decimal.MustFromFloat(0.03))
 	assert.NoError(t, err)
 }
 
@@ -168,7 +168,7 @@ func TestPrintResults(t *testing.T) {
 	}
 	ev := DataAtOffset{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
+			ChangeInTotalValuePercent: decimal.MustFromFloat(0.1333),
 			Timestamp:                 tt1,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
@@ -207,7 +207,7 @@ func TestPrintResults(t *testing.T) {
 	even2.Time = tt2
 	ev2 := DataAtOffset{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
+			ChangeInTotalValuePercent: decimal.MustFromFloat(0.1337),
 			Timestamp:                 tt2,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
 		},
@@ -329,7 +329,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Pair:     p,
 			Result: futures.PNLResult{
 				Time:          time.Now(),
-				UnrealisedPNL: decimal.NewFromFloat(0.5),
+				UnrealisedPNL: decimal.MustFromFloat(0.5),
 				RealisedPNL:   decimal.NewFromInt(1),
 			},
 		}},
@@ -339,7 +339,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	if !c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
 		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
 	}
-	if !c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromFloat(0.5)) {
+	if !c.LowestUnrealisedPNL.Value.Equal(decimal.MustFromFloat(0.5)) {
 		t.Errorf("received %v expected 0.5", c.LowestUnrealisedPNL.Value)
 	}
 }

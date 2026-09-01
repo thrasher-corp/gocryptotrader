@@ -1874,7 +1874,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			MaxLeverage:        contracts[i].MaxLeverage,
 			SettlementType:     contractSettlementType,
 			LatestRate: fundingrate.Rate{
-				Rate: decimal.NewFromFloat(contracts[i].FundingFeeRate),
+				Rate: decimal.MustFromFloat(contracts[i].FundingFeeRate),
 				Time: timeOfCurrentFundingRate, // kucoin pays every 8 hours
 			},
 			Type: ct,
@@ -1924,7 +1924,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Pair:     cp,
 				LatestRate: fundingrate.Rate{
 					Time: timeOfNextFundingRate.Add(-fri),
-					Rate: decimal.NewFromFloat(contracts[i].FundingFeeRate),
+					Rate: decimal.MustFromFloat(contracts[i].FundingFeeRate),
 				},
 				TimeOfNextRate: timeOfNextFundingRate,
 				TimeChecked:    timeChecked,
@@ -1937,7 +1937,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				}
 				rate.PredictedUpcomingRate = fundingrate.Rate{
 					Time: timeOfNextFundingRate,
-					Rate: decimal.NewFromFloat(fr.PredictedValue),
+					Rate: decimal.MustFromFloat(fr.PredictedValue),
 				}
 			}
 			resp = append(resp, rate)
@@ -1967,7 +1967,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		Pair:     r.Pair,
 		LatestRate: fundingrate.Rate{
 			Time: fr.TimePoint.Time(),
-			Rate: decimal.NewFromFloat(fr.Value),
+			Rate: decimal.MustFromFloat(fr.Value),
 		},
 		TimeOfNextRate: fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC(),
 		TimeChecked:    time.Now(),
@@ -1975,7 +1975,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r.IncludePredictedRate {
 		rate.PredictedUpcomingRate = fundingrate.Rate{
 			Time: rate.TimeOfNextRate,
-			Rate: decimal.NewFromFloat(fr.PredictedValue),
+			Rate: decimal.MustFromFloat(fr.PredictedValue),
 		}
 	}
 	resp[0] = rate
@@ -2028,7 +2028,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 
 		fundingRates = append(fundingRates, fundingrate.Rate{
-			Rate: decimal.NewFromFloat(records[i].FundingRate),
+			Rate: decimal.MustFromFloat(records[i].FundingRate),
 			Time: records[i].Timepoint.Time(),
 		})
 	}
@@ -2159,26 +2159,26 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		CollateralMode:               collateral.MultiMode,
 		Currency:                     currency.NewCode(pos.SettleCurrency),
 		StartDate:                    pos.OpeningTimestamp.Time(),
-		AvailableEquity:              decimal.NewFromFloat(ao.AccountEquity),
-		MarginBalance:                decimal.NewFromFloat(ao.MarginBalance),
-		NotionalSize:                 decimal.NewFromFloat(pos.MarkValue),
-		Leverage:                     decimal.NewFromFloat(pos.RealLeverage),
-		MaintenanceMarginRequirement: decimal.NewFromFloat(pos.MaintMarginReq),
-		InitialMarginRequirement:     decimal.NewFromFloat(pos.PosInit),
-		EstimatedLiquidationPrice:    decimal.NewFromFloat(pos.LiquidationPrice),
-		CollateralUsed:               decimal.NewFromFloat(pos.PosCost),
-		MarkPrice:                    decimal.NewFromFloat(pos.MarkPrice),
-		CurrentSize:                  decimal.NewFromFloat(pos.CurrentQty),
-		ContractSize:                 decimal.NewFromFloat(contractSize),
-		ContractMultiplier:           decimal.NewFromFloat(multiplier),
+		AvailableEquity:              decimal.MustFromFloat(ao.AccountEquity),
+		MarginBalance:                decimal.MustFromFloat(ao.MarginBalance),
+		NotionalSize:                 decimal.MustFromFloat(pos.MarkValue),
+		Leverage:                     decimal.MustFromFloat(pos.RealLeverage),
+		MaintenanceMarginRequirement: decimal.MustFromFloat(pos.MaintMarginReq),
+		InitialMarginRequirement:     decimal.MustFromFloat(pos.PosInit),
+		EstimatedLiquidationPrice:    decimal.MustFromFloat(pos.LiquidationPrice),
+		CollateralUsed:               decimal.MustFromFloat(pos.PosCost),
+		MarkPrice:                    decimal.MustFromFloat(pos.MarkPrice),
+		CurrentSize:                  decimal.MustFromFloat(pos.CurrentQty),
+		ContractSize:                 decimal.MustFromFloat(contractSize),
+		ContractMultiplier:           decimal.MustFromFloat(multiplier),
 		ContractSettlementType:       settlementType,
-		AverageOpenPrice:             decimal.NewFromFloat(pos.AvgEntryPrice),
-		UnrealisedPNL:                decimal.NewFromFloat(pos.UnrealisedPnl),
-		RealisedPNL:                  decimal.NewFromFloat(pos.RealisedPnl),
-		MaintenanceMarginFraction:    decimal.NewFromFloat(pos.MaintMarginReq),
-		FreeCollateral:               decimal.NewFromFloat(ao.AvailableBalance),
-		TotalCollateral:              decimal.NewFromFloat(ao.AccountEquity),
-		FrozenBalance:                decimal.NewFromFloat(ao.FrozenFunds),
+		AverageOpenPrice:             decimal.MustFromFloat(pos.AvgEntryPrice),
+		UnrealisedPNL:                decimal.MustFromFloat(pos.UnrealisedPnl),
+		RealisedPNL:                  decimal.MustFromFloat(pos.RealisedPnl),
+		MaintenanceMarginFraction:    decimal.MustFromFloat(pos.MaintMarginReq),
+		FreeCollateral:               decimal.MustFromFloat(ao.AvailableBalance),
+		TotalCollateral:              decimal.MustFromFloat(ao.AccountEquity),
+		FrozenBalance:                decimal.MustFromFloat(ao.FrozenFunds),
 	}, nil
 }
 

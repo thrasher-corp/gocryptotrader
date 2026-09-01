@@ -15,10 +15,6 @@ var _ *Decimal = (*shopspring.Decimal)(nil)
 
 func TestShopspringCompatibility(t *testing.T) {
 	t.Parallel()
-	shopspringValue := shopspring.NewFromInt(42)
-	facadeValue := shopspringValue
-	roundTrip := facadeValue
-	assert.Equal(t, shopspringValue, roundTrip, "Decimal should preserve shopspring type identity")
 	assert.Equal(t, shopspring.Zero, Zero, "Zero should preserve the shopspring value")
 	assert.Equal(t, "shopspring/decimal", Implementation, "Implementation should identify shopspring")
 }
@@ -33,12 +29,13 @@ func TestNewFromInt32(t *testing.T) {
 	assert.Equal(t, shopspring.NewFromInt32(42), NewFromInt32(42), "NewFromInt32 should delegate to shopspring")
 }
 
-func TestNewFromFloat(t *testing.T) {
+func TestMustFromFloat(t *testing.T) {
 	t.Parallel()
 	for _, value := range []float64{1.25, 1e-300, 1e200, math.SmallestNonzeroFloat64, math.MaxFloat64} {
-		assert.Equal(t, shopspring.NewFromFloat(value), NewFromFloat(value),
-			"NewFromFloat should delegate finite values to shopspring")
+		assert.Equal(t, shopspring.NewFromFloat(value), MustFromFloat(value),
+			"MustFromFloat should preserve shopspring's finite conversion")
 	}
+	assert.Panics(t, func() { MustFromFloat(math.Inf(1)) }, "MustFromFloat should panic for infinity")
 }
 
 func TestNewFromString(t *testing.T) {
@@ -50,9 +47,9 @@ func TestNewFromString(t *testing.T) {
 	assert.Error(t, err, "NewFromString should return the shopspring parse error")
 }
 
-func TestRequireFromString(t *testing.T) {
+func TestMustFromString(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, shopspring.RequireFromString("1.25"), RequireFromString("1.25"),
-		"RequireFromString should delegate to shopspring")
-	assert.Panics(t, func() { RequireFromString("invalid") }, "RequireFromString should panic for invalid input")
+	assert.Equal(t, shopspring.RequireFromString("1.25"), MustFromString("1.25"),
+		"MustFromString should preserve shopspring parsing")
+	assert.Panics(t, func() { MustFromString("invalid") }, "MustFromString should panic for invalid input")
 }

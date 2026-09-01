@@ -3,6 +3,7 @@
 package decimal
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -14,13 +15,21 @@ import (
 // Implementation identifies the selected decimal backend.
 const Implementation = "quagmt/udecimal"
 
-const maxPrecision = 19
+const (
+	maxPrecision    = 19
+	maxStringDigits = 200
+)
 
-// mustParseUdecimal reconstructs values beyond udecimal's 200-character parser
-// limit because arithmetic can produce larger values that must still round-trip.
-func mustParseUdecimal(value string) udecimal.Decimal {
+var (
+	errInvalidDecimal      = errors.New("invalid decimal")
+	errPrecisionOutOfRange = errors.New("decimal precision out of range")
+)
+
+// parseUdecimal reconstructs values beyond udecimal's 200-character parser
+// limit because internal arithmetic can produce larger values.
+func parseUdecimal(value string) (udecimal.Decimal, error) {
 	if len(value) <= maxStringDigits {
-		return udecimal.MustParse(value)
+		return udecimal.Parse(value)
 	}
 	negative := strings.HasPrefix(value, "-")
 	value = strings.TrimPrefix(value, "-")
@@ -33,47 +42,56 @@ func mustParseUdecimal(value string) udecimal.Decimal {
 	result := udecimal.Zero
 	for value != "" {
 		chunkLength := min(len(value), maxStringDigits)
-		result = result.Mul(powerOfTenUdecimal(chunkLength)).Add(udecimal.MustParse(value[:chunkLength]))
+		chunk, err := udecimal.Parse(value[:chunkLength])
+		if err != nil {
+			return udecimal.Decimal{}, err
+		}
+		result = result.Mul(powerOfTenUdecimal(chunkLength)).Add(chunk)
 		value = value[chunkLength:]
 	}
 	if fractionalDigits > 0 {
 		result = result.MustDiv(powerOfTenUdecimal(fractionalDigits))
 	}
 	if negative {
-		return result.Neg()
+		return result.Neg(), nil
 	}
-	return result
+	return result, nil
 }
 
-// newFromFloatUdecimal accepts every finite float64 because udecimal's native
+// newUdecimalFromFloat accepts every finite float64 because udecimal's native
 // constructor uses fixed notation and rejects large finite values over its
 // parser length limit.
-func newFromFloatUdecimal(value float64) udecimal.Decimal {
+func newUdecimalFromFloat(value float64) (udecimal.Decimal, error) {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
-		panic(fmt.Errorf("%w: non-finite float %v", ErrInvalidDecimal, value))
+		return udecimal.Decimal{}, fmt.Errorf("%w: non-finite float %v", errInvalidDecimal, value)
 	}
 	formatted := strconv.FormatFloat(value, 'g', -1, 64)
 	exponentIndex := strings.IndexAny(formatted, "eE")
 	if exponentIndex < 0 {
 		normalised, err := normalise(formatted, true)
 		if err != nil {
-			panic(err)
+			return udecimal.Decimal{}, err
 		}
-		return mustParseUdecimal(normalised)
+		return parseUdecimal(normalised)
 	}
+	// FormatFloat guarantees a valid base-10 exponent after e or E.
 	exponent, _ := strconv.Atoi(formatted[exponentIndex+1:])
 	if exponent < 0 {
 		normalised, err := normalise(formatted, true)
 		if err != nil {
-			panic(err)
+			return udecimal.Decimal{}, err
 		}
-		return mustParseUdecimal(normalised)
+		return parseUdecimal(normalised)
 	}
 	mantissa, err := normalise(formatted[:exponentIndex], true)
 	if err != nil {
-		panic(err)
+		return udecimal.Decimal{}, err
 	}
-	return mustParseUdecimal(mantissa).Mul(powerOfTenUdecimal(exponent))
+	result, err := parseUdecimal(mantissa)
+	if err != nil {
+		return udecimal.Decimal{}, err
+	}
+	return result.Mul(powerOfTenUdecimal(exponent)), nil
 }
 
 // powerOfTenUdecimal builds large powers in parser-sized chunks because
@@ -98,7 +116,7 @@ func normaliseUdecimalPrecision(digits string, scale int64, truncate bool, origi
 		return digits, scale, nil
 	}
 	if !truncate {
-		return "", 0, fmt.Errorf("%w: %q requires %d fractional digits", ErrPrecisionOutOfRange, original, scale)
+		return "", 0, fmt.Errorf("%w: %q requires %d fractional digits", errPrecisionOutOfRange, original, scale)
 	}
 	excess := int(scale - maxPrecision)
 	if excess >= len(digits) {
@@ -117,7 +135,7 @@ func normaliseUdecimalPrecision(digits string, scale int64, truncate bool, origi
 // silently truncates them, which would make the existing Pow API misleading.
 func powUdecimal(value, exponent udecimal.Decimal) (udecimal.Decimal, error) {
 	if !exponent.Trunc(0).Equal(exponent) {
-		return udecimal.Decimal{}, ErrInvalidDecimal
+		return udecimal.Decimal{}, fmt.Errorf("%w: fractional exponent %s", errInvalidDecimal, exponent)
 	}
 	if value.IsZero() {
 		return udecimal.Decimal{}, nil
@@ -137,8 +155,90 @@ func roundUdecimal(value udecimal.Decimal, places int32) udecimal.Decimal {
 
 	zeroes := -int64(places)
 	if zeroes >= maxStringDigits {
-		panic(fmt.Errorf("%w: rounding precision %d", ErrPrecisionOutOfRange, places))
+		panic(fmt.Errorf("%w: rounding precision %d", errPrecisionOutOfRange, places))
 	}
 	scale := udecimal.MustParse("1" + strings.Repeat("0", int(zeroes)))
 	return value.MustDiv(scale).RoundHAZ(0).Mul(scale)
+}
+
+// normalise expands scientific notation because udecimal.Parse does not
+// support it, then enforces udecimal's precision and parser limits.
+func normalise(value string, truncate bool) (string, error) {
+	if value == "" {
+		return "", fmt.Errorf("%w: empty input", errInvalidDecimal)
+	}
+
+	mantissa := value
+	var exponent int64
+	if exponentIndex := strings.IndexAny(value, "eE"); exponentIndex >= 0 {
+		var err error
+		exponent, err = strconv.ParseInt(value[exponentIndex+1:], 10, 32)
+		if err != nil {
+			return "", fmt.Errorf("%w: invalid exponent in %q", errInvalidDecimal, value)
+		}
+		mantissa = value[:exponentIndex]
+	}
+
+	negative := false
+	if mantissa != "" && (mantissa[0] == '-' || mantissa[0] == '+') {
+		negative = mantissa[0] == '-'
+		mantissa = mantissa[1:]
+	}
+	if mantissa == "" {
+		return "", fmt.Errorf("%w: invalid input %q", errInvalidDecimal, value)
+	}
+
+	decimalPoint := strings.IndexByte(mantissa, '.')
+	if decimalPoint != strings.LastIndexByte(mantissa, '.') {
+		return "", fmt.Errorf("%w: invalid input %q", errInvalidDecimal, value)
+	}
+	integerPart, fractionalPart := mantissa, ""
+	if decimalPoint >= 0 {
+		integerPart = mantissa[:decimalPoint]
+		fractionalPart = mantissa[decimalPoint+1:]
+	}
+	if integerPart == "" && fractionalPart == "" {
+		return "", fmt.Errorf("%w: invalid input %q", errInvalidDecimal, value)
+	}
+	digits := integerPart + fractionalPart
+	for _, digit := range digits {
+		if digit < '0' || digit > '9' {
+			return "", fmt.Errorf("%w: invalid input %q", errInvalidDecimal, value)
+		}
+	}
+
+	digits = strings.TrimLeft(digits, "0")
+	scale := int64(len(fractionalPart)) - exponent
+	for scale > 0 && strings.HasSuffix(digits, "0") {
+		digits = strings.TrimSuffix(digits, "0")
+		scale--
+	}
+	digits, scale, err := normaliseUdecimalPrecision(digits, scale, truncate, value)
+	if err != nil {
+		return "", err
+	}
+	if digits == "0" {
+		return digits, nil
+	}
+	if scale < 0 {
+		if int64(len(digits))-scale > maxStringDigits {
+			return "", fmt.Errorf("%w: input exceeds %d digits", errInvalidDecimal, maxStringDigits)
+		}
+		digits += strings.Repeat("0", int(-scale))
+		scale = 0
+	}
+	if int64(len(digits)) <= scale {
+		digits = strings.Repeat("0", int(scale)-len(digits)+1) + digits
+	}
+	if digitCount := len(digits); digitCount > maxStringDigits {
+		return "", fmt.Errorf("%w: input exceeds %d digits", errInvalidDecimal, maxStringDigits)
+	}
+	if scale > 0 {
+		decimalIndex := len(digits) - int(scale)
+		digits = digits[:decimalIndex] + "." + digits[decimalIndex:]
+	}
+	if negative {
+		digits = "-" + digits
+	}
+	return digits, nil
 }

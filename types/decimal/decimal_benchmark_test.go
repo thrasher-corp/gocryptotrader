@@ -20,10 +20,10 @@ func BenchmarkNewFromInt(b *testing.B) {
 	}
 }
 
-func BenchmarkNewFromFloat(b *testing.B) {
+func BenchmarkMustFromFloat(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		benchmarkDecimalSink = NewFromFloat(12345.6789012345)
+		benchmarkDecimalSink = MustFromFloat(12345.6789012345)
 	}
 }
 
@@ -37,8 +37,8 @@ func BenchmarkNewFromString(b *testing.B) {
 }
 
 func BenchmarkDecimalAdd(b *testing.B) {
-	left := RequireFromString("12345.6789012345")
-	right := RequireFromString("98765.4321098765")
+	left := MustFromString("12345.6789012345")
+	right := MustFromString("98765.4321098765")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -47,8 +47,8 @@ func BenchmarkDecimalAdd(b *testing.B) {
 }
 
 func BenchmarkDecimalMul(b *testing.B) {
-	left := RequireFromString("12345.6789012345")
-	right := RequireFromString("1.000123456789")
+	left := MustFromString("12345.6789012345")
+	right := MustFromString("1.000123456789")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -57,8 +57,8 @@ func BenchmarkDecimalMul(b *testing.B) {
 }
 
 func BenchmarkDecimalDiv(b *testing.B) {
-	left := RequireFromString("12345.6789012345")
-	right := RequireFromString("1.000123456789")
+	left := MustFromString("12345.6789012345")
+	right := MustFromString("1.000123456789")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -67,8 +67,8 @@ func BenchmarkDecimalDiv(b *testing.B) {
 }
 
 func BenchmarkDecimalEqual(b *testing.B) {
-	left := RequireFromString("12345.6789012345")
-	right := RequireFromString("12345.6789012345")
+	left := MustFromString("12345.6789012345")
+	right := MustFromString("12345.6789012345")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -77,7 +77,7 @@ func BenchmarkDecimalEqual(b *testing.B) {
 }
 
 func BenchmarkDecimalString(b *testing.B) {
-	value := RequireFromString("12345.6789012345")
+	value := MustFromString("12345.6789012345")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -86,7 +86,7 @@ func BenchmarkDecimalString(b *testing.B) {
 }
 
 func BenchmarkDecimalFloat64(b *testing.B) {
-	value := RequireFromString("12345.6789012345")
+	value := MustFromString("12345.6789012345")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {

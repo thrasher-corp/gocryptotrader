@@ -1645,13 +1645,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Asset:    r.Asset,
 			Pair:     t.Tickers[i].Symbol,
 			LatestRate: fundingrate.Rate{
-				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
+				Rate: decimal.MustFromFloat(t.Tickers[i].FundingRate),
 			},
 			TimeChecked: time.Now(),
 		}
 		if r.IncludePredictedRate {
 			rate.PredictedUpcomingRate = fundingrate.Rate{
-				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRatePrediction),
+				Rate: decimal.MustFromFloat(t.Tickers[i].FundingRatePrediction),
 			}
 		}
 		resp = append(resp, rate)

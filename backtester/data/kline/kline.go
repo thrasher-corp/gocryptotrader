@@ -63,11 +63,11 @@ func (d *DataFromKline) Load() error {
 				AssetType:      d.Item.Asset,
 				UnderlyingPair: d.Item.UnderlyingPair,
 			},
-			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
-			High:             decimal.NewFromFloat(d.Item.Candles[i].High),
-			Low:              decimal.NewFromFloat(d.Item.Candles[i].Low),
-			Close:            decimal.NewFromFloat(d.Item.Candles[i].Close),
-			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
+			Open:             decimal.MustFromFloat(d.Item.Candles[i].Open),
+			High:             decimal.MustFromFloat(d.Item.Candles[i].High),
+			Low:              decimal.MustFromFloat(d.Item.Candles[i].Low),
+			Close:            decimal.MustFromFloat(d.Item.Candles[i].Close),
+			Volume:           decimal.MustFromFloat(d.Item.Candles[i].Volume),
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		klineData[i] = newKline
@@ -114,11 +114,11 @@ candleLoop:
 				UnderlyingPair: d.Item.UnderlyingPair,
 				Time:           gctCandles[i].Time.UTC(),
 			},
-			Open:   decimal.NewFromFloat(gctCandles[i].Open),
-			High:   decimal.NewFromFloat(gctCandles[i].High),
-			Low:    decimal.NewFromFloat(gctCandles[i].Low),
-			Close:  decimal.NewFromFloat(gctCandles[i].Close),
-			Volume: decimal.NewFromFloat(gctCandles[i].Volume),
+			Open:   decimal.MustFromFloat(gctCandles[i].Open),
+			High:   decimal.MustFromFloat(gctCandles[i].High),
+			Low:    decimal.MustFromFloat(gctCandles[i].Low),
+			Close:  decimal.MustFromFloat(gctCandles[i].Close),
+			Volume: decimal.MustFromFloat(gctCandles[i].Volume),
 		}
 		klineData[i] = newKline
 	}

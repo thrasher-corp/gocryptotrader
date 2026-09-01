@@ -4782,8 +4782,8 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 
 	calculators := make([]futures.CollateralCalculator, 0, len(currBalances))
 	for curr, balance := range currBalances {
-		total := decimal.NewFromFloat(balance.Total)
-		free := decimal.NewFromFloat(balance.AvailableWithoutBorrow)
+		total := decimal.MustFromFloat(balance.Total)
+		free := decimal.MustFromFloat(balance.AvailableWithoutBorrow)
 		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: curr,
@@ -4805,7 +4805,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if tick.Last == 0 {
 				continue
 			}
-			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+			cal.USDPrice = decimal.MustFromFloat(tick.Last)
 		}
 		calculators = append(calculators, cal)
 	}

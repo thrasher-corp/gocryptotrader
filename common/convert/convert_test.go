@@ -106,9 +106,9 @@ func TestDecimalToHumanFriendlyString(t *testing.T) {
 	assert.Equal(t, "100", DecimalToHumanFriendlyString(decimal.NewFromInt(100), 0, ".", ","))
 	assert.Equal(t, "1,000", DecimalToHumanFriendlyString(decimal.NewFromInt(1000), 0, ".", ","))
 	assert.Equal(t, "-1,000", DecimalToHumanFriendlyString(decimal.NewFromInt(-1000), 0, ".", ","))
-	assert.Equal(t, "-1~000!42", DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.42069), 2, "!", "~"))
-	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.42069), 5, ".", ","))
-	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.42069), 100, ".", ","))
+	assert.Equal(t, "-1~000!42", DecimalToHumanFriendlyString(decimal.MustFromFloat(-1000.42069), 2, "!", "~"))
+	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.MustFromFloat(1000.42069), 5, ".", ","))
+	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.MustFromFloat(1000.42069), 100, ".", ","))
 }
 
 func TestIntToHumanFriendlyString(t *testing.T) {

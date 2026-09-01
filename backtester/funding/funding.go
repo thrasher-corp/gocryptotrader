@@ -805,7 +805,7 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 	}
 
 	exchName = strings.ToLower(exchName)
-	amount := decimal.NewFromFloat(balance.Total)
+	amount := decimal.MustFromFloat(balance.Total)
 	for i := range f.items {
 		if f.items[i].asset.IsFutures() {
 			continue

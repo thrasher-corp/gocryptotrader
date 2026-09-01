@@ -86,9 +86,9 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 		h.scaleValuesToCurrentPrice(e.GetClosePrice())
 		return nil
 	}
-	amount := decimal.NewFromFloat(o.Amount)
-	fee := decimal.NewFromFloat(o.Fee)
-	price := decimal.NewFromFloat(o.Price)
+	amount := decimal.MustFromFloat(o.Amount)
+	fee := decimal.MustFromFloat(o.Fee)
+	price := decimal.MustFromFloat(o.Price)
 	a := e.GetAssetType()
 	switch {
 	case a == asset.Spot:

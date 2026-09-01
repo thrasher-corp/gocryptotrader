@@ -234,7 +234,7 @@ func TestGenerateReport(t *testing.T) {
 				TotalUSDStatistics: &statistics.TotalFundingStatistics{},
 			},
 			StrategyName: "testStrat",
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 			ExchangeAssetPairStatistics: map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic{
 				{
 					Base:     p.Base.Item,

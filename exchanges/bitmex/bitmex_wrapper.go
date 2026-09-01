@@ -1029,7 +1029,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Multiplier:         marketInfo[x].Multiplier,
 				LatestRate: fundingrate.Rate{
 					Time: marketInfo[x].FundingTimestamp,
-					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
+					Rate: decimal.MustFromFloat(marketInfo[x].FundingRate),
 				},
 			})
 		}
@@ -1173,7 +1173,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:     cp,
 			LatestRate: fundingrate.Rate{
 				Time: rates[i].Timestamp,
-				Rate: decimal.NewFromFloat(rates[i].FundingRate),
+				Rate: decimal.MustFromFloat(rates[i].FundingRate),
 			},
 			TimeOfNextRate: rates[i].Timestamp.Add(time.Duration(nr.Hour()) * time.Hour),
 			TimeChecked:    time.Now(),
