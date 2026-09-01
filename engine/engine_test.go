@@ -464,6 +464,41 @@ func TestValidateAPICredentials(t *testing.T) {
 		return errDeliveryAccountMissing
 	})
 	require.ErrorIs(t, err, errDeliveryAccountMissing, "validation must return an error when every enabled account fails")
+
+	var seen asset.Items
+	err = validateAPICredentials(t.Context(), asset.Items{
+		asset.Options,
+		asset.USDTMarginedFutures,
+		asset.Margin,
+		asset.Spot,
+		asset.DeliveryFutures,
+		asset.Index,
+	}, func(_ context.Context, a asset.Item) error {
+		seen = append(seen, a)
+		return errDeliveryAccountMissing
+	})
+	require.ErrorIs(t, err, errDeliveryAccountMissing, "mixed asset validation must return the aggregated error")
+	assert.Equal(t, asset.Items{
+		asset.Spot,
+		asset.USDTMarginedFutures,
+		asset.DeliveryFutures,
+		asset.Options,
+		asset.Margin,
+		asset.Index,
+	}, seen, "assets should be tried spot first, then futures, then the rest")
+
+	for _, assetIndependentErr := range []error{
+		exchange.ErrCredentialsAreEmpty,
+		exchange.ErrAuthenticationSupportNotEnabled,
+	} {
+		validated = nil
+		err = validateAPICredentials(t.Context(), asset.Items{asset.Spot, asset.USDTMarginedFutures}, func(_ context.Context, a asset.Item) error {
+			validated = append(validated, a)
+			return assetIndependentErr
+		})
+		require.ErrorIs(t, err, assetIndependentErr, "asset-independent credential failure must be returned")
+		assert.Equal(t, asset.Items{asset.Spot}, validated, "asset-independent credential failure should stop further validation")
+	}
 }
 
 func TestFlagSetWith(t *testing.T) {
