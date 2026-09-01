@@ -1160,9 +1160,9 @@ func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
 
 	assert.Equal(t, 10.0, od.Amount)
 	assert.Equal(t, 4.0, od.ExecutedAmount)
-	assert.Equal(t, 6.0, od.RemainingAmount, "RemainingAmount must equal the authoritative remaining, not be reduced by trade amounts")
-	assert.Equal(t, od.Amount, od.ExecutedAmount+od.RemainingAmount, "ExecutedAmount + RemainingAmount must equal Amount")
-	assert.Equal(t, 6.0, om.RemainingAmount, "incoming detail must not be mutated")
+	assert.Equal(t, 6.0, od.RemainingAmount, "RemainingAmount is the authoritative remaining, not reduced by trade amounts")
+	assert.Equal(t, od.Amount, od.ExecutedAmount+od.RemainingAmount, "ExecutedAmount + RemainingAmount equals Amount")
+	assert.Equal(t, 6.0, om.RemainingAmount, "incoming detail is not mutated")
 }
 
 func TestClassificationError_Error(t *testing.T) {
