@@ -662,7 +662,6 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 }
 
 func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
-	fmt.Printf("processFuturesOrdersPushData: %s\n", string(data))
 	resp := struct {
 		Time    types.Time     `json:"time"`
 		Channel string         `json:"channel"`
@@ -708,7 +707,6 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 }
 
 func (e *Exchange) processFuturesUserTrades(data []byte, assetType asset.Item) error {
-	fmt.Printf("processFuturesUserTrades: %s\n", string(data))
 	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
@@ -770,7 +768,6 @@ func (e *Exchange) processFuturesAutoDeleveragesNotification(ctx context.Context
 // processPositionCloseData emits zero-size canonical futures positions while
 // preserving the established raw payload for options consumers.
 func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a asset.Item) error {
-	fmt.Printf("processPositionCloseData: %s\n", string(data))
 	resp := struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
@@ -829,7 +826,6 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
-	fmt.Printf("processBalancePushData: %s\n", string(data))
 	var resp []*WsBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -877,7 +873,6 @@ func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context
 // processFuturesPositionsNotification emits canonical positions with Gate's
 // signed contract size represented as absolute size plus direction.
 func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte, a asset.Item) error {
-	fmt.Printf("processFuturesPositionsNotification: %s\n", string(data))
 	resp := struct {
 		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
