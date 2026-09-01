@@ -2578,7 +2578,9 @@ func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p
 	if err != nil {
 		return 0, err
 	}
-	stats, err := e.GetFutureStats(ctx, settle, p, time.Time{}, 0, 1)
+	// Uses a limit of 2 because this endpoint has intermittently been observed
+	// returning 0 rows with a limit of 1; it is not consistently reproducible.
+	stats, err := e.GetFutureStats(ctx, settle, p, time.Time{}, 0, 2)
 	if err != nil {
 		return 0, err
 	}
