@@ -13,7 +13,6 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -317,21 +316,23 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+	subAcct := accounts.NewSubAccount(asset.Spot, "")
 	for x := range result.Data {
 		for y := range result.Data[x].Coin {
-			subAccts[0].Balances.Set(result.Data[x].Coin[y].Coin, accounts.Balance{
-				Total:                  result.Data[x].Coin[y].WalletBalance.Float64(),
-				Free:                   result.Data[x].Coin[y].WalletBalance.Float64(),
-				AvailableWithoutBorrow: result.Data[x].Coin[y].AvailableToWithdraw.Float64(),
-				UpdatedAt:              result.CreationTime.Time(),
+			coin := result.Data[x].Coin[y]
+			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, coin.Coin, func(balance *accounts.Balance) {
+				balance.Total = coin.WalletBalance.Float64()
+				// Unified wallet pushes cannot refresh spendable funds because availableToWithdraw
+				// is deprecated; preserve the REST-derived Free, Hold, and Borrowed values.
+				balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
 			})
+			if err != nil {
+				return err
+			}
+			subAcct.Balances.Set(coin.Coin, balance)
 		}
 	}
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
-		return err
-	}
-	return e.Websocket.DataHandler.Send(ctx, subAccts)
+	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
@@ -445,10 +446,6 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 		if err != nil {
 			return err
 		}
-		openingDate := result[i].OpenTime.Time()
-		if openingDate.IsZero() {
-			openingDate = result[i].CreatedTime.Time()
-		}
 		status := order.Closed
 		if !isSizeZero {
 			status = order.Open
@@ -467,11 +464,10 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 		// Bybit defines positionIM as the position's initial margin, so both canonical fields share the source value.
 		initialMarginRequirement := positionMargin
 		maintenanceMarginRequirement := result[i].PositionMM.Decimal()
-		var maintenanceMarginFraction decimal.Decimal
 		notionalSize := result[i].PositionValue.Decimal()
-		if !notionalSize.IsZero() {
-			maintenanceMarginFraction = maintenanceMarginRequirement.Div(notionalSize)
-		}
+		// positionMM includes estimated closing fees, so dividing it by positionValue does not
+		// recover the tier rate. MaintenanceMarginFraction requires the matching riskId tier from
+		// Bybit's /v5/market/risk-limit endpoint and remains unset until that data is available here.
 		positions[i] = futures.Position{
 			Exchange:                     e.Name,
 			Asset:                        a,
@@ -483,13 +479,12 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			PositionMargin:               positionMargin,
 			InitialMarginRequirement:     initialMarginRequirement,
 			MaintenanceMarginRequirement: maintenanceMarginRequirement,
-			MaintenanceMarginFraction:    maintenanceMarginFraction,
 			EstimatedLiquidationPrice:    result[i].LiqPrice.Decimal(),
 			UpdateID:                     result[i].Sequence,
 			RealisedPNL:                  result[i].CurrentRealisedPNL.Decimal(),
 			UnrealisedPNL:                result[i].UnrealisedPnl.Decimal(),
 			Status:                       status,
-			OpeningDate:                  openingDate,
+			OpeningDate:                  result[i].OpenTime.Time(),
 			OpeningPrice:                 result[i].EntryPrice.Decimal(),
 			OpeningDirection:             direction,
 			LatestPrice:                  result[i].MarkPrice.Decimal(),

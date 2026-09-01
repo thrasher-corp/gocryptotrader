@@ -103,6 +103,10 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
 // TODO: Update to use the new subscription template system
 func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a asset.Item) (subscription.List, error) {
+	if a != asset.USDTMarginedFutures && a != asset.CoinMarginedFutures {
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
+
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if a == asset.CoinMarginedFutures {
 		channelsToSubscribe = defaultCoinMarginedFuturesSubscriptions
@@ -123,26 +127,33 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 	var userID string
 	var subscriptionErr error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		if _, err := e.GetCredentials(ctx); err != nil {
+		creds, err := e.GetCredentials(ctx)
+		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		} else {
-			// TODO: Cache the user ID to avoid querying the account repeatedly
 			settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 			if err != nil {
 				return nil, err
 			}
 			account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s: error querying futures account: %v", e.Name, err)
-				subscriptionErr = fmt.Errorf("%w: unable to query futures account user ID: %w", websocket.ErrSubscriptionPartial, err)
-			}
-			if account == nil || account.User == 0 {
-				userID = invalidUserID
-				if subscriptionErr == nil {
-					subscriptionErr = fmt.Errorf("%w: futures account user ID missing", websocket.ErrSubscriptionPartial)
-				}
-			} else {
+			switch {
+			case err == nil && account != nil && account.User != 0:
 				userID = strconv.FormatInt(account.User, 10)
+				e.setFuturesUserID(creds.Key, settlementCurrency, userID)
+			default:
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s: error querying futures account: %v", e.Name, err)
+				}
+				// Reuse the last known ID so a transient failure does not drop authenticated
+				// channels, which a later refresh would otherwise unsubscribe.
+				if userID = e.getFuturesUserID(creds.Key, settlementCurrency); userID == "" {
+					userID = invalidUserID
+					if err != nil {
+						subscriptionErr = fmt.Errorf("%w: unable to query futures account user ID: %w", websocket.ErrSubscriptionPartial, err)
+					} else {
+						subscriptionErr = fmt.Errorf("%w: futures account user ID missing", websocket.ErrSubscriptionPartial)
+					}
+				}
 			}
 		}
 	}
@@ -222,6 +233,27 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 	return subscriptions, subscriptionErr
 }
 
+// futuresUserIDKey scopes a cached account ID to one credential and settlement account;
+// Gate treats each settlement currency as a separate futures account.
+func futuresUserIDKey(credentialKey string, settlementCurrency currency.Code) string {
+	return credentialKey + "/" + settlementCurrency.Upper().String()
+}
+
+func (e *Exchange) setFuturesUserID(credentialKey string, settlementCurrency currency.Code, userID string) {
+	e.futuresUserIDMu.Lock()
+	defer e.futuresUserIDMu.Unlock()
+	if e.futuresUserIDs == nil {
+		e.futuresUserIDs = make(map[string]string)
+	}
+	e.futuresUserIDs[futuresUserIDKey(credentialKey, settlementCurrency)] = userID
+}
+
+func (e *Exchange) getFuturesUserID(credentialKey string, settlementCurrency currency.Code) string {
+	e.futuresUserIDMu.RLock()
+	defer e.futuresUserIDMu.RUnlock()
+	return e.futuresUserIDs[futuresUserIDKey(credentialKey, settlementCurrency)]
+}
+
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, e.generateFuturesPayload)
@@ -269,7 +301,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		}
 		return e.Websocket.DataHandler.Send(ctx, processed)
 	case futuresUserTradesChannel:
-		return e.procesFuturesUserTrades(respRaw, a)
+		return e.processFuturesUserTrades(respRaw, a)
 	case futuresLiquidatesChannel:
 		return e.processFuturesLiquidatesNotification(ctx, respRaw)
 	case futuresAutoDeleveragesChannel:
@@ -630,6 +662,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 }
 
 func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
+	fmt.Printf("processFuturesOrdersPushData: %s\n", string(data))
 	resp := struct {
 		Time    types.Time     `json:"time"`
 		Channel string         `json:"channel"`
@@ -674,7 +707,8 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 	return orderDetails, nil
 }
 
-func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
+func (e *Exchange) processFuturesUserTrades(data []byte, assetType asset.Item) error {
+	fmt.Printf("processFuturesUserTrades: %s\n", string(data))
 	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
@@ -736,6 +770,7 @@ func (e *Exchange) processFuturesAutoDeleveragesNotification(ctx context.Context
 // processPositionCloseData emits zero-size canonical futures positions while
 // preserving the established raw payload for options consumers.
 func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a asset.Item) error {
+	fmt.Printf("processPositionCloseData: %s\n", string(data))
 	resp := struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
@@ -794,6 +829,7 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
+	fmt.Printf("processBalancePushData: %s\n", string(data))
 	var resp []*WsBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -812,10 +848,7 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 		}
 		balance, err := e.Accounts.UpdateBalance(ctx, "", assetType, c, func(balance *accounts.Balance) {
 			balance.Total = bal.Balance.Float64()
-			if balance.Hold > balance.Total {
-				balance.Hold = balance.Total
-			}
-			balance.Free = balance.Total - balance.Hold
+			balance.Free = max(balance.Total-balance.Hold, 0)
 			balance.AvailableWithoutBorrow = balance.Free
 			balance.UpdatedAt = time.Time{}
 		})
@@ -844,6 +877,7 @@ func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context
 // processFuturesPositionsNotification emits canonical positions with Gate's
 // signed contract size represented as absolute size plus direction.
 func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte, a asset.Item) error {
+	fmt.Printf("processFuturesPositionsNotification: %s\n", string(data))
 	resp := struct {
 		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
@@ -878,8 +912,12 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 			return err
 		}
 		leverage := resp.Result[i].Leverage.Decimal()
-		if resp.Result[i].PositionMarginMode != "" {
+		switch {
+		case resp.Result[i].PositionMarginMode != "":
 			leverage = resp.Result[i].PositionLeverage.Decimal()
+		case leverage.IsZero():
+			// Gate reports classic cross margin as leverage zero and carries its multiplier separately.
+			leverage = resp.Result[i].CrossLeverageLimit.Decimal()
 		}
 		status := order.Closed
 		if !size.IsZero() {

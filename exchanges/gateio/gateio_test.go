@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2600,6 +2601,20 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.023554)), "position liquidation price should be correct")
 	assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(0.079661896)), "position realised PNL should be correct")
 
+	classicCrossPayload := []byte(strings.NewReplacer(
+		`"leverage":1`, `"leverage":0`,
+		`"pos_margin_mode":"isolated"`, `"pos_margin_mode":""`,
+		`"lever":"1"`, `"lever":"0"`,
+	).Replace(string(payload)))
+	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), classicCrossPayload, asset.USDTMarginedFutures),
+		"processFuturesPositionsNotification must process classic cross margin")
+	message = <-e.Websocket.DataHandler.C
+	positions, ok = message.Data.([]futures.Position)
+	require.True(t, ok, "classic cross-margin payload must emit canonical futures positions")
+	require.Len(t, positions, 1, "classic cross-margin payload must emit one position")
+	assert.Equal(t, "40", positions[0].Leverage.String(),
+		"classic cross-margin leverage should use the cross leverage limit")
+
 	closedPayload := []byte(strings.Replace(string(payload), `"size":"-55"`, `"size":"0"`, 1))
 	require.NoError(t, e.processFuturesPositionsNotification(t.Context(), closedPayload, asset.USDTMarginedFutures),
 		"processFuturesPositionsNotification must process a zero-size update")
@@ -3040,6 +3055,8 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	_, err := e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "Options must not use the perpetual futures subscription generator")
 	subs, err := e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
@@ -3210,6 +3227,64 @@ func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
 		}
 		assert.Falsef(t, generated, "%s should be skipped without a valid user ID", channel)
 	}
+}
+
+func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	var failLookup atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if failLookup.Load() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, err := w.Write([]byte(`{"user":20011}`))
+		assert.NoError(t, err, "Mock futures account response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	_, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "Initial account lookup must populate the futures user ID cache")
+	failLookup.Store(true)
+	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "Transient lookup failure must reuse the matching cached user ID")
+	privateChannels := map[string]bool{
+		futuresOrdersChannel:            false,
+		futuresUserTradesChannel:        false,
+		futuresLiquidatesChannel:        false,
+		futuresAutoDeleveragesChannel:   false,
+		futuresAutoPositionCloseChannel: false,
+		futuresBalancesChannel:          false,
+		futuresReduceRiskLimitsChannel:  false,
+		futuresPositionsChannel:         false,
+		futuresAutoOrdersChannel:        false,
+	}
+	for _, sub := range subs {
+		if _, ok := privateChannels[sub.Channel]; ok {
+			privateChannels[sub.Channel] = true
+		}
+	}
+	for channel, generated := range privateChannels {
+		assert.Truef(t, generated, "%s should remain generated after a transient account lookup failure", channel)
+	}
+
+	_, err = ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
+	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial,
+		"A user ID cached for another settlement account must not suppress a lookup failure")
+	ex.SetCredentials(&accounts.Credentials{Key: "rotated-key", Secret: "secret"})
+	_, err = ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
+	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial,
+		"A user ID cached for another API key must not suppress a lookup failure")
 }
 
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {

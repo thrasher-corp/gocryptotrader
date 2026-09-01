@@ -256,13 +256,23 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 		"Accounts.Save must seed a stale held margin")
 	require.NoError(t, ex.processBalancePushData(ctx,
 		[]byte(`[{"balance":1000.5,"time":1788148806,"time_ms":1788148806000,"user":"12870774","currency":"usdt"}]`),
-		asset.USDTMarginedFutures), "processBalancePushData must clamp stale held margin")
+		asset.USDTMarginedFutures), "processBalancePushData must floor free funds during a drawdown")
 	message := <-ex.Websocket.DataHandler.C
 	changes, ok := message.Data.(accounts.SubAccounts)
 	require.True(t, ok, "captured balance payload must emit subaccount changes")
-	clamped := changes[0].Balances[currency.USDT.Lower()]
-	assert.Equal(t, 1000.5, clamped.Hold, "held margin should not exceed total balance")
-	assert.Zero(t, clamped.Free, "free balance should not become negative")
+	drawnDown := changes[0].Balances[currency.USDT.Lower()]
+	assert.Equal(t, 5000.0, drawnDown.Hold, "held margin should survive a temporary balance drawdown")
+	assert.Zero(t, drawnDown.Free, "free balance should not become negative")
+	require.NoError(t, ex.processBalancePushData(ctx,
+		[]byte(`[{"balance":6106.7961637458,"time":1788148807,"time_ms":1788148807000,"user":"12870774","currency":"usdt"}]`),
+		asset.USDTMarginedFutures), "processBalancePushData must process balance recovery")
+	message = <-ex.Websocket.DataHandler.C
+	changes, ok = message.Data.(accounts.SubAccounts)
+	require.True(t, ok, "captured balance payload must emit subaccount changes")
+	recovered := changes[0].Balances[currency.USDT.Lower()]
+	assert.Equal(t, 5000.0, recovered.Hold, "held margin should remain intact after balance recovery")
+	assert.InDelta(t, 1106.7961637458, recovered.Free, 1e-12,
+		"free balance should recover without being overstated")
 }
 
 func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *websocketBalancesTest) {

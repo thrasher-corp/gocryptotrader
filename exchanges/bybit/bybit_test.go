@@ -3122,21 +3122,21 @@ func TestWsPositionUnmarshal(t *testing.T) {
 	require.NoError(t, json.Unmarshal(payload, &wireResponse), "captured websocket response must unmarshal")
 	baseData := wireResponse.Data
 	for _, tt := range []struct {
-		name               string
-		replacements       []string
-		expectedStatus     order.Status
-		expectedDirection  order.Side
-		expectedCloseDate  time.Time
-		expectedMMFraction string
+		name                string
+		replacements        []string
+		expectedStatus      order.Status
+		expectedDirection   order.Side
+		expectedCloseDate   time.Time
+		expectedOpeningDate time.Time
 	}{
-		{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
-		{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long, expectedMMFraction: "0.0214506530631264"},
-		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedMMFraction: "0.0214506530631264"},
-		{name: "closed long hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Long, expectedCloseDate: time.UnixMilli(1787197420648), expectedMMFraction: "0.0214506530631264"},
-		{name: "closed short hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":2`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Short, expectedCloseDate: time.UnixMilli(1787197420648), expectedMMFraction: "0.0214506530631264"},
-		{name: "liquidated", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Liquidated, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
-		{name: "auto deleveraged", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedMMFraction: "0.0214506530631264"},
-		{name: "zero notional", replacements: []string{`"positionValue":"7.403955"`, `"positionValue":"0"`}, expectedStatus: order.Open, expectedDirection: order.Short, expectedMMFraction: "0"},
+		{name: "sell", expectedStatus: order.Open, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "buy", replacements: []string{`"side":"Sell"`, `"side":"Buy"`}, expectedStatus: order.Open, expectedDirection: order.Long, expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "closed long hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Long, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "closed short hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":2`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Short, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "liquidated", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Liquidated, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "auto deleveraged", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "missing open time", replacements: []string{`"openTime":1786983352599`, `"openTime":0`}, expectedStatus: order.Open, expectedDirection: order.Short},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -3155,6 +3155,7 @@ func TestWsPositionUnmarshal(t *testing.T) {
 			assert.Equal(t, tt.expectedDirection, positions[0].OpeningDirection, "opening direction should be canonical")
 			assert.Equal(t, tt.expectedDirection, positions[0].LatestDirection, "latest direction should be canonical")
 			assert.Equal(t, tt.expectedCloseDate, positions[0].CloseDate, "position close time should be correct")
+			assert.Equal(t, tt.expectedOpeningDate, positions[0].OpeningDate, "position opening time should use only Bybit's open time")
 			assert.Equal(t, "0.00281412", positions[0].RealisedPNL.String(),
 				"position realised PNL should use the current position value")
 			assert.Equal(t, "0.20927497", positions[0].EstimatedLiquidationPrice.String(),
@@ -3165,8 +3166,8 @@ func TestWsPositionUnmarshal(t *testing.T) {
 				"initial margin requirement should match Bybit's position margin")
 			assert.Equal(t, "0.15881967", positions[0].MaintenanceMarginRequirement.String(),
 				"maintenance margin requirement should preserve Bybit's absolute margin")
-			assert.Equal(t, tt.expectedMMFraction, positions[0].MaintenanceMarginFraction.String(),
-				"maintenance margin fraction should be normalized from Bybit's absolute margin")
+			assert.True(t, positions[0].MaintenanceMarginFraction.IsZero(),
+				"maintenance margin fraction should remain unset without Bybit risk tier data")
 		})
 	}
 	t.Run("unsupported position side", func(t *testing.T) {
@@ -3222,6 +3223,11 @@ func TestWsWalletCurrentUnifiedPayload(t *testing.T) {
 		"empty deprecated withdrawal availability should decode as zero")
 
 	ex := testInstance()
+	seed := accounts.NewSubAccount(asset.Spot, "")
+	seed.Balances.Set(currency.USDT, accounts.Balance{Total: 100, Hold: 25, Free: 75, Borrowed: 10})
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{seed}, true),
+		"Accounts.Save must seed fields absent from the websocket mapping")
+	startedAt := time.Now()
 	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), payload),
 		"wsProcessWalletPushData must process current UNIFIED wallet payload")
 	message := <-ex.Websocket.DataHandler.C
@@ -3231,6 +3237,10 @@ func TestWsWalletCurrentUnifiedPayload(t *testing.T) {
 	balance, ok := subAccounts[0].Balances[currency.USDT]
 	require.True(t, ok, "wallet handler must emit the USDT balance")
 	assert.Equal(t, 100.0, balance.Total, "wallet balance should be correct")
+	assert.Equal(t, 75.0, balance.Free, "wallet update should preserve spendable funds from the REST snapshot")
+	assert.Equal(t, 25.0, balance.Hold, "wallet update should preserve held funds from the REST snapshot")
+	assert.Equal(t, 10.0, balance.Borrowed, "wallet update should preserve borrowed funds from the REST snapshot")
+	assert.False(t, balance.UpdatedAt.Before(startedAt), "wallet update should use local arrival order")
 	assert.Zero(t, balance.AvailableWithoutBorrow,
 		"coin availability should remain zero when the deprecated field is empty")
 }
@@ -3277,7 +3287,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	walletErrCount := 0
 	for _, fixtureErr := range fErrs {
 		switch {
-		case strings.Contains(fixtureErr.Err.Error(), "cannot save holdings: nil pointer: *accounts.Accounts"):
+		case errors.Is(fixtureErr.Err, common.ErrNilPointer):
 			walletErrCount++
 		case strings.Contains(fixtureErr.Err.Error(), "pair not found"):
 			pairErrCount++
@@ -3358,11 +3368,17 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, asset.Spot, v[0].AssetType, "Asset type should be correct")
 			exp := accounts.CurrencyBalances{}
 			exp.Set(currency.ETH, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482)})
-			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904, AvailableWithoutBorrow: 11723.92075829})
-			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, Free: 215.0570412, AvailableWithoutBorrow: 215.0570412})
-			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, Free: 1.82, AvailableWithoutBorrow: 1.82})
-			exp.Set(currency.USDC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 201.34882644, Free: 201.34882644})
-			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, Free: 0.06488393, AvailableWithoutBorrow: 0.06488393})
+			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, AvailableWithoutBorrow: 11723.92075829})
+			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, AvailableWithoutBorrow: 215.0570412})
+			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, AvailableWithoutBorrow: 1.82})
+			exp.Set(currency.USDC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 201.34882644})
+			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, AvailableWithoutBorrow: 0.06488393})
+			for code, balance := range v[0].Balances {
+				assert.False(t, balance.UpdatedAt.IsZero(), "balance arrival timestamp should be populated")
+				expected := exp[code]
+				expected.UpdatedAt = balance.UpdatedAt
+				exp[code] = expected
+			}
 			assert.Equal(t, exp, v[0].Balances, "Balances should be correct")
 		case *GreeksResponse:
 			sawGreeks = true
