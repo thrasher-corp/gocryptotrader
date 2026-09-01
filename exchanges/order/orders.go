@@ -297,9 +297,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 			updated = true
 		}
 	}
-	// RemainingAmount is an authoritative value reported by the exchange
-	// (Amount - ExecutedAmount); it must be used as-is and never re-derived by
-	// subtracting trade amounts, which would double-count fills.
+	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
+	// or from a different snapshot. A supplied non-zero value is preserved.
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true

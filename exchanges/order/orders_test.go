@@ -1139,11 +1139,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 }
 
 // TestUpdateOrderFromDetailRemainingAmountInvariant ensures that when an
-// incoming detail carries an authoritative RemainingAmount (Amount -
-// ExecutedAmount, as every exchange populates it) alongside the fill(s) that
-// produced it, the stored RemainingAmount is trusted rather than re-derived by
-// subtracting trade amounts. Re-deriving double-counts fills and violates the
-// invariant ExecutedAmount + RemainingAmount == Amount.
+// incoming detail carries a RemainingAmount alongside the fill(s) that
+// produced it, the stored RemainingAmount is trusted rather than re-derived
+// by subtracting trade amounts. Re-deriving double-counts fills and violates
+// the invariant ExecutedAmount + RemainingAmount == Amount.
 func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
 	t.Parallel()
 
@@ -1163,6 +1162,44 @@ func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
 	assert.Equal(t, 6.0, od.RemainingAmount, "RemainingAmount should be the authoritative remaining, not reduced by trade amounts")
 	assert.Equal(t, od.Amount, od.ExecutedAmount+od.RemainingAmount, "ExecutedAmount + RemainingAmount should equal Amount")
 	assert.Equal(t, 6.0, om.RemainingAmount, "incoming detail should not be mutated")
+
+	// A fill at least as large as the reported remainder drove the old
+	// subtraction negative, which failed the guard in UpdateOrderFromDetail and
+	// dropped the update entirely, leaving the stored value stale rather than
+	// merely wrong.
+	od = &Detail{OrderID: "def", Amount: 10, RemainingAmount: 10}
+	om = &Detail{
+		OrderID:         "def",
+		Amount:          10,
+		ExecutedAmount:  8,
+		RemainingAmount: 2,
+		Trades:          []TradeHistory{{TID: "2", Price: 100, Amount: 8}},
+	}
+	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 2.0, od.RemainingAmount, "RemainingAmount should be updated when the fill is larger than the reported remainder")
+}
+
+// TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report
+// fills without a remainder (bitmex execution, kraken ownTrades, huobi
+// trade.clearing). The engine merges such a detail into a copy of the stored
+// order first, so this method sees the stored remainder alongside the new
+// trade; that remainder is now left alone rather than reduced by the trade
+// amount. Those exchanges get their remainder from a companion order feed or
+// the REST poll instead.
+func TestUpdateOrderFromDetailTradesOnly(t *testing.T) {
+	t.Parallel()
+
+	od := &Detail{OrderID: "ghi", Amount: 10, RemainingAmount: 10}
+	om := &Detail{
+		OrderID:         "ghi",
+		Amount:          10,
+		RemainingAmount: 10,
+		Trades:          []TradeHistory{{TID: "1", Price: 100, Amount: 4}},
+	}
+	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
+
+	require.Len(t, od.Trades, 1, "trade must be merged")
+	assert.Equal(t, 10.0, od.RemainingAmount, "RemainingAmount should be left as reported, not reduced by the merged trade")
 }
 
 func TestClassificationError_Error(t *testing.T) {
