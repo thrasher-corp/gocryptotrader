@@ -481,6 +481,7 @@ func TestValidateAPICredentials(t *testing.T) {
 		asset.USDTMarginedFutures,
 		asset.Margin,
 		asset.Spot,
+		asset.PerpetualSwap,
 		asset.DeliveryFutures,
 		asset.Index,
 	}, func(_ context.Context, a asset.Item) error {
@@ -491,6 +492,7 @@ func TestValidateAPICredentials(t *testing.T) {
 	assert.Equal(t, asset.Items{
 		asset.Spot,
 		asset.USDTMarginedFutures,
+		asset.PerpetualSwap,
 		asset.DeliveryFutures,
 		asset.Options,
 		asset.Margin,
