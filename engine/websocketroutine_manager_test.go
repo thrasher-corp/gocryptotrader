@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -178,6 +179,13 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		Exchange: exchName,
 		Asset:    asset.USDTMarginedFutures,
 		Pair:     currency.NewBTCUSDT(),
+	}})
+	require.NoError(t, err)
+	err = m.websocketDataHandler(exchName, accounts.SubAccounts{{
+		AssetType: asset.USDTMarginedFutures,
+		Balances: accounts.CurrencyBalances{
+			currency.USDT: {Total: 42},
+		},
 	}})
 	require.NoError(t, err)
 	origOrder := &order.Detail{

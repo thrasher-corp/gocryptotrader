@@ -210,11 +210,15 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	})
 	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{restSnapshot}, true),
 		"Accounts.Save must seed the REST balance snapshot")
+	// Captured from live GateIO websocket data on 2026-09-03.
+	// Treat these payloads as semi-trusted until independently confirmed.
 	payloads := [][]byte{
 		[]byte(`[{"balance":6625.2967002542,"change":0.0008823675,"text":"SCRT_USDT","time":1788148805,"time_ms":1788148805954,"type":"fund","user":"12870774","currency":"usdt"}]`),
 		[]byte(`[{"balance":6625.2967002542,"change":0.0008823675,"text":"SCRT_USDT","time":1788148805,"time_ms":1788148805954,"type":"fund","user":"12870774","currency":"usdt"}]`),
+		[]byte(`[{"balance":6521.586841973412,"change":-0.01556544,"text":"RAVE_USDT:294985777215626819","time":1788387249,"time_ms":1788387249995,"type":"fee","user":"12870774","currency":"usdt"}]`),
+		[]byte(`[{"balance":6522.937261628622,"change":1.35041965521,"text":"RAVE_USDT:294985777215626819","time":1788387249,"time_ms":1788387249995,"type":"pnl","user":"12870774","currency":"usdt"}]`),
 	}
-	wantBalances := []float64{6625.2967002542, 6625.2967002542}
+	wantBalances := []float64{6625.2967002542, 6625.2967002542, 6521.586841973412, 6522.937261628622}
 
 	for i := range payloads {
 		startedAt := time.Now()
@@ -236,16 +240,17 @@ func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
 	require.NoError(t, err, "GetCredentials must not error")
 	stored, err := ex.Accounts.GetBalance("", credentials, asset.USDTMarginedFutures, currency.USDT.Lower())
 	require.NoError(t, err, "GetBalance must return the latest captured balance")
-	assert.Equal(t, wantBalances[1], stored.Total, "stored balance should contain the latest update")
+	latestBalance := wantBalances[len(wantBalances)-1]
+	assert.Equal(t, latestBalance, stored.Total, "stored balance should contain the latest update")
 	collated, err := ex.Accounts.CurrencyBalances(credentials, asset.USDTMarginedFutures)
 	require.NoError(t, err, "CurrencyBalances must return the collated futures balance")
-	assert.Equal(t, wantBalances[1], collated[currency.USDT].Total,
+	assert.Equal(t, latestBalance, collated[currency.USDT].Total,
 		"websocket balance should replace the REST snapshot without being double counted")
 	refreshedRESTSnapshot := accounts.NewSubAccount(asset.USDTMarginedFutures, "")
 	refreshedRESTSnapshot.Balances.Set(currency.USDT, accounts.Balance{
-		Total: wantBalances[1],
+		Total: latestBalance,
 		Hold:  100,
-		Free:  wantBalances[1] - 100,
+		Free:  latestBalance - 100,
 	})
 	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{refreshedRESTSnapshot}, true),
 		"REST arrival must not be rejected after a websocket event stamped by Gate's clock")

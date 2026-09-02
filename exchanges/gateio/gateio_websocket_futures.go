@@ -705,20 +705,33 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 		if err != nil {
 			return nil, err
 		}
+		side, amount, remaining := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), resp.Result[x].RemainingAmount.Float64())
+		tif, err := timeInForceFromString(resp.Result[x].TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 
 		orderDetails[x] = order.Detail{
-			Amount:         resp.Result[x].Size.Float64(),
-			Exchange:       e.Name,
-			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
-			Status:         status,
-			Pair:           resp.Result[x].Contract,
-			LastUpdated:    resp.Result[x].FinishTime.Time(),
-			Date:           resp.Result[x].CreateTime.Time(),
-			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].RemainingAmount.Float64(),
-			Price:          resp.Result[x].Price.Float64(),
-			AssetType:      assetType,
-			AccountID:      resp.Result[x].User,
-			CloseTime:      resp.Result[x].FinishTime.Time(),
+			Amount:               amount,
+			ContractAmount:       amount,
+			Exchange:             e.Name,
+			OrderID:              strconv.FormatInt(resp.Result[x].ID, 10),
+			ClientOrderID:        getClientOrderIDFromText(resp.Result[x].Text),
+			Status:               status,
+			Pair:                 resp.Result[x].Contract,
+			LastUpdated:          resp.Result[x].FinishTime.Time(),
+			Date:                 resp.Result[x].CreateTime.Time(),
+			ExecutedAmount:       amount - remaining,
+			RemainingAmount:      remaining,
+			Price:                resp.Result[x].Price.Float64(),
+			AverageExecutedPrice: resp.Result[x].FillPrice.Float64(),
+			AssetType:            assetType,
+			AccountID:            resp.Result[x].User,
+			CloseTime:            resp.Result[x].FinishTime.Time(),
+			Side:                 side,
+			Type:                 getTypeFromTimeInForce(resp.Result[x].TimeInForce, resp.Result[x].Price.Float64()),
+			TimeInForce:          tif,
+			ReduceOnly:           resp.Result[x].IsReduceOnly,
 		}
 	}
 	return orderDetails, nil
@@ -741,14 +754,16 @@ func (e *Exchange) processFuturesUserTrades(data []byte, assetType asset.Item) e
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
+		side, amount, _ := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), 0)
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     e.Name,
 			CurrencyPair: resp.Result[x].Contract,
+			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size.Float64(),
+			Amount:       amount,
 			AssetType:    assetType,
 		}
 	}

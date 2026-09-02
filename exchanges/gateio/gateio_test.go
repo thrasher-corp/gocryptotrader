@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -3690,6 +3691,131 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 		status   order.Status
 	}{
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"open","stp_id":"123456","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Open},
+	}
+	processed, err := e.processFuturesOrdersPushData([]byte(testCases[0].incoming), asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	require.Len(t, processed, 1, "futures order update must contain one order")
+	assert.Equal(t, testCases[0].status, processed[0].Status, "futures order status should be open")
+}
+
+// Captured from live GateIO websocket data on 2026-09-03.
+// Treat these payloads as semi-trusted until independently confirmed.
+func TestFuturesLiveCapturedPayloads(t *testing.T) {
+	t.Parallel()
+
+	t.Run("orders", func(t *testing.T) {
+		t.Parallel()
+		for _, tt := range []struct {
+			name             string
+			payload          string
+			direction        order.Side
+			amount           float64
+			price            float64
+			averageFillPrice float64
+			timeInForce      order.TimeInForce
+			reduceOnly       bool
+		}{
+			{
+				name:      "reduce-only IOC close",
+				payload:   `{"time":1788387249,"time_ms":1788387249995,"channel":"futures.orders","event":"update","result":[{"create_time":1788387249,"create_time_ms":1788387249995,"fill_price":0.242073333333,"finish_as":"filled","iceberg":"0","id":294985777215626819,"id_string":"294985777215626819","is_close":false,"is_liq":false,"left":"0","mkfr":0.0002,"is_reduce_only":true,"status":"finished","tkfr":0.00048,"price":0,"refu":0,"refr":0,"size":"21","text":"apiv4-ws","tif":"ioc","finish_time":1788387249,"finish_time_ms":1788387249995,"user":"12870774","contract":"RAVE_USDT","stop_profit_price":"","stop_loss_price":"","amend_text":"-","biz_info":"-","stp_act":"-","stp_id":"0","update_id":1,"is_voucher":false,"update_time":1788387249995,"fee":0.024400992,"point_fee":0,"role":"taker","bbo":"-","market_order_slip_ratio":"0.025","pos_margin_mode":"isolated","leverage":"1"}]}`,
+				direction: order.Long, amount: 21, averageFillPrice: 0.242073333333,
+				timeInForce: order.ImmediateOrCancel, reduceOnly: true,
+			},
+			{
+				name:      "short FOK open",
+				payload:   `{"time":1788387300,"time_ms":1788387300728,"channel":"futures.orders","event":"update","result":[{"create_time":1788387300,"create_time_ms":1788387300727,"fill_price":60.97,"finish_as":"filled","iceberg":"0","id":296956100605608003,"id_string":"296956100605608003","is_close":false,"is_liq":false,"left":"0","mkfr":0.0002,"is_reduce_only":false,"status":"finished","tkfr":0.00048,"price":60.91,"refu":0,"refr":0,"size":"-3","text":"apiv4-ws","tif":"fok","finish_time":1788387300,"finish_time_ms":1788387300727,"user":"12870774","contract":"SLVON_USDT","stop_profit_price":"","stop_loss_price":"","amend_text":"-","biz_info":"-","stp_act":"-","stp_id":"0","update_id":1,"is_voucher":false,"update_time":1788387300727,"fee":0.00877968,"point_fee":0,"role":"taker","bbo":"-","market_order_slip_ratio":"0","pos_margin_mode":"isolated","leverage":"1"}]}`,
+				direction: order.Short, amount: 3, price: 60.91, averageFillPrice: 60.97,
+				timeInForce: order.FillOrKill,
+			},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				processed, err := e.processFuturesOrdersPushData([]byte(tt.payload), asset.USDTMarginedFutures)
+				require.NoError(t, err, "processFuturesOrdersPushData must process captured live data")
+				require.Len(t, processed, 1, "captured order payload must contain one order")
+				assert.Equal(t, order.Filled, processed[0].Status, "captured order status should be filled")
+				assert.Equal(t, order.Market, processed[0].Type, "captured IOC and FOK orders should be market orders")
+				assert.Equal(t, tt.direction, processed[0].Side, "captured order direction should follow signed size")
+				assert.Equal(t, tt.amount, processed[0].Amount, "captured order amount should be absolute")
+				assert.Equal(t, tt.amount, processed[0].ExecutedAmount, "captured order should be fully executed")
+				assert.Zero(t, processed[0].RemainingAmount, "captured order should have no remaining amount")
+				assert.Equal(t, tt.price, processed[0].Price, "captured order price should be preserved")
+				assert.Equal(t, tt.averageFillPrice, processed[0].AverageExecutedPrice, "captured fill price should be preserved")
+				assert.Equal(t, tt.timeInForce, processed[0].TimeInForce, "captured time in force should be preserved")
+				assert.Equal(t, tt.reduceOnly, processed[0].ReduceOnly, "captured reduce-only flag should be preserved")
+			})
+		}
+	})
+
+	t.Run("user trade", func(t *testing.T) {
+		t.Parallel()
+		for _, tt := range []struct {
+			name      string
+			payload   string
+			direction order.Side
+			amount    float64
+			tradeID   string
+			orderID   string
+			timestamp time.Time
+		}{
+			{
+				name: "long", direction: order.Long, amount: 13.4,
+				tradeID: "27640330", orderID: "294985777215626819", timestamp: time.UnixMilli(1788387249995),
+				payload: `{"time":1788387249,"time_ms":1788387249995,"channel":"futures.usertrades","event":"update","result":[{"id":"27640330","order_id":"294985777215626819","contract":"RAVE_USDT","create_time":1788387249,"create_time_ms":1788387249995,"size":"13.4","role":"taker","price":"0.242","text":"apiv4-ws","fee":0.01556544,"point_fee":0,"amend_text":"-","biz_info":"-","close_size":"13.4"}]}`,
+			},
+			{
+				name: "short", direction: order.Short, amount: 6,
+				tradeID: "1762690", orderID: "296956100605606387", timestamp: time.UnixMilli(1788387276248),
+				payload: `{"time":1788387276,"time_ms":1788387276249,"channel":"futures.usertrades","event":"update","result":[{"id":"1762690","order_id":"296956100605606387","contract":"SLVON_USDT","create_time":1788387276,"create_time_ms":1788387276248,"size":"-6","role":"taker","price":"61.13","text":"apiv4-ws","fee":0.01760544,"point_fee":0,"amend_text":"-","biz_info":"-","close_size":"0"}]}`,
+			},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+				ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+				require.NoError(t, ex.processFuturesUserTrades([]byte(tt.payload), asset.USDTMarginedFutures),
+					"processFuturesUserTrades must process captured live data")
+				message := <-ex.Websocket.DataHandler.C
+				fills, ok := message.Data.([]fill.Data)
+				require.True(t, ok, "captured user trade must emit fills")
+				require.Len(t, fills, 1, "captured user trade must contain one fill")
+				assert.Equal(t, tt.direction, fills[0].Side, "captured trade direction should follow signed size")
+				assert.Equal(t, tt.amount, fills[0].Amount, "captured trade amount should be absolute")
+				assert.Equal(t, tt.tradeID, fills[0].TradeID, "captured trade ID should be preserved")
+				assert.Equal(t, tt.orderID, fills[0].OrderID, "captured order ID should be preserved")
+				assert.Equal(t, tt.timestamp, fills[0].Timestamp, "captured trade timestamp should preserve millisecond precision")
+			})
+		}
+	})
+
+	t.Run("position", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures,
+			currency.Pairs{currency.NewPair(currency.NewCode("RAVE"), currency.USDT)}, false),
+			"StorePairs must register the captured contract")
+		payload := []byte(`{"time":1788387249,"time_ms":1788387249995,"channel":"futures.positions","event":"update","result":[{"time":1788387249,"time_ms":1788387249995,"size":"-37","user":"12870774","leverage_max":25,"mode":"single","update_id":4815,"cross_leverage_limit":20,"liq_price":0.4942,"maintenance_rate":0.8,"risk_limit":10000000,"last_close_pnl":0.00672032,"entry_price":0.252077758621,"leverage":1,"realised_pnl":2.0063498704,"contract":"RAVE_USDT","history_point":0,"margin":93.40867384569,"realised_point":0,"history_pnl":-55.48692517441,"pos_margin_mode":"isolated","lever":"1"}]}`)
+		require.NoError(t, ex.processFuturesPositionsNotification(t.Context(), payload, asset.USDTMarginedFutures),
+			"processFuturesPositionsNotification must process captured live data")
+		message := <-ex.Websocket.DataHandler.C
+		positions, ok := message.Data.([]futures.Position)
+		require.True(t, ok, "captured position must emit canonical positions")
+		require.Len(t, positions, 1, "captured position payload must contain one position")
+		assert.Equal(t, order.Short, positions[0].LatestDirection, "negative captured position size should map to short")
+		assert.Equal(t, "37", positions[0].LatestSize.String(), "captured position size should be absolute")
+		assert.Equal(t, int64(4815), positions[0].UpdateID, "captured position update ID should be preserved")
+		assert.True(t, positions[0].RealisedPNL.Equal(decimal.NewFromFloat(2.0063498704)), "captured realised PNL should be preserved")
+	})
+}
+
+func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		incoming string
+		status   order.Status
+	}{
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"filled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Filled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"cancelled","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"liquidated","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Liquidated},
@@ -3705,12 +3831,40 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 			t.Parallel()
 			processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
 			require.NoError(t, err)
-			require.NotNil(t, processed)
+			require.Len(t, processed, 1, "futures order update must contain one order")
 			for i := range processed {
 				assert.Equal(t, tc.status.String(), processed[i].Status.String())
+				assert.Equal(t, order.Long, processed[i].Side, "positive futures order size should map to long")
+				assert.Equal(t, 1.0, processed[i].Amount, "futures order amount should be absolute")
+				assert.Equal(t, order.Limit, processed[i].Type, "priced GTC futures order should be a limit order")
+				assert.Equal(t, order.GoodTillCancel, processed[i].TimeInForce, "GTC futures order should preserve time in force")
+				assert.Equal(t, 40000.4, processed[i].AverageExecutedPrice, "futures order should preserve its fill price")
 			}
 		})
 	}
+
+	t.Run("negative size", func(t *testing.T) {
+		t.Parallel()
+		incoming := strings.Replace(testCases[0].incoming, `"size":1`, `"size":-1`, 1)
+		processed, err := e.processFuturesOrdersPushData([]byte(incoming), asset.CoinMarginedFutures)
+		require.NoError(t, err)
+		require.Len(t, processed, 1, "futures order update must contain one order")
+		assert.Equal(t, order.Short, processed[0].Side, "negative futures order size should map to short")
+		assert.Equal(t, 1.0, processed[0].Amount, "futures order amount should be absolute")
+		assert.Equal(t, 1.0, processed[0].ExecutedAmount, "executed futures order amount should be absolute")
+	})
+
+	t.Run("market order", func(t *testing.T) {
+		t.Parallel()
+		incoming := strings.NewReplacer(`"price":40000.4`, `"price":0`, `"tif":"gtc"`, `"tif":"ioc"`).Replace(testCases[1].incoming)
+		processed, err := e.processFuturesOrdersPushData([]byte(incoming), asset.USDTMarginedFutures)
+		require.NoError(t, err)
+		require.Len(t, processed, 1, "futures order update must contain one order")
+		assert.Equal(t, order.Market, processed[0].Type, "zero-price IOC futures order should be a market order")
+		assert.Equal(t, order.ImmediateOrCancel, processed[0].TimeInForce, "IOC futures order should preserve time in force")
+		assert.Zero(t, processed[0].Price, "market order request price should remain zero")
+		assert.Equal(t, 40000.4, processed[0].AverageExecutedPrice, "market order should preserve its fill price")
+	})
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

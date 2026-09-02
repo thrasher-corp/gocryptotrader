@@ -192,7 +192,7 @@ func (m *portfolioManager) updateExchangeAddressBalances(e exchange.IBotExchange
 				continue
 			}
 
-			log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s", eName, c, b.Total, portfolio.ExchangeAddress)
+			log.Debugf(log.PortfolioMgr, "Portfolio [REST]: Adding new exchange address: %s, %s, %f, %s", eName, c, b.Total, portfolio.ExchangeAddress)
 
 			m.base.Addresses = append(m.base.Addresses, portfolio.Address{
 				Address:     eName,
@@ -204,13 +204,13 @@ func (m *portfolioManager) updateExchangeAddressBalances(e exchange.IBotExchange
 		}
 
 		if b.Total <= 0 {
-			log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry", eName, c)
+			log.Debugf(log.PortfolioMgr, "Portfolio [REST]: Removing %s %s entry", eName, c)
 			m.base.RemoveExchangeAddress(eName, c)
 			continue
 		}
 
 		if balance, ok := m.base.GetAddressBalance(eName, portfolio.ExchangeAddress, c); ok && balance != b.Total {
-			log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f", eName, c, b.Total)
+			log.Debugf(log.PortfolioMgr, "Portfolio [REST]: Updating %s %s entry with balance %f", eName, c, b.Total)
 			m.base.UpdateExchangeAddressBalance(eName, c, b.Total)
 		}
 	}
