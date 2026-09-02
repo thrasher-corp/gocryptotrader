@@ -892,9 +892,9 @@ func (bot *Engine) LoadExchange(name string) error {
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
-		// Credentials that are unusable fail identically for every account type,
-		// so establish that once rather than once per asset.
-		_, err := b.GetCredentials(ctx)
+		// Structurally unusable credentials fail identically for every account
+		// type, so establish that once rather than once per asset.
+		_, err := exch.GetCredentials(ctx)
 		if err == nil {
 			err = validateAPICredentials(ctx, b.Name, enabledAssets, exch.ValidateAPICredentials)
 		}
@@ -943,7 +943,7 @@ func validateAPICredentials(ctx context.Context, exchangeName string, enabledAss
 			continue
 		}
 		if errs != nil { // the caller only logs errs when every account fails, so surface the recovered ones here
-			gctlog.Warnf(gctlog.ExchangeSys, "%s: Credentials validated on %s after earlier failures: %v", exchangeName, a, errs)
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Authenticated support retained on %s after earlier failures: %v", exchangeName, a, errs)
 		}
 		return nil
 	}
