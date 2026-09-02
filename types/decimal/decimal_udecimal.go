@@ -30,8 +30,8 @@ func NewFromInt32(value int32) Decimal {
 	return NewFromInt(int64(value))
 }
 
-// MustFromFloat returns the shortest decimal representation that round-trips
-// to value. It panics for non-finite values.
+// MustFromFloat returns value truncated to udecimal's 19 fractional digits.
+// Finite magnitudes below 1e-19 become zero. It panics for non-finite values.
 func MustFromFloat(value float64) Decimal {
 	result, err := newUdecimalFromFloat(value)
 	if err != nil {
@@ -211,6 +211,7 @@ func (d Decimal) StringFixed(places int32) string {
 
 // Float64 returns the nearest float64 and whether the conversion was exact.
 func (d Decimal) Float64() (float64, bool) {
+	// String always returns canonical plain decimal text, so SetString cannot fail.
 	rational, _ := new(big.Rat).SetString(d.String())
 	return rational.Float64()
 }
@@ -228,6 +229,7 @@ func (d Decimal) IntPart() int64 {
 	if decimalPoint := strings.IndexByte(value, '.'); decimalPoint >= 0 {
 		value = value[:decimalPoint]
 	}
+	// The integer component of canonical decimal text is always valid base 10.
 	integer, _ := new(big.Int).SetString(value, 10)
 	return integer.Int64()
 }
@@ -297,7 +299,17 @@ func (d *Decimal) UnmarshalBinary(data []byte) error {
 	if len(data) > 1 && data[1] > maxPrecision {
 		return fmt.Errorf("%w: precision %d exceeds %d", udecimal.ErrInvalidBinaryData, data[1], maxPrecision)
 	}
-	return d.value.UnmarshalBinary(data)
+	var value udecimal.Decimal
+	if err := value.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if value.IsZero() {
+		// The native decoder assigns sign and precision directly, bypassing the
+		// constructor which canonicalises zero for consistent comparisons.
+		value = udecimal.Zero
+	}
+	d.value = value
+	return nil
 }
 
 // Scan implements sql.Scanner while preserving the default backend's accepted

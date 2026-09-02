@@ -142,7 +142,7 @@ The tag changes both the implementation and some decimal behaviour. Before enabl
 - **Precision:** udecimal retains up to 19 fractional digits. Arithmetic and float conversion truncate anything beyond that without returning an error, so a non-zero result with a magnitude below `1e-19` becomes zero. Parsing does not truncate: `NewFromString` rejects inputs requiring more than 19 fractional digits.
 - **Division:** The udecimal build truncates division results to 19 fractional digits. The default shopspring build rounds division results to 16 fractional digits, so the final digits can differ between builds.
 - **Large values:** Plain decimal values round-trip through text, JSON and SQL codecs even when they exceed udecimal's native 200-character parser limit. Scientific notation is rejected when expanding it would produce more than 200 digits.
-- **API behaviour:** Fractional `Pow` exponents and `Scan(nil)` are rejected.
+- **API behaviour:** Fractional `Pow` exponents are rejected.
 - **Representation:** A udecimal-backed `Decimal` occupies 32 bytes instead of 16 bytes. Its binary encoding is not compatible with shopspring's and rejects values whose native encoding would exceed its one-byte length field.
 
 Without the tag, `Decimal` remains an alias of shopspring's type.

@@ -407,10 +407,39 @@ func TestDecimalMarshalBinary(t *testing.T) {
 
 func TestDecimalUnmarshalBinary(t *testing.T) {
 	t.Parallel()
-	var result Decimal
-	assert.Error(t, result.UnmarshalBinary([]byte("1.25")), "UnmarshalBinary should reject non-native binary data")
-	assert.ErrorIs(t, result.UnmarshalBinary([]byte{0, 255, 11, 0, 0, 0, 0, 0, 0, 0, 125}),
-		udecimal.ErrInvalidBinaryData, "UnmarshalBinary should reject unsupported precision")
+	for _, tc := range []struct {
+		name    string
+		data    []byte
+		errorIs error
+	}{
+		{name: "short payload", data: []byte{1, 2}},
+		{name: "invalid native text", data: []byte("1.25"), errorIs: udecimal.ErrInvalidBinaryData},
+		{name: "unsupported precision", data: []byte{0, 255, 11, 0, 0, 0, 0, 0, 0, 0, 125}, errorIs: udecimal.ErrInvalidBinaryData},
+		{name: "u128 length mismatch", data: []byte{9, 9, 9}},
+		{name: "big integer length mismatch", data: []byte{17, 3, 200, 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := NewFromInt(7)
+			err := result.UnmarshalBinary(tc.data)
+			if tc.errorIs == nil {
+				assert.Error(t, err, "UnmarshalBinary should reject malformed data")
+			} else {
+				assert.ErrorIs(t, err, tc.errorIs, "UnmarshalBinary should return the expected error")
+			}
+			assert.Equal(t, "7", result.String(), "UnmarshalBinary should preserve the receiver after an error")
+		})
+	}
+
+	t.Run("negative zero", func(t *testing.T) {
+		t.Parallel()
+		var result Decimal
+		require.NoError(t, result.UnmarshalBinary([]byte{1, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0}),
+			"UnmarshalBinary must accept a native zero payload")
+		assert.True(t, result.IsZero(), "UnmarshalBinary should decode zero")
+		assert.True(t, result.Equal(Zero), "UnmarshalBinary should canonicalise zero equality")
+		assert.Zero(t, result.Cmp(Zero), "UnmarshalBinary should canonicalise zero comparison")
+	})
 }
 
 func TestDecimalScan(t *testing.T) {
