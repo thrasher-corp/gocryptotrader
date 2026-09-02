@@ -917,7 +917,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 		for x := range instrumentsToUse {
 			var orders TradeHistory
-			orders, err = e.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
+			orders, err = e.GetTradeHistory(ctx, instrumentsToUse[x], 0, 0)
 			if err != nil {
 				return nil, err
 			}

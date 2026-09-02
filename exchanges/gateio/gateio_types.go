@@ -771,6 +771,7 @@ type ContractStat struct {
 	TopLongShortSize       types.Number `json:"top_lsr_size"`
 	ShortLiquidationAmount types.Number `json:"short_liq_amount"`
 	LongLiquidationAmount  types.Number `json:"long_liq_amount"`
+	LastFundingRate        types.Number `json:"last_funding_rate"`
 	OpenInterestUsd        types.Number `json:"open_interest_usd"`
 	TopLongShortAccount    types.Number `json:"top_lsr_account"`
 	LongLiquidationUSD     types.Number `json:"long_liq_usd"`
@@ -902,12 +903,15 @@ type OptionSettlement struct {
 	StrikePrice types.Number `json:"strike_price"`
 }
 
-// SwapCurrencies represents Flash Swap supported currencies
-type SwapCurrencies struct {
-	Currency  string       `json:"currency"`
-	MinAmount types.Number `json:"min_amount"`
-	MaxAmount types.Number `json:"max_amount"`
-	Swappable []string     `json:"swappable"`
+// FlashSwapCurrencyPair represents a supported flash swap pair.
+type FlashSwapCurrencyPair struct {
+	CurrencyPair  string       `json:"currency_pair"`
+	SellCurrency  string       `json:"sell_currency"`
+	BuyCurrency   string       `json:"buy_currency"`
+	SellMinAmount types.Number `json:"sell_min_amount"`
+	SellMaxAmount types.Number `json:"sell_max_amount"`
+	BuyMinAmount  types.Number `json:"buy_min_amount"`
+	BuyMaxAmount  types.Number `json:"buy_max_amount"`
 }
 
 // MyOptionSettlement represents option private settlement

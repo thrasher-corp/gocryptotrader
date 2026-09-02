@@ -131,7 +131,6 @@ func (b *Base) SetStream(s []Event) error {
 	b.m.Lock()
 	defer b.m.Unlock()
 
-	slices.SortFunc(s, func(a, b Event) int { return a.GetTime().Compare(b.GetTime()) })
 	for x := range s {
 		if s[x] == nil {
 			return fmt.Errorf("%w Event", gctcommon.ErrNilPointer)
@@ -146,6 +145,10 @@ func (b *Base) SetStream(s []Event) error {
 				return fmt.Errorf("%w cannot set base stream from %v %v %v to %v %v %v", errMismatchedEvent, s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
 			}
 		}
+	}
+
+	slices.SortFunc(s, func(a, b Event) int { return a.GetTime().Compare(b.GetTime()) })
+	for x := range s {
 		// due to the Next() function, we cannot take
 		// stream offsets as is, and we re-set them
 		s[x].SetOffset(int64(x) + 1)

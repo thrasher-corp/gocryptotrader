@@ -154,9 +154,10 @@ func (t *TimePeriodCalculator) setTimePeriodExists() {
 
 // Sort will sort the time period asc or desc
 func (t *TimePeriodCalculator) Sort(desc bool) {
-	if desc {
-		slices.SortFunc(t.TimePeriods, func(a, b TimePeriod) int { return b.Time.Compare(a.Time) })
-		return
-	}
-	slices.SortFunc(t.TimePeriods, func(a, b TimePeriod) int { return a.Time.Compare(b.Time) })
+	slices.SortFunc(t.TimePeriods, func(a, b TimePeriod) int {
+		if desc {
+			return b.Time.Compare(a.Time)
+		}
+		return a.Time.Compare(b.Time)
+	})
 }
