@@ -262,22 +262,27 @@ type Position struct {
 	MaintenanceMarginRequirement decimal.Decimal
 	MaintenanceMarginFraction    decimal.Decimal
 	EstimatedLiquidationPrice    decimal.Decimal
-	UpdateID                     int64
-	RealisedPNL                  decimal.Decimal
-	UnrealisedPNL                decimal.Decimal
-	Status                       order.Status
-	OpeningDate                  time.Time
-	OpeningPrice                 decimal.Decimal
-	OpeningSize                  decimal.Decimal
-	OpeningDirection             order.Side
-	LatestPrice                  decimal.Decimal
-	LatestSize                   decimal.Decimal
-	LatestDirection              order.Side
-	LastUpdated                  time.Time
-	CloseDate                    time.Time
-	Orders                       []order.Detail
-	PNLHistory                   []PNLResult
-	FundingRates                 fundingrate.HistoricalRates
+	// UpdateID identifies the exchange update used to construct this position, when supplied.
+	UpdateID      int64
+	RealisedPNL   decimal.Decimal
+	UnrealisedPNL decimal.Decimal
+	// Status describes the position lifecycle state, such as open or closed.
+	Status order.Status
+	// RiskStatus independently describes an exceptional risk action, such as liquidation or auto-deleveraging.
+	// UnknownStatus indicates that no risk action was reported.
+	RiskStatus       order.Status
+	OpeningDate      time.Time
+	OpeningPrice     decimal.Decimal
+	OpeningSize      decimal.Decimal
+	OpeningDirection order.Side
+	LatestPrice      decimal.Decimal
+	LatestSize       decimal.Decimal
+	LatestDirection  order.Side
+	LastUpdated      time.Time
+	CloseDate        time.Time
+	Orders           []order.Detail
+	PNLHistory       []PNLResult
+	FundingRates     fundingrate.HistoricalRates
 }
 
 // PositionSummaryRequest is used to request a summary of an open position

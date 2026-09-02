@@ -795,10 +795,10 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 		if err != nil {
 			return err
 		}
-		status := order.Closed
+		riskStatus := order.UnknownStatus
 		switch {
 		case resp.Result[i].Text == "auto_deleveraging":
-			status = order.AutoDeleverage
+			riskStatus = order.AutoDeleverage
 		case resp.Result[i].Text == "liquidation",
 			resp.Result[i].Text == "pm_liquidate",
 			resp.Result[i].Text == "comb_margin_liquidate",
@@ -806,7 +806,7 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 			resp.Result[i].Text == "insurance",
 			strings.HasPrefix(resp.Result[i].Text, "liq-"),
 			strings.HasPrefix(resp.Result[i].Text, "hedge-liq-"):
-			status = order.Liquidated
+			riskStatus = order.Liquidated
 		}
 		positions[i] = futures.Position{
 			Exchange:           e.Name,
@@ -814,7 +814,8 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a 
 			Pair:               pair,
 			Underlying:         pair.Base,
 			CollateralCurrency: collateralCurrency,
-			Status:             status,
+			Status:             order.Closed,
+			RiskStatus:         riskStatus,
 			RealisedPNL:        resp.Result[i].ProfitAndLoss.Decimal(),
 			OpeningDirection:   direction,
 			LatestDirection:    direction,

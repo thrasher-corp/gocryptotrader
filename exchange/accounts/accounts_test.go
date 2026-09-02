@@ -242,6 +242,15 @@ func TestAccountsUpdateBalance(t *testing.T) {
 	require.NoError(t, err, "GetBalance must return the atomically updated balance")
 	assert.Equal(t, updated, stored, "stored balance should match the atomic update")
 
+	// Separate the calls on platforms with coarse clock resolution so timestamp ordering is deterministic.
+	time.Sleep(20 * time.Millisecond)
+	repeated, err := a.UpdateBalance(ctx, "1b", asset.Spot, currency.BTC, func(balance *Balance) {
+		balance.Total = 3
+		balance.Free = 2
+	})
+	require.NoError(t, err, "UpdateBalance must accept a repeat update that changes nothing")
+	assert.True(t, repeated.UpdatedAt.After(updated.UpdatedAt), "a repeat update that changes nothing should still refresh the arrival timestamp")
+
 	_, err = a.UpdateBalance(ctx, "1b", asset.Spot, currency.BTC, nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateBalance must reject a nil update callback")
 }

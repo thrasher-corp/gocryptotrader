@@ -2674,19 +2674,19 @@ func TestProcessPositionCloseData(t *testing.T) {
 	t.Parallel()
 
 	for _, tt := range []struct {
-		name   string
-		text   string
-		status order.Status
+		name       string
+		text       string
+		riskStatus order.Status
 	}{
-		{name: "web", text: "web", status: order.Closed},
-		{name: "liquidation", text: "liquidation", status: order.Liquidated},
-		{name: "liquidation prefix", text: "liq-123", status: order.Liquidated},
-		{name: "hedge liquidation prefix", text: "hedge-liq-123", status: order.Liquidated},
-		{name: "portfolio margin liquidation", text: "pm_liquidate", status: order.Liquidated},
-		{name: "combined margin liquidation", text: "comb_margin_liquidate", status: order.Liquidated},
-		{name: "single currency margin liquidation", text: "scm_liquidate", status: order.Liquidated},
-		{name: "insurance", text: "insurance", status: order.Liquidated},
-		{name: "auto deleveraging", text: "auto_deleveraging", status: order.AutoDeleverage},
+		{name: "web", text: "web"},
+		{name: "liquidation", text: "liquidation", riskStatus: order.Liquidated},
+		{name: "liquidation prefix", text: "liq-123", riskStatus: order.Liquidated},
+		{name: "hedge liquidation prefix", text: "hedge-liq-123", riskStatus: order.Liquidated},
+		{name: "portfolio margin liquidation", text: "pm_liquidate", riskStatus: order.Liquidated},
+		{name: "combined margin liquidation", text: "comb_margin_liquidate", riskStatus: order.Liquidated},
+		{name: "single currency margin liquidation", text: "scm_liquidate", riskStatus: order.Liquidated},
+		{name: "insurance", text: "insurance", riskStatus: order.Liquidated},
+		{name: "auto deleveraging", text: "auto_deleveraging", riskStatus: order.AutoDeleverage},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -2699,7 +2699,8 @@ func TestProcessPositionCloseData(t *testing.T) {
 			positions, ok := message.Data.([]futures.Position)
 			require.True(t, ok, "position close must emit canonical futures positions")
 			require.Len(t, positions, 1, "position close must emit one position")
-			assert.Equal(t, tt.status, positions[0].Status, "position close status should preserve its source")
+			assert.Equal(t, order.Closed, positions[0].Status, "position close status should identify a completed lifecycle")
+			assert.Equal(t, tt.riskStatus, positions[0].RiskStatus, "position risk status should preserve its close cause")
 			assert.Equal(t, order.Long, positions[0].OpeningDirection, "opening direction should be preserved")
 			assert.Equal(t, order.Long, positions[0].LatestDirection, "latest direction should be preserved")
 		})

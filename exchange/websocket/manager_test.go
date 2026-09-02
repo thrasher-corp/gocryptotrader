@@ -433,6 +433,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			err := ws.Connect(t.Context())
 			require.ErrorIs(t, err, ErrSubscriptionPartial, "Connect must surface partial subscription generation")
 			assert.True(t, ws.IsConnected(), "websocket should remain connected after partial subscription generation")
+			assert.True(t, ws.subscriptionRefreshPending.Load(), "partial generation should schedule a subscription refresh")
 			require.NotNil(t, ws.connectionManager[0].subscriptions.Get(partialSubs[0]),
 				"Connect must retain subscriptions returned with a partial generation error")
 			require.NotNil(t, ws.connectionManager[1].subscriptions.Get(healthySubs[0]),
@@ -450,6 +451,14 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 				"FlushChannels must retain subscriptions returned with a partial generation error")
 			require.NotNil(t, ws.connectionManager[1].subscriptions.Get(healthyRefresh),
 				"FlushChannels must continue through healthy generators after a partial generation error")
+
+			partialSetup.GenerateSubscriptions = func() (subscription.List, error) {
+				partialCalls++
+				return partialSubs, nil
+			}
+			timer := time.NewTimer(0)
+			require.False(t, ws.observeConnection(t.Context(), timer), "connection monitor must continue after refreshing subscriptions")
+			assert.False(t, ws.subscriptionRefreshPending.Load(), "successful regeneration should clear the pending subscription refresh")
 			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
 		})
 

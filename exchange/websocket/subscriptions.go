@@ -300,7 +300,11 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 func (m *Manager) FlushChannels(ctx context.Context) error {
 	m.m.Lock()
 	defer m.m.Unlock()
-	return m.flushChannels(ctx)
+	err := m.flushChannels(ctx)
+	if err == nil || errors.Is(err, ErrSubscriptionPartial) {
+		m.subscriptionRefreshPending.Store(errors.Is(err, ErrSubscriptionPartial))
+	}
+	return err
 }
 
 func (m *Manager) flushChannels(ctx context.Context) error {

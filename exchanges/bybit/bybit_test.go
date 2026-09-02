@@ -1190,14 +1190,10 @@ func TestPositionInfoUnmarshal(t *testing.T) {
 
 	position := response.Result.List[0]
 	assert.Equal(t, time.UnixMilli(1786983352599), position.OpenTime.Time(), "open time should be correct")
-	assert.True(t, position.BreakEvenPrice.Decimal().Equal(decimal.NewFromFloat(0.01105546)),
-		"break-even price should be correct")
-	assert.True(t, position.PositionIMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(7.50299557)),
-		"mark-price initial margin should be correct")
-	assert.True(t, position.PositionMMByMarkPrice.Decimal().Equal(decimal.NewFromFloat(0.16058567)),
-		"mark-price maintenance margin should be correct")
-	assert.True(t, position.CurrentRealisedPnl.Decimal().Equal(decimal.NewFromFloat(0.00318599)),
-		"current realised PNL should be correct")
+	assert.Equal(t, "0.01105546", position.BreakEvenPrice.Decimal().String(), "break-even price should be correct")
+	assert.Equal(t, "7.50299557", position.PositionIMByMarkPrice.Decimal().String(), "mark-price initial margin should be correct")
+	assert.Equal(t, "0.16058567", position.PositionMMByMarkPrice.Decimal().String(), "mark-price maintenance margin should be correct")
+	assert.Equal(t, "0.00318599", position.CurrentRealisedPnl.Decimal().String(), "current realised PNL should be correct")
 	assert.True(t, position.LiqPriceByMarkPrice.Decimal().IsZero(),
 		"empty mark-price liquidation price should decode as zero")
 	assert.True(t, position.SessionAveragePrice.Decimal().IsZero(),
@@ -3125,6 +3121,7 @@ func TestWsPositionUnmarshal(t *testing.T) {
 		name                string
 		replacements        []string
 		expectedStatus      order.Status
+		expectedRiskStatus  order.Status
 		expectedDirection   order.Side
 		expectedCloseDate   time.Time
 		expectedOpeningDate time.Time
@@ -3134,8 +3131,10 @@ func TestWsPositionUnmarshal(t *testing.T) {
 		{name: "flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
 		{name: "closed long hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Long, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
 		{name: "closed short hedge leg", replacements: []string{`"positionIdx":0`, `"positionIdx":2`, `"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`}, expectedStatus: order.Closed, expectedDirection: order.Short, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "liquidated", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Liquidated, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
-		{name: "auto deleveraged", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "liquidating", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Open, expectedRiskStatus: order.Liquidated, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "auto deleveraging", replacements: []string{`"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.Open, expectedRiskStatus: order.AutoDeleverage, expectedDirection: order.Short, expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "liquidated flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`, `"positionStatus":"Normal"`, `"positionStatus":"Liq"`}, expectedStatus: order.Closed, expectedRiskStatus: order.Liquidated, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
+		{name: "auto deleveraged flat", replacements: []string{`"side":"Sell"`, `"side":""`, `"size":"883"`, `"size":"0"`, `"positionStatus":"Normal"`, `"positionStatus":"Adl"`}, expectedStatus: order.Closed, expectedRiskStatus: order.AutoDeleverage, expectedDirection: order.UnknownSide, expectedCloseDate: time.UnixMilli(1787197420648), expectedOpeningDate: time.UnixMilli(1786983352599)},
 		{name: "missing open time", replacements: []string{`"openTime":1786983352599`, `"openTime":0`}, expectedStatus: order.Open, expectedDirection: order.Short},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3152,6 +3151,8 @@ func TestWsPositionUnmarshal(t *testing.T) {
 			require.True(t, ok, "position handler must emit canonical futures positions")
 			require.Len(t, positions, 1, "position handler must emit one position")
 			assert.Equal(t, tt.expectedStatus, positions[0].Status, "position status should be canonical")
+			assert.Equal(t, tt.expectedRiskStatus, positions[0].RiskStatus, "position risk status should preserve liquidation state")
+			assert.Equal(t, positions[0].LatestSize.IsZero(), positions[0].Status.IsInactive(), "position lifecycle should agree with its latest size")
 			assert.Equal(t, tt.expectedDirection, positions[0].OpeningDirection, "opening direction should be canonical")
 			assert.Equal(t, tt.expectedDirection, positions[0].LatestDirection, "latest direction should be canonical")
 			assert.Equal(t, tt.expectedCloseDate, positions[0].CloseDate, "position close time should be correct")

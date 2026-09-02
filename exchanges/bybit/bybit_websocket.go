@@ -450,11 +450,12 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 		if !isSizeZero {
 			status = order.Open
 		}
+		riskStatus := order.UnknownStatus
 		switch result[i].PositionStatus {
 		case "Liq":
-			status = order.Liquidated
+			riskStatus = order.Liquidated
 		case "Adl":
-			status = order.AutoDeleverage
+			riskStatus = order.AutoDeleverage
 		}
 		var closeDate time.Time
 		if isSizeZero {
@@ -484,6 +485,7 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketRespons
 			RealisedPNL:                  result[i].CurrentRealisedPNL.Decimal(),
 			UnrealisedPNL:                result[i].UnrealisedPnl.Decimal(),
 			Status:                       status,
+			RiskStatus:                   riskStatus,
 			OpeningDate:                  result[i].OpenTime.Time(),
 			OpeningPrice:                 result[i].EntryPrice.Decimal(),
 			OpeningDirection:             direction,
