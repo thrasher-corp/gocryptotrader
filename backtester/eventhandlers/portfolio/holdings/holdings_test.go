@@ -139,10 +139,12 @@ func TestUpdateAssetTypes(t *testing.T) {
 	require.NoError(t, err, "funding.CreateCollateral must not error for futures funding")
 	h := new(Holding)
 	err = h.update(&fill.Fill{
-		Base: &event.Base{AssetType: asset.Futures},
+		Base:      &event.Base{AssetType: asset.Futures},
+		Direction: order.Buy,
 		Order: &order.Detail{
-			Price: 2,
-			Fee:   3,
+			Price:  2,
+			Amount: 1,
+			Fee:    3,
 		},
 	}, funds)
 	assert.NoError(t, err, "Holding.update should not error for futures funding")
