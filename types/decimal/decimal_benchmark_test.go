@@ -85,12 +85,21 @@ func BenchmarkDecimalString(b *testing.B) {
 	}
 }
 
-func BenchmarkDecimalFloat64(b *testing.B) {
+func BenchmarkDecimalInexactFloat64(b *testing.B) {
 	value := MustFromString("12345.6789012345")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
 		benchmarkFloatSink = value.InexactFloat64()
+	}
+}
+
+func BenchmarkDecimalFloat64(b *testing.B) {
+	value := MustFromString("12345.6789012345")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkFloatSink, benchmarkBoolSink = value.Float64()
 	}
 }
 

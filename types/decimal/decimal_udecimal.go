@@ -87,7 +87,7 @@ func (d Decimal) Div(other Decimal) Decimal {
 // Mod returns the remainder of d/other. It panics for a zero divisor because
 // the Decimal API has no error return.
 func (d Decimal) Mod(other Decimal) Decimal {
-	return Decimal{value: d.value.MustMod(other.value)}
+	return Decimal{value: moduloUdecimal(d.value, other.value)}
 }
 
 // Pow returns d raised to other and panics if other has a fractional component.
@@ -240,9 +240,11 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements json.Unmarshaler for quoted or bare decimals.
 func (d *Decimal) UnmarshalJSON(data []byte) error {
 	if len(data) <= maxStringDigits {
-		return d.value.UnmarshalJSON(data)
+		if err := d.value.UnmarshalJSON(data); err == nil {
+			return nil
+		}
 	}
-	if data[0] == '"' && data[len(data)-1] == '"' {
+	if len(data) > 1 && data[0] == '"' && data[len(data)-1] == '"' {
 		data = data[1 : len(data)-1]
 	}
 	result, err := NewFromString(string(data))
@@ -261,7 +263,9 @@ func (d Decimal) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (d *Decimal) UnmarshalText(data []byte) error {
 	if len(data) <= maxStringDigits {
-		return d.value.UnmarshalText(data)
+		if err := d.value.UnmarshalText(data); err == nil {
+			return nil
+		}
 	}
 	result, err := NewFromString(string(data))
 	if err != nil {
@@ -273,30 +277,63 @@ func (d *Decimal) UnmarshalText(data []byte) error {
 
 // MarshalBinary implements encoding.BinaryMarshaler using udecimal's native format.
 func (d Decimal) MarshalBinary() ([]byte, error) {
-	return d.value.MarshalBinary()
+	data, err := d.value.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	// The native format stores its total length in one byte. Refuse values that
+	// would otherwise produce an encoding its own decoder cannot read.
+	if len(data) > maxEncodedBinaryBytes {
+		return nil, fmt.Errorf("%w: encoded decimal exceeds %d bytes", udecimal.ErrInvalidBinaryData, maxEncodedBinaryBytes)
+	}
+	return data, nil
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler using udecimal's native format.
 func (d *Decimal) UnmarshalBinary(data []byte) error {
+	// udecimal trusts the precision byte and can construct a value which later
+	// panics. Decimal's supported precision is fixed, so reject it at the codec
+	// boundary before allowing the backend to mutate the receiver.
+	if len(data) > 1 && data[1] > maxPrecision {
+		return fmt.Errorf("%w: precision %d exceeds %d", udecimal.ErrInvalidBinaryData, data[1], maxPrecision)
+	}
 	return d.value.UnmarshalBinary(data)
 }
 
-// Scan implements sql.Scanner using udecimal's native supported input types.
+// Scan implements sql.Scanner while preserving the default backend's accepted
+// input types and the Decimal façade's parsing and float-conversion semantics.
 func (d *Decimal) Scan(value any) error {
+	if value32, ok := value.(float32); ok {
+		value = float64(value32)
+	}
+
 	var text string
 	switch value := value.(type) {
 	case string:
-		if len(value) <= maxStringDigits {
-			return d.value.Scan(value)
-		}
 		text = value
 	case []byte:
-		if len(value) <= maxStringDigits {
-			return d.value.Scan(value)
-		}
 		text = string(value)
+	case float64:
+		result, err := newUdecimalFromFloat(value)
+		if err != nil {
+			return fmt.Errorf("error scanning decimal: %w", err)
+		}
+		d.value = result
+		return nil
+	case int, int32:
+		return fmt.Errorf("can't scan %T to Decimal: %T is not supported", value, value)
 	default:
 		return d.value.Scan(value)
+	}
+	// shopspring accepts SQL drivers which return quoted numeric text. Preserve
+	// that established behaviour before trying either udecimal parser.
+	if len(text) > 2 && text[0] == '"' && text[len(text)-1] == '"' {
+		text = text[1 : len(text)-1]
+	}
+	if len(text) <= maxStringDigits {
+		if err := d.value.Scan(text); err == nil {
+			return nil
+		}
 	}
 	result, err := NewFromString(text)
 	if err != nil {

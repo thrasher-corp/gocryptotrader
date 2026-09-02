@@ -109,11 +109,16 @@ jobs:
 
     - name: Set GOFLAGS
       run: |
+        tags=()
         if [ "${{ matrix.sonic }}" = "true" ]; then
-          echo "GOFLAGS=${GOFLAGS} -tags=sonic_on" >> $GITHUB_ENV
+          tags+=(sonic_on)
         fi
         if [ "${{ matrix.udecimal }}" = "true" ]; then
-          echo "GOFLAGS=${GOFLAGS} -tags=udecimal_on" >> $GITHUB_ENV
+          tags+=(udecimal_on)
+        fi
+        if [ "${#tags[@]}" -gt 0 ]; then
+          tags_csv=$(IFS=,; echo "${tags[*]}")
+          echo "GOFLAGS=${GOFLAGS} -tags=${tags_csv}" >> $GITHUB_ENV
         fi
       shell: bash
 

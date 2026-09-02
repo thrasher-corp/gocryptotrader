@@ -126,7 +126,20 @@ func TestDecimalDiv(t *testing.T) {
 
 func TestDecimalMod(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "1", NewFromInt(7).Mod(NewFromInt(3)).String(), "Mod should return the remainder")
+	for _, tc := range []struct {
+		name, left, right, expected string
+	}{
+		{name: "native remainder", left: "7", right: "3", expected: "1"},
+		{name: "fractional remainder", left: "7.5", right: "2", expected: "1.5"},
+		{name: "overflow fallback", left: "340282366920938463463374607431768211455", right: "18446744073709551614.1553255926290448384", expected: "15581492618384294731.1821351505477763072"},
+		{name: "signed overflow fallback", left: "-340282366920938463463374607431768211455", right: "18446744073709551614.1553255926290448384", expected: "-15581492618384294731.1821351505477763072"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, MustFromString(tc.left).Mod(MustFromString(tc.right)).String(),
+				"Mod should return the expected remainder")
+		})
+	}
 	assert.PanicsWithError(t, udecimal.ErrDivideByZero.Error(), func() { NewFromInt(1).Mod(Zero) },
 		"Mod should expose udecimal's native divide-by-zero error")
 }
@@ -207,9 +220,24 @@ func TestDecimalIsNegative(t *testing.T) {
 
 func TestDecimalRound(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "1.24", MustFromString("1.235").Round(2).String(), "Round should use half away from zero")
-	assert.Equal(t, "550", NewFromInt(545).Round(-1).String(), "Round should support integer places")
-	assert.Equal(t, "-550", NewFromInt(-545).Round(-1).String(), "Round should support negative values")
+	largeHalf := "5" + strings.Repeat("0", maxStringDigits)
+	largeRounded := "1" + strings.Repeat("0", maxStringDigits+1)
+	for _, tc := range []struct {
+		name, value, expected string
+		places                int32
+	}{
+		{name: "fractional", value: "1.235", places: 2, expected: "1.24"},
+		{name: "integer places", value: "545", places: -1, expected: "550"},
+		{name: "negative value", value: "-545", places: -1, expected: "-550"},
+		{name: "beyond parser cap", value: "1.25", places: -maxStringDigits - 1, expected: "0"},
+		{name: "large half", value: largeHalf, places: -maxStringDigits - 1, expected: largeRounded},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, MustFromString(tc.value).Round(tc.places).String(),
+				"Round should return the expected value")
+		})
+	}
 }
 
 func TestDecimalTruncate(t *testing.T) {
@@ -245,6 +273,8 @@ func TestDecimalStringFixed(t *testing.T) {
 		{name: "padded", value: "1.2", places: 4, expected: "1.2000"},
 		{name: "integer", value: "1", places: 2, expected: "1.00"},
 		{name: "zero places", value: "1.6", places: 0, expected: "2"},
+		{name: "beyond parser cap", value: "1.6", places: -maxStringDigits - 1, expected: "0"},
+		{name: "minimum int32 places", value: "1.6", places: math.MinInt32, expected: "0"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -282,15 +312,25 @@ func TestDecimalMarshalJSON(t *testing.T) {
 
 func TestDecimalUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, input := range []string{`"1.25"`, `1.25`} {
+	for _, tc := range []struct {
+		input, expected string
+	}{
+		{input: `"1.25"`, expected: "1.25"},
+		{input: `1.25`, expected: "1.25"},
+		{input: `"1e-8"`, expected: "0.00000001"},
+		{input: `1E5`, expected: "100000"},
+		{input: `"-2.5e-4"`, expected: "-0.00025"},
+		{input: `.5`, expected: "0.5"},
+		{input: `1.`, expected: "1"},
+	} {
 		var result Decimal
-		require.NoError(t, result.UnmarshalJSON([]byte(input)), "UnmarshalJSON must parse valid input")
-		assert.Equal(t, "1.25", result.String(), "UnmarshalJSON should preserve the value")
+		require.NoError(t, result.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must parse valid input")
+		assert.Equal(t, tc.expected, result.String(), "UnmarshalJSON should preserve the value")
 	}
 	result := NewFromInt(2)
 	require.NoError(t, result.UnmarshalJSON([]byte("null")), "UnmarshalJSON must accept null")
 	assert.Equal(t, "2", result.String(), "UnmarshalJSON should leave the value unchanged for null")
-	for _, input := range []string{`"\x"`, `invalid`} {
+	for _, input := range []string{"", `"`, `""`, `"\x"`, `invalid`} {
 		assert.Error(t, result.UnmarshalJSON([]byte(input)),
 			"UnmarshalJSON should reject invalid input")
 	}
@@ -324,9 +364,21 @@ func TestDecimalMarshalText(t *testing.T) {
 
 func TestDecimalUnmarshalText(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		input, expected string
+	}{
+		{input: "1.25", expected: "1.25"},
+		{input: "1e-8", expected: "0.00000001"},
+		{input: "1E5", expected: "100000"},
+		{input: "-2.5e-4", expected: "-0.00025"},
+		{input: ".5", expected: "0.5"},
+		{input: "1.", expected: "1"},
+	} {
+		var decoded Decimal
+		require.NoError(t, decoded.UnmarshalText([]byte(tc.input)), "UnmarshalText must parse valid input")
+		assert.Equal(t, tc.expected, decoded.String(), "UnmarshalText should preserve the value")
+	}
 	var result Decimal
-	require.NoError(t, result.UnmarshalText([]byte("1.25")), "UnmarshalText must parse valid input")
-	assert.Equal(t, "1.25", result.String(), "UnmarshalText should preserve the value")
 	assert.Error(t, result.UnmarshalText([]byte("invalid")),
 		"UnmarshalText should reject invalid input")
 	for _, value := range []string{
@@ -348,24 +400,55 @@ func TestDecimalMarshalBinary(t *testing.T) {
 	var result Decimal
 	require.NoError(t, result.UnmarshalBinary(data), "UnmarshalBinary must parse native binary data")
 	assert.Equal(t, "1.25", result.String(), "MarshalBinary should round-trip the value")
+	_, err = MustFromString(strings.Repeat("9", 598)).MarshalBinary()
+	assert.ErrorIs(t, err, udecimal.ErrInvalidBinaryData,
+		"MarshalBinary should reject a native encoding whose length byte would overflow")
 }
 
 func TestDecimalUnmarshalBinary(t *testing.T) {
 	t.Parallel()
 	var result Decimal
 	assert.Error(t, result.UnmarshalBinary([]byte("1.25")), "UnmarshalBinary should reject non-native binary data")
+	assert.ErrorIs(t, result.UnmarshalBinary([]byte{0, 255, 11, 0, 0, 0, 0, 0, 0, 0, 125}),
+		udecimal.ErrInvalidBinaryData, "UnmarshalBinary should reject unsupported precision")
 }
 
 func TestDecimalScan(t *testing.T) {
 	t.Parallel()
-	for _, input := range []any{"1.25", []byte("1.25"), int64(1), 1.25} {
+	for _, tc := range []struct {
+		name     string
+		input    any
+		expected string
+	}{
+		{name: "string", input: "1.25", expected: "1.25"},
+		{name: "bytes", input: []byte("1.25"), expected: "1.25"},
+		{name: "quoted string", input: `"1.25"`, expected: "1.25"},
+		{name: "quoted bytes", input: []byte(`"1.25"`), expected: "1.25"},
+		{name: "exponent string", input: "1e-8", expected: "0.00000001"},
+		{name: "quoted exponent bytes", input: []byte(`"1e-8"`), expected: "0.00000001"},
+		{name: "fraction bytes", input: []byte(".5"), expected: "0.5"},
+		{name: "int64", input: int64(1), expected: "1"},
+		{name: "uint64", input: uint64(1), expected: "1"},
+		{name: "float32", input: float32(1.25), expected: "1.25"},
+		{name: "float64", input: 1.25, expected: "1.25"},
+		{name: "sub-precision float64", input: 1e-20, expected: "0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result Decimal
+			require.NoError(t, result.Scan(tc.input), "Scan must accept supported input")
+			assert.Equal(t, tc.expected, result.String(), "Scan should preserve the supported input")
+		})
+	}
+	for _, input := range []any{int(1), int32(1)} {
 		var result Decimal
-		require.NoError(t, result.Scan(input), "Scan must accept supported input")
-		assert.False(t, result.IsZero(), "Scan should set a non-zero value")
+		assert.Error(t, result.Scan(input), "Scan should match the default backend's unsupported integer types")
 	}
 	var result Decimal
 	assert.Error(t, result.Scan(struct{}{}), "Scan should reject unsupported input")
 	assert.Error(t, result.Scan(nil), "Scan should reject nil using native udecimal semantics")
+	assert.ErrorIs(t, result.Scan(math.NaN()), errInvalidDecimal,
+		"Scan should reject non-finite floats through the Decimal façade")
 	largeInteger := strings.Repeat("1", maxStringDigits+1)
 	largeFraction := "-" + strings.Repeat("9", maxStringDigits+1) + ".1234567890123456789"
 	for _, tc := range []struct {
@@ -375,6 +458,8 @@ func TestDecimalScan(t *testing.T) {
 	}{
 		{name: "large string", input: largeInteger, expected: largeInteger},
 		{name: "large bytes", input: []byte(largeInteger), expected: largeInteger},
+		{name: "quoted large string", input: `"` + largeInteger + `"`, expected: largeInteger},
+		{name: "quoted large bytes", input: []byte(`"` + largeInteger + `"`), expected: largeInteger},
 		{name: "negative large fractional string", input: largeFraction, expected: largeFraction},
 		{name: "negative large fractional bytes", input: []byte(largeFraction), expected: largeFraction},
 	} {
@@ -394,6 +479,77 @@ func TestDecimalValue(t *testing.T) {
 	value, err := MustFromString("1.25").Value()
 	require.NoError(t, err, "Value must not error")
 	assert.Equal(t, driver.Value("1.25"), value, "Value should return the canonical string")
+}
+
+func TestParseDecimalParts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input, expectedDigits string
+		expectedScale               int64
+		expectedNegative            bool
+	}{
+		{name: "integer", input: "+00120", expectedDigits: "120"},
+		{name: "negative exponent expansion", input: "-001.2500e2", expectedDigits: "125", expectedNegative: true},
+		{name: "negative exponent", input: "1E-8", expectedDigits: "1", expectedScale: 8},
+		{name: "leading decimal point", input: ".5", expectedDigits: "5", expectedScale: 1},
+		{name: "trailing decimal point", input: "1.", expectedDigits: "1"},
+		{name: "signed zero", input: "-000.000", expectedDigits: "0", expectedNegative: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			digits, scale, negative, err := parseDecimalParts(tc.input)
+			require.NoError(t, err, "parseDecimalParts must parse valid input")
+			assert.Equal(t, tc.expectedDigits, digits, "parseDecimalParts should return the expected digits")
+			assert.Equal(t, tc.expectedScale, scale, "parseDecimalParts should return the expected scale")
+			assert.Equal(t, tc.expectedNegative, negative, "parseDecimalParts should return the expected sign")
+		})
+	}
+
+	for _, tc := range []struct {
+		name, input string
+	}{
+		{name: "empty", input: ""},
+		{name: "invalid exponent", input: "1e"},
+		{name: "multiple exponents", input: "1e2e3"},
+		{name: "out of range exponent", input: "1e999999999999"},
+		{name: "missing mantissa", input: "+"},
+		{name: "multiple decimal points", input: "1.2.3"},
+		{name: "decimal point only", input: "."},
+		{name: "invalid digit", input: "12x"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, _, err := parseDecimalParts(tc.input)
+			assert.ErrorIs(t, err, errInvalidDecimal, "parseDecimalParts should reject invalid input")
+		})
+	}
+}
+
+func TestFormatDecimalParts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, digits, expected string
+		scale                  int64
+		negative               bool
+	}{
+		{name: "integer", digits: "123", expected: "123"},
+		{name: "fraction", digits: "123", scale: 2, expected: "1.23"},
+		{name: "leading fractional zeroes", digits: "12", scale: 3, expected: "0.012"},
+		{name: "positive exponent expansion", digits: "12", scale: -2, expected: "1200"},
+		{name: "negative", digits: "123", scale: 2, negative: true, expected: "-1.23"},
+		{name: "negative zero", digits: "0", negative: true, expected: "0"},
+		{name: "maximum expansion", digits: "1", scale: 1 - maxStringDigits, expected: "1" + strings.Repeat("0", maxStringDigits-1)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := formatDecimalParts(tc.digits, tc.scale, tc.negative)
+			require.NoError(t, err, "formatDecimalParts must format supported decimal parts")
+			assert.Equal(t, tc.expected, result, "formatDecimalParts should return canonical decimal text")
+		})
+	}
+
+	_, err := formatDecimalParts("1", -maxStringDigits, false)
+	assert.ErrorIs(t, err, errInvalidDecimal, "formatDecimalParts should reject expansion beyond the parser cap")
 }
 
 func TestNormalise(t *testing.T) {
@@ -446,28 +602,28 @@ func TestNormalise(t *testing.T) {
 	}
 }
 
-func TestNormaliseUdecimalPrecision(t *testing.T) {
+func TestApplyUdecimalPrecision(t *testing.T) {
 	t.Parallel()
-	result, scale, err := normaliseUdecimalPrecision("123", 2, false, "1.23")
-	require.NoError(t, err, "normaliseUdecimalPrecision must accept supported precision")
-	assert.Equal(t, "123", result, "normaliseUdecimalPrecision should preserve supported digits")
-	assert.Equal(t, int64(2), scale, "normaliseUdecimalPrecision should preserve supported scale")
+	result, scale, err := applyUdecimalPrecision("123", 2, false, "1.23")
+	require.NoError(t, err, "applyUdecimalPrecision must accept supported precision")
+	assert.Equal(t, "123", result, "applyUdecimalPrecision should preserve supported digits")
+	assert.Equal(t, int64(2), scale, "applyUdecimalPrecision should preserve supported scale")
 
-	result, scale, err = normaliseUdecimalPrecision("", 2, false, "0.00")
-	require.NoError(t, err, "normaliseUdecimalPrecision must accept zero")
-	assert.Equal(t, "0", result, "normaliseUdecimalPrecision should canonicalise zero")
-	assert.Zero(t, scale, "normaliseUdecimalPrecision should remove zero scale")
+	result, scale, err = applyUdecimalPrecision("", 2, false, "0.00")
+	require.NoError(t, err, "applyUdecimalPrecision must accept zero")
+	assert.Equal(t, "0", result, "applyUdecimalPrecision should canonicalise zero")
+	assert.Zero(t, scale, "applyUdecimalPrecision should remove zero scale")
 
-	_, _, err = normaliseUdecimalPrecision("123", 20, false, "0.00000000000000000123")
-	assert.ErrorIs(t, err, errPrecisionOutOfRange, "normaliseUdecimalPrecision should reject excess precision")
-	result, scale, err = normaliseUdecimalPrecision("1", 20, true, "0.00000000000000000001")
-	require.NoError(t, err, "normaliseUdecimalPrecision must truncate a sub-precision value")
-	assert.Equal(t, "0", result, "normaliseUdecimalPrecision should truncate a sub-precision value to zero")
-	assert.Zero(t, scale, "normaliseUdecimalPrecision should remove truncated zero scale")
-	result, scale, err = normaliseUdecimalPrecision("101", 20, true, "0.00000000000000000101")
-	require.NoError(t, err, "normaliseUdecimalPrecision must truncate excess precision")
-	assert.Equal(t, "1", result, "normaliseUdecimalPrecision should remove trailing zeroes after truncation")
-	assert.Equal(t, int64(18), scale, "normaliseUdecimalPrecision should adjust scale after removing trailing zeroes")
+	_, _, err = applyUdecimalPrecision("123", 20, false, "0.00000000000000000123")
+	assert.ErrorIs(t, err, errPrecisionOutOfRange, "applyUdecimalPrecision should reject excess precision")
+	result, scale, err = applyUdecimalPrecision("1", 20, true, "0.00000000000000000001")
+	require.NoError(t, err, "applyUdecimalPrecision must truncate a sub-precision value")
+	assert.Equal(t, "0", result, "applyUdecimalPrecision should truncate a sub-precision value to zero")
+	assert.Zero(t, scale, "applyUdecimalPrecision should remove truncated zero scale")
+	result, scale, err = applyUdecimalPrecision("101", 20, true, "0.00000000000000000101")
+	require.NoError(t, err, "applyUdecimalPrecision must truncate excess precision")
+	assert.Equal(t, "1", result, "applyUdecimalPrecision should remove trailing zeroes after truncation")
+	assert.Equal(t, int64(18), scale, "applyUdecimalPrecision should adjust scale after removing trailing zeroes")
 }
 
 func TestParseUdecimal(t *testing.T) {
@@ -516,8 +672,35 @@ func TestDivideUdecimal(t *testing.T) {
 			func() { divideUdecimal(udecimal.One, udecimal.Zero) },
 			"divideUdecimal should preserve unrelated backend panics")
 	})
-	assert.Len(t, udecimalBigIntDivisionFactor.String(), u128MaxDecimalDigits+1,
-		"udecimalBigIntDivisionFactor should exceed u128's maximum decimal length")
+	//nolint:dogsled // Only the u128 fit flag is under test here.
+	_, _, _, _, fitsU128 := udecimalBigIntDivisionFactor.ToHiLo()
+	assert.False(t, fitsU128, "udecimalBigIntDivisionFactor should exceed u128")
+}
+
+func TestModuloUdecimal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, left, right, expected string
+	}{
+		{name: "native remainder", left: "7", right: "3", expected: "1"},
+		{name: "overflow fallback", left: "340282366920938463463374607431768211455", right: "18446744073709551614.1553255926290448384", expected: "15581492618384294731.1821351505477763072"},
+		{name: "negative overflow fallback", left: "-340282366920938463463374607431768211455", right: "18446744073709551614.1553255926290448384", expected: "-15581492618384294731.1821351505477763072"},
+		{name: "fractional operands", left: "7.5", right: "2", expected: "1.5"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			left := udecimal.MustParse(tc.left)
+			right := udecimal.MustParse(tc.right)
+			assert.Equal(t, tc.expected, moduloUdecimal(left, right).String(),
+				"moduloUdecimal should return the expected native remainder")
+		})
+	}
+	t.Run("unrelated backend panic", func(t *testing.T) {
+		t.Parallel()
+		assert.PanicsWithError(t, udecimal.ErrDivideByZero.Error(),
+			func() { moduloUdecimal(udecimal.One, udecimal.Zero) },
+			"moduloUdecimal should preserve unrelated backend panics")
+	})
 }
 
 func TestNewUdecimalFromFloat(t *testing.T) {
@@ -565,11 +748,25 @@ func TestPowUdecimal(t *testing.T) {
 
 func TestRoundUdecimal(t *testing.T) {
 	t.Parallel()
-	value, err := parseUdecimal("1.25")
-	require.NoError(t, err, "parseUdecimal must parse the value")
-	assert.Equal(t, "1.3", roundUdecimal(value, 1).String(), "roundUdecimal should round half away from zero")
-	assert.Equal(t, value, roundUdecimal(value, 19),
-		"roundUdecimal should leave values unchanged beyond maximum precision")
-	assert.Panics(t, func() { roundUdecimal(value, -maxStringDigits) },
-		"roundUdecimal should panic when negative precision exceeds the supported range")
+	largeHalf := "5" + strings.Repeat("0", maxStringDigits)
+	largeRounded := "1" + strings.Repeat("0", maxStringDigits+1)
+	for _, tc := range []struct {
+		name, value, expected string
+		places                int32
+	}{
+		{name: "fractional", value: "1.25", places: 1, expected: "1.3"},
+		{name: "maximum precision", value: "1.25", places: maxPrecision, expected: "1.25"},
+		{name: "beyond parser cap", value: "1.25", places: -maxStringDigits - 1, expected: "0"},
+		{name: "minimum int32 places", value: "1.25", places: math.MinInt32, expected: "0"},
+		{name: "large positive half", value: largeHalf, places: -maxStringDigits - 1, expected: largeRounded},
+		{name: "large negative half", value: "-" + largeHalf, places: -maxStringDigits - 1, expected: "-" + largeRounded},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			value, err := parseUdecimal(tc.value)
+			require.NoError(t, err, "parseUdecimal must parse the value")
+			assert.Equal(t, tc.expected, roundUdecimal(value, tc.places).String(),
+				"roundUdecimal should return the expected value")
+		})
+	}
 }

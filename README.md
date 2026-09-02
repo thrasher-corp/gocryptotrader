@@ -139,10 +139,11 @@ go build -tags=udecimal_on
 
 The tag changes both the implementation and some decimal behaviour. Before enabling it, note these differences:
 
-- **Precision:** udecimal retains up to 19 fractional digits and truncates any additional digits without returning an error. A non-zero multiplication or division result with a magnitude below `1e-19` therefore becomes zero.
+- **Precision:** udecimal retains up to 19 fractional digits. Arithmetic and float conversion truncate anything beyond that without returning an error, so a non-zero result with a magnitude below `1e-19` becomes zero. Parsing does not truncate: `NewFromString` rejects inputs requiring more than 19 fractional digits.
+- **Division:** The udecimal build truncates division results to 19 fractional digits. The default shopspring build rounds division results to 16 fractional digits, so the final digits can differ between builds.
 - **Large values:** Plain decimal values round-trip through text, JSON and SQL codecs even when they exceed udecimal's native 200-character parser limit. Scientific notation is rejected when expanding it would produce more than 200 digits.
 - **API behaviour:** Fractional `Pow` exponents and `Scan(nil)` are rejected.
-- **Representation:** A udecimal-backed `Decimal` occupies 32 bytes instead of 16 bytes. Its binary encoding is not compatible with shopspring's.
+- **Representation:** A udecimal-backed `Decimal` occupies 32 bytes instead of 16 bytes. Its binary encoding is not compatible with shopspring's and rejects values whose native encoding would exceed its one-byte length field.
 
 Without the tag, `Decimal` remains an alias of shopspring's type.
 
@@ -153,6 +154,8 @@ make decimal_bench
 ```
 
 The suite defaults to five 500 ms samples per operation. Override these with `DECIMAL_BENCH_COUNT` and `DECIMAL_BENCH_TIME` when collecting longer benchmark runs.
+
+`BenchmarkDecimalInexactFloat64` measures conversion to a plain `float64`; `BenchmarkDecimalFloat64` separately measures conversion with the exactness flag required by `Float64()`.
 
 ## Donations
 
