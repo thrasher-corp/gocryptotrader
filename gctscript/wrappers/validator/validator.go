@@ -2,7 +2,7 @@ package validator
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/core"

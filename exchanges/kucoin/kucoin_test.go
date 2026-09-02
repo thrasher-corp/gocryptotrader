@@ -2308,9 +2308,9 @@ func TestGetActiveOrders(t *testing.T) {
 		Pairs:     enabledPairs,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
-	}
 
-	getOrdersRequest.Type = order.OptimalLimit
+		Type: order.OptimalLimit,
+	}
 	_, err = e.GetActiveOrders(t.Context(), &getOrdersRequest)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 

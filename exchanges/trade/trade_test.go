@@ -3,6 +3,7 @@ package trade
 import (
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 	"uuid"
 
@@ -196,21 +197,20 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	t.Parallel()
-	var p Processor
-	p.mutex.Lock()
-	p.bufferProcessorInterval = time.Millisecond
-	p.mutex.Unlock()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go p.Run(&wg)
-	wg.Wait()
-	if !p.started.Load() {
-		t.Error("expected it to start running")
-	}
-	time.Sleep(time.Millisecond * 20)
-	if p.started.Load() {
-		t.Error("expected it to stop running")
-	}
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		var p Processor
+		p.mutex.Lock()
+		p.bufferProcessorInterval = time.Millisecond
+		p.mutex.Unlock()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go p.Run(&wg)
+		wg.Wait()
+		assert.True(t, p.started.Load(), "Run should report the processor started")
+		// returns once the processor has drained an empty buffer and stopped its ticker
+		synctest.Sleep(20 * time.Millisecond)
+		assert.False(t, p.started.Load(), "Run should report the processor stopped")
+	})
 }
 
 func TestFilterTradesByTime(t *testing.T) {

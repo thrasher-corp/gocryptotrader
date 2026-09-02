@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -3706,7 +3706,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		t.FailNow()
 	}
 
-	gRPCPort := rand.Intn(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
+	gRPCPort := rand.IntN(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
 	gRPCProxyPort := gRPCPort + 1
 
 	e := &Engine{

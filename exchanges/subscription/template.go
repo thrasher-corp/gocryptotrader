@@ -62,11 +62,7 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 		return nil, err
 	}
 
-	assets := make(asset.Items, 0, len(ap))
-	for k := range ap {
-		assets = append(assets, k)
-	}
-	slices.Sort(assets) // text/template ranges maps in sorted order
+	assets := asset.Items(slices.Sorted(maps.Keys(ap))) // text/template ranges maps in sorted order
 
 	subs := List{}
 	for _, s := range l {

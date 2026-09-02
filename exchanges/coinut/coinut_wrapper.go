@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -724,9 +726,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			currenciesToCheck = append(currenciesToCheck, fPair.String())
 		}
 	} else {
-		for k := range e.instrumentMap.Instruments {
-			currenciesToCheck = append(currenciesToCheck, k)
-		}
+		currenciesToCheck = slices.AppendSeq(currenciesToCheck, maps.Keys(e.instrumentMap.Instruments))
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {

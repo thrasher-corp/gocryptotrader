@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -503,7 +502,7 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	default:
 		return nil, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
 	}
-	var resp [][][]any
+	var resp [][][]json.RawMessage
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, bitfinexAPIVersion2+path, &resp, status)
 	if err != nil {
 		return nil, err
@@ -517,29 +516,21 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		if len(data[i]) != 2 {
 			return nil, errors.New("response contained a tuple without exactly 2 items")
 		}
-		pairSymbol, ok := data[i][0].(string)
-		if !ok {
-			return nil, fmt.Errorf("could not convert first item in SiteInfoConfigData to string: Type is %T", data[i][0])
+		var pairSymbol string
+		if err := json.Unmarshal(data[i][0], &pairSymbol); err != nil {
+			return nil, fmt.Errorf("could not unmarshal pair symbol: %w", err)
 		}
 		if strings.Contains(pairSymbol, "TEST") {
 			continue
 		}
-		// SIC: Array type really is any. It contains nils and strings
-		info, ok := data[i][1].([]any)
-		if !ok {
-			return nil, fmt.Errorf("could not convert second item in SiteInfoConfigData to []any; Type is %T", data[i][1])
+		var info []types.Number
+		if err := json.Unmarshal(data[i][1], &info); err != nil {
+			return nil, fmt.Errorf("could not unmarshal order info for %s: %w", pairSymbol, err)
 		}
 		if len(info) < 5 {
 			return nil, errors.New("response contained order info with less than 5 elements")
 		}
-		minOrder, err := convert.FloatFromString(info[3])
-		if err != nil {
-			return nil, fmt.Errorf("could not convert MinOrderAmount: %s", err)
-		}
-		maxOrder, err := convert.FloatFromString(info[4])
-		if err != nil {
-			return nil, fmt.Errorf("could not convert MaxOrderAmount: %s", err)
-		}
+		minOrder, maxOrder := info[3].Float64(), info[4].Float64()
 		pair, err := currency.NewPairFromString(pairSymbol)
 		if err != nil {
 			return nil, err
@@ -1654,7 +1645,8 @@ func (e *Exchange) GetInactiveOrders(ctx context.Context, symbol string, ids ...
 		bitfinexV2Auth+"r/"+bitfinexOrders+"/"+symbol+"/"+bitfinexInactiveOrders,
 		req,
 		&response,
-		orderMulti)
+		orderMulti,
+	)
 }
 
 // GetOpenOrders returns all active orders and statuses

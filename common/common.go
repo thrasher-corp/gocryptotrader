@@ -663,16 +663,7 @@ func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
 	if batchSize <= 0 {
 		return []S{blobs}
 	}
-	i := 0
-	batches := make([]S, (len(blobs)+batchSize-1)/batchSize)
-	for batchSize < len(blobs) {
-		blobs, batches[i] = blobs[batchSize:], blobs[:batchSize:batchSize]
-		i++
-	}
-	if len(blobs) > 0 {
-		batches[i] = blobs
-	}
-	return batches
+	return slices.Collect(slices.Chunk(blobs, batchSize))
 }
 
 // SortStrings takes a slice of fmt.Stringer implementers and returns a new ascending sorted slice

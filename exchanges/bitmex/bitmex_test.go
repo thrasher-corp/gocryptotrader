@@ -162,7 +162,7 @@ func TestUserMarginGETUsesQueryNotBody(t *testing.T) {
 	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
 
 	call := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		call++
 		assert.Equal(t, http.MethodGet, r.Method, "Request method should be GET")
 		assert.Equal(t, "/api/v1/user/margin", r.URL.Path, "Request path should be correct")
@@ -184,8 +184,8 @@ func TestUserMarginGETUsesQueryNotBody(t *testing.T) {
 			t.Fatalf("unexpected request call count: %d", call)
 		}
 	}))
-	defer server.Close()
 
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	err = ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
 	require.NoError(t, err, "SetRunningURL must not error")
 
@@ -253,7 +253,7 @@ func TestGetLeaderboard(t *testing.T) {
 	err := testexch.Setup(e)
 	require.NoError(t, err, "Setup must not error")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "Request method should be correct")
 		assert.Equal(t, "/api/v1/leaderboard", r.URL.Path, "Request path should be correct")
 		w.WriteHeader(http.StatusOK)
@@ -271,8 +271,8 @@ func TestGetLeaderboard(t *testing.T) {
 		]`))
 		assert.NoError(t, err, "Writing response to handler should not error")
 	}))
-	defer server.Close()
 
+	require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	err = e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
 	require.NoError(t, err, "SetRunningURL must not error")
 
@@ -437,7 +437,7 @@ func TestGetStatsHistorical(t *testing.T) {
 	err := testexch.Setup(e)
 	require.NoError(t, err, "Setup must not error")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "Request method should be correct")
 		assert.Equal(t, "/api/v1/stats/history", r.URL.Path, "Request path should be correct")
 		w.WriteHeader(http.StatusOK)
@@ -459,8 +459,8 @@ func TestGetStatsHistorical(t *testing.T) {
 		]`)) // Bitmex sends XBt as the currency for BTC, so we mimic it exactly
 		assert.NoError(t, err, "Writing response to handler should not error")
 	}))
-	defer server.Close()
 
+	require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	err = e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
 	require.NoError(t, err, "SetRunningURL must not error")
 

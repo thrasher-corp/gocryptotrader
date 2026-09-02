@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -181,73 +181,49 @@ func (e *Exchange) GetTickers(ctx context.Context, pairList string) (map[string]
 
 // GetOHLC returns an array of open high low close values of a currency pair
 func (e *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval string) ([]OpenHighLowClose, error) {
-	values := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	translatedAsset := assetTranslator.LookupCurrency(symbolValue)
-	if translatedAsset == "" {
-		translatedAsset = symbolValue
-	}
+	translatedAsset := cmp.Or(assetTranslator.LookupCurrency(symbolValue), symbolValue)
+	values := url.Values{}
 	values.Set("pair", translatedAsset)
 	values.Set("interval", interval)
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
-	result := make(map[string]any)
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
-	if err != nil {
+	var result map[string]json.RawMessage
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result); err != nil {
 		return nil, err
 	}
 
-	ohlcData, ok := result[translatedAsset].([]any)
+	raw, ok := result[translatedAsset]
 	if !ok {
-		return nil, errors.New("invalid data returned")
+		return nil, fmt.Errorf("%w: no candles for %s", common.ErrNoResponse, translatedAsset)
 	}
 
-	OHLC := make([]OpenHighLowClose, len(ohlcData))
-	for x := range ohlcData {
-		subData, ok := ohlcData[x].([]any)
-		if !ok {
-			return nil, errors.New("unable to type assert subData")
-		}
-
-		if len(subData) < 8 {
-			return nil, errors.New("unexpected data length returned")
-		}
-
-		var o OpenHighLowClose
-
-		tmData, ok := subData[0].(float64)
-		if !ok {
-			return nil, errors.New("unable to type assert time")
-		}
-		o.Time = time.Unix(int64(tmData), 0)
-		if o.Open, err = convert.FloatFromString(subData[1]); err != nil {
-			return nil, err
-		}
-		if o.High, err = convert.FloatFromString(subData[2]); err != nil {
-			return nil, err
-		}
-		if o.Low, err = convert.FloatFromString(subData[3]); err != nil {
-			return nil, err
-		}
-		if o.Close, err = convert.FloatFromString(subData[4]); err != nil {
-			return nil, err
-		}
-		if o.VolumeWeightedAveragePrice, err = convert.FloatFromString(subData[5]); err != nil {
-			return nil, err
-		}
-		if o.Volume, err = convert.FloatFromString(subData[6]); err != nil {
-			return nil, err
-		}
-		if o.Count, ok = subData[7].(float64); !ok {
-			return nil, errors.New("unable to type assert count")
-		}
-		OHLC[x] = o
+	// Candles are heterogeneous tuples of [time, open, high, low, close, vwap, volume, count] mixing bare numbers and quoted strings
+	var candles [][]types.Number
+	if err := json.Unmarshal(raw, &candles); err != nil {
+		return nil, err
 	}
-	return OHLC, nil
+	ohlc := make([]OpenHighLowClose, len(candles))
+	for x := range candles {
+		if len(candles[x]) < 8 {
+			return nil, fmt.Errorf("%w: candle %d has %d fields, need 8", errUnexpectedCandleLength, x, len(candles[x]))
+		}
+		ohlc[x] = OpenHighLowClose{
+			Time:                       time.Unix(candles[x][0].Int64(), 0),
+			Open:                       candles[x][1].Float64(),
+			High:                       candles[x][2].Float64(),
+			Low:                        candles[x][3].Float64(),
+			Close:                      candles[x][4].Float64(),
+			VolumeWeightedAveragePrice: candles[x][5].Float64(),
+			Volume:                     candles[x][6].Float64(),
+			Count:                      candles[x][7].Float64(),
+		}
+	}
+	return ohlc, nil
 }
 
 // GetDepth returns the orderbook for a particular currency

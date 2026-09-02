@@ -1773,6 +1773,41 @@ func TestGetSubAccountALLAPIKeys(t *testing.T) {
 	}
 }
 
+func TestSubAccountAPIKeysUnmarshal(t *testing.T) {
+	t.Parallel()
+	var resp *SubAccountAPIKeys
+	require.NoError(t, json.Unmarshal([]byte(`{"result":[{"id":"24828209","ips":["*"],"apiKey":"XXXXXX","note":"UTA","status":3,"expiredAt":"2023-12-01T02:36:06Z","createdAt":"2023-08-25T06:42:39Z","type":1,"permissions":{"ContractTrade":["Order","Position"],"Spot":["SpotTrade"],"Wallet":["AccountTransfer","SubMemberTransferList"],"Options":["OptionsTrade"],"Derivatives":["DerivativesTrade"],"CopyTrading":[],"BlockTrade":[],"Exchange":["ExchangeHistory"],"NFT":[],"Affiliate":[],"Earn":[]},"secret":"******","readOnly":false,"deadlineDay":21,"flag":"hmac"}],"nextPageCursor":"abc"}`), &resp), "Unmarshal must not error")
+	require.Len(t, resp.Result, 1, "Result must contain one API key")
+	assert.Equal(t, "abc", resp.NextPageCursor, "NextPageCursor should unmarshal")
+	exp := SubAccountAPIKey{
+		ID:          "24828209",
+		IPAddresses: []string{"*"},
+		APIKey:      "XXXXXX",
+		Note:        "UTA",
+		Status:      3,
+		ExpiredAt:   time.Date(2023, 12, 1, 2, 36, 6, 0, time.UTC),
+		CreatedAt:   time.Date(2023, 8, 25, 6, 42, 39, 0, time.UTC),
+		Type:        1,
+		Permissions: APIKeyPermissions{
+			ContractTrade: []string{"Order", "Position"},
+			Spot:          []string{"SpotTrade"},
+			Wallet:        []string{"AccountTransfer", "SubMemberTransferList"},
+			Options:       []string{"OptionsTrade"},
+			Derivatives:   []string{"DerivativesTrade"},
+			Exchange:      []string{"ExchangeHistory"},
+			Earn:          []string{},
+			Affiliate:     []string{},
+			BlockTrade:    []string{},
+			NFT:           []string{},
+			CopyTrading:   []string{},
+		},
+		Secret:      "******",
+		DeadlineDay: 21,
+		Flag:        "hmac",
+	}
+	assert.Equal(t, exp, resp.Result[0], "SubAccountAPIKey should unmarshal each documented field")
+}
+
 func TestSetMMP(t *testing.T) {
 	t.Parallel()
 	if mockTests {

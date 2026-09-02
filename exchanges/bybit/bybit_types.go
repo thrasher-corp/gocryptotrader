@@ -1305,7 +1305,7 @@ type SubUIDAPIResponse struct {
 	Secret      string              `json:"secret"`
 	Permissions map[string][]string `json:"permissions"`
 
-	IPS                   []string  `json:"ips"`
+	IPAddresses           []string  `json:"ips"`
 	Type                  int64     `json:"type"`
 	DeadlineDay           int64     `json:"deadlineDay"`
 	ExpiredAt             time.Time `json:"expiredAt"`
@@ -1333,30 +1333,35 @@ type SubAccountAPIKeys struct {
 
 // SubAccountAPIKey is a single sub-account API key
 type SubAccountAPIKey struct {
-	ID          string    `json:"id"`
-	Ips         []string  `json:"ips"`
-	APIKey      string    `json:"apiKey"`
-	Note        string    `json:"note"`
-	Status      int64     `json:"status"`
-	ExpiredAt   time.Time `json:"expiredAt"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Type        int64     `json:"type"`
-	Permissions struct {
-		ContractTrade []string `json:"ContractTrade"`
-		Spot          []string `json:"Spot"`
-		Wallet        []string `json:"Wallet"`
-		Options       []string `json:"Options"`
-		Derivatives   []string `json:"Derivatives"`
-		CopyTrading   []string `json:"CopyTrading"`
-		BlockTrade    []string `json:"BlockTrade"`
-		Exchange      []string `json:"Exchange"`
-		Nft           []string `json:"NFT"`
-		Affiliate     []string `json:"Affiliate"`
-	} `json:"permissions"`
-	Secret      string `json:"secret"`
-	ReadOnly    bool   `json:"readOnly"`
-	DeadlineDay int64  `json:"deadlineDay"`
-	Flag        string `json:"flag"`
+	ID          string            `json:"id"`
+	IPAddresses []string          `json:"ips"`
+	APIKey      string            `json:"apiKey"`
+	Note        string            `json:"note"`
+	Status      int64             `json:"status"`
+	ExpiredAt   time.Time         `json:"expiredAt"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	Type        int64             `json:"type"`
+	Permissions APIKeyPermissions `json:"permissions"`
+	Secret      string            `json:"secret"`
+	ReadOnly    bool              `json:"readOnly"`
+	DeadlineDay int64             `json:"deadlineDay"`
+	Flag        string            `json:"flag"`
+}
+
+// APIKeyPermissions holds the permissions granted to an API key. Affiliate, BlockTrade, NFT and
+// CopyTrading are always empty for sub-accounts, but are retained because Bybit still returns them.
+type APIKeyPermissions struct {
+	ContractTrade []string `json:"ContractTrade"`
+	Spot          []string `json:"Spot"`
+	Wallet        []string `json:"Wallet"`
+	Options       []string `json:"Options"`
+	Derivatives   []string `json:"Derivatives"`
+	Exchange      []string `json:"Exchange"`
+	Earn          []string `json:"Earn"`
+	Affiliate     []string `json:"Affiliate"`
+	BlockTrade    []string `json:"BlockTrade"`
+	NFT           []string `json:"NFT"`
+	CopyTrading   []string `json:"CopyTrading"`
 }
 
 // WalletType represents available wallet types for the master account or sub account

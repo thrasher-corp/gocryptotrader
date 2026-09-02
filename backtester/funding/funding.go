@@ -3,7 +3,7 @@ package funding
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -333,8 +333,7 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 		}
 
 		// create a breakdown of USD values and currency contributions over the span of run
-		var pricingOverTime []ItemSnapshot
-	snaps:
+		pricingOverTime := make([]ItemSnapshot, 0, len(f.items[x].snapshot))
 		for _, snapshot := range f.items[x].snapshot {
 			pricingOverTime = append(pricingOverTime, snapshot)
 			if f.items[x].asset.IsFutures() || f.disableUSDTracking {
@@ -342,16 +341,13 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 				// no USD tracking means no USD values to breakdown
 				continue
 			}
-			for y := range report.USDTotalsOverTime {
-				if !report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
-					continue
-				}
+			if y := slices.IndexFunc(report.USDTotalsOverTime, func(s ItemSnapshot) bool { return s.Time.Equal(snapshot.Time) }); y >= 0 {
 				report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
 				report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
 					Currency:        f.items[x].currency,
 					USDContribution: snapshot.USDValue,
 				})
-				continue snaps
+				continue
 			}
 			report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
 				Time:     snapshot.Time,
@@ -365,9 +361,7 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 			})
 		}
 
-		sort.Slice(pricingOverTime, func(i, j int) bool {
-			return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
-		})
+		slices.SortFunc(pricingOverTime, func(a, b ItemSnapshot) int { return a.Time.Compare(b.Time) })
 		item.Snapshots = pricingOverTime
 
 		if f.items[x].initialFunds.IsZero() {
@@ -384,9 +378,7 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 	}
 
 	if len(report.USDTotalsOverTime) > 0 {
-		sort.Slice(report.USDTotalsOverTime, func(i, j int) bool {
-			return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
-		})
+		slices.SortFunc(report.USDTotalsOverTime, func(a, b ItemSnapshot) int { return a.Time.Compare(b.Time) })
 		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
 	}
 

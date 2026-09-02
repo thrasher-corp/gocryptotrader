@@ -6500,9 +6500,9 @@ func TestGetAccountInstruments(t *testing.T) {
 	require.NotEmpty(t, p, "GetEnabledPairs must not return empty pairs")
 
 	uly := p[0].Base.String()
-	idx := strings.Index(p[0].Quote.String(), "-")
-	require.NotEqual(t, -1, idx, "strings.Index must find a hyphen")
-	uly += "-" + p[0].Quote.String()[:idx]
+	quoteBase, _, ok := strings.Cut(p[0].Quote.String(), "-")
+	require.True(t, ok, "Quote must contain a hyphen")
+	uly += "-" + quoteBase
 
 	result, err = e.GetAccountInstruments(contextGenerate(), asset.Options, uly, "", p[0].String())
 	require.NoError(t, err)

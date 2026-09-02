@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"testing"
 	"time"
@@ -193,7 +193,7 @@ func seedWithdrawData() {
 				},
 			},
 		}
-		rnd := rand.Intn(2) //nolint:gosec // used for generating test data, no need to import crypto/rand
+		rnd := rand.IntN(2) //nolint:gosec // used for generating test data, no need to import crypto/rand
 		if rnd == 0 {
 			resp.RequestDetails.Currency = currency.AUD
 			resp.RequestDetails.Type = 1

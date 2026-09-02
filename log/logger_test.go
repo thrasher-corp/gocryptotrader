@@ -1,6 +1,7 @@
 package log
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"log"
@@ -15,17 +16,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var (
 	testConfigEnabled = &Config{
-		Enabled: convert.BoolPtr(true),
+		Enabled: new(true),
 		Output:  "console",
 		Level:   "INFO|WARN|DEBUG|ERROR",
 		AdvancedSettings: advancedSettings{
-			ShowLogSystemName: convert.BoolPtr(true),
+			ShowLogSystemName: new(true),
 			Spacer:            " | ",
 			TimeStampFormat:   timestampFormat,
 			Headers: headers{
@@ -44,7 +44,7 @@ var (
 		},
 	}
 	testConfigDisabled = &Config{
-		Enabled: convert.BoolPtr(false),
+		Enabled: new(false),
 		Output:  "console",
 	}
 
@@ -425,7 +425,6 @@ func TestPooledFieldsUseCurrentLogger(t *testing.T) {
 		levels: Levels{Info: true},
 		output: &multiWriterHolder{writers: []io.Writer{w}},
 	}
-	enabled := true
 	currentLogger := Logger{InfoHeader: "current", Spacer: " "}
 	staleLogger := Logger{InfoHeader: "stale", Spacer: " "}
 
@@ -434,7 +433,7 @@ func TestPooledFieldsUseCurrentLogger(t *testing.T) {
 	originalHook := customLogHook
 	originalLogger := logger
 	originalPool := logFieldsPool
-	globalLogConfig = &Config{Enabled: &enabled}
+	globalLogConfig = &Config{Enabled: new(true)}
 	customLogHook = nil
 	logger = staleLogger
 	pooled := originalPool.New().(*fields) //nolint:forcetypeassert // Not necessary from a pool
@@ -954,7 +953,7 @@ func TestNewSubLogger(t *testing.T) {
 
 func TestRotateWrite(t *testing.T) {
 	t.Parallel()
-	empty := Rotate{Rotate: convert.BoolPtr(true), FileName: "test.txt"}
+	empty := Rotate{Rotate: new(true), FileName: "test.txt"}
 	payload := make([]byte, defaultMaxSize*megabyte+1)
 	_, err := empty.Write(payload)
 	require.ErrorIs(t, err, errExceedsMaxFileSize)
@@ -998,9 +997,7 @@ type testBuffer struct {
 }
 
 func (tb *testBuffer) Write(p []byte) (int, error) {
-	cpy := make([]byte, len(p))
-	copy(cpy, p)
-	tb.value = cpy
+	tb.value = bytes.Clone(p)
 	tb.Finished <- struct{}{}
 	return len(p), nil
 }
@@ -1012,9 +1009,7 @@ func (tb *testBuffer) Read() string {
 
 func (tb *testBuffer) ReadRaw() []byte {
 	defer func() { tb.value = tb.value[:0] }()
-	cpy := make([]byte, len(tb.value))
-	copy(cpy, tb.value)
-	return cpy
+	return bytes.Clone(tb.value)
 }
 
 func newTestBuffer() *testBuffer {

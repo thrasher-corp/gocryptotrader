@@ -7,7 +7,7 @@ import (
 	"maps"
 	"net"
 	"net/url"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1299,9 +1299,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 				OpenInterest: ticks[i].OpenInterest,
 			})
 		}
-		sort.Slice(resp, func(i, j int) bool {
-			return resp[i].Key.Base.Symbol < resp[j].Key.Base.Symbol
-		})
+		slices.SortFunc(resp, func(a, b futures.OpenInterest) int { return strings.Compare(a.Key.Base.Symbol, b.Key.Base.Symbol) })
 		return resp, nil
 	}
 	resp := make([]futures.OpenInterest, len(k))

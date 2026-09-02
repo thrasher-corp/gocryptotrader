@@ -113,10 +113,7 @@ func StartRPCServer(ctx context.Context, server *GRPCServer) error {
 		_ = lis.Close()
 	}
 
-	go func() {
-		<-ctx.Done()
-		shutdownGRPCServer()
-	}()
+	context.AfterFunc(ctx, shutdownGRPCServer)
 
 	go func() {
 		if serveErr := s.Serve(lis); serveErr != nil && !errors.Is(serveErr, net.ErrClosed) && !errors.Is(serveErr, grpc.ErrServerStopped) {
@@ -171,14 +168,14 @@ func (s *GRPCServer) startRPCRESTProxy(ctx context.Context) error {
 		Handler:           mux,
 	}
 
-	go func() { //nolint:gosec // Shutdown must outlive ctx, which has just been cancelled
-		<-ctx.Done()
+	context.AfterFunc(ctx, func() {
+		// Shutdown must outlive ctx, which has just been cancelled
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil && !errors.Is(shutdownErr, http.ErrServerClosed) {
 			log.Errorf(log.GRPCSys, "GRPC proxy server shutdown failed: %s", shutdownErr)
 		}
-	}()
+	})
 
 	go func() {
 		if serveErr := server.Serve(proxyListener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {

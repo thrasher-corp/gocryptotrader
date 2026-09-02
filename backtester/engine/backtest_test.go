@@ -451,7 +451,7 @@ func TestFullCycle(t *testing.T) {
 	assert.NoError(t, err)
 
 	bt := BackTest{
-		DataHolder:               &data.HandlerHolder{},
+		DataHolder:               data.NewHandlerHolder(),
 		Strategy:                 &dollarcostaverage.Strategy{},
 		Portfolio:                port,
 		Exchange:                 &exchange.Exchange{},
@@ -462,8 +462,6 @@ func TestFullCycle(t *testing.T) {
 		Funding:                  f,
 		shutdown:                 make(chan struct{}),
 	}
-
-	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: &gctkline.Item{
 			Exchange: e,

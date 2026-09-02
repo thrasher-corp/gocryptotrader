@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -68,11 +70,7 @@ func (e *Exchange) GetTradablePairs(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(result))
-	for x := range result {
-		currencies = append(currencies, x)
-	}
-	return currencies, nil
+	return slices.AppendSeq(make([]string, 0, len(result)), maps.Keys(result)), nil
 }
 
 // GetTicker returns ticker information

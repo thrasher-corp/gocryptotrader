@@ -6,7 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -126,12 +128,7 @@ func (c *CurrencyConverter) GetSupportedCurrencies() ([]string, error) {
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(result.Results))
-	for key := range result.Results {
-		currencies = append(currencies, key)
-	}
-
-	return currencies, nil
+	return slices.AppendSeq(make([]string, 0, len(result.Results)), maps.Keys(result.Results)), nil
 }
 
 // GetCountries returns a list of the supported countries and

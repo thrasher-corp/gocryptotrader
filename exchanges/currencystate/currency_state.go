@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -313,9 +312,9 @@ func (c *Currency) GetState() Options {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	return Options{
-		Withdraw: convert.BoolPtr(c.withdrawals),
-		Deposit:  convert.BoolPtr(c.deposits),
-		Trade:    convert.BoolPtr(c.trading),
+		Withdraw: new(c.withdrawals),
+		Deposit:  new(c.deposits),
+		Trade:    new(c.trading),
 	}
 }
 

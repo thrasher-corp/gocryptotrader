@@ -2,13 +2,14 @@ package bitfinex
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -2094,9 +2095,7 @@ subSort:
 				// Append root element
 				subset = append(subset, depth[x])
 				// Sort IDs by ascending
-				sort.Slice(subset, func(i, j int) bool {
-					return subset[i].ID < subset[j].ID
-				})
+				slices.SortFunc(subset, func(a, b orderbook.Level) int { return cmp.Compare(a.ID, b.ID) })
 				// Re-align elements with sorted ID subset
 				for z := range subset {
 					depth[x+z] = subset[z]

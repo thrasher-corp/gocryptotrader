@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -161,9 +161,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 	server := grpc.NewServer(opts...)
 	gctrpc.RegisterGoCryptoTraderServiceServer(server, &s)
 
-	go func() {
-		<-ctx.Done()
-
+	context.AfterFunc(ctx, func() {
 		done := make(chan struct{})
 		go func() {
 			server.GracefulStop()
@@ -178,7 +176,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 		}
 
 		_ = lis.Close()
-	}()
+	})
 
 	go func() {
 		if err := server.Serve(lis); err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, grpc.ErrServerStopped) {
@@ -4282,9 +4280,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(positions, func(i, j int) bool {
-		return positions[i].OpeningDate.Before(positions[j].OpeningDate)
-	})
+	slices.SortFunc(positions, func(a, b futures.Position) int { return a.OpeningDate.Compare(b.OpeningDate) })
 	response := make([]*gctrpc.FuturePosition, len(positions))
 	for i := range positions {
 		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate)

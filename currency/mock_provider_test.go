@@ -1,7 +1,7 @@
 package currency
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"

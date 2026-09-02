@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1516,9 +1516,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if len(fundingRates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
-	sort.Slice(fundingRates, func(i, j int) bool {
-		return fundingRates[i].Time.Before(fundingRates[j].Time)
-	})
+	slices.SortFunc(fundingRates, func(a, b fundingrate.Rate) int { return a.Time.Compare(b.Time) })
 	return &fundingrate.HistoricalRates{
 		Exchange:        e.Name,
 		Asset:           r.Asset,

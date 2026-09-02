@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -209,17 +208,17 @@ func TestStatesUpdateAll(t *testing.T) {
 
 	err = s.UpdateAll(asset.Spot, map[currency.Code]Options{
 		currency.BTC: {
-			Withdraw: convert.BoolPtr(true),
-			Trade:    convert.BoolPtr(true),
-			Deposit:  convert.BoolPtr(true),
+			Withdraw: new(true),
+			Trade:    new(true),
+			Deposit:  new(true),
 		},
 	})
 	require.NoError(t, err)
 
 	err = s.UpdateAll(asset.Spot, map[currency.Code]Options{currency.BTC: {
-		Withdraw: convert.BoolPtr(false),
-		Deposit:  convert.BoolPtr(false),
-		Trade:    convert.BoolPtr(false),
+		Withdraw: new(false),
+		Deposit:  new(false),
+		Trade:    new(false),
 	}})
 	require.NoError(t, err)
 
@@ -282,9 +281,9 @@ func TestAlerting(_ *testing.T) {
 	go waitForAlert(c.WaitWithdraw(nil), &start, &finish)
 	start.Wait()
 	c.update(Options{
-		Trade:    convert.BoolPtr(true),
-		Withdraw: convert.BoolPtr(true),
-		Deposit:  convert.BoolPtr(true),
+		Trade:    new(true),
+		Withdraw: new(true),
+		Deposit:  new(true),
 	})
 	finish.Wait()
 }

@@ -2,6 +2,7 @@ package timeperiods
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"time"
 
@@ -153,10 +154,9 @@ func (t *TimePeriodCalculator) setTimePeriodExists() {
 
 // Sort will sort the time period asc or desc
 func (t *TimePeriodCalculator) Sort(desc bool) {
-	sort.Slice(t.TimePeriods, func(i, j int) bool {
-		if desc {
-			return t.TimePeriods[i].Time.After(t.TimePeriods[j].Time)
-		}
-		return t.TimePeriods[i].Time.Before(t.TimePeriods[j].Time)
-	})
+	if desc {
+		slices.SortFunc(t.TimePeriods, func(a, b TimePeriod) int { return b.Time.Compare(a.Time) })
+		return
+	}
+	slices.SortFunc(t.TimePeriods, func(a, b TimePeriod) int { return a.Time.Compare(b.Time) })
 }

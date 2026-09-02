@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -787,9 +787,7 @@ func (m *OrderManager) processFuturesPositions(ctx context.Context, exch exchang
 	if len(position.Orders) == 0 {
 		return fmt.Errorf("%w position for '%v' '%v' '%v' has no orders", errNilOrder, exch.GetName(), position.Asset, position.Pair)
 	}
-	sort.Slice(position.Orders, func(i, j int) bool {
-		return position.Orders[i].Date.Before(position.Orders[j].Date)
-	})
+	slices.SortFunc(position.Orders, func(a, b order.Detail) int { return a.Date.Compare(b.Date) })
 	feat := exch.GetSupportedFeatures()
 	var err error
 	for i := range position.Orders {

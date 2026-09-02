@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -344,10 +346,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return pairs, err
 		}
-		pairs = make(currency.Pairs, 0, len(pairInfo))
-		for pair := range pairInfo {
-			pairs = append(pairs, pair)
-		}
+		pairs = slices.AppendSeq(make(currency.Pairs, 0, len(pairInfo)), maps.Keys(pairInfo))
 	case asset.Futures:
 		symbols, err := e.GetInstruments(ctx)
 		if err != nil {

@@ -104,10 +104,11 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	var c Coinmarketcap
 	c.SetDefaults()
-	cfg := Settings{}
-	cfg.APIKey = apikey
-	cfg.AccountPlan = apiAccountPlanLevel
-	cfg.Enabled = true
+	cfg := Settings{
+		APIKey:      apikey,
+		AccountPlan: apiAccountPlanLevel,
+		Enabled:     true,
+	}
 	if cfg.AccountPlan == "" {
 		cfg.AccountPlan = "basic"
 	}

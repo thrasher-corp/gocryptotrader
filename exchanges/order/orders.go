@@ -452,8 +452,7 @@ func (d *Detail) GenerateInternalOrderID() {
 // CopyToPointer will return the address of a new copy of the order Detail
 // WARNING: DO NOT DEREFERENCE USE METHOD Copy().
 func (d *Detail) CopyToPointer() *Detail {
-	c := d.Copy()
-	return &c
+	return new(d.Copy())
 }
 
 // Copy makes a full copy of underlying details NOTE: This is Addressable.

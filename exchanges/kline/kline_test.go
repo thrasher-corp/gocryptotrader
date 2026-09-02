@@ -1,7 +1,7 @@
 package kline
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -94,7 +94,7 @@ func TestCreateKline(t *testing.T) {
 	trades := make([]order.TradeHistory, tradeTotal)
 	execution := time.Now()
 	for x := range tradeTotal {
-		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypto/rand for testing
+		price, rndTime := 1000+float64(rand.IntN(1000)), rand.IntN(10) //nolint:gosec // no need to import crypto/rand for testing
 		execution = execution.Add(time.Duration(rndTime) * time.Second)
 		trades[x] = order.TradeHistory{
 			Timestamp: execution,

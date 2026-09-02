@@ -101,12 +101,11 @@ func TestUpdateTickersMapsEveryField(t *testing.T) {
 	ex.Name = t.Name()
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, true), "StorePairs must not error")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/3/ticker/btc_usd", r.URL.Path, "request path should target the enabled pair")
 		_, err := fmt.Fprintf(w, `{"btc_usd":%s}`, tickerFixture)
 		assert.NoError(t, err, "writing ticker response should not error")
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")

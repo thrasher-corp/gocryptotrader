@@ -3,6 +3,7 @@ package kraken
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -381,6 +382,60 @@ func TestGetOHLC(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
 	assert.NoError(t, err, "GetOHLC should not error")
+}
+
+func TestGetOHLCMapsCandleTuples(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		candles  string
+		errIs    error
+		expected []OpenHighLowClose
+	}{
+		{
+			name:    "short tuple",
+			candles: `[[1,2,3,4,5,6,7]]`,
+			errIs:   errUnexpectedCandleLength,
+		},
+		{
+			name:    "every position mapped",
+			candles: `[[1748822400,1,2,3,4,5,6,7]]`,
+			expected: []OpenHighLowClose{{
+				Time:                       time.Unix(1748822400, 0),
+				Open:                       1,
+				High:                       2,
+				Low:                        3,
+				Close:                      4,
+				VolumeWeightedAveragePrice: 5,
+				Volume:                     6,
+				Count:                      7,
+			}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/0/public/OHLC", r.URL.Path, "request path should target the OHLC endpoint")
+				_, err := fmt.Fprintf(w, `{"error":[],"result":{"XXBTZUSD":%s}}`, tc.candles)
+				assert.NoError(t, err, "writing the candle response should not error")
+			}))
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+			ohlc, err := ex.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
+			if tc.errIs != nil {
+				assert.ErrorIs(t, err, tc.errIs, "GetOHLC should error on a short candle tuple")
+				return
+			}
+			require.NoError(t, err, "GetOHLC must not error")
+			assert.Equal(t, tc.expected, ohlc, "GetOHLC should map every tuple position")
+		})
+	}
 }
 
 func TestGetDepth(t *testing.T) {

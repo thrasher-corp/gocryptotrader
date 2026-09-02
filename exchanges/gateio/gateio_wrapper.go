@@ -1944,10 +1944,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
-			}
-			c.LatestRate = fundingrate.Rate{
-				Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
-				Rate: contracts[i].FundingRate.Decimal(),
+				LatestRate: fundingrate.Rate{
+					Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
+					Rate: contracts[i].FundingRate.Decimal(),
+				},
 			}
 			resp[i] = c
 		}

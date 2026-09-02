@@ -13,7 +13,7 @@ func (m *Manager) AddSnapshot(snap *Snapshot, overwriteExisting bool) error {
 		if len(m.Snapshots) == 0 {
 			return errSnapshotNotFound
 		}
-		for i := len(m.Snapshots) - 1; i >= 0; i-- {
+		for i := range slices.Backward(m.Snapshots) {
 			if snap.Offset == m.Snapshots[i].Offset {
 				m.Snapshots[i].Orders = snap.Orders
 				return nil

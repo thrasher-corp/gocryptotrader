@@ -676,7 +676,7 @@ func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exc
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.Name = name
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "Ticker batch request method should be GET")
 		assert.Equal(t, "/v2/tickers", r.URL.Path, "Ticker batch request path should be correct")
 		assert.Equal(t, "ALL", r.URL.Query().Get("symbols"), "Ticker batch request symbols should be correct")
@@ -685,7 +685,6 @@ func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exc
 		err := json.NewEncoder(w).Encode(payload)
 		assert.NoError(t, err, "Encoding ticker batch payload should not error")
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")

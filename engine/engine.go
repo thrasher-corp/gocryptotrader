@@ -202,8 +202,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	}
 
 	if flagSet["maxvirtualmachines"] {
-		maxMachines := b.Settings.MaxVirtualMachines
-		b.gctScriptManager.MaxVirtualMachines = &maxMachines
+		b.gctScriptManager.MaxVirtualMachines = new(b.Settings.MaxVirtualMachines)
 	}
 
 	if flagSet["withdrawcachesize"] {

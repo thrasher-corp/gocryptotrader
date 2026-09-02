@@ -286,8 +286,8 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
 			SlippageRate:        fillEvent.GetSlippageRate(),
 			CostBasis:           price.Mul(amount).Add(fee),
+			Order:               filledOrder,
 		}
-		snapOrder.Order = filledOrder
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
 	snap := &compliance.Snapshot{
@@ -325,9 +325,7 @@ func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Ite
 	if err != nil {
 		return nil, err
 	}
-	snap := cm.GetLatestSnapshot()
-
-	return &snap, nil
+	return new(cm.GetLatestSnapshot()), nil
 }
 
 // getComplianceManager returns the order snapshots for a given exchange, asset, pair

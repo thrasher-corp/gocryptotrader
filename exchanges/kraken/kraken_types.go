@@ -77,8 +77,9 @@ const (
 )
 
 var (
-	assetTranslator     assetTranslatorStore
-	errBadChannelSuffix = errors.New("bad websocket channel suffix")
+	assetTranslator           assetTranslatorStore
+	errBadChannelSuffix       = errors.New("bad websocket channel suffix")
+	errUnexpectedCandleLength = errors.New("unexpected candle length")
 )
 
 // GenericResponse stores general response data for functions that only return success

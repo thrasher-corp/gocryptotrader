@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"sync"
@@ -364,9 +364,9 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 		wg.Go(func() {
 			//nolint:gosec // no need to import crypto/rand for testing
-			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypto/rand for testing
-				"USD"+strconv.FormatInt(rand.Int63(), 10)) //nolint:gosec // no need to import crypto/rand for testing
+			newName := "Exchange" + strconv.FormatInt(rand.Int64(), 10)
+			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int64(), 10), //nolint:gosec // no need to import crypto/rand for testing
+				"USD"+strconv.FormatInt(rand.Int64(), 10)) //nolint:gosec // no need to import crypto/rand for testing
 			if err != nil {
 				log.Fatal(err)
 			}
