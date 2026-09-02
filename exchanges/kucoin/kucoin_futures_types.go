@@ -61,8 +61,8 @@ type Contract struct {
 	EffectiveFundingRateCycleStartTime types.Time    `json:"effectiveFundingRateCycleStartTime"`
 	CurrentFundingRateGranularity      int64         `json:"currentFundingRateGranularity"`
 	OpenInterest                       types.Number  `json:"openInterest"`
-	TurnoverOf24h                      float64       `json:"turnoverOf24h"`
-	VolumeOf24h                        float64       `json:"volumeOf24h"`
+	TurnoverOf24Hour                   float64       `json:"turnoverOf24h"`
+	VolumeOf24Hour                     float64       `json:"volumeOf24h"`
 	MarkPrice                          float64       `json:"markPrice"`
 	IndexPrice                         float64       `json:"indexPrice"`
 	LastTradePrice                     float64       `json:"lastTradePrice"`
@@ -70,10 +70,10 @@ type Contract struct {
 	NextFundingRateDateTime            types.Time    `json:"nextFundingRateDateTime"`
 	MaxLeverage                        float64       `json:"maxLeverage"`
 	SourceExchanges                    []string      `json:"sourceExchanges"`
-	PremiumsSymbol1M                   string        `json:"premiumsSymbol1M"`
-	PremiumsSymbol8H                   string        `json:"premiumsSymbol8H"`
-	FundingBaseSymbol1M                string        `json:"fundingBaseSymbol1M"`
-	FundingQuoteSymbol1M               string        `json:"fundingQuoteSymbol1M"`
+	PremiumsSymbol1Minute              string        `json:"premiumsSymbol1M"`
+	PremiumsSymbol8Hour                string        `json:"premiumsSymbol8H"`
+	FundingBaseSymbol1Minute           string        `json:"fundingBaseSymbol1M"`
+	FundingQuoteSymbol1Minute          string        `json:"fundingQuoteSymbol1M"`
 	LowPrice                           float64       `json:"lowPrice"`
 	HighPrice                          float64       `json:"highPrice"`
 	PriceChangePercentage              float64       `json:"priceChgPct"`

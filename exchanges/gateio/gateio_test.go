@@ -376,7 +376,7 @@ func TestUpdateTicker(t *testing.T) {
 	// a multiplier of 1 reports the contract count and the base volume identically, so those
 	// contracts are filtered out before picking the busiest rather than asserted against
 	futuresTicks = slices.DeleteFunc(futuresTicks, func(tk FuturesTicker) bool {
-		return tk.Volume24HBase.Float64() == 0 || tk.Volume24HBase.Float64() == tk.Volume24H.Float64()
+		return tk.Volume24HBase.Float64() == 0 || tk.Volume24HBase.Float64() == tk.Volume24Hour.Float64()
 	})
 	require.NotEmpty(t, futuresTicks, "at least one futures contract must report a base volume that differs from its contract count")
 	busiestFutures := slices.MaxFunc(futuresTicks, func(a, b FuturesTicker) int {
@@ -399,7 +399,7 @@ func TestFuturesTickerUnmarshal(t *testing.T) {
 	var tk FuturesTicker
 	require.NoError(t, json.Unmarshal([]byte(`{"contract":"UB_USDT","volume_24h":"8819","volume_24h_base":"8819700","volume_24h_quote":"1234","quanto_multiplier":"1000"}`), &tk), "Unmarshal must not error")
 	assert.Equal(t, "UB_USDT", tk.Contract, "Contract should unmarshal")
-	assert.Equal(t, 8819.0, tk.Volume24H.Float64(), "volume_24h should unmarshal")
+	assert.Equal(t, 8819.0, tk.Volume24Hour.Float64(), "volume_24h should unmarshal")
 	assert.Equal(t, 8819700.0, tk.Volume24HBase.Float64(), "volume_24h_base should unmarshal")
 	assert.Equal(t, 1000.0, tk.QuantoMultiplier.Float64(), "quanto_multiplier should unmarshal")
 	assert.Equal(t, 8819700.0, futuresBaseVolume(&tk), "futuresBaseVolume should keep the explicit base volume when volume_24h dropped a part contract")
@@ -412,10 +412,10 @@ func TestFuturesBaseVolume(t *testing.T) {
 		tick FuturesTicker
 		exp  float64
 	}{
-		{"base truncated a whole unit off the product", FuturesTicker{Volume24HBase: 52438, Volume24H: 524387795, QuantoMultiplier: 0.0001}, 52438.7795},
-		{"base truncated the contract away entirely", FuturesTicker{Volume24H: 5128, QuantoMultiplier: 0.0001}, 0.5128},
-		{"decimal lots: volume_24h dropped a part contract, so base is the better bound", FuturesTicker{Volume24HBase: 8819700, Volume24H: 8819, QuantoMultiplier: 1000}, 8819700},
-		{"no contract size, as coin margined and delivery report it", FuturesTicker{Volume24HBase: 30, Volume24H: 2352026}, 30},
+		{"base truncated a whole unit off the product", FuturesTicker{Volume24HBase: 52438, Volume24Hour: 524387795, QuantoMultiplier: 0.0001}, 52438.7795},
+		{"base truncated the contract away entirely", FuturesTicker{Volume24Hour: 5128, QuantoMultiplier: 0.0001}, 0.5128},
+		{"decimal lots: volume_24h dropped a part contract, so base is the better bound", FuturesTicker{Volume24HBase: 8819700, Volume24Hour: 8819, QuantoMultiplier: 1000}, 8819700},
+		{"no contract size, as coin margined and delivery report it", FuturesTicker{Volume24HBase: 30, Volume24Hour: 2352026}, 30},
 		{"nothing traded", FuturesTicker{}, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2198,7 +2198,7 @@ func TestUpdateTickers(t *testing.T) {
 	var checked bool
 	for i := range tickers {
 		tk := tickers[i]
-		if tk.Volume24HBase.Float64() < 1000 || tk.Volume24HBase.Float64() == tk.Volume24H.Float64() {
+		if tk.Volume24HBase.Float64() < 1000 || tk.Volume24HBase.Float64() == tk.Volume24Hour.Float64() {
 			continue
 		}
 		p, err := currency.NewPairFromString(tk.Contract)

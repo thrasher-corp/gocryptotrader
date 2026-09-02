@@ -1442,7 +1442,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:        r.Pair,
 			LatestRate: fundingrate.Rate{
 				Time: fri[i].Timestamp.Time(),
-				Rate: decimal.NewFromFloat(fri[i].Interest8H),
+				Rate: decimal.NewFromFloat(fri[i].Interest8Hour),
 			},
 		}
 		latestTime = fri[i].Timestamp.Time()
@@ -1506,7 +1506,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				continue
 			}
 			fundingRates = append(fundingRates, fundingrate.Rate{
-				Rate: decimal.NewFromFloat(records[i].Interest1H),
+				Rate: decimal.NewFromFloat(records[i].Interest1Hour),
 				Time: rt,
 			})
 			mfr[rt.UnixMilli()] = struct{}{}

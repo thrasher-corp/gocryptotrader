@@ -188,15 +188,15 @@ type TickerCommon struct {
 	LastPrice              types.Number `json:"lastPrice"`
 	IndexPrice             types.Number `json:"indexPrice"`
 	MarkPrice              types.Number `json:"markPrice"`
-	PrevPrice24H           types.Number `json:"prevPrice24h"`
+	PreviousPrice24Hour    types.Number `json:"prevPrice24h"`
 	Price24HPcnt           types.Number `json:"price24hPcnt"`
-	HighPrice24H           types.Number `json:"highPrice24h"`
-	LowPrice24H            types.Number `json:"lowPrice24h"`
-	PrevPrice1H            types.Number `json:"prevPrice1h"`
+	HighPrice24Hour        types.Number `json:"highPrice24h"`
+	LowPrice24Hour         types.Number `json:"lowPrice24h"`
+	PreviousPrice1Hour     types.Number `json:"prevPrice1h"`
 	OpenInterest           types.Number `json:"openInterest"`
 	OpenInterestValue      types.Number `json:"openInterestValue"`
-	Turnover24H            types.Number `json:"turnover24h"`
-	Volume24H              types.Number `json:"volume24h"`
+	Turnover24Hour         types.Number `json:"turnover24h"`
+	Volume24Hour           types.Number `json:"volume24h"`
 	FundingRate            types.Number `json:"fundingRate"`
 	NextFundingTime        types.Time   `json:"nextFundingTime"`
 	PredictedDeliveryPrice types.Number `json:"predictedDeliveryPrice"`

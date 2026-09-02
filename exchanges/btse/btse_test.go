@@ -191,8 +191,8 @@ func TestUpdateTicker(t *testing.T) {
 	require.NoError(t, err, "NewPairFromString must not error")
 	tick, err := e.UpdateTicker(t.Context(), p, asset.Spot)
 	require.NoErrorf(t, err, "UpdateTicker must not error for %s", p)
-	assert.InEpsilonf(t, spot.BaseVolume24Hr, tick.BaseVolume, 0.05, "UpdateTicker should take the base volume for %s from size", p)
-	assert.InEpsilonf(t, spot.QuoteVolume24Hr, tick.QuoteVolume, 0.05, "UpdateTicker should take the quote volume for %s from volume", p)
+	assert.InEpsilonf(t, spot.BaseVolume24Hour, tick.BaseVolume, 0.05, "UpdateTicker should take the base volume for %s from size", p)
+	assert.InEpsilonf(t, spot.QuoteVolume24Hour, tick.QuoteVolume, 0.05, "UpdateTicker should take the quote volume for %s from volume", p)
 
 	futures := futuresPairWithOpenInterest(t)
 	fp, err := currency.NewPairFromString(futures.Symbol)
@@ -221,8 +221,8 @@ func TestUpdateTickers(t *testing.T) {
 	require.NoError(t, err, "NewPairFromString must not error")
 	stored, err := ticker.GetTicker(e.Name, p, asset.Spot)
 	require.NoErrorf(t, err, "ticker.GetTicker must not error for %s", p)
-	assert.InEpsilonf(t, spot.BaseVolume24Hr, stored.BaseVolume, 0.05, "UpdateTickers should take the base volume for %s from size", p)
-	assert.InEpsilonf(t, spot.QuoteVolume24Hr, stored.QuoteVolume, 0.05, "UpdateTickers should take the quote volume for %s from volume", p)
+	assert.InEpsilonf(t, spot.BaseVolume24Hour, stored.BaseVolume, 0.05, "UpdateTickers should take the base volume for %s from size", p)
+	assert.InEpsilonf(t, spot.QuoteVolume24Hour, stored.QuoteVolume, 0.05, "UpdateTickers should take the quote volume for %s from volume", p)
 
 	futures := futuresPairWithOpenInterest(t)
 	fp, err := currency.NewPairFromString(futures.Symbol)
@@ -247,8 +247,8 @@ func busiestSpotPair(tb testing.TB) *MarketPair {
 	require.NoError(tb, err, "GetMarketSummary must not error")
 	var busiest *MarketPair
 	for _, m := range summary {
-		if m.BaseVolume24Hr != 0 && m.BaseVolume24Hr != m.QuoteVolume24Hr &&
-			m.LowestAsk != m.HighestBid && (busiest == nil || m.QuoteVolume24Hr > busiest.QuoteVolume24Hr) {
+		if m.BaseVolume24Hour != 0 && m.BaseVolume24Hour != m.QuoteVolume24Hour &&
+			m.LowestAsk != m.HighestBid && (busiest == nil || m.QuoteVolume24Hour > busiest.QuoteVolume24Hour) {
 			busiest = m
 		}
 	}

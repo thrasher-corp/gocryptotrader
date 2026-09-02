@@ -318,7 +318,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // the explicit field standing on its own, as it would too if Gate stopped serving the multiplier
 // here: the live ticker carries it, but Gate documents it only on the contract
 func futuresBaseVolume(t *FuturesTicker) float64 {
-	return max(t.Volume24H.Float64()*t.QuantoMultiplier.Float64(), t.Volume24HBase.Float64())
+	return max(t.Volume24Hour.Float64()*t.QuantoMultiplier.Float64(), t.Volume24HBase.Float64())
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -350,8 +350,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		tickerData = &ticker.Price{
 			Pair:         fPair,
-			Low:          tickerNew.Low24H.Float64(),
-			High:         tickerNew.High24H.Float64(),
+			Low:          tickerNew.Low24Hour.Float64(),
+			High:         tickerNew.High24Hour.Float64(),
 			Bid:          tickerNew.HighestBid.Float64(),
 			Ask:          tickerNew.LowestAsk.Float64(),
 			Last:         tickerNew.Last.Float64(),
@@ -379,8 +379,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		tickerData = &ticker.Price{
 			Pair:         fPair,
-			Low:          tickers[0].Low24H.Float64(),
-			High:         tickers[0].High24H.Float64(),
+			Low:          tickers[0].Low24Hour.Float64(),
+			High:         tickers[0].High24Hour.Float64(),
 			Last:         tickers[0].Last.Float64(),
 			BaseVolume:   futuresBaseVolume(&tickers[0]),
 			QuoteVolume:  tickers[0].Volume24HQuote.Float64(),
@@ -593,8 +593,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers[x].Last.Float64(),
-				High:         tickers[x].High24H.Float64(),
-				Low:          tickers[x].Low24H.Float64(),
+				High:         tickers[x].High24Hour.Float64(),
+				Low:          tickers[x].Low24Hour.Float64(),
 				Bid:          tickers[x].HighestBid.Float64(),
 				Ask:          tickers[x].LowestAsk.Float64(),
 				QuoteVolume:  tickers[x].QuoteVolume.Float64(),
@@ -627,8 +627,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			// volume_24h counts contracts, so the base volume is derived as it is in UpdateTicker
 			if err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers[i].Last.Float64(),
-				High:         tickers[i].High24H.Float64(),
-				Low:          tickers[i].Low24H.Float64(),
+				High:         tickers[i].High24Hour.Float64(),
+				Low:          tickers[i].Low24Hour.Float64(),
 				BaseVolume:   futuresBaseVolume(&tickers[i]),
 				QuoteVolume:  tickers[i].Volume24HQuote.Float64(),
 				ExchangeName: e.Name,

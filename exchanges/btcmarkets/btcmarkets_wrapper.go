@@ -224,8 +224,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Pair:         tickers[x].MarketID,
 			Last:         tickers[x].LastPrice,
-			High:         tickers[x].High24h,
-			Low:          tickers[x].Low24h,
+			High:         tickers[x].High24Hour,
+			Low:          tickers[x].Low24Hour,
 			Bid:          tickers[x].BestBID,
 			Ask:          tickers[x].BestAsk,
 			BaseVolume:   tickers[x].Volume,

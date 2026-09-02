@@ -169,37 +169,37 @@ type FutureProductDetails struct {
 
 // Product holds product information, returned by GetProductByID, and used as a sub-struct in the type AllProducts
 type Product struct {
-	ID                        currency.Pair            `json:"product_id"`
-	Price                     types.Number             `json:"price"`
-	PricePercentageChange24H  types.Number             `json:"price_percentage_change_24h"`
-	Volume24H                 types.Number             `json:"volume_24h"`
-	VolumePercentageChange24H types.Number             `json:"volume_percentage_change_24h"`
-	BaseIncrement             types.Number             `json:"base_increment"`
-	QuoteIncrement            types.Number             `json:"quote_increment"`
-	QuoteMinSize              types.Number             `json:"quote_min_size"`
-	QuoteMaxSize              types.Number             `json:"quote_max_size"`
-	BaseMinSize               types.Number             `json:"base_min_size"`
-	BaseMaxSize               types.Number             `json:"base_max_size"`
-	BaseName                  string                   `json:"base_name"`
-	QuoteName                 string                   `json:"quote_name"`
-	Watched                   bool                     `json:"watched"`
-	IsDisabled                bool                     `json:"is_disabled"`
-	New                       bool                     `json:"new"`
-	Status                    string                   `json:"status"`
-	CancelOnly                bool                     `json:"cancel_only"`
-	LimitOnly                 bool                     `json:"limit_only"`
-	PostOnly                  bool                     `json:"post_only"`
-	TradingDisabled           bool                     `json:"trading_disabled"`
-	AuctionMode               bool                     `json:"auction_mode"`
-	ProductType               string                   `json:"product_type"`
-	QuoteCurrencyID           currency.Code            `json:"quote_currency_id"`
-	BaseCurrencyID            currency.Code            `json:"base_currency_id"`
-	FCMTradingSessionDetails  FCMTradingSessionDetails `json:"fcm_trading_session_details"`
-	MidMarketPrice            types.Number             `json:"mid_market_price"`
-	Alias                     currency.Pair            `json:"alias"`
-	AliasTo                   []currency.Pair          `json:"alias_to"`
-	BaseDisplaySymbol         string                   `json:"base_display_symbol"`
-	QuoteDisplaySymbol        string                   `json:"quote_display_symbol"`
+	ID                           currency.Pair            `json:"product_id"`
+	Price                        types.Number             `json:"price"`
+	PricePercentageChange24Hour  types.Number             `json:"price_percentage_change_24h"`
+	Volume24Hour                 types.Number             `json:"volume_24h"`
+	VolumePercentageChange24Hour types.Number             `json:"volume_percentage_change_24h"`
+	BaseIncrement                types.Number             `json:"base_increment"`
+	QuoteIncrement               types.Number             `json:"quote_increment"`
+	QuoteMinSize                 types.Number             `json:"quote_min_size"`
+	QuoteMaxSize                 types.Number             `json:"quote_max_size"`
+	BaseMinSize                  types.Number             `json:"base_min_size"`
+	BaseMaxSize                  types.Number             `json:"base_max_size"`
+	BaseName                     string                   `json:"base_name"`
+	QuoteName                    string                   `json:"quote_name"`
+	Watched                      bool                     `json:"watched"`
+	IsDisabled                   bool                     `json:"is_disabled"`
+	New                          bool                     `json:"new"`
+	Status                       string                   `json:"status"`
+	CancelOnly                   bool                     `json:"cancel_only"`
+	LimitOnly                    bool                     `json:"limit_only"`
+	PostOnly                     bool                     `json:"post_only"`
+	TradingDisabled              bool                     `json:"trading_disabled"`
+	AuctionMode                  bool                     `json:"auction_mode"`
+	ProductType                  string                   `json:"product_type"`
+	QuoteCurrencyID              currency.Code            `json:"quote_currency_id"`
+	BaseCurrencyID               currency.Code            `json:"base_currency_id"`
+	FCMTradingSessionDetails     FCMTradingSessionDetails `json:"fcm_trading_session_details"`
+	MidMarketPrice               types.Number             `json:"mid_market_price"`
+	Alias                        currency.Pair            `json:"alias"`
+	AliasTo                      []currency.Pair          `json:"alias_to"`
+	BaseDisplaySymbol            string                   `json:"base_display_symbol"`
+	QuoteDisplaySymbol           string                   `json:"quote_display_symbol"`
 	// Typically shows whether an FCM product is available for trading. If the request is authenticated, and the "get_tradability_status" bool is set to true, and the product is SPOT, and you're using our GetAllProducts function, this will instead reflect whether the product is available for trading.
 	ViewOnly                  bool         `json:"view_only"`
 	PriceIncrement            types.Number `json:"price_increment"`
@@ -2257,19 +2257,19 @@ type StandardWebsocketResponse struct {
 
 // WebsocketTicker defines a ticker websocket response, used in WebsocketTickerHolder
 type WebsocketTicker struct {
-	Type                     string        `json:"type"`
-	ProductID                currency.Pair `json:"product_id"`
-	Price                    types.Number  `json:"price"`
-	Volume24H                types.Number  `json:"volume_24_h"`
-	Low24H                   types.Number  `json:"low_24_h"`
-	High24H                  types.Number  `json:"high_24_h"`
-	Low52W                   types.Number  `json:"low_52_w"`
-	High52W                  types.Number  `json:"high_52_w"`
-	PricePercentageChange24H types.Number  `json:"price_percent_chg_24_h"`
-	BestBid                  types.Number  `json:"best_bid"`
-	BestBidQuantity          types.Number  `json:"best_bid_size"`
-	BestAsk                  types.Number  `json:"best_ask"`
-	BestAskQuantity          types.Number  `json:"best_ask_size"`
+	Type                        string        `json:"type"`
+	ProductID                   currency.Pair `json:"product_id"`
+	Price                       types.Number  `json:"price"`
+	Volume24Hour                types.Number  `json:"volume_24_h"`
+	Low24Hour                   types.Number  `json:"low_24_h"`
+	High24Hour                  types.Number  `json:"high_24_h"`
+	Low52Week                   types.Number  `json:"low_52_w"`
+	High52Week                  types.Number  `json:"high_52_w"`
+	PricePercentageChange24Hour types.Number  `json:"price_percent_chg_24_h"`
+	BestBid                     types.Number  `json:"best_bid"`
+	BestBidQuantity             types.Number  `json:"best_bid_size"`
+	BestAsk                     types.Number  `json:"best_ask"`
+	BestAskQuantity             types.Number  `json:"best_ask_size"`
 }
 
 // WebsocketTickerHolder holds a variety of ticker responses, used when wsHandleData processes tickers

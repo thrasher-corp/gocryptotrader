@@ -247,10 +247,10 @@ type AccountFees struct {
 
 // AccountSummary holds account summary data
 type AccountSummary struct {
-	TradeVolumePer30D []Currency `json:"trade_vol_30d"`
-	FundingProfit30D  []Currency `json:"funding_profit_30d"`
-	MakerFee          float64    `json:"maker_fee"`
-	TakerFee          float64    `json:"taker_fee"`
+	TradeVolumePer30Day []Currency `json:"trade_vol_30d"`
+	FundingProfit30Day  []Currency `json:"funding_profit_30d"`
+	MakerFee            float64    `json:"maker_fee"`
+	TakerFee            float64    `json:"taker_fee"`
 }
 
 // Currency is a sub-type for AccountSummary data

@@ -1471,12 +1471,12 @@ type WsFuturesFundingBegin struct {
 
 // WsFuturesTransactionStatisticsTimeEvent represents transaction statistics data
 type WsFuturesTransactionStatisticsTimeEvent struct {
-	Symbol                   string     `json:"symbol"`
-	Volume24H                float64    `json:"volume"`
-	Turnover24H              float64    `json:"turnover"`
-	LastPrice                int64      `json:"lastPrice"`
-	PriceChangePercentage24H float64    `json:"priceChgPct"`
-	SnapshotTime             types.Time `json:"ts"`
+	Symbol                      string     `json:"symbol"`
+	Volume24Hour                float64    `json:"volume"`
+	Turnover24Hour              float64    `json:"turnover"`
+	LastPrice                   int64      `json:"lastPrice"`
+	PriceChangePercentage24Hour float64    `json:"priceChgPct"`
+	SnapshotTime                types.Time `json:"ts"`
 }
 
 // WsFuturesTradeOrder represents trade order information according to the market
@@ -1720,7 +1720,7 @@ type FuturesInterestRateResponse struct {
 
 // TransactionVolume represents a 24 hour transaction volume
 type TransactionVolume struct {
-	TurnoverOf24Hr float64 `json:"turnoverOf24h"`
+	TurnoverOf24Hour float64 `json:"turnoverOf24h"`
 }
 
 // FuturesTransactionHistoryResponse represents a futures transaction history response

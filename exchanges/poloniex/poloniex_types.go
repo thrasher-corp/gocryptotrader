@@ -410,7 +410,7 @@ type FeeInfo struct {
 	TransactionDiscount bool              `json:"trxDiscount"`
 	MakerRate           types.Number      `json:"makerRate"`
 	TakerRate           types.Number      `json:"takerRate"`
-	Volume30D           types.Number      `json:"volume30D"`
+	Volume30Day         types.Number      `json:"volume30D"`
 	SpecialFeeRates     []*SpecialFeeRate `json:"specialFeeRates"`
 }
 

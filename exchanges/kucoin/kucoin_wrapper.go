@@ -312,7 +312,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Last:         ticks[x].LastTradePrice,
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
-				BaseVolume:   ticks[x].VolumeOf24h,
+				BaseVolume:   ticks[x].VolumeOf24Hour,
 				OpenInterest: ticks[x].OpenInterest.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,

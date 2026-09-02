@@ -65,10 +65,10 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, tick.UnitsTraded, "UnitsTraded should be positive")
 	assert.Positive(t, tick.AccumulatedTradeValue, "AccumulatedTradeValue should be positive")
 	assert.Positive(t, tick.PreviousClosingPrice, "PreviousClosingPrice should be positive")
-	assert.Positive(t, tick.UnitsTraded24Hr, "UnitsTraded24Hr should be positive")
-	assert.Positive(t, tick.AccumulatedTradeValue24hr, "AccumulatedTradeValue24hr should be positive")
-	assert.NotEmpty(t, tick.Fluctuate24Hr, "Fluctuate24Hr should not be empty")
-	assert.NotEmpty(t, tick.FluctuateRate24hr, "FluctuateRate24hr should not be empty")
+	assert.Positive(t, tick.UnitsTraded24Hour, "UnitsTraded24Hour should be positive")
+	assert.Positive(t, tick.AccumulatedTradeValue24Hour, "AccumulatedTradeValue24Hour should be positive")
+	assert.NotEmpty(t, tick.Fluctuate24Hour, "Fluctuate24Hour should not be empty")
+	assert.NotEmpty(t, tick.FluctuateRate24Hour, "FluctuateRate24Hour should not be empty")
 	assert.Positive(t, tick.Date, "Date should be positive")
 }
 

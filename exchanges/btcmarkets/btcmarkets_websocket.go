@@ -207,7 +207,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			ExchangeName: e.Name,
 			BaseVolume:   tick.Volume,
 			High:         tick.High24,
-			Low:          tick.Low24h,
+			Low:          tick.Low24Hour,
 			Bid:          tick.Bid,
 			Ask:          tick.Ask,
 			Last:         tick.Last,
