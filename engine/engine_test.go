@@ -451,6 +451,7 @@ func TestValidateAPICredentials(t *testing.T) {
 			return nil
 		})
 		require.ErrorIs(t, err, asset.ErrNotEnabled, "validation must fail when no assets are enabled")
+		assert.ErrorContains(t, err, testExchange, "error should name the exchange it came from")
 		assert.False(t, called, "validation should not run without an enabled asset")
 	})
 
@@ -498,6 +499,9 @@ func TestValidateAPICredentials(t *testing.T) {
 		asset.Margin,
 		asset.Index,
 	}, seen, "assets should be tried spot first, then futures, then the rest")
+	for _, a := range seen {
+		assert.ErrorContainsf(t, err, a.String()+": "+errDeliveryAccountMissing.Error(), "aggregated error should name %s and why it failed", a)
+	}
 
 	for _, assetIndependentErr := range []error{
 		exchange.ErrCredentialsAreEmpty,

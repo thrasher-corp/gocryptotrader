@@ -892,7 +892,13 @@ func (bot *Engine) LoadExchange(name string) error {
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
-		if err := validateAPICredentials(ctx, b.Name, enabledAssets, exch.ValidateAPICredentials); err != nil {
+		// Credentials that are unusable fail identically for every account type,
+		// so establish that once rather than once per asset.
+		_, err := b.GetCredentials(ctx)
+		if err == nil {
+			err = validateAPICredentials(ctx, b.Name, enabledAssets, exch.ValidateAPICredentials)
+		}
+		if err != nil {
 			gctlog.Warnf(gctlog.ExchangeSys, "%s: Credential validation failed, disabling authenticated support: %v", b.Name, err)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
@@ -908,6 +914,7 @@ func (bot *Engine) LoadExchange(name string) error {
 func validateAPICredentials(ctx context.Context, exchangeName string, enabledAssets asset.Items, validate func(context.Context, asset.Item) error) error {
 	// Spot covers the widest set of GCT functionality, followed by futures;
 	// other account types are fallbacks, and the first successful validation wins.
+	// This assumes validation is asset-specific; global validators repeat the same request.
 	assets := make(asset.Items, 0, len(enabledAssets))
 	if enabledAssets.Contains(asset.Spot) {
 		assets = append(assets, asset.Spot)
@@ -929,13 +936,14 @@ func validateAPICredentials(ctx context.Context, exchangeName string, enabledAss
 	var errs error
 	for _, a := range assets {
 		if err := validate(ctx, a); err != nil {
-			assetErr := fmt.Errorf("%s: %w", a, err)
-			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v", exchangeName, assetErr)
-			errs = common.AppendError(errs, assetErr)
+			errs = common.AppendError(errs, fmt.Errorf("%s: %w", a, err))
 			if errors.Is(err, exchange.ErrCredentialsAreEmpty) || errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 				break
 			}
 			continue
+		}
+		if errs != nil { // the caller only logs errs when every account fails, so surface the recovered ones here
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Credentials validated on %s after earlier failures: %v", exchangeName, a, errs)
 		}
 		return nil
 	}
