@@ -1298,12 +1298,12 @@ type SubUIDAPIKeyParam struct {
 
 // SubUIDAPIResponse represents sub UID API key response.
 type SubUIDAPIResponse struct {
-	ID          string              `json:"id"`
-	Note        string              `json:"note"`
-	APIKey      string              `json:"apiKey"`
-	ReadOnly    int64               `json:"readOnly"`
-	Secret      string              `json:"secret"`
-	Permissions map[string][]string `json:"permissions"`
+	ID          string            `json:"id"`
+	Note        string            `json:"note"`
+	APIKey      string            `json:"apiKey"`
+	ReadOnly    int64             `json:"readOnly"`
+	Secret      string            `json:"secret"`
+	Permissions APIKeyPermissions `json:"permissions"`
 
 	IPAddresses           []string  `json:"ips"`
 	Type                  int64     `json:"type"`
@@ -1348,20 +1348,28 @@ type SubAccountAPIKey struct {
 	Flag        string            `json:"flag"`
 }
 
-// APIKeyPermissions holds the permissions granted to an API key. Affiliate, BlockTrade, NFT and
-// CopyTrading are always empty for sub-accounts, but are retained because Bybit still returns them.
+// APIKeyPermissions holds the permissions an API key has been granted. Affiliate, BlockTrade, NFT
+// and CopyTrading are always empty for sub-accounts, and the fiat and card permissions are only
+// returned for master keys, but all are retained because Bybit still sends them. FiatGlobalPay is
+// undocumented in Bybit's parameter table and appears only in its example response.
 type APIKeyPermissions struct {
-	ContractTrade []string `json:"ContractTrade"`
-	Spot          []string `json:"Spot"`
-	Wallet        []string `json:"Wallet"`
-	Options       []string `json:"Options"`
-	Derivatives   []string `json:"Derivatives"`
-	Exchange      []string `json:"Exchange"`
-	Earn          []string `json:"Earn"`
-	Affiliate     []string `json:"Affiliate"`
-	BlockTrade    []string `json:"BlockTrade"`
-	NFT           []string `json:"NFT"`
-	CopyTrading   []string `json:"CopyTrading"`
+	ContractTrade     []string `json:"ContractTrade"`
+	Spot              []string `json:"Spot"`
+	Wallet            []string `json:"Wallet"`
+	Options           []string `json:"Options"`
+	Derivatives       []string `json:"Derivatives"`
+	Exchange          []string `json:"Exchange"`
+	Earn              []string `json:"Earn"`
+	Affiliate         []string `json:"Affiliate"`
+	BlockTrade        []string `json:"BlockTrade"`
+	NFT               []string `json:"NFT"`
+	CopyTrading       []string `json:"CopyTrading"`
+	FiatP2P           []string `json:"FiatP2P"`
+	FiatConvertBroker []string `json:"FiatConvertBroker"`
+	FiatGlobalPay     []string `json:"FiatGlobalPay"`
+	FiatBitPay        []string `json:"FiatBitPay"`
+	BitCard           []string `json:"BitCard"`
+	ByXPost           []string `json:"ByXPost"`
 }
 
 // WalletType represents available wallet types for the master account or sub account
@@ -1388,13 +1396,18 @@ type SubUIDAPIKeyUpdateParam struct {
 	Permissions PermissionsList `json:"permissions"`
 }
 
-// PermissionsList represents list of sub api permissions.
+// PermissionsList represents the API key permissions a request can set. Bybit documents
+// ContractTrade, Spot, Wallet, Options, Derivatives, Exchange and Earn as settable; CopyTrading,
+// BlockTrade and NFT are deprecated or not applicable and are retained only for callers that
+// still send them.
 type PermissionsList struct {
 	ContractTrade []string `json:"ContractTrade,omitempty"`
 	Spot          []string `json:"Spot,omitempty"`
 	Wallet        []string `json:"Wallet,omitempty"`
 	Options       []string `json:"Options,omitempty"`
+	Derivatives   []string `json:"Derivatives,omitempty"`
 	Exchange      []string `json:"Exchange,omitempty"`
+	Earn          []string `json:"Earn,omitempty"`
 	CopyTrading   []string `json:"CopyTrading,omitempty"`
 	BlockTrade    []string `json:"BlockTrade,omitempty"`
 	NFT           []string `json:"NFT,omitempty"`

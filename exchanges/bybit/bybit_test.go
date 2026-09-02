@@ -1808,6 +1808,33 @@ func TestSubAccountAPIKeysUnmarshal(t *testing.T) {
 	assert.Equal(t, exp, resp.Result[0], "SubAccountAPIKey should unmarshal each documented field")
 }
 
+func TestAPIKeyInformationUnmarshal(t *testing.T) {
+	t.Parallel()
+	var resp *SubUIDAPIResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"2208369","note":"testnet","apiKey":"XXXXXXXX","readOnly":1,"secret":"","permissions":{"ContractTrade":["Order","Position"],"Spot":["SpotTrade"],"Wallet":["AccountTransfer","SubMemberTransfer"],"Options":[],"Derivatives":["DerivativesTrade"],"CopyTrading":[],"BlockTrade":[],"Exchange":["ExchangeHistory"],"NFT":[],"Affiliate":[],"Earn":["Earn"],"FiatP2P":["FiatP2POrder","Advertising"],"FiatConvertBroker":["FiatConvertBrokerOrder"],"FiatGlobalPay":[],"FiatBitPay":["FaitPayOrder"],"BitCard":["BitCard"],"ByXPost":["ByXPost"]},"ips":["18.181.170.164","13.212.45.47"],"type":1,"deadlineDay":-2,"isMaster":true}`), &resp), "Unmarshal must not error")
+	assert.Equal(t, "2208369", resp.ID, "ID should unmarshal")
+	assert.Equal(t, []string{"18.181.170.164", "13.212.45.47"}, resp.IPAddresses, "IPAddresses should unmarshal")
+	assert.Equal(t, APIKeyPermissions{
+		ContractTrade:     []string{"Order", "Position"},
+		Spot:              []string{"SpotTrade"},
+		Wallet:            []string{"AccountTransfer", "SubMemberTransfer"},
+		Options:           []string{},
+		Derivatives:       []string{"DerivativesTrade"},
+		Exchange:          []string{"ExchangeHistory"},
+		Earn:              []string{"Earn"},
+		Affiliate:         []string{},
+		BlockTrade:        []string{},
+		NFT:               []string{},
+		CopyTrading:       []string{},
+		FiatP2P:           []string{"FiatP2POrder", "Advertising"},
+		FiatConvertBroker: []string{"FiatConvertBrokerOrder"},
+		FiatGlobalPay:     []string{},
+		FiatBitPay:        []string{"FaitPayOrder"},
+		BitCard:           []string{"BitCard"},
+		ByXPost:           []string{"ByXPost"},
+	}, resp.Permissions, "Permissions should unmarshal every key Bybit returns")
+}
+
 func TestSetMMP(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -2326,6 +2353,7 @@ func TestAPIKeyParamIPsMarshal(t *testing.T) {
 		{"create, ips unset", &SubUIDAPIKeyParam{Subuid: 1, Note: "n"}, `{"subuid":1,"note":"n","readOnly":0}`},
 		{"create, ips set", &SubUIDAPIKeyParam{Subuid: 1, Note: "n", IPAddressesCommaSeparated: "*"}, `{"subuid":1,"note":"n","readOnly":0,"ips":"*"}`},
 		{"update, ips and apikey unset", &SubUIDAPIKeyUpdateParam{}, `{"permissions":{}}`},
+		{"update, derivatives and earn set", &SubUIDAPIKeyUpdateParam{Permissions: PermissionsList{Derivatives: []string{"DerivativesTrade"}, Earn: []string{"Earn"}}}, `{"permissions":{"Derivatives":["DerivativesTrade"],"Earn":["Earn"]}}`},
 		{"update, ips and apikey set", &SubUIDAPIKeyUpdateParam{APIKey: "k", IPAddressesCommaSeparated: "192.168.0.1,192.168.0.2"}, `{"apikey":"k","ips":"192.168.0.1,192.168.0.2","permissions":{}}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
