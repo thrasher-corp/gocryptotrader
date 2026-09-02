@@ -3064,7 +3064,9 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
+	var accountRequests atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
 		if _, err := w.Write([]byte(`{"user":20011}`)); err != nil {
 			t.Errorf("Mock futures account response should be written: %v", err)
 		}
@@ -3078,8 +3080,20 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	e.API.AuthenticatedWebsocketSupport = true
 	e.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.setFuturesUserID("key", currency.USDT, "20011")
+	continueBootstrap, err := e.Bootstrap(t.Context())
+	require.NoError(t, err, "Bootstrap must not error")
+	assert.True(t, continueBootstrap, "Bootstrap should continue with common startup actions")
+	assert.Equal(t, int64(1), accountRequests.Load(), "Bootstrap should request the uncached futures account ID")
 	subs, err = e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err)
+	assert.Equal(t, int64(1), accountRequests.Load(), "Subscription generation should not perform another account request")
+	require.NoError(t, e.Websocket.Disable(), "Websocket.Disable must not error")
+	e.SetCredentials(&accounts.Credentials{Key: "rotated-key", Secret: "secret"})
+	continueBootstrap, err = e.Bootstrap(t.Context())
+	require.NoError(t, err, "Bootstrap must not error")
+	assert.True(t, continueBootstrap, "Bootstrap should continue with common startup actions")
+	assert.Equal(t, int64(1), accountRequests.Load(), "Bootstrap should not request futures account IDs when websocket support is disabled")
 	authenticatedChannels := map[string]bool{
 		futuresOrdersChannel:            false,
 		futuresUserTradesChannel:        false,
@@ -3187,7 +3201,9 @@ func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	var accountRequests atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(server.Close)
@@ -3201,8 +3217,8 @@ func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
-	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial,
-		"Account lookup failure must be surfaced without preventing futures subscription generation")
+	require.NoError(t, err, "Missing cached account ID must not prevent futures subscription generation")
+	assert.Zero(t, accountRequests.Load(), "subscription generation should not perform an account request")
 
 	authenticatedChannels := map[string]bool{
 		futuresOrdersChannel:            false,
@@ -3254,11 +3270,11 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	_, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
+	err := ex.cacheFuturesUserID(t.Context(), "key", currency.USDT)
 	require.NoError(t, err, "Initial account lookup must populate the futures user ID cache")
 	failLookup.Store(true)
 	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
-	require.NoError(t, err, "Transient lookup failure must reuse the matching cached user ID")
+	require.NoError(t, err, "Subscription generation must reuse the matching cached user ID")
 	privateChannels := map[string]bool{
 		futuresOrdersChannel:            false,
 		futuresUserTradesChannel:        false,
@@ -3280,12 +3296,10 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 	}
 
 	_, err = ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
-	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial,
-		"A user ID cached for another settlement account must not suppress a lookup failure")
+	require.NoError(t, err, "A user ID cached for another settlement account must not affect generation")
 	ex.SetCredentials(&accounts.Credentials{Key: "rotated-key", Secret: "secret"})
 	_, err = ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial,
-		"A user ID cached for another API key must not suppress a lookup failure")
+	require.NoError(t, err, "A user ID cached for another API key must not affect generation")
 }
 
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {

@@ -53,8 +53,6 @@ const (
 	futuresAutoOrdersChannel        = "futures.autoorders"
 
 	futuresOrderbookUpdateLimit uint64 = 20
-
-	invalidUserID = "invalidUserID"
 )
 
 var defaultFuturesSubscriptions = []string{
@@ -78,6 +76,7 @@ const (
 	contractPayloadOverrideParam = "contractPayloadOverride"
 	omitContractParam            = "omitContract"
 	requiresUserPlaceholderParam = "requiresUserPlaceholder"
+	invalidUserID                = "invalidUserID"
 )
 
 // WsFuturesConnect initiates a websocket connection for futures account
@@ -98,6 +97,31 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	}
 	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
+}
+
+func (e *Exchange) prepareFuturesUserIDs(ctx context.Context) {
+	if !e.Websocket.IsEnabled() || !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return
+	}
+
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+		pairs, err := e.GetEnabledPairs(a)
+		if err != nil || len(pairs) == 0 {
+			continue
+		}
+		settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
+		if err != nil || e.getFuturesUserID(creds.Key, settlementCurrency) != "" {
+			continue
+		}
+		if err := e.cacheFuturesUserID(ctx, creds.Key, settlementCurrency); err != nil {
+			log.Errorf(log.ExchangeSys, "%s: error preparing futures account user ID: %v", e.Name, err)
+		}
+	}
 }
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
@@ -125,7 +149,6 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 	}
 
 	var userID string
-	var subscriptionErr error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err := e.GetCredentials(ctx)
 		if err != nil {
@@ -135,25 +158,8 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 			if err != nil {
 				return nil, err
 			}
-			account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
-			switch {
-			case err == nil && account != nil && account.User != 0:
-				userID = strconv.FormatInt(account.User, 10)
-				e.setFuturesUserID(creds.Key, settlementCurrency, userID)
-			default:
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s: error querying futures account: %v", e.Name, err)
-				}
-				// Reuse the last known ID so a transient failure does not drop authenticated
-				// channels, which a later refresh would otherwise unsubscribe.
-				if userID = e.getFuturesUserID(creds.Key, settlementCurrency); userID == "" {
-					userID = invalidUserID
-					if err != nil {
-						subscriptionErr = fmt.Errorf("%w: unable to query futures account user ID: %w", websocket.ErrSubscriptionPartial, err)
-					} else {
-						subscriptionErr = fmt.Errorf("%w: futures account user ID missing", websocket.ErrSubscriptionPartial)
-					}
-				}
+			if userID = e.getFuturesUserID(creds.Key, settlementCurrency); userID == "" {
+				userID = invalidUserID
 			}
 		}
 	}
@@ -230,7 +236,7 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 			})
 		}
 	}
-	return subscriptions, subscriptionErr
+	return subscriptions, nil
 }
 
 // futuresUserIDKey scopes a cached account ID to one credential and settlement account;
@@ -252,6 +258,18 @@ func (e *Exchange) getFuturesUserID(credentialKey string, settlementCurrency cur
 	e.futuresUserIDMu.RLock()
 	defer e.futuresUserIDMu.RUnlock()
 	return e.futuresUserIDs[futuresUserIDKey(credentialKey, settlementCurrency)]
+}
+
+func (e *Exchange) cacheFuturesUserID(ctx context.Context, credentialKey string, settlementCurrency currency.Code) error {
+	account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
+	if err != nil {
+		return err
+	}
+	if account == nil || account.User == 0 {
+		return fmt.Errorf("futures account user ID missing for %s", settlementCurrency)
+	}
+	e.setFuturesUserID(credentialKey, settlementCurrency, strconv.FormatInt(account.User, 10))
+	return nil
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel

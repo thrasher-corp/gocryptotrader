@@ -195,6 +195,12 @@ func (e *Exchange) SetDefaults() {
 	})
 }
 
+// Bootstrap caches futures account user IDs before websocket subscriptions are generated.
+func (e *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
+	e.prepareFuturesUserIDs(ctx)
+	return true, nil
+}
+
 // Setup sets user configuration
 func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()

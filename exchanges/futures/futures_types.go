@@ -266,7 +266,7 @@ type Position struct {
 	UpdateID      int64
 	RealisedPNL   decimal.Decimal
 	UnrealisedPNL decimal.Decimal
-	// Status describes the position lifecycle state, such as open or closed.
+	// Status describes the position state. Websocket producers use it only for lifecycle state, such as open or closed.
 	Status order.Status
 	// RiskStatus independently describes an exceptional risk action, such as liquidation or auto-deleveraging.
 	// UnknownStatus indicates that no risk action was reported.

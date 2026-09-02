@@ -14,8 +14,8 @@ import (
 // Public subscription errors
 var (
 	ErrSubscriptionFailure = errors.New("subscription failure")
-	// ErrSubscriptionPartial reports degraded generation. Returned subscriptions must
-	// remain complete for removals because refresh treats the list as authoritative.
+	// ErrSubscriptionPartial reports degraded multi-connection generation. Returned
+	// subscriptions must remain complete for removals because refresh treats the list as authoritative.
 	ErrSubscriptionPartial     = errors.New("partial subscription generation")
 	ErrSubscriptionsNotAdded   = errors.New("subscriptions not added")
 	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
