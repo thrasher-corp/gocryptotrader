@@ -21,9 +21,7 @@ func IntToHumanFriendlyString(number int64, thousandsSep string) string {
 // eg 1000 becomes 1,000
 func FloatToHumanFriendlyString(number float64, decimals uint, decPoint, thousandsSep string) string {
 	neg := number < 0
-	if neg {
-		number = -number
-	}
+	number = math.Abs(number)
 	decimals = min(decimals, math.MaxInt32) // strconv.FormatFloat takes an int precision
 	return numberToHumanFriendlyString(strconv.FormatFloat(number, 'f', int(decimals), 64), decimals, decPoint, thousandsSep, neg)
 }

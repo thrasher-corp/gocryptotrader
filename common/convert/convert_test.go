@@ -18,6 +18,7 @@ func TestFloatToHumanFriendlyString(t *testing.T) {
 	assert.Equal(t, "-1,000.0000000000", FloatToHumanFriendlyString(-1000, 10, ".", ","))
 	assert.Equal(t, "1!000.1", FloatToHumanFriendlyString(1000.1337, 1, ".", "!"))
 	assert.Equal(t, "1234567", FloatToHumanFriendlyString(1234567, 0, ".", ""), "empty separator should be omitted")
+	assert.Equal(t, "0.00", FloatToHumanFriendlyString(math.Copysign(0, -1), 2, ".", ","), "negative zero should not carry a sign")
 }
 
 func TestDecimalToHumanFriendlyString(t *testing.T) {
