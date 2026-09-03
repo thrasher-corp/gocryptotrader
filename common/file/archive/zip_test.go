@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"testing"
 
@@ -16,26 +15,15 @@ import (
 
 func TestUnZip(t *testing.T) {
 	tempDir := t.TempDir()
-	zipFile := filepath.Join("..", "..", "..", "testdata", "testdata.zip")
-	files, err := UnZip(zipFile, tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(files) != 2 {
-		t.Fatalf("expected 2 files to be extracted received: %v ", len(files))
-	}
+	files, err := UnZip(filepath.Join("..", "..", "..", "testdata", "testdata.zip"), tempDir)
+	require.NoError(t, err, "UnZip must not error")
+	assert.Len(t, files, 2, "UnZip should extract both files")
 
-	zipFile = filepath.Join("..", "..", "..", "testdata", "zip-slip.zip")
-	_, err = UnZip(zipFile, tempDir)
-	if err == nil {
-		t.Fatal("Zip() expected to error due to ZipSlip detection but extracted successfully")
-	}
+	_, err = UnZip(filepath.Join("..", "..", "..", "testdata", "zip-slip.zip"), tempDir)
+	assert.ErrorContains(t, err, "illegal file path", "UnZip should reject an entry escaping the destination")
 
-	zipFile = filepath.Join("..", "..", "..", "testdata", "configtest.json")
-	_, err = UnZip(zipFile, tempDir)
-	if err == nil {
-		t.Fatal("Zip() expected to error due to invalid zipfile")
-	}
+	_, err = UnZip(filepath.Join("..", "..", "..", "testdata", "configtest.json"), tempDir)
+	assert.ErrorIs(t, err, zip.ErrFormat, "UnZip should error on a file that is not an archive")
 }
 
 func TestZip(t *testing.T) {
@@ -79,9 +67,7 @@ func addFilesToZipTestWrapper(_ *zip.Writer, _ string, _ bool) error {
 }
 
 func TestZipSymlinks(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("symlink creation requires elevated privileges on Windows")
-	}
+	skipWithoutSymlinks(t)
 	tempDir := t.TempDir()
 	src := filepath.Join(tempDir, "src")
 	require.NoError(t, os.Mkdir(src, 0o750), "Mkdir must not error")
@@ -90,9 +76,14 @@ func TestZipSymlinks(t *testing.T) {
 
 	inRootZip := filepath.Join(tempDir, "in_root.zip")
 	require.NoError(t, Zip(src, inRootZip), "Zip must not error for a symlink resolving inside the tree")
-	o, err := UnZip(inRootZip, filepath.Join(tempDir, "extracted"))
+	extracted := filepath.Join(tempDir, "extracted")
+	o, err := UnZip(inRootZip, extracted)
 	require.NoError(t, err, "UnZip must not error")
-	assert.Len(t, o, 2, "Should archive the file and the symlink target contents")
+	require.Len(t, o, 2, "UnZip must extract the file and the symlink")
+	// the entry carries the target's bytes, so the count alone would pass on an empty one
+	inner, err := os.ReadFile(filepath.Join(extracted, "src", "inner.txt"))
+	require.NoError(t, err, "ReadFile must not error")
+	assert.Equal(t, "hello", string(inner), "the symlink should be archived with its target's contents")
 
 	outside := filepath.Join(tempDir, "outside.txt")
 	require.NoError(t, os.WriteFile(outside, []byte("secret"), 0o600), "WriteFile must not error")
