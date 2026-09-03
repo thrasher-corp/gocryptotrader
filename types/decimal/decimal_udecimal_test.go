@@ -701,6 +701,15 @@ func TestDivideUdecimal(t *testing.T) {
 			func() { divideUdecimal(udecimal.One, udecimal.Zero) },
 			"divideUdecimal should preserve unrelated backend panics")
 	})
+	t.Run("maximum u128 representation", func(t *testing.T) {
+		t.Parallel()
+		negative, high, low, precision, fitsU128 := udecimal.MustParse("-340282366920938463463374607431768211455").ToHiLo()
+		require.True(t, fitsU128, "maximum u128 value must use the u128 representation")
+		assert.True(t, negative, "maximum negative u128 value should retain its sign")
+		assert.Equal(t, uint64(math.MaxUint64), high, "maximum u128 value should fill the high word")
+		assert.Equal(t, uint64(math.MaxUint64), low, "maximum u128 value should fill the low word")
+		assert.Equal(t, uint8(0), precision, "integer u128 value should have zero precision")
+	})
 	//nolint:dogsled // Only the u128 fit flag is under test here.
 	_, _, _, _, fitsU128 := udecimalBigIntDivisionFactor.ToHiLo()
 	assert.False(t, fitsU128, "udecimalBigIntDivisionFactor should exceed u128")
