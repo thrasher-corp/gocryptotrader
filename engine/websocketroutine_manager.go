@@ -364,12 +364,14 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 	case accounts.SubAccounts:
 		// TODO: Ingest websocket account snapshots once the portfolio manager supports event-driven updates; logging is an intentional stopgap.
-		for _, subAccount := range d {
-			if subAccount == nil {
-				continue
-			}
-			for c, balance := range subAccount.Balances {
-				log.Debugf(log.PortfolioMgr, "Portfolio [Websocket]: Received %s %s balance update: %s, %f", exchName, subAccount.AssetType, c, balance.Total)
+		if m.verbose {
+			for _, subAccount := range d {
+				if subAccount == nil {
+					continue
+				}
+				for c, balance := range subAccount.Balances {
+					log.Debugf(log.PortfolioMgr, "Portfolio [Websocket]: Received %s %s balance update: %s, %f", exchName, subAccount.AssetType, c, balance.Total)
+				}
 			}
 		}
 	case []trade.Data, trade.Data:

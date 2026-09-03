@@ -3170,6 +3170,33 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	require.Empty(t, subs, "Disabled asset must return no pairs")
 }
 
+func TestPrepareFuturesUserIDsLookupFailure(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	var accountRequests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	ex.prepareFuturesUserIDs(t.Context())
+
+	assert.Equal(t, int64(2), accountRequests.Load(), "preparation should try each enabled futures settlement account")
+	assert.Empty(t, ex.getFuturesUserID("key", currency.USDT), "failed preparation should leave the USDT account ID uncached")
+	assert.Empty(t, ex.getFuturesUserID("key", currency.BTC), "failed preparation should leave the BTC account ID uncached")
+}
+
 func TestGenerateFuturesDefaultSubscriptionsMissingCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -3197,7 +3224,7 @@ func TestGenerateFuturesDefaultSubscriptionsMissingCredentials(t *testing.T) {
 	}
 }
 
-func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
+func TestGenerateFuturesDefaultSubscriptionsColdCache(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
@@ -3205,7 +3232,8 @@ func TestGenerateFuturesDefaultSubscriptionsAccountLookupFailure(t *testing.T) {
 	var accountRequests atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
-		w.WriteHeader(http.StatusInternalServerError)
+		_, err := w.Write([]byte(`{"user":20011}`))
+		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
 	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
@@ -3252,12 +3280,7 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	var failLookup atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if failLookup.Load() {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
 		_, err := w.Write([]byte(`{"user":20011}`))
 		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
@@ -3273,7 +3296,6 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 
 	err := ex.cacheFuturesUserID(t.Context(), "key", currency.USDT)
 	require.NoError(t, err, "Initial account lookup must populate the futures user ID cache")
-	failLookup.Store(true)
 	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "Subscription generation must reuse the matching cached user ID")
 	privateChannels := map[string]bool{
@@ -3293,7 +3315,7 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 		}
 	}
 	for channel, generated := range privateChannels {
-		assert.Truef(t, generated, "%s should remain generated after a transient account lookup failure", channel)
+		assert.Truef(t, generated, "%s should remain generated from the cached account ID", channel)
 	}
 
 	_, err = ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
@@ -3696,6 +3718,12 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, processed, 1, "futures order update must contain one order")
 	assert.Equal(t, testCases[0].status, processed[0].Status, "futures order status should be open")
+
+	incomingWithoutTIF := strings.Replace(testCases[0].incoming, `,"tif":"gtc"`, "", 1)
+	processed, err = e.processFuturesOrdersPushData([]byte(incomingWithoutTIF), asset.CoinMarginedFutures)
+	require.NoError(t, err, "futures order update without TIF must use Gate's default")
+	require.Len(t, processed, 1, "futures order update without TIF must contain one order")
+	assert.Equal(t, order.GoodTillCancel, processed[0].TimeInForce, "futures order without TIF should default to GTC")
 }
 
 // Captured from live GateIO websocket data on 2026-09-03.
@@ -3713,18 +3741,19 @@ func TestFuturesLiveCapturedPayloads(t *testing.T) {
 			price            float64
 			averageFillPrice float64
 			timeInForce      order.TimeInForce
+			orderType        order.Type
 			reduceOnly       bool
 		}{
 			{
 				name:      "reduce-only IOC close",
 				payload:   `{"time":1788387249,"time_ms":1788387249995,"channel":"futures.orders","event":"update","result":[{"create_time":1788387249,"create_time_ms":1788387249995,"fill_price":0.242073333333,"finish_as":"filled","iceberg":"0","id":294985777215626819,"id_string":"294985777215626819","is_close":false,"is_liq":false,"left":"0","mkfr":0.0002,"is_reduce_only":true,"status":"finished","tkfr":0.00048,"price":0,"refu":0,"refr":0,"size":"21","text":"apiv4-ws","tif":"ioc","finish_time":1788387249,"finish_time_ms":1788387249995,"user":"12870774","contract":"RAVE_USDT","stop_profit_price":"","stop_loss_price":"","amend_text":"-","biz_info":"-","stp_act":"-","stp_id":"0","update_id":1,"is_voucher":false,"update_time":1788387249995,"fee":0.024400992,"point_fee":0,"role":"taker","bbo":"-","market_order_slip_ratio":"0.025","pos_margin_mode":"isolated","leverage":"1"}]}`,
-				direction: order.Long, amount: 21, averageFillPrice: 0.242073333333,
+				direction: order.Long, orderType: order.Market, amount: 21, averageFillPrice: 0.242073333333,
 				timeInForce: order.ImmediateOrCancel, reduceOnly: true,
 			},
 			{
 				name:      "short FOK open",
 				payload:   `{"time":1788387300,"time_ms":1788387300728,"channel":"futures.orders","event":"update","result":[{"create_time":1788387300,"create_time_ms":1788387300727,"fill_price":60.97,"finish_as":"filled","iceberg":"0","id":296956100605608003,"id_string":"296956100605608003","is_close":false,"is_liq":false,"left":"0","mkfr":0.0002,"is_reduce_only":false,"status":"finished","tkfr":0.00048,"price":60.91,"refu":0,"refr":0,"size":"-3","text":"apiv4-ws","tif":"fok","finish_time":1788387300,"finish_time_ms":1788387300727,"user":"12870774","contract":"SLVON_USDT","stop_profit_price":"","stop_loss_price":"","amend_text":"-","biz_info":"-","stp_act":"-","stp_id":"0","update_id":1,"is_voucher":false,"update_time":1788387300727,"fee":0.00877968,"point_fee":0,"role":"taker","bbo":"-","market_order_slip_ratio":"0","pos_margin_mode":"isolated","leverage":"1"}]}`,
-				direction: order.Short, amount: 3, price: 60.91, averageFillPrice: 60.97,
+				direction: order.Short, orderType: order.Limit, amount: 3, price: 60.91, averageFillPrice: 60.97,
 				timeInForce: order.FillOrKill,
 			},
 		} {
@@ -3734,7 +3763,7 @@ func TestFuturesLiveCapturedPayloads(t *testing.T) {
 				require.NoError(t, err, "processFuturesOrdersPushData must process captured live data")
 				require.Len(t, processed, 1, "captured order payload must contain one order")
 				assert.Equal(t, order.Filled, processed[0].Status, "captured order status should be filled")
-				assert.Equal(t, order.Market, processed[0].Type, "captured IOC and FOK orders should be market orders")
+				assert.Equal(t, tt.orderType, processed[0].Type, "captured order type should follow the request price")
 				assert.Equal(t, tt.direction, processed[0].Side, "captured order direction should follow signed size")
 				assert.Equal(t, tt.amount, processed[0].Amount, "captured order amount should be absolute")
 				assert.Equal(t, tt.amount, processed[0].ExecutedAmount, "captured order should be fully executed")

@@ -85,7 +85,6 @@ type Manager struct {
 	verbose                       bool
 	canUseAuthenticatedEndpoints  atomic.Bool
 	connectionMonitorRunning      atomic.Bool
-	subscriptionRefreshPending    atomic.Bool
 	trafficTimeout                time.Duration
 	connectionMonitorDelay        time.Duration
 	proxyAddr                     string
@@ -100,6 +99,7 @@ type Manager struct {
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
+	preConnect                    func(context.Context)
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
@@ -128,11 +128,13 @@ type Manager struct {
 
 // ManagerSetup defines variables for setting up a websocket manager
 type ManagerSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
+	ExchangeConfig *config.Exchange
+	DefaultURL     string
+	RunningURL     string
+	RunningURLAuth string
+	Connector      func() error
+	// PreConnect performs context-aware preparation before the manager lock is acquired.
+	PreConnect            func(context.Context)
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
@@ -226,6 +228,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
 	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
+	m.preConnect = s.PreConnect
 
 	if !m.useMultiConnectionManagement {
 		// TODO: Remove this block when all exchanges are updated and backwards
@@ -449,6 +452,9 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (m *Manager) Connect(ctx context.Context) error {
+	if m.IsEnabled() && !m.IsConnecting() && !m.IsConnected() && m.preConnect != nil {
+		m.preConnect(ctx)
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	return m.connect(ctx)
@@ -654,7 +660,6 @@ func (m *Manager) connect(ctx context.Context) error {
 		go m.monitorFrame(ctx, nil, m.monitorConnection)
 	}
 
-	m.subscriptionRefreshPending.Store(errors.Is(subscriptionError, ErrSubscriptionPartial))
 	return subscriptionError
 }
 
@@ -1127,10 +1132,6 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 			err := m.Connect(ctx)
 			if err != nil {
 				log.Errorln(log.WebsocketMgr, err)
-			}
-		} else if m.IsConnected() && m.subscriptionRefreshPending.Load() {
-			if err := m.FlushChannels(ctx); err != nil {
-				log.Errorf(log.WebsocketMgr, "%s websocket subscription refresh failed: %v", m.exchangeName, err)
 			}
 		}
 		t.Reset(m.connectionMonitorDelay)

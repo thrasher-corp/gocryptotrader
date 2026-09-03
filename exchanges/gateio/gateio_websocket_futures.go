@@ -99,6 +99,11 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	return nil
 }
 
+// prepareFuturesUserIDs warms the credential and settlement-scoped account ID cache used by
+// authenticated futures subscriptions. Bootstrap calls it eagerly and websocket pre-connect
+// calls it outside the manager lock, allowing a later reconnect to retry failed lookups without
+// putting REST requests in subscription generation. A failed lookup leaves the cache cold so
+// generation can retain public and user-ID-independent channels.
 func (e *Exchange) prepareFuturesUserIDs(ctx context.Context) {
 	if !e.Websocket.IsEnabled() || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return
@@ -706,9 +711,11 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			return nil, err
 		}
 		side, amount, remaining := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), resp.Result[x].RemainingAmount.Float64())
-		tif, err := timeInForceFromString(resp.Result[x].TimeInForce)
-		if err != nil {
-			return nil, err
+		tif := order.GoodTillCancel // Gate documents tif as optional and defaults it to gtc.
+		if resp.Result[x].TimeInForce != "" {
+			if tif, err = timeInForceFromString(resp.Result[x].TimeInForce); err != nil {
+				return nil, err
+			}
 		}
 
 		orderDetails[x] = order.Detail{

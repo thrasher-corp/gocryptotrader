@@ -219,6 +219,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		PreConnect:                   e.prepareFuturesUserIDs,
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
@@ -2637,17 +2638,13 @@ func getClientOrderIDFromText(text string) string {
 
 // getTypeFromTimeInForce returns the order type and if the order is post only
 func getTypeFromTimeInForce(tif string, price float64) (orderType order.Type) {
-	switch tif {
-	case iocTIF, fokTIF:
-		return order.Market
-	case pocTIF, gtcTIF:
-		return order.Limit
-	default:
-		if price == 0 {
+	if price == 0 {
+		switch tif {
+		case iocTIF, fokTIF:
 			return order.Market
 		}
-		return order.Limit
 	}
+	return order.Limit
 }
 
 // getSideAndAmountFromSize returns the order side, amount and remaining amounts
