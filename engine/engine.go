@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -937,7 +938,8 @@ func validateAPICredentials(ctx context.Context, exchangeName string, enabledAss
 	for _, a := range assets {
 		if err := validate(ctx, a); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%s: %w", a, err))
-			if errors.Is(err, exchange.ErrCredentialsAreEmpty) || errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+			// A transport failure means the venue is unreachable, so no other account can answer either.
+			if _, ok := errors.AsType[net.Error](err); ok || errors.Is(err, exchange.ErrCredentialsAreEmpty) || errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 				break
 			}
 			continue

@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -503,17 +505,18 @@ func TestValidateAPICredentials(t *testing.T) {
 		assert.ErrorContainsf(t, err, a.String()+": "+errDeliveryAccountMissing.Error(), "aggregated error should name %s and why it failed", a)
 	}
 
-	for _, assetIndependentErr := range []error{
+	for _, venueWideErr := range []error{
 		exchange.ErrCredentialsAreEmpty,
 		exchange.ErrAuthenticationSupportNotEnabled,
+		&url.Error{Op: "Get", URL: "https://example.com/accounts", Err: context.DeadlineExceeded},
 	} {
 		validated = nil
 		err = validateAPICredentials(t.Context(), testExchange, asset.Items{asset.Spot, asset.USDTMarginedFutures}, func(_ context.Context, a asset.Item) error {
 			validated = append(validated, a)
-			return assetIndependentErr
+			return fmt.Errorf("%w, authenticated request failed", venueWideErr)
 		})
-		require.ErrorIs(t, err, assetIndependentErr, "asset-independent credential failure must be returned")
-		assert.Equal(t, asset.Items{asset.Spot}, validated, "asset-independent credential failure should stop further validation")
+		require.ErrorIs(t, err, venueWideErr, "venue-wide failure must be returned")
+		assert.Equal(t, asset.Items{asset.Spot}, validated, "venue-wide failure should stop further validation")
 	}
 }
 
