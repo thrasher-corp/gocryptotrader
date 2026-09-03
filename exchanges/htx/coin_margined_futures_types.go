@@ -1,4 +1,4 @@
-package huobi
+package htx
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -49,33 +49,24 @@ type SwapMarketDepthData struct {
 
 // SwapKlineData stores kline data for perpetual swaps
 type SwapKlineData struct {
-	Data []struct {
-		Volume      float64    `json:"vol"`
-		Close       float64    `json:"close"`
-		Count       float64    `json:"count"`
-		High        float64    `json:"high"`
-		IDTimestamp types.Time `json:"id"`
-		Low         float64    `json:"low"`
-		Open        float64    `json:"open"`
-		Amount      float64    `json:"amount"`
-	} `json:"data"`
+	Data []FuturesKline `json:"data"`
 }
 
 // MarketOverviewData stores market overview data
 type MarketOverviewData struct {
 	Channel string `json:"ch"`
 	Tick    struct {
-		Vol       float64    `json:"vol,string"`
-		Ask       []float64  `json:"ask"`
-		Bid       []float64  `json:"bid"`
-		Close     float64    `json:"close,string"`
-		Count     float64    `json:"count"`
-		High      float64    `json:"high,string"`
-		ID        int64      `json:"id"`
-		Low       float64    `json:"low,string"`
-		Open      float64    `json:"open,string"`
-		Timestamp types.Time `json:"ts"`
-		Amount    float64    `json:"amount,string"`
+		Vol       types.Number `json:"vol"`
+		Ask       []float64    `json:"ask"`
+		Bid       []float64    `json:"bid"`
+		Close     types.Number `json:"close"`
+		Count     float64      `json:"count"`
+		High      types.Number `json:"high"`
+		ID        int64        `json:"id"`
+		Low       types.Number `json:"low"`
+		Open      types.Number `json:"open"`
+		Timestamp types.Time   `json:"ts"`
+		Amount    types.Number `json:"amount"`
 	} `json:"tick"`
 }
 
@@ -84,11 +75,11 @@ type LastTradeData struct {
 	Ch   string `json:"ch"`
 	Tick struct {
 		Data []struct {
-			Amount    float64    `json:"amount,string"`
-			Direction string     `json:"direction"`
-			ID        int64      `json:"id"`
-			Price     float64    `json:"price,string"`
-			Timestamp types.Time `json:"ts"`
+			Amount    types.Number `json:"amount"`
+			Direction string       `json:"direction"`
+			ID        int64        `json:"id"`
+			Price     types.Number `json:"price"`
+			Timestamp types.Time   `json:"ts"`
 		} `json:"data"`
 	} `json:"tick"`
 }
@@ -204,13 +195,13 @@ type SwapFundingRatesResponse struct {
 
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
-	EstimatedRate   float64    `json:"estimated_rate,string"`
-	FundingRate     float64    `json:"funding_rate,string"`
-	ContractCode    string     `json:"contractCode"`
-	Symbol          string     `json:"symbol"`
-	FeeAsset        string     `json:"fee_asset"`
-	FundingTime     types.Time `json:"fundingTime"`
-	NextFundingTime types.Time `json:"next_funding_time"`
+	EstimatedRate   types.Number `json:"estimated_rate"`
+	FundingRate     types.Number `json:"funding_rate"`
+	ContractCode    string       `json:"contract_code"`
+	Symbol          string       `json:"symbol"`
+	FeeAsset        string       `json:"fee_asset"`
+	FundingTime     types.Time   `json:"funding_time"`
+	NextFundingTime types.Time   `json:"next_funding_time"`
 }
 
 // HistoricalFundingRateData stores historical funding rates for perpetuals
@@ -225,27 +216,27 @@ type HistoricalFundingRateData struct {
 
 // HistoricalRateData stores historical rates data
 type HistoricalRateData struct {
-	FundingRate     float64    `json:"funding_rate,string"`
-	RealizedRate    float64    `json:"realized_rate,string"`
-	FundingTime     types.Time `json:"fundingTime"`
-	ContractCode    string     `json:"contract_code"`
-	Symbol          string     `json:"symbol"`
-	FeeAsset        string     `json:"fee_asset"`
-	AvgPremiumIndex float64    `json:"avg_premium_index,string"`
+	FundingRate     types.Number `json:"funding_rate"`
+	RealizedRate    types.Number `json:"realized_rate"`
+	FundingTime     types.Time   `json:"funding_time"`
+	ContractCode    string       `json:"contract_code"`
+	Symbol          string       `json:"symbol"`
+	FeeAsset        string       `json:"fee_asset"`
+	AvgPremiumIndex types.Number `json:"avg_premium_index"`
 }
 
 // PremiumIndexKlineData stores kline data for premium
 type PremiumIndexKlineData struct {
 	Channel string `json:"ch"`
 	Data    []struct {
-		Volume float64 `json:"vol,string"`
-		Close  float64 `json:"close,string"`
-		Count  float64 `json:"count,string"`
-		High   float64 `json:"high,string"`
-		ID     int64   `json:"id"`
-		Low    float64 `json:"low,string"`
-		Open   float64 `json:"open,string"`
-		Amount float64 `json:"amount,string"`
+		Volume types.Number `json:"vol"`
+		Close  types.Number `json:"close"`
+		Count  types.Number `json:"count"`
+		High   types.Number `json:"high"`
+		ID     int64        `json:"id"`
+		Low    types.Number `json:"low"`
+		Open   types.Number `json:"open"`
+		Amount types.Number `json:"amount"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -254,14 +245,14 @@ type PremiumIndexKlineData struct {
 type EstimatedFundingRateData struct {
 	Channel string `json:"ch"`
 	Data    []struct {
-		Volume float64 `json:"vol"`
-		Close  float64 `json:"close"`
-		Count  float64 `json:"count"`
-		High   float64 `json:"high"`
-		ID     int64   `json:"id"`
-		Low    float64 `json:"low"`
-		Open   float64 `json:"open"`
-		Amount float64 `json:"amount"`
+		Volume types.Number `json:"vol"`
+		Close  types.Number `json:"close"`
+		Count  types.Number `json:"count"`
+		High   types.Number `json:"high"`
+		ID     int64        `json:"id"`
+		Low    types.Number `json:"low"`
+		Open   types.Number `json:"open"`
+		Amount types.Number `json:"amount"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -422,21 +413,55 @@ type AvailableLeverageData struct {
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// FinancialRecordData stores an accounts financial records
-type FinancialRecordData struct {
+// SwitchCoinMarginedLeverageRequest defines a coin-margined perpetual leverage change.
+type SwitchCoinMarginedLeverageRequest struct {
+	ContractCode string `json:"contract_code"`
+	LeverageRate uint64 `json:"lever_rate"`
+}
+
+// SwitchCoinMarginedLeverageResponse contains the leverage accepted by HTX.
+type SwitchCoinMarginedLeverageResponse struct {
+	Response
 	Data struct {
-		FinancialRecord []struct {
-			ID           int64      `json:"id"`
-			Timestamp    types.Time `json:"ts"`
-			Symbol       string     `json:"symbol"`
-			ContractCode string     `json:"contract_code"`
-			OrderType    int64      `json:"type"`
-			Amount       float64    `json:"amount"`
-		} `json:"financial_record"`
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
+		ContractCode string `json:"contract_code"`
+		LeverageRate uint64 `json:"lever_rate"`
 	} `json:"data"`
+}
+
+// FinancialRecord stores a coin-margined financial record entry.
+type FinancialRecord struct {
+	QueryID      int64      `json:"query_id"`
+	ID           int64      `json:"id"`
+	Timestamp    types.Time `json:"ts"`
+	Symbol       string     `json:"symbol"`
+	ContractCode string     `json:"contract_code"`
+	OrderType    int64      `json:"type"`
+	Amount       float64    `json:"amount"`
+}
+
+// FinancialRecordResponseData stores financial record data and legacy pagination values.
+type FinancialRecordResponseData struct {
+	FinancialRecord []FinancialRecord `json:"financial_record"`
+	TotalPage       int64             `json:"total_page"`
+	CurrentPage     int64             `json:"current_page"`
+	TotalSize       int64             `json:"total_size"`
+}
+
+// FinancialRecordData stores an accounts financial records.
+type FinancialRecordData struct {
+	Data      FinancialRecordResponseData `json:"data"`
+	Timestamp types.Time                  `json:"ts"`
+}
+
+// UnmarshalJSON supports the documented v3 array response while preserving the
+// legacy paged-object shape used by older responses.
+func (f *FinancialRecordData) UnmarshalJSON(data []byte) error {
+	var response FinancialRecordData
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.FinancialRecord, &response.Data); err != nil {
+		return err
+	}
+	*f = response
+	return nil
 }
 
 // SwapOrderLimitInfo stores information about order limits on a perpetual swap
@@ -456,13 +481,13 @@ type SwapOrderLimitInfo struct {
 // SwapTradingFeeData stores trading fee data for swaps
 type SwapTradingFeeData struct {
 	Data []struct {
-		Symbol        string  `json:"symbol"`
-		ContractCode  string  `json:"contract_code"`
-		FeeAsset      string  `json:"fee_asset"`
-		OpenMakerFee  float64 `json:"open_maker_fee,string"`
-		OpenTakerFee  float64 `json:"open_taker_fee,string"`
-		CloseMakerFee float64 `json:"close_maker_fee,string"`
-		CloseTakerFee float64 `json:"close_taker_fee,string"`
+		Symbol        string       `json:"symbol"`
+		ContractCode  string       `json:"contract_code"`
+		FeeAsset      string       `json:"fee_asset"`
+		OpenMakerFee  types.Number `json:"open_maker_fee"`
+		OpenTakerFee  types.Number `json:"open_taker_fee"`
+		CloseMakerFee types.Number `json:"close_maker_fee"`
+		CloseTakerFee types.Number `json:"close_taker_fee"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -509,7 +534,7 @@ type InternalAccountTransferData struct {
 type SwapOrderData struct {
 	Data struct {
 		OrderID       int64  `json:"order_id"`
-		OrderIDString string `json:"order_id_string"`
+		OrderIDString string `json:"order_id_str"`
 		ClientOrderID int64  `json:"client_order_id"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
@@ -550,12 +575,14 @@ type batchOrderData struct {
 
 // CancelOrdersData stores order cancellation data
 type CancelOrdersData struct {
-	Errors []struct {
-		OrderID string `json:"order_id"`
-		ErrCode int64  `json:"err_code"`
-		ErrMsg  string `json:"err_msg"`
-	} `json:"errors"`
-	Successes string     `json:"successes"`
+	Data struct {
+		Errors []struct {
+			OrderID string `json:"order_id"`
+			ErrCode int64  `json:"err_code"`
+			ErrMsg  string `json:"err_msg"`
+		} `json:"errors"`
+		Successes string `json:"successes"`
+	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
 
@@ -581,7 +608,7 @@ type SwapOrderInfo struct {
 		Offset          string  `json:"offset"`
 		LeverRate       int64   `json:"lever_rate"`
 		OrderID         int64   `json:"order_id"`
-		OrderIDString   string  `json:"order_id_string"`
+		OrderIDString   string  `json:"order_id_str"`
 		ClientOrderID   int64   `json:"client_order_id"`
 		OrderSource     string  `json:"order_source"`
 		CreatedAt       int64   `json:"created_at"`
@@ -593,7 +620,7 @@ type SwapOrderInfo struct {
 		MarginFrozen    float64 `json:"margin_frozen"`
 		Profit          float64 `json:"profit"`
 		Status          int64   `json:"status"`
-		FeeAsset        float64 `json:"fee_asset"`
+		FeeAsset        string  `json:"fee_asset"`
 		LiquidationType int64   `json:"liquidation_type"`
 	}
 	Timestamp types.Time `json:"ts"`
@@ -632,67 +659,104 @@ type SwapOpenOrdersData struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// SwapOrderHistory gets order history for swaps
-type SwapOrderHistory struct {
-	Data struct {
-		Orders []struct {
-			Symbol            string  `json:"symbol"`
-			ContractCode      string  `json:"contract_code"`
-			Volume            float64 `json:"volume"`
-			Price             float64 `json:"price"`
-			OrderPriceType    string  `json:"order_price_type"`
-			Direction         string  `json:"direction"`
-			Offset            string  `json:"offset"`
-			LeverageRate      float64 `json:"lever_rate"`
-			OrderID           int64   `json:"order_id"`
-			OrderIDString     string  `json:"order_id_str"`
-			OrderSource       string  `json:"order_source"`
-			CreateDate        int64   `json:"create_date"`
-			TradeVolume       float64 `json:"trade_volume"`
-			TradeTurnover     float64 `json:"trade_turnover"`
-			Fee               float64 `json:"fee"`
-			TradeAveragePrice float64 `json:"trade_avg_price"`
-			MarginFrozen      float64 `json:"margin_frozen"`
-			Profit            float64 `json:"profit"`
-			Status            int64   `json:"status"`
-			OrderType         int64   `json:"order_type"`
-			FeeAsset          string  `json:"fee_asset"`
-			LiquidationType   string  `json:"liquidation_type"`
-		} `json:"orders"`
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
+// SwapOrderHistoryEntry stores an order history entry for coin-margined swaps.
+type SwapOrderHistoryEntry struct {
+	QueryID           int64   `json:"query_id"`
+	Symbol            string  `json:"symbol"`
+	ContractCode      string  `json:"contract_code"`
+	Volume            float64 `json:"volume"`
+	Price             float64 `json:"price"`
+	OrderPriceType    string  `json:"order_price_type"`
+	Direction         string  `json:"direction"`
+	Offset            string  `json:"offset"`
+	LeverageRate      float64 `json:"lever_rate"`
+	OrderID           int64   `json:"order_id"`
+	OrderIDString     string  `json:"order_id_str"`
+	OrderSource       string  `json:"order_source"`
+	CreateDate        int64   `json:"create_date"`
+	UpdateTime        int64   `json:"update_time"`
+	TradeVolume       float64 `json:"trade_volume"`
+	TradeTurnover     float64 `json:"trade_turnover"`
+	Fee               float64 `json:"fee"`
+	TradeAveragePrice float64 `json:"trade_avg_price"`
+	MarginFrozen      float64 `json:"margin_frozen"`
+	Profit            float64 `json:"profit"`
+	Status            int64   `json:"status"`
+	OrderType         int64   `json:"order_type"`
+	FeeAsset          string  `json:"fee_asset"`
+	LiquidationType   string  `json:"liquidation_type"`
 }
 
-// AccountTradeHistoryData stores account trade history for swaps
+// SwapOrderHistoryResponseData stores order history data and legacy pagination values.
+type SwapOrderHistoryResponseData struct {
+	Orders      []SwapOrderHistoryEntry `json:"orders"`
+	TotalPage   int64                   `json:"total_page"`
+	CurrentPage int64                   `json:"current_page"`
+	TotalSize   int64                   `json:"total_size"`
+}
+
+// SwapOrderHistory gets order history for swaps.
+type SwapOrderHistory struct {
+	Data      SwapOrderHistoryResponseData `json:"data"`
+	Timestamp types.Time                   `json:"ts"`
+}
+
+// UnmarshalJSON supports the documented v3 array response while preserving the
+// legacy paged-object shape used by older responses.
+func (s *SwapOrderHistory) UnmarshalJSON(data []byte) error {
+	var response SwapOrderHistory
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Orders, &response.Data); err != nil {
+		return err
+	}
+	*s = response
+	return nil
+}
+
+// AccountTradeHistoryEntry stores a trade history entry for coin-margined swaps.
+type AccountTradeHistoryEntry struct {
+	QueryID          int64   `json:"query_id"`
+	ID               string  `json:"id"`
+	ContractCode     string  `json:"contract_code"`
+	CreateDate       string  `json:"create_date"`
+	Direction        string  `json:"direction"`
+	MatchID          int64   `json:"match_id"`
+	Offset           string  `json:"offset"`
+	OffsetProfitloss float64 `json:"offset_profitloss"`
+	OrderID          int64   `json:"order_id"`
+	OrderIDString    string  `json:"order_id_str"`
+	Symbol           string  `json:"symbol"`
+	OrderSource      string  `json:"order_source"`
+	TradeFee         float64 `json:"trade_fee"`
+	TradePrice       float64 `json:"trade_price"`
+	TradeTurnover    float64 `json:"trade_turnover"`
+	TradeVolume      float64 `json:"trade_volume"`
+	Role             string  `json:"role"`
+	FeeAsset         string  `json:"fee_asset"`
+}
+
+// AccountTradeHistoryResponseData stores trade history data and legacy pagination values.
+type AccountTradeHistoryResponseData struct {
+	CurrentPage int64                      `json:"current_page"`
+	TotalPage   int64                      `json:"total_page"`
+	TotalSize   int64                      `json:"total_size"`
+	Trades      []AccountTradeHistoryEntry `json:"trades"`
+}
+
+// AccountTradeHistoryData stores account trade history for swaps.
 type AccountTradeHistoryData struct {
-	Data struct {
-		CurrentPage int64 `json:"current_page"`
-		TotalPage   int64 `json:"total_page"`
-		TotalSize   int64 `json:"total_size"`
-		Trades      []struct {
-			ID               string  `json:"id"`
-			ContractCode     string  `json:"contract_code"`
-			CreateDate       string  `json:"create_date"`
-			Direction        string  `json:"direction"`
-			MatchID          int64   `json:"match_id"`
-			Offset           string  `json:"offset"`
-			OffsetProfitloss float64 `json:"offset_profitloss"`
-			OrderID          int64   `json:"order_id"`
-			OrderIDString    string  `json:"order_id_str"`
-			Symbol           string  `json:"symbol"`
-			OrderSource      string  `json:"order_source"`
-			TradeFee         float64 `json:"trade_fee"`
-			TradePrice       float64 `json:"trade_price"`
-			TradeTurnover    float64 `json:"trade_turnover"`
-			TradeVolume      float64 `json:"trade_volume"`
-			Role             string  `json:"role"`
-			FeeAsset         string  `json:"fee_asset"`
-		} `json:"trades"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
+	Data      AccountTradeHistoryResponseData `json:"data"`
+	Timestamp types.Time                      `json:"ts"`
+}
+
+// UnmarshalJSON supports the documented v3 array response while preserving the
+// legacy paged-object shape used by older responses.
+func (a *AccountTradeHistoryData) UnmarshalJSON(data []byte) error {
+	var response AccountTradeHistoryData
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Trades, &response.Data); err != nil {
+		return err
+	}
+	*a = response
+	return nil
 }
 
 // CancelTriggerOrdersData stores trigger order cancel data
