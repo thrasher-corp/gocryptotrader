@@ -248,9 +248,11 @@ func TestZipDanglingDestinationSymlink(t *testing.T) {
 	assert.FileExists(t, filepath.Join(root, "created.zip"), "the archive should be written through the link")
 }
 
-// TestDestWriteTargetSymlinkChainLimit pins the bound to the one the kernel applies. Each iteration
-// follows one link and the last finds the non-link at the end, so an off-by-one here refuses a
-// destination os.Create would open
+// TestDestWriteTargetSymlinkChainLimit pins the bound to one iteration per link plus the one that
+// finds the non-link at the end, so an off-by-one refuses a chain the walk should reach. It does
+// not compare against os.Create: MAXSYMLINKS is 40 on Linux and 32 on macOS, so agreement with the
+// kernel is not portable, and the guard being the more permissive of the two is harmless because
+// os.Create then refuses the write itself
 func TestDestWriteTargetSymlinkChainLimit(t *testing.T) {
 	t.Parallel()
 	skipWithoutSymlinks(t)
@@ -258,24 +260,20 @@ func TestDestWriteTargetSymlinkChainLimit(t *testing.T) {
 		t.Run(strconv.Itoa(hops)+" hops", func(t *testing.T) {
 			t.Parallel()
 			root := t.TempDir()
-			target := filepath.Join(root, "end.zip")
+			end := filepath.Join(root, "end.zip")
+			target := end
 			for i := range hops {
 				link := filepath.Join(root, "l"+strconv.Itoa(i))
 				require.NoError(t, os.Symlink(target, link), "Symlink must not error")
 				target = link
 			}
-			_, err := destWriteTarget(target)
-			f, createErr := os.Create(target)
-			if createErr == nil {
-				require.NoError(t, f.Close(), "Close must not error")
-			}
+			got, err := destWriteTarget(target)
 			if hops > maxSymlinkHops {
-				assert.ErrorIs(t, err, errTooManySymlinks, "destWriteTarget should refuse a chain the kernel will not follow")
-				assert.Error(t, createErr, "os.Create should refuse it too")
+				assert.ErrorIs(t, err, errTooManySymlinks, "destWriteTarget should refuse a chain longer than the bound")
 				return
 			}
-			assert.NoError(t, err, "destWriteTarget should follow a chain the kernel follows")
-			assert.NoError(t, createErr, "the guard should not refuse a chain os.Create opens")
+			require.NoError(t, err, "destWriteTarget must follow a chain the bound allows")
+			assert.Equal(t, end, got, "destWriteTarget should resolve to the far end of the chain")
 		})
 	}
 }
