@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const testExchange = "binance"
@@ -217,7 +217,7 @@ func TestUpdateBuyStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              decimal.NewFromFloat(0.5),
+		Amount:              decimal.MustFromFloat(0.5),
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
@@ -239,9 +239,9 @@ func TestUpdateBuyStats(t *testing.T) {
 		},
 	}, p)
 	require.NoError(t, err, "Holding.update must not error for an additional buy")
-	assert.Truef(t, h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)), "Holding.BoughtAmount should equal %v, actual %v", decimal.NewFromFloat(1.5), h.BoughtAmount)
+	assert.Truef(t, h.BoughtAmount.Equal(decimal.MustFromFloat(1.5)), "Holding.BoughtAmount should equal %v, actual %v", decimal.MustFromFloat(1.5), h.BoughtAmount)
 	assert.True(t, h.SoldAmount.IsZero(), "Holding.SoldAmount should be zero")
-	assert.Truef(t, h.TotalFees.Equal(decimal.NewFromFloat(1.5)), "Holding.TotalFees should equal %v, actual %v", decimal.NewFromFloat(1.5), h.TotalFees)
+	assert.Truef(t, h.TotalFees.Equal(decimal.MustFromFloat(1.5)), "Holding.TotalFees should equal %v, actual %v", decimal.MustFromFloat(1.5), h.TotalFees)
 }
 
 func TestUpdateSellStats(t *testing.T) {

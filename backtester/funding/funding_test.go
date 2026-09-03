@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -20,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var (
@@ -740,7 +740,7 @@ func TestSetFunding(t *testing.T) {
 	err = f.SetFunding(exchName, asset.Spot, bal, true)
 	assert.NoError(t, err)
 
-	if !f.items[0].available.Equal(decimal.NewFromFloat(bal.Total)) {
+	if !f.items[0].available.Equal(decimal.MustFromFloat(bal.Total)) {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
 	}
 	if !f.items[0].initialFunds.Equal(leet) {

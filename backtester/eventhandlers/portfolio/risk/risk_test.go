@@ -3,7 +3,6 @@ package risk
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestAssessHoldingsRatio(t *testing.T) {
@@ -28,7 +28,7 @@ func TestAssessHoldingsRatio(t *testing.T) {
 			BaseValue: decimal.NewFromInt(2),
 		},
 	})
-	if !ratio.Equal(decimal.NewFromFloat(0.5)) {
+	if !ratio.Equal(decimal.MustFromFloat(0.5)) {
 		t.Errorf("expected %v received %v", 0.5, ratio)
 	}
 
@@ -46,7 +46,7 @@ func TestAssessHoldingsRatio(t *testing.T) {
 			BaseValue: decimal.NewFromInt(1),
 		},
 	})
-	if !ratio.Equal(decimal.NewFromFloat(0.25)) {
+	if !ratio.Equal(decimal.MustFromFloat(0.25)) {
 		t.Errorf("expected %v received %v", 0.25, ratio)
 	}
 }
@@ -73,9 +73,9 @@ func TestEvaluateOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errNoCurrencySettings)
 
 	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)] = &CurrencySettings{
-		MaximumOrdersWithLeverageRatio: decimal.NewFromFloat(0.3),
-		MaxLeverageRate:                decimal.NewFromFloat(0.3),
-		MaximumHoldingRatio:            decimal.NewFromFloat(0.3),
+		MaximumOrdersWithLeverageRatio: decimal.MustFromFloat(0.3),
+		MaxLeverageRate:                decimal.MustFromFloat(0.3),
+		MaximumHoldingRatio:            decimal.MustFromFloat(0.3),
 	}
 
 	h = append(h, holdings.Holding{
@@ -88,7 +88,7 @@ func TestEvaluateOrder(t *testing.T) {
 	h = append(h, holdings.Holding{
 		Pair: currency.NewPair(currency.DOGE, currency.USDT),
 	})
-	o.Leverage = decimal.NewFromFloat(1.1)
+	o.Leverage = decimal.MustFromFloat(1.1)
 	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)].MaximumHoldingRatio = decimal.Zero
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	assert.ErrorIs(t, err, errLeverageNotAllowed)
@@ -116,8 +116,8 @@ func TestEvaluateOrder(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, errCannotPlaceLeverageOrder)
 
-	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.NewFromFloat(1337.42)})
-	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
+	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.MustFromFloat(1337.42)})
+	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)].MaximumHoldingRatio = decimal.MustFromFloat(0.1)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	assert.NoError(t, err)
 
