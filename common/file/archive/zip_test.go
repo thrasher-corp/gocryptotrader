@@ -260,8 +260,12 @@ func TestDestWriteTargetSymlinkChainLimit(t *testing.T) {
 		t.Run(strconv.Itoa(hops)+" hops", func(t *testing.T) {
 			t.Parallel()
 			root := t.TempDir()
-			end := filepath.Join(root, "end.zip")
-			target := end
+			// the expectation is resolved because destWriteTarget resolves: macOS hands back
+			// t.TempDir under /var, a symlink to private/var, and Windows an 8.3 alias
+			resolvedRoot, err := filepath.EvalSymlinks(root)
+			require.NoError(t, err, "EvalSymlinks must not error")
+
+			target := filepath.Join(root, "end.zip")
 			for i := range hops {
 				link := filepath.Join(root, "l"+strconv.Itoa(i))
 				require.NoError(t, os.Symlink(target, link), "Symlink must not error")
@@ -273,7 +277,7 @@ func TestDestWriteTargetSymlinkChainLimit(t *testing.T) {
 				return
 			}
 			require.NoError(t, err, "destWriteTarget must follow a chain the bound allows")
-			assert.Equal(t, end, got, "destWriteTarget should resolve to the far end of the chain")
+			assert.Equal(t, filepath.Join(resolvedRoot, "end.zip"), got, "destWriteTarget should resolve to the far end of the chain")
 		})
 	}
 }
