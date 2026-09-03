@@ -85,9 +85,9 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	}
 }
 
-// getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
-// that the instrument is associated with
-func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
+// getAssetsFromInstrumentIDWithCheck parses an instrument ID and returns assets
+// depending on whether enabled-only checks are requested.
+func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string, enabledOnly bool) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -106,18 +106,18 @@ func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item,
 	switch {
 	case len(splitSymbol) == 2:
 		resp := make([]asset.Item, 0, 2)
-		enabled, err := e.IsPairEnabled(pair, asset.Spot)
+		isMatch, err := e.pairMatchesRequirement(pair, asset.Spot, enabledOnly)
 		if err != nil {
 			return nil, err
 		}
-		if enabled {
+		if isMatch {
 			resp = append(resp, asset.Spot)
 		}
-		enabled, err = e.IsPairEnabled(pair, asset.Margin)
+		isMatch, err = e.pairMatchesRequirement(pair, asset.Margin, enabledOnly)
 		if err != nil {
 			return nil, err
 		}
-		if enabled {
+		if isMatch {
 			resp = append(resp, asset.Margin)
 		}
 		if len(resp) > 0 {
@@ -133,14 +133,26 @@ func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item,
 		default:
 			aType = asset.Futures
 		}
-		enabled, err := e.IsPairEnabled(pair, aType)
+		isMatch, err := e.pairMatchesRequirement(pair, aType, enabledOnly)
 		if err != nil {
 			return nil, err
-		} else if enabled {
+		} else if isMatch {
 			return []asset.Item{aType}, nil
 		}
 	}
-	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotEnabled, instrumentID)
+	assetState := "available"
+	if enabledOnly {
+		assetState = "enabled"
+	}
+	return nil, fmt.Errorf("%w: no %s asset found for instrument ID `%v`", asset.ErrNotSupported, assetState, instrumentID)
+}
+
+// pairMatchesRequirement checks whether a pair/asset satisfies enabled-only or available checks.
+func (e *Exchange) pairMatchesRequirement(pair currency.Pair, a asset.Item, enabledOnly bool) (bool, error) {
+	if enabledOnly {
+		return e.IsPairEnabled(pair, a)
+	}
+	return e.IsPairAvailable(pair, a)
 }
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string

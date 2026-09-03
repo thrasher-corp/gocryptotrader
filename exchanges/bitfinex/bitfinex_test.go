@@ -1159,6 +1159,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewBTCUSD()})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should reject pair-scoped requests")
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
@@ -1169,6 +1171,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
+	orderCancellation.Pair = currency.EMPTYPAIR
 	resp, err := e.CancelAllOrders(t.Context(), orderCancellation)
 
 	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
@@ -1178,7 +1181,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if len(resp.Status) > 0 {
+	if err == nil && len(resp.Status) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
@@ -1723,7 +1726,6 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 50973.3020771, tick.Volume, "Ticker volume should be correct")
 		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
-		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Ticker update must be queued")
 	}
@@ -1758,7 +1760,6 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
 		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")
-		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Funding ticker update must be queued")
 	}

@@ -16,7 +16,6 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -213,19 +212,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
-			enabledPairs, err := e.GetAvailablePairs(asset.Spot)
+			pair, err := e.MatchSymbolWithAvailablePairs(result[i].Symbol, asset.Spot, false)
 			if err != nil {
-				return err
-			}
-
-			format, err := e.GetPairFormat(asset.Spot, true)
-			if err != nil {
-				return err
-			}
-
-			pair, err := currency.NewPairFromFormattedPairs(result[i].Symbol, enabledPairs, format)
-			if err != nil {
-				return err
+				log.Errorf(log.WebsocketMgr, "%s order update pair matching failed for symbol %q: %v", e.Name, result[i].Symbol, err)
+				continue
 			}
 
 			if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
@@ -278,17 +268,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
-			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				return err
-			}
-
-			format, err := e.GetPairFormat(asset.Spot, true)
-			if err != nil {
-				return err
-			}
-
-			pair, err := currency.NewPairFromFormattedPairs(result.Symbol, enabledPairs, format)
+			pair, err := e.MatchSymbolWithAvailablePairs(result.Symbol, asset.Spot, false)
 			if err != nil {
 				return err
 			}
@@ -337,17 +317,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				return err
-			}
-
-			format, err := e.GetPairFormat(asset.Spot, true)
-			if err != nil {
-				return err
-			}
-
-			pair, err := currency.NewPairFromFormattedPairs(candle.Symbol, enabledPairs, format)
+			pair, err := e.MatchSymbolWithAvailablePairs(candle.Symbol, asset.Spot, false)
 			if err != nil {
 				return err
 			}
@@ -427,17 +397,7 @@ func stringToOrderType(oType string) (order.Type, error) {
 
 func (e *Exchange) wsProcessUpdate(ctx context.Context, result *wsL2MarketData) error {
 	isInitial := len(result.Changes) > 0 && len(result.Trades) > 0
-	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	pair, err := currency.NewPairFromFormattedPairs(result.Symbol, enabledPairs, format)
+	pair, err := e.MatchSymbolWithAvailablePairs(result.Symbol, asset.Spot, false)
 	if err != nil {
 		return err
 	}
