@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestCalculateFundingStatistics(t *testing.T) {
@@ -178,10 +178,10 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true, false)
 	assert.NoError(t, err)
 
-	item1, err := funding.CreateItem("test", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04))
+	item1, err := funding.CreateItem("test", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.MustFromFloat(0.04))
 	assert.NoError(t, err)
 
-	item2, err := funding.CreateItem("test", asset.Spot, currency.LTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04))
+	item2, err := funding.CreateItem("test", asset.Spot, currency.LTC, decimal.NewFromInt(1337), decimal.MustFromFloat(0.04))
 	assert.NoError(t, err)
 
 	p, err := funding.CreatePair(item1, item2)

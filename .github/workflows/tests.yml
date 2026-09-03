@@ -5,7 +5,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   backend:
-    name: GoCryptoTrader (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic }})
+    name: GoCryptoTrader (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic }}, udecimal=${{ matrix.udecimal }})
     strategy:
       fail-fast: false
       matrix:
@@ -15,31 +15,43 @@ jobs:
             psql: true
             skip_wrapper_tests: false
             sonic: false
+            udecimal: false
           - os: ubuntu-latest
             goarch: 386
             psql: true
             skip_wrapper_tests: true
             sonic: false
+            udecimal: false
           - os: ubuntu-24.04-arm
             goarch: arm64
             psql: false # Not supported
             skip_wrapper_tests: true
             sonic: false
+            udecimal: false
           - os: macos-latest
             goarch: arm64
             psql: true
             skip_wrapper_tests: true
             sonic: false
+            udecimal: false
           - os: windows-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
             sonic: false
+            udecimal: false
           - os: ubuntu-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
             sonic: true # Only test sonic on linux/amd64 since too many races and fatals across other archs and OS
+            udecimal: false
+          - os: ubuntu-latest
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: false
+            sonic: true
+            udecimal: true
 
     runs-on: ${{ matrix.os }}
 
@@ -97,8 +109,16 @@ jobs:
 
     - name: Set GOFLAGS
       run: |
+        tags=()
         if [ "${{ matrix.sonic }}" = "true" ]; then
-          echo "GOFLAGS=${GOFLAGS} -tags=sonic_on" >> $GITHUB_ENV
+          tags+=(sonic_on)
+        fi
+        if [ "${{ matrix.udecimal }}" = "true" ]; then
+          tags+=(udecimal_on)
+        fi
+        if [ "${#tags[@]}" -gt 0 ]; then
+          tags_csv=$(IFS=,; echo "${tags[*]}")
+          echo "GOFLAGS=${GOFLAGS} -tags=${tags_csv}" >> $GITHUB_ENV
         fi
       shell: bash
 
@@ -199,4 +219,3 @@ jobs:
     - name: Run Docker image
       run: |
         docker run --env SKIP_WRAPPER_CI_TESTS=true --env CI=true --env GCT_DOCKER_CI=true --rm gct-backend-amd64
-

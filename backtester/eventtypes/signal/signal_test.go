@@ -3,11 +3,11 @@ package signal
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestIsSignal(t *testing.T) {
