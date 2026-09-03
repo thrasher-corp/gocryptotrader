@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // FloatFromString format

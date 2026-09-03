@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const testExchange = "binance"
@@ -195,7 +195,7 @@ func TestUpdateBuyStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              decimal.NewFromFloat(0.5),
+		Amount:              decimal.MustFromFloat(0.5),
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
@@ -218,13 +218,13 @@ func TestUpdateBuyStats(t *testing.T) {
 	}, p)
 	assert.NoError(t, err)
 
-	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
+	if !h.BoughtAmount.Equal(decimal.MustFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if !h.TotalFees.Equal(decimal.NewFromFloat(1.5)) {
+	if !h.TotalFees.Equal(decimal.MustFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1.5, h.TotalFees)
 	}
 }
