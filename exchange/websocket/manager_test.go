@@ -278,8 +278,15 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("pre-connect hook", func(t *testing.T) {
 			ws := newConfiguredSingleManager(t)
 			var calls int
+			lockFree := true
 			ws.preConnect = func(context.Context) {
 				calls++
+				// Preparation must not hold m.m, or a slow exchange lookup queues order requests behind it.
+				if ws.m.TryLock() {
+					ws.m.Unlock()
+				} else {
+					lockFree = false
+				}
 			}
 
 			require.ErrorIs(t, ws.Connect(t.Context()), ErrSubscriptionsNotAdded, "Connect must continue after preparation")
@@ -287,6 +294,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
 			require.ErrorIs(t, ws.Connect(t.Context()), ErrSubscriptionsNotAdded, "Connect must retry after preparation")
 			assert.Equal(t, 2, calls, "Connect should retry preparation on a later connection attempt")
+			assert.True(t, lockFree, "Connect should run preparation without holding the manager lock")
 			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
 		})
 

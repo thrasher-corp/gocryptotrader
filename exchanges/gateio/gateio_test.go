@@ -3197,6 +3197,54 @@ func TestPrepareFuturesUserIDsLookupFailure(t *testing.T) {
 	assert.Empty(t, ex.getFuturesUserID("key", currency.BTC), "failed preparation should leave the BTC account ID uncached")
 }
 
+func TestPreConnectWiring(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	var accountRequests atomic.Int64
+	var healthy atomic.Bool
+	rest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		accountRequests.Add(1)
+		if !healthy.Load() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, err := w.Write([]byte(`{"user":20011}`))
+		assert.NoError(t, err, "Mock futures account response should be written")
+	}))
+	t.Cleanup(rest.Close)
+	require.NoError(t, ex.SetHTTPClient(rest.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, rest.URL+"/"), "SetRunningURL must not error")
+	}
+
+	// Refuses the upgrade, so Connect fails locally after preparation has run.
+	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	}))
+	t.Cleanup(ws.Close)
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(ws.URL, "http")), "SetAllConnectionURLs must not error")
+
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against the rejecting mock")
+	assert.Equal(t, int64(2), accountRequests.Load(), "Connect should run futures account preparation for both settlement accounts")
+	assert.Empty(t, ex.getFuturesUserID("key", currency.USDT), "a failed lookup should leave the cache cold")
+
+	healthy.Store(true)
+	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against the rejecting mock")
+	assert.Equal(t, int64(4), accountRequests.Load(), "a later connection attempt should retry the failed lookup")
+	assert.Equal(t, "20011", ex.getFuturesUserID("key", currency.USDT), "a successful retry should populate the cache")
+
+	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail against the rejecting mock")
+	assert.Equal(t, int64(4), accountRequests.Load(), "a warm cache should not perform further account requests")
+}
+
 func TestGenerateFuturesDefaultSubscriptionsMissingCredentials(t *testing.T) {
 	t.Parallel()
 
