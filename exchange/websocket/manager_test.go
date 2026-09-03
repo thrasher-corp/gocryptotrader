@@ -1647,6 +1647,45 @@ func TestWriteToConn(t *testing.T) {
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)
 }
 
+func TestWriteToConnRateLimitBarrierWithoutLimiter(t *testing.T) {
+	t.Parallel()
+	wc := connection{}
+	wc.setConnectedStatus(true)
+	contexts, err := request.NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	errs := make(chan error, 2)
+	writes := make(chan struct{}, 2)
+	go func() {
+		errs <- wc.writeToConn(contexts[0], request.Unset, func() error {
+			writes <- struct{}{}
+			return nil
+		})
+	}()
+	require.Never(t, func() bool { return len(writes) != 0 }, 10*time.Millisecond, time.Millisecond, "first participant must not write before its peer arrives")
+	go func() {
+		errs <- wc.writeToConn(contexts[1], request.Unset, func() error {
+			writes <- struct{}{}
+			return nil
+		})
+	}()
+	require.NoError(t, <-errs)
+	require.NoError(t, <-errs)
+	require.Len(t, writes, 2)
+}
+
+func TestSendMessageBarrierRejectionRemovesSignature(t *testing.T) {
+	t.Parallel()
+	wc := connection{Match: NewMatch()}
+	wc.setConnectedStatus(true)
+	contexts, err := request.NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	request.AbortRateLimitBarrier(contexts[1])
+	_, err = wc.SendMessageReturnResponse(contexts[0], request.Unset, "signature", struct{}{})
+	require.ErrorIs(t, err, request.ErrDelayNotAllowed)
+	_, err = wc.Match.Set("signature", 1)
+	require.NoError(t, err)
+}
+
 func TestDrain(t *testing.T) {
 	t.Parallel()
 	drain(nil)

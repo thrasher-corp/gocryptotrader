@@ -102,7 +102,7 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		return ErrRequestSystemIsNil
 	}
 	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
-		return nil
+		return WaitForRateLimitBarrier(ctx)
 	}
 	if err := common.NilGuard(r.limiter); err != nil {
 		return err
@@ -141,6 +141,17 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 		reserved = append(reserved, r.limiter.ReserveN(tn, 1))
 	}
 	finalDelay := reserved[len(reserved)-1].DelayFrom(tn)
+	barrierParticipant := rateLimitBarrierParticipantFromContext(ctx)
+	if barrierParticipant != nil {
+		r.m.Unlock()
+		if err := barrierParticipant.wait(ctx, finalDelay == 0); err != nil {
+			r.m.Lock()
+			cancelAll(reserved, tn)
+			r.m.Unlock()
+			return err
+		}
+		return nil
+	}
 
 	if finalDelay == 0 {
 		r.m.Unlock()

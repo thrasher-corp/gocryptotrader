@@ -27,6 +27,43 @@ func TestWithDelayNotAllowed(t *testing.T) {
 	assert.False(t, hasDelayNotAllowed(WithRetryNotAllowed(WithVerbose(t.Context()))))
 }
 
+func TestNewRateLimitBarrierContexts(t *testing.T) {
+	t.Parallel()
+
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 1)
+	require.ErrorIs(t, err, ErrInvalidRateLimitBarrierParticipants)
+	require.Nil(t, contexts)
+
+	contexts, err = NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	require.Len(t, contexts, 2)
+	require.NotSame(t, rateLimitBarrierParticipantFromContext(contexts[0]), rateLimitBarrierParticipantFromContext(contexts[1]))
+}
+
+func TestWaitForRateLimitBarrier(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, WaitForRateLimitBarrier(t.Context()))
+
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	errs := make(chan error, 2)
+	go func() { errs <- WaitForRateLimitBarrier(contexts[0]) }()
+	go func() { errs <- WaitForRateLimitBarrier(contexts[1]) }()
+	require.NoError(t, <-errs)
+	require.NoError(t, <-errs)
+}
+
+func TestAbortRateLimitBarrier(t *testing.T) {
+	t.Parallel()
+
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	AbortRateLimitBarrier(contexts[0])
+	require.ErrorIs(t, rateLimitBarrierParticipantFromContext(contexts[1]).wait(t.Context(), true), ErrDelayNotAllowed)
+	AbortRateLimitBarrier(contexts[0])
+	AbortRateLimitBarrier(t.Context())
+}
+
 func TestWithHeaders(t *testing.T) {
 	t.Parallel()
 	headers := http.Header{"User-Agent": {"custom"}, "X-Values": {"one", "two"}}

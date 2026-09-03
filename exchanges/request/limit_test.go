@@ -103,6 +103,66 @@ func TestRateLimit_Concurrent(t *testing.T) {
 	})
 }
 
+func TestRateLimitBarrier(t *testing.T) {
+	t.Parallel()
+
+	t.Run("both immediate", func(t *testing.T) {
+		t.Parallel()
+		contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err)
+		left := NewRateLimitWithWeight(time.Second, 1, 1)
+		right := NewRateLimitWithWeight(time.Second, 1, 1)
+		errs := make(chan error, 2)
+		go func() { errs <- left.RateLimit(contexts[0]) }()
+		go func() { errs <- right.RateLimit(contexts[1]) }()
+		require.NoError(t, <-errs)
+		require.NoError(t, <-errs)
+	})
+
+	t.Run("one delayed rejects both and restores reservations", func(t *testing.T) {
+		t.Parallel()
+		contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err)
+		left := NewRateLimitWithWeight(time.Hour, 1, 1)
+		right := NewRateLimitWithWeight(time.Hour, 1, 1)
+		require.NoError(t, right.RateLimit(t.Context()))
+		errs := make(chan error, 2)
+		go func() { errs <- left.RateLimit(contexts[0]) }()
+		go func() { errs <- right.RateLimit(contexts[1]) }()
+		require.ErrorIs(t, <-errs, ErrDelayNotAllowed)
+		require.ErrorIs(t, <-errs, ErrDelayNotAllowed)
+		require.NoError(t, left.RateLimit(WithDelayNotAllowed(t.Context())))
+	})
+
+	t.Run("participant is one use", func(t *testing.T) {
+		t.Parallel()
+		contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err)
+		left := NewRateLimitWithWeight(time.Second, 1, 1)
+		right := NewRateLimitWithWeight(time.Second, 1, 1)
+		errs := make(chan error, 2)
+		go func() { errs <- left.RateLimit(contexts[0]) }()
+		go func() { errs <- right.RateLimit(contexts[1]) }()
+		require.NoError(t, <-errs)
+		require.NoError(t, <-errs)
+		require.ErrorIs(t, left.RateLimit(contexts[0]), ErrRateLimitBarrierParticipantUsed)
+	})
+
+	t.Run("cancellation rejects peer and restores reservation", func(t *testing.T) {
+		t.Parallel()
+		parent, cancel := context.WithCancel(t.Context())
+		contexts, err := NewRateLimitBarrierContexts(parent, 2)
+		require.NoError(t, err)
+		left := NewRateLimitWithWeight(time.Hour, 1, 1)
+		errCh := make(chan error, 1)
+		go func() { errCh <- left.RateLimit(contexts[0]) }()
+		cancel()
+		require.ErrorIs(t, <-errCh, context.Canceled)
+		require.ErrorIs(t, WaitForRateLimitBarrier(contexts[1]), ErrDelayNotAllowed)
+		require.NoError(t, left.RateLimit(WithDelayNotAllowed(t.Context())))
+	})
+}
+
 func TestRateLimit_Linear_WithFailure(t *testing.T) {
 	t.Parallel()
 
@@ -235,6 +295,13 @@ func TestInitiateRateLimit(t *testing.T) {
 	atomic.StoreInt32(&r.disableRateLimiter, 1)
 	err = r.InitiateRateLimit(t.Context(), Unset)
 	assert.NoError(t, err, "should not error when rate limiter is disabled")
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err)
+	errs := make(chan error, 2)
+	go func() { errs <- r.InitiateRateLimit(contexts[0], Unset) }()
+	go func() { errs <- r.InitiateRateLimit(contexts[1], Unset) }()
+	require.NoError(t, <-errs, "disabled limiter barrier participant must not error")
+	require.NoError(t, <-errs, "disabled limiter barrier participant must not error")
 
 	atomic.StoreInt32(&r.disableRateLimiter, 0)
 	err = r.InitiateRateLimit(t.Context(), Unset)
