@@ -3,9 +3,9 @@ package slippage
 import (
 	"math/rand/v2"
 
-	"github.com/shopspring/decimal"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // EstimateSlippagePercentage takes in an int range of numbers
@@ -35,7 +35,7 @@ func CalculateSlippageByOrderbook(ob *orderbook.Book, side gctorder.Side, alloca
 		return price, amount, err
 	}
 	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
-	price = decimal.NewFromFloat(result.MinimumPrice * (rate + 1))
-	amount = decimal.NewFromFloat(result.Amount * (1 - feeRate.InexactFloat64()))
+	price = decimal.MustFromFloat(result.MinimumPrice * (rate + 1))
+	amount = decimal.MustFromFloat(result.Amount * (1 - feeRate.InexactFloat64()))
 	return price, amount, err
 }

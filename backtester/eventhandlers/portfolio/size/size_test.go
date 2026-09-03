@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestSizingAccuracy(t *testing.T) {
@@ -29,9 +29,9 @@ func TestSizingAccuracy(t *testing.T) {
 	}
 	price := decimal.NewFromInt(10)
 	availableFunds := decimal.NewFromInt(11)
-	feeRate := decimal.NewFromFloat(0.02)
+	feeRate := decimal.MustFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
-	amountWithoutFee, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
+	amountWithoutFee, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, &globalMinMax)
 	assert.NoError(t, err)
 
 	totalWithFee := price.Mul(amountWithoutFee).Add(globalMinMax.MaximumTotal.Mul(feeRate))
@@ -43,7 +43,7 @@ func TestSizingAccuracy(t *testing.T) {
 func TestSizingOverMaxSize(t *testing.T) {
 	t.Parallel()
 	globalMinMax := exchange.MinMax{
-		MaximumSize:  decimal.NewFromFloat(0.5),
+		MaximumSize:  decimal.MustFromFloat(0.5),
 		MaximumTotal: decimal.NewFromInt(1337),
 	}
 	sizer := Size{
@@ -52,9 +52,9 @@ func TestSizingOverMaxSize(t *testing.T) {
 	}
 	price := decimal.NewFromInt(1338)
 	availableFunds := decimal.NewFromInt(1338)
-	feeRate := decimal.NewFromFloat(0.02)
+	feeRate := decimal.MustFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
-	amount, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
+	amount, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, &globalMinMax)
 	assert.NoError(t, err)
 
 	if amount.GreaterThan(globalMinMax.MaximumSize) {
@@ -75,9 +75,9 @@ func TestSizingUnderMinSize(t *testing.T) {
 	}
 	price := decimal.NewFromInt(1338)
 	availableFunds := decimal.NewFromInt(1338)
-	feeRate := decimal.NewFromFloat(0.02)
+	feeRate := decimal.MustFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
-	_, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
+	_, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, &globalMinMax)
 	assert.ErrorIs(t, err, errLessThanMinimum)
 }
 
@@ -93,9 +93,9 @@ func TestMaximumBuySizeEqualZero(t *testing.T) {
 	}
 	price := decimal.NewFromInt(1338)
 	availableFunds := decimal.NewFromInt(13380)
-	feeRate := decimal.NewFromFloat(0.02)
+	feeRate := decimal.MustFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
-	amount, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
+	amount, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, &globalMinMax)
 	if amount != buyLimit || err != nil {
 		t.Errorf("expected: %v, received %v, err: %+v", buyLimit, amount, err)
 	}
@@ -113,9 +113,9 @@ func TestMaximumSellSizeEqualZero(t *testing.T) {
 	}
 	price := decimal.NewFromInt(1338)
 	availableFunds := decimal.NewFromInt(13380)
-	feeRate := decimal.NewFromFloat(0.02)
+	feeRate := decimal.MustFromFloat(0.02)
 	sellLimit := decimal.NewFromInt(1)
-	amount, _, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
+	amount, _, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, &globalMinMax)
 	if amount != sellLimit || err != nil {
 		t.Errorf("expected: %v, received %v, err: %+v", sellLimit, amount, err)
 	}
@@ -134,9 +134,9 @@ func TestSizingErrors(t *testing.T) {
 	}
 	price := decimal.NewFromInt(1338)
 	availableFunds := decimal.Zero
-	feeRate := decimal.NewFromFloat(0.02)
+	feeRate := decimal.MustFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
-	_, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
+	_, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, &globalMinMax)
 	assert.ErrorIs(t, err, errNoFunds)
 }
 
@@ -153,18 +153,18 @@ func TestCalculateSellSize(t *testing.T) {
 	}
 	price := decimal.NewFromInt(1338)
 	availableFunds := decimal.Zero
-	feeRate := decimal.NewFromFloat(0.02)
+	feeRate := decimal.MustFromFloat(0.02)
 	sellLimit := decimal.NewFromInt(1)
-	_, _, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
+	_, _, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, &globalMinMax)
 	assert.ErrorIs(t, err, errNoFunds)
 
 	availableFunds = decimal.NewFromInt(1337)
-	_, _, err = sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
+	_, _, err = sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, &globalMinMax)
 	assert.ErrorIs(t, err, errLessThanMinimum)
 
 	price = decimal.NewFromInt(12)
 	availableFunds = decimal.NewFromInt(1339)
-	amount, fee, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
+	amount, fee, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, &globalMinMax)
 	assert.NoError(t, err)
 
 	if !amount.Equal(sellLimit) {

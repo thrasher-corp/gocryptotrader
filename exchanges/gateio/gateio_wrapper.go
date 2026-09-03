@@ -13,7 +13,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -39,6 +38,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets default values for the exchange
@@ -2323,7 +2323,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 
 		fundingRates = append(fundingRates, fundingrate.Rate{
-			Rate: decimal.NewFromFloat(records[i].Rate.Float64()),
+			Rate: decimal.MustFromFloat(records[i].Rate.Float64()),
 			Time: records[i].Timestamp.Time(),
 		})
 	}

@@ -18,7 +18,6 @@ import (
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -52,6 +51,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -4778,8 +4778,8 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 
 	calculators := make([]futures.CollateralCalculator, 0, len(currBalances))
 	for curr, balance := range currBalances {
-		total := decimal.NewFromFloat(balance.Total)
-		free := decimal.NewFromFloat(balance.AvailableWithoutBorrow)
+		total := decimal.MustFromFloat(balance.Total)
+		free := decimal.MustFromFloat(balance.AvailableWithoutBorrow)
 		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: curr,
@@ -4801,7 +4801,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if tick.Last == 0 {
 				continue
 			}
-			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+			cal.USDPrice = decimal.MustFromFloat(tick.Last)
 		}
 		calculators = append(calculators, cal)
 	}

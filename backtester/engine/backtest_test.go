@@ -7,7 +7,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -45,6 +44,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const testExchange = "binanceus"
@@ -634,7 +634,7 @@ type portfolioOverride struct {
 	portfolio.Portfolio
 }
 
-func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev data.Event, _ funding.IFundingManager) ([]order.Event, error) {
+func (p *portfolioOverride) CreateLiquidationOrdersForExchange(ev data.Event, _ funding.IFundingManager) ([]order.Event, error) {
 	if p.Err != nil {
 		return nil, p.Err
 	}

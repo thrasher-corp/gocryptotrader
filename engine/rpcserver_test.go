@@ -21,7 +21,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -50,6 +49,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -20,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -33,17 +33,17 @@ var (
 	startDate    = time.Date(time.Now().Year()-1, 8, 1, 0, 0, 0, 0, time.Local)
 	endDate      = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
 	tradeEndDate = startDate.Add(time.Hour * 72)
-	makerFee     = decimal.NewFromFloat(0.0002)
-	takerFee     = decimal.NewFromFloat(0.0007)
+	makerFee     = decimal.MustFromFloat(0.0002)
+	takerFee     = decimal.MustFromFloat(0.0007)
 	minMax       = MinMax{
-		MinimumSize:  decimal.NewFromFloat(0.005),
+		MinimumSize:  decimal.MustFromFloat(0.005),
 		MaximumSize:  decimal.NewFromInt(2),
 		MaximumTotal: decimal.NewFromInt(40000),
 	}
 	// strictMinMax used for live order restrictions
 	strictMinMax = MinMax{
-		MinimumSize:  decimal.NewFromFloat(0.001),
-		MaximumSize:  decimal.NewFromFloat(0.05),
+		MinimumSize:  decimal.MustFromFloat(0.001),
+		MaximumSize:  decimal.MustFromFloat(0.05),
 		MaximumTotal: decimal.NewFromInt(100),
 	}
 	initialFunds1000000 = new(decimal.NewFromInt(1000000))
@@ -340,7 +340,7 @@ func TestPrintSettings(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	cfg.PrintSetting()
@@ -439,7 +439,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -500,7 +500,7 @@ func TestGenerateConfigForPluginStrategy(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -578,7 +578,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -634,18 +634,18 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
-				MinimumSize:  decimal.NewFromFloat(0.1),
+				MinimumSize:  decimal.MustFromFloat(0.1),
 				MaximumSize:  decimal.NewFromInt(1),
 				MaximumTotal: decimal.NewFromInt(10000),
 			},
 			SellSide: MinMax{
-				MinimumSize:  decimal.NewFromFloat(0.1),
+				MinimumSize:  decimal.MustFromFloat(0.1),
 				MaximumSize:  decimal.NewFromInt(1),
 				MaximumTotal: decimal.NewFromInt(10000),
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -716,7 +716,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -788,7 +788,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -858,7 +858,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			SellSide: strictMinMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -921,7 +921,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -979,7 +979,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -1032,7 +1032,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		},
 		PortfolioSettings: PortfolioSettings{},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -1099,7 +1099,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -1142,7 +1142,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
 					Currency:     mainCurrencyPair.Base,
-					InitialFunds: decimal.NewFromFloat(3),
+					InitialFunds: decimal.MustFromFloat(3),
 				},
 				{
 					ExchangeName: mainExchange,
@@ -1227,7 +1227,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -1300,7 +1300,7 @@ func TestGenerateBinanceCashAndCarryStrategy(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {
@@ -1388,7 +1388,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: decimal.MustFromFloat(0.03),
 		},
 	}
 	if saveConfig {

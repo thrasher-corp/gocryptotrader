@@ -6,7 +6,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -132,7 +132,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			return nil, err
 		}
 		mfi := indicators.MFI(backfilledHighData, backfilledLowData, backfilledCloseData, backfilledVolumeData, int(s.mfiPeriod.IntPart()))
-		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
+		latestMFI := decimal.MustFromFloat(mfi[len(mfi)-1])
 		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
 		if err != nil {
 			return nil, err
@@ -202,19 +202,19 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || mfiHigh <= 0 {
 				return fmt.Errorf("%w provided mfi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiHigh = decimal.NewFromFloat(mfiHigh)
+			s.mfiHigh = decimal.MustFromFloat(mfiHigh)
 		case mfiLowKey:
 			mfiLow, ok := v.(float64)
 			if !ok || mfiLow <= 0 {
 				return fmt.Errorf("%w provided mfi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiLow = decimal.NewFromFloat(mfiLow)
+			s.mfiLow = decimal.MustFromFloat(mfiLow)
 		case mfiPeriodKey:
 			mfiPeriod, ok := v.(float64)
 			if !ok || mfiPeriod <= 0 {
 				return fmt.Errorf("%w provided mfi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiPeriod = decimal.NewFromFloat(mfiPeriod)
+			s.mfiPeriod = decimal.MustFromFloat(mfiPeriod)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}

@@ -11,7 +11,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -36,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -2601,9 +2601,9 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		EstimatedLiquidationPrice:    positionSummary.LiquidationPrice.Decimal(),
 		CollateralUsed:               positionSummary.Margin.Decimal(),
 		MarkPrice:                    positionSummary.MarkPrice.Decimal(),
-		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.NewFromFloat(multiplier)),
+		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.MustFromFloat(multiplier)),
 		ContractSize:                 positionSummary.QuantityOfPosition.Decimal(),
-		ContractMultiplier:           decimal.NewFromFloat(multiplier),
+		ContractMultiplier:           decimal.MustFromFloat(multiplier),
 		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
 		UnrealisedPNL:                positionSummary.UPNL.Decimal(),

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -34,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var (
@@ -1773,13 +1773,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:     fFundingRate.Symbol,
 			LatestRate: fundingrate.Rate{
 				Time: fFundingRate.FundingRateSettleTime.Time(),
-				Rate: decimal.NewFromFloat(fFundingRate.FundingRate.Float64()),
+				Rate: decimal.MustFromFloat(fFundingRate.FundingRate.Float64()),
 			},
 			TimeOfNextRate: fFundingRate.NextFundingTime.Time(),
 			TimeChecked:    timeChecked,
 			PredictedUpcomingRate: fundingrate.Rate{
 				Time: fFundingRate.NextFundingTime.Time(),
-				Rate: decimal.NewFromFloat(fFundingRate.NextPredictedFundingRate.Float64()),
+				Rate: decimal.MustFromFloat(fFundingRate.NextPredictedFundingRate.Float64()),
 			},
 		}
 		resp = append(resp, rate)

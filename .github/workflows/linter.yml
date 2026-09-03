@@ -13,3 +13,8 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.13.2
+      - name: golangci-lint (udecimal)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          args: --build-tags=udecimal_on

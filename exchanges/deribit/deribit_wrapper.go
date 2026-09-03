@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -32,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets the basic defaults for Deribit
@@ -1294,19 +1294,19 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		Pair:                      r.Pair,
 		Asset:                     r.Asset,
 		Currency:                  fPair.Base,
-		NotionalSize:              decimal.NewFromFloat(pos[index].MarkPrice),
-		Leverage:                  decimal.NewFromFloat(pos[index].Leverage),
-		InitialMarginRequirement:  decimal.NewFromFloat(pos[index].InitialMargin),
-		EstimatedLiquidationPrice: decimal.NewFromFloat(pos[index].EstimatedLiquidationPrice),
-		MarkPrice:                 decimal.NewFromFloat(pos[index].MarkPrice),
-		CurrentSize:               decimal.NewFromFloat(baseSize),
-		ContractSize:              decimal.NewFromFloat(contractSize),
-		ContractMultiplier:        decimal.NewFromFloat(multiplier),
+		NotionalSize:              decimal.MustFromFloat(pos[index].MarkPrice),
+		Leverage:                  decimal.MustFromFloat(pos[index].Leverage),
+		InitialMarginRequirement:  decimal.MustFromFloat(pos[index].InitialMargin),
+		EstimatedLiquidationPrice: decimal.MustFromFloat(pos[index].EstimatedLiquidationPrice),
+		MarkPrice:                 decimal.MustFromFloat(pos[index].MarkPrice),
+		CurrentSize:               decimal.MustFromFloat(baseSize),
+		ContractSize:              decimal.MustFromFloat(contractSize),
+		ContractMultiplier:        decimal.MustFromFloat(multiplier),
 		ContractSettlementType:    settlementType,
-		AverageOpenPrice:          decimal.NewFromFloat(pos[index].AveragePrice),
-		UnrealisedPNL:             decimal.NewFromFloat(pos[index].TotalProfitLoss - pos[index].RealizedProfitLoss),
-		RealisedPNL:               decimal.NewFromFloat(pos[index].RealizedProfitLoss),
-		MaintenanceMarginFraction: decimal.NewFromFloat(pos[index].MaintenanceMargin),
+		AverageOpenPrice:          decimal.MustFromFloat(pos[index].AveragePrice),
+		UnrealisedPNL:             decimal.MustFromFloat(pos[index].TotalProfitLoss - pos[index].RealizedProfitLoss),
+		RealisedPNL:               decimal.MustFromFloat(pos[index].RealizedProfitLoss),
+		MaintenanceMarginFraction: decimal.MustFromFloat(pos[index].MaintenanceMargin),
 	}, nil
 }
 
@@ -1442,7 +1442,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:        r.Pair,
 			LatestRate: fundingrate.Rate{
 				Time: fri[i].Timestamp.Time(),
-				Rate: decimal.NewFromFloat(fri[i].Interest8Hour),
+				Rate: decimal.MustFromFloat(fri[i].Interest8Hour),
 			},
 		}
 		latestTime = fri[i].Timestamp.Time()
@@ -1506,7 +1506,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				continue
 			}
 			fundingRates = append(fundingRates, fundingrate.Rate{
-				Rate: decimal.NewFromFloat(records[i].Interest1Hour),
+				Rate: decimal.MustFromFloat(records[i].Interest1Hour),
 				Time: rt,
 			})
 			mfr[rt.UnixMilli()] = struct{}{}

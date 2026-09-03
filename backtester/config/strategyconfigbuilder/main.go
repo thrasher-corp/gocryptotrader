@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
@@ -25,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -159,7 +159,7 @@ func parseStatisticsSettings(cfg *config.Config, reader *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
-	cfg.StatisticSettings.RiskFreeRate = decimal.NewFromFloat(rfr)
+	cfg.StatisticSettings.RiskFreeRate = decimal.MustFromFloat(rfr)
 	return nil
 }
 
@@ -720,7 +720,7 @@ func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 		if err != nil {
 			return resp, err
 		}
-		resp.MaximumSize = decimal.NewFromFloat(f)
+		resp.MaximumSize = decimal.MustFromFloat(f)
 	}
 	fmt.Printf("What is the minimum %s size? eg 0.1\n", buySell)
 	parseNum = quickParse(reader)
@@ -729,7 +729,7 @@ func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 		if err != nil {
 			return resp, err
 		}
-		resp.MinimumSize = decimal.NewFromFloat(f)
+		resp.MinimumSize = decimal.MustFromFloat(f)
 	}
 	fmt.Printf("What is the maximum spend %s buy? eg 12000\n", buySell)
 	parseNum = quickParse(reader)
@@ -738,7 +738,7 @@ func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 		if err != nil {
 			return resp, err
 		}
-		resp.MaximumTotal = decimal.NewFromFloat(f)
+		resp.MaximumTotal = decimal.MustFromFloat(f)
 	}
 
 	return resp, nil
