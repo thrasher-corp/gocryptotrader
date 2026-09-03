@@ -21,6 +21,8 @@ vendor/
 gocryptotrader
 /backtester/backtester
 cmd/gctcli/gctcli
+/benchcheck
+cmd/benchcheck/benchcheck
 backtester/backtester
 backtester/btcli/btcli
 *.exe
@@ -48,3 +50,5 @@ coverage.txt
 wrapperconfig.json
 .history/
 .codex
+benchmarks/series.jsonl
+.bench-output*.txt

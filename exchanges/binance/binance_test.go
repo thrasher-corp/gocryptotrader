@@ -1955,26 +1955,98 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func BenchmarkWsHandleData(bb *testing.B) {
-	bb.ReportAllocs()
-	ap, err := e.CurrencyPairs.GetPairs(asset.Spot, false)
-	require.NoError(bb, err)
-	err = e.CurrencyPairs.StorePairs(asset.Spot, ap, true)
-	require.NoError(bb, err)
+// BenchmarkWsHandleData measures each message type separately, so a regression names the handler it
+// came from instead of moving one aggregate figure.
+func BenchmarkWsHandleData(b *testing.B) {
+	e := new(Exchange)
+	require.NoError(b, testexch.Setup(e), "Test instance Setup must not error")
+
+	pair, err := e.MatchSymbolWithAvailablePairs("BNBBTC", asset.Spot, false)
+	require.NoError(b, err, "MatchSymbolWithAvailablePairs must not error")
+	// Only the fixture's own pair is enabled. Enabling every available spot pair made the execution
+	// report scan them all while resolving its symbol, which measured the pair manager rather than
+	// the handler.
+	//
+	// ExecutionReport still costs far more than its siblings, and that is real rather than an
+	// artefact of this setup: resolving a symbol calls GetPairs for the enabled pairs, and
+	// Pairs.ContainsAll clones the whole available list to do it, so every execution report copies
+	// every available pair. Keeping the available list at its configured size measures what
+	// production actually pays.
+	require.NoError(b, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
+	// Symbol resolution walks the enabled assets, and a map's iteration order is not fixed, so
+	// leaving the others enabled makes the work per iteration vary run to run
+	for _, a := range e.CurrencyPairs.GetAssetTypes(true) {
+		if a != asset.Spot {
+			require.NoErrorf(b, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+		}
+	}
+
+	// The depth lines route through e.obm, which is otherwise only built when the websocket
+	// connects, so without it the benchmark dereferences a nil orderbookManager. It is constructed
+	// directly rather than via setupOrderbookManager because that also starts the synchronisation
+	// workers, which seed order books over REST and outlive the benchmark: they exit only on
+	// websocket shutdown, so their errors land on stdout mid-result-line and corrupt the output.
+	//
+	// The state is seeded mid-synchronisation so the depth line takes one repeatable path:
+	// stageWsUpdate rejects an update whose first ID is not lastUpdateID+1, and the fixture opens at
+	// 157, so the loop restores 156 each iteration. fetchingBook stops a REST fetch being queued.
+	depth := &update{
+		buffer:       make(chan *WebsocketDepthStream, 1),
+		fetchingBook: true,
+		lastUpdateID: 156,
+	}
+	e.obm = &orderbookManager{
+		state: map[currency.Code]map[currency.Code]map[asset.Item]*update{
+			pair.Base: {pair.Quote: {asset.Spot: depth}},
+		},
+		jobs: make(chan job, maxWSOrderbookJobs),
+	}
 
 	data, err := os.ReadFile("testdata/wsHandleData.json")
-	require.NoError(bb, err)
+	require.NoError(b, err, "ReadFile must not error")
 	lines := bytes.Split(data, []byte("\n"))
-	require.Len(bb, lines, 8)
-	go func() {
-		for {
-			<-e.Websocket.DataHandler.C
-		}
-	}()
-	for bb.Loop() {
-		for x := range lines {
-			assert.NoError(bb, e.wsHandleData(bb.Context(), lines[x]))
-		}
+	require.Len(b, lines, 8, "the fixture must hold one line per message type")
+
+	for _, tc := range []struct {
+		name   string
+		line   []byte
+		relays bool
+		depth  bool
+	}{
+		{name: "Ticker", line: lines[0], relays: true},
+		{name: "Kline", line: lines[1], relays: true},
+		// Trades are only relayed when trade data saving or streaming is enabled, which the default
+		// test config leaves off
+		{name: "Trade", line: lines[2]},
+		{name: "Depth", line: lines[3], depth: true},
+		{name: "BalanceUpdate", line: lines[4], relays: true},
+		{name: "ListStatus", line: lines[5], relays: true},
+		{name: "ExecutionReport", line: lines[6], relays: true},
+		{name: "OutboundAccountPosition", line: lines[7], relays: true},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			ctx := b.Context()
+			for b.Loop() {
+				require.NoError(b, e.wsHandleData(ctx, tc.line), "wsHandleData must not error")
+				if tc.depth {
+					<-depth.buffer
+					depth.lastUpdateID = 156
+				}
+				// Relay.Send has already queued the payload by the time it returns, so a
+				// non-blocking receive cannot lose a race with it. Draining every iteration keeps
+				// the relay from filling and turning a later Send into an error.
+				select {
+				case <-e.Websocket.DataHandler.C:
+					if !tc.relays {
+						b.Fatal("wsHandleData must not relay this message")
+					}
+				default:
+					if tc.relays {
+						b.Fatal("wsHandleData must relay this message")
+					}
+				}
+			}
+		})
 	}
 }
 

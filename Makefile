@@ -11,7 +11,25 @@ DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps
+.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps bench bench_update bench_trend check_bench_pkgs bench_pkg
+
+# Edit benchmarks/packages.txt to change which packages are benchmarked.
+BENCH_PKGS = $(shell go run ./cmd/benchcheck -list)
+
+# BENCH_FLAGS must stay identical between bench and bench_update, so recorded and compared values
+# are produced the same way.
+#
+# BENCH_SAMPLES must stay odd: benchcheck compares the median, and an even count has no middle
+# sample. -cpu and -p pin what a scheduler-sensitive benchmark measures, so CI and a developer's
+# machine agree; keep -cpu single valued, or `-cpu 1,4` files two populations under one key.
+BENCH_SAMPLES = 7
+BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime 100ms -count $(BENCH_SAMPLES) -cpu 4 -p 1 -timeout 20m
+
+# BENCH_TREND_FLAGS feed the scheduled ns/op history, where tight confidence intervals do matter and
+# a long runtime is affordable. Never use these for the PR gate; they take over ten minutes.
+BENCH_TREND_SAMPLES = 15
+BENCH_TREND_FLAGS = -run '^$$' -bench . -benchmem -benchtime 1s -count $(BENCH_TREND_SAMPLES) -cpu 4 -p 1 -timeout 60m
+BENCH_SERIES = benchmarks/series.jsonl
 
 all: check build
 
@@ -27,6 +45,50 @@ misc_checks:
 	bash ./scripts/misc_checks.sh
 
 check: lint misc_checks test
+
+# $(shell) swallows the exit status, so a benchcheck that fails to build or a missing packages.txt
+# would leave BENCH_PKGS empty. go test would then benchmark the current directory instead and the
+# run would fail later with a misleading "no benchmark results".
+check_bench_pkgs:
+	@test -n "$(BENCH_PKGS)" || { \
+		echo "no benchmark packages resolved; check benchmarks/packages.txt and 'go run ./cmd/benchcheck -list'"; \
+		exit 1; \
+	}
+
+# BENCHCHECK_FLAGS lets CI add -warn without restating BENCH_FLAGS, so the flags have one home.
+BENCHCHECK_FLAGS ?=
+
+# go test writes to a file rather than a pipe so a failing run aborts the target; through a pipe
+# benchcheck reads partial output and, with -update, saves a baseline before go test's exit status
+# is known. The PID keeps two terminals in one checkout off the same file, and the file is removed
+# on success and left for inspection on failure. .gitignore covers the pattern.
+bench: check_bench_pkgs
+	out=.bench-output-$@-$$$$.txt && \
+		go test $(BENCH_FLAGS) $(BENCH_PKGS) > $$out && \
+		go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) $(BENCHCHECK_FLAGS) < $$out && \
+		rm -f $$out
+
+# Measures one package with the gate's exact flags, for auditing a package before gating it.
+# Usage: make bench_pkg PKG=./currency/
+bench_pkg:
+	@test -n "$(PKG)" || { echo "set PKG, e.g. make bench_pkg PKG=./currency/"; exit 1; }
+	go test $(BENCH_FLAGS) $(PKG)
+
+bench_update: check_bench_pkgs
+	out=.bench-output-$@-$$$$.txt && \
+		go test $(BENCH_FLAGS) $(BENCH_PKGS) > $$out && \
+		go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) -update -prune < $$out && \
+		rm -f $$out
+
+# -warn keeps a benchmark that reported the wrong number of samples from discarding the whole run:
+# benchcheck drops that record and appends the rest. A ten minute measurement should not be lost to
+# one short benchmark.
+bench_trend: check_bench_pkgs
+	out=.bench-output-$@-$$$$.txt && \
+		go test $(BENCH_TREND_FLAGS) $(BENCH_PKGS) > $$out && \
+		sha=$$(git rev-parse HEAD) && \
+		go run ./cmd/benchcheck -samples $(BENCH_TREND_SAMPLES) -series $(BENCH_SERIES) -commit "$$sha" -warn < $$out && \
+		rm -f $$out
 
 test:
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...

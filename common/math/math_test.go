@@ -50,7 +50,6 @@ func TestPercentageDifference(t *testing.T) {
 	require.True(t, math.IsNaN(PercentageDifference(0.0, 0.0)))
 }
 
-// 1000000000	         0.2215 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkPercentageDifference(b *testing.B) {
 	for b.Loop() {
 		PercentageDifference(1.469, 1.471)
@@ -67,7 +66,6 @@ func TestPercentageDifferenceDecimal(t *testing.T) {
 	require.Equal(t, "0", PercentageDifferenceDecimal(decimal.Zero, decimal.Zero).String())
 }
 
-// 1585596	       751.8 ns/op	     792 B/op	      27 allocs/op
 func BenchmarkDecimalPercentageDifference(b *testing.B) {
 	d1, d2 := decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)
 	for b.Loop() {
