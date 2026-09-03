@@ -16,6 +16,7 @@ import (
 
 var verbose = false
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()

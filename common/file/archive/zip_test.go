@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,14 +113,17 @@ func TestZipDestinationIsSource(t *testing.T) {
 	require.NoError(t, err, "ReadFile must not error")
 	assert.Equal(t, "keep me", string(b), "source should be left intact")
 
-	alias := filepath.Join(filepath.Dir(p), "alias")
-	require.NoError(t, os.Symlink(p, alias), "Symlink must not error")
-	err = Zip(p, alias)
-	assert.ErrorIs(t, err, errDestinationIsSource, "Zip should refuse a destination symlinked to its source")
+	t.Run("destination symlinked to the source", func(t *testing.T) {
+		t.Parallel()
+		skipWithoutSymlinks(t)
+		alias := filepath.Join(filepath.Dir(p), "alias")
+		require.NoError(t, os.Symlink(p, alias), "Symlink must not error")
+		assert.ErrorIs(t, Zip(p, alias), errDestinationIsSource, "Zip should refuse a destination symlinked to its source")
 
-	b, err = os.ReadFile(p)
-	require.NoError(t, err, "ReadFile must not error")
-	assert.Equal(t, "keep me", string(b), "source should survive a symlinked destination")
+		b, err := os.ReadFile(p)
+		require.NoError(t, err, "ReadFile must not error")
+		assert.Equal(t, "keep me", string(b), "source should survive a symlinked destination")
+	})
 }
 
 func TestZipDestinationWithinSource(t *testing.T) {
@@ -143,6 +147,7 @@ func TestZipDestinationWithinSource(t *testing.T) {
 
 func TestZipDirectorySymlink(t *testing.T) {
 	t.Parallel()
+	skipWithoutSymlinks(t)
 	root := t.TempDir()
 	tree := filepath.Join(root, "tree")
 	require.NoError(t, os.MkdirAll(filepath.Join(tree, "sub"), 0o755), "MkdirAll must not error")
@@ -175,6 +180,106 @@ func TestZipRelativeSourceAbsoluteDestination(t *testing.T) {
 		"a relative source must not let an absolute destination inside it through the guard")
 }
 
+// symlinksAvailable reports whether this platform lets the test create a symlink. Windows needs
+// Developer Mode or SeCreateSymbolicLinkPrivilege, which CI holds and a stock developer machine
+// does not, so callers feature-detect rather than skipping the whole GOOS and losing the coverage
+// wherever it does run
+func symlinksAvailable(t *testing.T) bool {
+	t.Helper()
+	dir := t.TempDir()
+	return os.Symlink(filepath.Join(dir, "target"), filepath.Join(dir, "link")) == nil
+}
+
+// skipWithoutSymlinks skips a test that cannot set up without creating a symlink
+func skipWithoutSymlinks(t *testing.T) {
+	t.Helper()
+	if !symlinksAvailable(t) {
+		t.Skip("symlink creation unavailable on this platform")
+	}
+}
+
+// TestZipRelativePathsThroughSymlinkedWorkingDirectory roots the tree under a symlink so the guard
+// is reached wherever symlinks can be created, rather than only where the temp directory is already
+// indirect. TestZipRelativeSourceAbsoluteDestination above depends on that indirection: macOS
+// resolves t.TempDir under /var, a symlink to private/var, and the Windows CI runner's temp path
+// carries the 8.3 alias RUNNER~1, which only EvalSymlinks expands
+func TestZipRelativePathsThroughSymlinkedWorkingDirectory(t *testing.T) {
+	// t.Chdir cannot be combined with t.Parallel
+	skipWithoutSymlinks(t)
+	target := t.TempDir()
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(target, link), "Symlink must not error")
+	require.NoError(t, os.MkdirAll(filepath.Join(link, "tree", "sub"), 0o755), "MkdirAll must not error")
+	victim := filepath.Join(link, "tree", "sub", "victim.txt")
+	require.NoError(t, os.WriteFile(victim, []byte("do not destroy"), 0o600), "WriteFile must not error")
+
+	t.Chdir(link)
+	assert.ErrorIs(t, Zip("tree", victim), errDestinationWithinSource,
+		"a relative source must not let an absolute destination inside it through the guard")
+	assert.ErrorIs(t, Zip(filepath.Join(target, "tree"), filepath.Join("tree", "sub", "victim.txt")), errDestinationWithinSource,
+		"an absolute source must not let a relative destination inside it through the guard")
+
+	b, err := os.ReadFile(victim)
+	require.NoError(t, err, "ReadFile must not error")
+	assert.Equal(t, "do not destroy", string(b), "a file beneath the source should survive both attempts")
+}
+
+// TestZipDanglingDestinationSymlink covers a destination symlink whose target does not exist yet.
+// EvalSymlinks reports it as not existing, which reads like a missing parent directory, but
+// os.Create follows the link and creates the file at the far end
+func TestZipDanglingDestinationSymlink(t *testing.T) {
+	t.Parallel()
+	skipWithoutSymlinks(t)
+	root := t.TempDir()
+	tree := filepath.Join(root, "tree")
+	require.NoError(t, os.MkdirAll(tree, 0o755), "MkdirAll must not error")
+	require.NoError(t, os.WriteFile(filepath.Join(tree, "payload.txt"), []byte("payload"), 0o600), "WriteFile must not error")
+
+	inside := filepath.Join(root, "points-inside.zip")
+	require.NoError(t, os.Symlink(filepath.Join(tree, "created.zip"), inside), "Symlink must not error")
+	assert.ErrorIs(t, Zip(tree, inside), errDestinationWithinSource,
+		"Zip should refuse a destination symlinked to a path inside the source")
+	assert.NoFileExists(t, filepath.Join(tree, "created.zip"), "the link target should not be created inside the source")
+
+	// one resolving outside the source is the normal case and must still work
+	outside := filepath.Join(root, "points-outside.zip")
+	require.NoError(t, os.Symlink(filepath.Join(root, "created.zip"), outside), "Symlink must not error")
+	require.NoError(t, Zip(tree, outside), "Zip must not error for a destination symlinked outside the source")
+	assert.FileExists(t, filepath.Join(root, "created.zip"), "the archive should be written through the link")
+}
+
+// TestDestWriteTargetSymlinkChainLimit pins the bound to the one the kernel applies. Each iteration
+// follows one link and the last finds the non-link at the end, so an off-by-one here refuses a
+// destination os.Create would open
+func TestDestWriteTargetSymlinkChainLimit(t *testing.T) {
+	t.Parallel()
+	skipWithoutSymlinks(t)
+	for _, hops := range []int{maxSymlinkHops, maxSymlinkHops + 1} {
+		t.Run(strconv.Itoa(hops)+" hops", func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			target := filepath.Join(root, "end.zip")
+			for i := range hops {
+				link := filepath.Join(root, "l"+strconv.Itoa(i))
+				require.NoError(t, os.Symlink(target, link), "Symlink must not error")
+				target = link
+			}
+			_, err := destWriteTarget(target)
+			f, createErr := os.Create(target)
+			if createErr == nil {
+				require.NoError(t, f.Close(), "Close must not error")
+			}
+			if hops > maxSymlinkHops {
+				assert.ErrorIs(t, err, errTooManySymlinks, "destWriteTarget should refuse a chain the kernel will not follow")
+				assert.Error(t, createErr, "os.Create should refuse it too")
+				return
+			}
+			assert.NoError(t, err, "destWriteTarget should follow a chain the kernel follows")
+			assert.NoError(t, createErr, "the guard should not refuse a chain os.Create opens")
+		})
+	}
+}
+
 func TestCheckDestination(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -182,12 +287,16 @@ func TestCheckDestination(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(tree, "sub"), 0o755), "MkdirAll must not error")
 	file := filepath.Join(root, "a.txt")
 	require.NoError(t, os.WriteFile(file, []byte("payload"), 0o600), "WriteFile must not error")
-	alias := filepath.Join(root, "alias")
-	require.NoError(t, os.Symlink(file, alias), "Symlink must not error")
 	inside := filepath.Join(tree, "sub", "inside.txt")
 	require.NoError(t, os.WriteFile(inside, []byte("keep"), 0o600), "WriteFile must not error")
+	alias := filepath.Join(root, "alias")
 	insideAlias := filepath.Join(root, "inside-alias")
-	require.NoError(t, os.Symlink(inside, insideAlias), "Symlink must not error")
+	// the two aliased cases are skipped rather than the whole table where links cannot be made
+	links := symlinksAvailable(t)
+	if links {
+		require.NoError(t, os.Symlink(file, alias), "Symlink must not error")
+		require.NoError(t, os.Symlink(inside, insideAlias), "Symlink must not error")
+	}
 
 	treeInfo, err := os.Stat(tree)
 	require.NoError(t, err, "Stat must not error")
@@ -195,23 +304,27 @@ func TestCheckDestination(t *testing.T) {
 	require.NoError(t, err, "Stat must not error")
 
 	for _, tc := range []struct {
-		name     string
-		src      string
-		dest     string
-		srcInfo  os.FileInfo
-		expected error
+		name         string
+		src          string
+		dest         string
+		srcInfo      os.FileInfo
+		expected     error
+		needsSymlink bool
 	}{
-		{"dest is src", file, file, fileInfo, errDestinationIsSource},
-		{"dest symlinked to src", file, alias, fileInfo, errDestinationIsSource},
-		{"dest inside dir src", tree, filepath.Join(tree, "out.zip"), treeInfo, errDestinationWithinSource},
-		{"dest below dir src", tree, filepath.Join(tree, "sub", "out.zip"), treeInfo, errDestinationWithinSource},
-		{"dest symlinked into dir src", tree, insideAlias, treeInfo, errDestinationWithinSource},
-		{"dest beside dir src", tree, filepath.Join(root, "out.zip"), treeInfo, nil},
-		{"dest beside file src", file, filepath.Join(root, "a.zip"), fileInfo, nil},
-		{"dest parent missing", tree, filepath.Join(root, "absent", "out.zip"), treeInfo, nil},
+		{name: "dest is src", src: file, dest: file, srcInfo: fileInfo, expected: errDestinationIsSource},
+		{name: "dest symlinked to src", src: file, dest: alias, srcInfo: fileInfo, expected: errDestinationIsSource, needsSymlink: true},
+		{name: "dest inside dir src", src: tree, dest: filepath.Join(tree, "out.zip"), srcInfo: treeInfo, expected: errDestinationWithinSource},
+		{name: "dest below dir src", src: tree, dest: filepath.Join(tree, "sub", "out.zip"), srcInfo: treeInfo, expected: errDestinationWithinSource},
+		{name: "dest symlinked into dir src", src: tree, dest: insideAlias, srcInfo: treeInfo, expected: errDestinationWithinSource, needsSymlink: true},
+		{name: "dest beside dir src", src: tree, dest: filepath.Join(root, "out.zip"), srcInfo: treeInfo},
+		{name: "dest beside file src", src: file, dest: filepath.Join(root, "a.zip"), srcInfo: fileInfo},
+		{name: "dest parent missing", src: tree, dest: filepath.Join(root, "absent", "out.zip"), srcInfo: treeInfo},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if tc.needsSymlink && !links {
+				t.Skip("symlink creation unavailable on this platform")
+			}
 			err := checkDestination(tc.src, tc.dest, tc.srcInfo)
 			if tc.expected == nil {
 				assert.NoError(t, err, "checkDestination should accept the destination")

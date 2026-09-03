@@ -26,7 +26,12 @@ var (
 	// errDestinationWithinSource is returned for a dest under a directory src, where the archive
 	// would either truncate an entry it is about to read or add itself to its own output
 	errDestinationWithinSource = errors.New("archive destination is within the source directory")
+	// errTooManySymlinks is returned for a destination symlink chain longer than the kernel follows
+	errTooManySymlinks = errors.New("too many levels of symbolic links")
 )
+
+// maxSymlinkHops matches the chain length Linux follows before returning ELOOP
+const maxSymlinkHops = 40
 
 var addFilesToZip func(z *zip.Writer, src string, isDir bool) error
 
@@ -175,29 +180,23 @@ func checkDestination(src, dest string, srcInfo os.FileInfo) error {
 		return nil
 	}
 
-	srcResolved, err := filepath.EvalSymlinks(src)
+	// Absolute before resolved: EvalSymlinks leaves a relative path relative, so the working
+	// directory prefix stays unresolved and the two sides stop being comparable whenever the
+	// working directory, or any parent of it, is reached through a symlink
+	srcResolved, err := filepath.Abs(src)
 	if err != nil {
 		return err
 	}
-	srcResolved, err = filepath.Abs(srcResolved)
+	srcResolved, err = filepath.EvalSymlinks(srcResolved)
 	if err != nil {
 		return err
 	}
-	// dest itself may be a symlink into src, so resolve it when it exists; otherwise resolve the
-	// directory it will be created in, which must exist for os.Create to succeed anyway
-	target := dest
-	if _, lErr := os.Lstat(dest); lErr != nil {
-		target = filepath.Dir(dest)
-	}
-	destResolved, err := filepath.EvalSymlinks(target)
+	destResolved, err := destWriteTarget(dest)
 	if err != nil {
+		// no parent directory means os.Create will fail before it can write anything
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
-		return err
-	}
-	destResolved, err = filepath.Abs(destResolved)
-	if err != nil {
 		return err
 	}
 	// paths that cannot be made relative are on different volumes, so dest is not inside src
@@ -206,6 +205,34 @@ func checkDestination(src, dest string, srcInfo os.FileInfo) error {
 		return fmt.Errorf("%w: %s", errDestinationWithinSource, dest)
 	}
 	return nil
+}
+
+// destWriteTarget returns the path os.Create(dest) would write to, with every symlink it would
+// follow resolved. EvalSymlinks alone cannot answer this: it errors on a path that does not exist
+// yet, which a destination about to be created never does, and on a symlink pointing at one, which
+// os.Create follows and creates at the far end
+func destWriteTarget(dest string) (string, error) {
+	target, err := filepath.Abs(dest)
+	if err != nil {
+		return "", err
+	}
+	// one iteration per link, plus the one that finds the non-link at the end of the chain
+	for range maxSymlinkHops + 1 {
+		link, err := os.Readlink(target)
+		if err != nil {
+			// the final element is the one os.Create makes, so only its directory can be resolved
+			dir, err := filepath.EvalSymlinks(filepath.Dir(target))
+			if err != nil {
+				return "", err
+			}
+			return filepath.Join(dir, filepath.Base(target)), nil
+		}
+		if !filepath.IsAbs(link) {
+			link = filepath.Join(filepath.Dir(target), link)
+		}
+		target = link
+	}
+	return "", fmt.Errorf("%w: %s", errTooManySymlinks, dest)
 }
 
 func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
@@ -241,7 +268,8 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 		}
 
 		if isDir {
-			h.Name = filepath.Join(filepath.Base(src), path)
+			// ToSlash because zip.FileHeader.Name must use forward slashes on every platform
+			h.Name = filepath.ToSlash(filepath.Join(filepath.Base(src), path))
 		}
 
 		if i.IsDir() {

@@ -41,7 +41,7 @@ linters:
 #   - exhaustruct_v5
 #   - exptostd
     - fatcontext
-#   - forbidigo
+    - forbidigo
     - forcetypeassert
 #   - funcorder
 #   - funlen
@@ -127,6 +127,20 @@ linters:
   settings:
     depguard:
       rules:
+        prevent_stdlib_log_use:
+          list-mode: lax
+          files:
+            - '**/exchanges/**'
+            - '**/exchange/**'
+            - '!$test'
+            # test infrastructure that aborts the run on a malformed fixture or missing credentials
+            - '!**/exchanges/mock/**'
+            - '!**/internal/**'
+          allow:
+            - github.com/thrasher-corp/gocryptotrader/log
+          deny:
+            - pkg: log
+              desc: Please use github.com/thrasher-corp/gocryptotrader/log so output honours the configured logger, level and output paths.
         prevent_json_package_use:
           list-mode: lax
           files:
@@ -209,6 +223,10 @@ linters:
       - linters:
           - revive
         text: "var-naming: avoid package names that conflict with Go standard library package names"
+      - linters:
+          - forbidigo
+        # Command line entrypoints: stdout is the interface, not a stray debug print
+        path: '^(cmd/|backtester/btcli/|backtester/config/strategyconfigbuilder/|backtester/main\.go|main\.go)'
     paths:
       - vendor
       - web/

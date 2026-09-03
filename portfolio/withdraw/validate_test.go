@@ -101,6 +101,7 @@ var (
 	}
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var p portfolio.Base
 	err := p.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)

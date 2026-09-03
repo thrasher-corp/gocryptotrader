@@ -318,7 +318,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // the explicit field standing on its own, as it would too if Gate stopped serving the multiplier
 // here: the live ticker carries it, but Gate documents it only on the contract
 func futuresBaseVolume(t *FuturesTicker) float64 {
-	return max(t.Volume24Hour.Float64()*t.QuantoMultiplier.Float64(), t.Volume24HBase.Float64())
+	return max(t.Volume24Hour.Float64()*t.QuantoMultiplier.Float64(), t.Volume24HourBase.Float64())
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -383,7 +383,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			High:         tickers[0].High24Hour.Float64(),
 			Last:         tickers[0].Last.Float64(),
 			BaseVolume:   futuresBaseVolume(&tickers[0]),
-			QuoteVolume:  tickers[0].Volume24HQuote.Float64(),
+			QuoteVolume:  tickers[0].Volume24HourQuote.Float64(),
 			ExchangeName: e.Name,
 			AssetType:    a,
 		}
@@ -630,7 +630,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				High:         tickers[i].High24Hour.Float64(),
 				Low:          tickers[i].Low24Hour.Float64(),
 				BaseVolume:   futuresBaseVolume(&tickers[i]),
-				QuoteVolume:  tickers[i].Volume24HQuote.Float64(),
+				QuoteVolume:  tickers[i].Volume24HourQuote.Float64(),
 				ExchangeName: e.Name,
 				Pair:         currencyPair,
 				AssetType:    a,

@@ -27,6 +27,7 @@ const (
 	testExchange = "binance"
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	if verbose {
 		err := testhelpers.EnableVerboseTestOutput()

@@ -1271,8 +1271,8 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	fmt.Println("Your system time is out of sync, this may cause issues with trading")
-	fmt.Println("How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable")
+	fmt.Println("Your system time is out of sync, this may cause issues with trading")                                   //nolint:forbidigo // interactive prompt; the operator reads this on stdout
+	fmt.Println("How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
 
 	var resp string
 	answered := false
@@ -1297,7 +1297,7 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 			resp = "Future notifications for out of time sync has been disabled"
 			answered = true
 		default:
-			fmt.Println("Invalid option selected, please try again (a)lert / (w)arn / (d)isable")
+			fmt.Println("Invalid option selected, please try again (a)lert / (w)arn / (d)isable") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
 		}
 	}
 	return resp, nil

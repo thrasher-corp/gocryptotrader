@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -55,11 +54,11 @@ var bid = Levels{
 	{Price: 1317, Amount: 1},
 }
 
-func (l Levels) display() {
+func (l Levels) display(t *testing.T) {
+	t.Helper()
 	for x := range l {
-		fmt.Printf("Level: %+v %p \n", l[x], &l[x])
+		t.Logf("Level: %+v %p", l[x], &l[x])
 	}
-	fmt.Println()
 }
 
 func TestLoad(t *testing.T) {
@@ -1058,17 +1057,17 @@ func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 
 	liquidityTotal, valueTotal := l.amount()
 	if liquidityTotal != liquidity {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched liquidity expecting %v but received %v", liquidity, liquidityTotal)
 	}
 
 	if valueTotal != value {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched total value expecting %v but received %v", value, valueTotal)
 	}
 
 	if len(l) != expectedLen {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched expected length count expecting %v but received %v", expectedLen, len(l))
 	}
 
@@ -1082,10 +1081,10 @@ func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 		case price == 0:
 			price = l[x].Price
 		case isBid && price < l[x].Price:
-			l.display()
+			l.display(t)
 			t.Fatal("Bid pricing out of order should be descending")
 		case isAsk && price > l[x].Price:
-			l.display()
+			l.display(t)
 			t.Fatal("Ask pricing out of order should be ascending")
 		default:
 			price = l[x].Price

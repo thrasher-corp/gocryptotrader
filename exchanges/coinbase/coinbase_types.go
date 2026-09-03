@@ -201,12 +201,12 @@ type Product struct {
 	BaseDisplaySymbol            string                   `json:"base_display_symbol"`
 	QuoteDisplaySymbol           string                   `json:"quote_display_symbol"`
 	// Typically shows whether an FCM product is available for trading. If the request is authenticated, and the "get_tradability_status" bool is set to true, and the product is SPOT, and you're using our GetAllProducts function, this will instead reflect whether the product is available for trading.
-	ViewOnly                  bool         `json:"view_only"`
-	PriceIncrement            types.Number `json:"price_increment"`
-	DisplayName               string       `json:"display_name"`
-	ProductVenue              string       `json:"product_venue"`
-	ApproximateQuote24HVolume types.Number `json:"approximate_quote_24h_volume"`
-	NewAt                     time.Time    `json:"new_at"`
+	ViewOnly                     bool         `json:"view_only"`
+	PriceIncrement               types.Number `json:"price_increment"`
+	DisplayName                  string       `json:"display_name"`
+	ProductVenue                 string       `json:"product_venue"`
+	ApproximateQuote24HourVolume types.Number `json:"approximate_quote_24h_volume"`
+	NewAt                        time.Time    `json:"new_at"`
 	// The following field only appears for future products
 	FutureProductDetails FutureProductDetails `json:"future_product_details"`
 }

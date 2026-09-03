@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var err error
 	PostgresTestDatabase = GetConnectionDetails()

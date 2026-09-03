@@ -42,6 +42,7 @@ var (
 	exchangeTest = Exchange{}
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var t int
 	if err := setupEngine(); err != nil {
@@ -208,6 +209,7 @@ func setupEngine() (err error) {
 	return engine.Bot.LoadExchange(exchName)
 }
 
+//nolint:forbidigo // TestMain's teardown, so it reports after the *testing.T is gone
 func cleanup() {
 	err := os.RemoveAll(settings.DataDir)
 	if err != nil {

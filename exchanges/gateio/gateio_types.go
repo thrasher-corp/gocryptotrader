@@ -734,11 +734,11 @@ type FuturesTicker struct {
 	High24Hour            types.Number `json:"high_24h"`
 	TotalSize             types.Number `json:"total_size"`
 	Volume24Hour          types.Number `json:"volume_24h"`
-	Volume24HBtc          types.Number `json:"volume_24h_btc"`
-	Volume24HUsd          types.Number `json:"volume_24h_usd"`
-	Volume24HBase         types.Number `json:"volume_24h_base"`
-	Volume24HQuote        types.Number `json:"volume_24h_quote"`
-	Volume24HSettle       types.Number `json:"volume_24h_settle"`
+	Volume24HourBTC       types.Number `json:"volume_24h_btc"`
+	Volume24HourUSD       types.Number `json:"volume_24h_usd"`
+	Volume24HourBase      types.Number `json:"volume_24h_base"`
+	Volume24HourQuote     types.Number `json:"volume_24h_quote"`
+	Volume24HourSettle    types.Number `json:"volume_24h_settle"`
 	QuantoMultiplier      types.Number `json:"quanto_multiplier"`
 	MarkPrice             types.Number `json:"mark_price"`
 	FundingRate           types.Number `json:"funding_rate"`
@@ -2269,12 +2269,12 @@ type WsFutureTicker struct {
 	IndexPrice            types.Number  `json:"index_price"`
 	TotalSize             types.Number  `json:"total_size"`
 	Volume24Hour          types.Number  `json:"volume_24h"`
-	Volume24HBtc          types.Number  `json:"volume_24h_btc"`
-	Volume24HUsd          types.Number  `json:"volume_24h_usd"`
+	Volume24HourBTC       types.Number  `json:"volume_24h_btc"`
+	Volume24HourUSD       types.Number  `json:"volume_24h_usd"`
 	QuantoBaseRate        string        `json:"quanto_base_rate"`
-	Volume24HQuote        types.Number  `json:"volume_24h_quote"`
-	Volume24HSettle       string        `json:"volume_24h_settle"`
-	Volume24HBase         types.Number  `json:"volume_24h_base"`
+	Volume24HourQuote     types.Number  `json:"volume_24h_quote"`
+	Volume24HourSettle    string        `json:"volume_24h_settle"`
+	Volume24HourBase      types.Number  `json:"volume_24h_base"`
 	Low24Hour             types.Number  `json:"low_24h"`
 	High24Hour            types.Number  `json:"high_24h"`
 }

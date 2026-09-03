@@ -189,7 +189,7 @@ type TickerCommon struct {
 	IndexPrice             types.Number `json:"indexPrice"`
 	MarkPrice              types.Number `json:"markPrice"`
 	PreviousPrice24Hour    types.Number `json:"prevPrice24h"`
-	Price24HPcnt           types.Number `json:"price24hPcnt"`
+	Price24HourPercent     types.Number `json:"price24hPcnt"`
 	HighPrice24Hour        types.Number `json:"highPrice24h"`
 	LowPrice24Hour         types.Number `json:"lowPrice24h"`
 	PreviousPrice1Hour     types.Number `json:"prevPrice1h"`
