@@ -35,8 +35,9 @@ func TestNewVCRServer(t *testing.T) {
 	assert.ErrorIs(t, err, errJSONMockFilePathRequired)
 
 	// Set up mock data
-	test1 := VCRMock{}
-	test1.Routes = make(map[string]map[string][]HTTPResponse)
+	test1 := VCRMock{
+		Routes: make(map[string]map[string][]HTTPResponse),
+	}
 	test1.Routes["/test"] = make(map[string][]HTTPResponse)
 
 	rp, err := json.Marshal(responsePayload{

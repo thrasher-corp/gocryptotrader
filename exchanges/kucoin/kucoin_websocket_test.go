@@ -179,8 +179,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	var loanPairs currency.Pairs
 	loanCurrs := common.SortStrings(pairs["both"].GetCurrencies())
+	loanPairs := make(currency.Pairs, 0, len(loanCurrs))
 	for _, c := range loanCurrs {
 		loanPairs = append(loanPairs, currency.Pair{Base: c})
 	}
@@ -300,29 +300,27 @@ func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	ku := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "ticker"},
-						{Enabled: true, Channel: "allTrades"},
-						{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
-						{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
-						{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
-						{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
-						{Enabled: true, Channel: "/account/balance", Authenticated: true},
-						{Enabled: true, Channel: "/margin/position", Authenticated: true},
-						{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/level2", Asset: asset.Futures},
-						{Enabled: true, Channel: "/market/level2", Asset: asset.Spot, Authenticated: true},
-					},
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{
+				Subscriptions: subscription.List{
+					{Enabled: true, Channel: "ticker"},
+					{Enabled: true, Channel: "allTrades"},
+					{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
+					{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
+					{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
+					{Enabled: true, Channel: "/account/balance", Authenticated: true},
+					{Enabled: true, Channel: "/margin/position", Authenticated: true},
+					{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
+					{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
+					{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
+					{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
+					{Enabled: true, Channel: "/contractMarket/level2", Asset: asset.Futures},
+					{Enabled: true, Channel: "/market/level2", Asset: asset.Spot, Authenticated: true},
 				},
 			},
-			Features: exchange.Features{},
 		},
+		Features: exchange.Features{},
 	}
 
 	ku.checkSubscriptions()
@@ -617,7 +615,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
 				assert.Equal(t, 0.004191, v.Low, "low")
 				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 13097.3357, v.Volume, "volume")
+				assert.Equal(t, 13097.3357, v.BaseVolume, "volume")
 				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
 			case 2, 1:
 				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
@@ -628,7 +626,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
 				assert.Equal(t, 0.05364, v.Low, "low")
 				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2958.3139116, v.Volume, "volume")
+				assert.Equal(t, 2958.3139116, v.BaseVolume, "volume")
 				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
 			case 0:
 				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
@@ -637,7 +635,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
 				assert.Equal(t, 36700.0, v.Low, "low")
 				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2900.37846402, v.Volume, "volume")
+				assert.Equal(t, 2900.37846402, v.BaseVolume, "volume")
 				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
 			}
 		case error:

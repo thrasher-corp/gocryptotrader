@@ -4,10 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -172,7 +171,7 @@ func (d *Dispatcher) relayer() {
 	for {
 		select {
 		case j := <-d.jobs:
-			if j.ID.IsNil() {
+			if j.ID == uuid.Nil() {
 				// empty jobs from `channelCapacity` length are sent upon shutdown
 				// every real job created has an ID set
 				continue
@@ -185,14 +184,13 @@ func (d *Dispatcher) relayer() {
 				continue
 			}
 			for i := range pipes {
-				d.wg.Add(1)
-				go func(p chan any) {
-					defer d.wg.Done()
+				p := pipes[i] // Snapshot before starting; unsubscribe may reslice pipes
+				d.wg.Go(func() {
 					select {
 					case p <- j.Data:
 					case <-d.shutdown: // Avoids race on blocking consumer when we go to stop
 					}
-				}(pipes[i])
+				})
 			}
 			d.routesMtx.Unlock()
 		case <-d.shutdown:
@@ -208,7 +206,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 		return err
 	}
 
-	if id.IsNil() {
+	if id == uuid.Nil() {
 		return errIDNotSet
 	}
 
@@ -233,7 +231,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 		return nil, err
 	}
 
-	if id.IsNil() {
+	if id == uuid.Nil() {
 		return nil, errIDNotSet
 	}
 
@@ -257,7 +255,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 	}
 
 	d.routes[id] = append(d.routes[id], ch)
-	atomic.AddInt32(&d.subscriberCount, 1)
+	d.subscriberCount.Add(1)
 	return ch, nil
 }
 
@@ -267,7 +265,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 		return err
 	}
 
-	if id.IsNil() {
+	if id == uuid.Nil() {
 		return errIDNotSet
 	}
 
@@ -298,7 +296,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 		pipes[i] = pipes[len(pipes)-1]
 		pipes[len(pipes)-1] = nil
 		d.routes[id] = pipes[:len(pipes)-1]
-		atomic.AddInt32(&d.subscriberCount, -1)
+		d.subscriberCount.Add(-1)
 
 		// Drain and put the used chan back in pool; only if it is not closed.
 		select {
@@ -315,13 +313,13 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 }
 
 // getNewID returns a new ID
-func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error) {
+func (d *Dispatcher) getNewID(genFn func() uuid.UUID) (uuid.UUID, error) {
 	if err := common.NilGuard(d); err != nil {
-		return uuid.Nil, err
+		return uuid.Nil(), err
 	}
 
 	if genFn == nil {
-		return uuid.Nil, errUUIDGeneratorFunctionIsNil
+		return uuid.Nil(), errUUIDGeneratorFunctionIsNil
 	}
 
 	// Continue to allow the generation, input and return of UUIDs even if
@@ -331,16 +329,13 @@ func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error
 	defer d.m.RUnlock()
 
 	// Generate new uuid
-	newID, err := genFn()
-	if err != nil {
-		return uuid.Nil, err
-	}
+	newID := genFn()
 
 	d.routesMtx.Lock()
 	defer d.routesMtx.Unlock()
 	// Check to see if it already exists
 	if _, ok := d.routes[newID]; ok {
-		return uuid.Nil, errUUIDCollision
+		return uuid.Nil(), errUUIDCollision
 	}
 	// Write the key into system
 	d.routes[newID] = nil

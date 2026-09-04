@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -232,11 +231,11 @@ func TestInitiateRateLimit(t *testing.T) {
 	assert.ErrorIs(t, err, ErrRequestSystemIsNil, "should return correct error")
 
 	r = &Requester{}
-	atomic.StoreInt32(&r.disableRateLimiter, 1)
+	r.disableRateLimiter.Store(true)
 	err = r.InitiateRateLimit(t.Context(), Unset)
 	assert.NoError(t, err, "should not error when rate limiter is disabled")
 
-	atomic.StoreInt32(&r.disableRateLimiter, 0)
+	r.disableRateLimiter.Store(false)
 	err = r.InitiateRateLimit(t.Context(), Unset)
 	assert.ErrorContains(t, err, "nil pointer: request.RateLimitDefinitions", "should return correct error when limiter is nil")
 

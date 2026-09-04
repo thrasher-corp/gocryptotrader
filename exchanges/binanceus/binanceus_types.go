@@ -996,13 +996,13 @@ type TickerStream struct {
 
 // OrderBookTickerStream  contains websocket orderbook data
 type OrderBookTickerStream struct {
-	LastUpdateID int64  `json:"u"`
-	S            string `json:"s"`
-	Symbol       currency.Pair
-	BestBidPrice float64 `json:"b,string"`
-	BestBidQty   float64 `json:"B,string"`
-	BestAskPrice float64 `json:"a,string"`
-	BestAskQty   float64 `json:"A,string"`
+	LastUpdateID int64         `json:"u"`
+	S            string        `json:"s"`
+	Symbol       currency.Pair `json:"-"`
+	BestBidPrice float64       `json:"b,string"`
+	BestBidQty   float64       `json:"B,string"`
+	BestAskPrice float64       `json:"a,string"`
+	BestAskQty   float64       `json:"A,string"`
 }
 
 // WebsocketAggregateTradeStream aggregate trade streams push data

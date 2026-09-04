@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"log"
@@ -33,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -339,8 +341,87 @@ func TestGetOrderInfo(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
-		assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
+		tick, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
+		if !assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a) {
+			continue
+		}
+		assert.NotNilf(t, tick, "UpdateTicker should not return nil for %s", a)
+	}
+
+	// presence alone cannot tell base from quote, so compare against the source fields. Both are
+	// picked by volume rather than positionally, since InEpsilon errors outright on a zero
+	// expected value and an untraded pair would decide the test on liquidity, not on the mapping
+	spotTicks, err := e.GetTickers(t.Context(), currency.EMPTYPAIR.String(), "")
+	require.NoError(t, err, "GetTickers must not error")
+	require.NotEmpty(t, spotTicks, "GetTickers must return tickers")
+	// a pair quoting near parity reports both volumes alike and cannot tell a correct mapping from
+	// a swapped one, so those are filtered out before picking rather than asserted against
+	spotTicks = slices.DeleteFunc(spotTicks, func(tk Ticker) bool {
+		return tk.BaseVolume.Float64() == 0 || tk.BaseVolume.Float64() == tk.QuoteVolume.Float64()
+	})
+	require.NotEmpty(t, spotTicks, "at least one spot pair must report base and quote volumes that differ")
+	busiestSpot := slices.MaxFunc(spotTicks, func(a, b Ticker) int {
+		return cmp.Compare(a.QuoteVolume.Float64(), b.QuoteVolume.Float64())
+	})
+	p, err := currency.NewPairFromString(busiestSpot.CurrencyPair)
+	require.NoError(t, err, "NewPairFromString must not error")
+	tick, err := e.UpdateTicker(t.Context(), p, asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.InEpsilonf(t, busiestSpot.BaseVolume.Float64(), tick.BaseVolume, 0.05, "UpdateTicker should take the spot base volume for %s from base_volume", p)
+	assert.InEpsilonf(t, busiestSpot.QuoteVolume.Float64(), tick.QuoteVolume, 0.05, "UpdateTicker should take the spot quote volume for %s from quote_volume", p)
+
+	futuresTicks, err := e.GetFuturesTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(t, err, "GetFuturesTickers must not error")
+	require.NotEmpty(t, futuresTicks, "GetFuturesTickers must return tickers")
+	// a multiplier of 1 reports the contract count and the base volume identically, so those
+	// contracts are filtered out before picking the busiest rather than asserted against
+	futuresTicks = slices.DeleteFunc(futuresTicks, func(tk FuturesTicker) bool {
+		return tk.Volume24HourBase.Float64() == 0 || tk.Volume24HourBase.Float64() == tk.Volume24Hour.Float64()
+	})
+	require.NotEmpty(t, futuresTicks, "at least one futures contract must report a base volume that differs from its contract count")
+	busiestFutures := slices.MaxFunc(futuresTicks, func(a, b FuturesTicker) int {
+		return cmp.Compare(a.Volume24HourQuote.Float64(), b.Volume24HourQuote.Float64())
+	})
+	fp, err := currency.NewPairFromString(busiestFutures.Contract)
+	require.NoError(t, err, "NewPairFromString must not error")
+	futuresTick, err := e.UpdateTicker(t.Context(), fp, asset.USDTMarginedFutures)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.InEpsilonf(t, busiestFutures.Volume24HourBase.Float64(), futuresTick.BaseVolume, 0.05,
+		"UpdateTicker should report a base volume for %s of the right order, not the contract count in volume_24h", fp)
+	assert.InEpsilonf(t, busiestFutures.Volume24HourQuote.Float64(), futuresTick.QuoteVolume, 0.05,
+		"UpdateTicker should take the quote volume for %s from volume_24h_quote", fp)
+}
+
+// TestFuturesTickerUnmarshal pins the tags futuresBaseVolume reads: constructing the fields
+// directly cannot catch one of them being renamed on the wire
+func TestFuturesTickerUnmarshal(t *testing.T) {
+	t.Parallel()
+	var tk FuturesTicker
+	require.NoError(t, json.Unmarshal([]byte(`{"contract":"UB_USDT","volume_24h":"8819","volume_24h_base":"8819700","volume_24h_quote":"1234","quanto_multiplier":"1000"}`), &tk), "Unmarshal must not error")
+	assert.Equal(t, "UB_USDT", tk.Contract, "Contract should unmarshal")
+	assert.Equal(t, 8819.0, tk.Volume24Hour.Float64(), "volume_24h should unmarshal")
+	assert.Equal(t, 8819700.0, tk.Volume24HourBase.Float64(), "volume_24h_base should unmarshal")
+	assert.Equal(t, 1000.0, tk.QuantoMultiplier.Float64(), "quanto_multiplier should unmarshal")
+	assert.Equal(t, 8819700.0, futuresBaseVolume(&tk), "futuresBaseVolume should keep the explicit base volume when volume_24h dropped a part contract")
+}
+
+func TestFuturesBaseVolume(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		tick FuturesTicker
+		exp  float64
+	}{
+		{"base truncated a whole unit off the product", FuturesTicker{Volume24HourBase: 52438, Volume24Hour: 524387795, QuantoMultiplier: 0.0001}, 52438.7795},
+		{"base truncated the contract away entirely", FuturesTicker{Volume24Hour: 5128, QuantoMultiplier: 0.0001}, 0.5128},
+		{"decimal lots: volume_24h dropped a part contract, so base is the better bound", FuturesTicker{Volume24HourBase: 8819700, Volume24Hour: 8819, QuantoMultiplier: 1000}, 8819700},
+		{"no contract size, as coin margined and delivery report it", FuturesTicker{Volume24HourBase: 30, Volume24Hour: 2352026}, 30},
+		{"nothing traded", FuturesTicker{}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.InDelta(t, tc.exp, futuresBaseVolume(&tc.tick), 1e-9, "futuresBaseVolume should return the 24h volume in the base currency")
+		})
 	}
 }
 
@@ -2100,10 +2181,41 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
+
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(t.Context(), a)
 		assert.NoErrorf(t, err, "UpdateTickers should not error for %s", a)
 	}
+
+	// a multiplier of 1 reports both fields identically, and truncation to a whole number can
+	// cost a full unit, so pick a contract that differs and carries enough base
+	tickers, err := e.GetFuturesTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(t, err, "GetFuturesTickers must not error")
+	require.NotEmpty(t, tickers, "GetFuturesTickers must return tickers")
+	var checked bool
+	for i := range tickers {
+		tk := tickers[i]
+		if tk.Volume24HourBase.Float64() < 1000 || tk.Volume24HourBase.Float64() == tk.Volume24Hour.Float64() {
+			continue
+		}
+		p, err := currency.NewPairFromString(tk.Contract)
+		if err != nil {
+			continue
+		}
+		stored, err := ticker.GetTicker(e.Name, p, asset.USDTMarginedFutures)
+		if err != nil {
+			continue
+		}
+		assert.InEpsilonf(t, tk.Volume24HourBase.Float64(), stored.BaseVolume, 0.05,
+			"UpdateTickers should report the base volume for %s, not the contract count in volume_24h", p)
+		checked = true
+		break
+	}
+	require.True(t, checked, "must find a futures contract whose base volume and contract count differ")
 }
 
 func TestUpdateOrderbook(t *testing.T) {

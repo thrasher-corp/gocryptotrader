@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
@@ -339,10 +339,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
-	orderID, err := uuid.NewV4()
-	if err != nil {
-		return "", err
-	}
+	orderID := uuid.NewV4()
 
 	submit := &gctorder.Submit{
 		Price:            price.InexactFloat64(),
@@ -356,7 +353,10 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 		RetrieveFeeDelay: time.Millisecond * 500,
 	}
 
-	var resp *engine.OrderSubmitResponse
+	var (
+		resp *engine.OrderSubmitResponse
+		err  error
+	)
 	if useRealOrders {
 		resp, err = orderManager.Submit(ctx, submit)
 	} else {

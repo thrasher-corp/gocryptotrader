@@ -1,7 +1,7 @@
 package kline
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
@@ -95,7 +94,7 @@ func TestCreateKline(t *testing.T) {
 	trades := make([]order.TradeHistory, tradeTotal)
 	execution := time.Now()
 	for x := range tradeTotal {
-		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypto/rand for testing
+		price, rndTime := 1000+float64(rand.IntN(1000)), rand.IntN(10) //nolint:gosec // no need to import crypto/rand for testing
 		execution = execution.Add(time.Duration(rndTime) * time.Second)
 		trades[x] = order.TradeHistory{
 			Timestamp: execution,
@@ -612,8 +611,8 @@ func TestStoreInDatabase(t *testing.T) {
 		{
 			name: "SQLite",
 			config: &database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			seedDB: seedDB,
 		},
@@ -655,8 +654,8 @@ func TestStoreInDatabase_OneMonthAlignment(t *testing.T) {
 	setupTest(t)
 
 	config := &database.Config{
-		Driver:            database.DBSQLite3,
-		ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+		Driver:   database.DBSQLite3,
+		Database: "./testdb",
 	}
 	dbConn, err := testhelpers.ConnectToDatabase(config)
 	require.NoError(t, err, "ConnectToDatabase must not error for SQLite")
@@ -721,8 +720,8 @@ func TestLoadFromDatabase(t *testing.T) {
 		{
 			name: "SQLite",
 			config: &database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			seedDB: seedDB,
 		},

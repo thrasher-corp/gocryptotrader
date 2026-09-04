@@ -33,13 +33,13 @@ type MarketPair struct {
 	LowestAsk           float64             `json:"lowestAsk"`
 	HighestBid          float64             `json:"highestBid"`
 	PercentageChange    float64             `json:"percentageChange"`
-	Volume              float64             `json:"volume"`
-	High24Hr            float64             `json:"high24Hr"`
-	Low24Hr             float64             `json:"low24Hr"`
+	QuoteVolume24Hour   float64             `json:"volume"`
+	High24Hour          float64             `json:"high24Hr"`
+	Low24Hour           float64             `json:"low24Hr"`
 	Base                currency.Code       `json:"base"`
 	Quote               currency.Code       `json:"quote"`
 	Active              bool                `json:"active"`
-	Size                float64             `json:"size"`
+	BaseVolume24Hour    float64             `json:"size"` // spot only; the futures summary omits it and reports turnover in the quote currency alone
 	MinValidPrice       float64             `json:"minValidPrice"`
 	MinPriceIncrement   float64             `json:"minPriceIncrement"`
 	MinOrderSize        float64             `json:"minOrderSize"`
@@ -252,7 +252,7 @@ type wsTradeData struct {
 	Side      order.Side `json:"side"`
 	Size      float64    `json:"size"`
 	Price     float64    `json:"price"`
-	TID       int64      `json:"tradeID"`
+	TID       int64      `json:"tradeId"`
 	Timestamp types.Time `json:"timestamp"`
 }
 

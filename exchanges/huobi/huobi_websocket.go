@@ -280,7 +280,7 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 		ExchangeName: e.Name,
 		Open:         wsTicker.Tick.Open,
 		Close:        wsTicker.Tick.Close,
-		Volume:       wsTicker.Tick.Amount,
+		BaseVolume:   wsTicker.Tick.Amount,
 		QuoteVolume:  wsTicker.Tick.Volume,
 		High:         wsTicker.Tick.High,
 		Low:          wsTicker.Tick.Low,
@@ -644,7 +644,7 @@ func stringToOrderSide(side string) (order.Side, error) {
 
 func stringToOrderType(oType string) (order.Type, error) {
 	switch {
-	case strings.Contains(oType, "limit"):
+	case strings.Contains(oType, orderPriceTypeLimit):
 		return order.Limit, nil
 	case strings.Contains(oType, "market"):
 		return order.Market, nil

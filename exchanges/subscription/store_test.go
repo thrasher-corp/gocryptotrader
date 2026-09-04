@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,10 +26,10 @@ func TestNewStoreFromList(t *testing.T) {
 	s, err := NewStoreFromList(List{})
 	assert.NoError(t, err, "Should not error on empty list")
 	require.IsType(t, &Store{}, s, "Must return a store ref")
-	l := List{
+	l := slices.Grow(List{
 		{Channel: OrderbookChannel},
 		{Channel: TickerChannel},
-	}
+	}, 1)
 	s, err = NewStoreFromList(l)
 	assert.NoError(t, err, "Should not error on empty list")
 	assert.Len(t, s.m, 2, "Map should have 2 values")
@@ -182,7 +183,8 @@ func EqualLists(tb testing.TB, a, b List) {
 	s, err := NewStoreFromList(a)
 	require.NoError(tb, err, "NewStoreFromList must not error")
 	missingMap := maps.Clone(s.m)
-	var added, missing List
+	added := make(List, 0, len(b))
+	missing := make(List, 0, len(missingMap))
 	for _, sub := range b {
 		if found := s.get(sub); found != nil {
 			delete(missingMap, found.Key)

@@ -6,6 +6,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// Order price types referenced when mapping GoCryptoTrader order types onto the Huobi API
+const (
+	orderPriceTypeLimit        = "limit"
+	orderPriceTypeOpponent     = "opponent"
+	orderPriceTypeOptimal20    = "optimal_20"
+	orderPriceTypeOptimal20IOC = "optimal_20_ioc"
+	orderPriceTypeOptimal20FOK = "optimal_20_fok"
+	orderPriceTypePostOnly     = "post_only"
+)
+
 type errorCapture struct {
 	Status      string     `json:"status"`
 	CodeType1   any        `json:"err-code"` // can be either a string or int depending on the endpoint
@@ -27,7 +37,7 @@ type MarketSummary24Hr struct {
 		Low     float64 `json:"low"`
 		Version int64   `json:"version"`
 		Volume  float64 `json:"vol"`
-	}
+	} `json:"tick"`
 }
 
 // CurrenciesChainData stores currency and chain info
@@ -48,7 +58,7 @@ type CurrenciesChainData struct {
 		WithdrawStatus            string  `json:"withdrawStatus"`
 		MinimumWithdrawalAmount   float64 `json:"minWithdrawAmt,string"`
 		WithdrawPrecision         int16   `json:"withdrawPrecision"`
-		MaximumWithdrawAmount     float64 `json:"maxWithdrawwAmt,string"`
+		MaximumWithdrawAmount     float64 `json:"maxWithdrawAmt,string"`
 		WithdrawQuotaPerDay       float64 `json:"withdrawQuotaPerDay,string"`
 		WithdrawQuotaPerYear      float64 `json:"withdrawQuotaPerYear,string"`
 		WithdrawQuotaTotal        float64 `json:"withdrawQuotaTotal,string"`
@@ -192,7 +202,7 @@ var (
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair                  // Required; example LTCBTC,BTCUSDT
-	Type   OrderBookDataRequestParamsType `json:"type"` // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
+	Type   OrderBookDataRequestParamsType // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
 }
 
 // Orderbook stores the orderbook data
@@ -491,7 +501,7 @@ type WsTrade struct {
 			Price     float64    `json:"price"`
 			Direction string     `json:"direction"`
 		} `json:"data"`
-	}
+	} `json:"tick"`
 }
 
 // wsReq contains authentication login fields

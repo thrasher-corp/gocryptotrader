@@ -118,7 +118,7 @@ type Response struct {
 type connection struct {
 	subscriptions        *subscription.Store
 	Verbose              bool
-	connected            int32
+	connected            atomic.Bool
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
 	RateLimit            *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
 	RateLimitDefinitions request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
@@ -253,17 +253,13 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
-// TODO: Swap out these atomic switches and opt for sync.RWMutex.
 func (c *connection) setConnectedStatus(b bool) bool {
-	if b {
-		return atomic.SwapInt32(&c.connected, 1) == 0
-	}
-	return atomic.SwapInt32(&c.connected, 0) == 1
+	return c.connected.Swap(b) != b
 }
 
 // IsConnected exposes websocket connection status
 func (c *connection) IsConnected() bool {
-	return atomic.LoadInt32(&c.connected) == 1
+	return c.connected.Load()
 }
 
 // ReadMessage reads messages, can handle text, gzip and binary

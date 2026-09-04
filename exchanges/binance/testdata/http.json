@@ -80464,28 +80464,38 @@
     {
      "data": [
       {
-       "fundingRate": "0.00010000",
-       "fundingTime": 1605513600010,
+       "fundingRate": "0.00005521",
+       "fundingTime": 1787760000000,
+       "markPrice": "77976.40000000",
+       "rateType": "Regular",
        "symbol": "BTCUSD_PERP"
       },
       {
-       "fundingRate": "0.00025141",
-       "fundingTime": 1605542400000,
+       "fundingRate": "0.00001681",
+       "fundingTime": 1787788800000,
+       "markPrice": "78986.14008679",
+       "rateType": "Regular",
        "symbol": "BTCUSD_PERP"
       },
       {
-       "fundingRate": "0.00010000",
-       "fundingTime": 1605571200000,
+       "fundingRate": "0.00004521",
+       "fundingTime": 1787817600000,
+       "markPrice": "79033.24133588",
+       "rateType": "Regular",
        "symbol": "BTCUSD_PERP"
       },
       {
-       "fundingRate": "0.00010000",
-       "fundingTime": 1605600000000,
+       "fundingRate": "-0.00000467",
+       "fundingTime": 1787846400013,
+       "markPrice": "80272.25748281",
+       "rateType": "Regular",
        "symbol": "BTCUSD_PERP"
       },
       {
-       "fundingRate": "0.00010000",
-       "fundingTime": 1605628800008,
+       "fundingRate": "-0.00004609",
+       "fundingTime": 1787875200026,
+       "markPrice": "80225.83081199",
+       "rateType": "Regular",
        "symbol": "BTCUSD_PERP"
       }
      ],
@@ -86443,49 +86453,54 @@
     {
      "data": [
       {
-       "T": 1602989582346,
-       "a": 154676475,
-       "f": 230188317,
-       "l": 230188317,
-       "m": false,
-       "p": "11376.16",
-       "q": "0.001"
-      },
-      {
-       "T": 1602989582346,
-       "a": 154676476,
-       "f": 230188318,
-       "l": 230188318,
-       "m": false,
-       "p": "11378.00",
-       "q": "0.004"
-      },
-      {
-       "T": 1602989582346,
-       "a": 154676477,
-       "f": 230188319,
-       "l": 230188319,
-       "m": false,
-       "p": "11379.37",
-       "q": "1.672"
-      },
-      {
-       "T": 1602989583173,
-       "a": 154676478,
-       "f": 230188320,
-       "l": 230188320,
-       "m": false,
-       "p": "11378.46",
-       "q": "0.001"
-      },
-      {
-       "T": 1602989583660,
-       "a": 154676479,
-       "f": 230188321,
-       "l": 230188321,
+       "T": 1787893895110,
+       "a": 3431028568,
+       "f": 8027604904,
+       "l": 8027604904,
        "m": true,
-       "p": "11378.45",
-       "q": "0.090"
+       "nq": "0.003",
+       "p": "79563.80",
+       "q": "0.003"
+      },
+      {
+       "T": 1787893895323,
+       "a": 3431028569,
+       "f": 8027604905,
+       "l": 8027604906,
+       "m": true,
+       "nq": "0.024",
+       "p": "79563.80",
+       "q": "0.024"
+      },
+      {
+       "T": 1787893895464,
+       "a": 3431028570,
+       "f": 8027604907,
+       "l": 8027604907,
+       "m": true,
+       "nq": "0.001",
+       "p": "79563.80",
+       "q": "0.001"
+      },
+      {
+       "T": 1787893895642,
+       "a": 3431028571,
+       "f": 8027604908,
+       "l": 8027604908,
+       "m": false,
+       "nq": "0.003",
+       "p": "79563.90",
+       "q": "0.003"
+      },
+      {
+       "T": 1787893895696,
+       "a": 3431028572,
+       "f": 8027604909,
+       "l": 8027604909,
+       "m": true,
+       "nq": "0.074",
+       "p": "79563.80",
+       "q": "0.074"
       }
      ],
      "queryString": "limit=5\u0026symbol=BTCUSDT",
@@ -90726,8 +90741,10 @@
     {
      "data": [
       {
-       "fundingRate": "0.00010000",
-       "fundingTime": 1698710400001,
+       "fundingRate": "0.00006578",
+       "fundingTime": 1787875200026,
+       "markPrice": "80209.56009420",
+       "rateType": "Regular",
        "symbol": "BTCUSDT"
       }
      ],
@@ -107570,12 +107587,13 @@
     },
     {
      "data": {
-      "askPrice": "19116.50",
-      "askQty": "0.384",
-      "bidPrice": "19115.95",
-      "bidQty": "0.274",
+      "askPrice": "79563.90",
+      "askQty": "3.944",
+      "bidPrice": "79563.80",
+      "bidQty": "3.008",
+      "lastUpdateId": 11410877132050,
       "symbol": "BTCUSDT",
-      "time": 1607294182164
+      "time": 1787893895465
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -107808,44 +107826,49 @@
     {
      "data": [
       {
-       "id": 3947543021,
-       "isBuyerMaker": false,
-       "price": "30114.70",
-       "qty": "0.002",
-       "quoteQty": "60.22",
-       "time": 1689636431983
+       "id": 8027604905,
+       "isBuyerMaker": true,
+       "isRPITrade": false,
+       "price": "79563.80",
+       "qty": "0.008",
+       "quoteQty": "636.51",
+       "time": 1787893895323
       },
       {
-       "id": 3947544017,
-       "isBuyerMaker": false,
-       "price": "30110.00",
-       "qty": "0.002",
-       "quoteQty": "60.22",
-       "time": 1689636508583
+       "id": 8027604906,
+       "isBuyerMaker": true,
+       "isRPITrade": false,
+       "price": "79563.80",
+       "qty": "0.016",
+       "quoteQty": "1273.02",
+       "time": 1787893895374
       },
       {
-       "id": 3947544018,
-       "isBuyerMaker": false,
-       "price": "30110.00",
+       "id": 8027604907,
+       "isBuyerMaker": true,
+       "isRPITrade": false,
+       "price": "79563.80",
        "qty": "0.001",
-       "quoteQty": "30.11",
-       "time": 1689636508583
+       "quoteQty": "79.56",
+       "time": 1787893895464
       },
       {
-       "id": 3947544019,
+       "id": 8027604908,
        "isBuyerMaker": false,
-       "price": "30110.00",
-       "qty": "0.347",
-       "quoteQty": "10448.17",
-       "time": 1689636508583
+       "isRPITrade": false,
+       "price": "79563.90",
+       "qty": "0.003",
+       "quoteQty": "238.69",
+       "time": 1787893895642
       },
       {
-       "id": 3947544020,
-       "isBuyerMaker": false,
-       "price": "30110.00",
-       "qty": "0.090",
-       "quoteQty": "2709.90",
-       "time": 1689636508658
+       "id": 8027604909,
+       "isBuyerMaker": true,
+       "isRPITrade": false,
+       "price": "79563.80",
+       "qty": "0.074",
+       "quoteQty": "5887.72",
+       "time": 1787893895696
       }
      ],
      "queryString": "limit=1000\u0026symbol=BTCUSDT",
@@ -108756,10 +108779,11 @@
     {
      "data": [
       {
-       "sumOpenInterest": "36316.87700000",
-       "sumOpenInterestValue": "413220015.26744573",
+       "CMCCirculatingSupply": "20076125.00000000",
+       "sumOpenInterest": "109899.05400000",
+       "sumOpenInterestValue": "8768142164.71440000",
        "symbol": "BTCUSDT",
-       "timestamp": 1602989400000
+       "timestamp": 1787895600000
       }
      ],
      "queryString": "limit=1\u0026period=5m\u0026symbol=BTCUSDT",

@@ -1,8 +1,11 @@
 package yobit
 
 import (
+	"fmt"
 	"log"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -12,11 +15,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -67,6 +72,60 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTicker(t.Context(), testPair.String())
 	assert.NoError(t, err, "GetTicker should not error")
+}
+
+const tickerFixture = `{"high":82750,"low":80000.24,"avg":81375.12,"vol":40.81311859,"vol_cur":0.00050072,"last":80001,"buy":80001.1,"sell":82750.2,"updated":1787211897}`
+
+func TestTickerUnmarshal(t *testing.T) {
+	t.Parallel()
+	var tick Ticker
+	err := json.Unmarshal([]byte(tickerFixture), &tick)
+	require.NoError(t, err, "Unmarshal must not error")
+	assert.Equal(t, 82750.0, tick.High, "High should decode")
+	assert.Equal(t, 80000.24, tick.Low, "Low should decode")
+	assert.Equal(t, 81375.12, tick.Avg, "Avg should decode")
+	assert.Equal(t, 40.81311859, tick.QuoteVolume, "QuoteVolume should decode")
+	assert.Equal(t, 0.00050072, tick.BaseVolume, "BaseVolume should decode")
+	assert.Equal(t, 80001.0, tick.Last, "Last should decode")
+	assert.Equal(t, 80001.1, tick.Buy, "Buy should decode")
+	assert.Equal(t, 82750.2, tick.Sell, "Sell should decode")
+	assert.Equal(t, int64(1787211897), tick.Updated.Time().Unix(), "Updated should decode")
+	assert.InEpsilon(t, tick.BaseVolume, tick.QuoteVolume/tick.Avg, 0.05, "QuoteVolume divided by Avg should approximate BaseVolume")
+}
+
+func TestUpdateTickersMapsEveryField(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, true), "StorePairs must not error")
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/3/ticker/btc_usd", r.URL.Path, "request path should target the enabled pair")
+		_, err := fmt.Fprintf(w, `{"btc_usd":%s}`, tickerFixture)
+		assert.NoError(t, err, "writing ticker response should not error")
+	}))
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "UpdateTickers must not error")
+
+	tick, err := ticker.GetTicker(ex.Name, testPair, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error")
+
+	assert.Equal(t, 80001.0, tick.Last, "Last should map from last")
+	assert.Equal(t, 82750.0, tick.High, "High should map from high")
+	assert.Equal(t, 80000.24, tick.Low, "Low should map from low")
+	assert.Equal(t, 80001.1, tick.Bid, "Bid should map from buy")
+	assert.Equal(t, 82750.2, tick.Ask, "Ask should map from sell")
+	assert.Equal(t, 0.00050072, tick.BaseVolume, "Volume should map from vol_cur, the base currency total")
+	assert.Equal(t, 40.81311859, tick.QuoteVolume, "QuoteVolume should map from vol, the quote currency total")
+	assert.Equal(t, int64(1787211897), tick.LastUpdated.Unix(), "LastUpdated should map from updated")
+	assert.True(t, tick.Pair.Equal(testPair), "Pair should be set")
+	assert.Equal(t, asset.Spot, tick.AssetType, "AssetType should be set")
+	assert.Equal(t, ex.Name, tick.ExchangeName, "ExchangeName should be set")
 }
 
 func TestGetDepth(t *testing.T) {

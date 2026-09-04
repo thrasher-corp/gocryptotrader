@@ -431,8 +431,8 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 	}
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Last:         result.LastPrice.Float64(),
-		High:         result.HighPrice24H.Float64(),
-		Low:          result.LowPrice24H.Float64(),
+		High:         result.HighPrice24Hour.Float64(),
+		Low:          result.LowPrice24Hour.Float64(),
 		Pair:         cp,
 		ExchangeName: e.Name,
 		AssetType:    assetType,
@@ -546,14 +546,14 @@ func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
 	if resp.LastPrice.Float64() != 0 {
 		tick.Last = resp.LastPrice.Float64()
 	}
-	if resp.HighPrice24H.Float64() != 0 {
-		tick.High = resp.HighPrice24H.Float64()
+	if resp.HighPrice24Hour.Float64() != 0 {
+		tick.High = resp.HighPrice24Hour.Float64()
 	}
-	if resp.LowPrice24H.Float64() != 0 {
-		tick.Low = resp.LowPrice24H.Float64()
+	if resp.LowPrice24Hour.Float64() != 0 {
+		tick.Low = resp.LowPrice24Hour.Float64()
 	}
-	if resp.Volume24H.Float64() != 0 {
-		tick.Volume = resp.Volume24H.Float64()
+	if resp.Volume24Hour.Float64() != 0 {
+		tick.BaseVolume = resp.Volume24Hour.Float64()
 	}
 
 	if tick.AssetType == asset.Spot {

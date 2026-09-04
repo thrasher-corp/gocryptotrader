@@ -89,18 +89,18 @@ type Status struct {
 
 // Currency defines a generic sub type to capture currency data
 type Currency struct {
-	Price                  float64   `json:"price"`
-	Volume24H              float64   `json:"volume_24h"`
-	Volume24HAdjusted      float64   `json:"volume_24h_adjusted"`
-	Volume7D               float64   `json:"volume_7d"`
-	Volume30D              float64   `json:"volume_30d"`
-	PercentChange1H        float64   `json:"percent_change_1h"`
-	PercentChangeVolume24H float64   `json:"percent_change_volume_24h"`
-	PercentChangeVolume7D  float64   `json:"percent_change_volume_7d"`
-	PercentChangeVolume30D float64   `json:"percent_change_volume_30d"`
-	MarketCap              float64   `json:"market_cap"`
-	TotalMarketCap         float64   `json:"total_market_cap"`
-	LastUpdated            time.Time `json:"last_updated"`
+	Price                     float64   `json:"price"`
+	Volume24Hour              float64   `json:"volume_24h"`
+	Volume24HourAdjusted      float64   `json:"volume_24h_adjusted"`
+	Volume7Day                float64   `json:"volume_7d"`
+	Volume30Day               float64   `json:"volume_30d"`
+	PercentChange1Hour        float64   `json:"percent_change_1h"`
+	PercentChangeVolume24Hour float64   `json:"percent_change_volume_24h"`
+	PercentChangeVolume7Day   float64   `json:"percent_change_volume_7d"`
+	PercentChangeVolume30Day  float64   `json:"percent_change_volume_30d"`
+	MarketCap                 float64   `json:"market_cap"`
+	TotalMarketCap            float64   `json:"total_market_cap"`
+	LastUpdated               time.Time `json:"last_updated"`
 }
 
 // OHLC defines a generic sub type for OHLC currency data
@@ -227,10 +227,10 @@ type CryptocurrencyLatestMarketPairs struct {
 		} `json:"market_pair_quote"`
 		Quote struct {
 			ExchangeReported struct {
-				Price          float64   `json:"price"`
-				Volume24HBase  float64   `json:"volume_24h_base"`
-				Volume24HQuote float64   `json:"volume_24h_quote"`
-				LastUpdated    time.Time `json:"last_updated"`
+				Price             float64   `json:"price"`
+				Volume24HourBase  float64   `json:"volume_24h_base"`
+				Volume24HourQuote float64   `json:"volume_24h_quote"`
+				LastUpdated       time.Time `json:"last_updated"`
 			} `json:"exchange_reported"`
 			USD Currency `json:"USD"`
 		} `json:"quote"`
@@ -270,21 +270,21 @@ type CryptocurrencyQuote struct {
 	ID                     int64     `json:"id"`
 	Symbol                 string    `json:"symbol"`
 	Price                  float64   `json:"price"`
-	Volume24H              float64   `json:"volume_24h"`
-	CEXVolume24H           float64   `json:"cex_volume_24h"`
-	DEXVolume24H           float64   `json:"dex_volume_24h"`
-	Volume24HReported      float64   `json:"volume_24h_reported"`
-	Volume7D               float64   `json:"volume_7d"`
-	Volume7DReported       float64   `json:"volume_7d_reported"`
-	Volume30D              float64   `json:"volume_30d"`
-	Volume30DReported      float64   `json:"volume_30d_reported"`
-	VolumeChange24H        float64   `json:"volume_change_24h"`
-	PercentChange1H        float64   `json:"percent_change_1h"`
-	PercentChange24H       float64   `json:"percent_change_24h"`
-	PercentChange7D        float64   `json:"percent_change_7d"`
-	PercentChange30D       float64   `json:"percent_change_30d"`
-	PercentChange60D       float64   `json:"percent_change_60d"`
-	PercentChange90D       float64   `json:"percent_change_90d"`
+	Volume24Hour           float64   `json:"volume_24h"`
+	CEXVolume24Hour        float64   `json:"cex_volume_24h"`
+	DEXVolume24Hour        float64   `json:"dex_volume_24h"`
+	Volume24HourReported   float64   `json:"volume_24h_reported"`
+	Volume7Day             float64   `json:"volume_7d"`
+	Volume7DayReported     float64   `json:"volume_7d_reported"`
+	Volume30Day            float64   `json:"volume_30d"`
+	Volume30DayReported    float64   `json:"volume_30d_reported"`
+	VolumeChange24Hour     float64   `json:"volume_change_24h"`
+	PercentChange1Hour     float64   `json:"percent_change_1h"`
+	PercentChange24Hour    float64   `json:"percent_change_24h"`
+	PercentChange7Day      float64   `json:"percent_change_7d"`
+	PercentChange30Day     float64   `json:"percent_change_30d"`
+	PercentChange60Day     float64   `json:"percent_change_60d"`
+	PercentChange90Day     float64   `json:"percent_change_90d"`
 	MarketCap              float64   `json:"market_cap"`
 	MarketCapDominance     float64   `json:"market_cap_dominance"`
 	FullyDilutedMarketCap  float64   `json:"fully_diluted_market_cap"`
@@ -381,10 +381,10 @@ type ExchangeLatestMarketPairs struct {
 		} `json:"market_pair_quote"`
 		Quote struct {
 			ExchangeReported struct {
-				Price          float64   `json:"price"`
-				Volume24HBase  float64   `json:"volume_24h_base"`
-				Volume24HQuote float64   `json:"volume_24h_quote"`
-				LastUpdated    time.Time `json:"last_updated"`
+				Price             float64   `json:"price"`
+				Volume24HourBase  float64   `json:"volume_24h_base"`
+				Volume24HourQuote float64   `json:"volume_24h_quote"`
+				LastUpdated       time.Time `json:"last_updated"`
 			} `json:"exchange_reported"`
 			USD Currency `json:"USD"`
 		} `json:"quote"`

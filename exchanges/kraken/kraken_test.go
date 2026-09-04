@@ -3,6 +3,7 @@ package kraken
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -381,6 +382,60 @@ func TestGetOHLC(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
 	assert.NoError(t, err, "GetOHLC should not error")
+}
+
+func TestGetOHLCMapsCandleTuples(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		candles  string
+		errIs    error
+		expected []OpenHighLowClose
+	}{
+		{
+			name:    "short tuple",
+			candles: `[[1,2,3,4,5,6,7]]`,
+			errIs:   errUnexpectedCandleLength,
+		},
+		{
+			name:    "every position mapped",
+			candles: `[[1748822400,1,2,3,4,5,6,7]]`,
+			expected: []OpenHighLowClose{{
+				Time:                       time.Unix(1748822400, 0),
+				Open:                       1,
+				High:                       2,
+				Low:                        3,
+				Close:                      4,
+				VolumeWeightedAveragePrice: 5,
+				Volume:                     6,
+				Count:                      7,
+			}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/0/public/OHLC", r.URL.Path, "request path should target the OHLC endpoint")
+				_, err := fmt.Fprintf(w, `{"error":[],"result":{"XXBTZUSD":%s}}`, tc.candles)
+				assert.NoError(t, err, "writing the candle response should not error")
+			}))
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+			ohlc, err := ex.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
+			if tc.errIs != nil {
+				assert.ErrorIs(t, err, tc.errIs, "GetOHLC should error on a short candle tuple")
+				return
+			}
+			require.NoError(t, err, "GetOHLC must not error")
+			assert.Equal(t, tc.expected, ohlc, "GetOHLC should map every tuple position")
+		})
+	}
 }
 
 func TestGetDepth(t *testing.T) {
@@ -1172,6 +1227,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	pairs, err := ex.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
 	require.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
+	//nolint:prealloc // fixed test fixture, not a hot path
 	exp := subscription.List{
 		{Channel: subscription.TickerChannel},
 		{Channel: subscription.AllTradesChannel},
@@ -1940,13 +1996,13 @@ func TestGetFuturesErr(t *testing.T) {
 
 	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid char", "Bad JSON should error correctly")
 	assert.NoError(t, getFuturesErr(json.RawMessage(`{"candles":[]}`)), "JSON with no Result should not error")
-	assert.NoError(t, getFuturesErr(json.RawMessage(`{"Result":"4 goats"}`)), "JSON with non-error Result should not error")
-	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"Result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
-	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"Result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
-	err := getFuturesErr(json.RawMessage(`{"Result":"error", "errors": ["2 goats", "3 goats"]}`))
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"result":"4 goats"}`)), "JSON with non-error Result should not error")
+	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
+	err := getFuturesErr(json.RawMessage(`{"result":"error", "errors": ["2 goats", "3 goats"]}`))
 	assert.ErrorContains(t, err, "2 goat", "JSON with errors should error correctly")
 	assert.ErrorContains(t, err, "3 goat", "JSON with errors should error correctly")
-	err = getFuturesErr(json.RawMessage(`{"Result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
+	err = getFuturesErr(json.RawMessage(`{"result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
 	assert.ErrorContains(t, err, "2 goat", "JSON with both error and errors should error correctly")
 	assert.ErrorContains(t, err, "3 goat", "JSON with both error and errors should error correctly")
 	assert.ErrorContains(t, err, "too many goat", "JSON both error and with errors should error correctly")

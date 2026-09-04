@@ -557,7 +557,7 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 		AskSize:      incrementalTicker.BestAskAmount,
 		High:         incrementalTicker.MaxPrice,
 		Low:          incrementalTicker.MinPrice,
-		Volume:       incrementalTicker.Stats.Volume,
+		BaseVolume:   incrementalTicker.Stats.Volume,
 		QuoteVolume:  incrementalTicker.Stats.VolumeUsd,
 		Ask:          incrementalTicker.ImpliedAsk,
 		Bid:          incrementalTicker.ImpliedBid,
@@ -595,7 +595,7 @@ func (e *Exchange) processTicker(ctx context.Context, respRaw []byte, channels [
 		Last:         tickerPriceResponse.LastPrice,
 		High:         tickerPriceResponse.Stats.High,
 		Low:          tickerPriceResponse.Stats.Low,
-		Volume:       tickerPriceResponse.Stats.Volume,
+		BaseVolume:   tickerPriceResponse.Stats.Volume,
 	}
 	if a != asset.Futures {
 		tickerPrice.Low = tickerPriceResponse.MinPrice

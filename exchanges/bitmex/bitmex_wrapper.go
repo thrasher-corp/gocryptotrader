@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -352,8 +351,9 @@ instruments:
 			Low:          tick[j].LowPrice,
 			Bid:          tick[j].BidPrice,
 			Ask:          tick[j].AskPrice,
-			Volume:       tick[j].Volume24h,
-			Close:        tick[j].PrevClosePrice,
+			BaseVolume:   tick[j].HomeNotional24Hour,
+			QuoteVolume:  tick[j].ForeignNotional24Hour,
+			Close:        tick[j].PreviousClosePrice,
 			Pair:         pair,
 			LastUpdated:  tick[j].Timestamp,
 			ExchangeName: e.Name,
@@ -590,7 +590,7 @@ allTrades:
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 

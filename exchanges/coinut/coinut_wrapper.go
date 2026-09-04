@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -270,7 +271,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Low:          tick.Low24,
 		Bid:          tick.HighestBuy,
 		Ask:          tick.LowestSell,
-		Volume:       tick.Volume24,
+		BaseVolume:   tick.Volume24,
 		Pair:         p,
 		LastUpdated:  tick.Timestamp.Time(),
 		ExchangeName: e.Name,
@@ -390,7 +391,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -725,9 +726,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			currenciesToCheck = append(currenciesToCheck, fPair.String())
 		}
 	} else {
-		for k := range e.instrumentMap.Instruments {
-			currenciesToCheck = append(currenciesToCheck, k)
-		}
+		currenciesToCheck = slices.AppendSeq(currenciesToCheck, maps.Keys(e.instrumentMap.Instruments))
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {

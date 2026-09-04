@@ -203,23 +203,44 @@ func TestUFuturesOrderbook(t *testing.T) {
 
 func TestURecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.URecentTrades(t.Context(), currency.NewBTCUSDT(), "", 1000)
-	if err != nil {
-		t.Error(err)
+	r, err := e.URecentTrades(t.Context(), currency.NewBTCUSDT(), "", 1000)
+	require.NoError(t, err, "URecentTrades must not error")
+	if mockTests {
+		require.NotEmpty(t, r, "URecentTrades must return trades")
+		exp := UPublicTradesData{
+			ID:            8027604905,
+			Price:         79563.80,
+			Quantity:      0.008,
+			QuoteQuantity: 636.51,
+			Time:          types.Time(time.UnixMilli(1787893895323)),
+			IsBuyerMaker:  true,
+			IsRPITrade:    false,
+		}
+		assert.Equal(t, exp, r[0], "URecentTrades should unmarshal correctly")
 	}
 }
 
 func TestUCompressedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.UCompressedTrades(t.Context(), currency.NewBTCUSDT(), "", 5, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	r, err := e.UCompressedTrades(t.Context(), currency.NewBTCUSDT(), "", 5, time.Time{}, time.Time{})
+	require.NoError(t, err, "UCompressedTrades must not error")
+	if mockTests {
+		require.NotEmpty(t, r, "UCompressedTrades must return trades")
+		exp := UCompressedTradeData{
+			AggregateTradeID: 3431028568,
+			Price:            79563.80,
+			Quantity:         0.003,
+			NormalQuantity:   0.003,
+			FirstTradeID:     8027604904,
+			LastTradeID:      8027604904,
+			Timestamp:        types.Time(time.UnixMilli(1787893895110)),
+			IsBuyerMaker:     true,
+		}
+		assert.Equal(t, exp, r[0], "UCompressedTrades should unmarshal correctly")
 	}
 	start, end := getTime()
 	_, err = e.UCompressedTrades(t.Context(), currency.NewPair(currency.LTC, currency.USDT), "", 0, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UCompressedTrades should not error for a time range")
 }
 
 func TestUKlineData(t *testing.T) {
@@ -237,39 +258,71 @@ func TestUKlineData(t *testing.T) {
 
 func TestUGetMarkPrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetMarkPrice(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error(err)
+	r, err := e.UGetMarkPrice(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "UGetMarkPrice must not error")
+	if mockTests {
+		exp := []UMarkPrice{{
+			Symbol:               "BTCUSDT",
+			MarkPrice:            26780.82240476,
+			IndexPrice:           26798.25197802,
+			LastFundingRate:      0.00001226,
+			EstimatedSettlePrice: 26808.13173098,
+			InterestRate:         0.00010000,
+			NextFundingTime:      types.Time(time.UnixMilli(1687248000000)),
+			Time:                 types.Time(time.UnixMilli(1687244112000)),
+		}}
+		assert.Equal(t, exp, r, "UGetMarkPrice should unmarshal correctly")
 	}
 	_, err = e.UGetMarkPrice(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UGetMarkPrice should not error without a pair")
 }
 
 func TestUGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetFundingHistory(t.Context(), currency.NewBTCUSDT(), 1, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	r, err := e.UGetFundingHistory(t.Context(), currency.NewBTCUSDT(), 1, time.Time{}, time.Time{})
+	require.NoError(t, err, "UGetFundingHistory must not error")
+	if mockTests {
+		exp := []FundingRateHistory{{
+			Symbol:      "BTCUSDT",
+			FundingRate: 0.00006578,
+			FundingTime: types.Time(time.UnixMilli(1787875200026)),
+			MarkPrice:   80209.56009420,
+			RateType:    "Regular",
+		}}
+		assert.Equal(t, exp, r, "UGetFundingHistory should unmarshal correctly")
 	}
 	start, end := getTime()
 	_, err = e.UGetFundingHistory(t.Context(), currency.NewPair(currency.LTC, currency.USDT), 1, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UGetFundingHistory should not error for a time range")
 }
 
 func TestU24HTickerPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := e.U24HTickerPriceChangeStats(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error(err)
+	r, err := e.U24HTickerPriceChangeStats(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "U24HTickerPriceChangeStats must not error")
+	if mockTests {
+		exp := []U24HrPriceChangeStats{{
+			Symbol:               "BTCUSDT",
+			PriceChange:          -155.63,
+			PriceChangePercent:   -0.330,
+			WeightedAveragePrice: 46998.82,
+			LastPrice:            47028.59,
+			LastQuantity:         0.023,
+			OpenPrice:            47184.22,
+			HighPrice:            47688.88,
+			LowPrice:             46280.00,
+			Volume:               471823.103,
+			QuoteVolume:          22175129357.20,
+			OpenTime:             types.Time(time.UnixMilli(1629955980000)),
+			CloseTime:            types.Time(time.UnixMilli(1630042423017)),
+			FirstID:              1373117969,
+			LastID:               1377202095,
+			Count:                4084092,
+		}}
+		assert.Equal(t, exp, r, "U24HTickerPriceChangeStats should unmarshal correctly")
 	}
 	_, err = e.U24HTickerPriceChangeStats(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "U24HTickerPriceChangeStats should not error without a pair")
 }
 
 func TestUSymbolPriceTicker(t *testing.T) {
@@ -286,14 +339,22 @@ func TestUSymbolPriceTicker(t *testing.T) {
 
 func TestUSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.USymbolOrderbookTicker(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error(err)
+	r, err := e.USymbolOrderbookTicker(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USymbolOrderbookTicker must not error")
+	if mockTests {
+		exp := []USymbolOrderbookTicker{{
+			Symbol:       "BTCUSDT",
+			BidPrice:     79563.80,
+			BidQuantity:  3.008,
+			AskPrice:     79563.90,
+			AskQuantity:  3.944,
+			Time:         types.Time(time.UnixMilli(1787893895465)),
+			LastUpdateID: 11410877132050,
+		}}
+		assert.Equal(t, exp, r, "USymbolOrderbookTicker should unmarshal correctly")
 	}
 	_, err = e.USymbolOrderbookTicker(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "USymbolOrderbookTicker should not error without a pair")
 }
 
 func TestUOpenInterest(t *testing.T) {
@@ -306,15 +367,22 @@ func TestUOpenInterest(t *testing.T) {
 
 func TestUOpenInterestStats(t *testing.T) {
 	t.Parallel()
-	_, err := e.UOpenInterestStats(t.Context(), currency.NewBTCUSDT(), "5m", 1, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	r, err := e.UOpenInterestStats(t.Context(), currency.NewBTCUSDT(), "5m", 1, time.Time{}, time.Time{})
+	require.NoError(t, err, "UOpenInterestStats must not error")
+	if mockTests {
+		exp := []UOpenInterestStats{{
+			Symbol:               "BTCUSDT",
+			SumOpenInterest:      109899.054,
+			SumOpenInterestValue: 8768142164.7144,
+			CMCCirculatingSupply: 20076125,
+			Timestamp:            types.Time(time.UnixMilli(1787895600000)),
+		}}
+		assert.Equal(t, exp, r, "UOpenInterestStats should unmarshal correctly")
 	}
+
 	start, end := getTime()
 	_, err = e.UOpenInterestStats(t.Context(), currency.NewPair(currency.LTC, currency.USDT), "1d", 10, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UOpenInterestStats should not error for a time range")
 }
 
 func TestUTopAcccountsLongShortRatio(t *testing.T) {
@@ -716,18 +784,34 @@ func TestGetIndexPriceKlines(t *testing.T) {
 
 func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
-	if err != nil {
-		t.Error(err)
+	r, err := e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	require.NoError(t, err, "GetFuturesSwapTickerChangeStats must not error")
+	if mockTests {
+		exp := []PriceChangeStats{{
+			Symbol:               "BTCUSD_PERP",
+			Pair:                 "BTCUSD",
+			PriceChange:          -125.4,
+			PriceChangePercent:   -0.266,
+			WeightedAveragePrice: 46967.17141153,
+			LastPrice:            47010.2,
+			LastQuantity:         6,
+			OpenPrice:            47135.6,
+			HighPrice:            47662,
+			LowPrice:             46250,
+			Volume:               71996462,
+			BaseVolume:           153291.03251537,
+			OpenTime:             types.Time(time.UnixMilli(1629955980000)),
+			CloseTime:            types.Time(time.UnixMilli(1630042418232)),
+			FirstID:              225537386,
+			LastID:               226404146,
+			Count:                866761,
+		}}
+		assert.Equal(t, exp, r, "GetFuturesSwapTickerChangeStats should unmarshal correctly")
+		assert.Zero(t, r[0].QuoteVolume, "QuoteVolume should be zero as coin margined futures does not send it")
 	}
-	_, err = e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
-	if err != nil {
-		t.Error(err)
-	}
+
 	_, err = e.GetFuturesSwapTickerChangeStats(t.Context(), currency.EMPTYPAIR, "")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetFuturesSwapTickerChangeStats should not error without a pair")
 }
 
 func TestFuturesGetFundingHistory(t *testing.T) {
@@ -1192,10 +1276,35 @@ func TestGetAveragePrice(t *testing.T) {
 
 func TestGetPriceChangeStats(t *testing.T) {
 	t.Parallel()
-
-	_, err := e.GetPriceChangeStats(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error("Binance GetPriceChangeStats() error", err)
+	r, err := e.GetPriceChangeStats(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "GetPriceChangeStats must not error")
+	require.NotNil(t, r, "GetPriceChangeStats must not return nil")
+	if mockTests {
+		exp := &PriceChangeStats{
+			Symbol:               "BTCUSDT",
+			PriceChange:          -166.82,
+			PriceChangePercent:   -2.427,
+			WeightedAveragePrice: 6786.67321489,
+			PreviousClosePrice:   6872.37,
+			LastPrice:            6705.82,
+			LastQuantity:         0.01,
+			BidPrice:             6705.88,
+			BidQuantity:          0.184011,
+			AskPrice:             6706.21,
+			AskQuantity:          0.195188,
+			OpenPrice:            6872.64,
+			HighPrice:            6933,
+			LowPrice:             6680.10,
+			Volume:               57857.494857,
+			QuoteVolume:          392659910.6266075,
+			OpenTime:             types.Time(time.UnixMilli(1586904878494)),
+			CloseTime:            types.Time(time.UnixMilli(1586991278494)),
+			FirstID:              294247387,
+			LastID:               294801814,
+			Count:                554428,
+		}
+		assert.Equal(t, exp, r, "GetPriceChangeStats should unmarshal correctly")
+		assert.Zero(t, r.BaseVolume, "BaseVolume should be zero as spot does not send it")
 	}
 }
 
@@ -2410,7 +2519,6 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
 	wsFmt := currency.PairFormat{Uppercase: false, Delimiter: ""}
@@ -2420,6 +2528,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.TickerChannel, QualifiedChannel: "ticker", Asset: asset.Spot},
 		{Channel: subscription.AllTradesChannel, QualifiedChannel: "trade", Asset: asset.Spot},
 	}
+	exp := make(subscription.List, 0, len(baseExp)*len(pairs))
 	for _, p := range pairs {
 		for _, baseSub := range baseExp {
 			sub := baseSub.Clone()
@@ -3321,8 +3430,20 @@ func TestGetFundingRateInfo(t *testing.T) {
 
 func TestUGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetFundingRateInfo(t.Context())
-	assert.NoError(t, err)
+	r, err := e.UGetFundingRateInfo(t.Context())
+	require.NoError(t, err, "UGetFundingRateInfo must not error")
+	if mockTests {
+		require.NotEmpty(t, r, "UGetFundingRateInfo must return rates")
+		exp := FundingRateInfoResponse{
+			Symbol:                   "GTCUSDT",
+			AdjustedFundingRateCap:   0.03,
+			AdjustedFundingRateFloor: -0.03,
+			FundingIntervalHours:     8,
+			Disclaimer:               false,
+			UpdateTime:               types.Time(time.UnixMilli(1696841346067)),
+		}
+		assert.Equal(t, exp, r[0], "UGetFundingRateInfo should unmarshal correctly")
+	}
 }
 
 func TestGetOpenInterest(t *testing.T) {

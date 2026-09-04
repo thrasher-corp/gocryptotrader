@@ -104,10 +104,11 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	var c Coinmarketcap
 	c.SetDefaults()
-	cfg := Settings{}
-	cfg.APIKey = apikey
-	cfg.AccountPlan = apiAccountPlanLevel
-	cfg.Enabled = true
+	cfg := Settings{
+		APIKey:      apikey,
+		AccountPlan: apiAccountPlanLevel,
+		Enabled:     true,
+	}
 	if cfg.AccountPlan == "" {
 		cfg.AccountPlan = "basic"
 	}
@@ -270,21 +271,21 @@ func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
 					ID:                     2781,
 					Symbol:                 "USD",
 					Price:                  1,
-					Volume24H:              2,
-					CEXVolume24H:           3,
-					DEXVolume24H:           4,
-					Volume24HReported:      5,
-					Volume7D:               6,
-					Volume7DReported:       7,
-					Volume30D:              8,
-					Volume30DReported:      9,
-					VolumeChange24H:        10,
-					PercentChange1H:        11,
-					PercentChange24H:       12,
-					PercentChange7D:        13,
-					PercentChange30D:       14,
-					PercentChange60D:       15,
-					PercentChange90D:       16,
+					Volume24Hour:           2,
+					CEXVolume24Hour:        3,
+					DEXVolume24Hour:        4,
+					Volume24HourReported:   5,
+					Volume7Day:             6,
+					Volume7DayReported:     7,
+					Volume30Day:            8,
+					Volume30DayReported:    9,
+					VolumeChange24Hour:     10,
+					PercentChange1Hour:     11,
+					PercentChange24Hour:    12,
+					PercentChange7Day:      13,
+					PercentChange30Day:     14,
+					PercentChange60Day:     15,
+					PercentChange90Day:     16,
 					MarketCap:              17,
 					MarketCapDominance:     18,
 					FullyDilutedMarketCap:  19,
@@ -438,21 +439,21 @@ func TestGetCryptocurrencyLatestQuotesDecodesV3Payload(t *testing.T) {
 					ID:                     2781,
 					Symbol:                 "USD",
 					Price:                  1,
-					Volume24H:              2,
-					CEXVolume24H:           3,
-					DEXVolume24H:           4,
-					Volume24HReported:      5,
-					Volume7D:               6,
-					Volume7DReported:       7,
-					Volume30D:              8,
-					Volume30DReported:      9,
-					VolumeChange24H:        10,
-					PercentChange1H:        11,
-					PercentChange24H:       12,
-					PercentChange7D:        13,
-					PercentChange30D:       14,
-					PercentChange60D:       15,
-					PercentChange90D:       16,
+					Volume24Hour:           2,
+					CEXVolume24Hour:        3,
+					DEXVolume24Hour:        4,
+					Volume24HourReported:   5,
+					Volume7Day:             6,
+					Volume7DayReported:     7,
+					Volume30Day:            8,
+					Volume30DayReported:    9,
+					VolumeChange24Hour:     10,
+					PercentChange1Hour:     11,
+					PercentChange24Hour:    12,
+					PercentChange7Day:      13,
+					PercentChange30Day:     14,
+					PercentChange60Day:     15,
+					PercentChange90Day:     16,
 					MarketCap:              17,
 					MarketCapDominance:     18,
 					FullyDilutedMarketCap:  19,
@@ -587,7 +588,7 @@ func TestGetExchangeLatestQuotesDecodesResultMap(t *testing.T) {
 	assert.Equal(t, int64(270), result.Binance.ID, "GetExchangeLatestQuotes should populate Binance correctly")
 	require.Len(t, result.Exchanges, 2, "GetExchangeLatestQuotes must return every exchange")
 	assert.Equal(t, "Coinbase Exchange", result.Exchanges["2"].Name, "GetExchangeLatestQuotes should return the correct exchange name")
-	assert.Equal(t, 1234.5, result.Exchanges["2"].Quote["USD"].Volume24H, "GetExchangeLatestQuotes should return the correct exchange volume")
+	assert.Equal(t, 1234.5, result.Exchanges["2"].Quote["USD"].Volume24Hour, "GetExchangeLatestQuotes should return the correct exchange volume")
 }
 
 func TestGetExchangeLatestQuotesWithoutBinance(t *testing.T) {
@@ -622,7 +623,7 @@ func TestGetExchangeHistoricalQuotesDecodesResultMap(t *testing.T) {
 	require.NoError(t, err, "GetExchangeHistoricalQuotes must not error")
 	assert.Equal(t, int64(270), result.ID, "GetExchangeHistoricalQuotes should return the correct ID")
 	require.Len(t, result.Quotes, 1, "GetExchangeHistoricalQuotes must return one quote")
-	assert.Equal(t, 1632390000.0, result.Quotes[0].Quote["USD"].Volume24H, "GetExchangeHistoricalQuotes should return the correct volume")
+	assert.Equal(t, 1632390000.0, result.Quotes[0].Quote["USD"].Volume24Hour, "GetExchangeHistoricalQuotes should return the correct volume")
 }
 
 func TestGetExchangeHistoricalQuotesRejectsMissingResult(t *testing.T) {
@@ -1054,21 +1055,21 @@ func TestCryptocurrencyLatestQuoteMapUnmarshal(t *testing.T) {
 					ID:                     2781,
 					Symbol:                 "USD",
 					Price:                  1,
-					Volume24H:              2,
-					CEXVolume24H:           3,
-					DEXVolume24H:           4,
-					Volume24HReported:      5,
-					Volume7D:               6,
-					Volume7DReported:       7,
-					Volume30D:              8,
-					Volume30DReported:      9,
-					VolumeChange24H:        10,
-					PercentChange1H:        11,
-					PercentChange24H:       12,
-					PercentChange7D:        13,
-					PercentChange30D:       14,
-					PercentChange60D:       15,
-					PercentChange90D:       16,
+					Volume24Hour:           2,
+					CEXVolume24Hour:        3,
+					DEXVolume24Hour:        4,
+					Volume24HourReported:   5,
+					Volume7Day:             6,
+					Volume7DayReported:     7,
+					Volume30Day:            8,
+					Volume30DayReported:    9,
+					VolumeChange24Hour:     10,
+					PercentChange1Hour:     11,
+					PercentChange24Hour:    12,
+					PercentChange7Day:      13,
+					PercentChange30Day:     14,
+					PercentChange60Day:     15,
+					PercentChange90Day:     16,
 					MarketCap:              17,
 					MarketCapDominance:     18,
 					FullyDilutedMarketCap:  19,

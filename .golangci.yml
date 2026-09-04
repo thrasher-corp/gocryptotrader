@@ -20,6 +20,7 @@ linters:
     - bidichk
     - bodyclose
 #   - canonicalheader
+#   - clickhouselint
     - containedctx
 #   - contextcheck
     - copyloopvar
@@ -37,9 +38,10 @@ linters:
 #   - errorlint
 #   - exhaustive
 #   - exhaustruct
+#   - exhaustruct_v5
 #   - exptostd
     - fatcontext
-#   - forbidigo
+    - forbidigo
     - forcetypeassert
 #   - funcorder
 #   - funlen
@@ -57,7 +59,7 @@ linters:
 #   - godox
 #   - goheader
     - gomoddirectives
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
 #   - gosmopolitan
@@ -125,6 +127,20 @@ linters:
   settings:
     depguard:
       rules:
+        prevent_stdlib_log_use:
+          list-mode: lax
+          files:
+            - '**/exchanges/**'
+            - '**/exchange/**'
+            - '!$test'
+            # test infrastructure that aborts the run on a malformed fixture or missing credentials
+            - '!**/exchanges/mock/**'
+            - '!**/internal/**'
+          allow:
+            - github.com/thrasher-corp/gocryptotrader/log
+          deny:
+            - pkg: log
+              desc: Please use github.com/thrasher-corp/gocryptotrader/log so output honours the configured logger, level and output paths.
         prevent_json_package_use:
           list-mode: lax
           files:
@@ -147,6 +163,9 @@ linters:
               desc: Please use github.com/thrasher-corp/gocryptotrader/types/decimal to allow decimal backend switching.
     goconst:
       min-occurrences: 6
+      # Repeated fixture strings in tests are not a maintenance hazard, and occurrence
+      # counting spans files so this cannot be expressed as an exclusion rule
+      ignore-tests: true
     gosec:
       excludes:
         - G602 # False positives, see https://github.com/golangci/golangci-lint/issues/6334
@@ -195,6 +214,18 @@ linters:
         path: _test\.go
         text: 'shadow: declaration of "e" shadows declaration at'
       - linters:
+          - gosec
+        path: _test\.go
+        text: 'G101|G703' # G101 hardcoded credentials, G703 path traversal via taint analysis
+      - linters:
+          - gosec
+        path: exchanges/mock/server\.go
+        text: 'G706' # G706 log injection via taint analysis
+      - linters:
+          - dupword
+        path: config/config_encryption_test\.go
+        # The encryption prompts are driven by scripted stdin that deliberately repeats answers
+      - linters:
           - revive
         text: 'should have a package comment'
       - linters:
@@ -203,6 +234,10 @@ linters:
       - linters:
           - revive
         text: "var-naming: avoid package names that conflict with Go standard library package names"
+      - linters:
+          - forbidigo
+        # Command line entrypoints: stdout is the interface, not a stray debug print
+        path: '^(cmd/|backtester/btcli/|backtester/config/strategyconfigbuilder/|backtester/main\.go|main\.go)'
     paths:
       - vendor
       - web/
@@ -222,7 +257,11 @@ formatters:
     - goimports
   settings:
     gofumpt:
-      extra-rules: true
+      extra:
+        # extra-rules previously enabled both of these; balance-calls is new in gofumpt v0.11
+        # and would reformat 28 files, so it is deliberately left off for a separate change
+        group-params: true
+        clothe-returns: true
   exclusions:
     generated: lax
     paths:

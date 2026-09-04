@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -355,7 +354,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          ticks.Data[i].Low,
 				Bid:          ticks.Data[i].Bid,
 				Ask:          ticks.Data[i].Ask,
-				Volume:       ticks.Data[i].Amount,
+				BaseVolume:   ticks.Data[i].Amount,
 				QuoteVolume:  ticks.Data[i].Volume,
 				Open:         ticks.Data[i].Open,
 				Close:        ticks.Data[i].Close,
@@ -388,7 +387,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Amount.Float64(),
+				BaseVolume:   ticks[i].Amount.Float64(),
 				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
 				Close:        ticks[i].Close.Float64(),
@@ -441,7 +440,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Amount.Float64(),
+				BaseVolume:   ticks[i].Amount.Float64(),
 				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
 				Close:        ticks[i].Close.Float64(),
@@ -481,7 +480,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         tickerData.Tick.High,
 			Low:          tickerData.Tick.Low,
-			Volume:       tickerData.Tick.Amount,
+			BaseVolume:   tickerData.Tick.Amount,
 			QuoteVolume:  tickerData.Tick.Volume,
 			Open:         tickerData.Tick.Open,
 			Close:        tickerData.Tick.Close,
@@ -508,7 +507,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
-			Volume:       marketData.Tick.Amount,
+			BaseVolume:   marketData.Tick.Amount,
 			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,
@@ -530,7 +529,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
-			Volume:       marketData.Tick.Amount,
+			BaseVolume:   marketData.Tick.Amount,
 			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,
@@ -880,7 +879,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -951,20 +950,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			//
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
-			oType = "optimal_20"
+			oType = orderPriceTypeOptimal20
 			switch {
 			case s.TimeInForce.Is(order.ImmediateOrCancel):
-				oType = "optimal_20_ioc"
+				oType = orderPriceTypeOptimal20IOC
 			case s.TimeInForce.Is(order.FillOrKill):
-				oType = "optimal_20_fok"
+				oType = orderPriceTypeOptimal20FOK
 			}
 		case order.Limit:
-			oType = "limit"
+			oType = orderPriceTypeLimit
 			if s.TimeInForce.Is(order.PostOnly) {
-				oType = "post_only"
+				oType = orderPriceTypePostOnly
 			}
 		default:
-			oType = "opponent"
+			oType = orderPriceTypeOpponent
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1002,20 +1001,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			//
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
-			oType = "optimal_20"
+			oType = orderPriceTypeOptimal20
 			switch {
 			case s.TimeInForce.Is(order.ImmediateOrCancel):
-				oType = "optimal_20_ioc"
+				oType = orderPriceTypeOptimal20IOC
 			case s.TimeInForce.Is(order.FillOrKill):
-				oType = "optimal_20_fok"
+				oType = orderPriceTypeOptimal20FOK
 			}
 		case order.Limit:
-			oType = "limit"
+			oType = orderPriceTypeLimit
 			if s.TimeInForce.Is(order.PostOnly) {
-				oType = "post_only"
+				oType = orderPriceTypePostOnly
 			}
 		default:
-			oType = "opponent"
+			oType = orderPriceTypeOpponent
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1633,7 +1632,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					"",
 					"all",
 					"all",
-					"limit",
+					orderPriceTypeLimit,
 					[]order.Status{order.AnyStatus},
 					int64(req.EndTime.Sub(req.StartTime).Hours()/24),
 					currentPage,
@@ -1897,11 +1896,11 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 		return resp, errors.New("invalid orderSide")
 	}
 	switch orderPriceType {
-	case "limit":
+	case orderPriceTypeLimit:
 		resp.OrderType = order.Limit
-	case "opponent":
+	case orderPriceTypeOpponent:
 		resp.OrderType = order.Market
-	case "post_only":
+	case orderPriceTypePostOnly:
 		resp.OrderType = order.Limit
 		resp.TimeInForce = order.PostOnly
 	default:

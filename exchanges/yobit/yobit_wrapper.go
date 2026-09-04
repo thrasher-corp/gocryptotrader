@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"time"
 
@@ -169,11 +168,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Last:         resultCurr.Last,
 			Ask:          resultCurr.Sell,
 			Bid:          resultCurr.Buy,
+			High:         resultCurr.High,
 			Low:          resultCurr.Low,
-			QuoteVolume:  resultCurr.VolumeCurrent,
-			Volume:       resultCurr.Vol,
+			BaseVolume:   resultCurr.BaseVolume,
+			QuoteVolume:  resultCurr.QuoteVolume,
 			ExchangeName: e.Name,
 			AssetType:    a,
+			LastUpdated:  resultCurr.Updated.Time(),
 		})
 		if err != nil {
 			return err
@@ -307,7 +308,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

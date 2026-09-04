@@ -376,7 +376,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 		Ask:          t.Ask[0].Float64(),
 		Bid:          t.Bid[0].Float64(),
 		Close:        t.Last[0].Float64(),
-		Volume:       t.Volume[0].Float64(),
+		BaseVolume:   t.Volume[0].Float64(),
 		Low:          t.Low[0].Float64(),
 		High:         t.High[0].Float64(),
 		Open:         t.Open[0].Float64(),

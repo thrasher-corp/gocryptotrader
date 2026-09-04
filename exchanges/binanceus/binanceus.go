@@ -390,10 +390,10 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) (
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() && arg.StartTime.Unix() != 0 {
-		params.Set("startTime", strconv.FormatInt((arg.StartTime).UnixMilli(), 10))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() && arg.EndTime.Unix() != 0 {
-		params.Set("endTime", strconv.FormatInt((arg.EndTime).UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	path := common.EncodeURLValues(candleStick, params)
 	var resp []CandleStick
@@ -686,7 +686,7 @@ func (e *Exchange) QuickEnableCryptoWithdrawal(ctx context.Context) error {
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodPost,
-		accountEnableCryptoWithdrawalEndpoint, params, spotDefaultRate, &(response.Data))
+		accountEnableCryptoWithdrawalEndpoint, params, spotDefaultRate, &response.Data)
 }
 
 // QuickDisableCryptoWithdrawal use this endpoint to disable crypto withdrawals.
@@ -772,10 +772,10 @@ func (e *Exchange) GetSubaccountTransferHistory(ctx context.Context, email strin
 	endTimeT := time.UnixMilli(endTime)
 
 	hundredDayBefore := time.Now().Add(-time.Hour * 24 * 100).Truncate(time.Hour)
-	if !(startTimeT.Before(hundredDayBefore)) || startTimeT.Before(time.Now()) {
+	if !startTimeT.Before(hundredDayBefore) || startTimeT.Before(time.Now()) {
 		params.Set("startTime", strconv.FormatInt(startTime, 10))
 	}
-	if !(endTimeT.Before(hundredDayBefore)) || endTimeT.Before(time.Now()) {
+	if !endTimeT.Before(hundredDayBefore) || endTimeT.Before(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(endTime, 10))
 	}
 
@@ -1276,10 +1276,10 @@ func (e *Exchange) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrderR
 	if arg.FromCoin != "" {
 		params.Set("fromCoin", arg.FromCoin)
 	}
-	if !(arg.StartTime.IsZero()) {
+	if !arg.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
-	if !(arg.EndTime.IsZero()) {
+	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if arg.ToCoin != "" {
@@ -1417,10 +1417,10 @@ func (e *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, statu
 func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	var response FiatAssetsHistory
 	params := url.Values{}
-	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
-	if !arg.StartTime.IsZero() && !(arg.StartTime.After(time.Now())) {
+	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if arg.FiatCurrency != "" {
@@ -1546,10 +1546,10 @@ func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, statu
 // FiatDepositHistory fetch your fiat (USD) deposit history as Fiat Assets History
 func (e *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	params := url.Values{}
-	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
-	if !(arg.StartTime.IsZero()) && !(arg.StartTime.After(time.Now())) {
+	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if arg.FiatCurrency != "" {

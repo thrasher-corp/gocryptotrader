@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1773,6 +1773,68 @@ func TestGetSubAccountALLAPIKeys(t *testing.T) {
 	}
 }
 
+func TestSubAccountAPIKeysUnmarshal(t *testing.T) {
+	t.Parallel()
+	var resp *SubAccountAPIKeys
+	require.NoError(t, json.Unmarshal([]byte(`{"result":[{"id":"24828209","ips":["*"],"apiKey":"XXXXXX","note":"UTA","status":3,"expiredAt":"2023-12-01T02:36:06Z","createdAt":"2023-08-25T06:42:39Z","type":1,"permissions":{"ContractTrade":["Order","Position"],"Spot":["SpotTrade"],"Wallet":["AccountTransfer","SubMemberTransferList"],"Options":["OptionsTrade"],"Derivatives":["DerivativesTrade"],"CopyTrading":[],"BlockTrade":[],"Exchange":["ExchangeHistory"],"NFT":[],"Affiliate":[],"Earn":[]},"secret":"******","readOnly":false,"deadlineDay":21,"flag":"hmac"}],"nextPageCursor":"abc"}`), &resp), "Unmarshal must not error")
+	require.Len(t, resp.Result, 1, "Result must contain one API key")
+	assert.Equal(t, "abc", resp.NextPageCursor, "NextPageCursor should unmarshal")
+	exp := SubAccountAPIKey{
+		ID:          "24828209",
+		IPAddresses: []string{"*"},
+		APIKey:      "XXXXXX",
+		Note:        "UTA",
+		Status:      3,
+		ExpiredAt:   time.Date(2023, 12, 1, 2, 36, 6, 0, time.UTC),
+		CreatedAt:   time.Date(2023, 8, 25, 6, 42, 39, 0, time.UTC),
+		Type:        1,
+		Permissions: APIKeyPermissions{
+			ContractTrade: []string{"Order", "Position"},
+			Spot:          []string{"SpotTrade"},
+			Wallet:        []string{"AccountTransfer", "SubMemberTransferList"},
+			Options:       []string{"OptionsTrade"},
+			Derivatives:   []string{"DerivativesTrade"},
+			Exchange:      []string{"ExchangeHistory"},
+			Earn:          []string{},
+			Affiliate:     []string{},
+			BlockTrade:    []string{},
+			NFT:           []string{},
+			CopyTrading:   []string{},
+		},
+		Secret:      "******",
+		DeadlineDay: 21,
+		Flag:        "hmac",
+	}
+	assert.Equal(t, exp, resp.Result[0], "SubAccountAPIKey should unmarshal each documented field")
+}
+
+func TestAPIKeyInformationUnmarshal(t *testing.T) {
+	t.Parallel()
+	var resp *SubUIDAPIResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"2208369","note":"testnet","apiKey":"XXXXXXXX","readOnly":1,"secret":"","permissions":{"ContractTrade":["Order","Position"],"Spot":["SpotTrade"],"Wallet":["AccountTransfer","SubMemberTransfer"],"Options":[],"Derivatives":["DerivativesTrade"],"CopyTrading":[],"BlockTrade":[],"Exchange":["ExchangeHistory"],"NFT":[],"Affiliate":[],"Earn":["Earn"],"FiatP2P":["FiatP2POrder","Advertising"],"FiatConvertBroker":["FiatConvertBrokerOrder"],"FiatGlobalPay":[],"FiatBitPay":["FaitPayOrder"],"BitCard":["BitCard"],"ByXPost":["ByXPost"]},"ips":["18.181.170.164","13.212.45.47"],"type":1,"deadlineDay":-2,"isMaster":true}`), &resp), "Unmarshal must not error")
+	assert.Equal(t, "2208369", resp.ID, "ID should unmarshal")
+	assert.Equal(t, []string{"18.181.170.164", "13.212.45.47"}, resp.IPAddresses, "IPAddresses should unmarshal")
+	assert.Equal(t, APIKeyPermissions{
+		ContractTrade:     []string{"Order", "Position"},
+		Spot:              []string{"SpotTrade"},
+		Wallet:            []string{"AccountTransfer", "SubMemberTransfer"},
+		Options:           []string{},
+		Derivatives:       []string{"DerivativesTrade"},
+		Exchange:          []string{"ExchangeHistory"},
+		Earn:              []string{"Earn"},
+		Affiliate:         []string{},
+		BlockTrade:        []string{},
+		NFT:               []string{},
+		CopyTrading:       []string{},
+		FiatP2P:           []string{"FiatP2POrder", "Advertising"},
+		FiatConvertBroker: []string{"FiatConvertBrokerOrder"},
+		FiatGlobalPay:     []string{},
+		FiatBitPay:        []string{"FaitPayOrder"},
+		BitCard:           []string{"BitCard"},
+		ByXPost:           []string{"ByXPost"},
+	}, resp.Permissions, "Permissions should unmarshal every key Bybit returns")
+}
+
 func TestSetMMP(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -1922,10 +1984,7 @@ func TestCreateInternalTransfer(t *testing.T) {
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{})
 	require.ErrorIs(t, err, errMissingTransferID)
 
-	transferID, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID := uuid.NewV7()
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{TransferID: transferID})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
@@ -1967,17 +2026,14 @@ func TestCreateInternalTransfer(t *testing.T) {
 
 func TestGetInternalTransferRecords(t *testing.T) {
 	t.Parallel()
-	transferID, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID := uuid.NewV7()
 	transferIDString := transferID.String()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	} else {
 		transferIDString = "018bd458-dba0-728b-b5b6-ecd5bd296528"
 	}
-	_, err = e.GetInternalTransferRecords(t.Context(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	_, err := e.GetInternalTransferRecords(t.Context(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2003,14 +2059,8 @@ func TestEnableUniversalTransferForSubUID(t *testing.T) {
 	err := e.EnableUniversalTransferForSubUID(t.Context())
 	require.ErrorIs(t, err, errMembersIDsNotSet)
 
-	transferID1, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
-	transferID2, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID1 := uuid.NewV7()
+	transferID2 := uuid.NewV7()
 	err = e.EnableUniversalTransferForSubUID(t.Context(), transferID1.String(), transferID2.String())
 	if err != nil {
 		t.Error(err)
@@ -2025,10 +2075,7 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{})
 	require.ErrorIs(t, err, errMissingTransferID)
 
-	transferID, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
+	transferID := uuid.NewV7()
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{TransferID: transferID})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
@@ -2087,10 +2134,7 @@ func TestGetUniversalTransferRecords(t *testing.T) {
 	var transferIDString string
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-		transferID, err := uuid.NewV7()
-		if err != nil {
-			t.Fatal(err)
-		}
+		transferID := uuid.NewV7()
 		transferIDString = transferID.String()
 	} else {
 		transferIDString = "018bd461-cb9c-75ce-94d4-0d3f4d84c339"
@@ -2298,6 +2342,29 @@ func TestCreateSubUIDAPIKey(t *testing.T) {
 	}
 }
 
+// Bybit rejects ips or apikey sent empty, so both must be omitted from the wire when unset
+func TestAPIKeyParamIPsMarshal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"create, ips unset", &SubUIDAPIKeyParam{Subuid: 1, Note: "n"}, `{"subuid":1,"note":"n","readOnly":0}`},
+		{"create, ips set", &SubUIDAPIKeyParam{Subuid: 1, Note: "n", IPAddressesCommaSeparated: "*"}, `{"subuid":1,"note":"n","readOnly":0,"ips":"*"}`},
+		{"update, ips and apikey unset", &SubUIDAPIKeyUpdateParam{}, `{"permissions":{}}`},
+		{"update, derivatives and earn set", &SubUIDAPIKeyUpdateParam{Permissions: PermissionsList{Derivatives: []string{"DerivativesTrade"}, Earn: []string{"Earn"}}}, `{"permissions":{"Derivatives":["DerivativesTrade"],"Earn":["Earn"]}}`},
+		{"update, ips and apikey set", &SubUIDAPIKeyUpdateParam{APIKey: "k", IPAddressesCommaSeparated: "192.168.0.1,192.168.0.2"}, `{"apikey":"k","ips":"192.168.0.1,192.168.0.2","permissions":{}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := json.Marshal(tc.in)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, tc.want, string(out), "request body should match")
+		})
+	}
+}
+
 func TestGetSubUIDList(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -2356,8 +2423,8 @@ func TestModifyMasterAPIKey(t *testing.T) {
 	require.ErrorIs(t, err, errNilArgument)
 
 	_, err = e.ModifyMasterAPIKey(t.Context(), &SubUIDAPIKeyUpdateParam{
-		ReadOnly: 0,
-		IPs:      "*",
+		ReadOnly:                  0,
+		IPAddressesCommaSeparated: "*",
 		Permissions: PermissionsList{
 			ContractTrade: []string{"Order", "Position"},
 			Spot:          []string{"SpotTrade"},
@@ -2382,9 +2449,9 @@ func TestModifySubAPIKey(t *testing.T) {
 	require.ErrorIs(t, err, errNilArgument)
 
 	_, err = e.ModifySubAPIKey(t.Context(), &SubUIDAPIKeyUpdateParam{
-		APIKey:   "lnqQ8ACaoMLi4168He",
-		ReadOnly: 0,
-		IPs:      "*",
+		APIKey:                    "lnqQ8ACaoMLi4168He",
+		ReadOnly:                  0,
+		IPAddressesCommaSeparated: "*",
 		Permissions: PermissionsList{
 			ContractTrade: []string{"Order", "Position"},
 			Spot:          []string{"SpotTrade"},
@@ -3279,7 +3346,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 21109.77, v.Last, "Last should be correct")
 				assert.Equal(t, 21426.99, v.High, "High should be correct")
 				assert.Equal(t, 20575.00, v.Low, "Low should be correct")
-				assert.Equal(t, 6780.866843, v.Volume, "Volume should be correct")
+				assert.Equal(t, 6780.866843, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, asset.Spot, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			case 2: // Option
@@ -3287,7 +3354,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 3565.00, v.Last, "Last should be correct")
 				assert.Equal(t, 3715.00, v.High, "High should be correct")
 				assert.Equal(t, 3555.00, v.Low, "Low should be correct")
-				assert.Equal(t, 1.62, v.Volume, "Volume should be correct")
+				assert.Equal(t, 1.62, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 3475.00, v.Bid, "Bid should be correct")
 				assert.Equal(t, 10.14, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 3520.00, v.Ask, "Ask should be correct")
@@ -3304,7 +3371,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
 				assert.Equal(t, 62752.90, v.High, "High should be correct")
 				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
-				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 98430.1050, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61873.9, v.Bid, "Bid should be correct")
 				assert.Equal(t, 3.783, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
@@ -3320,7 +3387,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61874.00, v.Last, "Last should be correct")
 				assert.Equal(t, 62752.90, v.High, "High should be correct")
 				assert.Equal(t, 61000.10, v.Low, "Low should be correct")
-				assert.Equal(t, 98430.1050, v.Volume, "Volume should be correct")
+				assert.Equal(t, 98430.1050, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61873.90, v.Bid, "Bid should be correct")
 				assert.Equal(t, 3.543, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61874.00, v.Ask, "Ask should be correct")
@@ -3336,7 +3403,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
 				assert.Equal(t, 62242.2, v.High, "High should be correct")
 				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
-				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 427.375, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61909.2, v.Bid, "Bid should be correct")
 				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
@@ -3352,7 +3419,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61945.70, v.Last, "Last should be correct")
 				assert.Equal(t, 62242.2, v.High, "High should be correct")
 				assert.Equal(t, 61059.1, v.Low, "Low should be correct")
-				assert.Equal(t, 427.375, v.Volume, "Volume should be correct")
+				assert.Equal(t, 427.375, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61909.5, v.Bid, "Bid should be correct")
 				assert.Equal(t, 0.035, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61909.60, v.Ask, "Ask should be correct")
@@ -3368,7 +3435,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
 				assert.Equal(t, 62265.5, v.High, "High should be correct")
 				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
-				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 391976479.0, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
 				assert.Equal(t, 12667.0, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")
@@ -3384,7 +3451,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, 61894.0, v.Last, "Last should be correct")
 				assert.Equal(t, 62265.5, v.High, "High should be correct")
 				assert.Equal(t, 61029.5, v.Low, "Low should be correct")
-				assert.Equal(t, 391976479.0, v.Volume, "Volume should be correct")
+				assert.Equal(t, 391976479.0, v.BaseVolume, "Volume should be correct")
 				assert.Equal(t, 61891.5, v.Bid, "Bid should be correct")
 				assert.Equal(t, 27634.0, v.BidSize, "BidSize should be correct")
 				assert.Equal(t, 61892.0, v.Ask, "Ask should be correct")

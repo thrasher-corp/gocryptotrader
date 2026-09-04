@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -196,7 +196,7 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = "GateIOProductBorrowMinimums"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
 		switch r.URL.Path {
 		case "/api/v4/spot/currency_pairs":
@@ -212,7 +212,6 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
@@ -238,7 +237,7 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = "GateIOTradableMarginPairs"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
 		switch r.URL.Path {
 		case "/api/v4/spot/currency_pairs":
@@ -254,7 +253,6 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
@@ -301,9 +299,9 @@ func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := e.MessageID()
 	require.Len(t, id, 32, "message ID must be 32 characters long for usage as a request ID")
-	got, err := uuid.FromString(id)
+	got, err := uuid.Parse(id)
 	require.NoError(t, err, "ID string must convert back to a UUID")
-	require.Equal(t, uuid.V7, got.Version(), "message ID must be a UUID v7")
+	require.Equal(t, byte(7), got[6]>>4, "message ID must be a UUID v7") // RFC 9562 version nibble
 	require.Len(t, got.String(), 36, "UUID v7 string representation must be 36 characters long")
 }
 

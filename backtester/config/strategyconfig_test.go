@@ -46,22 +46,12 @@ var (
 		MaximumSize:  decimal.MustFromFloat(0.05),
 		MaximumTotal: decimal.NewFromInt(100),
 	}
-	initialFunds1000000 *decimal.Decimal
-	initialFunds100000  *decimal.Decimal
-	initialFunds10      *decimal.Decimal
+	initialFunds1000000 = new(decimal.NewFromInt(1000000))
+	initialFunds100000  = new(decimal.NewFromInt(100000))
+	initialFunds10      = new(decimal.NewFromInt(10))
 
 	mainCurrencyPair = currency.NewBTCUSDT()
 )
-
-func TestMain(m *testing.M) {
-	iF1 := decimal.NewFromInt(1000000)
-	iF2 := decimal.NewFromInt(100000)
-	iBF := decimal.NewFromInt(10)
-	initialFunds1000000 = &iF1
-	initialFunds100000 = &iF2
-	initialFunds10 = &iBF
-	os.Exit(m.Run())
-}
 
 func TestValidateDate(t *testing.T) {
 	t.Parallel()

@@ -3,7 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -68,11 +69,7 @@ func (m *ExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	}
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	exchs := make([]exchange.IBotExchange, 0, len(m.exchanges))
-	for _, exch := range m.exchanges {
-		exchs = append(exchs, exch)
-	}
-	return exchs, nil
+	return slices.AppendSeq(make([]exchange.IBotExchange, 0, len(m.exchanges)), maps.Values(m.exchanges)), nil
 }
 
 // RemoveExchange removes an exchange from the manager
@@ -160,10 +157,7 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 	}
 
 	m.mtx.Lock()
-	exchanges := make([]exchange.IBotExchange, 0, len(m.exchanges))
-	for _, exch := range m.exchanges {
-		exchanges = append(exchanges, exch)
-	}
+	exchanges := slices.AppendSeq(make([]exchange.IBotExchange, 0, len(m.exchanges)), maps.Values(m.exchanges))
 	m.mtx.Unlock()
 
 	results := make(chan shutdownResult, len(exchanges))
@@ -232,13 +226,8 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 			}
 		}
 
-		stillShuttingDown := make([]pendingShutdown, 0, len(pending))
-		for _, p := range pending {
-			stillShuttingDown = append(stillShuttingDown, p)
-		}
-		sort.Slice(stillShuttingDown, func(i, j int) bool {
-			return time.Since(stillShuttingDown[i].startedAt) > time.Since(stillShuttingDown[j].startedAt)
-		})
+		// Longest running shutdowns first
+		stillShuttingDown := slices.SortedFunc(maps.Values(pending), func(a, b pendingShutdown) int { return a.startedAt.Compare(b.startedAt) })
 
 		for _, p := range stillShuttingDown {
 			elapsed := time.Since(p.startedAt)

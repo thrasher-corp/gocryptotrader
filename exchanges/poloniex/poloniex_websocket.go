@@ -324,7 +324,7 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 			MarkPrice:    r.MarkPrice.Float64(),
 			High:         r.High.Float64(),
 			Low:          r.Low.Float64(),
-			Volume:       r.BaseAmount.Float64(),
+			BaseVolume:   r.BaseAmount.Float64(),
 			QuoteVolume:  r.QuoteAmount.Float64(),
 			Open:         r.Open.Float64(),
 			Close:        r.Close.Float64(),

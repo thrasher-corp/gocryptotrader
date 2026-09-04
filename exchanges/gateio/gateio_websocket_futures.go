@@ -246,7 +246,8 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				if ok {
 					params = append(
 						[]string{value},
-						params...)
+						params...,
+					)
 				}
 				var sigTemp string
 				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
@@ -338,10 +339,10 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, asset
 	for x := range resp.Result {
 		tickerPriceDatas[x] = ticker.Price{
 			ExchangeName: e.Name,
-			Volume:       resp.Result[x].Volume24HBase.Float64(),
-			QuoteVolume:  resp.Result[x].Volume24HQuote.Float64(),
-			High:         resp.Result[x].High24H.Float64(),
-			Low:          resp.Result[x].Low24H.Float64(),
+			BaseVolume:   resp.Result[x].Volume24HourBase.Float64(),
+			QuoteVolume:  resp.Result[x].Volume24HourQuote.Float64(),
+			High:         resp.Result[x].High24Hour.Float64(),
+			Low:          resp.Result[x].Low24Hour.Float64(),
 			Last:         resp.Result[x].Last.Float64(),
 			AssetType:    assetType,
 			Pair:         resp.Result[x].Contract,
@@ -477,13 +478,13 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 			LastUpdated:       data.Timestamp.Time(),
 			LastPushed:        lastPushed,
 			ValidateOrderbook: e.ValidateOrderbook,
+			Asks:              make([]orderbook.Level, len(data.Asks)),
+			Bids:              make([]orderbook.Level, len(data.Bids)),
 		}
-		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size.Float64()
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()

@@ -2,7 +2,8 @@ package data
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -41,11 +42,7 @@ func (h *HandlerHolder) GetAllData() ([]Handler, error) {
 	}
 	h.m.Lock()
 	defer h.m.Unlock()
-	resp := make([]Handler, 0, len(h.data))
-	for _, handler := range h.data {
-		resp = append(resp, handler)
-	}
-	return resp, nil
+	return slices.AppendSeq(make([]Handler, 0, len(h.data)), maps.Values(h.data)), nil
 }
 
 // GetDataForCurrency returns the Handler for a specific exchange, asset, currency
@@ -150,9 +147,7 @@ func (b *Base) SetStream(s []Event) error {
 		}
 	}
 
-	sort.Slice(s, func(i, j int) bool {
-		return s[i].GetTime().Before(s[j].GetTime())
-	})
+	slices.SortFunc(s, func(a, b Event) int { return a.GetTime().Compare(b.GetTime()) })
 	for x := range s {
 		// due to the Next() function, we cannot take
 		// stream offsets as is, and we re-set them
@@ -189,8 +184,8 @@ candles:
 				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMismatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
 			}
 			// todo change b.stream to map
-			for y := len(b.stream) - 1; y >= 0; y-- {
-				if s[x].GetTime().Equal(b.stream[y].GetTime()) {
+			for _, v := range slices.Backward(b.stream) {
+				if s[x].GetTime().Equal(v.GetTime()) {
 					continue candles
 				}
 			}
@@ -199,9 +194,7 @@ candles:
 		b.stream = append(b.stream, s[x])
 	}
 
-	sort.Slice(b.stream, func(i, j int) bool {
-		return b.stream[i].GetTime().Before(b.stream[j].GetTime())
-	})
+	slices.SortFunc(b.stream, func(a, b Event) int { return a.GetTime().Compare(b.GetTime()) })
 	for i := range b.stream {
 		b.stream[i].SetOffset(int64(i) + 1)
 	}

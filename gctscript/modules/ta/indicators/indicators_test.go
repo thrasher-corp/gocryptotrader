@@ -1,7 +1,7 @@
 package indicators
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"testing"
 	"time"

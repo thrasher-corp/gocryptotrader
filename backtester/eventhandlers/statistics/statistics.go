@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -137,7 +138,7 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
-	for i := len(lookup.Events) - 1; i >= 0; i-- {
+	for i := range slices.Backward(lookup.Events) {
 		if lookup.Events[i].Offset == h.Offset {
 			lookup.Events[i].Holdings = *h
 			return nil
@@ -158,7 +159,7 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set pnl", errCurrencyStatisticsUnset, pnl.Exchange, pnl.Asset, pnl.Pair)
 	}
-	for i := len(lookup.Events) - 1; i >= 0; i-- {
+	for i := range slices.Backward(lookup.Events) {
 		if lookup.Events[i].Offset == pnl.Offset {
 			lookup.Events[i].PNL = pnl
 			lookup.Events[i].Holdings.BaseSize = pnl.Result.Exposure
@@ -186,7 +187,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e commo
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}
-	for i := len(lookup.Events) - 1; i >= 0; i-- {
+	for i := range slices.Backward(lookup.Events) {
 		if lookup.Events[i].Offset == e.GetOffset() {
 			lookup.Events[i].ComplianceSnapshot = c
 			return nil

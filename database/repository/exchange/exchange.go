@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -43,7 +43,7 @@ func one(in, clause string) (out Details, err error) {
 			return out, errS
 		}
 		out.Name = ret.Name
-		out.UUID, errS = uuid.FromString(ret.ID)
+		out.UUID, errS = uuid.Parse(ret.ID)
 		if errS != nil {
 			return out, errS
 		}
@@ -53,7 +53,7 @@ func one(in, clause string) (out Details, err error) {
 			return out, errS
 		}
 		out.Name = ret.Name
-		out.UUID, errS = uuid.FromString(ret.ID)
+		out.UUID, errS = uuid.Parse(ret.ID)
 		if errS != nil {
 			return out, errS
 		}
@@ -134,13 +134,9 @@ func InsertMany(in []Details) error {
 
 func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 	for x := range in {
-		tempUUID, errUUID := uuid.NewV4()
-		if errUUID != nil {
-			return errUUID
-		}
 		tempInsert := modelSQLite.Exchange{
 			Name: strings.ToLower(in[x].Name),
-			ID:   tempUUID.String(),
+			ID:   uuid.NewV4().String(),
 		}
 
 		err = tempInsert.Insert(ctx, tx, boil.Infer())

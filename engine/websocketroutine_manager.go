@@ -434,7 +434,7 @@ func (m *WebsocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataH
 
 	m.mu.Lock()
 	// Push front so that any registered data handler has first preference
-	// over the gct default handler.
+	// over the GCT default handler.
 	m.dataHandlers = append([]WebsocketDataHandler{fn}, m.dataHandlers...)
 	m.mu.Unlock()
 	return nil

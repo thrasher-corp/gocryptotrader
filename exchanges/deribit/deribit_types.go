@@ -92,7 +92,7 @@ type UnmarshalError struct {
 	Message string `json:"message"`
 	Data    struct {
 		Reason string `json:"reason"`
-	}
+	} `json:"data"`
 	Code int64 `json:"code"`
 }
 
@@ -115,7 +115,7 @@ type BookSummaryData struct {
 	CreationTimestamp      types.Time `json:"creation_timestamp"`
 	BidPrice               float64    `json:"bid_price"`
 	BaseCurrency           string     `json:"base_currency"`
-	Funding8H              float64    `json:"funding_8h,omitempty"`
+	Funding8Hour           float64    `json:"funding_8h,omitempty"`
 	CurrentFunding         float64    `json:"current_funding,omitempty"`
 	UnderlyingIndex        string     `json:"underlying_index"`
 	UnderlyingPrice        float64    `json:"underlying_price"`
@@ -157,21 +157,21 @@ type DeliveryPriceData struct {
 // FundingChartData stores futures funding chart data
 type FundingChartData struct {
 	CurrentInterest float64 `json:"current_interest"`
-	Interest8H      float64 `json:"interest_8h"`
+	Interest8Hour   float64 `json:"interest_8h"`
 	Data            []struct {
-		IndexPrice float64    `json:"index_price"`
-		Interest8H float64    `json:"interest_8h"`
-		Timestamp  types.Time `json:"timestamp"`
+		IndexPrice    float64    `json:"index_price"`
+		Interest8Hour float64    `json:"interest_8h"`
+		Timestamp     types.Time `json:"timestamp"`
 	} `json:"data"`
 }
 
 // FundingRateHistory represents a funding rate history item
 type FundingRateHistory struct {
-	Timestamp      types.Time `json:"timestamp"`
-	IndexPrice     float64    `json:"index_price"`      // Index price in base currency
-	PrevIndexPrice float64    `json:"prev_index_price"` // Previous index price in base currency
-	Interest8H     float64    `json:"interest_8h"`      // 8hour interest rate
-	Interest1H     float64    `json:"interest_1h"`      // 1hour interest rate
+	Timestamp          types.Time `json:"timestamp"`
+	IndexPrice         float64    `json:"index_price"`      // Index price in base currency
+	PreviousIndexPrice float64    `json:"prev_index_price"` // Previous index price in base currency
+	Interest8Hour      float64    `json:"interest_8h"`      // 8hour interest rate
+	Interest1Hour      float64    `json:"interest_1h"`      // 1hour interest rate
 }
 
 // HistoricalVolatilityData stores volatility data for requested symbols
@@ -308,7 +308,7 @@ type Orderbook struct {
 		Theta float64 `json:"theta"`
 		Vega  float64 `json:"vega"`
 	} `json:"greeks"`
-	Funding8H      float64     `json:"funding_8h"`
+	Funding8Hour   float64     `json:"funding_8h"`
 	CurrentFunding float64     `json:"current_funding"`
 	ChangeID       int64       `json:"change_id"`
 	Bids           [][]float64 `json:"bids"`
@@ -322,16 +322,16 @@ type Orderbook struct {
 
 // TradeVolumesData stores data for trade volumes
 type TradeVolumesData struct {
-	PutsVolume       float64 `json:"puts_volume"`
-	PutsVolume7D     float64 `json:"puts_volume_7d"`
-	PutsVolume30D    float64 `json:"puts_volume_30d"`
-	FuturesVolume7D  float64 `json:"futures_volume_7d"`
-	FuturesVolume30D float64 `json:"futures_volume_30d"`
-	FuturesVolume    float64 `json:"futures_volume"`
-	CurrencyPair     string  `json:"currency_pair"`
-	CallsVolume7D    float64 `json:"calls_volume_7d"`
-	CallsVolume30D   float64 `json:"calls_volume_30d"`
-	CallsVolume      float64 `json:"calls_volume"`
+	PutsVolume         float64 `json:"puts_volume"`
+	PutsVolume7Day     float64 `json:"puts_volume_7d"`
+	PutsVolume30Day    float64 `json:"puts_volume_30d"`
+	FuturesVolume7Day  float64 `json:"futures_volume_7d"`
+	FuturesVolume30Day float64 `json:"futures_volume_30d"`
+	FuturesVolume      float64 `json:"futures_volume"`
+	CurrencyPair       string  `json:"currency_pair"`
+	CallsVolume7Day    float64 `json:"calls_volume_7d"`
+	CallsVolume30Day   float64 `json:"calls_volume_30d"`
+	CallsVolume        float64 `json:"calls_volume"`
 }
 
 // TVChartData stores trading view chart data
@@ -370,7 +370,7 @@ type TickerData struct {
 	BidIV          float64 `json:"bid_iv"`
 	CurrentFunding float64 `json:"current_funding"`
 	DeliveryPrice  float64 `json:"delivery_price"`
-	Funding8H      float64 `json:"funding_8h"`
+	Funding8Hour   float64 `json:"funding_8h"`
 	GreeksData     struct {
 		Delta float64 `json:"delta"`
 		Gamma float64 `json:"gamma"`
@@ -1481,11 +1481,11 @@ type wsRankingPrices []wsRankingPrice
 
 // wsPriceStatistics represents basic statistics about Deribit Index
 type wsPriceStatistics struct {
-	Low24H         float64 `json:"low24h"`
+	Low24Hour      float64 `json:"low24h"`
 	IndexName      string  `json:"index_name"`
 	HighVolatility bool    `json:"high_volatility"`
-	High24H        float64 `json:"high24h"`
-	Change24H      float64 `json:"change24h"`
+	High24Hour     float64 `json:"high24h"`
+	Change24Hour   float64 `json:"change24h"`
 }
 
 // wsVolatilityIndex represents volatility index push data

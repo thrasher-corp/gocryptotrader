@@ -1300,23 +1300,15 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 				return err
 			}
 		}
-		var baseVolume float64
-		var quoteVolume float64
-		if cap(assets) == 2 {
-			baseVolume = response.Data[i].Vol24H.Float64()
-			quoteVolume = response.Data[i].VolCcy24H.Float64()
-		} else {
-			baseVolume = response.Data[i].VolCcy24H.Float64()
-			quoteVolume = response.Data[i].Vol24H.Float64()
-		}
 		for j := range assets {
+			baseVolume, quoteVolume := tickerVolumes(&response.Data[i], assets[j])
 			tickData := &ticker.Price{
 				ExchangeName: e.Name,
-				Open:         response.Data[i].Open24H.Float64(),
-				Volume:       baseVolume,
+				Open:         response.Data[i].OpenPrice24Hour.Float64(),
+				BaseVolume:   baseVolume,
 				QuoteVolume:  quoteVolume,
-				High:         response.Data[i].High24H.Float64(),
-				Low:          response.Data[i].Low24H.Float64(),
+				High:         response.Data[i].HighestPrice24Hour.Float64(),
+				Low:          response.Data[i].LowestPrice24Hour.Float64(),
 				Bid:          response.Data[i].BestBidPrice.Float64(),
 				Ask:          response.Data[i].BestAskPrice.Float64(),
 				BidSize:      response.Data[i].BestBidSize.Float64(),
@@ -1450,7 +1442,7 @@ const subTplText = `
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
 		{{- else if isSymbolChannel $.S }}
 			{{- range $p := $pairs -}}
-				{"channel":"{{ $name }}","instID":"{{ $p }}"}
+				{"channel":"{{ $name }}","instId":"{{ $p }}"}
 				{{ $.PairSeparator }}
 			{{- end -}}
 		{{- else }}

@@ -3,8 +3,8 @@ package coinbase
 import (
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -147,66 +147,66 @@ type PerpetualDetails struct {
 
 // FutureProductDetails is a sub-struct used in the type Product
 type FutureProductDetails struct {
-	Venue                  string           `json:"venue"`
-	ContractCode           string           `json:"contract_code"`
-	ContractExpiry         time.Time        `json:"contract_expiry"`
-	ContractSize           types.Number     `json:"contract_size"`
-	ContractRootUnit       string           `json:"contract_root_unit"`
-	GroupDescription       string           `json:"group_description"`
-	ContractExpiryTimezone string           `json:"contract_expiry_timezone"`
-	GroupShortDescription  string           `json:"group_short_description"`
-	RiskManagedBy          string           `json:"risk_managed_by"`
-	ContractExpiryType     string           `json:"contract_expiry_type"`
-	PerpetualDetails       PerpetualDetails `json:"perpetual_details"`
-	ContractDisplayName    string           `json:"contract_display_name"`
-	TimeToExpiry           time.Duration    `json:"time_to_expiry_ms,string"`
-	NonCrypto              bool             `json:"non_crypto"`
-	ContractExpiryName     string           `json:"contract_expiry_name"`
-	TwentyFourBySeven      bool             `json:"twenty_four_by_seven"`
-	FundingInterval        string           `json:"funding_interval"`
-	OpenInterest           types.Number     `json:"open_interest"`
+	Venue                    string           `json:"venue"`
+	ContractCode             string           `json:"contract_code"`
+	ContractExpiry           time.Time        `json:"contract_expiry"`
+	ContractSize             types.Number     `json:"contract_size"`
+	ContractRootUnit         string           `json:"contract_root_unit"`
+	GroupDescription         string           `json:"group_description"`
+	ContractExpiryTimezone   string           `json:"contract_expiry_timezone"`
+	GroupShortDescription    string           `json:"group_short_description"`
+	RiskManagedBy            string           `json:"risk_managed_by"`
+	ContractExpiryType       string           `json:"contract_expiry_type"`
+	PerpetualDetails         PerpetualDetails `json:"perpetual_details"`
+	ContractDisplayName      string           `json:"contract_display_name"`
+	TimeToExpiryMilliseconds types.Number     `json:"time_to_expiry_ms"`
+	NonCrypto                bool             `json:"non_crypto"`
+	ContractExpiryName       string           `json:"contract_expiry_name"`
+	TwentyFourBySeven        bool             `json:"twenty_four_by_seven"`
+	FundingInterval          string           `json:"funding_interval"`
+	OpenInterest             types.Number     `json:"open_interest"`
 }
 
 // Product holds product information, returned by GetProductByID, and used as a sub-struct in the type AllProducts
 type Product struct {
-	ID                        currency.Pair            `json:"product_id"`
-	Price                     types.Number             `json:"price"`
-	PricePercentageChange24H  types.Number             `json:"price_percentage_change_24h"`
-	Volume24H                 types.Number             `json:"volume_24h"`
-	VolumePercentageChange24H types.Number             `json:"volume_percentage_change_24h"`
-	BaseIncrement             types.Number             `json:"base_increment"`
-	QuoteIncrement            types.Number             `json:"quote_increment"`
-	QuoteMinSize              types.Number             `json:"quote_min_size"`
-	QuoteMaxSize              types.Number             `json:"quote_max_size"`
-	BaseMinSize               types.Number             `json:"base_min_size"`
-	BaseMaxSize               types.Number             `json:"base_max_size"`
-	BaseName                  string                   `json:"base_name"`
-	QuoteName                 string                   `json:"quote_name"`
-	Watched                   bool                     `json:"watched"`
-	IsDisabled                bool                     `json:"is_disabled"`
-	New                       bool                     `json:"new"`
-	Status                    string                   `json:"status"`
-	CancelOnly                bool                     `json:"cancel_only"`
-	LimitOnly                 bool                     `json:"limit_only"`
-	PostOnly                  bool                     `json:"post_only"`
-	TradingDisabled           bool                     `json:"trading_disabled"`
-	AuctionMode               bool                     `json:"auction_mode"`
-	ProductType               string                   `json:"product_type"`
-	QuoteCurrencyID           currency.Code            `json:"quote_currency_id"`
-	BaseCurrencyID            currency.Code            `json:"base_currency_id"`
-	FCMTradingSessionDetails  FCMTradingSessionDetails `json:"fcm_trading_session_details"`
-	MidMarketPrice            types.Number             `json:"mid_market_price"`
-	Alias                     currency.Pair            `json:"alias"`
-	AliasTo                   []currency.Pair          `json:"alias_to"`
-	BaseDisplaySymbol         string                   `json:"base_display_symbol"`
-	QuoteDisplaySymbol        string                   `json:"quote_display_symbol"`
+	ID                           currency.Pair            `json:"product_id"`
+	Price                        types.Number             `json:"price"`
+	PricePercentageChange24Hour  types.Number             `json:"price_percentage_change_24h"`
+	Volume24Hour                 types.Number             `json:"volume_24h"`
+	VolumePercentageChange24Hour types.Number             `json:"volume_percentage_change_24h"`
+	BaseIncrement                types.Number             `json:"base_increment"`
+	QuoteIncrement               types.Number             `json:"quote_increment"`
+	QuoteMinSize                 types.Number             `json:"quote_min_size"`
+	QuoteMaxSize                 types.Number             `json:"quote_max_size"`
+	BaseMinSize                  types.Number             `json:"base_min_size"`
+	BaseMaxSize                  types.Number             `json:"base_max_size"`
+	BaseName                     string                   `json:"base_name"`
+	QuoteName                    string                   `json:"quote_name"`
+	Watched                      bool                     `json:"watched"`
+	IsDisabled                   bool                     `json:"is_disabled"`
+	New                          bool                     `json:"new"`
+	Status                       string                   `json:"status"`
+	CancelOnly                   bool                     `json:"cancel_only"`
+	LimitOnly                    bool                     `json:"limit_only"`
+	PostOnly                     bool                     `json:"post_only"`
+	TradingDisabled              bool                     `json:"trading_disabled"`
+	AuctionMode                  bool                     `json:"auction_mode"`
+	ProductType                  string                   `json:"product_type"`
+	QuoteCurrencyID              currency.Code            `json:"quote_currency_id"`
+	BaseCurrencyID               currency.Code            `json:"base_currency_id"`
+	FCMTradingSessionDetails     FCMTradingSessionDetails `json:"fcm_trading_session_details"`
+	MidMarketPrice               types.Number             `json:"mid_market_price"`
+	Alias                        currency.Pair            `json:"alias"`
+	AliasTo                      []currency.Pair          `json:"alias_to"`
+	BaseDisplaySymbol            string                   `json:"base_display_symbol"`
+	QuoteDisplaySymbol           string                   `json:"quote_display_symbol"`
 	// Typically shows whether an FCM product is available for trading. If the request is authenticated, and the "get_tradability_status" bool is set to true, and the product is SPOT, and you're using our GetAllProducts function, this will instead reflect whether the product is available for trading.
-	ViewOnly                  bool         `json:"view_only"`
-	PriceIncrement            types.Number `json:"price_increment"`
-	DisplayName               string       `json:"display_name"`
-	ProductVenue              string       `json:"product_venue"`
-	ApproximateQuote24HVolume types.Number `json:"approximate_quote_24h_volume"`
-	NewAt                     time.Time    `json:"new_at"`
+	ViewOnly                     bool         `json:"view_only"`
+	PriceIncrement               types.Number `json:"price_increment"`
+	DisplayName                  string       `json:"display_name"`
+	ProductVenue                 string       `json:"product_venue"`
+	ApproximateQuote24HourVolume types.Number `json:"approximate_quote_24h_volume"`
+	NewAt                        time.Time    `json:"new_at"`
 	// The following field only appears for future products
 	FutureProductDetails FutureProductDetails `json:"future_product_details"`
 }
@@ -546,9 +546,11 @@ type TriggerBracketPNL struct {
 
 // TWAPBucketMetadata is a sub-struct used in the type PreviewOrderResp
 type TWAPBucketMetadata struct {
-	BucketDuration time.Duration `json:"bucket_duration"`
-	BucketSize     types.Number  `json:"bucket_size"`
-	BucketNumber   Integer       `json:"bucket_number"`
+	BucketDuration string       `json:"bucket_duration"`
+	BucketSize     types.Number `json:"bucket_size"`
+	NumberBuckets  Integer      `json:"number_buckets"`
+	StartTime      time.Time    `json:"start_time"`
+	EndTime        time.Time    `json:"end_time"`
 }
 
 // MarginRatioData is a sub-struct used in the type PreviewOrderResp
@@ -2255,19 +2257,19 @@ type StandardWebsocketResponse struct {
 
 // WebsocketTicker defines a ticker websocket response, used in WebsocketTickerHolder
 type WebsocketTicker struct {
-	Type                     string        `json:"type"`
-	ProductID                currency.Pair `json:"product_id"`
-	Price                    types.Number  `json:"price"`
-	Volume24H                types.Number  `json:"volume_24_h"`
-	Low24H                   types.Number  `json:"low_24_h"`
-	High24H                  types.Number  `json:"high_24_h"`
-	Low52W                   types.Number  `json:"low_52_w"`
-	High52W                  types.Number  `json:"high_52_w"`
-	PricePercentageChange24H types.Number  `json:"price_percent_chg_24_h"`
-	BestBid                  types.Number  `json:"best_bid"`
-	BestBidQuantity          types.Number  `json:"best_bid_size"`
-	BestAsk                  types.Number  `json:"best_ask"`
-	BestAskQuantity          types.Number  `json:"best_ask_size"`
+	Type                        string        `json:"type"`
+	ProductID                   currency.Pair `json:"product_id"`
+	Price                       types.Number  `json:"price"`
+	Volume24Hour                types.Number  `json:"volume_24_h"`
+	Low24Hour                   types.Number  `json:"low_24_h"`
+	High24Hour                  types.Number  `json:"high_24_h"`
+	Low52Week                   types.Number  `json:"low_52_w"`
+	High52Week                  types.Number  `json:"high_52_w"`
+	PricePercentageChange24Hour types.Number  `json:"price_percent_chg_24_h"`
+	BestBid                     types.Number  `json:"best_bid"`
+	BestBidQuantity             types.Number  `json:"best_bid_size"`
+	BestAsk                     types.Number  `json:"best_ask"`
+	BestAskQuantity             types.Number  `json:"best_ask_size"`
 }
 
 // WebsocketTickerHolder holds a variety of ticker responses, used when wsHandleData processes tickers

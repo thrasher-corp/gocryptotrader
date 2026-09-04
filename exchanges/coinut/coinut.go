@@ -6,8 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
+	"maps"
+	"math/rand/v2"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -462,13 +464,9 @@ func (i *instrumentMap) GetInstrumentIDs() []int64 {
 		return nil
 	}
 
-	instruments := make([]int64, 0, len(i.Instruments))
-	for _, x := range i.Instruments {
-		instruments = append(instruments, x)
-	}
-	return instruments
+	return slices.AppendSeq(make([]int64, 0, len(i.Instruments)), maps.Values(i.Instruments))
 }
 
 func getNonce() int64 {
-	return rand.Int63n(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypto/rand
+	return rand.Int64N(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypto/rand
 }

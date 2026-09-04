@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -245,10 +247,7 @@ func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
 		return nil, err
 	}
 
-	supportedCurrencies := make([]string, 0, len(symbols))
-	for x := range symbols {
-		supportedCurrencies = append(supportedCurrencies, x)
-	}
+	supportedCurrencies := slices.AppendSeq(make([]string, 0, len(symbols)), maps.Keys(symbols))
 	e.supportedCurrencies = supportedCurrencies
 	return supportedCurrencies, nil
 }

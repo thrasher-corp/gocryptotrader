@@ -135,7 +135,7 @@ func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol curren
 	}
 	params.Set("symbol", symbolValue)
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -156,7 +156,7 @@ func (e *Exchange) GetPastPublicTrades(ctx context.Context, symbol currency.Pair
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if fromID != 0 {
-		params.Set("fromID", strconv.FormatInt(fromID, 10))
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesRecentTrades+params.Encode(), cFuturesDefaultRate, &resp)
 }
@@ -174,7 +174,7 @@ func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol cu
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if fromID != 0 {
-		params.Set("fromID", strconv.FormatInt(fromID, 10))
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
@@ -613,7 +613,7 @@ func (e *Exchange) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderReques
 		params.Set("reduceOnly", "true")
 	}
 	if x.NewClientOrderID != "" {
-		params.Set("newClientOrderID", x.NewClientOrderID)
+		params.Set("newClientOrderId", x.NewClientOrderID)
 	}
 	if x.ClosePosition != "" {
 		params.Set("closePosition", x.ClosePosition)
@@ -836,7 +836,7 @@ func (e *Exchange) GetAllFuturesOrders(ctx context.Context, symbol, pair currenc
 		params.Set("pair", pair.String())
 	}
 	if orderID != 0 {
-		params.Set("orderID", strconv.FormatInt(orderID, 10))
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

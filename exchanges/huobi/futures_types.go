@@ -18,7 +18,7 @@ type FContractInfoData struct {
 		CreateDate     types.Time `json:"create_date"`
 		ContractStatus int64      `json:"contract_status"`
 		SettlementTime types.Time `json:"settlement_time"`
-	}
+	} `json:"data"`
 }
 
 // FContractIndexPriceInfo stores contract index price
@@ -106,13 +106,13 @@ type FKlineData struct {
 type FMarketOverviewData struct {
 	Ch   string `json:"ch"`
 	Tick struct {
-		Vol       float64 `json:"vol,string"`
-		Ask       [2]float64
-		Bid       [2]float64
+		Vol       float64    `json:"vol,string"`
+		Ask       [2]float64 `json:"ask"`
+		Bid       [2]float64 `json:"bid"`
 		Close     float64    `json:"close,string"`
 		Count     float64    `json:"count"`
 		High      float64    `json:"high,string"`
-		ID        int64      `jso:"id"`
+		ID        int64      `json:"id"`
 		Low       float64    `json:"low,string"`
 		Open      float64    `json:"open,string"`
 		Timestamp types.Time `json:"ts"`

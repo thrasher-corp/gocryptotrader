@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -126,6 +127,17 @@ func TestFGetMarketOverviewData(t *testing.T) {
 	t.Parallel()
 	_, err := e.FGetMarketOverviewData(t.Context(), btccwPair)
 	require.NoError(t, err)
+}
+
+func TestFMarketOverviewDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	var o FMarketOverviewData
+	err := json.Unmarshal([]byte(`{"ch":"market.BTC_CQ.detail.merged","tick":{"amount":"7.63","ask":[70020.48,2],"bid":[68941.77,3],"close":"69892.45","count":1768,"high":"70288.9","id":1787211582,"low":"67657.1","open":"68860.25","ts":1787211582961,"vol":"5188"},"ts":1787211582961}`), &o)
+	require.NoError(t, err, "Unmarshal must not error")
+	assert.Equal(t, [2]float64{70020.48, 2}, o.Tick.Ask, "Ask should decode")
+	assert.Equal(t, [2]float64{68941.77, 3}, o.Tick.Bid, "Bid should decode")
+	assert.Equal(t, int64(1787211582), o.Tick.ID, "ID should decode")
+	assert.Equal(t, 69892.45, o.Tick.Close, "Close should decode")
 }
 
 func TestFLastTradeData(t *testing.T) {
@@ -1405,7 +1417,7 @@ func TestWSTicker(t *testing.T) {
 		High:         52924.14,
 		Low:          51000,
 		Bid:          0,
-		Volume:       13991.028076056185,
+		BaseVolume:   13991.028076056185,
 		QuoteVolume:  7.27676440200527e+08,
 		Open:         51823.62,
 		Close:        52379.99,

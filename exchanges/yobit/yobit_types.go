@@ -20,15 +20,15 @@ type Info struct {
 
 // Ticker stores the ticker information
 type Ticker struct {
-	High          float64 // maximal price
-	Low           float64 // minimal price
-	Avg           float64 // average price
-	Vol           float64 // traded volume
-	VolumeCurrent float64 `json:"vol_cur"` // traded volume in currency
-	Last          float64 // last transaction price
-	Buy           float64 // buying price
-	Sell          float64 // selling price
-	Updated       int64   // last cache upgrade
+	High        float64    `json:"high"`    // maximal price
+	Low         float64    `json:"low"`     // minimal price
+	Avg         float64    `json:"avg"`     // average price
+	QuoteVolume float64    `json:"vol"`     // traded volume, in the quote currency
+	BaseVolume  float64    `json:"vol_cur"` // traded volume, in the base currency
+	Last        float64    `json:"last"`    // last transaction price
+	Buy         float64    `json:"buy"`     // buying price
+	Sell        float64    `json:"sell"`    // selling price
+	Updated     types.Time `json:"updated"` // last cache upgrade
 }
 
 // Orderbook stores the asks and bids orderbook information

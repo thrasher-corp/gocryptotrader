@@ -1,8 +1,10 @@
 package btse
 
 import (
+	"context"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -182,20 +184,92 @@ func TestGetTrades(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdateTicker(t.Context(), spotPair, asset.Spot)
-	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+	// both pairs come from a summary that excludes locked books, so neither call below needs the
+	// ErrBidEqualsAsk tolerance
+	spot := busiestSpotPair(t)
+	p, err := currency.NewPairFromString(spot.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	tick, err := e.UpdateTicker(t.Context(), p, asset.Spot)
+	require.NoErrorf(t, err, "UpdateTicker must not error for %s", p)
+	assert.InEpsilonf(t, spot.BaseVolume24Hour, tick.BaseVolume, 0.05, "UpdateTicker should take the base volume for %s from size", p)
+	assert.InEpsilonf(t, spot.QuoteVolume24Hour, tick.QuoteVolume, 0.05, "UpdateTicker should take the quote volume for %s from volume", p)
 
-	_, err = e.UpdateTicker(t.Context(), futuresPair, asset.Futures)
-	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+	futures := futuresPairWithOpenInterest(t)
+	fp, err := currency.NewPairFromString(futures.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	futuresTick, err := e.UpdateTicker(t.Context(), fp, asset.Futures)
+	require.NoErrorf(t, err, "UpdateTicker must not error for %s", fp)
+	assert.Zerof(t, futuresTick.BaseVolume, "UpdateTicker should report no base volume for futures %s, since that summary omits size", fp)
+	assert.InEpsilonf(t, futures.OpenInterest, futuresTick.OpenInterest, 0.05, "UpdateTicker should carry open interest for %s", fp)
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
+
 	err := e.UpdateTickers(t.Context(), asset.Spot)
 	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
 
 	err = e.UpdateTickers(t.Context(), asset.Futures)
 	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+
+	spot := busiestSpotPair(t)
+	p, err := currency.NewPairFromString(spot.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	stored, err := ticker.GetTicker(e.Name, p, asset.Spot)
+	require.NoErrorf(t, err, "ticker.GetTicker must not error for %s", p)
+	assert.InEpsilonf(t, spot.BaseVolume24Hour, stored.BaseVolume, 0.05, "UpdateTickers should take the base volume for %s from size", p)
+	assert.InEpsilonf(t, spot.QuoteVolume24Hour, stored.QuoteVolume, 0.05, "UpdateTickers should take the quote volume for %s from volume", p)
+
+	futures := futuresPairWithOpenInterest(t)
+	fp, err := currency.NewPairFromString(futures.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	futuresStored, err := ticker.GetTicker(e.Name, fp, asset.Futures)
+	require.NoErrorf(t, err, "ticker.GetTicker must not error for %s", fp)
+	assert.Zerof(t, futuresStored.BaseVolume, "UpdateTickers should report no base volume for futures %s, since that summary omits size", fp)
+	assert.InEpsilonf(t, futures.OpenInterest, futuresStored.OpenInterest, 0.05, "UpdateTickers should carry open interest for %s", fp)
+}
+
+// BTSE rate limits aggressively, so each summary is fetched once and shared by the ticker tests
+var (
+	spotSummaryOnce    = sync.OnceValues(func() (MarketSummary, error) { return e.GetMarketSummary(context.Background(), "", true) })
+	futuresSummaryOnce = sync.OnceValues(func() (MarketSummary, error) { return e.GetMarketSummary(context.Background(), "", false) })
+)
+
+// busiestSpotPair returns the spot pair with the most turnover whose two volume figures differ, so
+// that a swapped base and quote mapping cannot pass, and whose book is not locked
+func busiestSpotPair(tb testing.TB) *MarketPair {
+	tb.Helper()
+	summary, err := spotSummaryOnce()
+	require.NoError(tb, err, "GetMarketSummary must not error")
+	var busiest *MarketPair
+	for _, m := range summary {
+		if m.BaseVolume24Hour != 0 && m.BaseVolume24Hour != m.QuoteVolume24Hour &&
+			m.LowestAsk != m.HighestBid && (busiest == nil || m.QuoteVolume24Hour > busiest.QuoteVolume24Hour) {
+			busiest = m
+		}
+	}
+	require.NotNil(tb, busiest, "a spot pair reporting base and quote volumes that differ must exist")
+	return busiest
+}
+
+// futuresPairWithOpenInterest returns the futures contract carrying the most open interest whose
+// book is not locked
+func futuresPairWithOpenInterest(tb testing.TB) *MarketPair {
+	tb.Helper()
+	summary, err := futuresSummaryOnce()
+	require.NoError(tb, err, "GetMarketSummary must not error")
+	var most *MarketPair
+	for _, m := range summary {
+		if m.LowestAsk != m.HighestBid && (most == nil || m.OpenInterest > most.OpenInterest) {
+			most = m
+		}
+	}
+	require.NotNil(tb, most, "a futures contract reporting open interest must exist")
+	return most
 }
 
 func TestGetCurrentServerTime(t *testing.T) {

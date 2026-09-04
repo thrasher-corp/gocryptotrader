@@ -37,6 +37,28 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
   - Aligns well with `strconv.FormatUint`.
+- Spell time periods out in field names, so that one form is used across exchanges: prefer
+  `Volume24Hour` over `Volume24H` or `Volume24Hr`.
+- Declare nested objects as named types rather than anonymous structs, so they can be referred to,
+  tested and reused:
+
+```go
+    // Preferred
+    type NotionalBracket struct {
+        Bracket int64 `json:"bracket"`
+    }
+
+    type NotionalBracketData struct {
+        Brackets []NotionalBracket `json:"brackets"`
+    }
+
+    // Avoid
+    type NotionalBracketData struct {
+        Brackets []struct {
+            Bracket int64 `json:"bracket"`
+        } `json:"brackets"`
+    }
+```
 
 ### TestMain usage
 

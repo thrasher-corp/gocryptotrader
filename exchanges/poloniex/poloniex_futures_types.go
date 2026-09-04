@@ -312,7 +312,7 @@ type WsFuturesPosition struct {
 	UpdateTime                 types.Time    `json:"uTime"`
 	Timestamp                  types.Time    `json:"ts"`
 	ProfitAndLoss              types.Number  `json:"pnl"`
-	FundingFee                 types.Number  `json:"ffee"`
+	FundingFee                 types.Number  `json:"ffee"` // the websocket feed sends lowercase, unlike REST position history
 }
 
 // AdjustFuturesMarginResponse represents a response data after adjusting futures margin positions

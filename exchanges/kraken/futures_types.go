@@ -101,9 +101,9 @@ type FuturesTicker struct {
 	BidSize               float64       `json:"bidSize"`
 	Ask                   float64       `json:"ask"`
 	AskSize               float64       `json:"askSize"`
-	Vol24h                float64       `json:"vol24h"`
+	Volume24Hour          float64       `json:"vol24h"`
 	OpenInterest          float64       `json:"openInterest"`
-	Open24H               float64       `json:"open24h"`
+	Open24Hour            float64       `json:"open24h"`
 	Last                  float64       `json:"last"`
 	LastTime              time.Time     `json:"lastTime"`
 	LastSize              float64       `json:"lastSize"`
@@ -112,7 +112,7 @@ type FuturesTicker struct {
 	FundingRatePrediction float64       `json:"fundingRatePrediction"`
 	IndexPrice            float64       `json:"indexPrice"`
 	PostOnly              bool          `json:"postOnly"`
-	Change24H             float64       `json:"change24h"`
+	Change24Hour          float64       `json:"change24h"`
 }
 
 // FuturesSendOrderData stores send order data
@@ -399,7 +399,7 @@ type FuturesPublicTrades struct {
 					UsdValue       float64               `json:"usdValue,string"`
 				} `json:"execution"`
 				TakerReducedQuantity string `json:"takerReducedQuantity"`
-			} `json:"execution"`
+			} `json:"Execution"`
 		} `json:"event"`
 		Timestamp types.Time `json:"timestamp"`
 		UID       string     `json:"uid"`

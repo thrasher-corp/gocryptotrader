@@ -523,8 +523,8 @@ type Ticker struct {
 	ChangeUtc8       string       `json:"change_utc8"`
 	BaseVolume       types.Number `json:"base_volume"`
 	QuoteVolume      types.Number `json:"quote_volume"`
-	High24H          types.Number `json:"high_24h"`
-	Low24H           types.Number `json:"low_24h"`
+	High24Hour       types.Number `json:"high_24h"`
+	Low24Hour        types.Number `json:"low_24h"`
 	EtfNetValue      string       `json:"etf_net_value"`
 	EtfPreNetValue   string       `json:"etf_pre_net_value"`
 	EtfPreTimestamp  types.Time   `json:"etf_pre_timestamp"`
@@ -730,15 +730,16 @@ type FuturesTicker struct {
 	Contract              string       `json:"contract"`
 	ChangePercentage      string       `json:"change_percentage"`
 	Last                  types.Number `json:"last"`
-	Low24H                types.Number `json:"low_24h"`
-	High24H               types.Number `json:"high_24h"`
+	Low24Hour             types.Number `json:"low_24h"`
+	High24Hour            types.Number `json:"high_24h"`
 	TotalSize             types.Number `json:"total_size"`
-	Volume24H             types.Number `json:"volume_24h"`
-	Volume24HBtc          types.Number `json:"volume_24h_btc"`
-	Volume24HUsd          types.Number `json:"volume_24h_usd"`
-	Volume24HBase         types.Number `json:"volume_24h_base"`
-	Volume24HQuote        types.Number `json:"volume_24h_quote"`
-	Volume24HSettle       types.Number `json:"volume_24h_settle"`
+	Volume24Hour          types.Number `json:"volume_24h"`
+	Volume24HourBTC       types.Number `json:"volume_24h_btc"`
+	Volume24HourUSD       types.Number `json:"volume_24h_usd"`
+	Volume24HourBase      types.Number `json:"volume_24h_base"`
+	Volume24HourQuote     types.Number `json:"volume_24h_quote"`
+	Volume24HourSettle    types.Number `json:"volume_24h_settle"`
+	QuantoMultiplier      types.Number `json:"quanto_multiplier"`
 	MarkPrice             types.Number `json:"mark_price"`
 	FundingRate           types.Number `json:"funding_rate"`
 	FundingRateIndicative string       `json:"funding_rate_indicative"`
@@ -2064,7 +2065,7 @@ type WsEventResponse struct {
 	Error *struct {
 		Code    int64  `json:"code"`
 		Message string `json:"message"`
-	}
+	} `json:"error"`
 }
 
 // WSResponse represents generalised websocket push data from the server.
@@ -2086,8 +2087,8 @@ type WsTicker struct {
 	ChangePercentage types.Number  `json:"change_percentage"`
 	BaseVolume       types.Number  `json:"base_volume"`
 	QuoteVolume      types.Number  `json:"quote_volume"`
-	High24H          types.Number  `json:"high_24h"`
-	Low24H           types.Number  `json:"low_24h"`
+	High24Hour       types.Number  `json:"high_24h"`
+	Low24Hour        types.Number  `json:"low_24h"`
 }
 
 // WsTrade represents a websocket push data response for a trade
@@ -2267,15 +2268,15 @@ type WsFutureTicker struct {
 	MarkPrice             types.Number  `json:"mark_price"`
 	IndexPrice            types.Number  `json:"index_price"`
 	TotalSize             types.Number  `json:"total_size"`
-	Volume24H             types.Number  `json:"volume_24h"`
-	Volume24HBtc          types.Number  `json:"volume_24h_btc"`
-	Volume24HUsd          types.Number  `json:"volume_24h_usd"`
+	Volume24Hour          types.Number  `json:"volume_24h"`
+	Volume24HourBTC       types.Number  `json:"volume_24h_btc"`
+	Volume24HourUSD       types.Number  `json:"volume_24h_usd"`
 	QuantoBaseRate        string        `json:"quanto_base_rate"`
-	Volume24HQuote        types.Number  `json:"volume_24h_quote"`
-	Volume24HSettle       string        `json:"volume_24h_settle"`
-	Volume24HBase         types.Number  `json:"volume_24h_base"`
-	Low24H                types.Number  `json:"low_24h"`
-	High24H               types.Number  `json:"high_24h"`
+	Volume24HourQuote     types.Number  `json:"volume_24h_quote"`
+	Volume24HourSettle    string        `json:"volume_24h_settle"`
+	Volume24HourBase      types.Number  `json:"volume_24h_base"`
+	Low24Hour             types.Number  `json:"low_24h"`
+	High24Hour            types.Number  `json:"high_24h"`
 }
 
 // WsFuturesTrades represents a list of trades push data

@@ -147,7 +147,7 @@ func (e *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, 
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	return &(response.Data), e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return &response.Data, e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 		if err != nil {
 			return nil, err
@@ -537,7 +537,7 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		AssetType:    asset.Futures,
 		Last:         resp.FilledPrice.Float64(),
-		Volume:       resp.FilledSize.Float64(),
+		BaseVolume:   resp.FilledSize.Float64(),
 		LastUpdated:  resp.FilledTime.Time(),
 		ExchangeName: e.Name,
 		Pair:         pair,
@@ -765,7 +765,7 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 			Bid:          response.BestBid,
 			AskSize:      response.BestAskSize,
 			BidSize:      response.BestBidSize,
-			Volume:       response.Size,
+			BaseVolume:   response.Size,
 		}); err != nil {
 			return err
 		}
@@ -923,7 +923,7 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 			Low:          response.Data.Low,
 			High:         response.Data.High,
 			QuoteVolume:  response.Data.VolValue,
-			Volume:       response.Data.Vol,
+			BaseVolume:   response.Data.Vol,
 			Open:         response.Data.Open,
 			Close:        response.Data.Close,
 			LastUpdated:  response.Data.Datetime.Time(),
@@ -1219,7 +1219,7 @@ func channelInterval(s *subscription.Subscription) string {
 // Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
 	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
-	p := currency.Pairs{}
+	p := make(currency.Pairs, 0, len(cs))
 	for _, c := range cs {
 		p = append(p, currency.Pair{Base: c})
 	}

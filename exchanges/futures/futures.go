@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -340,9 +340,7 @@ func (m *MultiPositionTracker) GetPositions() []Position {
 	for i := range m.positions {
 		resp[i] = *m.positions[i].GetStats()
 	}
-	sort.Slice(resp, func(i, j int) bool {
-		return resp[i].OpeningDate.Before(resp[j].OpeningDate)
-	})
+	slices.SortFunc(resp, func(a, b Position) int { return a.OpeningDate.Compare(b.OpeningDate) })
 	return resp
 }
 
@@ -506,9 +504,7 @@ func (p *PositionTracker) GetStats() *Position {
 	orders := make([]order.Detail, 0, len(p.longPositions)+len(p.shortPositions))
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
-	sort.Slice(orders, func(i, j int) bool {
-		return orders[i].Date.Before(orders[j].Date)
-	})
+	slices.SortFunc(orders, func(a, b order.Detail) int { return a.Date.Compare(b.Date) })
 
 	pos := &Position{
 		Exchange:         p.exchange,
@@ -954,7 +950,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 	}
 	var previousPNL *PNLResult
 	if len(calc.PNLHistory) > 0 {
-		for i := len(calc.PNLHistory) - 1; i >= 0; i-- {
+		for i := range slices.Backward(calc.PNLHistory) {
 			if calc.PNLHistory[i].Time.Equal(calc.Time) || !calc.PNLHistory[i].IsOrder {
 				continue
 			}
@@ -1056,9 +1052,7 @@ func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, erro
 		return pnlHistory, nil
 	}
 	pnlHistory = append(pnlHistory, *entry)
-	sort.Slice(pnlHistory, func(i, j int) bool {
-		return pnlHistory[i].Time.Before(pnlHistory[j].Time)
-	})
+	slices.SortFunc(pnlHistory, func(a, b PNLResult) int { return a.Time.Compare(b.Time) })
 	return pnlHistory, nil
 }
 

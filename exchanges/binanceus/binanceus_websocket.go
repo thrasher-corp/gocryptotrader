@@ -343,7 +343,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						ExchangeName: e.Name,
 						Open:         t.OpenPrice,
 						Close:        t.ClosePrice,
-						Volume:       t.TotalTradedVolume,
+						BaseVolume:   t.TotalTradedVolume,
 						QuoteVolume:  t.TotalTradedQuoteVolume,
 						High:         t.HighPrice,
 						Low:          t.LowPrice,

@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
@@ -1156,7 +1155,7 @@ func (c *Config) CheckLoggerConfig() error {
 	}
 
 	if c.Logging.AdvancedSettings.ShowLogSystemName == nil {
-		c.Logging.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(false)
+		c.Logging.AdvancedSettings.ShowLogSystemName = new(false)
 	}
 
 	if c.Logging.LoggerFileConfig != nil {
@@ -1164,7 +1163,7 @@ func (c *Config) CheckLoggerConfig() error {
 			c.Logging.LoggerFileConfig.FileName = "log.txt"
 		}
 		if c.Logging.LoggerFileConfig.Rotate == nil {
-			c.Logging.LoggerFileConfig.Rotate = convert.BoolPtr(false)
+			c.Logging.LoggerFileConfig.Rotate = new(false)
 		}
 		if c.Logging.LoggerFileConfig.MaxSize <= 0 {
 			log.Warnf(log.ConfigMgr, "Logger rotation size invalid, defaulting to %v", log.DefaultMaxFileSize)
@@ -1272,8 +1271,8 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
-	fmt.Println("Your system time is out of sync, this may cause issues with trading")
-	fmt.Println("How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable")
+	fmt.Println("Your system time is out of sync, this may cause issues with trading")                                   //nolint:forbidigo // interactive prompt; the operator reads this on stdout
+	fmt.Println("How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
 
 	var resp string
 	answered := false
@@ -1298,7 +1297,7 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 			resp = "Future notifications for out of time sync has been disabled"
 			answered = true
 		default:
-			fmt.Println("Invalid option selected, please try again (a)lert / (w)arn / (d)isable")
+			fmt.Println("Invalid option selected, please try again (a)lert / (w)arn / (d)isable") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
 		}
 	}
 	return resp, nil
@@ -1326,7 +1325,7 @@ func (c *Config) CheckCurrencyStateManager() {
 		c.CurrencyStateManager.Delay = defaultCurrencyStateManagerDelay
 	}
 	if c.CurrencyStateManager.Enabled == nil { // default on, when being upgraded
-		c.CurrencyStateManager.Enabled = convert.BoolPtr(true)
+		c.CurrencyStateManager.Enabled = new(true)
 	}
 }
 

@@ -522,8 +522,7 @@ func TestCopyPairFormat(t *testing.T) {
 }
 
 func TestPairsToStringArray(t *testing.T) {
-	var pairs Pairs
-	pairs = append(pairs, NewBTCUSD())
+	pairs := Pairs{NewBTCUSD()}
 
 	expected := []string{defaultPair}
 	actual := pairs.Strings()
@@ -544,8 +543,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	}
 
 	// Test that a populated pairs array returns a non-empty currency pair
-	var pairs Pairs
-	pairs = append(pairs, NewBTCUSD())
+	pairs := Pairs{NewBTCUSD()} //nolint:prealloc // fixed test fixture, not a hot path
 	result, err = pairs.GetRandomPair()
 	require.NoError(t, err)
 

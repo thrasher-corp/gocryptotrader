@@ -2,7 +2,10 @@ package timedmutex
 
 import (
 	"testing"
+	"testing/synctest"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // 1000000	        1074 ns/op	     136 B/op	       4 allocs/op (prev)
@@ -45,25 +48,27 @@ func BenchmarkTimedMutexTimeLinearInteraction(b *testing.B) {
 
 func TestConsistencyOfPanicFreeUnlock(t *testing.T) {
 	t.Parallel()
-	duration := 20 * time.Microsecond
-	tm := NewTimedMutex(duration)
-	for i := 1; i <= 50; i++ {
-		testUnlockTime := time.Duration(i) * time.Microsecond
-		tm.LockForDuration()
-		time.Sleep(testUnlockTime)
-		tm.UnlockIfLocked()
-	}
+	synctest.Test(t, func(*testing.T) {
+		duration := 20 * time.Microsecond
+		tm := NewTimedMutex(duration)
+		for i := 1; i <= 50; i++ {
+			testUnlockTime := time.Duration(i) * time.Microsecond
+			tm.LockForDuration()
+			// sweeps either side of duration, so both the timer and the call get to unlock
+			synctest.Sleep(testUnlockTime)
+			tm.UnlockIfLocked()
+		}
+	})
 }
 
 func TestUnlockAfterTimeout(t *testing.T) {
 	t.Parallel()
-	tm := NewTimedMutex(time.Nanosecond)
-	tm.LockForDuration()
-	time.Sleep(time.Millisecond * 200)
-	wasUnlocked := tm.UnlockIfLocked()
-	if wasUnlocked {
-		t.Error("Mutex should have been unlocked by timeout, not command")
-	}
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		tm := NewTimedMutex(time.Nanosecond)
+		tm.LockForDuration()
+		synctest.Sleep(time.Millisecond)
+		assert.False(t, tm.UnlockIfLocked(), "UnlockIfLocked should report the timeout unlocked the mutex, not the call")
+	})
 }
 
 func TestUnlockBeforeTimeout(t *testing.T) {
@@ -83,11 +88,13 @@ func TestUnlockBeforeTimeout(t *testing.T) {
 // the unlock occurs without this test panicking
 func TestUnlockAtSameTimeAsTimeout(t *testing.T) {
 	t.Parallel()
-	duration := time.Millisecond
-	tm := NewTimedMutex(duration)
-	tm.LockForDuration()
-	time.Sleep(duration)
-	tm.UnlockIfLocked()
+	synctest.Test(t, func(*testing.T) {
+		duration := time.Millisecond
+		tm := NewTimedMutex(duration)
+		tm.LockForDuration()
+		synctest.Sleep(duration)
+		tm.UnlockIfLocked()
+	})
 }
 
 func TestMultipleUnlocks(t *testing.T) {
@@ -110,7 +117,9 @@ func TestMultipleUnlocks(t *testing.T) {
 
 func TestJustWaitItOut(t *testing.T) {
 	t.Parallel()
-	tm := NewTimedMutex(1 * time.Millisecond)
-	tm.LockForDuration()
-	time.Sleep(2 * time.Millisecond)
+	synctest.Test(t, func(*testing.T) {
+		tm := NewTimedMutex(1 * time.Millisecond)
+		tm.LockForDuration()
+		synctest.Sleep(2 * time.Millisecond)
+	})
 }

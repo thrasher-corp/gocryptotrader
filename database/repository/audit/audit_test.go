@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
@@ -43,8 +43,8 @@ func TestAudit(t *testing.T) {
 		{
 			"SQLite-Write",
 			&database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			writeAudit,
 			testhelpers.CloseDatabase,
@@ -53,8 +53,8 @@ func TestAudit(t *testing.T) {
 		{
 			"SQLite-Read",
 			&database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			readHelper,
 			testhelpers.CloseDatabase,
@@ -96,13 +96,10 @@ func writeAudit(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for x := range 20 {
-		wg.Add(1)
-
-		go func(x int) {
-			defer wg.Done()
+		wg.Go(func() {
 			test := fmt.Sprintf("test-%v", x)
 			Event(test, test, test)
-		}(x)
+		})
 	}
 
 	wg.Wait()

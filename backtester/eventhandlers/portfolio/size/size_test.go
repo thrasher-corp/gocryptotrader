@@ -34,7 +34,7 @@ func TestSizingAccuracy(t *testing.T) {
 	amountWithoutFee, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, &globalMinMax)
 	assert.NoError(t, err)
 
-	totalWithFee := (price.Mul(amountWithoutFee)).Add(globalMinMax.MaximumTotal.Mul(feeRate))
+	totalWithFee := price.Mul(amountWithoutFee).Add(globalMinMax.MaximumTotal.Mul(feeRate))
 	if !totalWithFee.Equal(globalMinMax.MaximumTotal) {
 		t.Errorf("expected %v received %v", globalMinMax.MaximumTotal, totalWithFee)
 	}

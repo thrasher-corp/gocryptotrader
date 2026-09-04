@@ -4,14 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"sync"
 	"testing"
-	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -135,7 +134,7 @@ func TestGetTicker(t *testing.T) {
 		Low:          1148,
 		Bid:          1195,
 		Ask:          1220,
-		Volume:       5,
+		BaseVolume:   5,
 		PriceATH:     1337,
 		ExchangeName: "bitfinex",
 		AssetType:    asset.Spot,
@@ -237,13 +236,13 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	}
 
 	priceStruct := Price{
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
+		Last:       1200,
+		High:       1298,
+		Low:        1148,
+		Bid:        1195,
+		Ask:        1220,
+		BaseVolume: 5,
+		PriceATH:   1337,
 	}
 
 	err = ProcessTicker(&priceStruct)
@@ -354,8 +353,6 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	var testArray []quick
 
-	_ = rand.NewSource(time.Now().Unix())
-
 	var wg sync.WaitGroup
 	var sm sync.Mutex
 
@@ -367,9 +364,9 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 		wg.Go(func() {
 			//nolint:gosec // no need to import crypto/rand for testing
-			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypto/rand for testing
-				"USD"+strconv.FormatInt(rand.Int63(), 10)) //nolint:gosec // no need to import crypto/rand for testing
+			newName := "Exchange" + strconv.FormatInt(rand.Int64(), 10)
+			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int64(), 10), //nolint:gosec // no need to import crypto/rand for testing
+				"USD"+strconv.FormatInt(rand.Int64(), 10)) //nolint:gosec // no need to import crypto/rand for testing
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -450,14 +447,12 @@ func TestGetExchangeTickers(t *testing.T) {
 	assert.ErrorIs(t, err, errExchangeNotFound)
 
 	s.Tickers[key.NewExchangeAssetPair("test", asset.Spot, currency.NewPair(currency.XBT, currency.DOGE))] = &Ticker{
-		Price: Price{
-			Pair:         currency.NewPair(currency.XBT, currency.DOGE),
-			ExchangeName: "test",
-			AssetType:    asset.Futures,
-			OpenInterest: 1337,
-		},
+		Pair:         currency.NewPair(currency.XBT, currency.DOGE),
+		ExchangeName: "test",
+		AssetType:    asset.Futures,
+		OpenInterest: 1337,
 	}
-	s.Exchange["test"] = uuid.Must(uuid.NewV4())
+	s.Exchange["test"] = uuid.NewV4()
 
 	resp, err := s.getExchangeTickers("test")
 	assert.NoError(t, err)

@@ -1,7 +1,7 @@
 package slippage
 
 import (
-	"math/rand"
+	"math/rand/v2"
 
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -20,10 +20,8 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate decimal
 
 	// the language here is confusing. The maximum slippage rate is the lower bounds of the number,
 	// eg 80 means for every dollar, keep 80%
-	randSeed := int(minimumSlippageRate.IntPart()) - int(maximumSlippageRate.IntPart())
-	if randSeed > 0 {
-		result := int64(rand.Intn(randSeed)) //nolint:gosec // basic number generation required, no need for crypto/rand
-
+	if randRange := minimumSlippageRate.IntPart() - maximumSlippageRate.IntPart(); randRange > 0 {
+		result := rand.N(randRange) //nolint:gosec // basic number generation required, no need for crypto/rand
 		return maximumSlippageRate.Add(decimal.NewFromInt(result)).Div(decimal.NewFromInt(100))
 	}
 	return decimal.NewFromInt(1)

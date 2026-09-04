@@ -8,12 +8,11 @@ import (
 	"maps"
 	"math"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -310,6 +309,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	})
 }
 
+// futuresBaseVolume returns a futures ticker's 24h volume in the base currency. Gate truncates
+// both of the figures it publishes, so each is a lower bound and the larger is the one that lost
+// less: volume_24h_base drops the fraction of a base unit, which rounds the thinner contracts away
+// entirely and some to zero against a live contract count, while volume_24h drops the fraction of
+// a contract, which costs a whole lot on the contracts Gate lists with enable_decimal. Delivery
+// futures omit quanto_multiplier and coin-margined reports 0, which zeroes the product and leaves
+// the explicit field standing on its own, as it would too if Gate stopped serving the multiplier
+// here: the live ticker carries it, but Gate documents it only on the contract
+func futuresBaseVolume(t *FuturesTicker) float64 {
+	return max(t.Volume24Hour.Float64()*t.QuantoMultiplier.Float64(), t.Volume24HourBase.Float64())
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if !e.SupportsAsset(a) {
@@ -339,11 +350,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		tickerData = &ticker.Price{
 			Pair:         fPair,
-			Low:          tickerNew.Low24H.Float64(),
-			High:         tickerNew.High24H.Float64(),
+			Low:          tickerNew.Low24Hour.Float64(),
+			High:         tickerNew.High24Hour.Float64(),
 			Bid:          tickerNew.HighestBid.Float64(),
 			Ask:          tickerNew.LowestAsk.Float64(),
 			Last:         tickerNew.Last.Float64(),
+			BaseVolume:   tickerNew.BaseVolume.Float64(),
+			QuoteVolume:  tickerNew.QuoteVolume.Float64(),
 			ExchangeName: e.Name,
 			AssetType:    a,
 		}
@@ -366,11 +379,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		tickerData = &ticker.Price{
 			Pair:         fPair,
-			Low:          tickers[0].Low24H.Float64(),
-			High:         tickers[0].High24H.Float64(),
+			Low:          tickers[0].Low24Hour.Float64(),
+			High:         tickers[0].High24Hour.Float64(),
 			Last:         tickers[0].Last.Float64(),
-			Volume:       tickers[0].Volume24HBase.Float64(),
-			QuoteVolume:  tickers[0].Volume24HQuote.Float64(),
+			BaseVolume:   futuresBaseVolume(&tickers[0]),
+			QuoteVolume:  tickers[0].Volume24HourQuote.Float64(),
 			ExchangeName: e.Name,
 			AssetType:    a,
 		}
@@ -580,12 +593,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers[x].Last.Float64(),
-				High:         tickers[x].High24H.Float64(),
-				Low:          tickers[x].Low24H.Float64(),
+				High:         tickers[x].High24Hour.Float64(),
+				Low:          tickers[x].Low24Hour.Float64(),
 				Bid:          tickers[x].HighestBid.Float64(),
 				Ask:          tickers[x].LowestAsk.Float64(),
 				QuoteVolume:  tickers[x].QuoteVolume.Float64(),
-				Volume:       tickers[x].BaseVolume.Float64(),
+				BaseVolume:   tickers[x].BaseVolume.Float64(),
 				ExchangeName: e.Name,
 				Pair:         currencyPair,
 				AssetType:    a,
@@ -611,12 +624,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				errs = common.AppendError(errs, err)
 				continue
 			}
+			// volume_24h counts contracts, so the base volume is derived as it is in UpdateTicker
 			if err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers[i].Last.Float64(),
-				High:         tickers[i].High24H.Float64(),
-				Low:          tickers[i].Low24H.Float64(),
-				Volume:       tickers[i].Volume24H.Float64(),
-				QuoteVolume:  tickers[i].Volume24HQuote.Float64(),
+				High:         tickers[i].High24Hour.Float64(),
+				Low:          tickers[i].Low24Hour.Float64(),
+				BaseVolume:   futuresBaseVolume(&tickers[i]),
+				QuoteVolume:  tickers[i].Volume24HourQuote.Float64(),
 				ExchangeName: e.Name,
 				Pair:         currencyPair,
 				AssetType:    a,
@@ -944,7 +958,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -1930,10 +1944,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
-			}
-			c.LatestRate = fundingrate.Rate{
-				Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
-				Rate: contracts[i].FundingRate.Decimal(),
+				LatestRate: fundingrate.Rate{
+					Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
+					Rate: contracts[i].FundingRate.Decimal(),
+				},
 			}
 			resp[i] = c
 		}
@@ -3060,7 +3074,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 
 // MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs
 func (e *Exchange) MessageID() string {
-	u := uuid.Must(uuid.NewV7())
+	u := uuid.NewV7()
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -537,13 +536,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.List[x].LastPrice.Float64(),
-				High:         ticks.List[x].HighPrice24H.Float64(),
-				Low:          ticks.List[x].LowPrice24H.Float64(),
+				High:         ticks.List[x].HighPrice24Hour.Float64(),
+				Low:          ticks.List[x].LowPrice24Hour.Float64(),
 				Bid:          ticks.List[x].Bid1Price.Float64(),
 				BidSize:      ticks.List[x].Bid1Size.Float64(),
 				Ask:          ticks.List[x].Ask1Price.Float64(),
 				AskSize:      ticks.List[x].Ask1Size.Float64(),
-				Volume:       ticks.List[x].Volume24H.Float64(),
+				BaseVolume:   ticks.List[x].Volume24Hour.Float64(),
 				Pair:         pair.Format(format),
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -569,13 +568,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				}
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         ticks.List[x].LastPrice.Float64(),
-					High:         ticks.List[x].HighPrice24H.Float64(),
-					Low:          ticks.List[x].LowPrice24H.Float64(),
+					High:         ticks.List[x].HighPrice24Hour.Float64(),
+					Low:          ticks.List[x].LowPrice24Hour.Float64(),
 					Bid:          ticks.List[x].Bid1Price.Float64(),
 					BidSize:      ticks.List[x].Bid1Size.Float64(),
 					Ask:          ticks.List[x].Ask1Price.Float64(),
 					AskSize:      ticks.List[x].Ask1Size.Float64(),
-					Volume:       ticks.List[x].Volume24H.Float64(),
+					BaseVolume:   ticks.List[x].Volume24Hour.Float64(),
 					Pair:         pair.Format(format),
 					ExchangeName: e.Name,
 					AssetType:    assetType,
@@ -793,7 +792,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		}
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

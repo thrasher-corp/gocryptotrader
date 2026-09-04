@@ -590,7 +590,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, acco
 		return nil, err
 	}
 	vals.Set("symbol", symbolValue)
-	vals.Set("accountID", accountID)
+	vals.Set("account-id", accountID)
 	if side != "" {
 		vals.Set("side", side)
 	}

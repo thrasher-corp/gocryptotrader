@@ -316,29 +316,34 @@ type AveragePrice struct {
 	Price float64 `json:"price,string"`
 }
 
-// PriceChangeStats contains statistics for the last 24 hours trade
+// PriceChangeStats contains statistics for the last 24 hours trade, for spot and coin margined
+// futures. Coin margined futures alone sends BaseVolume and Pair, and counts Volume in contracts
+// rather than base asset; spot alone sends QuoteVolume, PreviousClosePrice, BidPrice, BidQuantity,
+// AskPrice and AskQuantity
 type PriceChangeStats struct {
-	Symbol             string       `json:"symbol"`
-	PriceChange        types.Number `json:"priceChange"`
-	PriceChangePercent types.Number `json:"priceChangePercent"`
-	WeightedAvgPrice   types.Number `json:"weightedAvgPrice"`
-	PrevClosePrice     types.Number `json:"prevClosePrice"`
-	LastPrice          types.Number `json:"lastPrice"`
-	LastQty            types.Number `json:"lastQty"`
-	BidPrice           types.Number `json:"bidPrice"`
-	AskPrice           types.Number `json:"askPrice"`
-	BidQuantity        types.Number `json:"bidQty"`
-	AskQuantity        types.Number `json:"askQty"`
-	OpenPrice          types.Number `json:"openPrice"`
-	HighPrice          types.Number `json:"highPrice"`
-	LowPrice           types.Number `json:"lowPrice"`
-	Volume             types.Number `json:"volume"`
-	QuoteVolume        types.Number `json:"quoteVolume"`
-	OpenTime           types.Time   `json:"openTime"`
-	CloseTime          types.Time   `json:"closeTime"`
-	FirstID            int64        `json:"firstId"`
-	LastID             int64        `json:"lastId"`
-	Count              int64        `json:"count"`
+	Symbol               string       `json:"symbol"`
+	Pair                 string       `json:"pair"`
+	PriceChange          types.Number `json:"priceChange"`
+	PriceChangePercent   types.Number `json:"priceChangePercent"`
+	WeightedAveragePrice types.Number `json:"weightedAvgPrice"`
+	PreviousClosePrice   types.Number `json:"prevClosePrice"`
+	LastPrice            types.Number `json:"lastPrice"`
+	LastQuantity         types.Number `json:"lastQty"`
+	BidPrice             types.Number `json:"bidPrice"`
+	AskPrice             types.Number `json:"askPrice"`
+	BidQuantity          types.Number `json:"bidQty"`
+	AskQuantity          types.Number `json:"askQty"`
+	OpenPrice            types.Number `json:"openPrice"`
+	HighPrice            types.Number `json:"highPrice"`
+	LowPrice             types.Number `json:"lowPrice"`
+	Volume               types.Number `json:"volume"`
+	BaseVolume           types.Number `json:"baseVolume"`
+	QuoteVolume          types.Number `json:"quoteVolume"`
+	OpenTime             types.Time   `json:"openTime"`
+	CloseTime            types.Time   `json:"closeTime"`
+	FirstID              int64        `json:"firstId"`
+	LastID               int64        `json:"lastId"`
+	Count                int64        `json:"count"`
 }
 
 // SymbolPrice holds basic symbol price

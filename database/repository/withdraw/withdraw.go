@@ -3,9 +3,10 @@ package withdraw
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -63,7 +64,7 @@ func Event(res *withdraw.Response) {
 	}
 }
 
-func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
+func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) error {
 	tempEvent := modelPSQL.WithdrawalHistory{
 		ExchangeNameID: res.Exchange.Name,
 		ExchangeID:     res.Exchange.ID,
@@ -77,14 +78,8 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		tempEvent.Description.SetValid(res.RequestDetails.Description)
 	}
 
-	err = tempEvent.Insert(ctx, tx, boil.Infer())
-	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-		}
-		return err
+	if err := tempEvent.Insert(ctx, tx, boil.Infer()); err != nil {
+		return fmt.Errorf("withdrawal history insert failed: %w", err)
 	}
 
 	if res.RequestDetails.Type == withdraw.Fiat {
@@ -97,14 +92,8 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 			SwiftCode:         res.RequestDetails.Fiat.Bank.SWIFTCode,
 			Iban:              res.RequestDetails.Fiat.Bank.IBAN,
 		}
-		err = tempEvent.SetWithdrawalFiatWithdrawalFiats(ctx, tx, true, fiatEvent)
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-			}
-			return err
+		if err := tempEvent.SetWithdrawalFiatWithdrawalFiats(ctx, tx, true, fiatEvent); err != nil {
+			return fmt.Errorf("withdrawal fiat insert failed: %w", err)
 		}
 	}
 
@@ -116,33 +105,22 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		if res.RequestDetails.Crypto.AddressTag != "" {
 			cryptoEvent.AddressTag.SetValid(res.RequestDetails.Crypto.AddressTag)
 		}
-		err = tempEvent.AddWithdrawalCryptoWithdrawalCryptos(ctx, tx, true, cryptoEvent)
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-			}
-			return err
+		if err := tempEvent.AddWithdrawalCryptoWithdrawalCryptos(ctx, tx, true, cryptoEvent); err != nil {
+			return fmt.Errorf("withdrawal crypto insert failed: %w", err)
 		}
 	}
 
-	realID, _ := uuid.FromString(tempEvent.ID)
+	realID, err := uuid.Parse(tempEvent.ID)
+	if err != nil {
+		return fmt.Errorf("invalid withdrawal event ID %q: %w", tempEvent.ID, err)
+	}
 	res.ID = realID
 
 	return nil
 }
 
-func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
-	newUUID, errUUID := uuid.NewV4()
-	if errUUID != nil {
-		log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-		}
-		return err
-	}
+func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) error {
+	newUUID := uuid.NewV4()
 
 	tempEvent := modelSQLite.WithdrawalHistory{
 		ID:             newUUID.String(),
@@ -158,14 +136,8 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		tempEvent.Description.SetValid(res.RequestDetails.Description)
 	}
 
-	err = tempEvent.Insert(ctx, tx, boil.Infer())
-	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-		}
-		return err
+	if err := tempEvent.Insert(ctx, tx, boil.Infer()); err != nil {
+		return fmt.Errorf("withdrawal history insert failed: %w", err)
 	}
 
 	if res.RequestDetails.Type == withdraw.Fiat {
@@ -179,14 +151,8 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 			Iban:              res.RequestDetails.Fiat.Bank.IBAN,
 		}
 
-		err = tempEvent.AddWithdrawalFiats(ctx, tx, true, fiatEvent)
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-			}
-			return err
+		if err := tempEvent.AddWithdrawalFiats(ctx, tx, true, fiatEvent); err != nil {
+			return fmt.Errorf("withdrawal fiat insert failed: %w", err)
 		}
 	}
 
@@ -200,14 +166,8 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 			cryptoEvent.AddressTag.SetValid(res.RequestDetails.Crypto.AddressTag)
 		}
 
-		err = tempEvent.AddWithdrawalCryptos(ctx, tx, true, cryptoEvent)
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
-			}
-			return err
+		if err := tempEvent.AddWithdrawalCryptos(ctx, tx, true, cryptoEvent); err != nil {
+			return fmt.Errorf("withdrawal crypto insert failed: %w", err)
 		}
 	}
 
@@ -300,9 +260,9 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 		for x := range v {
 			tempResp := &withdraw.Response{}
 			var newUUID uuid.UUID
-			newUUID, err = uuid.FromString(v[x].ID)
+			newUUID, err = uuid.Parse(v[x].ID)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid withdrawal event ID %q: %w", v[x].ID, err)
 			}
 			tempResp.ID = newUUID
 			tempResp.Exchange.ID = v[x].ExchangeID
@@ -317,7 +277,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, sqlDB)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
-				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
+				tempUUID, errUUID := uuid.Parse(v[x].ExchangeNameID)
 				if errUUID != nil {
 					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
 				} else {
@@ -372,7 +332,10 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 		for x := range v {
 			tempResp := &withdraw.Response{}
-			newUUID, _ := uuid.FromString(v[x].ID)
+			newUUID, err := uuid.Parse(v[x].ID)
+			if err != nil {
+				return nil, fmt.Errorf("invalid withdrawal event ID %q: %w", v[x].ID, err)
+			}
 			tempResp.ID = newUUID
 			tempResp.Exchange.ID = v[x].ExchangeID
 			tempResp.Exchange.Status = v[x].Status
@@ -388,7 +351,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, sqlDB)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
-				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
+				tempUUID, errUUID := uuid.Parse(v[x].ExchangeNameID)
 				if errUUID != nil {
 					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
 				} else {

@@ -2,8 +2,8 @@ package json
 
 import "testing"
 
-// BenchmarkUnmarshal-16  838503    1282 ns/op   816 B/op  24 allocs/op (encoding/json)
-// BenchmarkUnmarshal-16  1859184   653.3 ns/op  900 B/op  18 allocs/op (bytedance/sonic) Usage: go test --tags=sonic -bench=BenchmarkUnmarshal -v
+// BenchmarkUnmarshal-8  1995155  1813 ns/op   648 B/op  18 allocs/op (encoding/json/v2)
+// BenchmarkUnmarshal-8  4072055  895.2 ns/op  892 B/op  18 allocs/op (bytedance/sonic) Usage: go test -tags=sonic_on -bench=BenchmarkUnmarshal -v
 func BenchmarkUnmarshal(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {

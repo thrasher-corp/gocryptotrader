@@ -99,7 +99,8 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 			return nil, err
 		}
 		if len(response) != 0 {
-			channelsToSubscribe = append(channelsToSubscribe,
+			channelsToSubscribe = append(
+				channelsToSubscribe,
 				optionsUserTradesChannel,
 				optionsBalancesChannel,
 			)
@@ -258,7 +259,8 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, cha
 			}
 			params = append(
 				[]string{intervalString},
-				params...)
+				params...,
+			)
 		}
 		payloads[i] = WsInput{
 			ID:      e.MessageSequence(),
@@ -528,13 +530,13 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 			LastUpdated:       data.Timestamp.Time(),
 			LastPushed:        lastPushed,
 			ValidateOrderbook: e.ValidateOrderbook,
+			Asks:              make([]orderbook.Level, len(data.Asks)),
+			Bids:              make([]orderbook.Level, len(data.Bids)),
 		}
-		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size.Float64()
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()

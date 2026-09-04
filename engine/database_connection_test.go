@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
 func CreateDatabase(t *testing.T) {
@@ -57,12 +56,10 @@ func TestStartSQLite(t *testing.T) {
 	assert.ErrorIs(t, err, database.ErrDatabaseSupportDisabled)
 
 	_, err = SetupDatabaseConnectionManager(&database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite,
+		Host:     "localhost",
+		Database: "test.db",
 	})
 	assert.NoError(t, err)
 }
@@ -88,12 +85,10 @@ func TestStartPostgres(t *testing.T) {
 func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
 	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite,
+		Host:     "localhost",
+		Database: "test.db",
 	})
 	assert.NoError(t, err)
 
@@ -116,12 +111,10 @@ func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
 func TestDatabaseConnectionManagerStop(t *testing.T) {
 	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite,
+		Host:     "localhost",
+		Database: "test.db",
 	})
 	assert.NoError(t, err)
 
@@ -147,12 +140,10 @@ func TestCheckConnection(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	m, err = SetupDatabaseConnectionManager(&database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite,
+		Host:     "localhost",
+		Database: "test.db",
 	})
 	assert.NoError(t, err)
 
@@ -189,12 +180,10 @@ func TestCheckConnection(t *testing.T) {
 func TestGetInstance(t *testing.T) {
 	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite,
+		Host:     "localhost",
+		Database: "test.db",
 	})
 	assert.NoError(t, err)
 

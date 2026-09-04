@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -345,10 +346,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return pairs, err
 		}
-		pairs = make(currency.Pairs, 0, len(pairInfo))
-		for pair := range pairInfo {
-			pairs = append(pairs, pair)
-		}
+		pairs = slices.AppendSeq(make(currency.Pairs, 0, len(pairInfo)), maps.Keys(pairInfo))
 	case asset.Futures:
 		symbols, err := e.GetInstruments(ctx)
 		if err != nil {
@@ -416,7 +414,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				BidSize:      t.BidSize,
 				Ask:          t.Ask,
 				AskSize:      t.AskSize,
-				Volume:       t.Volume,
+				BaseVolume:   t.Volume,
 				Open:         t.Open,
 				Pair:         cp,
 				ExchangeName: e.Name,
@@ -438,8 +436,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				BidSize:      t.Tickers[x].BidSize,
 				Ask:          t.Tickers[x].Ask,
 				AskSize:      t.Tickers[x].AskSize,
-				Volume:       t.Tickers[x].Vol24h,
-				Open:         t.Tickers[x].Open24H,
+				BaseVolume:   t.Tickers[x].Volume24Hour,
+				Open:         t.Tickers[x].Open24Hour,
 				OpenInterest: t.Tickers[x].OpenInterest,
 				MarkPrice:    t.Tickers[x].MarkPrice,
 				IndexPrice:   t.Tickers[x].IndexPrice,
@@ -664,7 +662,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

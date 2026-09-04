@@ -81,7 +81,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 					Ask:          tick.BestAskPrice.Float64(),
 					BidSize:      tick.BestBidSize,
 					AskSize:      tick.BestAskSize,
-					Volume:       tick.Size,
+					BaseVolume:   tick.Size,
 					Pair:         p,
 					LastUpdated:  tick.FilledTime.Time(),
 					ExchangeName: e.Name,
@@ -380,9 +380,6 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 		}
 		if arg.Size <= 0 {
 			return fmt.Errorf("%w, must be non-zero positive value", limits.ErrAmountBelowMin)
-		}
-		if arg.VisibleSize < 0 {
-			return fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
 	case "market":
 		if arg.Size <= 0 {

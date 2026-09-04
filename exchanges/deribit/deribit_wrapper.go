@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -272,7 +272,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		High:         tickerData.Stats.High,
 		Low:          tickerData.Stats.Low,
 		Last:         tickerData.LastPrice,
-		Volume:       tickerData.Stats.Volume,
+		BaseVolume:   tickerData.Stats.Volume,
 		Close:        tickerData.LastPrice,
 		IndexPrice:   tickerData.IndexPrice,
 		MarkPrice:    tickerData.MarkPrice,
@@ -1442,7 +1442,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:        r.Pair,
 			LatestRate: fundingrate.Rate{
 				Time: fri[i].Timestamp.Time(),
-				Rate: decimal.MustFromFloat(fri[i].Interest8H),
+				Rate: decimal.MustFromFloat(fri[i].Interest8Hour),
 			},
 		}
 		latestTime = fri[i].Timestamp.Time()
@@ -1506,7 +1506,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				continue
 			}
 			fundingRates = append(fundingRates, fundingrate.Rate{
-				Rate: decimal.MustFromFloat(records[i].Interest1H),
+				Rate: decimal.MustFromFloat(records[i].Interest1Hour),
 				Time: rt,
 			})
 			mfr[rt.UnixMilli()] = struct{}{}
@@ -1516,9 +1516,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if len(fundingRates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
-	sort.Slice(fundingRates, func(i, j int) bool {
-		return fundingRates[i].Time.Before(fundingRates[j].Time)
-	})
+	slices.SortFunc(fundingRates, func(a, b fundingrate.Rate) int { return a.Time.Compare(b.Time) })
 	return &fundingrate.HistoricalRates{
 		Exchange:        e.Name,
 		Asset:           r.Asset,

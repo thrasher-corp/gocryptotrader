@@ -134,14 +134,13 @@ func TestCollateralUpdateContracts(t *testing.T) {
 
 func TestCollateralReleaseContracts(t *testing.T) {
 	t.Parallel()
-	b := gctorder.Buy
 	c := &CollateralPair{
 		collateral: &Item{
 			asset:        asset.Futures,
 			isCollateral: true,
 		},
 		contract:         &Item{asset: asset.Futures},
-		currentDirection: &b,
+		currentDirection: new(gctorder.Buy),
 	}
 
 	err := c.ReleaseContracts(decimal.Zero)

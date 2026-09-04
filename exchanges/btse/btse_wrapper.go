@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -242,10 +241,11 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         pair,
 				Ask:          tickers[x].LowestAsk,
 				Bid:          tickers[x].HighestBid,
-				Low:          tickers[x].Low24Hr,
+				Low:          tickers[x].Low24Hour,
 				Last:         tickers[x].Last,
-				Volume:       tickers[x].Volume,
-				High:         tickers[x].High24Hr,
+				BaseVolume:   tickers[x].BaseVolume24Hour, // zero for futures: that summary omits size and reports turnover in the quote currency only
+				QuoteVolume:  tickers[x].QuoteVolume24Hour,
+				High:         tickers[x].High24Hour,
 				OpenInterest: tickers[x].OpenInterest,
 				ExchangeName: e.Name,
 				AssetType:    a,
@@ -282,10 +282,12 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Pair:         p,
 		Ask:          ticks[0].LowestAsk,
 		Bid:          ticks[0].HighestBid,
-		Low:          ticks[0].Low24Hr,
+		Low:          ticks[0].Low24Hour,
 		Last:         ticks[0].Last,
-		Volume:       ticks[0].Volume,
-		High:         ticks[0].High24Hr,
+		BaseVolume:   ticks[0].BaseVolume24Hour, // zero for futures: that summary omits size and reports turnover in the quote currency only
+		QuoteVolume:  ticks[0].QuoteVolume24Hour,
+		High:         ticks[0].High24Hour,
+		OpenInterest: ticks[0].OpenInterest,
 		ExchangeName: e.Name,
 		AssetType:    a,
 	})
@@ -419,7 +421,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
