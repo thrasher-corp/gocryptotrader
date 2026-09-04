@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/beevik/ntp v1.5.0
 	github.com/buger/jsonparser v1.6.1
 	github.com/bytedance/sonic v1.15.2
 	github.com/d5/tengo/v2 v2.17.0

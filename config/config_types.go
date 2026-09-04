@@ -31,8 +31,8 @@ const (
 	defaultWebsocketOrderbookBufferLimit = 5
 	DefaultConnectionMonitorDelay        = time.Second * 2
 	maxAuthFailures                      = 3
-	defaultNTPAllowedDifference          = 50000000
-	defaultNTPAllowedNegativeDifference  = 50000000
+	defaultNTPAllowedDifference          = 50 * time.Millisecond
+	defaultNTPAllowedNegativeDifference  = 50 * time.Millisecond
 	DefaultAPIKey                        = "Key"
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
@@ -224,6 +224,18 @@ type Profiler struct {
 	ListenAddress        string `json:"listen_address"`
 	BlockProfileRate     int    `json:"block_profile_rate"`
 }
+
+const (
+	// NTPClientDisabled disables NTP checks. SetNTPCheck selects it for input "d"
+	// and returns "Future notifications for out of time sync has been disabled".
+	NTPClientDisabled = -1
+	// NTPClientStartup checks at startup. SetNTPCheck selects it for input "a"
+	// and returns "Time sync has been set to alert".
+	NTPClientStartup = 0
+	// NTPClientPeriodic checks periodically once started. SetNTPCheck selects it
+	// for input "w" and returns "Time sync has been set to warn only".
+	NTPClientPeriodic = 1
+)
 
 // NTPClientConfig defines a network time protocol configuration to allow for
 // positive and negative differences

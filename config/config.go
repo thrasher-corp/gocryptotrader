@@ -1250,7 +1250,7 @@ func (c *Config) CheckNTPConfig() {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.NTPClient.AllowedDifference == nil || *c.NTPClient.AllowedDifference == 0 {
+	if c.NTPClient.AllowedDifference == nil || *c.NTPClient.AllowedDifference <= 0 {
 		c.NTPClient.AllowedDifference = new(time.Duration)
 		*c.NTPClient.AllowedDifference = defaultNTPAllowedDifference
 	}
@@ -1261,7 +1261,7 @@ func (c *Config) CheckNTPConfig() {
 	}
 
 	if len(c.NTPClient.Pool) < 1 {
-		log.Warnln(log.ConfigMgr, "NTPClient enabled with no servers configured, enabling default pool.")
+		log.Warnln(log.ConfigMgr, "NTPClient has no servers configured, enabling default pool.")
 		c.NTPClient.Pool = []string{"pool.ntp.org:123"}
 	}
 }
@@ -1286,15 +1286,15 @@ func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 		answer = strings.TrimRight(answer, "\r\n")
 		switch answer {
 		case "a":
-			c.NTPClient.Level = 0
+			c.NTPClient.Level = NTPClientStartup
 			resp = "Time sync has been set to alert"
 			answered = true
 		case "w":
-			c.NTPClient.Level = 1
+			c.NTPClient.Level = NTPClientPeriodic
 			resp = "Time sync has been set to warn only"
 			answered = true
 		case "d":
-			c.NTPClient.Level = -1
+			c.NTPClient.Level = NTPClientDisabled
 			resp = "Future notifications for out of time sync has been disabled"
 			answered = true
 		default:
@@ -1658,9 +1658,7 @@ func (c *Config) CheckConfig() error {
 		c.GlobalHTTPTimeout = defaultHTTPTimeout
 	}
 
-	if c.NTPClient.Level != 0 {
-		c.CheckNTPConfig()
-	}
+	c.CheckNTPConfig()
 
 	return nil
 }
