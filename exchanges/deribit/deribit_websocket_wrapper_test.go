@@ -1,0 +1,258 @@
+package deribit
+
+import (
+	"strings"
+	"testing"
+
+	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+)
+
+func defaultDeribitOrderWSResponse(method string) string {
+	switch method {
+	case submitBuy:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{"order_id":"buy-order"}}}`
+	case submitSell:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{"order_id":"sell-order"}}}`
+	case submitEdit:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{"order_id":"edited-order"}}}`
+	case submitCancel:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order_id":"1"}}`
+	default:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{}}`
+	}
+}
+
+func deribitOrderWSMock(overrides map[string]string) mockws.WsMockFunc {
+	return func(_ testing.TB, p []byte, c *gws.Conn) error {
+		var req struct {
+			ID     string `json:"id"`
+			Method string `json:"method"`
+		}
+		if err := json.Unmarshal(p, &req); err != nil {
+			return err
+		}
+
+		response, ok := overrides[req.Method]
+		if !ok {
+			response = defaultDeribitOrderWSResponse(req.Method)
+		}
+		response = strings.ReplaceAll(response, "{{id}}", req.ID)
+		return c.WriteMessage(gws.TextMessage, []byte(response))
+	}
+}
+
+func connectDeribitWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
+	t.Helper()
+	ex := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsHandler))
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	return ex
+}
+
+func TestSymbolChannelSeparator(t *testing.T) {
+	t.Parallel()
+
+	assert.Empty(t, symbolChannelSeparator(&subscription.Subscription{Channel: userChangesInstrumentsChannel}))
+	assert.Equal(t, ".", symbolChannelSeparator(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
+}
+
+func TestWebsocketSubmitOrder(t *testing.T) {
+	t.Parallel()
+
+	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	unavailable := new(Exchange)
+	require.NoError(t, testexch.Setup(unavailable))
+	_, err := unavailable.WebsocketSubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
+	sub := &order.Submit{
+		Exchange:  ex.Name,
+		Pair:      optionsTradablePair,
+		AssetType: asset.Options,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	}
+
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+
+	unsupported := *sub
+	unsupported.AssetType = asset.Binary
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &unsupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	badFormat := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	badFormat.CurrencyPairs.UseGlobalFormat = true
+	badFormat.CurrencyPairs.RequestFormat = nil
+	_, err = badFormat.WebsocketSubmitOrder(t.Context(), sub)
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
+
+	badSide := *sub
+	badSide.Side = order.AnySide
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &badSide)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	unsupportedTIF := *sub
+	unsupportedTIF.TimeInForce = order.FillOrKill
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &unsupportedTIF)
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+
+	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13009,"message":"ws buy failed"}}`,
+	}))
+	_, err = exError.WebsocketSubmitOrder(t.Context(), sub)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+
+	exNoResp := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","result":null}`,
+	}))
+	_, err = exNoResp.WebsocketSubmitOrder(t.Context(), sub)
+	require.ErrorIs(t, err, common.ErrNoResponse)
+
+	exNoOrderID := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{}}}`,
+	}))
+	_, err = exNoOrderID.WebsocketSubmitOrder(t.Context(), sub)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	resp, err := ex.WebsocketSubmitOrder(t.Context(), sub)
+	require.NoError(t, err)
+	require.Equal(t, "buy-order", resp.OrderID)
+	require.Equal(t, order.New, resp.Status)
+
+	ioc := *sub
+	ioc.TimeInForce = order.ImmediateOrCancel
+	resp, err = ex.WebsocketSubmitOrder(t.Context(), &ioc)
+	require.NoError(t, err)
+	require.Equal(t, "buy-order", resp.OrderID)
+
+	sell := *sub
+	sell.Side = order.Sell
+	resp, err = ex.WebsocketSubmitOrder(t.Context(), &sell)
+	require.NoError(t, err)
+	require.Equal(t, "sell-order", resp.OrderID)
+}
+
+func TestHandleSubscriptionMocked(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns parse error when response is invalid", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+			"public/subscribe": `{"jsonrpc":"2.0","id":"{{id}}","result":123}`,
+		}))
+
+		err := ex.handleSubscription(t.Context(), "public/subscribe", subscription.List{{
+			Channel: subscription.TickerChannel,
+			Asset:   asset.Futures,
+			Pairs:   currency.Pairs{futuresTradablePair},
+		}})
+		require.ErrorContains(t, err, "subscription response parse failed")
+	})
+
+	t.Run("returns aggregated errors for missing and unexpected channels", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+			"public/subscribe": `{"jsonrpc":"2.0","id":"{{id}}","result":["unexpected.channel"]}`,
+		}))
+
+		err := ex.handleSubscription(t.Context(), "public/subscribe", subscription.List{{
+			Channel: subscription.TickerChannel,
+			Asset:   asset.Futures,
+			Pairs:   currency.Pairs{futuresTradablePair},
+		}})
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, errSubscriptionNotAcknowledged)
+		assert.ErrorIs(t, err, errUnexpectedSubscriptionChannel)
+		assert.ErrorContains(t, err, "failed to public/subscribe")
+		assert.ErrorContains(t, err, "unexpected subscription channel")
+	})
+}
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
+
+	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	unavailable := new(Exchange)
+	require.NoError(t, testexch.Setup(unavailable))
+	_, err := unavailable.WebsocketModifyOrder(t.Context(), &order.Modify{})
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
+	mod := &order.Modify{
+		OrderID:   "1",
+		AssetType: asset.Options,
+		Pair:      optionsTradablePair,
+		Amount:    1,
+	}
+
+	_, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{})
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	unsupported := *mod
+	unsupported.AssetType = asset.Binary
+	_, err = ex.WebsocketModifyOrder(t.Context(), &unsupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitEdit: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13010,"message":"ws edit failed"}}`,
+	}))
+	_, err = exError.WebsocketModifyOrder(t.Context(), mod)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+
+	resp, err := ex.WebsocketModifyOrder(t.Context(), mod)
+	require.NoError(t, err)
+	require.Equal(t, "edited-order", resp.OrderID)
+}
+
+func TestWebsocketCancelOrder(t *testing.T) {
+	t.Parallel()
+
+	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
+	unavailable := new(Exchange)
+	require.NoError(t, testexch.Setup(unavailable))
+	err := unavailable.WebsocketCancelOrder(t.Context(), &order.Cancel{})
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
+	cancel := &order.Cancel{
+		OrderID:   "1",
+		AssetType: asset.Options,
+		Pair:      optionsTradablePair,
+	}
+
+	unsupported := *cancel
+	unsupported.AssetType = asset.Binary
+	err = ex.WebsocketCancelOrder(t.Context(), &unsupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	invalid := *cancel
+	invalid.OrderID = ""
+	err = ex.WebsocketCancelOrder(t.Context(), &invalid)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitCancel: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13011,"message":"ws cancel failed"}}`,
+	}))
+	err = exError.WebsocketCancelOrder(t.Context(), cancel)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+
+	err = ex.WebsocketCancelOrder(t.Context(), cancel)
+	require.NoError(t, err)
+}

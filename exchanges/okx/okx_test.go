@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -3561,6 +3562,23 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	websocketExchange := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+		tb.Helper()
+		require.Contains(tb, string(payload), `"instIdCode":42`, "websocket order request must include the resolved instrument ID code")
+		return okxOrderWsMock(tb, payload, conn)
+	})
+	result, err := websocketExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  websocketExchange.Name,
+		Pair:      mainPair,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.NoError(t, err, "SubmitOrder must place the websocket order")
+	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket order ID")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{
 		Pair: currency.Pair{
@@ -3575,7 +3593,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
-	result, err := e.SubmitOrder(contextGenerate(), arg)
+	result, err = e.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -6552,8 +6570,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{
-		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	exp := subscription.List{}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
+		exp = append(exp, s)
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6567,14 +6591,22 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			if isSymbolChannel(s) {
+			switch {
+			case isSymbolChannel(s):
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			} else {
+			case isInstFamilyChannel(s):
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instFamily":%q,"instType":%q}`, name, optionInstrumentFamilyFromPair(p), GetInstrumentTypeFromAssetItem(s.Asset))
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6586,7 +6618,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, append(public, private...))
+	testsubs.EqualLists(t, exp, slices.Concat(public, private))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)

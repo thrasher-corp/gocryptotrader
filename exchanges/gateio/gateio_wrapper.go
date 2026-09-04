@@ -1093,6 +1093,82 @@ func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyRes
 	return nil, common.ErrFunctionNotSupported
 }
 
+// WebsocketModifyOrder modifies an order through websocket.
+func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	formattedPair, err := e.FormatExchangeCurrency(action.Pair, action.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	action.Pair = formattedPair.Upper()
+
+	modResp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	switch action.AssetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		req := &WebsocketAmendOrder{
+			OrderID: action.OrderID,
+			Pair:    action.Pair,
+			Account: e.assetTypeToString(action.AssetType),
+		}
+		if action.Amount != 0 {
+			req.Amount = strconv.FormatFloat(action.Amount, 'f', -1, 64)
+		}
+		if action.Price != 0 {
+			req.Price = strconv.FormatFloat(action.Price, 'f', -1, 64)
+		}
+		resp, err := e.WebsocketSpotAmendOrder(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		modResp.OrderID = resp.ID
+		modResp.Status = order.Open
+		if resp.Status != "" && resp.Status != statusOpen {
+			modResp.Status, err = order.StringToOrderStatus(resp.Status)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		req := &WebsocketFuturesAmendOrder{
+			OrderID:  action.OrderID,
+			Contract: action.Pair,
+			Asset:    action.AssetType,
+		}
+		if action.Amount != 0 {
+			size, err := getFutureOrderSize(action.Side, action.Amount)
+			if err != nil {
+				return nil, err
+			}
+			req.Size = types.Number(size)
+		}
+		if action.Price != 0 {
+			req.Price = strconv.FormatFloat(action.Price, 'f', -1, 64)
+		}
+		resp, err := e.WebsocketFuturesAmendOrder(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		modResp.Status = order.Open
+		if resp.Status != "" && resp.Status != statusOpen {
+			modResp.Status, err = order.StringToOrderStatus(resp.Status)
+			if err != nil {
+				return nil, err
+			}
+		}
+		modResp.OrderID = strconv.FormatInt(resp.ID, 10)
+	case asset.Options:
+		return nil, common.ErrFunctionNotSupported
+	default:
+		return nil, common.ErrNotYetImplemented
+	}
+	return modResp, nil
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
@@ -1120,6 +1196,33 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 	return err
+}
+
+// WebsocketCancelOrder cancels an order through websocket.
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	switch o.AssetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		fPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return err
+		}
+		_, err = e.WebsocketSpotCancelOrder(ctx, o.OrderID, fPair.Upper(), e.assetTypeToString(o.AssetType))
+		return err
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		fPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return err
+		}
+		_, err = e.WebsocketFuturesCancelOrder(ctx, o.OrderID, fPair.Upper(), o.AssetType)
+		return err
+	case asset.Options:
+		return common.ErrFunctionNotSupported
+	default:
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
+	}
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -2648,12 +2751,12 @@ func getSideAndAmountFromSize(size, left float64) (side order.Side, amount, rema
 }
 
 // getFutureOrderSize sets the amount to a negative value if shorting.
-func getFutureOrderSize(s *order.Submit) (float64, error) {
+func getFutureOrderSize(side order.Side, amount float64) (float64, error) {
 	switch {
-	case s.Side.IsLong():
-		return s.Amount, nil
-	case s.Side.IsShort():
-		return -s.Amount, nil
+	case side.IsLong():
+		return amount, nil
+	case side.IsShort():
+		return -amount, nil
 	default:
 		return 0, order.ErrSideIsInvalid
 	}
@@ -2707,7 +2810,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 			return nil, err
 		}
 		return e.deriveSpotWebsocketOrderResponse(resp)
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		req, err := getFuturesOrderRequest(s)
 		if err != nil {
 			return nil, err
@@ -2717,6 +2820,8 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 			return nil, err
 		}
 		return e.deriveFuturesWebsocketOrderResponse(resp)
+	case asset.Options:
+		return nil, common.ErrFunctionNotSupported
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
 	}
@@ -2741,7 +2846,7 @@ func (e *Exchange) formatOrderClientIDAndPair(s *order.Submit) error {
 }
 
 func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) {
-	amountWithDirection, err := getFutureOrderSize(s)
+	amountWithDirection, err := getFutureOrderSize(s.Side, s.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -2760,7 +2865,7 @@ func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) 
 }
 
 func getDeliveryOrderRequest(s *order.Submit) (*DeliveryOrderCreateParams, error) {
-	amountWithDirection, err := getFutureOrderSize(s)
+	amountWithDirection, err := getFutureOrderSize(s.Side, s.Amount)
 	if err != nil {
 		return nil, err
 	}
