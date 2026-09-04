@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -309,25 +310,29 @@ func (e *Exchange) wsProcessGreeks(ctx context.Context, resp []byte) error {
 	return e.Websocket.DataHandler.Send(ctx, &result)
 }
 
+// wsProcessWalletPushData stores and emits a canonical account snapshot.
 func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) error {
 	var result WebsocketWallet
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
+	subAcct := accounts.NewSubAccount(asset.Spot, "")
 	for x := range result.Data {
 		for y := range result.Data[x].Coin {
-			subAccts[0].Balances.Set(result.Data[x].Coin[y].Coin, accounts.Balance{
-				Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
-				Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
-				UpdatedAt: result.CreationTime.Time(),
+			coin := result.Data[x].Coin[y]
+			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, coin.Coin, func(balance *accounts.Balance) {
+				balance.Total = coin.WalletBalance.Float64()
+				// Unified wallet pushes cannot refresh spendable funds because availableToWithdraw
+				// is deprecated; preserve the REST-derived Free, Hold, and Borrowed values.
+				balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
 			})
+			if err != nil {
+				return err
+			}
+			subAcct.Balances.Set(coin.Coin, balance)
 		}
 	}
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
-		return err
-	}
-	return e.Websocket.DataHandler.Send(ctx, subAccts)
+	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
@@ -404,12 +409,112 @@ func (e *Exchange) wsProcessExecution(ctx context.Context, resp *WebsocketRespon
 	return e.Websocket.DataHandler.Send(ctx, executions)
 }
 
+// wsProcessPosition emits canonical positions from Bybit's account-wide
+// private stream so consumers do not depend on exchange wire types.
 func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketResponse) error {
-	var result WsPositions
+	var result []WsPosition
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, result)
+	positions := make([]futures.Position, len(result))
+	for i := range result {
+		pair, a, err := e.matchPairAssetFromResponse(result[i].Category, result[i].Symbol)
+		if err != nil {
+			return err
+		}
+		size := result[i].Size.Decimal()
+		isSizeZero := size.IsZero()
+		direction := order.UnknownSide
+		if !isSizeZero || result[i].Side != "" {
+			direction, err = order.StringToOrderSide(result[i].Side)
+			if err != nil {
+				return err
+			}
+			direction, err = direction.Position()
+			if err != nil {
+				return err
+			}
+		} else {
+			switch result[i].PositionIdx {
+			case 1:
+				direction = order.Long
+			case 2:
+				direction = order.Short
+			}
+		}
+		collateralCurrency, err := positionCollateralCurrency(a, pair, result[i].Symbol)
+		if err != nil {
+			return err
+		}
+		status := order.Closed
+		if !isSizeZero {
+			status = order.Open
+		}
+		riskStatus := order.UnknownStatus
+		switch result[i].PositionStatus {
+		case "Liq":
+			riskStatus = order.Liquidated
+		case "Adl":
+			riskStatus = order.AutoDeleverage
+		}
+		var closeDate time.Time
+		if isSizeZero {
+			closeDate = result[i].UpdatedTime.Time()
+		}
+		positionMargin := result[i].PositionIM.Decimal()
+		// Bybit defines positionIM as the position's initial margin, so both canonical fields share the source value.
+		initialMarginRequirement := positionMargin
+		maintenanceMarginRequirement := result[i].PositionMM.Decimal()
+		notionalSize := result[i].PositionValue.Decimal()
+		// positionMM includes estimated closing fees, so dividing it by positionValue does not
+		// recover the tier rate. MaintenanceMarginFraction requires the matching riskId tier from
+		// Bybit's /v5/market/risk-limit endpoint and remains unset until that data is available here.
+		positions[i] = futures.Position{
+			Exchange:                     e.Name,
+			Asset:                        a,
+			Pair:                         pair,
+			Underlying:                   pair.Base,
+			CollateralCurrency:           collateralCurrency,
+			Leverage:                     result[i].Leverage.Decimal(),
+			NotionalSize:                 notionalSize,
+			PositionMargin:               positionMargin,
+			InitialMarginRequirement:     initialMarginRequirement,
+			MaintenanceMarginRequirement: maintenanceMarginRequirement,
+			EstimatedLiquidationPrice:    result[i].LiqPrice.Decimal(),
+			UpdateID:                     result[i].Sequence,
+			RealisedPNL:                  result[i].CurrentRealisedPNL.Decimal(),
+			UnrealisedPNL:                result[i].UnrealisedPnl.Decimal(),
+			Status:                       status,
+			RiskStatus:                   riskStatus,
+			OpeningDate:                  result[i].OpenTime.Time(),
+			OpeningPrice:                 result[i].EntryPrice.Decimal(),
+			OpeningDirection:             direction,
+			LatestPrice:                  result[i].MarkPrice.Decimal(),
+			LatestSize:                   size,
+			LatestDirection:              direction,
+			LastUpdated:                  result[i].UpdatedTime.Time(),
+			CloseDate:                    closeDate,
+		}
+	}
+	return e.Websocket.DataHandler.Send(ctx, positions)
+}
+
+func positionCollateralCurrency(a asset.Item, pair currency.Pair, symbol string) (currency.Code, error) {
+	switch a {
+	case asset.CoinMarginedFutures:
+		return pair.Base, nil
+	case asset.USDTMarginedFutures:
+		return currency.USDT, nil
+	case asset.USDCMarginedFutures:
+		return currency.USDC, nil
+	case asset.Options:
+		if strings.HasSuffix(symbol, currency.DashDelimiter+currency.USDT.String()) {
+			return currency.USDT, nil
+		}
+		return currency.USDC, nil
+	default:
+		return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
 }
 
 func (e *Exchange) wsLeverageTokenNav(ctx context.Context, resp *WebsocketResponse) error {

@@ -131,6 +131,8 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 	e.Name = "ProcessFuturesBalancesTest"
 	e.Accounts = accounts.MustNewAccounts(e)
 
+	// Gate's websocket user value identifies the primary account, not a separate subaccount.
+	// The ID must remain empty to match REST snapshots and prevent portfolio double counting.
 	usdtLower := currency.USDT.Lower()
 
 	for i, tc := range []websocketBalancesTest{
@@ -143,7 +145,7 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 			input:       []byte(`[{"balance":2214.191673190433,"change":-0.0025776,"currency":"usdt","text":"TCOM_USDT:263179103241933596","time":1755738515,"time_ms":1755738515671,"type":"fee","user":"12870774"}]`),
 			expected: accounts.SubAccounts{
 				{
-					ID:        "12870774",
+					ID:        "",
 					AssetType: asset.USDTMarginedFutures,
 					Balances: accounts.CurrencyBalances{
 						usdtLower: accounts.Balance{
@@ -151,7 +153,6 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 							Total:                  2214.191673190433,
 							Free:                   2214.191673190433,
 							AvailableWithoutBorrow: 2214.191673190433,
-							UpdatedAt:              time.UnixMilli(1755738515671),
 						},
 					},
 				},
@@ -162,7 +163,7 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 			input:       []byte(`[{"balance":2214.189114310433,"change":-0.00255888,"currency":"usdt","text":"TCOM_USDT:263179103241933644","time":1755738516,"time_ms":1755738516430,"type":"fee","user":"12870774"}]`),
 			expected: accounts.SubAccounts{
 				{
-					ID:        "12870774",
+					ID:        "",
 					AssetType: asset.USDTMarginedFutures,
 					Balances: accounts.CurrencyBalances{
 						usdtLower: accounts.Balance{
@@ -170,7 +171,6 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 							Total:                  2214.189114310433,
 							Free:                   2214.189114310433,
 							AvailableWithoutBorrow: 2214.189114310433,
-							UpdatedAt:              time.UnixMilli(1755738516430),
 						},
 					},
 				},
@@ -194,6 +194,92 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 	}
 }
 
+func TestProcessFuturesBalanceCapturedPayloads(t *testing.T) {
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Name = "ProcessFuturesBalanceCapturedPayloads"
+	ex.Accounts = accounts.MustNewAccounts(ex)
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+	// REST uses the canonical empty subaccount ID, while websocket payloads include Gate's primary-account user ID.
+	// Both transports must update one holding or portfolio aggregation will sum the same futures balance twice.
+	restSnapshot := accounts.NewSubAccount(asset.USDTMarginedFutures, "")
+	restSnapshot.Balances.Set(currency.USDT, accounts.Balance{
+		Total: 6106.7961637458,
+		Hold:  1500,
+		Free:  4606.7961637458,
+	})
+	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{restSnapshot}, true),
+		"Accounts.Save must seed the REST balance snapshot")
+	// Captured from live GateIO websocket data on 2026-09-03.
+	// Treat these payloads as semi-trusted until independently confirmed.
+	payloads := [][]byte{
+		[]byte(`[{"balance":6625.2967002542,"change":0.0008823675,"text":"SCRT_USDT","time":1788148805,"time_ms":1788148805954,"type":"fund","user":"12870774","currency":"usdt"}]`),
+		[]byte(`[{"balance":6625.2967002542,"change":0.0008823675,"text":"SCRT_USDT","time":1788148805,"time_ms":1788148805954,"type":"fund","user":"12870774","currency":"usdt"}]`),
+		[]byte(`[{"balance":6521.586841973412,"change":-0.01556544,"text":"RAVE_USDT:294985777215626819","time":1788387249,"time_ms":1788387249995,"type":"fee","user":"12870774","currency":"usdt"}]`),
+		[]byte(`[{"balance":6522.937261628622,"change":1.35041965521,"text":"RAVE_USDT:294985777215626819","time":1788387249,"time_ms":1788387249995,"type":"pnl","user":"12870774","currency":"usdt"}]`),
+	}
+	wantBalances := []float64{6625.2967002542, 6625.2967002542, 6521.586841973412, 6522.937261628622}
+
+	for i := range payloads {
+		startedAt := time.Now()
+		require.NoError(t, ex.processBalancePushData(ctx, payloads[i], asset.USDTMarginedFutures),
+			"processBalancePushData must process the captured balance update")
+		message := <-ex.Websocket.DataHandler.C
+		changes, ok := message.Data.(accounts.SubAccounts)
+		require.True(t, ok, "captured balance payload must emit subaccount changes")
+		require.Len(t, changes, 1, "captured balance payload must emit one subaccount change")
+		balance, ok := changes[0].Balances[currency.USDT.Lower()]
+		require.True(t, ok, "captured balance payload must contain USDT")
+		assert.Equal(t, wantBalances[i], balance.Total, "total balance should be preserved")
+		assert.Equal(t, 1500.0, balance.Hold, "held margin should survive a websocket balance update")
+		assert.Equal(t, wantBalances[i]-1500, balance.Free, "free balance should exclude held margin")
+		assert.False(t, balance.UpdatedAt.Before(startedAt), "websocket balance timestamp should use local arrival order")
+	}
+
+	credentials, err := ex.GetCredentials(ctx)
+	require.NoError(t, err, "GetCredentials must not error")
+	stored, err := ex.Accounts.GetBalance("", credentials, asset.USDTMarginedFutures, currency.USDT.Lower())
+	require.NoError(t, err, "GetBalance must return the latest captured balance")
+	latestBalance := wantBalances[len(wantBalances)-1]
+	assert.Equal(t, latestBalance, stored.Total, "stored balance should contain the latest update")
+	collated, err := ex.Accounts.CurrencyBalances(credentials, asset.USDTMarginedFutures)
+	require.NoError(t, err, "CurrencyBalances must return the collated futures balance")
+	assert.Equal(t, latestBalance, collated[currency.USDT].Total,
+		"websocket balance should replace the REST snapshot without being double counted")
+	refreshedRESTSnapshot := accounts.NewSubAccount(asset.USDTMarginedFutures, "")
+	refreshedRESTSnapshot.Balances.Set(currency.USDT, accounts.Balance{
+		Total: latestBalance,
+		Hold:  100,
+		Free:  latestBalance - 100,
+	})
+	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{refreshedRESTSnapshot}, true),
+		"REST arrival must not be rejected after a websocket event stamped by Gate's clock")
+
+	staleHoldSnapshot := accounts.NewSubAccount(asset.USDTMarginedFutures, "")
+	staleHoldSnapshot.Balances.Set(currency.USDT, accounts.Balance{Total: 6106.7961637458, Hold: 5000, Free: 1106.7961637458})
+	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{staleHoldSnapshot}, true),
+		"Accounts.Save must seed a stale held margin")
+	require.NoError(t, ex.processBalancePushData(ctx,
+		[]byte(`[{"balance":1000.5,"time":1788148806,"time_ms":1788148806000,"user":"12870774","currency":"usdt"}]`),
+		asset.USDTMarginedFutures), "processBalancePushData must floor free funds during a drawdown")
+	message := <-ex.Websocket.DataHandler.C
+	changes, ok := message.Data.(accounts.SubAccounts)
+	require.True(t, ok, "captured balance payload must emit subaccount changes")
+	drawnDown := changes[0].Balances[currency.USDT.Lower()]
+	assert.Equal(t, 5000.0, drawnDown.Hold, "held margin should survive a temporary balance drawdown")
+	assert.Zero(t, drawnDown.Free, "free balance should not become negative")
+	require.NoError(t, ex.processBalancePushData(ctx,
+		[]byte(`[{"balance":6106.7961637458,"time":1788148807,"time_ms":1788148807000,"user":"12870774","currency":"usdt"}]`),
+		asset.USDTMarginedFutures), "processBalancePushData must process balance recovery")
+	message = <-ex.Websocket.DataHandler.C
+	changes, ok = message.Data.(accounts.SubAccounts)
+	require.True(t, ok, "captured balance payload must emit subaccount changes")
+	recovered := changes[0].Balances[currency.USDT.Lower()]
+	assert.Equal(t, 5000.0, recovered.Hold, "held margin should remain intact after balance recovery")
+	assert.InDelta(t, 1106.7961637458, recovered.Free, 1e-12,
+		"free balance should recover without being overstated")
+}
+
 func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *websocketBalancesTest) {
 	t.Helper()
 
@@ -203,6 +289,16 @@ func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *w
 	require.Truef(t, ok, "Expected account changes, got %T", payload)
 
 	require.Lenf(t, received, len(tc.expected), "Expected %d changes, got %d", len(tc.expected), len(received))
+	for i := range tc.expected {
+		for c, expected := range tc.expected[i].Balances {
+			if expected.UpdatedAt.IsZero() {
+				receivedBalance := received[i].Balances[c]
+				assert.False(t, receivedBalance.UpdatedAt.IsZero(), "balance arrival timestamp should be populated")
+				expected.UpdatedAt = receivedBalance.UpdatedAt
+				tc.expected[i].Balances[c] = expected
+			}
+		}
+	}
 	require.Equal(t, tc.expected, received)
 
 	creds, err := exch.GetCredentials(ctx)

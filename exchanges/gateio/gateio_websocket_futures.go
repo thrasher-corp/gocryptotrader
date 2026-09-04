@@ -17,12 +17,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -69,6 +71,14 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 
 var errNoChannelsSupplied = errors.New("no channels supplied")
 
+const (
+	allFuturesContracts          = "!all"
+	contractPayloadOverrideParam = "contractPayloadOverride"
+	omitContractParam            = "omitContract"
+	requiresUserPlaceholderParam = "requiresUserPlaceholder"
+	invalidUserID                = "invalidUserID"
+)
+
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	a := asset.USDTMarginedFutures
@@ -89,15 +99,46 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	return nil
 }
 
+// prepareFuturesUserIDs warms the credential and settlement-scoped account ID cache used by
+// authenticated futures subscriptions. Bootstrap calls it eagerly and websocket pre-connect
+// calls it outside the manager lock, allowing a later reconnect to retry failed lookups without
+// putting REST requests in subscription generation. A failed lookup leaves the cache cold so
+// generation can retain public and user-ID-independent channels.
+func (e *Exchange) prepareFuturesUserIDs(ctx context.Context) {
+	if !e.Websocket.IsEnabled() || !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return
+	}
+
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+		pairs, err := e.GetEnabledPairs(a)
+		if err != nil || len(pairs) == 0 {
+			continue
+		}
+		settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
+		if err != nil || e.getFuturesUserID(creds.Key, settlementCurrency) != "" {
+			continue
+		}
+		if err := e.cacheFuturesUserID(ctx, creds.Key, settlementCurrency); err != nil {
+			log.Errorf(log.ExchangeSys, "%s: error preparing futures account user ID: %v", e.Name, err)
+		}
+	}
+}
+
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
 // TODO: Update to use the new subscription template system
-func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
+func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a asset.Item) (subscription.List, error) {
+	if a != asset.USDTMarginedFutures && a != asset.CoinMarginedFutures {
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
+
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if a == asset.CoinMarginedFutures {
 		channelsToSubscribe = defaultCoinMarginedFuturesSubscriptions
-	}
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
 	pairs, err := e.GetEnabledPairs(a)
@@ -106,6 +147,26 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
 		}
 		return nil, err
+	}
+
+	if len(pairs) == 0 {
+		return nil, nil
+	}
+
+	var userID string
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		creds, err := e.GetCredentials(ctx)
+		if err != nil {
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, a)
+			if err != nil {
+				return nil, err
+			}
+			if userID = e.getFuturesUserID(creds.Key, settlementCurrency); userID == "" {
+				userID = invalidUserID
+			}
+		}
 	}
 
 	var subscriptions subscription.List
@@ -138,7 +199,82 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 			})
 		}
 	}
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	channels:
+		for _, channel := range []string{
+			futuresOrdersChannel,
+			futuresUserTradesChannel,
+			futuresLiquidatesChannel,
+			futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel,
+			futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel,
+			futuresPositionsChannel,
+			futuresAutoOrdersChannel,
+		} {
+			params := map[string]any{contractPayloadOverrideParam: allFuturesContracts}
+			switch channel {
+			case futuresPositionsChannel:
+				// Gate deprecated the user ID value but still requires its positional placeholder.
+				params[requiresUserPlaceholderParam] = true
+			case futuresBalancesChannel:
+				if userID == invalidUserID {
+					log.Errorf(log.WebsocketMgr, "%s: skipping authenticated channel subscription: invalid user ID for %s channel", e.Name, channel)
+					continue channels
+				}
+				delete(params, contractPayloadOverrideParam)
+				params[omitContractParam] = true
+				params["user"] = userID
+			case futuresAutoOrdersChannel:
+			default:
+				if userID == invalidUserID {
+					log.Errorf(log.WebsocketMgr, "%s: skipping authenticated channel subscription: invalid user ID for %s channel", e.Name, channel)
+					continue channels
+				}
+				params["user"] = userID
+			}
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channel,
+				Pairs:   pairs[0:1],
+				Params:  params,
+				Asset:   a,
+			})
+		}
+	}
 	return subscriptions, nil
+}
+
+// futuresUserIDKey scopes a cached account ID to one credential and settlement account;
+// Gate treats each settlement currency as a separate futures account.
+func futuresUserIDKey(credentialKey string, settlementCurrency currency.Code) string {
+	return credentialKey + "/" + settlementCurrency.Upper().String()
+}
+
+func (e *Exchange) setFuturesUserID(credentialKey string, settlementCurrency currency.Code, userID string) {
+	e.futuresUserIDMu.Lock()
+	defer e.futuresUserIDMu.Unlock()
+	if e.futuresUserIDs == nil {
+		e.futuresUserIDs = make(map[string]string)
+	}
+	e.futuresUserIDs[futuresUserIDKey(credentialKey, settlementCurrency)] = userID
+}
+
+func (e *Exchange) getFuturesUserID(credentialKey string, settlementCurrency currency.Code) string {
+	e.futuresUserIDMu.RLock()
+	defer e.futuresUserIDMu.RUnlock()
+	return e.futuresUserIDs[futuresUserIDKey(credentialKey, settlementCurrency)]
+}
+
+func (e *Exchange) cacheFuturesUserID(ctx context.Context, credentialKey string, settlementCurrency currency.Code) error {
+	account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
+	if err != nil {
+		return err
+	}
+	if account == nil || account.User == 0 {
+		return fmt.Errorf("futures account user ID missing for %s", settlementCurrency)
+	}
+	e.setFuturesUserID(credentialKey, settlementCurrency, strconv.FormatInt(account.User, 10))
+	return nil
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
@@ -188,19 +324,19 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		}
 		return e.Websocket.DataHandler.Send(ctx, processed)
 	case futuresUserTradesChannel:
-		return e.procesFuturesUserTrades(respRaw, a)
+		return e.processFuturesUserTrades(respRaw, a)
 	case futuresLiquidatesChannel:
 		return e.processFuturesLiquidatesNotification(ctx, respRaw)
 	case futuresAutoDeleveragesChannel:
 		return e.processFuturesAutoDeleveragesNotification(ctx, respRaw)
 	case futuresAutoPositionCloseChannel:
-		return e.processPositionCloseData(ctx, respRaw)
+		return e.processPositionCloseData(ctx, respRaw, a)
 	case futuresBalancesChannel:
 		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(ctx, respRaw)
 	case futuresPositionsChannel:
-		return e.processFuturesPositionsNotification(ctx, respRaw)
+		return e.processFuturesPositionsNotification(ctx, respRaw, a)
 	case futuresAutoOrdersChannel:
 		return e.processFuturesAutoOrderPushData(ctx, respRaw)
 	case "futures.pong":
@@ -233,8 +369,12 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		}
 		var auth *WsAuthInput
 		timestamp := time.Now()
-		var params []string
-		params = []string{channelsToSubscribe[i].Pairs[0].String()}
+		params := []string{channelsToSubscribe[i].Pairs[0].String()}
+		if omitContract, _ := channelsToSubscribe[i].Params[omitContractParam].(bool); omitContract {
+			params = nil
+		} else if contractOverride, ok := channelsToSubscribe[i].Params[contractPayloadOverrideParam].(string); ok {
+			params[0] = contractOverride
+		}
 		if e.Websocket.CanUseAuthenticatedEndpoints() {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
@@ -242,11 +382,14 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				futuresAutoPositionCloseChannel, futuresBalancesChannel,
 				futuresReduceRiskLimitsChannel, futuresPositionsChannel,
 				futuresAutoOrdersChannel:
-				value, ok := channelsToSubscribe[i].Params["user"].(string)
-				if ok {
-					params = append(
-						[]string{value},
-						params...)
+				userID, hasUserID := channelsToSubscribe[i].Params["user"].(string)
+				if channelsToSubscribe[i].Channel == futuresAutoPositionCloseChannel && (!hasUserID || userID == "") {
+					return nil, fmt.Errorf("%w: user ID for %s", common.ErrParameterRequired, futuresAutoPositionCloseChannel)
+				}
+				if requiresUserPlaceholder, _ := channelsToSubscribe[i].Params[requiresUserPlaceholderParam].(bool); requiresUserPlaceholder {
+					params = append([]string{""}, params...)
+				} else if hasUserID {
+					params = append([]string{userID}, params...)
 				}
 				var sigTemp string
 				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
@@ -567,26 +710,41 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 		if err != nil {
 			return nil, err
 		}
+		side, amount, remaining := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), resp.Result[x].RemainingAmount.Float64())
+		tif := order.GoodTillCancel // Gate documents tif as optional and defaults it to gtc.
+		if resp.Result[x].TimeInForce != "" {
+			if tif, err = timeInForceFromString(resp.Result[x].TimeInForce); err != nil {
+				return nil, err
+			}
+		}
 
 		orderDetails[x] = order.Detail{
-			Amount:         resp.Result[x].Size.Float64(),
-			Exchange:       e.Name,
-			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
-			Status:         status,
-			Pair:           resp.Result[x].Contract,
-			LastUpdated:    resp.Result[x].FinishTime.Time(),
-			Date:           resp.Result[x].CreateTime.Time(),
-			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].RemainingAmount.Float64(),
-			Price:          resp.Result[x].Price.Float64(),
-			AssetType:      assetType,
-			AccountID:      resp.Result[x].User,
-			CloseTime:      resp.Result[x].FinishTime.Time(),
+			Amount:               amount,
+			ContractAmount:       amount,
+			Exchange:             e.Name,
+			OrderID:              strconv.FormatInt(resp.Result[x].ID, 10),
+			ClientOrderID:        getClientOrderIDFromText(resp.Result[x].Text),
+			Status:               status,
+			Pair:                 resp.Result[x].Contract,
+			LastUpdated:          resp.Result[x].FinishTime.Time(),
+			Date:                 resp.Result[x].CreateTime.Time(),
+			ExecutedAmount:       amount - remaining,
+			RemainingAmount:      remaining,
+			Price:                resp.Result[x].Price.Float64(),
+			AverageExecutedPrice: resp.Result[x].FillPrice.Float64(),
+			AssetType:            assetType,
+			AccountID:            resp.Result[x].User,
+			CloseTime:            resp.Result[x].FinishTime.Time(),
+			Side:                 side,
+			Type:                 getTypeFromTimeInForce(resp.Result[x].TimeInForce, resp.Result[x].Price.Float64()),
+			TimeInForce:          tif,
+			ReduceOnly:           resp.Result[x].IsReduceOnly,
 		}
 	}
 	return orderDetails, nil
 }
 
-func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
+func (e *Exchange) processFuturesUserTrades(data []byte, assetType asset.Item) error {
 	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
@@ -603,14 +761,16 @@ func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) er
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
+		side, amount, _ := getSideAndAmountFromSize(resp.Result[x].Size.Float64(), 0)
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     e.Name,
 			CurrencyPair: resp.Result[x].Contract,
+			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size.Float64(),
+			Amount:       amount,
 			AssetType:    assetType,
 		}
 	}
@@ -645,7 +805,9 @@ func (e *Exchange) processFuturesAutoDeleveragesNotification(ctx context.Context
 	return e.Websocket.DataHandler.Send(ctx, &resp)
 }
 
-func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte) error {
+// processPositionCloseData emits zero-size canonical futures positions while
+// preserving the established raw payload for options consumers.
+func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte, a asset.Item) error {
 	resp := struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
@@ -656,7 +818,52 @@ func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte) er
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	if a == asset.Options {
+		return e.Websocket.DataHandler.Send(ctx, &resp)
+	}
+	positions := make([]futures.Position, len(resp.Result))
+	for i := range resp.Result {
+		pair, err := e.MatchSymbolWithAvailablePairs(resp.Result[i].Contract, a, true)
+		if err != nil {
+			return err
+		}
+		direction, err := order.StringToOrderSide(resp.Result[i].Side)
+		if err != nil {
+			return err
+		}
+		collateralCurrency, err := getSettlementCurrency(pair, a)
+		if err != nil {
+			return err
+		}
+		riskStatus := order.UnknownStatus
+		switch {
+		case resp.Result[i].Text == "auto_deleveraging":
+			riskStatus = order.AutoDeleverage
+		case resp.Result[i].Text == "liquidation",
+			resp.Result[i].Text == "pm_liquidate",
+			resp.Result[i].Text == "comb_margin_liquidate",
+			resp.Result[i].Text == "scm_liquidate",
+			resp.Result[i].Text == "insurance",
+			strings.HasPrefix(resp.Result[i].Text, "liq-"),
+			strings.HasPrefix(resp.Result[i].Text, "hedge-liq-"):
+			riskStatus = order.Liquidated
+		}
+		positions[i] = futures.Position{
+			Exchange:           e.Name,
+			Asset:              a,
+			Pair:               pair,
+			Underlying:         pair.Base,
+			CollateralCurrency: collateralCurrency,
+			Status:             order.Closed,
+			RiskStatus:         riskStatus,
+			RealisedPNL:        resp.Result[i].ProfitAndLoss.Decimal(),
+			OpeningDirection:   direction,
+			LatestDirection:    direction,
+			LastUpdated:        resp.Result[i].Time.Time(),
+			CloseDate:          resp.Result[i].Time.Time(),
+		}
+	}
+	return e.Websocket.DataHandler.Send(ctx, positions)
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
@@ -664,26 +871,29 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-
-	subAccts := accounts.SubAccounts{}
+	// Gate's websocket user value identifies the same primary account that REST stores with an empty ID.
+	// Using it as a subaccount ID retains both snapshots and causes portfolio balances to be double counted.
+	subAcct := accounts.NewSubAccount(assetType, "")
 	for _, bal := range resp {
 		c := bal.Currency
-		if assetType == asset.Options && c.IsEmpty() {
-			c = currency.USDT // Settlement currency is USDT
+		if c.IsEmpty() {
+			var err error
+			c, err = getSettlementCurrency(currency.EMPTYPAIR, assetType)
+			if err != nil {
+				return err
+			}
 		}
-		a := accounts.NewSubAccount(assetType, bal.User)
-		a.Balances.Set(c, accounts.Balance{
-			Total:                  bal.Balance.Float64(),
-			Free:                   bal.Balance.Float64(),
-			AvailableWithoutBorrow: bal.Balance.Float64(),
-			UpdatedAt:              bal.Time.Time(),
+		balance, err := e.Accounts.UpdateBalance(ctx, "", assetType, c, func(balance *accounts.Balance) {
+			balance.Total = bal.Balance.Float64()
+			balance.Free = max(balance.Total-balance.Hold, 0)
+			balance.AvailableWithoutBorrow = balance.Free
 		})
-		subAccts = subAccts.Merge(a)
+		if err != nil {
+			return err
+		}
+		subAcct.Balances.Set(c, balance)
 	}
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
-		return err
-	}
-	return e.Websocket.DataHandler.Send(ctx, subAccts)
+	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
 }
 
 func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context, data []byte) error {
@@ -700,7 +910,9 @@ func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context
 	return e.Websocket.DataHandler.Send(ctx, &resp)
 }
 
-func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte) error {
+// processFuturesPositionsNotification emits canonical positions with Gate's
+// signed contract size represented as absolute size plus direction.
+func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte, a asset.Item) error {
 	resp := struct {
 		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
@@ -711,7 +923,67 @@ func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	positions := make([]futures.Position, len(resp.Result))
+	for i := range resp.Result {
+		pair, err := e.MatchSymbolWithAvailablePairs(resp.Result[i].Contract, a, true)
+		if err != nil {
+			return err
+		}
+		size := resp.Result[i].Size.Decimal()
+		direction := order.UnknownSide
+		switch {
+		case size.IsNegative():
+			direction = order.Short
+			size = size.Abs()
+		case size.IsPositive():
+			direction = order.Long
+		case resp.Result[i].Mode == "dual_long":
+			direction = order.Long
+		case resp.Result[i].Mode == "dual_short":
+			direction = order.Short
+		}
+		collateralCurrency, err := getSettlementCurrency(pair, a)
+		if err != nil {
+			return err
+		}
+		leverage := resp.Result[i].Leverage.Decimal()
+		switch {
+		case resp.Result[i].PositionMarginMode != "":
+			leverage = resp.Result[i].PositionLeverage.Decimal()
+		case leverage.IsZero():
+			// Gate reports classic cross margin as leverage zero and carries its multiplier separately.
+			leverage = resp.Result[i].CrossLeverageLimit.Decimal()
+		}
+		status := order.Closed
+		if !size.IsZero() {
+			status = order.Open
+		}
+		var closeDate time.Time
+		if size.IsZero() {
+			closeDate = resp.Result[i].Time.Time()
+		}
+		positions[i] = futures.Position{
+			Exchange:                  e.Name,
+			Asset:                     a,
+			Pair:                      pair,
+			Underlying:                pair.Base,
+			CollateralCurrency:        collateralCurrency,
+			Status:                    status,
+			Leverage:                  leverage,
+			PositionMargin:            resp.Result[i].Margin.Decimal(),
+			MaintenanceMarginFraction: resp.Result[i].MaintenanceRate.Decimal(),
+			EstimatedLiquidationPrice: resp.Result[i].LiqPrice.Decimal(),
+			UpdateID:                  resp.Result[i].UpdateID,
+			RealisedPNL:               resp.Result[i].RealisedPnl.Decimal(),
+			OpeningPrice:              resp.Result[i].EntryPrice.Decimal(),
+			OpeningDirection:          direction,
+			LatestSize:                size,
+			LatestDirection:           direction,
+			LastUpdated:               resp.Result[i].Time.Time(),
+			CloseDate:                 closeDate,
+		}
+	}
+	return e.Websocket.DataHandler.Send(ctx, positions)
 }
 
 func (e *Exchange) processFuturesAutoOrderPushData(ctx context.Context, data []byte) error {

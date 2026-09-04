@@ -192,4 +192,51 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, sig, got[0].Auth.Sign)
 	})
+
+	t.Run("authenticated positions all contracts", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Name = "generateFuturesPayloadAllPositionsTest"
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
+			&subscription.Subscription{
+				Channel: futuresPositionsChannel,
+				Pairs:   currency.Pairs{BTCUSDT},
+				Params: map[string]any{
+					contractPayloadOverrideParam: allFuturesContracts,
+					requiresUserPlaceholderParam: true,
+				},
+			},
+		})
+		require.NoError(t, err, "generateFuturesPayload must not error")
+		require.Len(t, got, 1, "all-contract positions must generate one payload")
+		require.Equal(t, []string{"", "!all"}, got[0].Payload,
+			"all-contract positions payload must use the documented selector")
+		require.NotNil(t, got[0].Auth, "all-contract positions payload must be authenticated")
+	})
+
+	t.Run("authenticated position closes require user ID", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Name = "generateFuturesPayloadPositionClosesTest"
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+		_, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
+			&subscription.Subscription{
+				Channel: futuresAutoPositionCloseChannel,
+				Pairs:   currency.Pairs{BTCUSDT},
+			},
+		})
+		require.ErrorIs(t, err, common.ErrParameterRequired,
+			"position closes payload without a user ID must error")
+	})
 }

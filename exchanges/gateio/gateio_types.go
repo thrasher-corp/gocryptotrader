@@ -1901,7 +1901,7 @@ type FuturesOrder struct {
 	Status                    string        `json:"status"`
 	FinishTime                types.Time    `json:"finish_time"`
 	FinishAs                  string        `json:"finish_as"`
-	SelfTradePreventionID     int64         `json:"stp_id"`
+	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
 	OrderValue                types.Number  `json:"order_value"`
@@ -2429,8 +2429,12 @@ type WsFuturesPosition struct {
 	RealisedPoint      types.Number `json:"realised_point"`
 	RiskLimit          types.Number `json:"risk_limit"`
 	Size               types.Number `json:"size"`
+	TimeSeconds        types.Time   `json:"time"`
 	Time               types.Time   `json:"time_ms"`
+	UpdateID           int64        `json:"update_id"`
 	User               string       `json:"user"`
+	PositionMarginMode string       `json:"pos_margin_mode"`
+	PositionLeverage   types.Number `json:"lever"`
 }
 
 // WsFuturesAutoOrder represents an auto order push data.

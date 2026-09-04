@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -361,6 +362,18 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if m.verbose {
 			log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
 		}
+	case accounts.SubAccounts:
+		// TODO: Ingest websocket account snapshots once the portfolio manager supports event-driven updates; logging is an intentional stopgap.
+		if m.verbose {
+			for _, subAccount := range d {
+				if subAccount == nil {
+					continue
+				}
+				for c, balance := range subAccount.Balances {
+					log.Debugf(log.PortfolioMgr, "Portfolio [Websocket]: Received %s %s balance update: %s, %f", exchName, subAccount.AssetType, c, balance.Total)
+				}
+			}
+		}
 	case []trade.Data, trade.Data:
 		if m.verbose {
 			log.Infof(log.Trade, "%+v", d)
@@ -368,6 +381,11 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case []fill.Data:
 		if m.verbose {
 			log.Infof(log.Fill, "%+v", d)
+		}
+	case []futures.Position:
+		// TODO: Apply canonical websocket snapshots once PositionController supports snapshot ingestion.
+		if m.verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket futures positions updated %+v", exchName, d)
 		}
 	default:
 		if m.verbose {
@@ -399,7 +417,7 @@ func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 	}
 
 	log.Debugf(log.WebsocketMgr,
-		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Average Executed Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f TimeInForce:%s ReduceOnly:%t",
 		orderNotif,
 		o.Exchange,
 		o.AssetType,
@@ -410,9 +428,12 @@ func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 		o.OrderID,
 		o.ClientOrderID,
 		o.Price,
+		o.AverageExecutedPrice,
 		o.Amount,
 		o.ExecutedAmount,
-		o.RemainingAmount)
+		o.RemainingAmount,
+		o.TimeInForce,
+		o.ReduceOnly)
 }
 
 // registerWebsocketDataHandler registers an externally (GCT Library) defined
