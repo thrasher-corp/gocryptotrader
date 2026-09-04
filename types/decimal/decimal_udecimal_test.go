@@ -218,6 +218,27 @@ func TestDecimalIsNegative(t *testing.T) {
 	assert.False(t, Zero.IsNegative(), "IsNegative should reject zero")
 }
 
+func TestDecimalIsInteger(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		value    string
+		expected bool
+	}{
+		{name: "positive integer", value: "42", expected: true},
+		{name: "negative integer", value: "-42.000", expected: true},
+		{name: "zero", value: "0", expected: true},
+		{name: "positive fraction", value: "42.1", expected: false},
+		{name: "negative fraction", value: "-0.1", expected: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, MustFromString(tc.value).IsInteger(),
+				"IsInteger should identify values without a fractional component")
+		})
+	}
+}
+
 func TestDecimalRound(t *testing.T) {
 	t.Parallel()
 	largeHalf := "5" + strings.Repeat("0", maxStringDigits)
