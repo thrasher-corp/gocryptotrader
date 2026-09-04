@@ -47,7 +47,6 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Bitfinex | Yes | Yes | Only supports USDT |
 | Bitflyer | No | No | |
 | Bithumb | No | No | |
-| BitMEX | No | No | Supports BTC only |
 | Bitstamp | No | No | |
 | BTCMarkets | No | No| NA  |
 | BTSE | No | No | Only through website |
