@@ -159,6 +159,11 @@ func (d Decimal) IsNegative() bool {
 	return d.value.IsNeg()
 }
 
+// IsInteger reports whether d has no fractional component.
+func (d Decimal) IsInteger() bool {
+	return d.Equal(d.Truncate(0))
+}
+
 // Round rounds d half away from zero to places fractional digits. Negative
 // places round digits in the integer component.
 func (d Decimal) Round(places int32) Decimal {

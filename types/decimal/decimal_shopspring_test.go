@@ -53,3 +53,24 @@ func TestMustFromString(t *testing.T) {
 		"MustFromString should preserve shopspring parsing")
 	assert.Panics(t, func() { MustFromString("invalid") }, "MustFromString should panic for invalid input")
 }
+
+func TestDecimalIsInteger(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		value    string
+		expected bool
+	}{
+		{name: "positive integer", value: "42", expected: true},
+		{name: "negative integer", value: "-42.000", expected: true},
+		{name: "zero", value: "0", expected: true},
+		{name: "positive fraction", value: "42.1", expected: false},
+		{name: "negative fraction", value: "-0.1", expected: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, MustFromString(tc.value).IsInteger(),
+				"IsInteger should identify values without a fractional component")
+		})
+	}
+}
