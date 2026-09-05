@@ -45,6 +45,7 @@ const (
 	lbankWsKlineDay    = "day"
 	lbankWsKlineWeek   = "week"
 	lbankWsKlineMonth  = "month"
+	lbankWsKlineYear   = "year"
 )
 
 var klineIntervals = map[kline.Interval]string{
@@ -57,6 +58,7 @@ var klineIntervals = map[kline.Interval]string{
 	kline.OneDay:     lbankWsKlineDay,
 	kline.OneWeek:    lbankWsKlineWeek,
 	kline.OneMonth:   lbankWsKlineMonth,
+	kline.OneYear:    lbankWsKlineYear,
 }
 
 var defaultSubscriptions = subscription.List{
@@ -374,6 +376,8 @@ func klineIntervalFromString(s string) (kline.Interval, error) {
 		return kline.OneWeek, nil
 	case lbankWsKlineMonth:
 		return kline.OneMonth, nil
+	case lbankWsKlineYear:
+		return kline.OneYear, nil
 	default:
 		return 0, fmt.Errorf("lbank: unsupported kline interval string %s", s)
 	}
