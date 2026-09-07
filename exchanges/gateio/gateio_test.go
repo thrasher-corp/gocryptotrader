@@ -402,17 +402,17 @@ func TestUpdateTicker(t *testing.T) {
 			}
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, http.MethodGet, r.Method)
-				assert.Equal(t, tc.expectedPath, r.URL.Path)
+				assert.Equal(t, http.MethodGet, r.Method, "ticker request method should be GET")
+				assert.Equal(t, tc.expectedPath, r.URL.Path, "ticker request path should match the asset endpoint")
 				if tc.asset == asset.Options {
 					assert.Equal(t, "BTC_USDT", r.URL.Query().Get("underlying"), "options underlying should match")
 					_, err := fmt.Fprintf(w, `[{"name":%q,"last_price":"118.4","mark_price":"118.35","index_price":"100000.25"}]`, tc.pair.String())
 					assert.NoError(t, err, "mocked response should be written")
 					return
 				}
-				assert.Equal(t, tc.pair.String(), r.URL.Query().Get("contract"))
+				assert.Equal(t, tc.pair.String(), r.URL.Query().Get("contract"), "ticker request contract should match the pair")
 				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h_base":"5526","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
-				assert.NoError(t, err)
+				assert.NoError(t, err, "mocked ticker response should be written")
 			}))
 			t.Cleanup(server.Close)
 
@@ -420,12 +420,12 @@ func TestUpdateTicker(t *testing.T) {
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
 
 			got, err := ex.UpdateTicker(t.Context(), tc.pair, tc.asset)
-			require.NoError(t, err)
-			assert.Equal(t, 118.35, got.MarkPrice)
+			require.NoError(t, err, "mocked ticker retrieval must succeed")
+			assert.Equal(t, 118.35, got.MarkPrice, "ticker mark price should match the mocked response")
 			if tc.asset == asset.Options {
 				assert.Equal(t, 100000.25, got.IndexPrice, "options index price should match")
 			} else {
-				assert.Equal(t, 118.36, got.IndexPrice)
+				assert.Equal(t, 118.36, got.IndexPrice, "ticker index price should match the mocked response")
 			}
 		})
 	}
@@ -2258,31 +2258,31 @@ func TestUpdateTickers(t *testing.T) {
 			}
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, http.MethodGet, r.Method)
-				assert.Equal(t, tc.expectedPath, r.URL.Path)
+				assert.Equal(t, http.MethodGet, r.Method, "ticker request method should be GET")
+				assert.Equal(t, tc.expectedPath, r.URL.Path, "ticker request path should match the asset endpoint")
 				if tc.asset == asset.Options {
 					assert.Equal(t, "BTC_USDT", r.URL.Query().Get("underlying"), "options underlying should match")
 					_, err := fmt.Fprintf(w, `[{"name":%q,"last_price":"118.4","mark_price":"118.35","index_price":"100000.25"}]`, tc.pair.String())
 					assert.NoError(t, err, "mocked response should be written")
 					return
 				}
-				assert.Empty(t, r.URL.Query().Get("contract"))
+				assert.Empty(t, r.URL.Query().Get("contract"), "bulk ticker request should not filter by contract")
 				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h":"745487577","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
-				assert.NoError(t, err)
+				assert.NoError(t, err, "mocked ticker response should be written")
 			}))
 			t.Cleanup(server.Close)
 
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
 
-			require.NoError(t, ex.UpdateTickers(t.Context(), tc.asset))
+			require.NoError(t, ex.UpdateTickers(t.Context(), tc.asset), "mocked bulk ticker update must succeed")
 			got, err := ticker.GetTicker(ex.Name, tc.pair, tc.asset)
-			require.NoError(t, err)
-			assert.Equal(t, 118.35, got.MarkPrice)
+			require.NoError(t, err, "mocked ticker retrieval must succeed")
+			assert.Equal(t, 118.35, got.MarkPrice, "ticker mark price should match the mocked response")
 			if tc.asset == asset.Options {
 				assert.Equal(t, 100000.25, got.IndexPrice, "options index price should match")
 			} else {
-				assert.Equal(t, 118.36, got.IndexPrice)
+				assert.Equal(t, 118.36, got.IndexPrice, "ticker index price should match the mocked response")
 			}
 		})
 	}

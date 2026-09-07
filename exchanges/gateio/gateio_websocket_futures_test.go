@@ -24,20 +24,20 @@ func TestProcessFuturesTickers(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
 	payload := []byte(`{"time":1541659086,"channel":"futures.tickers","event":"update","result":[{"contract":"BTC_USDT","last":"118.4","mark_price":"118.35","index_price":"118.36","volume_24h_quote":"1665006","volume_24h_base":"5526","low_24h":"99.2","high_24h":"132.5"}]}`)
-	require.NoError(t, ex.processFuturesTickers(t.Context(), payload, asset.USDTMarginedFutures))
+	require.NoError(t, ex.processFuturesTickers(t.Context(), payload, asset.USDTMarginedFutures), "futures ticker processing must succeed")
 
 	select {
 	case msg := <-ex.Websocket.DataHandler.C:
 		got, ok := msg.Data.([]ticker.Price)
-		require.True(t, ok, "expected []ticker.Price")
-		require.Len(t, got, 1)
-		assert.Equal(t, 118.35, got[0].MarkPrice)
-		assert.Equal(t, 118.36, got[0].IndexPrice)
-		assert.Equal(t, asset.USDTMarginedFutures, got[0].AssetType)
-		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), got[0].Pair)
-		assert.Equal(t, time.Unix(1541659086, 0), got[0].LastUpdated)
+		require.True(t, ok, "message must contain futures ticker prices")
+		require.Len(t, got, 1, "message must contain one futures ticker")
+		assert.Equal(t, 118.35, got[0].MarkPrice, "mark price should match the response")
+		assert.Equal(t, 118.36, got[0].IndexPrice, "index price should match the response")
+		assert.Equal(t, asset.USDTMarginedFutures, got[0].AssetType, "asset should be USDT margined futures")
+		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), got[0].Pair, "ticker pair should match the response")
+		assert.Equal(t, time.Unix(1541659086, 0), got[0].LastUpdated, "ticker timestamp should match the response")
 	default:
-		require.Fail(t, "expected websocket futures ticker payload")
+		require.Fail(t, "WebSocket futures ticker payload must be emitted")
 	}
 }
 
