@@ -1,7 +1,6 @@
 package yobit
 
 import (
-	"errors"
 	"log"
 	"math"
 	"net/http"
@@ -20,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -107,6 +105,40 @@ func TestGetTickerRejectsMalformedTicker(t *testing.T) {
 
 	_, err := ex.GetTicker(t.Context(), "btc_usd")
 	assert.ErrorContains(t, err, "error decoding ticker for btc_usd", "GetTicker should reject malformed ticker entries")
+}
+
+func TestGetTickerRejectsFailedRequest(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"success":0,"error":"Invalid pair name: btc_usd"}`))
+		assert.NoError(t, err, "writing ticker response should not error")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	_, err := ex.GetTicker(t.Context(), "btc_usd")
+	assert.ErrorIs(t, err, errTickerRequestFailed, "GetTicker should return the ticker request failure")
+}
+
+func TestGetTickerRejectsMalformedError(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"success":0,"error":{}}`))
+		assert.NoError(t, err, "writing ticker response should not error")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	_, err := ex.GetTicker(t.Context(), "btc_usd")
+	assert.ErrorContains(t, err, "error decoding ticker error field", "GetTicker should reject malformed error metadata")
 }
 
 func TestGetDepth(t *testing.T) {
@@ -544,9 +576,6 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateTicker(t.Context(), testPair, asset.Spot)
-	if errors.Is(err, ticker.ErrTickerNotFound) {
-		t.Skipf("UpdateTicker should skip when pair %s is unavailable in live ticker feed", testPair)
-	}
 	assert.NoError(t, err, "UpdateTicker should not error")
 }
 

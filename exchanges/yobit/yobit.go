@@ -39,6 +39,8 @@ const (
 	privateRedeemCoupon           = "RedeemYobicode"
 )
 
+var errTickerRequestFailed = errors.New("ticker request failed")
+
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Yobit
 type Exchange struct {
 	exchange.Base
@@ -61,8 +63,15 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 	}
 
 	result := make(map[string]Ticker, len(raw))
+	var apiError string
 	for pair, entry := range raw {
-		if pair == "success" || pair == "error" {
+		switch pair {
+		case "success":
+			continue
+		case "error":
+			if err := json.Unmarshal(entry, &apiError); err != nil {
+				return nil, fmt.Errorf("error decoding ticker error field: %w", err)
+			}
 			continue
 		}
 		var ticker Ticker
@@ -70,6 +79,9 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 			return nil, fmt.Errorf("error decoding ticker for %s: %w", pair, err)
 		}
 		result[pair] = ticker
+	}
+	if len(result) == 0 && apiError != "" {
+		return nil, fmt.Errorf("%w: %s", errTickerRequestFailed, apiError)
 	}
 	return result, nil
 }
