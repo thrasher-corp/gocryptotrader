@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -53,14 +54,24 @@ func (e *Exchange) GetInfo(ctx context.Context) (Info, error) {
 
 // GetTicker returns a ticker for a specific currency
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
-	type Response struct {
-		Data map[string]Ticker
+	var raw map[string]json.RawMessage
+	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &raw); err != nil {
+		return nil, err
 	}
 
-	response := Response{}
-	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
-
-	return response.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
+	result := make(map[string]Ticker, len(raw))
+	for pair, entry := range raw {
+		if pair == "success" || pair == "error" {
+			continue
+		}
+		var ticker Ticker
+		if err := json.Unmarshal(entry, &ticker); err != nil {
+			return nil, fmt.Errorf("error decoding ticker for %s: %w", pair, err)
+		}
+		result[pair] = ticker
+	}
+	return result, nil
 }
 
 // GetDepth returns the depth for a specific currency
