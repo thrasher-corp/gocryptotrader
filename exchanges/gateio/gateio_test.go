@@ -340,6 +340,38 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+var mockedTickerTestCases = []struct {
+	name         string
+	asset        asset.Item
+	pair         currency.Pair
+	expectedPath string
+}{
+	{
+		name:         "mocked USDT margined futures mark and index prices",
+		asset:        asset.USDTMarginedFutures,
+		pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/futures/usdt/tickers",
+	},
+	{
+		name:         "mocked coin margined futures mark and index prices",
+		asset:        asset.CoinMarginedFutures,
+		pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/futures/btc/tickers",
+	},
+	{
+		name:         "mocked delivery futures mark and index prices",
+		asset:        asset.DeliveryFutures,
+		pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/delivery/usdt/tickers",
+	},
+	{
+		name:         "mocked options mark and index prices",
+		asset:        asset.Options,
+		pair:         currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter),
+		expectedPath: "/api/v4/options/tickers",
+	},
+}
+
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
@@ -353,44 +385,19 @@ func TestUpdateTicker(t *testing.T) {
 				switch a {
 				case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures, asset.Options:
 					require.NotNil(t, got, "live ticker must not be nil")
-					assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					if a == asset.Options {
+						// Out-of-the-money options can have a zero mark price near expiry.
+						assert.GreaterOrEqual(t, got.MarkPrice, 0.0, "live options mark price should be non-negative")
+					} else {
+						assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					}
 					assert.Positive(t, got.IndexPrice, "live ticker index price should be positive")
 				}
 			})
 		}
 	})
 
-	for _, tc := range []struct {
-		name         string
-		asset        asset.Item
-		pair         currency.Pair
-		expectedPath string
-	}{
-		{
-			name:         "mocked USDT margined futures mark and index prices",
-			asset:        asset.USDTMarginedFutures,
-			pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/futures/usdt/tickers",
-		},
-		{
-			name:         "mocked coin margined futures mark and index prices",
-			asset:        asset.CoinMarginedFutures,
-			pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/futures/btc/tickers",
-		},
-		{
-			name:         "mocked delivery futures mark and index prices",
-			asset:        asset.DeliveryFutures,
-			pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/delivery/usdt/tickers",
-		},
-		{
-			name:         "mocked options mark and index prices",
-			asset:        asset.Options,
-			pair:         currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/options/tickers",
-		},
-	} {
+	for _, tc := range mockedTickerTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -2207,7 +2214,12 @@ func TestUpdateTickers(t *testing.T) {
 					got, err := ticker.GetTicker(ex.Name, pair, a)
 					require.NoError(t, err, "live UpdateTickers must cache the requested ticker")
 					require.NotNil(t, got, "live ticker must not be nil")
-					assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					if a == asset.Options {
+						// Out-of-the-money options can have a zero mark price near expiry.
+						assert.GreaterOrEqual(t, got.MarkPrice, 0.0, "live options mark price should be non-negative")
+					} else {
+						assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					}
 					assert.Positive(t, got.IndexPrice, "live ticker index price should be positive")
 				default:
 					assert.NoError(t, e.UpdateTickers(t.Context(), a), "UpdateTickers should not error")
@@ -2216,37 +2228,7 @@ func TestUpdateTickers(t *testing.T) {
 		}
 	})
 
-	for _, tc := range []struct {
-		name         string
-		asset        asset.Item
-		pair         currency.Pair
-		expectedPath string
-	}{
-		{
-			name:         "mocked USDT margined futures mark and index prices",
-			asset:        asset.USDTMarginedFutures,
-			pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/futures/usdt/tickers",
-		},
-		{
-			name:         "mocked coin margined futures mark and index prices",
-			asset:        asset.CoinMarginedFutures,
-			pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/futures/btc/tickers",
-		},
-		{
-			name:         "mocked delivery futures mark and index prices",
-			asset:        asset.DeliveryFutures,
-			pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/delivery/usdt/tickers",
-		},
-		{
-			name:         "mocked options mark and index prices",
-			asset:        asset.Options,
-			pair:         currency.NewPairWithDelimiter("BTC", "USDT-20261225-100000-C", currency.UnderscoreDelimiter),
-			expectedPath: "/api/v4/options/tickers",
-		},
-	} {
+	for _, tc := range mockedTickerTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

@@ -117,11 +117,11 @@ func TestOpenInterestFromStats(t *testing.T) {
 
 			openInterest, err := openInterestFromStats(tc.stats)
 			if tc.errIs != nil {
-				require.ErrorIs(t, err, tc.errIs)
+				require.ErrorIs(t, err, tc.errIs, "missing statistics must return the expected error")
 				return
 			}
-			require.NoError(t, err)
-			assert.Equal(t, tc.expect, openInterest)
+			require.NoError(t, err, "open interest statistics must be valid")
+			assert.Equal(t, tc.expect, openInterest, "open interest should use the latest USD notional")
 		})
 	}
 }
