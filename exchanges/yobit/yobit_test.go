@@ -95,6 +95,13 @@ func TestGetTickerResponseHandling(t *testing.T) {
 		{name: "failure with populated ticker", body: `{"success":0,"btc_usd":{"last":80001}}`, errIs: errTickerRequestFailed},
 		{name: "error without success", body: `{"error":"Pair is off: btc_usd"}`, errIs: errTickerRequestFailed},
 		{name: "empty response", body: `{}`, want: map[string]Ticker{}},
+		{name: "error with null ticker", body: `{"error":"Pair is off: btc_usd","btc_usd":null}`, errIs: errTickerRequestFailed, errString: "empty ticker for btc_usd"},
+		{name: "error with empty ticker", body: `{"error":"Pair is off: btc_usd","btc_usd":{}}`, errIs: errTickerRequestFailed},
+		{name: "success with null ticker", body: `{"success":1,"btc_usd":null}`, errIs: errTickerRequestFailed},
+		{name: "success with empty ticker", body: `{"success":1,"btc_usd":{}}`, errIs: errTickerRequestFailed},
+		{name: "null ticker without metadata", body: `{"btc_usd":null}`, errIs: errTickerRequestFailed},
+		{name: "empty ticker without metadata", body: `{"btc_usd":{}}`, errIs: errTickerRequestFailed},
+		{name: "zero last with populated ticker", body: `{"btc_usd":{"last":0,"buy":80001}}`, want: map[string]Ticker{"btc_usd": {Buy: 80001}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -128,17 +135,23 @@ func TestGetTickerResponseHandling(t *testing.T) {
 func TestUpdateTickersResponseHandling(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
-		name    string
-		body    string
-		errIs   error
-		btcLast float64
+		name         string
+		body         string
+		errIs        error
+		btcLast      float64
+		btcRefreshed bool
 	}{
-		{name: "partial batch", body: `{"btc_usd":{"last":80002}}`, errIs: ticker.ErrTickerNotFound, btcLast: 80002},
+		{name: "partial batch", body: `{"btc_usd":{"last":80002}}`, errIs: ticker.ErrTickerNotFound, btcLast: 80002, btcRefreshed: true},
 		{name: "all invalid", body: `{"success":0,"error":"Empty pair list"}`, errIs: errTickerRequestFailed, btcLast: 80001},
 		{name: "failure without error", body: `{"success":0}`, errIs: errTickerRequestFailed, btcLast: 80001},
 		{name: "failure with empty error", body: `{"success":0,"error":""}`, errIs: errTickerRequestFailed, btcLast: 80001},
 		{name: "failure with null ticker", body: `{"success":0,"error":"Pair is off: btc_usd","btc_usd":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
 		{name: "failure with empty ticker", body: `{"success":0,"error":"Pair is off: btc_usd","btc_usd":{}}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "error with null ticker", body: `{"error":"Pair is off: btc_usd","btc_usd":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "error with empty ticker", body: `{"error":"Pair is off: btc_usd","btc_usd":{}}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "success with null ticker", body: `{"success":1,"btc_usd":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "success with empty ticker", body: `{"success":1,"btc_usd":{}}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "null ticker without metadata", body: `{"btc_usd":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -161,6 +174,8 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 			require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "initial poll must populate both tickers")
+			beforeBitcoin, err := ticker.GetTicker(ex.Name, bitcoin, asset.Spot)
+			require.NoError(t, err, "initial bitcoin ticker must be cached")
 			before, err := ticker.GetTicker(ex.Name, ethereum, asset.Spot)
 			require.NoError(t, err, "initial ethereum ticker must be cached")
 			response.Store(&test.body)
@@ -172,6 +187,9 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 			cached, err := ticker.GetTicker(ex.Name, bitcoin, asset.Spot)
 			require.NoError(t, err, "bitcoin ticker must remain cached")
 			assert.Equal(t, test.btcLast, cached.Last, "valid partial results should update while failures should not overwrite prices")
+			if !test.btcRefreshed {
+				assert.Equal(t, beforeBitcoin.LastUpdated, cached.LastUpdated, "failed ticker should not be marked fresh")
+			}
 			stale, err := ticker.GetTicker(ex.Name, ethereum, asset.Spot)
 			require.NoError(t, err, "previous ethereum ticker must remain cached")
 			assert.Equal(t, before.LastUpdated, stale.LastUpdated, "omitted ticker should not be marked fresh")
@@ -179,6 +197,15 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 			result, err := ex.UpdateTicker(t.Context(), ethereum, asset.Spot)
 			assert.ErrorIs(t, err, test.errIs, "UpdateTicker should propagate the refresh failure")
 			assert.Nil(t, result, "UpdateTicker should not return the stale cached ticker as a successful refresh")
+			result, err = ex.UpdateTicker(t.Context(), bitcoin, asset.Spot)
+			if test.btcRefreshed {
+				require.NoError(t, err, "UpdateTicker must return the refreshed pair despite unrelated omissions")
+				require.NotNil(t, result, "UpdateTicker must return the refreshed ticker")
+				assert.Equal(t, test.btcLast, result.Last, "UpdateTicker should return the fresh price")
+			} else {
+				assert.ErrorIs(t, err, test.errIs, "UpdateTicker should propagate failure for a pair that did not refresh")
+				assert.Nil(t, result, "UpdateTicker should not return a cached price after failure")
+			}
 		})
 	}
 }

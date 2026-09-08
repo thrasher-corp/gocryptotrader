@@ -56,8 +56,10 @@ func (e *Exchange) GetInfo(ctx context.Context) (Info, error) {
 
 // GetTicker returns tickers for the requested symbols, omitting invalid pairs.
 // An explicit API failure returns an error even if ticker entries are present.
+// Empty or entirely zero-valued ticker entries are rejected.
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
 	var raw map[string]json.RawMessage
+	// ignore_invalid=1 omits unknown or delisted pairs instead of rejecting the whole batch.
 	path := "/" + apiPublicVersion + "/" + publicTicker + "/" + symbol + "?ignore_invalid=1"
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &raw); err != nil {
 		return nil, err
@@ -84,6 +86,9 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 		var ticker Ticker
 		if err := json.Unmarshal(entry, &ticker); err != nil {
 			return nil, fmt.Errorf("error decoding ticker for %s: %w", pair, err)
+		}
+		if ticker == (Ticker{}) {
+			return nil, fmt.Errorf("%w: empty ticker for %s", errTickerRequestFailed, pair)
 		}
 		result[pair] = ticker
 	}
