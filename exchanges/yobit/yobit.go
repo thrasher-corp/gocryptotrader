@@ -54,19 +54,26 @@ func (e *Exchange) GetInfo(ctx context.Context) (Info, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
-// GetTicker returns a ticker for a specific currency
+// GetTicker returns tickers for the requested symbols, omitting invalid pairs.
+// An explicit API failure returns an error even if ticker entries are present.
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
 	var raw map[string]json.RawMessage
-	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
+	path := "/" + apiPublicVersion + "/" + publicTicker + "/" + symbol + "?ignore_invalid=1"
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &raw); err != nil {
 		return nil, err
 	}
 
 	result := make(map[string]Ticker, len(raw))
 	var apiError string
+	var failed bool
 	for pair, entry := range raw {
 		switch pair {
 		case "success":
+			var success uint8
+			if err := json.Unmarshal(entry, &success); err != nil {
+				return nil, fmt.Errorf("error decoding ticker success field: %w", err)
+			}
+			failed = success == 0
 			continue
 		case "error":
 			if err := json.Unmarshal(entry, &apiError); err != nil {
@@ -80,7 +87,10 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 		}
 		result[pair] = ticker
 	}
-	if len(result) == 0 && apiError != "" {
+	if failed || len(result) == 0 && apiError != "" {
+		if apiError == "" {
+			return nil, errTickerRequestFailed
+		}
 		return nil, fmt.Errorf("%w: %s", errTickerRequestFailed, apiError)
 	}
 	return result, nil

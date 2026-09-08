@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -71,74 +73,114 @@ func TestGetTicker(t *testing.T) {
 	assert.NoError(t, err, "GetTicker should not error")
 }
 
-func TestGetTickerIgnoresMetadata(t *testing.T) {
+func TestGetTickerResponseHandling(t *testing.T) {
 	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"success":1,"error":"Pair is off: bcc_btc","btc_usd":{"last":80001}}`))
-		assert.NoError(t, err, "writing ticker response should not error")
-	}))
-	t.Cleanup(server.Close)
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	result, err := ex.GetTicker(t.Context(), "btc_usd")
-	require.NoError(t, err, "GetTicker must ignore response metadata")
-	require.Len(t, result, 1, "GetTicker must return only ticker entries")
-	assert.Equal(t, 80001.0, result["btc_usd"].Last, "Last should decode")
+	for _, test := range []struct {
+		name      string
+		body      string
+		want      map[string]Ticker
+		errIs     error
+		errString string
+	}{
+		{name: "defensive metadata alongside entries", body: `{"success":1,"error":"Pair is off: bcc_btc","btc_usd":{"last":80001}}`, want: map[string]Ticker{"btc_usd": {Last: 80001}}},
+		{name: "entries without metadata", body: `{"btc_usd":{"last":80001}}`, want: map[string]Ticker{"btc_usd": {Last: 80001}}},
+		{name: "malformed ticker", body: `{"btc_usd":1}`, errString: "error decoding ticker for btc_usd"},
+		{name: "failed request", body: `{"success":0,"error":"Invalid pair name: btc_usd"}`, errIs: errTickerRequestFailed, errString: "Invalid pair name: btc_usd"},
+		{name: "malformed error", body: `{"success":0,"error":{}}`, errString: "error decoding ticker error field"},
+		{name: "malformed success", body: `{"success":"invalid"}`, errString: "error decoding ticker success field"},
+		{name: "failure without error", body: `{"success":0}`, errIs: errTickerRequestFailed},
+		{name: "failure with empty error", body: `{"success":0,"error":""}`, errIs: errTickerRequestFailed},
+		{name: "failure with null ticker", body: `{"success":0,"error":"Pair is off: btc_usd","btc_usd":null}`, errIs: errTickerRequestFailed},
+		{name: "failure with empty ticker", body: `{"success":0,"error":"Pair is off: btc_usd","btc_usd":{}}`, errIs: errTickerRequestFailed},
+		{name: "failure with populated ticker", body: `{"success":0,"btc_usd":{"last":80001}}`, errIs: errTickerRequestFailed},
+		{name: "error without success", body: `{"error":"Pair is off: btc_usd"}`, errIs: errTickerRequestFailed},
+		{name: "empty response", body: `{}`, want: map[string]Ticker{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				assert.Equal(t, "1", req.URL.Query().Get("ignore_invalid"), "ticker requests should ignore invalid pairs")
+				_, err := w.Write([]byte(test.body))
+				assert.NoError(t, err, "writing ticker response should not error")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+			result, err := ex.GetTicker(t.Context(), "btc_usd")
+			if test.errIs != nil || test.errString != "" {
+				if test.errIs != nil {
+					assert.ErrorIs(t, err, test.errIs, "GetTicker should return the expected sentinel")
+				}
+				if test.errString != "" {
+					assert.ErrorContains(t, err, test.errString, "GetTicker should preserve error context")
+				}
+				assert.Nil(t, result, "GetTicker should not return tickers on failure")
+				return
+			}
+			require.NoError(t, err, "GetTicker must decode successful responses")
+			assert.Equal(t, test.want, result, "GetTicker should return only ticker entries")
+		})
+	}
 }
 
-func TestGetTickerRejectsMalformedTicker(t *testing.T) {
+func TestUpdateTickersResponseHandling(t *testing.T) {
 	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"btc_usd":1}`))
-		assert.NoError(t, err, "writing ticker response should not error")
-	}))
-	t.Cleanup(server.Close)
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	_, err := ex.GetTicker(t.Context(), "btc_usd")
-	assert.ErrorContains(t, err, "error decoding ticker for btc_usd", "GetTicker should reject malformed ticker entries")
-}
-
-func TestGetTickerRejectsFailedRequest(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"success":0,"error":"Invalid pair name: btc_usd"}`))
-		assert.NoError(t, err, "writing ticker response should not error")
-	}))
-	t.Cleanup(server.Close)
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	_, err := ex.GetTicker(t.Context(), "btc_usd")
-	assert.ErrorIs(t, err, errTickerRequestFailed, "GetTicker should return the ticker request failure")
-}
-
-func TestGetTickerRejectsMalformedError(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"success":0,"error":{}}`))
-		assert.NoError(t, err, "writing ticker response should not error")
-	}))
-	t.Cleanup(server.Close)
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
-
-	_, err := ex.GetTicker(t.Context(), "btc_usd")
-	assert.ErrorContains(t, err, "error decoding ticker error field", "GetTicker should reject malformed error metadata")
+	for _, test := range []struct {
+		name    string
+		body    string
+		errIs   error
+		btcLast float64
+	}{
+		{name: "partial batch", body: `{"btc_usd":{"last":80002}}`, errIs: ticker.ErrTickerNotFound, btcLast: 80002},
+		{name: "all invalid", body: `{"success":0,"error":"Empty pair list"}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "failure without error", body: `{"success":0}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "failure with empty error", body: `{"success":0,"error":""}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "failure with null ticker", body: `{"success":0,"error":"Pair is off: btc_usd","btc_usd":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "failure with empty ticker", body: `{"success":0,"error":"Pair is off: btc_usd","btc_usd":{}}`, errIs: errTickerRequestFailed, btcLast: 80001},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			bitcoin := currency.NewBTCUSD()
+			ethereum := currency.NewPair(currency.ETH, currency.BTC)
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{bitcoin, ethereum}, true), "test pairs must be enabled")
+			var response atomic.Pointer[string]
+			initialResponse := `{"btc_usd":{"last":80001},"eth_btc":{"last":0.031}}`
+			response.Store(&initialResponse)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				assert.Equal(t, "/3/ticker/btc_usd-eth_btc", req.URL.Path, "ticker request should include both enabled pairs")
+				assert.Equal(t, "1", req.URL.Query().Get("ignore_invalid"), "ticker request should allow partial results")
+				_, err := w.Write([]byte(*response.Load()))
+				assert.NoError(t, err, "writing ticker response should not error")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+			require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "initial poll must populate both tickers")
+			before, err := ticker.GetTicker(ex.Name, ethereum, asset.Spot)
+			require.NoError(t, err, "initial ethereum ticker must be cached")
+			response.Store(&test.body)
+			err = ex.UpdateTickers(t.Context(), asset.Spot)
+			assert.ErrorIs(t, err, test.errIs, "second poll should report omitted pairs or request failure")
+			if test.errIs == ticker.ErrTickerNotFound {
+				assert.ErrorContains(t, err, "ETH_BTC", "partial result error should identify the omitted pair")
+			}
+			cached, err := ticker.GetTicker(ex.Name, bitcoin, asset.Spot)
+			require.NoError(t, err, "bitcoin ticker must remain cached")
+			assert.Equal(t, test.btcLast, cached.Last, "valid partial results should update while failures should not overwrite prices")
+			stale, err := ticker.GetTicker(ex.Name, ethereum, asset.Spot)
+			require.NoError(t, err, "previous ethereum ticker must remain cached")
+			assert.Equal(t, before.LastUpdated, stale.LastUpdated, "omitted ticker should not be marked fresh")
+			assert.Equal(t, 0.031, stale.Last, "omitted ticker should retain its previous cached value")
+			result, err := ex.UpdateTicker(t.Context(), ethereum, asset.Spot)
+			assert.ErrorIs(t, err, test.errIs, "UpdateTicker should propagate the refresh failure")
+			assert.Nil(t, result, "UpdateTicker should not return the stale cached ticker as a successful refresh")
+		})
+	}
 }
 
 func TestGetDepth(t *testing.T) {
