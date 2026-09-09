@@ -117,6 +117,7 @@ func MockWsInstance[T any, PT interface {
 	b := e.GetBase()
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
 

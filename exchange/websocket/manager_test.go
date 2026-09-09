@@ -461,7 +461,8 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 
 		t.Run("authenticate error", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
-				URL: mockURL,
+				URL:           mockURL,
+				Authenticated: true,
 				Authenticate: func(context.Context, Connection) error {
 					return errDastardlyReason
 				},
@@ -475,6 +476,48 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 
 			err := ws.Connect(t.Context())
 			require.ErrorIs(t, err, errDastardlyReason)
+		})
+
+		t.Run("authentication failure preserves public connection", func(t *testing.T) {
+			ws := newConfiguredMultiManager(t, nil)
+			disconnected := make(chan Connection, 2)
+			public := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, OnDisconnect: func(conn Connection) { disconnected <- conn }}}
+			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }}}
+			ws.connectionManager = []*websocket{public, private}
+			err := ws.Connect(t.Context())
+			require.ErrorIs(t, err, errFailedToAuthenticate, "Connect must report failed authentication")
+			assert.True(t, ws.IsConnected(), "public connection should remain connected")
+			assert.False(t, ws.CanUseAuthenticatedEndpoints(), "private operations should be disabled")
+			require.Len(t, public.connections, 1, "public connection must remain tracked")
+			assert.Empty(t, private.connections, "failed private connection should be removed")
+			require.NoError(t, public.connections[0].SendJSONMessage(t.Context(), request.Unset, map[string]string{"ping": "test"}), "public connection must remain usable")
+			require.NoError(t, ws.Shutdown(), "Shutdown must succeed")
+			select {
+			case <-disconnected:
+			case <-time.After(time.Second):
+				t.Error("Reader should invoke disconnect cleanup")
+			}
+		})
+
+		t.Run("mixed connection retains public subscriptions after authentication failure", func(t *testing.T) {
+			ws := newConfiguredMultiManager(t, nil)
+			public := &subscription.Subscription{Channel: "public"}
+			private := &subscription.Subscription{Channel: "private", Authenticated: true}
+			setup := &ConnectionSetup{
+				URL: mockURL, Connector: dial, Handler: noopHandler,
+				Authenticate:          func(context.Context, Connection) error { return errDastardlyReason },
+				GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{public, private}, nil },
+				Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+					assert.Equal(t, subscription.List{public}, subs, "only public subscriptions should be sent")
+					return ws.AddSuccessfulSubscriptions(conn, subs...)
+				},
+			}
+			ws.connectionManager = []*websocket{{setup: setup, subscriptions: subscription.NewStore()}}
+			require.ErrorIs(t, ws.Connect(t.Context()), errFailedToAuthenticate, "authentication failure must be reported")
+			assert.True(t, ws.IsConnected(), "mixed connection should remain usable for public data")
+			assert.Same(t, public, ws.GetSubscription(public), "public subscription should remain stored")
+			assert.Nil(t, ws.GetSubscription(private), "private subscription should not be stored")
+			require.NoError(t, ws.Shutdown(), "Shutdown must succeed")
 		})
 
 		t.Run("subscriber error", func(t *testing.T) {
@@ -631,21 +674,19 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	ws.setup.Connector = func(ctx context.Context, conn Connection) error {
 		return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
 	}
+	ws.setup.Authenticated = true
 	ws.setup.Authenticate = func(context.Context, Connection) error { return errConnectionFault }
 	mgr.SetCanUseAuthenticatedEndpoints(true)
 
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
-	require.ErrorIs(t, err, common.ErrFatal, "authenticate failure must be fatal")
+	require.NotErrorIs(t, err, common.ErrFatal, "authentication failure must allow healthy connections to survive")
 	assert.ErrorIs(t, err, errConnectionFault, "should wrap authentication failure reason")
 	assert.ErrorIs(t, err, errFailedToAuthenticate, "should wrap authentication failure")
-	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
-	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
-	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
-	require.NoError(t, ws.connections[0].Shutdown())
-	delete(mgr.connections, ws.connections[0])
-	ws.connections = nil
+	assert.Empty(t, ws.connections, "failed connection should be removed from websocket")
+	assert.Empty(t, mgr.connections, "failed connection should be removed from manager")
 	mgr.Wg.Wait()
 
+	ws.setup.Authenticated = false
 	ws.setup.Authenticate = func(context.Context, Connection) error { return nil }
 	ws.setup.SubscriptionsNotRequired = true
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
@@ -655,6 +696,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
 	require.NoError(t, ws.connections[0].Shutdown())
+	mgr.Wg.Wait()
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
@@ -665,6 +707,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
 	require.NoError(t, ws.connections[0].Shutdown())
+	mgr.Wg.Wait()
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
@@ -680,6 +723,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
 	require.NoError(t, ws.connections[0].Shutdown())
+	mgr.Wg.Wait()
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
@@ -694,6 +738,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
 	require.NoError(t, ws.connections[0].Shutdown())
+	mgr.Wg.Wait()
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
@@ -713,6 +758,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
 	require.Len(t, ws.connections[0].Subscriptions().List(), len(subs), "connection subscription store must mirror websocket store")
 	require.NoError(t, ws.connections[0].Shutdown())
+	mgr.Wg.Wait()
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()

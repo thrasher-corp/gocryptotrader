@@ -177,11 +177,11 @@ func TestUnsubscribeFromChan(t *testing.T) {
 			Connection:  testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint),
 			responseRaw: []byte(`{"event":"unsubscribed"}`),
 		}
-		sub := &subscription.Subscription{Key: 42}
+		sub := &subscription.Subscription{Key: websocketChannelKey{conn, 42}}
 		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
 
 		require.NoError(t, ex.unsubscribeFromChan(t.Context(), conn, subscription.List{sub}), "unsubscribeFromChan must not error")
-		assert.Nil(t, ex.Websocket.GetSubscription(42), "unsubscribeFromChan should remove the subscription")
+		assert.Nil(t, ex.Websocket.GetSubscription(websocketChannelKey{conn, 42}), "unsubscribeFromChan should remove the subscription")
 	})
 }
 
@@ -215,12 +215,12 @@ func TestUnsubscribeForConnection(t *testing.T) {
 		Connection:  testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint),
 		responseRaw: []byte(`{"event":"unsubscribed"}`),
 	}
-	sub := &subscription.Subscription{Key: 42, QualifiedChannel: `{"channel":"ticker","symbol":"tBTCUSD"}`}
+	sub := &subscription.Subscription{Key: websocketChannelKey{conn, 42}, QualifiedChannel: `{"channel":"ticker","symbol":"tBTCUSD"}`}
 	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
 
 	require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{sub}), "unsubscribeForConnection must not error")
 	assert.Len(t, conn.sent, 1, "unsubscribeForConnection should send one request")
-	assert.Nil(t, ex.Websocket.GetSubscription(42), "unsubscribeForConnection should remove the subscription")
+	assert.Nil(t, ex.Websocket.GetSubscription(websocketChannelKey{conn, 42}), "unsubscribeForConnection should remove the subscription")
 }
 
 func TestWsSendAuthConn(t *testing.T) {
@@ -244,4 +244,48 @@ func TestResubOrderbook(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	assert.ErrorIs(t, ex.resubOrderbook(t.Context(), testexch.GetMockConn(t, ex, ""), nil), common.ErrNilPointer, "resubOrderbook should reject a nil subscription")
 	assert.ErrorIs(t, ex.resubOrderbook(t.Context(), testexch.GetMockConn(t, ex, ""), &subscription.Subscription{}), subscription.ErrNotSinglePair, "resubOrderbook should require exactly one pair")
+}
+
+func TestWsDisconnected(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+	a := testexch.GetMockConn(t, ex, "ws://a")
+	b := testexch.GetMockConn(t, ex, "ws://b")
+	ka, kb := websocketChannelKey{a, 1}, websocketChannelKey{b, 1}
+	cMtx.Lock()
+	checksumStore[ka] = new(checksum)
+	checksumStore[kb] = new(checksum)
+	cMtx.Unlock()
+	t.Cleanup(func() { ex.wsDisconnected(a); ex.wsDisconnected(b) })
+	ex.wsDisconnected(a)
+	cMtx.Lock()
+	_, hasA := checksumStore[ka]
+	_, hasB := checksumStore[kb]
+	cMtx.Unlock()
+	assert.False(t, hasA, "disconnected checksum should be removed")
+	assert.True(t, hasB, "other connection checksum should survive")
+}
+
+func TestHandleWSSubscribedConnectionIsolation(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+	a, err := ex.Websocket.CreateTestConnection(asset.Spot)
+	require.NoError(t, err, "connection must be created")
+	b, err := ex.Websocket.CreateTestConnection(asset.Spot)
+	require.NoError(t, err, "connection must be created")
+	for _, tc := range []struct {
+		conn websocket.Connection
+		id   string
+	}{{a, "a"}, {b, "b"}} {
+		require.NoError(t, ex.Websocket.TrackTestConnection(asset.Spot, tc.conn), "connection must be tracked")
+		sub := &subscription.Subscription{Key: tc.id, Channel: subscription.TickerChannel}
+		require.NoError(t, ex.Websocket.AddSubscriptions(tc.conn, sub), "AddSubscriptions must succeed")
+		_, err := tc.conn.MatchReturnResponses(t.Context(), "subscribe:"+tc.id, 1)
+		require.NoError(t, err, "matcher must register")
+		require.NoError(t, ex.handleWSSubscribed(tc.conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":1,"subId":"`+tc.id+`"}`)), "acknowledgement must succeed")
+		assert.Same(t, sub, ex.Websocket.GetSubscription(websocketChannelKey{tc.conn, 1}), "channel ID should belong to its connection")
+	}
+	assert.NotSame(t, ex.Websocket.GetSubscription(websocketChannelKey{a, 1}), ex.Websocket.GetSubscription(websocketChannelKey{b, 1}), "identical channel IDs should remain distinct")
 }

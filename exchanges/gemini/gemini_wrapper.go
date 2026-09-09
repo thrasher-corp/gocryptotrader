@@ -181,6 +181,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:                  e.wsHandleData,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Authenticated:            true,
 		MessageFilter:            "auth",
 	})
 }

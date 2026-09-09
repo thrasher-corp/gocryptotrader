@@ -107,6 +107,7 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
+	// The manager starts its reader after this connector returns; the heartbeat waits for that reader.
 	go e.wsStartHeartbeat(ctx, conn)
 	return nil
 }
@@ -135,11 +136,11 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context, conn websocket.Connecti
 }
 
 func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection) error {
+	e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	n := e.Requester.GetNonce(nonce.UnixNano).String()
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	str2Sign := strTS + "\n" + n + "\n"
@@ -173,6 +174,7 @@ func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection
 	if response.Error != nil && (response.Error.Code > 0 || response.Error.Message != "") {
 		return fmt.Errorf("%v Error:%v Message:%v", e.Name, response.Error.Code, response.Error.Message)
 	}
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	return nil
 }
 

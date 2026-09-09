@@ -127,7 +127,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		switch action {
 		case "ping":
 			return e.wsHandleV2ping(ctx, conn, respRaw)
-		case wsSubOp, wsUnsubOp:
+		case wsRequestOp, wsSubOp, wsUnsubOp:
 			return e.wsHandleV2subResp(conn, action, respRaw)
 		}
 	}
@@ -578,15 +578,11 @@ func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error
 			Timestamp:        ts,
 		},
 	}
-	if err := conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsRequestOp+":"+wsAuthChannel, req)
+	if err != nil {
 		return err
 	}
-	resp := conn.ReadMessage()
-	if resp.Raw == nil {
-		return &gws.CloseError{Code: gws.CloseAbnormalClosure}
-	}
-
-	return getErrResp(resp.Raw)
+	return getErrResp(respRaw)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {

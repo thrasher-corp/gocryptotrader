@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -751,4 +752,10 @@ type CancelMultiOrderResponse struct {
 	AveragePrice      float64
 	TrailingPrice     float64
 	AuxLimitPrice     float64
+}
+
+// websocketChannelKey separates server-assigned channel IDs across connections.
+type websocketChannelKey struct {
+	connection websocket.Connection
+	channelID  int
 }

@@ -150,10 +150,10 @@ func (s *Store) UpdateKeyAndState(sub *Subscription, key any, state State) error
 
 	oldKey := sub.EnsureKeyed()
 	found := s.get(oldKey)
-	if found == nil {
+	if found != sub {
 		return ErrNotFound
 	}
-	if existing := s.m[key]; existing != nil && existing != found {
+	if existing := s.get(key); existing != nil && existing != found {
 		return fmt.Errorf("%w: %s", ErrDuplicate, sub)
 	}
 	if err := sub.SetState(state); err != nil {

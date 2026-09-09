@@ -4116,6 +4116,26 @@ func TestWsAuthenticate(t *testing.T) {
 		assert.Error(t, err, "wsAuthenticate should reject missing credentials")
 	})
 
+	for _, tc := range []struct {
+		name     string
+		response []byte
+	}{
+		{"malformed", []byte(`{`)},
+		{"rejected", []byte(`{"error":{"code":13009,"message":"unauthorised"}}`)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedWebsocketSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: tc.response}
+			require.Error(t, ex.wsAuthenticate(t.Context(), conn), "authentication must reject bad responses")
+			assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "failed authentication should clear capability")
+		})
+	}
+
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)

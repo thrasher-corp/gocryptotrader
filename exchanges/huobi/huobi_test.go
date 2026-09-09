@@ -5,9 +5,11 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -35,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -2269,11 +2272,31 @@ func TestWsLogin(t *testing.T) {
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		ex.API.AuthenticatedWebsocketSupport = true
 		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath)}
-
-		var closeErr *gws.CloseError
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath), sendErr: context.DeadlineExceeded}
 		err := ex.wsLogin(t.Context(), conn)
-		assert.ErrorAs(t, err, &closeErr, "wsLogin should return a close error when no response is received")
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "wsLogin should propagate the matcher timeout when no response is received")
+	})
+
+	t.Run("reader matches authentication response", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, _ []byte, conn *gws.Conn) error {
+			tb.Helper()
+			return conn.WriteMessage(gws.TextMessage, []byte(`{"action":"req","ch":"auth","code":200}`))
+		}))
+		t.Cleanup(server.Close)
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock URLs must be configured")
+		conn, err := ex.Websocket.CreateTestConnection("auth")
+		require.NoError(t, err, "connection must be created")
+		require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "connection must be tracked")
+		require.NoError(t, conn.Dial(t.Context(), gws.DefaultDialer, nil, nil), "Dial must succeed")
+		ex.Websocket.Wg.Add(1)
+		go ex.Websocket.Reader(t.Context(), conn, ex.wsHandleData)
+		t.Cleanup(func() { assert.NoError(t, conn.Shutdown(), "connection should shut down"); ex.Websocket.Wg.Wait() })
+		require.NoError(t, ex.wsLogin(t.Context(), conn), "the reader must deliver the authentication response to its matcher")
 	})
 
 	t.Run("success", func(t *testing.T) {

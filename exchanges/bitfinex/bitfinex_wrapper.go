@@ -213,6 +213,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generatePublicSubscriptions,
 		Handler:               e.wsHandleData,
+		OnDisconnect:          e.wsDisconnected,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		URL:                   wsPublicURL,
@@ -230,9 +231,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:    e.generatePrivateSubscriptions,
 		SubscriptionsNotRequired: true,
 		Handler:                  e.wsHandleData,
+		OnDisconnect:             e.wsDisconnected,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		URL:                      wsAuthURL,
+		Authenticated:            true,
 		MessageFilter:            "auth",
 	})
 }

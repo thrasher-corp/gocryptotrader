@@ -108,7 +108,7 @@ type checksum struct {
 
 // checksumStore quick global for now
 var (
-	checksumStore = make(map[int]*checksum)
+	checksumStore = make(map[websocketChannelKey]*checksum)
 	cMtx          sync.Mutex
 )
 
@@ -135,6 +135,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case map[string]any:
 		return e.handleWSEvent(ctx, conn, respRaw)
 	case []any:
+		if len(d) < 2 {
+			return fmt.Errorf("%w: websocket channel envelope requires two fields", common.ErrMalformedData)
+		}
 		chanIDFloat, ok := d[0].(float64)
 		if !ok {
 			return common.GetTypeAssertError("float64", d[0], "chanID")
@@ -144,7 +147,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		eventType, hasEventType := d[1].(string)
 
 		if chanID != 0 {
-			if s := e.Websocket.GetSubscription(chanID); s != nil {
+			if s := e.Websocket.GetSubscription(websocketChannelKey{conn, chanID}); s != nil {
 				return e.handleWSChannelUpdate(ctx, conn, s, respRaw, eventType, d)
 			}
 			if e.Verbose {
@@ -514,8 +517,8 @@ func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte)
 		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", websocket.ErrSubscriptionFailure, common.ErrParsingWSField, err, c.Channel, c.Pairs)
 	}
 
-	// Channel update and unsubscribe paths use int keys.
-	err = e.Websocket.UpdateSuccessfulSubscriptionKey(conn, c, int(chanID))
+	// Channel IDs are local to the socket that acknowledged the subscription.
+	err = e.Websocket.UpdateSuccessfulSubscriptionKey(conn, c, websocketChannelKey{conn, int(chanID)})
 	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
 	}
@@ -575,9 +578,9 @@ func (e *Exchange) handleWSChecksum(c *subscription.Subscription, d []any) error
 		seqNo = int64(f)
 	}
 
-	chanID, ok := c.Key.(int)
+	chanID, ok := c.Key.(websocketChannelKey)
 	if !ok {
-		return common.GetTypeAssertError("int", c.Key, "ChanID") // Should be impossible
+		return common.GetTypeAssertError("websocketChannelKey", c.Key, "ChanID") // Should be impossible
 	}
 
 	cMtx.Lock()
@@ -1518,9 +1521,9 @@ func (e *Exchange) WsUpdateOrderbook(ctx context.Context, conn websocket.Connect
 		}
 	}
 
-	chanID, ok := c.Key.(int)
+	chanID, ok := c.Key.(websocketChannelKey)
 	if !ok {
-		return common.GetTypeAssertError("int", c.Key, "ChanID") // Should be impossible
+		return common.GetTypeAssertError("websocketChannelKey", c.Key, "ChanID") // Should be impossible
 	}
 
 	cMtx.Lock()
@@ -1671,17 +1674,17 @@ func (e *Exchange) unsubscribeFromChan(ctx context.Context, conn websocket.Conne
 		return subscription.ErrBatchingNotSupported
 	}
 	s := subs[0]
-	chanID, ok := s.Key.(int)
+	chanID, ok := s.Key.(websocketChannelKey)
 	if !ok {
-		return common.GetTypeAssertError("int", s.Key, "subscription.Key")
+		return common.GetTypeAssertError("websocketChannelKey", s.Key, "subscription.Key")
 	}
 
 	req := map[string]any{
 		"event":  "unsubscribe",
-		"chanId": chanID,
+		"chanId": chanID.channelID,
 	}
 
-	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, "unsubscribe:"+strconv.Itoa(chanID), req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, "unsubscribe:"+strconv.Itoa(chanID.channelID), req)
 	if err != nil {
 		return err
 	}
@@ -2163,3 +2166,14 @@ const subTplText = `
 	{{ $.AssetSeparator }}
 {{- end -}}
 `
+
+// wsDisconnected discards checksums owned by a closed physical connection.
+func (e *Exchange) wsDisconnected(conn websocket.Connection) {
+	cMtx.Lock()
+	defer cMtx.Unlock()
+	for key := range checksumStore {
+		if key.connection == conn {
+			delete(checksumStore, key)
+		}
+	}
+}

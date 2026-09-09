@@ -49,14 +49,14 @@ func mockWsSub(tb testing.TB, msg []byte, w *gws.Conn, event string) error {
 		if err != nil {
 			return err
 		}
-		resp := WebsocketEventResponse{
-			Event:       krakenWsSubscriptionStatus,
-			Status:      status,
-			RequestID:   req.RequestID,
-			ChannelName: channelName,
-			Pair:        pair,
+		resp := map[string]any{
+			"event":        krakenWsSubscriptionStatus,
+			"status":       status,
+			"reqid":        req.RequestID,
+			"channelName":  channelName,
+			"pair":         pair.String(),
+			"subscription": map[string]any{"name": req.Subscription.Name},
 		}
-		resp.Subscription.Name = req.Subscription.Name
 		raw, err := json.Marshal(resp)
 		if err != nil {
 			return err

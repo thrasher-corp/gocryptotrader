@@ -2,9 +2,12 @@ package gateio
 
 import (
 	"context"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -13,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 func TestWsFuturesConnect(t *testing.T) {
@@ -33,9 +37,10 @@ func TestWsFuturesConnect(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			if tc.url == "" {
-				url, err := ex.API.Endpoints.GetURL(tc.endpoint)
-				require.NoError(t, err, "Getting the websocket endpoint must not error")
-				tc.url = url
+				server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(testing.TB, []byte, *gws.Conn) error { return nil }))
+				t.Cleanup(server.Close)
+				tc.url = "ws" + strings.TrimPrefix(server.URL, "http")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(tc.endpoint.String(), tc.url), "mock endpoint must update")
 			}
 			conn := testexch.GetMockConn(t, ex, tc.url)
 			err := ex.WsFuturesConnect(t.Context(), conn)
@@ -43,6 +48,7 @@ func TestWsFuturesConnect(t *testing.T) {
 				require.ErrorIs(t, err, tc.err, "WsFuturesConnect must return the expected error")
 			} else {
 				require.NoError(t, err, "WsFuturesConnect must support the futures websocket endpoint")
+				t.Cleanup(func() { require.NoError(t, conn.Shutdown(), "mock connection must shut down") })
 			}
 		})
 	}

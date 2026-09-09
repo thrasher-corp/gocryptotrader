@@ -237,18 +237,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      wsRunningAuthURL,
-		Connector:                e.wsConnect,
-		Authenticate:             e.wsAuth,
-		Subscriber:               e.subscribeForConnection,
-		Unsubscriber:             e.unsubscribeForConnection,
-		GenerateSubscriptions:    e.generatePrivateSubscriptions,
-		SubscriptionsNotRequired: true,
-		Handler:                  e.wsHandleData,
-		RateLimit:                request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		MessageFilter:            "auth",
+		URL:                   wsRunningAuthURL,
+		Connector:             e.wsConnect,
+		Authenticate:          e.wsAuth,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePrivateSubscriptions,
+		Handler:               e.wsHandleData,
+		RateLimit:             request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Authenticated:         true,
+		MessageFilter:         "auth",
 	})
 }
 

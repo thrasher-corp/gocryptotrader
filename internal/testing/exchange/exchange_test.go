@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
@@ -107,7 +108,17 @@ func TestMockWsInstanceVerbose(t *testing.T) {
 }
 
 func TestMockWsInstanceSupportsMultiConnectionManagement(t *testing.T) {
-	b := MockWsInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+	b := MockWsInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, raw []byte, conn *gws.Conn) error {
+		tb.Helper()
+		var req struct {
+			ID string `json:"req_id"`
+			Op string `json:"op"`
+		}
+		if err := json.Unmarshal(raw, &req); err != nil {
+			return err
+		}
+		return conn.WriteJSON(map[string]any{"req_id": req.ID, "op": req.Op, "success": true, "retCode": 0})
+	}))
 	require.NotNil(t, b, "MockWsInstance must not be nil for multi-connection websocket exchanges")
 	t.Cleanup(func() {
 		if b.GetBase().Websocket.IsConnected() {

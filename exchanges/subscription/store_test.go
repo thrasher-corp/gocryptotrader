@@ -160,6 +160,26 @@ func TestUpdateKeyAndState(t *testing.T) {
 		assert.Same(t, other, store.Get(1337), "other subscription should remain stored at the duplicate target key")
 	})
 
+	t.Run("matching clone cannot replace original", func(t *testing.T) {
+		t.Parallel()
+		store := NewStore()
+		original := &Subscription{Channel: TickerChannel}
+		require.NoError(t, store.Add(original), "Add must succeed")
+		clone := original.Clone()
+		assert.ErrorIs(t, store.UpdateKeyAndState(clone, 42, SubscribedState), ErrNotFound, "a clone should not replace the stored pointer")
+		assert.Same(t, original, store.Get(original), "original should remain stored")
+	})
+	t.Run("matching target key", func(t *testing.T) {
+		t.Parallel()
+		store := NewStore()
+		original := &Subscription{Key: "temporary", Channel: TickerChannel}
+		other := &Subscription{Channel: OrderbookChannel}
+		require.NoError(t, store.Add(original), "Add must succeed")
+		require.NoError(t, store.Add(other), "Add must succeed")
+		assert.ErrorIs(t, store.UpdateKeyAndState(original, &Subscription{Channel: OrderbookChannel}, SubscribedState), ErrDuplicate, "matching target should be rejected")
+		assert.Same(t, original, store.Get("temporary"), "original should remain stored")
+	})
+
 	t.Run("updates key and state", func(t *testing.T) {
 		t.Parallel()
 

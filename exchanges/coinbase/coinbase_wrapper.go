@@ -162,6 +162,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generateSubscriptions,
 		Handler:               e.wsHandleData,
+		OnDisconnect:          e.wsDisconnected,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		MessageFilter:         asset.Spot,

@@ -272,14 +272,13 @@ func (e *Exchange) wsProcessUser(ctx context.Context, resp *StandardWebsocketRes
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) (retErr error) {
 	var resp StandardWebsocketResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	if err := e.checkWSSequence(conn, resp.Sequence); err != nil {
-		return err
-	}
+	sequenceErr := e.checkWSSequence(conn, resp.Sequence)
+	defer func() { retErr = common.AppendError(retErr, sequenceErr) }()
 	if resp.Error != "" {
 		return errors.New(resp.Error)
 	}
@@ -559,3 +558,10 @@ const subTplText = `
 	{{- $.AssetSeparator }}
 {{- end }}
 `
+
+// wsDisconnected releases sequence state once no more messages can arrive.
+func (e *Exchange) wsDisconnected(conn websocket.Connection) {
+	e.wsSeqMu.Lock()
+	defer e.wsSeqMu.Unlock()
+	delete(e.wsSeqState, conn)
+}

@@ -45,8 +45,9 @@ func TestWsConnect(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
-	err = exch.Websocket.Enable(t.Context())
-	assert.NoError(t, err)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, exch)
+	t.Cleanup(func() { assert.NoError(t, exch.Websocket.Shutdown(), "websocket should shut down") })
+	testexch.SetupWs(t, exch)
 }
 
 func TestWsHandleData(t *testing.T) {
@@ -56,6 +57,22 @@ func TestWsHandleData(t *testing.T) {
 		var unmarshalTypeErr *gctjson.UnmarshalTypeError
 		assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	}
+
+	t.Run("sequence gap still processes payload", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		conn := testexch.GetMockConn(t, ex, "ws://gap")
+		require.NoError(t, ex.checkWSSequence(conn, 1), "initial sequence must succeed")
+		err := ex.wsHandleData(t.Context(), conn, []byte(`{"sequence_num":3,"channel":"candles","events":[]}`))
+		assert.ErrorIs(t, err, errOutOfSequence, "gap should be reported")
+		select {
+		case msg := <-ex.Websocket.DataHandler.C:
+			assert.IsType(t, []kline.Item{}, msg.Data, "gap payload should still be processed")
+		default:
+			t.Error("gap payload should be delivered")
+		}
+	})
 
 	t.Run("nil message", func(t *testing.T) {
 		t.Parallel()
@@ -178,6 +195,20 @@ func TestCheckWSSequence(t *testing.T) {
 	assert.ErrorIs(t, ex.checkWSSequence(connA, 10), errOutOfSequence, "checkWSSequence should reject an out-of-order sequence")
 	assert.NoError(t, ex.checkWSSequence(connA, 11), "checkWSSequence should accept the resynchronised sequence")
 	assert.NoError(t, ex.checkWSSequence(connB, 3), "checkWSSequence should maintain independent connection state")
+}
+
+func TestWsDisconnected(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+	a := testexch.GetMockConn(t, ex, "ws://a")
+	b := testexch.GetMockConn(t, ex, "ws://b")
+	require.NoError(t, ex.checkWSSequence(a, 7), "initial sequence must succeed")
+	require.NoError(t, ex.checkWSSequence(b, 9), "initial sequence must succeed")
+	ex.wsDisconnected(a)
+	assert.Len(t, ex.wsSeqState, 1, "disconnect should remove only its connection")
+	assert.NoError(t, ex.checkWSSequence(a, 0), "new connection sequence should start afresh")
+	assert.NoError(t, ex.checkWSSequence(b, 10), "other connection should retain its sequence")
 }
 
 func TestProcessSnapshot(t *testing.T) {
