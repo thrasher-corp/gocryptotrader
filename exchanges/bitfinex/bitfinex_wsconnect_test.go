@@ -161,12 +161,12 @@ func TestUnsubscribeFromChan(t *testing.T) {
 		assert.ErrorIs(t, ex.unsubscribeFromChan(t.Context(), testexch.GetMockConn(t, ex, ""), nil), subscription.ErrBatchingNotSupported, "unsubscribeFromChan should reject batching")
 	})
 
-	t.Run("rejects non-integer key", func(t *testing.T) {
+	t.Run("rejects an invalid key type", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Setup must not error")
 		err := ex.unsubscribeFromChan(t.Context(), testexch.GetMockConn(t, ex, ""), subscription.List{{Key: "invalid"}})
-		require.Error(t, err, "unsubscribeFromChan must reject a non-integer key")
+		require.Error(t, err, "unsubscribeFromChan must reject a key that is not a websocketChannelKey")
 	})
 
 	t.Run("success", func(t *testing.T) {

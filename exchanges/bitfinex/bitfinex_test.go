@@ -1490,7 +1490,7 @@ func TestWSSubscribe(t *testing.T) {
 	assert.NoError(t, err, "Unsubscribing should not error")
 
 	chanID, ok := tickerSubs[0].Key.(websocketChannelKey)
-	assert.True(t, ok, "sub.Key should be an int")
+	assert.True(t, ok, "sub.Key should be a websocketChannelKey")
 
 	err = unsubscribe(subscription.List{tickerSubs[0]})
 	assert.ErrorContains(t, err, strconv.Itoa(chanID.channelID), "Unsubscribe should contain correct chanId")

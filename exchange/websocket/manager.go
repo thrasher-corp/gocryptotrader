@@ -84,6 +84,7 @@ type Manager struct {
 	state                         atomic.Uint32
 	verbose                       bool
 	canUseAuthenticatedEndpoints  atomic.Bool
+	authenticatedSupport          bool
 	connectionMonitorRunning      atomic.Bool
 	trafficTimeout                time.Duration
 	connectionMonitorDelay        time.Duration
@@ -280,7 +281,8 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	}
 	m.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
-	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
+	m.authenticatedSupport = s.ExchangeConfig.API.AuthenticatedWebsocketSupport
+	m.SetCanUseAuthenticatedEndpoints(m.authenticatedSupport)
 
 	if err := m.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, m.DataHandler); err != nil {
 		return err
@@ -512,6 +514,10 @@ func (m *Manager) connect(ctx context.Context) error {
 		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
 	}
 
+	if m.authenticatedSupport {
+		m.SetCanUseAuthenticatedEndpoints(true)
+	}
+
 	// multiConnectFatalError is a fatal error that will cause all connections to
 	// be shutdown and the websocket to be disconnected.
 	var multiConnectFatalError error
@@ -652,6 +658,14 @@ func (m *Manager) connect(ctx context.Context) error {
 		return multiConnectFatalError
 	}
 
+	m.connectionManagerMu.RLock()
+	connected := len(m.connections) > 0
+	m.connectionManagerMu.RUnlock()
+	if !connected && subscriptionError != nil {
+		m.setState(disconnectedState)
+		return subscriptionError
+	}
+
 	// Assume connected state here. All connections have been established.
 	// All subscriptions have been sent and stored. All data received is being
 	// handled by the appropriate data handler.
@@ -678,8 +692,7 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 
 	if err := ws.setup.Connector(ctx, conn); err != nil {
 		if ws.setup.Authenticated {
-			m.SetCanUseAuthenticatedEndpoints(false)
-			return fmt.Errorf("%w: %w", errFailedToAuthenticate, err)
+			return fmt.Errorf("%w: %w", ErrNotConnected, err)
 		}
 		return fmt.Errorf("%w: %w", common.ErrFatal, err)
 	}
@@ -691,7 +704,7 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	m.trackConnection(conn, ws)
 
 	m.Wg.Add(1)
-	go m.Reader(ctx, conn, ws.setup.Handler)
+	go m.Reader(ctx, conn, ws.setup.Handler, ws.setup.OnDisconnect)
 
 	var authenticationError error
 	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
@@ -712,6 +725,16 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	}
 	if ws.setup.Authenticate != nil && !m.CanUseAuthenticatedEndpoints() {
 		subs = subs.Public()
+		if len(subs) == 0 && !ws.setup.SubscriptionsNotRequired {
+			if closeErr := conn.Shutdown(); closeErr != nil {
+				authenticationError = common.AppendError(authenticationError, closeErr)
+			}
+			m.connectionManagerMu.Lock()
+			delete(m.connections, conn)
+			ws.connections = slices.DeleteFunc(ws.connections, func(c Connection) bool { return c == conn })
+			m.connectionManagerMu.Unlock()
+			return common.AppendError(errFailedToAuthenticate, authenticationError)
+		}
 	}
 
 	if ws.setup.SubscriptionsNotRequired {
@@ -1057,18 +1080,17 @@ func checkWebsocketURL(s string) error {
 	return nil
 }
 
-// Reader reads and handles data from a specific connection
-func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
+// Reader reads and handles data from a specific connection. Optional cleanup is
+// captured by the caller so removing the connection mapping cannot suppress it.
+func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error, disconnect ...func(Connection)) {
 	defer m.Wg.Done()
-	m.connectionManagerMu.RLock()
-	var onDisconnect func(Connection)
-	if ws := m.connections[conn]; ws != nil && ws.setup != nil {
-		onDisconnect = ws.setup.OnDisconnect
-	}
-	m.connectionManagerMu.RUnlock()
-	if onDisconnect != nil {
-		defer onDisconnect(conn)
-	}
+	defer func() {
+		for _, cleanup := range disconnect {
+			if cleanup != nil {
+				cleanup(conn)
+			}
+		}
+	}()
 
 	for {
 		resp := conn.ReadMessage()
