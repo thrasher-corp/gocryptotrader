@@ -433,11 +433,15 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for i := range ticks.Data {
 			var cp currency.Pair
-			cp, _, err = e.MatchSymbolCheckEnabled(ticks.Data[i].Symbol, a, false)
+			var enabled bool
+			cp, enabled, err = e.MatchSymbolCheckEnabled(ticks.Data[i].Symbol, a, false)
 			if err != nil {
 				if !errors.Is(err, currency.ErrPairNotFound) {
 					errs = common.AppendError(errs, err)
 				}
+				continue
+			}
+			if !enabled {
 				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -467,11 +471,15 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for i := range ticks {
 			var cp currency.Pair
-			cp, _, err = e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
+			var enabled bool
+			cp, enabled, err = e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
 			if err != nil {
 				if !errors.Is(err, currency.ErrPairNotFound) {
 					errs = common.AppendError(errs, err)
 				}
+				continue
+			}
+			if !enabled {
 				continue
 			}
 			if len(ticks[i].Bid) < 2 {
@@ -509,11 +517,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for i := range ticks {
-			cp, _, err := e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
+			cp, enabled, err := e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
 			if err != nil {
 				if !errors.Is(err, currency.ErrPairNotFound) {
 					errs = common.AppendError(errs, err)
 				}
+				continue
+			}
+			if !enabled {
 				continue
 			}
 			if len(ticks[i].Bid) < 2 {
@@ -553,6 +564,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for i := range ticks {
 			var cp currency.Pair
+			var enabled bool
 			var err error
 			if ticks[i].Symbol != "" {
 				cp, err = currency.NewPairFromString(ticks[i].Symbol)
@@ -560,15 +572,18 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 					cp, err = e.pairFromContractExpiryCode(cp)
 				}
 				if err == nil {
-					cp, _, err = e.MatchSymbolCheckEnabled(cp.String(), a, true)
+					cp, enabled, err = e.MatchSymbolCheckEnabled(cp.String(), a, true)
 				}
 			} else {
-				cp, _, err = e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
+				cp, enabled, err = e.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
 			}
 			if err != nil {
 				if !errors.Is(err, currency.ErrPairNotFound) {
 					errs = common.AppendError(errs, err)
 				}
+				continue
+			}
+			if !enabled {
 				continue
 			}
 			if len(ticks[i].Bid) < 2 {
@@ -941,8 +956,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			curr := currency.NewCode(resp.Data.Details[i].Currency)
 			free := resp.Data.Details[i].Available.Float64() + resp.Data.Details[i].IsolatedAvailable.Float64()
 			subAccts[0].Balances.Set(curr, accounts.Balance{
-				Total: resp.Data.Details[i].Equity.Float64(),
-				Hold:  resp.Data.Details[i].Equity.Float64() - free,
+				Total: resp.Data.Details[i].Equity.Float64() + resp.Data.Details[i].IsolatedEquity.Float64(),
+				Hold:  resp.Data.Details[i].Equity.Float64() + resp.Data.Details[i].IsolatedEquity.Float64() - free,
 				Free:  free,
 			})
 		}
@@ -1225,11 +1240,17 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit, positionMode string) (*
 		req.Side = "buy"
 		if positionMode == "dual_side" {
 			req.PositionSide = "long"
+			if s.ReduceOnly {
+				req.PositionSide = "short"
+			}
 		}
 	case s.Side.IsShort():
 		req.Side = "sell"
 		if positionMode == "dual_side" {
 			req.PositionSide = "short"
+			if s.ReduceOnly {
+				req.PositionSide = "long"
+			}
 		}
 	default:
 		return nil, order.ErrSideIsInvalid
@@ -2915,10 +2936,13 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	default:
 		return resp, errUnrecognisedOrderSide
 	}
+
 	switch orderPriceType {
-	case "limit":
+	case "limit", "ioc", "fok":
 		resp.OrderType = order.Limit
-	case "opponent":
+	case "market", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
+		"opponent_ioc", "lightning_ioc", "optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc",
+		"opponent_fok", "lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok":
 		resp.OrderType = order.Market
 	case orderPriceTypePostOnly:
 		resp.OrderType = order.Limit
@@ -2926,6 +2950,13 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	default:
 		return resp, errInvalidOrderPriceType
 	}
+	switch {
+	case orderPriceType == "ioc" || strings.HasSuffix(orderPriceType, "_ioc"):
+		resp.TimeInForce = order.ImmediateOrCancel
+	case orderPriceType == "fok" || strings.HasSuffix(orderPriceType, "_fok"):
+		resp.TimeInForce = order.FillOrKill
+	}
+
 	switch status {
 	case 1, 2, 11:
 		resp.Status = order.UnknownStatus

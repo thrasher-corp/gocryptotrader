@@ -39,6 +39,14 @@ func TestUpgradeExchange(t *testing.T) {
 		})
 	}
 
+	t.Run("preserve unrelated bytes", func(t *testing.T) {
+		t.Parallel()
+		input := []byte(`{"name":"Huobi", "z":9007199254740993, "nested":{"z":1,"a":2}, "currencyPairs":{"pairs":{}}, "features":{"subscriptions":[]}, "a":1e3}`)
+		out, err := new(v14.Version).UpgradeExchange(t.Context(), input)
+		require.NoError(t, err, "migration must succeed")
+		assert.Contains(t, string(out), `"name":"HTX", "z":9007199254740993, "nested":{"z":1,"a":2}`, "unrelated keys and integer precision should be preserved")
+		assert.Contains(t, string(out), `, "a":1e3}`, "unrelated number formatting should be preserved")
+	})
 	t.Run("derivative configuration", func(t *testing.T) {
 		t.Parallel()
 		input := []byte(`{"name":"HTX","currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"myAccount","authenticated":true}]}}`)

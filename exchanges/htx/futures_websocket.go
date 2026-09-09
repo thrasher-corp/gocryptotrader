@@ -478,16 +478,27 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 	if orderID == "" {
 		orderID = strconv.FormatInt(data.orderID, 10)
 	}
+	var clientOrderID string
+	if data.clientOrderID != 0 {
+		clientOrderID = strconv.FormatInt(data.clientOrderID, 10)
+	}
+	var createdAt, cancelledAt time.Time
+	if data.createdAt != 0 {
+		createdAt = time.UnixMilli(data.createdAt)
+	}
+	if data.cancelledAt != 0 {
+		cancelledAt = time.UnixMilli(data.cancelledAt)
+	}
 	return order.Detail{
 		Exchange:        e.Name,
 		OrderID:         orderID,
-		ClientOrderID:   strconv.FormatInt(data.clientOrderID, 10),
+		ClientOrderID:   clientOrderID,
 		Pair:            pair,
 		Type:            orderVars.OrderType,
 		Side:            orderVars.Side,
 		TimeInForce:     orderVars.TimeInForce,
-		Date:            time.UnixMilli(data.createdAt),
-		CloseTime:       time.UnixMilli(data.cancelledAt),
+		Date:            createdAt,
+		CloseTime:       cancelledAt,
 		Status:          orderVars.Status,
 		Price:           data.price,
 		Amount:          data.volume,

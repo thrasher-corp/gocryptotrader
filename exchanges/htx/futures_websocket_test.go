@@ -94,6 +94,14 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 
 func TestFormatLegacyFuturesWSOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("absent optional values", func(t *testing.T) {
+		t.Parallel()
+		detail, err := new(Exchange).formatLegacyFuturesWSOrder(&legacyFuturesWSOrder{contractCode: "BTC-USD", direction: "buy", orderPriceType: "limit", status: 3})
+		require.NoError(t, err, "conversion must succeed")
+		assert.Empty(t, detail.ClientOrderID, "absent client ID should stay empty")
+		assert.True(t, detail.Date.IsZero(), "absent creation time should stay zero")
+		assert.True(t, detail.CloseTime.IsZero(), "absent cancellation time should stay zero")
+	})
 	base := legacyFuturesWSOrder{
 		asset:          asset.Futures,
 		contractCode:   "BTC-USD",

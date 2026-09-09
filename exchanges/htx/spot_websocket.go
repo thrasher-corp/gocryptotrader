@@ -647,6 +647,10 @@ func stringToOrderSide(side string) (order.Side, error) {
 
 func stringToOrderType(oType string) (order.Type, error) {
 	switch {
+	case strings.Contains(oType, "stop-limit"):
+		return order.StopLimit, nil
+	case oType == "buy-ioc" || oType == "sell-ioc":
+		return order.Limit, nil
 	case strings.Contains(oType, "limit"):
 		return order.Limit, nil
 	case strings.Contains(oType, "market"):

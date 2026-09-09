@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -45,11 +46,27 @@ func (s *V5OrderState) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}
-	orderVars, err := compatibleVars("buy", "limit", state)
-	if err != nil {
-		return err
+
+	var status order.Status
+	switch state {
+	case 1, 2:
+		status = order.New
+	case 3:
+		status = order.Active
+	case 4:
+		status = order.PartiallyFilled
+	case 5:
+		status = order.PartiallyCancelled
+	case 6:
+		status = order.Filled
+	case 7:
+		status = order.Cancelled
+	case 11:
+		status = order.Cancelling
+	default:
+		return errInvalidOrderStatus
 	}
-	*s = V5OrderState(orderVars.Status.String())
+	*s = V5OrderState(status.String())
 	return nil
 }
 

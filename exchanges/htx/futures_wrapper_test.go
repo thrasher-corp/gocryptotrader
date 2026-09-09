@@ -214,14 +214,20 @@ func TestSetCollateralMode(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":1}}`, func(r *http.Request) {
-				var req V5SetAssetModeRequest
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"assets_mode":`+strconv.FormatUint(tc.expectedMode, 10)+`}}`, func(r *http.Request) {
+				var req map[string]uint64
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&req), "asset-mode request must decode")
-				assert.Equal(t, tc.expectedMode, req.AssetMode, "HTX asset mode should match")
+				assert.Equal(t, tc.expectedMode, req["assets_mode"], "HTX asset mode should match")
 			})
 			require.NoError(t, h.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, tc.mode), "SetCollateralMode must not error")
 		})
 	}
+	t.Run("mismatched response", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"assets_mode":2}}`, nil)
+		require.ErrorIs(t, h.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.MultiMode), collateral.ErrInvalidCollateralMode, "unexpected resulting mode must be rejected")
+	})
+
 	h := new(Exchange)
 	require.ErrorIs(t, h.SetCollateralMode(t.Context(), asset.Spot, collateral.MultiMode), asset.ErrNotSupported, "SetCollateralMode must reject unsupported assets")
 	require.ErrorIs(t, h.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.PortfolioMode), collateral.ErrInvalidCollateralMode, "SetCollateralMode must reject unsupported modes")

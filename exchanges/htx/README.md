@@ -22,16 +22,22 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ### Current Features
 
 - Spot REST and public/private websocket support
-- Coin-margined delivery futures REST and public websocket support
-- Coin-margined perpetual futures REST and public websocket support
-- USDT-margined perpetual futures REST and public websocket support
-- Latest and historical perpetual funding rates
-- Derivatives open interest and leverage management
+- Delivery futures and coin-margined perpetual REST and public/private websocket support
+- USDT-margined V5 account, order, position and strategy REST endpoints
+- USDT-margined public/private notifications and a dedicated authenticated V5 trading websocket
+- Latest and historical perpetual funding rates, open interest and leverage management
+- Single-asset and multi-asset collateral modes, and one-way and hedge position modes
+
+Position mode is fetched using each order call's credentials. Avoid changing account
+position mode concurrently with order submission, including through other clients.
+
+Configuration version 14 renames Huobi to HTX and adds derivative pairs and subscriptions.
+Private derivative subscriptions default to disabled and require authenticated access.
 
 The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),
 [delivery futures](https://huobiapi.github.io/docs/dm/v1/en/),
 [coin-margined perpetual](https://huobiapi.github.io/docs/coin_margined_swap/v1/en/) and
-[USDT-margined](https://huobiapi.github.io/docs/usdt_swap/v1/en/) API references.
+[V5 API](https://www.htx.com/en-us/opend/newApiPages/) references.
 
 ### How to enable
 

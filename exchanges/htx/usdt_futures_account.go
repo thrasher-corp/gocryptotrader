@@ -29,9 +29,9 @@ func (e *Exchange) GetV5AssetMode(ctx context.Context) (*V5AssetModeResponse, er
 }
 
 // SetV5AssetMode sets the account asset mode.
-func (e *Exchange) SetV5AssetMode(ctx context.Context, assetMode uint64) (*V5AssetModeResponse, error) {
+func (e *Exchange) SetV5AssetMode(ctx context.Context, assetMode uint64) (*V5SetAssetModeResponse, error) {
 	req := &V5SetAssetModeRequest{AssetMode: assetMode}
-	var resp *V5AssetModeResponse
+	var resp *V5SetAssetModeResponse
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", nil, req, &resp); err != nil {
 		return resp, err
 	}

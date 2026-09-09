@@ -10,6 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -32,13 +34,13 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
+		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Data)
 	case wsExecutionDetailsChannel:
 		response := new(V5WsTradeDetailUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
+		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Data)
 	case wsPositionsChannel:
 		response := new(V5WsPositionUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
@@ -57,9 +59,9 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 				AssetType: sub.Asset,
 				Balance: accounts.Balance{
 					Currency:  currency.NewCode(response.Data.Details[i].Currency),
-					Total:     response.Data.Details[i].Equity.Float64(),
+					Total:     (response.Data.Details[i].Equity.Float64() + response.Data.Details[i].IsolatedEquity.Float64()),
 					Free:      free,
-					Hold:      response.Data.Details[i].Equity.Float64() - free,
+					Hold:      (response.Data.Details[i].Equity.Float64() + response.Data.Details[i].IsolatedEquity.Float64()) - free,
 					UpdatedAt: response.Timestamp.Time(),
 				},
 			})
@@ -70,7 +72,20 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
+		for i := range response.Data {
+			match := &response.Data[i]
+			contractCode := match.ContractCode
+			if contractCode == "" {
+				contractCode = response.ContractCode
+			}
+			match.V5WsOrderData.TradeVolume = match.TotalTradeVolume
+			match.V5WsOrderData.TradeAveragePrice = match.TradePrice
+			match.V5WsOrderData.UpdatedTime = match.MatchTime
+			if err := e.sendV5WSOrderUpdate(ctx, sub, contractCode, &match.V5WsOrderData); err != nil {
+				return err
+			}
+		}
+		return nil
 	case wsTriggerOrdersChannel:
 		response := new(V5WsAlgoOrderUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
@@ -84,6 +99,13 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 
 // sendV5WSOrderUpdate converts each V5 order-notification variant into the canonical order type.
 func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Subscription, contractCode string, data *V5WsOrderData) error {
+	var created, updated time.Time
+	if data.CreatedTime != 0 {
+		created = time.UnixMilli(data.CreatedTime.Int64())
+	}
+	if data.UpdatedTime != 0 {
+		updated = time.UnixMilli(data.UpdatedTime.Int64())
+	}
 	detail, err := e.formatV5OrderDetail(&V5OrderData{
 		ContractCode:      contractCode,
 		Side:              data.Side,
@@ -95,16 +117,16 @@ func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Su
 		Price:             data.Price,
 		Volume:            data.Volume,
 		LeverageRate:      types.Number(data.LeverageRate),
-		State:             V5OrderState(data.State),
-		ReduceOnly:        V5Boolean(data.ReduceOnly),
+		State:             data.State,
+		ReduceOnly:        data.ReduceOnly,
 		TimeInForce:       data.TimeInForce,
 		TradeAveragePrice: data.TradeAveragePrice,
 		TradeVolume:       data.TradeVolume,
 		TradeTurnover:     data.TradeTurnover,
 		FeeCurrency:       data.FeeCurrency,
 		Fee:               data.Fee,
-		CreatedTime:       types.Time(time.UnixMilli(data.CreatedTime.Int64())),
-		UpdatedTime:       types.Time(time.UnixMilli(data.UpdatedTime.Int64())),
+		CreatedTime:       types.Time(created),
+		UpdatedTime:       types.Time(updated),
 	}, sub.Asset)
 	if err != nil {
 		return err
@@ -188,4 +210,42 @@ func (e *Exchange) sendV5TradeRequest(ctx context.Context, operation string, dat
 		return err
 	}
 	return json.Unmarshal(raw, response)
+}
+
+// sendV5WSExecutionUpdates publishes executions without inventing order state or remaining volume.
+func (e *Exchange) sendV5WSExecutionUpdates(ctx context.Context, sub *subscription.Subscription, contractCode string, data []V5WsExecutionData) error {
+	fills := make([]fill.Data, 0, len(data))
+	for i := range data {
+		execution := &data[i]
+		symbol := execution.ContractCode
+		if symbol == "" {
+			symbol = contractCode
+		}
+		pair, err := currency.NewPairFromString(symbol)
+		if err != nil {
+			return err
+		}
+		side := execution.Side
+		if side == "" {
+			side = execution.Direction
+		}
+		orderSide, err := order.StringToOrderSide(side)
+		if err != nil {
+			return err
+		}
+		timestamp := execution.UpdatedTime.Time()
+		if timestamp.IsZero() {
+			timestamp = execution.CreatedTime.Time()
+		}
+		fills = append(fills, fill.Data{
+			ID: execution.ID, Timestamp: timestamp, Exchange: e.Name, AssetType: sub.Asset,
+			CurrencyPair: pair, Side: orderSide, OrderID: execution.OrderID.String(),
+			ClientOrderID: execution.ClientOrderID, TradeID: execution.TradeID.String(),
+			Price: execution.TradePrice.Float64(), Amount: execution.TradeVolume.Float64(),
+		})
+	}
+	if len(fills) == 0 {
+		return nil
+	}
+	return e.Websocket.DataHandler.Send(ctx, fills)
 }

@@ -23,7 +23,7 @@ func TestGetV5AssetMode(t *testing.T) {
 
 func TestSetV5AssetMode(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":2}}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"assets_mode":2}}`, nil)
 	resp, err := h.SetV5AssetMode(t.Context(), 2)
 	require.NoError(t, err, "SetV5AssetMode must not error")
 	require.NotNil(t, resp, "asset mode response must not be nil")

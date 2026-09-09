@@ -6,7 +6,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // appendFuturesCandles normalises the candlestick shape shared by HTX delivery
@@ -93,7 +93,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				for i := range history.Data {
 					result.FundingRates = append(result.FundingRates, fundingrate.Rate{
 						Time: history.Data[i].FundingTime.Time(),
-						Rate: decimal.NewFromFloat(history.Data[i].FundingRate.Float64()),
+						Rate: decimal.MustFromFloat(history.Data[i].FundingRate.Float64()),
 					})
 				}
 				if len(history.Data) < int(pageSize) {
@@ -124,7 +124,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				}
 				result.FundingRates = append(result.FundingRates, fundingrate.Rate{
 					Time: rateTime,
-					Rate: decimal.NewFromFloat(rate.FundingRate.Float64()),
+					Rate: decimal.MustFromFloat(rate.FundingRate.Float64()),
 				})
 			}
 			if reachedStartDate || history.Data.TotalPage == 0 || page >= history.Data.TotalPage {
@@ -239,6 +239,9 @@ func (e *Exchange) SetCollateralMode(ctx context.Context, item asset.Item, mode 
 	}
 	if resp == nil {
 		return errEmptyResult
+	}
+	if resp.Data.AssetMode != assetMode {
+		return fmt.Errorf("%w: requested %d, received %d", collateral.ErrInvalidCollateralMode, assetMode, resp.Data.AssetMode)
 	}
 	return nil
 }

@@ -57,11 +57,11 @@ type V5WsOrderData struct {
 	MarginMode           string       `json:"margin_mode"`
 	Price                types.Number `json:"price"`
 	Volume               types.Number `json:"volume"`
-	LeverageRate         uint64       `json:"lever_rate"`
-	State                string       `json:"state"`
+	LeverageRate         types.Number `json:"lever_rate"`
+	State                V5OrderState `json:"state"`
 	OrderSource          string       `json:"order_source"`
 	CancelReason         string       `json:"cancel_reason"`
-	ReduceOnly           bool         `json:"reduce_only"`
+	ReduceOnly           V5Boolean    `json:"reduce_only"`
 	TimeInForce          string       `json:"time_in_force"`
 	TradeAveragePrice    types.Number `json:"trade_avg_price"`
 	TradeVolume          types.Number `json:"trade_volume"`
@@ -89,22 +89,22 @@ type V5WsOrderData struct {
 
 // V5WsTradeUpdate contains an authenticated V5 USDT-margined execution update.
 type V5WsTradeUpdate struct {
-	Operation    string        `json:"op"`
-	Topic        string        `json:"topic"`
-	ContractCode string        `json:"contract_code"`
-	Timestamp    types.Time    `json:"ts"`
-	UID          string        `json:"uid"`
-	Data         V5WsOrderData `json:"data"`
+	Operation    string              `json:"op"`
+	Topic        string              `json:"topic"`
+	ContractCode string              `json:"contract_code"`
+	Timestamp    types.Time          `json:"ts"`
+	UID          string              `json:"uid"`
+	Data         []V5WsExecutionData `json:"data"`
 }
 
 // V5WsTradeDetailUpdate contains an authenticated V5 USDT-margined execution-detail update.
 type V5WsTradeDetailUpdate struct {
-	Operation    string        `json:"op"`
-	Topic        string        `json:"topic"`
-	ContractCode string        `json:"contract_code"`
-	Timestamp    types.Time    `json:"ts"`
-	UID          string        `json:"uid"`
-	Data         V5WsOrderData `json:"data"`
+	Operation    string              `json:"op"`
+	Topic        string              `json:"topic"`
+	ContractCode string              `json:"contract_code"`
+	Timestamp    types.Time          `json:"ts"`
+	UID          string              `json:"uid"`
+	Data         []V5WsExecutionData `json:"data"`
 }
 
 // V5WsPositionUpdate contains an authenticated V5 USDT-margined position update.
@@ -128,12 +128,12 @@ type V5WsAccountUpdate struct {
 
 // V5WsMatchOrderUpdate contains an authenticated V5 USDT-margined match-order update.
 type V5WsMatchOrderUpdate struct {
-	Operation    string        `json:"op"`
-	Topic        string        `json:"topic"`
-	ContractCode string        `json:"contract_code"`
-	Timestamp    types.Time    `json:"ts"`
-	UID          string        `json:"uid"`
-	Data         V5WsOrderData `json:"data"`
+	Operation    string               `json:"op"`
+	Topic        string               `json:"topic"`
+	ContractCode string               `json:"contract_code"`
+	Timestamp    types.Time           `json:"ts"`
+	UID          string               `json:"uid"`
+	Data         []V5WsMatchOrderData `json:"data"`
 }
 
 // V5WsAlgoOrderUpdate contains an authenticated V5 USDT-margined strategy-order update.
@@ -144,4 +144,35 @@ type V5WsAlgoOrderUpdate struct {
 	Timestamp    types.Time      `json:"ts"`
 	UID          string          `json:"uid"`
 	Data         json.RawMessage `json:"data"`
+}
+
+// V5WsExecutionData describes a fill rather than a complete order snapshot.
+type V5WsExecutionData struct {
+	TradeFee       types.Number        `json:"trade_fee"`
+	FeeCurrency    string              `json:"fee_currency"`
+	DeductionPrice types.Number        `json:"deduction_price"`
+	ContractCode   string              `json:"contract_code"`
+	ID             string              `json:"id"`
+	OrderID        types.PreciseNumber `json:"order_id"`
+	TradeID        types.PreciseNumber `json:"trade_id"`
+	ClientOrderID  string              `json:"client_order_id"`
+	Side           string              `json:"side"`
+	Direction      string              `json:"direction"`
+	PositionSide   string              `json:"position_side"`
+	Role           string              `json:"role"`
+	TradePrice     types.Number        `json:"trade_price"`
+	TradeVolume    types.Number        `json:"trade_volume"`
+	TradeTurnover  types.Number        `json:"trade_turnover"`
+	CreatedTime    types.Time          `json:"created_time"`
+	UpdatedTime    types.Time          `json:"updated_time"`
+}
+
+// V5WsMatchOrderData carries cumulative order state from the matching engine.
+type V5WsMatchOrderData struct {
+	V5WsOrderData
+	ID               string       `json:"id"`
+	ContractCode     string       `json:"contract_code"`
+	TotalTradeVolume types.Number `json:"total_trade_volume"`
+	TradePrice       types.Number `json:"trade_price"`
+	MatchTime        types.Number `json:"match_time"`
 }

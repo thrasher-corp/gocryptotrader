@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,9 +26,12 @@ func TestGetRateLimitID(t *testing.T) {
 		name          string
 		endpoint      exchange.URL
 		path          string
+		method        string
 		authenticated bool
 		expected      request.EndpointLimit
 	}{
+		{name: "set asset mode", endpoint: exchange.RestUSDTMargined, path: "/v5/account/asset_mode", method: http.MethodPost, authenticated: true, expected: htxSetAssetMode},
+		{name: "get asset mode", endpoint: exchange.RestUSDTMargined, path: "/v5/account/asset_mode", method: http.MethodGet, authenticated: true, expected: htxSwapAuth},
 		{name: "spot", endpoint: exchange.RestSpot, expected: request.Unset},
 		{name: "delivery public", endpoint: exchange.RestFutures, path: "/api/v1/contract_info", expected: htxFuturesUnAuth},
 		{name: "delivery private", endpoint: exchange.RestFutures, path: "/api/v1/contract_order", authenticated: true, expected: htxFuturesAuth},
@@ -39,7 +43,7 @@ func TestGetRateLimitID(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.expected, getRateLimitID(tc.endpoint, tc.path, tc.authenticated), "rate-limit endpoint should match")
+			assert.Equal(t, tc.expected, getRateLimitID(tc.endpoint, tc.path, tc.method, tc.authenticated), "rate-limit endpoint should match")
 		})
 	}
 }

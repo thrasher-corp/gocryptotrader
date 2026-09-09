@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"net/http"
 	"strings"
 	"time"
 
@@ -29,11 +30,13 @@ const (
 	htxFuturesTransfer
 	htxSwapAuth
 	htxSwapUnAuth
+	htxSetAssetMode
 )
 
 // GetRateLimit returns the rate limit for the exchange
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
+		htxSetAssetMode:    request.NewRateLimitWithWeight(10*time.Second, 1, 1),
 		request.Unset:      request.NewRateLimitWithWeight(htxSpotRateInterval, htxSpotRequestRate, 1),
 		htxFuturesAuth:     request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesAuthRequestRate, 1),
 		htxFuturesUnAuth:   request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesUnAuthRequestRate, 1),
@@ -43,7 +46,10 @@ func GetRateLimit() request.RateLimitDefinitions {
 	}
 }
 
-func getRateLimitID(ep exchange.URL, path string, authenticated bool) request.EndpointLimit {
+func getRateLimitID(ep exchange.URL, path, method string, authenticated bool) request.EndpointLimit {
+	if authenticated && ep == exchange.RestUSDTMargined && path == "/v5/account/asset_mode" && method == http.MethodPost {
+		return htxSetAssetMode
+	}
 	if ep == exchange.RestSpot {
 		return request.Unset
 	}

@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -990,12 +991,13 @@ func TestUpdateAccountBalances(t *testing.T) {
 	assert.Equal(t, 3.0, balance.Hold, "held balance should include frozen funds")
 
 	h = newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/balance",
-		`{"code":200,"data":{"details":[{"currency":"USDT","equity":"10","available":"4","isolated_available":"2"}]}}`, nil)
+		`{"code":200,"data":{"details":[{"currency":"USDT","equity":"10","isolated_equity":"3","available":"4","isolated_available":"2"}]}}`, nil)
 	subAccounts, err = h.UpdateAccountBalances(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "USDT-margined UpdateAccountBalances must not error")
 	balance = subAccounts[0].Balances[currency.USDT]
 	assert.Equal(t, 6.0, balance.Free, "free balance should include cross and isolated availability")
-	assert.Equal(t, 4.0, balance.Hold, "held balance should exclude all available funds")
+	assert.Equal(t, 13.0, balance.Total, "total should include isolated equity")
+	assert.Equal(t, 7.0, balance.Hold, "held balance should exclude all available funds")
 }
 
 func TestUpdateAccountBalancesValidation(t *testing.T) {
@@ -1192,7 +1194,7 @@ func TestGetOrderInfo(t *testing.T) {
 		{
 			name: "spot stop limit response", endpoint: exchange.RestSpot, method: http.MethodGet, path: "/v1/order/orders/1", pair: btcusdtPair, asset: asset.Spot,
 			response:     `{"status":"ok","data":{"id":1,"symbol":"btcusdt","account-id":2,"amount":"2","price":"100","type":"buy-stop-limit","state":"filled","filled-amount":"1","filled-cash-amount":"100","filled-fees":"0.1"}}`,
-			expectedType: order.Limit,
+			expectedType: order.StopLimit,
 		},
 		{
 			name: "spot limit FOK response", endpoint: exchange.RestSpot, method: http.MethodGet, path: "/v1/order/orders/1", pair: btcusdtPair, asset: asset.Spot,
@@ -1202,7 +1204,7 @@ func TestGetOrderInfo(t *testing.T) {
 		{
 			name: "spot stop limit FOK response", endpoint: exchange.RestSpot, method: http.MethodGet, path: "/v1/order/orders/1", pair: btcusdtPair, asset: asset.Spot,
 			response:     `{"status":"ok","data":{"id":1,"symbol":"btcusdt","account-id":2,"amount":"2","price":"100","type":"buy-stop-limit-fok","state":"filled","filled-amount":"1","filled-cash-amount":"100","filled-fees":"0.1"}}`,
-			expectedType: order.Limit, expectedTIF: order.FillOrKill,
+			expectedType: order.StopLimit, expectedTIF: order.FillOrKill,
 		},
 		{
 			name: "coin margined response", endpoint: exchange.RestFutures, method: http.MethodPost, path: "/swap-api/v1/swap_order_info", pair: btcusdPair, asset: asset.CoinMarginedFutures,
@@ -1303,6 +1305,33 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestGetV5PositionModeName(t *testing.T) {
 	t.Parallel()
+	t.Run("context credentials remain independent", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mode := "single_side"
+			if r.URL.Query().Get("AccessKeyId") == "second-account" {
+				mode = "dual_side"
+			}
+			_, _ = w.Write([]byte(`{"code":200,"data":{"position_mode":"` + mode + `"}}`))
+		}))
+		t.Cleanup(server.Close)
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "setup must succeed")
+		h.API.AuthenticatedSupport = true
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "mock endpoint must be configured")
+		for _, tc := range []struct{ key, mode string }{{"first-account", "single_side"}, {"second-account", "dual_side"}} {
+			t.Run(tc.key, func(t *testing.T) {
+				t.Parallel()
+				ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: tc.key, Secret: "test-secret"})
+				for range 2 {
+					mode, err := h.getV5PositionModeName(ctx)
+					require.NoError(t, err, "context account mode must be fetched")
+					assert.Equal(t, tc.mode, mode, "mode should belong to the context account")
+				}
+			})
+		}
+	})
+
 	for _, tc := range []struct {
 		name        string
 		response    string
@@ -1341,6 +1370,26 @@ func TestFormatV5OrderRequest(t *testing.T) {
 	_, err := h.formatV5OrderRequest(nil, "dual_side")
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil, "formatV5OrderRequest must reject nil submissions")
 
+	for _, side := range []order.Side{order.Buy, order.Sell} {
+		for _, reduce := range []bool{false, true} {
+			for _, mode := range []string{"single_side", "dual_side"} {
+				t.Run(fmt.Sprintf("%s reduce %t %s", side, reduce, mode), func(t *testing.T) {
+					t.Parallel()
+					request, err := h.formatV5OrderRequest(&order.Submit{Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: side, Type: order.Market, Amount: 1, ReduceOnly: reduce}, mode)
+					require.NoError(t, err, "order formatting must succeed")
+					expected := "both"
+					if mode == "dual_side" {
+						expected = "long"
+						if (side == order.Buy && reduce) || (side == order.Sell && !reduce) {
+							expected = "short"
+						}
+					}
+					assert.Equal(t, expected, request.PositionSide, "position side should identify the opened or closed leg")
+				})
+			}
+		}
+	}
+
 	for _, tc := range []struct {
 		name             string
 		submit           order.Submit
@@ -1366,7 +1415,7 @@ func TestFormatV5OrderRequest(t *testing.T) {
 			expectedType:     orderPriceTypePostOnly,
 			expectedTIF:      "gtc",
 			expectedMode:     "isolated",
-			expectedPosition: "long",
+			expectedPosition: "short",
 		},
 		{
 			name: "cross market FOK",
@@ -1581,6 +1630,21 @@ func TestGetWithdrawalsHistoryUnsupportedAsset(t *testing.T) {
 
 func TestCompatibleVars(t *testing.T) {
 	t.Parallel()
+
+	for _, priceType := range []string{"optimal_20", "optimal_20_ioc", "optimal_20_fok", "lightning", "optimal_5", "optimal_10", "opponent_ioc", "opponent_fok"} {
+		t.Run(priceType, func(t *testing.T) {
+			t.Parallel()
+			result, err := compatibleVars("buy", priceType, 3)
+			require.NoError(t, err, "documented order type must be accepted")
+			assert.Equal(t, order.Market, result.OrderType, "price matching should map to market")
+			if strings.HasSuffix(priceType, "_ioc") {
+				assert.Equal(t, order.ImmediateOrCancel, result.TimeInForce, "IOC should be retained")
+			}
+			if strings.HasSuffix(priceType, "_fok") {
+				assert.Equal(t, order.FillOrKill, result.TimeInForce, "FOK should be retained")
+			}
+		})
+	}
 
 	testCases := []struct {
 		name           string
@@ -1797,6 +1861,10 @@ func TestUpdateTickers(t *testing.T) {
 			t.Parallel()
 			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, tc.path, tc.response, nil)
 			require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, false), "available pair must be set")
+			otherPair := currency.NewPair(currency.ETH, tc.pair.Quote)
+			require.NoError(t, h.SetPairs(currency.Pairs{tc.pair, otherPair}, tc.item, false), "available pairs must be set")
+			require.NoError(t, h.SetPairs(currency.Pairs{otherPair}, tc.item, true), "another pair must be enabled")
+			require.NoError(t, h.UpdateTickers(t.Context(), tc.item), "malformed disabled ticker must be ignored")
 			require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, true), "enabled pair must be set")
 			err := h.UpdateTickers(t.Context(), tc.item)
 			if strings.Contains(tc.name, "ask") {

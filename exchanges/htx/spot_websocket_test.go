@@ -357,20 +357,22 @@ func TestStringToOrderSide(t *testing.T) {
 
 func TestStringToOrderType(t *testing.T) {
 	t.Parallel()
-	type TestCases struct {
-		Case   string
-		Result order.Type
-	}
-	testCases := []TestCases{
-		{Case: "buy-limit", Result: order.Limit},
-		{Case: "sell-market", Result: order.Market},
-		{Case: "woah-nelly", Result: order.UnknownType},
-	}
-	for i := range testCases {
-		result, _ := stringToOrderType(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
+	for _, tc := range []struct {
+		input    string
+		expected order.Type
+	}{
+		{"buy-limit", order.Limit}, {"sell-market", order.Market}, {"buy-stop-limit", order.StopLimit}, {"sell-stop-limit-fok", order.StopLimit}, {"buy-ioc", order.Limit}, {"sell-ioc", order.Limit}, {"woah-nelly", order.UnknownType},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			result, err := stringToOrderType(tc.input)
+			if tc.expected == order.UnknownType {
+				require.Error(t, err, "unknown type must fail")
+			} else {
+				require.NoError(t, err, "documented type must decode")
+			}
+			assert.Equal(t, tc.expected, result, "order type should match")
+		})
 	}
 }
 

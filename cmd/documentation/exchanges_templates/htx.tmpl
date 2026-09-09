@@ -4,8 +4,23 @@
 
 ### Current Features
 
-+ REST Support
-+ Websocket Support
+- Spot REST and public/private websocket support
+- Delivery futures and coin-margined perpetual REST and public/private websocket support
+- USDT-margined V5 account, order, position and strategy REST endpoints
+- USDT-margined public/private notifications and a dedicated authenticated V5 trading websocket
+- Latest and historical perpetual funding rates, open interest and leverage management
+- Single-asset and multi-asset collateral modes, and one-way and hedge position modes
+
+Position mode is fetched using each order call's credentials. Avoid changing account
+position mode concurrently with order submission, including through other clients.
+
+Configuration version 14 renames Huobi to HTX and adds derivative pairs and subscriptions.
+Private derivative subscriptions default to disabled and require authenticated access.
+
+The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),
+[delivery futures](https://huobiapi.github.io/docs/dm/v1/en/),
+[coin-margined perpetual](https://huobiapi.github.io/docs/coin_margined_swap/v1/en/) and
+[V5 API](https://www.htx.com/en-us/opend/newApiPages/) references.
 
 ### How to enable
 

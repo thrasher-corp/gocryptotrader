@@ -902,7 +902,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
-	err = e.SendPayload(ctx, getRateLimitID(ep, path, false), func() (*request.Item, error) {
+	err = e.SendPayload(ctx, getRateLimitID(ep, path, http.MethodGet, false), func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -1002,7 +1002,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}, nil
 	}
 
-	err = e.SendPayload(ctx, getRateLimitID(ep, endpoint, true), newRequest, request.AuthenticatedRequest)
+	err = e.SendPayload(ctx, getRateLimitID(ep, endpoint, method, true), newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

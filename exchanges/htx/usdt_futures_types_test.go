@@ -50,6 +50,9 @@ func TestV5OrderStateUnmarshalJSON(t *testing.T) {
 		wantErr     bool
 	}{
 		{name: "named", input: `"filled"`, expected: "filled"},
+		{name: "preparing", input: `1`, expected: "NEW"},
+		{name: "submitting", input: `2`, expected: "NEW"},
+		{name: "cancelling", input: `11`, expected: "CANCELLING"},
 		{name: "numeric", input: `3`, expected: "ACTIVE"},
 		{name: "malformed named", input: `"filled`, wantErr: true},
 		{name: "non-numeric", input: `true`, wantErr: true},

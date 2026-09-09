@@ -2,6 +2,7 @@
 package v14
 
 import (
+	"bytes"
 	"context"
 	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
 	"strings"
@@ -26,7 +27,9 @@ func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, err
 	}
 
 	var config map[string]any
-	if err := json.Unmarshal(exchange, &config); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(exchange))
+	decoder.UseNumber()
+	if err := decoder.Decode(&config); err != nil {
 		return exchange, err
 	}
 	name, _ := config["name"].(string)
@@ -36,7 +39,30 @@ func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, err
 
 	addUSDTMarginedPair(config)
 	addDerivativeSubscriptions(config)
-	return json.Marshal(config)
+	// Patch only the changed subtrees, preserving unrelated key order and numeric text.
+	for _, path := range [][]string{{"currencyPairs", "pairs", "usdtmarginedfutures"}, {"features", "subscriptions"}} {
+		var value any = config
+		for _, key := range path {
+			object, ok := value.(map[string]any)
+			if !ok {
+				value = nil
+				break
+			}
+			value = object[key]
+		}
+		if value == nil {
+			continue
+		}
+		raw, err := json.Marshal(value)
+		if err != nil {
+			return exchange, err
+		}
+		exchange, err = jsonparser.Set(exchange, raw, path...)
+		if err != nil {
+			return exchange, err
+		}
+	}
+	return exchange, nil
 }
 
 // addUSDTMarginedPair adds the pair configuration required by the V5 wrapper without replacing user settings.

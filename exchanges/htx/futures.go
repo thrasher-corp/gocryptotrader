@@ -1355,7 +1355,7 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		}, nil
 	}
 
-	err = e.SendPayload(ctx, getRateLimitID(ep, endpoint, true), newRequest, request.AuthenticatedRequest)
+	err = e.SendPayload(ctx, getRateLimitID(ep, endpoint, method, true), newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

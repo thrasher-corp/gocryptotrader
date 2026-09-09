@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -267,11 +269,11 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 		raw      string
 	}{
 		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"gtc","volume":"2","trade_volume":"1"}}`},
-		{name: "trades", channel: wsTradeUpdatesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"gtc","volume":"2","trade_volume":"1"}}`},
-		{name: "trade details", channel: wsExecutionDetailsChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"gtc","volume":"2","trade_volume":"1"}}`},
+		{name: "trades", channel: wsTradeUpdatesChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
+		{name: "trade details", channel: wsExecutionDetailsChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
 		{name: "positions", channel: wsPositionsChannel, expected: &V5WsPositionUpdate{}},
-		{name: "account", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":{"details":[{"currency":"USDT","equity":"2","available":"1","isolated_available":"0.5"}]}}`},
-		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"gtc","volume":"2","trade_volume":"1"}}`},
+		{name: "account", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":{"details":[{"currency":"USDT","equity":"2","isolated_equity":"3","available":"1","isolated_available":"0.5"}]}}`},
+		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":[{"side":"buy","type":"limit","order_id":"1381717672952373249","state":"partially_filled","volume":"5","trade_volume":"1","total_trade_volume":"3","trade_price":"100","lever_rate":"","match_time":"1749468764315"}]}`},
 		{name: "algo orders", channel: wsTriggerOrdersChannel, expected: &V5WsAlgoOrderUpdate{}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -286,6 +288,21 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 			require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "private USDT-margined notification must be decoded")
 			message := <-h.Websocket.DataHandler.C
 			assert.IsType(t, tt.expected, message.Data, "notification should use its dedicated response type")
+			if tt.name == "matches" {
+				detail, ok := message.Data.(*order.Detail)
+				require.True(t, ok, "match must produce an order update")
+				assert.Equal(t, 3.0, detail.ExecutedAmount, "cumulative execution volume should be used")
+				assert.Equal(t, 2.0, detail.RemainingAmount, "remaining volume should subtract cumulative executions")
+				assert.Equal(t, time.UnixMilli(1749468764315), detail.LastUpdated, "match time should be retained")
+				assert.True(t, detail.Date.IsZero(), "absent creation time should remain zero")
+			}
+
+			if changes, ok := message.Data.([]accounts.Change); ok {
+				require.Len(t, changes, 1, "account change must be returned")
+				assert.Equal(t, 5.0, changes[0].Balance.Total, "total should include isolated equity")
+				assert.Equal(t, 1.5, changes[0].Balance.Free, "free should include isolated availability")
+				assert.Equal(t, 3.5, changes[0].Balance.Hold, "held should reconcile with total and free")
+			}
 		})
 	}
 
@@ -327,4 +344,46 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 	assert.Equal(t, "1381668675223068672", orderUpdate.OrderID, "order ID should be retained")
 	assert.Equal(t, 30.0, orderUpdate.Leverage, "leverage should be retained")
 	assert.True(t, orderUpdate.ReduceOnly, "reduce-only should be retained")
+}
+
+func TestSendV5WSExecutionUpdates(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, raw string
+		wantErr   bool
+	}{
+		{name: "exact IDs and multiple fills", raw: `[{"contract_code":"BTC-USDT","side":"buy","order_id":1381717672952373249,"trade_id":"100005308993681","id":"first","trade_volume":"1","trade_price":"100","updated_time":1749468764315},{"direction":"sell","order_id":"1381717672952373251","trade_id":100005308993682,"id":"second","trade_volume":"2","trade_price":"101","created_time":"1749468764316"}]`},
+		{name: "invalid side", raw: `[{"contract_code":"BTC-USDT","side":"invalid"}]`, wantErr: true},
+		{name: "invalid symbol", raw: `[{"contract_code":"-","side":"buy"}]`, wantErr: true},
+		{name: "empty", raw: `[]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "setup must succeed")
+			var data []V5WsExecutionData
+			require.NoError(t, json.Unmarshal([]byte(tc.raw), &data), "execution array must decode")
+			err := h.sendV5WSExecutionUpdates(t.Context(), &subscription.Subscription{Asset: asset.USDTMarginedFutures}, "BTC-USDT", data)
+			if tc.wantErr {
+				require.Error(t, err, "invalid fill must fail")
+				return
+			}
+			require.NoError(t, err, "execution conversion must succeed")
+			if len(data) == 0 {
+				assert.Empty(t, h.Websocket.DataHandler.C, "empty updates should emit nothing")
+				return
+			}
+			message := <-h.Websocket.DataHandler.C
+			fills, ok := message.Data.([]fill.Data)
+			require.True(t, ok, "executions must use canonical fills")
+			require.Len(t, fills, 2, "every execution must be retained")
+			assert.Equal(t, "1381717672952373249", fills[0].OrderID, "numeric order ID should retain precision")
+			assert.Equal(t, "1381717672952373251", fills[1].OrderID, "quoted order ID should retain precision")
+			assert.Equal(t, "100005308993681", fills[0].TradeID, "trade ID should be retained")
+			assert.Equal(t, order.Sell, fills[1].Side, "direction alias should decode")
+			assert.Equal(t, btcusdtPair, fills[1].CurrencyPair, "envelope symbol should provide fallback")
+			assert.Equal(t, time.UnixMilli(1749468764316), fills[1].Timestamp, "creation time should provide fallback")
+			assert.Equal(t, 2.0, fills[1].Amount, "execution volume should be retained")
+		})
+	}
 }
