@@ -4,9 +4,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestCalculateFee(t *testing.T) {
@@ -59,17 +59,23 @@ func BenchmarkPercentageDifference(b *testing.B) {
 
 func TestPercentageDifferenceDecimal(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, "196.03960396039604", PercentageDifferenceDecimal(decimal.NewFromFloat(1), decimal.NewFromFloat(100)).String())
-	require.Equal(t, "196.03960396039604", PercentageDifferenceDecimal(decimal.NewFromFloat(100), decimal.NewFromFloat(1)).String())
-	require.Equal(t, "0.13605442176871", PercentageDifferenceDecimal(decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)).String())
-	require.Equal(t, "0.13605442176871", PercentageDifferenceDecimal(decimal.NewFromFloat(1.471), decimal.NewFromFloat(1.469)).String())
-	require.Equal(t, "0", PercentageDifferenceDecimal(decimal.NewFromFloat(1.0), decimal.NewFromFloat(1.0)).String())
-	require.Equal(t, "0", PercentageDifferenceDecimal(decimal.Zero, decimal.Zero).String())
+	assert.Equal(t, expectedDecimalPercentageDifferenceLarge, PercentageDifferenceDecimal(decimal.MustFromFloat(1), decimal.MustFromFloat(100)).String(),
+		"PercentageDifferenceDecimal should use the selected implementation's arithmetic")
+	assert.Equal(t, expectedDecimalPercentageDifferenceLarge, PercentageDifferenceDecimal(decimal.MustFromFloat(100), decimal.MustFromFloat(1)).String(),
+		"PercentageDifferenceDecimal should be independent of operand order")
+	assert.Equal(t, expectedDecimalPercentageDifferenceSmall, PercentageDifferenceDecimal(decimal.MustFromFloat(1.469), decimal.MustFromFloat(1.471)).String(),
+		"PercentageDifferenceDecimal should use the selected implementation's precision")
+	assert.Equal(t, expectedDecimalPercentageDifferenceSmall, PercentageDifferenceDecimal(decimal.MustFromFloat(1.471), decimal.MustFromFloat(1.469)).String(),
+		"PercentageDifferenceDecimal should be independent of operand order")
+	assert.Equal(t, "0", PercentageDifferenceDecimal(decimal.MustFromFloat(1.0), decimal.MustFromFloat(1.0)).String(),
+		"PercentageDifferenceDecimal should return zero for equal non-zero values")
+	assert.Equal(t, "0", PercentageDifferenceDecimal(decimal.Zero, decimal.Zero).String(),
+		"PercentageDifferenceDecimal should return zero for two zero values")
 }
 
 // 1585596	       751.8 ns/op	     792 B/op	      27 allocs/op
 func BenchmarkDecimalPercentageDifference(b *testing.B) {
-	d1, d2 := decimal.NewFromFloat(1.469), decimal.NewFromFloat(1.471)
+	d1, d2 := decimal.MustFromFloat(1.469), decimal.MustFromFloat(1.471)
 	for b.Loop() {
 		PercentageDifferenceDecimal(d1, d2)
 	}
@@ -463,18 +469,18 @@ func TestArithmeticAverage(t *testing.T) {
 
 func TestDecimalSortinoRatio(t *testing.T) {
 	t.Parallel()
-	rfr := decimal.NewFromFloat(0.001)
+	rfr := decimal.MustFromFloat(0.001)
 	figures := []decimal.Decimal{
-		decimal.NewFromFloat(0.10),
-		decimal.NewFromFloat(0.04),
-		decimal.NewFromFloat(0.15),
-		decimal.NewFromFloat(-0.05),
-		decimal.NewFromFloat(0.20),
-		decimal.NewFromFloat(-0.02),
-		decimal.NewFromFloat(0.08),
-		decimal.NewFromFloat(-0.06),
-		decimal.NewFromFloat(0.13),
-		decimal.NewFromFloat(0.23),
+		decimal.MustFromFloat(0.10),
+		decimal.MustFromFloat(0.04),
+		decimal.MustFromFloat(0.15),
+		decimal.MustFromFloat(-0.05),
+		decimal.MustFromFloat(0.20),
+		decimal.MustFromFloat(-0.02),
+		decimal.MustFromFloat(0.08),
+		decimal.MustFromFloat(-0.06),
+		decimal.MustFromFloat(0.13),
+		decimal.MustFromFloat(0.23),
 	}
 	avg, err := DecimalArithmeticMean(figures)
 	require.NoError(t, err)
@@ -491,68 +497,69 @@ func TestDecimalSortinoRatio(t *testing.T) {
 	require.NoError(t, err)
 	r, err = DecimalSortinoRatio(figures, rfr, avg)
 	assert.ErrorIs(t, err, ErrInexactConversion)
-	assert.True(t, r.Equal(decimal.NewFromFloat(2.8712802265603243)))
+	assert.Equal(t, expectedDecimalSortinoRatio, r.String(),
+		"Sortino ratio should use the selected implementation's arithmetic")
 
 	// this follows and matches the example calculation from
 	// https://www.wallstreetmojo.com/sortino-ratio/
 	example := []decimal.Decimal{
-		decimal.NewFromFloat(0.1),
-		decimal.NewFromFloat(0.12),
-		decimal.NewFromFloat(0.07),
-		decimal.NewFromFloat(-0.03),
-		decimal.NewFromFloat(0.08),
-		decimal.NewFromFloat(-0.04),
-		decimal.NewFromFloat(0.15),
-		decimal.NewFromFloat(0.2),
-		decimal.NewFromFloat(0.12),
-		decimal.NewFromFloat(0.06),
-		decimal.NewFromFloat(-0.03),
-		decimal.NewFromFloat(0.02),
+		decimal.MustFromFloat(0.1),
+		decimal.MustFromFloat(0.12),
+		decimal.MustFromFloat(0.07),
+		decimal.MustFromFloat(-0.03),
+		decimal.MustFromFloat(0.08),
+		decimal.MustFromFloat(-0.04),
+		decimal.MustFromFloat(0.15),
+		decimal.MustFromFloat(0.2),
+		decimal.MustFromFloat(0.12),
+		decimal.MustFromFloat(0.06),
+		decimal.MustFromFloat(-0.03),
+		decimal.MustFromFloat(0.02),
 	}
 	avg, err = DecimalArithmeticMean(example)
 	require.NoError(t, err)
-	r, err = DecimalSortinoRatio(example, decimal.NewFromFloat(0.06), avg)
+	r, err = DecimalSortinoRatio(example, decimal.MustFromFloat(0.06), avg)
 	assert.ErrorIs(t, err, ErrInexactConversion)
-	assert.True(t, r.Round(1).Equal(decimal.NewFromFloat(0.2)))
+	assert.True(t, r.Round(1).Equal(decimal.MustFromFloat(0.2)))
 }
 
 func TestDecimalInformationRatio(t *testing.T) {
 	t.Parallel()
 	figures := []decimal.Decimal{
-		decimal.NewFromFloat(0.0665),
-		decimal.NewFromFloat(0.0283),
-		decimal.NewFromFloat(0.0911),
-		decimal.NewFromFloat(0.0008),
-		decimal.NewFromFloat(-0.0203),
-		decimal.NewFromFloat(-0.0978),
-		decimal.NewFromFloat(0.0164),
-		decimal.NewFromFloat(-0.0537),
-		decimal.NewFromFloat(0.078),
-		decimal.NewFromFloat(0.0032),
-		decimal.NewFromFloat(0.0249),
+		decimal.MustFromFloat(0.0665),
+		decimal.MustFromFloat(0.0283),
+		decimal.MustFromFloat(0.0911),
+		decimal.MustFromFloat(0.0008),
+		decimal.MustFromFloat(-0.0203),
+		decimal.MustFromFloat(-0.0978),
+		decimal.MustFromFloat(0.0164),
+		decimal.MustFromFloat(-0.0537),
+		decimal.MustFromFloat(0.078),
+		decimal.MustFromFloat(0.0032),
+		decimal.MustFromFloat(0.0249),
 		decimal.Zero,
 	}
 	comparisonFigures := []decimal.Decimal{
-		decimal.NewFromFloat(0.0216),
-		decimal.NewFromFloat(0.0048),
-		decimal.NewFromFloat(0.036),
-		decimal.NewFromFloat(0.0303),
-		decimal.NewFromFloat(0.0043),
-		decimal.NewFromFloat(-0.0694),
-		decimal.NewFromFloat(0.0179),
-		decimal.NewFromFloat(-0.0918),
-		decimal.NewFromFloat(0.0787),
-		decimal.NewFromFloat(0.0297),
-		decimal.NewFromFloat(0.003),
+		decimal.MustFromFloat(0.0216),
+		decimal.MustFromFloat(0.0048),
+		decimal.MustFromFloat(0.036),
+		decimal.MustFromFloat(0.0303),
+		decimal.MustFromFloat(0.0043),
+		decimal.MustFromFloat(-0.0694),
+		decimal.MustFromFloat(0.0179),
+		decimal.MustFromFloat(-0.0918),
+		decimal.MustFromFloat(0.0787),
+		decimal.MustFromFloat(0.0297),
+		decimal.MustFromFloat(0.003),
 		decimal.Zero,
 	}
 	avg, err := DecimalArithmeticMean(figures)
 	require.NoError(t, err)
-	assert.True(t, decimal.NewFromFloat(0.01145).Equal(avg))
+	assert.True(t, decimal.MustFromFloat(0.01145).Equal(avg))
 
 	avgComparison, err := DecimalArithmeticMean(comparisonFigures)
 	require.NoError(t, err)
-	assert.True(t, decimal.NewFromFloat(0.005425).Equal(avgComparison))
+	assert.True(t, decimal.MustFromFloat(0.005425).Equal(avgComparison))
 
 	eachDiff := make([]decimal.Decimal, len(figures))
 	for i := range figures {
@@ -560,10 +567,12 @@ func TestDecimalInformationRatio(t *testing.T) {
 	}
 	stdDev, err := DecimalPopulationStandardDeviation(eachDiff)
 	require.ErrorIs(t, err, ErrInexactConversion)
-	assert.Equal(t, decimal.NewFromFloat(0.028992588851865227), stdDev)
+	assert.Equal(t, expectedDecimalInformationDeviation, stdDev.String(),
+		"standard deviation should use the selected implementation's arithmetic")
 
 	information := avg.Sub(avgComparison).Div(stdDev)
-	assert.Equal(t, decimal.NewFromFloat(0.2078117283966652), information)
+	assert.Equal(t, expectedDecimalInformationRatio, information.String(),
+		"information ratio should use the selected implementation's arithmetic")
 
 	information2, err := DecimalInformationRatio(figures, comparisonFigures, avg, avgComparison)
 	require.NoError(t, err)
@@ -582,14 +591,13 @@ func TestDecimalCalmarRatio(t *testing.T) {
 	ratio, err = DecimalCalmarRatio(
 		decimal.NewFromInt(50000),
 		decimal.NewFromInt(15000),
-		decimal.NewFromFloat(0.2),
-		decimal.NewFromFloat(0.1))
+		decimal.MustFromFloat(0.2),
+		decimal.MustFromFloat(0.1))
 	if err != nil {
 		t.Error(err)
 	}
-	if !ratio.Equal(decimal.NewFromFloat(0.1428571428571429)) {
-		t.Error(ratio)
-	}
+	assert.Equal(t, expectedDecimalCalmarRatio, ratio.String(),
+		"Calmar ratio should use the selected implementation's arithmetic")
 }
 
 func TestDecimalCalculateSharpeRatio(t *testing.T) {
@@ -601,7 +609,7 @@ func TestDecimalCalculateSharpeRatio(t *testing.T) {
 		t.Error("expected 0")
 	}
 
-	result, err = DecimalSharpeRatio([]decimal.Decimal{decimal.NewFromFloat(0.026)}, decimal.NewFromFloat(0.017), decimal.NewFromFloat(0.026))
+	result, err = DecimalSharpeRatio([]decimal.Decimal{decimal.MustFromFloat(0.026)}, decimal.MustFromFloat(0.017), decimal.MustFromFloat(0.026))
 	if err != nil {
 		t.Error(err)
 	}
@@ -612,37 +620,37 @@ func TestDecimalCalculateSharpeRatio(t *testing.T) {
 	// this follows and matches the example calculation (without rounding) from
 	// https://www.educba.com/sharpe-ratio-formula/
 	returns := []decimal.Decimal{
-		decimal.NewFromFloat(-0.0005),
-		decimal.NewFromFloat(-0.0065),
-		decimal.NewFromFloat(-0.0113),
-		decimal.NewFromFloat(0.0031),
-		decimal.NewFromFloat(-0.0112),
-		decimal.NewFromFloat(0.0056),
-		decimal.NewFromFloat(0.0156),
-		decimal.NewFromFloat(0.0048),
-		decimal.NewFromFloat(0.0012),
-		decimal.NewFromFloat(0.0038),
-		decimal.NewFromFloat(-0.0008),
-		decimal.NewFromFloat(0.0032),
+		decimal.MustFromFloat(-0.0005),
+		decimal.MustFromFloat(-0.0065),
+		decimal.MustFromFloat(-0.0113),
+		decimal.MustFromFloat(0.0031),
+		decimal.MustFromFloat(-0.0112),
+		decimal.MustFromFloat(0.0056),
+		decimal.MustFromFloat(0.0156),
+		decimal.MustFromFloat(0.0048),
+		decimal.MustFromFloat(0.0012),
+		decimal.MustFromFloat(0.0038),
+		decimal.MustFromFloat(-0.0008),
+		decimal.MustFromFloat(0.0032),
 		decimal.Zero,
-		decimal.NewFromFloat(-0.0128),
-		decimal.NewFromFloat(-0.0058),
-		decimal.NewFromFloat(0.003),
-		decimal.NewFromFloat(0.0042),
-		decimal.NewFromFloat(0.0055),
-		decimal.NewFromFloat(0.0009),
+		decimal.MustFromFloat(-0.0128),
+		decimal.MustFromFloat(-0.0058),
+		decimal.MustFromFloat(0.003),
+		decimal.MustFromFloat(0.0042),
+		decimal.MustFromFloat(0.0055),
+		decimal.MustFromFloat(0.0009),
 	}
 	var avg decimal.Decimal
 	avg, err = DecimalArithmeticMean(returns)
 	if err != nil {
 		t.Error(err)
 	}
-	result, err = DecimalSharpeRatio(returns, decimal.NewFromFloat(-0.0017), avg)
+	result, err = DecimalSharpeRatio(returns, decimal.MustFromFloat(-0.0017), avg)
 	if err != nil {
 		t.Error(err)
 	}
 	result = result.Round(2)
-	if !result.Equal(decimal.NewFromFloat(0.26)) {
+	if !result.Equal(decimal.MustFromFloat(0.26)) {
 		t.Errorf("expected 0.26, received %v", result)
 	}
 }
@@ -667,13 +675,13 @@ func TestDecimalStandardDeviation2(t *testing.T) {
 		superMean[i] = result
 	}
 	superMeany := superMean[0].Add(superMean[1].Add(superMean[2].Add(superMean[3].Add(superMean[4].Add(superMean[5]))))).Div(decimal.NewFromInt(5))
-	manualCalculation := decimal.NewFromFloat(math.Sqrt(superMeany.InexactFloat64()))
+	manualCalculation := decimal.MustFromFloat(math.Sqrt(superMeany.InexactFloat64()))
 	var codeCalcu decimal.Decimal
 	codeCalcu, err = DecimalSampleStandardDeviation(r)
 	if err != nil {
 		t.Error(err)
 	}
-	if !manualCalculation.Equal(codeCalcu) && codeCalcu.Equal(decimal.NewFromFloat(3.619)) {
+	if !manualCalculation.Equal(codeCalcu) && codeCalcu.Equal(decimal.MustFromFloat(3.619)) {
 		t.Error("expected 3.619")
 	}
 }
@@ -698,7 +706,7 @@ func TestDecimalGeometricAverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !mean.Equal(decimal.NewFromFloat(3.764350599503129)) {
+	if !mean.Equal(decimal.MustFromFloat(3.764350599503129)) {
 		t.Errorf("expected %v, received %v", 3.95, mean)
 	}
 
@@ -713,7 +721,7 @@ func TestDecimalGeometricAverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !mean.Equal(decimal.NewFromFloat(13.477020583645698)) {
+	if !mean.Equal(decimal.MustFromFloat(13.477020583645698)) {
 		t.Errorf("expected %v, received %v", 13.50, mean)
 	}
 
@@ -752,7 +760,7 @@ func TestDecimalFinancialGeometricAverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !mean.Equal(decimal.NewFromFloat(3.9541639996482028)) {
+	if !mean.Equal(decimal.MustFromFloat(3.9541639996482028)) {
 		t.Errorf("expected %v, received %v", 3.95, mean)
 	}
 
@@ -767,7 +775,7 @@ func TestDecimalFinancialGeometricAverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !mean.Equal(decimal.NewFromFloat(13.49849123325646)) {
+	if !mean.Equal(decimal.MustFromFloat(13.49849123325646)) {
 		t.Errorf("expected %v, received %v", 13.50, mean)
 	}
 
@@ -817,7 +825,7 @@ func TestDecimalArithmeticAverage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !avg.Equal(decimal.NewFromFloat(4.5)) {
+	if !avg.Equal(decimal.MustFromFloat(4.5)) {
 		t.Error("expected 4.5")
 	}
 }
@@ -842,7 +850,7 @@ func TestDecimalPow(t *testing.T) {
 	}
 
 	// nan
-	pow = DecimalPow(decimal.NewFromInt(-1), decimal.NewFromFloat(0.1111))
+	pow = DecimalPow(decimal.NewFromInt(-1), decimal.MustFromFloat(0.1111))
 	if !pow.Equal(decimal.Zero) {
 		t.Errorf("received '%v' expected '%v'", pow, 0)
 	}

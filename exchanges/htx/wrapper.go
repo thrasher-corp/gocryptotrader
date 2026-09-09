@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -38,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets default values for the exchange
@@ -3199,7 +3199,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:     cp,
 			LatestRate: fundingrate.Rate{
 				Time: ft,
-				Rate: decimal.NewFromFloat(rates[i].FundingRate.Float64()),
+				Rate: decimal.MustFromFloat(rates[i].FundingRate.Float64()),
 			},
 			TimeOfNextRate: nft,
 			TimeChecked:    time.Now(),
@@ -3207,7 +3207,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if r.IncludePredictedRate {
 			rate.PredictedUpcomingRate = fundingrate.Rate{
 				Time: rate.TimeOfNextRate,
-				Rate: decimal.NewFromFloat(rates[i].EstimatedRate.Float64()),
+				Rate: decimal.MustFromFloat(rates[i].EstimatedRate.Float64()),
 			}
 		}
 		resp = append(resp, rate)

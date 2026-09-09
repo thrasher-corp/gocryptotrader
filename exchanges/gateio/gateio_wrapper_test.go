@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -105,6 +107,74 @@ func TestUseOpenInterestStats(t *testing.T) {
 	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.DeliveryFutures}}, asset.DeliveryFutures))
 	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}}, asset.CoinMarginedFutures))
 	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.USDTMarginedFutures}}, asset.USDTMarginedFutures))
+}
+
+func TestGetOpenInterestFromStatsUsesTwoRows(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+		assert.Equal(t, "/api/v4/futures/usdt/contract_stats", r.URL.Path, "request path should be contract stats")
+		assert.Equal(t, "BTC_USDT", r.URL.Query().Get("contract"), "request should contain the pair")
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		assert.NoError(t, err, "request limit should be an integer")
+		assert.GreaterOrEqual(t, limit, 2, "request should leave room for a fallback statistics row")
+		_, err = fmt.Fprint(w, `[{"time":1720000000,"open_interest":4},{"time":1710000000,"open_interest":3}]`)
+		assert.NoError(t, err, "writing contract stats should not error")
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+	pair := currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}
+	openInterest, err := ex.getOpenInterestFromStats(t.Context(), asset.USDTMarginedFutures, pair)
+	require.NoError(t, err, "getOpenInterestFromStats must not error")
+	assert.Equal(t, 4.0, openInterest, "getOpenInterestFromStats should return the latest open interest")
+}
+
+func TestContractStatUnmarshalLastFundingRate(t *testing.T) {
+	t.Parallel()
+
+	var stats []ContractStat
+	require.NoError(t, json.Unmarshal([]byte(`[{"last_funding_rate":"0.00125"}]`), &stats))
+	require.Len(t, stats, 1)
+	assert.Equal(t, 0.00125, stats[0].LastFundingRate.Float64())
+}
+
+func TestGetSupportedFlashSwapCurrencyPairsResponse(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+		assert.Equal(t, "/api/v4/flash_swap/currency_pairs", r.URL.Path, "request path should be flash swap currency pairs")
+		assert.Equal(t, "BTC", r.URL.Query().Get("currency"), "currency query should match")
+		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit query should match")
+		assert.Equal(t, "2", r.URL.Query().Get("page"), "page query should match")
+		_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","sell_currency":"BTC","buy_currency":"USDT","sell_min_amount":"0.001","sell_max_amount":"1","buy_min_amount":"1","buy_max_amount":"100000"}]`)
+		assert.NoError(t, err, "writing flash swap currency pairs should not error")
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+	pairs, err := ex.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.BTC, 10, 2)
+	require.NoError(t, err, "GetSupportedFlashSwapCurrencyPairs must not error")
+	require.Len(t, pairs, 1, "GetSupportedFlashSwapCurrencyPairs must return the mock pair")
+	assert.Equal(t, "BTC_USDT", pairs[0].CurrencyPair, "GetSupportedFlashSwapCurrencyPairs should decode the pair")
+	assert.Equal(t, "BTC", pairs[0].SellCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the sell currency")
+	assert.Equal(t, "USDT", pairs[0].BuyCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the buy currency")
+	assert.Equal(t, 0.001, pairs[0].SellMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum sell amount")
+	assert.Equal(t, 1.0, pairs[0].SellMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum sell amount")
+	assert.Equal(t, 1.0, pairs[0].BuyMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum buy amount")
+	assert.Equal(t, 100000.0, pairs[0].BuyMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum buy amount")
 }
 
 func TestGetCrossMarginMinimums(t *testing.T) {
@@ -408,6 +478,9 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.Equal(t, tc.a, got.Asset, "Asset should be correct")
 			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
 			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
+			if tc.a == asset.Options && len(got.Asks) == 0 && len(got.Bids) == 0 {
+				t.Skip("GateIO may return an empty options order book without timestamp metadata")
+			}
 			assert.NotZero(t, got.LastUpdated, "Last updated timestamp should be set")
 			assert.NotZero(t, got.LastUpdateID, "Last update ID should be set")
 			assert.NotZero(t, got.LastPushed, "Last pushed timestamp should be set")
