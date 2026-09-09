@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
@@ -83,12 +83,12 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 		fee = amount.Mul(price).Mul(cs.TakerFee)
 	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings
-		amount, fee, err = s.calculateBuySize(price, amountAvailable, cs.TakerFee, o.GetBuyLimit(), cs.BuySide)
+		amount, fee, err = s.calculateBuySize(price, amountAvailable, cs.TakerFee, o.GetBuyLimit(), &cs.BuySide)
 		if err != nil {
 			return decimal.Zero, decimal.Zero, err
 		}
 		// check size against portfolio specific settings
-		portfolioAmount, portfolioFee, err = s.calculateBuySize(price, amountAvailable, cs.TakerFee, o.GetBuyLimit(), s.BuySide)
+		portfolioAmount, portfolioFee, err = s.calculateBuySize(price, amountAvailable, cs.TakerFee, o.GetBuyLimit(), &s.BuySide)
 		if err != nil {
 			return decimal.Zero, decimal.Zero, err
 		}
@@ -99,12 +99,12 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 		}
 	case gctorder.Sell, gctorder.Short:
 		// check size against currency specific settings
-		amount, fee, err = s.calculateSellSize(price, amountAvailable, cs.TakerFee, o.GetSellLimit(), cs.SellSide)
+		amount, fee, err = s.calculateSellSize(price, amountAvailable, cs.TakerFee, o.GetSellLimit(), &cs.SellSide)
 		if err != nil {
 			return decimal.Zero, decimal.Zero, err
 		}
 		// check size against portfolio specific settings
-		portfolioAmount, portfolioFee, err = s.calculateSellSize(price, amountAvailable, cs.TakerFee, o.GetSellLimit(), s.SellSide)
+		portfolioAmount, portfolioFee, err = s.calculateSellSize(price, amountAvailable, cs.TakerFee, o.GetSellLimit(), &s.SellSide)
 		if err != nil {
 			return decimal.Zero, decimal.Zero, err
 		}
@@ -137,7 +137,7 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 // that is allowed to be spent/sold for an event.
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings exchange.MinMax) (amount, fee decimal.Decimal, err error) {
+func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings *exchange.MinMax) (amount, fee decimal.Decimal, err error) {
 	if availableFunds.LessThanOrEqual(decimal.Zero) {
 		return decimal.Zero, decimal.Zero, errNoFunds
 	}
@@ -170,7 +170,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal
 // eg BTC-USD baseAmount will be BTC to be sold
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings exchange.MinMax) (amount, fee decimal.Decimal, err error) {
+func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings *exchange.MinMax) (amount, fee decimal.Decimal, err error) {
 	if baseAmount.LessThanOrEqual(decimal.Zero) {
 		return decimal.Zero, decimal.Zero, errNoFunds
 	}

@@ -3,10 +3,10 @@ package limits
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestConforms(t *testing.T) {
@@ -78,7 +78,7 @@ func TestConforms(t *testing.T) {
 func TestConformToDecimalAmount(t *testing.T) {
 	t.Parallel()
 	tt := &MinMaxLevel{}
-	val := tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(1.001))
+	val := tt.FloorAmountToStepIncrementDecimal(decimal.MustFromFloat(1.001))
 	assert.Equal(t, "1.001", val.String())
 
 	tt = &MinMaxLevel{}
@@ -86,13 +86,13 @@ func TestConformToDecimalAmount(t *testing.T) {
 	assert.Equal(t, "1", val.String())
 
 	tt.AmountStepIncrementSize = 0.001
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(1.001))
+	val = tt.FloorAmountToStepIncrementDecimal(decimal.MustFromFloat(1.001))
 	assert.Equal(t, "1.001", val.String())
 
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(0.0001))
+	val = tt.FloorAmountToStepIncrementDecimal(decimal.MustFromFloat(0.0001))
 	assert.Equal(t, "0", val.String())
 
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(0.7777))
+	val = tt.FloorAmountToStepIncrementDecimal(decimal.MustFromFloat(0.7777))
 	assert.Equal(t, "0.777", val.String())
 
 	tt.AmountStepIncrementSize = 100
