@@ -504,17 +504,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	fPair, err := e.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
 	if err != nil {
-		if len(resp.Status) > 0 {
-			return &resp, err
-		}
 		return nil, err
 	}
 
 	allOrders, err := e.CancelExistingOrder(ctx, "", fPair.String(), "")
 	if err != nil {
-		if len(resp.Status) > 0 {
-			return &resp, err
-		}
 		return nil, err
 	}
 

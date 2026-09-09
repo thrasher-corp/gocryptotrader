@@ -588,17 +588,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 	var cancelAllOrdersResponse order.CancelAllResponse
 	err := e.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
-		if len(cancelAllOrdersResponse.Status) > 0 {
-			return &cancelAllOrdersResponse, err
-		}
 		return nil, err
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		openOrders, err := e.wsGetOpenOrders(ctx, details.Pair.String())
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		var ordersToCancel []WsCancelOrderParameters
@@ -606,9 +600,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 			var fPair currency.Pair
 			fPair, err = e.FormatExchangeCurrency(details.Pair, asset.Spot)
 			if err != nil {
-				if len(cancelAllOrdersResponse.Status) > 0 {
-					return &cancelAllOrdersResponse, err
-				}
 				return nil, err
 			}
 			if openOrders.Orders[i].InstrumentID == e.instrumentMap.LookupID(fPair.String()) {
@@ -620,9 +611,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 		}
 		resp, err := e.wsCancelOrders(ctx, ordersToCancel)
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		for i := range resp.Results {
@@ -636,17 +624,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 		for x := range ids {
 			fPair, err := e.FormatExchangeCurrency(details.Pair, asset.Spot)
 			if err != nil {
-				if len(cancelAllOrdersResponse.Status) > 0 {
-					return &cancelAllOrdersResponse, err
-				}
 				return nil, err
 			}
 			if ids[x] == e.instrumentMap.LookupID(fPair.String()) {
 				openOrders, err := e.GetOpenOrders(ctx, ids[x])
 				if err != nil {
-					if len(cancelAllOrdersResponse.Status) > 0 {
-						return &cancelAllOrdersResponse, err
-					}
 					return nil, err
 				}
 				allTheOrders = append(allTheOrders, openOrders.Orders...)
@@ -665,9 +647,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 		if len(allTheOrdersToCancel) > 0 {
 			resp, err := e.CancelOrders(ctx, allTheOrdersToCancel)
 			if err != nil {
-				if len(cancelAllOrdersResponse.Status) > 0 {
-					return &cancelAllOrdersResponse, err
-				}
 				return nil, err
 			}
 

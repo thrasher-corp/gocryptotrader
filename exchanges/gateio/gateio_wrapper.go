@@ -1220,9 +1220,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 
 	fmtPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
-		if len(resp.Status) > 0 {
-			return &resp, err
-		}
 		return nil, err
 	}
 
@@ -1244,9 +1241,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		cancel, err := e.CancelAllOpenOrdersSpecifiedCurrencyPair(ctx, fmtPair, spotSide, o.AssetType)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		for x := range cancel {
@@ -1255,9 +1249,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(fmtPair, o.AssetType)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		var cancel []FuturesOrder
@@ -1267,9 +1258,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 			cancel, err = e.CancelMultipleFuturesOpenOrders(ctx, fmtPair, futuresSide, settle)
 		}
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		for f := range cancel {
@@ -1280,17 +1268,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 		if !o.Pair.IsEmpty() {
 			underlying, err = e.GetUnderlyingFromCurrencyPair(o.Pair)
 			if err != nil {
-				if len(resp.Status) > 0 {
-					return &resp, err
-				}
 				return nil, err
 			}
 		}
 		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, underlying.String(), futuresSide)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		for x := range cancel {

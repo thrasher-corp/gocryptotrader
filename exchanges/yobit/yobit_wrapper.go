@@ -410,16 +410,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 	fCurr, err := e.FormatExchangeCurrency(orderCancellation.Pair, asset.Spot)
 	if err != nil {
-		if len(cancelAllOrdersResponse.Status) > 0 {
-			return &cancelAllOrdersResponse, err
-		}
 		return nil, err
 	}
 	activeOrdersForPair, err := e.GetOpenOrders(ctx, fCurr.String())
 	if err != nil {
-		if len(cancelAllOrdersResponse.Status) > 0 {
-			return &cancelAllOrdersResponse, err
-		}
 		return nil, err
 	}
 

@@ -223,8 +223,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		curr := pairs[i].Base.String()
 		t, ok := tickers[curr]
 		if !ok {
-			return fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
-				pairs[i], pairs, tickers)
+			continue
 		}
 		p, err := e.FormatExchangeCurrency(pairs[i], a)
 		if err != nil {
@@ -456,9 +455,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 
 	allOrders, err := e.GetOrders(ctx, "", orderCancellation.Side.String(), 100, time.Time{}, orderCancellation.Pair.Base, currency.EMPTYCODE)
 	if err != nil {
-		if len(cancelAllOrdersResponse.Status) > 0 {
-			return &cancelAllOrdersResponse, err
-		}
 		return nil, err
 	}
 

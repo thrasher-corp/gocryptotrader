@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
 	"slices"
 	"strconv"
@@ -263,7 +264,7 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 		return err
 	}
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
-	for _, a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
+	for a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
 		out = append(out, ticker.Price{
 			ExchangeName: e.Name,
 			Volume:       data.BaseVolume.Float64(),
@@ -300,7 +301,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 		return err
 	}
 
-	for _, a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
+	for a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
 		if err := e.Websocket.Trade.Update(saveTradeData, trade.Data{
 			Timestamp:    data.CreateTime.Time(),
 			CurrencyPair: data.CurrencyPair,
@@ -337,7 +338,7 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 	}
 
 	out := make([]kline.Item, 0, len(standardMarginAssetTypes))
-	for _, a := range e.enabledStandardMarginAssetsForPair(currencyPair) {
+	for a := range e.enabledStandardMarginAssetsForPair(currencyPair) {
 		out = append(out, kline.Item{
 			Pair:     currencyPair,
 			Asset:    a,
@@ -395,7 +396,7 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 		return err
 	}
 
-	for _, a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
+	for a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Exchange:    e.Name,
 			Pair:        data.CurrencyPair,
@@ -413,14 +414,14 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 
 // enabledStandardMarginAssetsForPair returns standard spot/margin asset types that are enabled for a pair.
 // This avoids fanning websocket updates into disabled asset stores, which increases memory usage with no consumer benefit.
-func (e *Exchange) enabledStandardMarginAssetsForPair(pair currency.Pair) []asset.Item {
-	out := make([]asset.Item, 0, len(standardMarginAssetTypes))
-	for _, a := range standardMarginAssetTypes {
-		if isEnabled, _ := e.CurrencyPairs.IsPairEnabled(pair, a); isEnabled {
-			out = append(out, a)
+func (e *Exchange) enabledStandardMarginAssetsForPair(pair currency.Pair) iter.Seq[asset.Item] {
+	return func(yield func(asset.Item) bool) {
+		for _, a := range standardMarginAssetTypes {
+			if isEnabled, _ := e.CurrencyPairs.IsPairEnabled(pair, a); isEnabled && !yield(a) {
+				return
+			}
 		}
 	}
-	return out
 }
 
 func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn websocket.Connection, incoming []byte, lastPushed time.Time, a asset.Item) error {

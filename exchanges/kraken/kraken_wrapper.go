@@ -815,34 +815,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 	}
 	switch req.AssetType {
 	case asset.Spot:
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			cancel, err := e.wsCancelAllOrders(ctx)
-			if err != nil {
-				if len(resp.Status) > 0 {
-					return &resp, err
-				}
-				return nil, err
-			}
-			for i := range cancel.Count {
-				resp.Add(fmt.Sprintf("Unknown:%d", i+1), "cancelled")
-			}
-			return &resp, nil
-		}
 		if !req.Pair.IsPopulated() {
 			return nil, order.ErrPairRequiredForCancelAllFanout
 		}
 		fPair, err := e.FormatExchangeCurrency(req.Pair, asset.Spot)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		openOrders, err := e.GetOpenOrders(ctx, OrderInfoOptions{})
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		for orderID := range openOrders.Open {
@@ -864,9 +845,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 	case asset.Futures:
 		cancelData, err := e.FuturesCancelAllOrders(ctx, req.Pair)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		for x := range cancelData.CancelStatus.CancelledOrders {

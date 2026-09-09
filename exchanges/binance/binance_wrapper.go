@@ -1006,9 +1006,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 	case asset.Spot, asset.Margin:
 		openOrders, err := e.OpenOrders(ctx, req.Pair)
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		for i := range openOrders {

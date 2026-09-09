@@ -1733,15 +1733,16 @@ func TestWsProcessTickerCachesAliasTickers(t *testing.T) {
 	payload := <-ex.Websocket.DataHandler.C
 	batch, ok := payload.Data.([]ticker.Price)
 	require.True(t, ok, "expected []ticker.Price payload")
-	require.Len(t, batch, 1, "wsProcessTicker must only emit enabled alias pairs")
+	require.Len(t, batch, 2, "wsProcessTicker must emit available alias pairs")
 	assert.True(t, batch[0].Pair.Equal(enabledAlias), "wsProcessTicker should emit ticker data for enabled alias pairs")
 
 	got, err := ticker.GetTicker(ex.Name, enabledAlias, asset.Spot)
 	require.NoError(t, err, "GetTicker must return cached enabled alias ticker")
 	assert.InDelta(t, 123.45, got.Last, 0.000001, "cached ticker should match websocket payload")
 
-	_, err = ticker.GetTicker(ex.Name, disabledAlias, asset.Spot)
-	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "GetTicker should not return disabled alias ticker data")
+	got, err = ticker.GetTicker(ex.Name, disabledAlias, asset.Spot)
+	require.NoError(t, err, "GetTicker must return cached disabled available alias ticker")
+	assert.InDelta(t, 123.45, got.Last, 0.000001, "disabled available ticker should match websocket payload")
 }
 
 func TestProcessSnapshotUpdate(t *testing.T) {

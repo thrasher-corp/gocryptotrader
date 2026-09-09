@@ -1006,9 +1006,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			var err error
 			cancelOrd.Pair, err = e.FormatExchangeCurrency(cancelOrd.Pair, cancelOrd.AssetType)
 			if err != nil {
-				if len(cancelAllOrdersResponse.Status) > 0 {
-					return &cancelAllOrdersResponse, err
-				}
 				return nil, err
 			}
 			pairs = append(pairs, cancelOrd.Pair)

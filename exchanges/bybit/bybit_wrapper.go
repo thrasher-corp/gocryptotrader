@@ -1035,9 +1035,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			BaseCoin: orderCancellation.Pair.Base.String(),
 		})
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		for i := range activeOrder {

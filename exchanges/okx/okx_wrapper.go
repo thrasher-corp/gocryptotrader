@@ -1404,9 +1404,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		var success bool
 		success, err = e.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
 		if err != nil {
-			if len(cancelAllResponse.Status) > 0 {
-				return &cancelAllResponse, err
-			}
 			return nil, err
 		}
 		cancelAllResponse.Add(orderCancellation.OrderID, strconv.FormatBool(success))
@@ -1417,9 +1414,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if orderCancellation.AssetType.IsValid() {
 		err = e.CurrencyPairs.IsAssetAvailable(orderCancellation.AssetType)
 		if err != nil {
-			if len(cancelAllResponse.Status) > 0 {
-				return &cancelAllResponse, err
-			}
 			return nil, err
 		}
 		instrumentType = GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
@@ -1430,9 +1424,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
 		oType, err = orderTypeString(orderCancellation.Type, orderCancellation.TimeInForce)
 		if err != nil {
-			if len(cancelAllResponse.Status) > 0 {
-				return &cancelAllResponse, err
-			}
 			return nil, err
 		}
 	}
@@ -1449,9 +1440,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		InstrumentID:   curr,
 	})
 	if err != nil {
-		if len(cancelAllResponse.Status) > 0 {
-			return &cancelAllResponse, err
-		}
 		return nil, err
 	}
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))

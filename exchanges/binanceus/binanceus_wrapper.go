@@ -545,24 +545,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if orderCancellation.AssetType == asset.Spot {
 		symbolValue, err := e.FormatSymbol(orderCancellation.Pair, asset.Spot)
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		openOrders, err := e.GetAllOpenOrders(ctx, symbolValue)
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		for ind := range openOrders {
 			pair, err := currency.NewPairFromString(openOrders[ind].Symbol)
 			if err != nil {
-				if len(cancelAllOrdersResponse.Status) > 0 {
-					return &cancelAllOrdersResponse, err
-				}
 				return nil, err
 			}
 			_, err = e.CancelExistingOrder(ctx, &CancelOrderRequestParams{
@@ -571,9 +562,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 				ClientSuppliedOrderID: openOrders[ind].ClientOrderID,
 			})
 			if err != nil {
-				if len(cancelAllOrdersResponse.Status) > 0 {
-					return &cancelAllOrdersResponse, err
-				}
 				return nil, err
 			}
 		}

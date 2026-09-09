@@ -1121,9 +1121,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			orderCancellation.AccountID,
 			orderCancellation.Pair)
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		if resp.Data.FailedCount > 0 {
@@ -1140,9 +1137,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		a, err := e.CancelAllSwapOrders(ctx, orderCancellation.Pair)
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		split := strings.Split(a.Successes, ",")
@@ -1158,9 +1152,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		a, err := e.FCancelAllOrders(ctx, orderCancellation.Pair, "", "")
 		if err != nil {
-			if len(cancelAllOrdersResponse.Status) > 0 {
-				return &cancelAllOrdersResponse, err
-			}
 			return nil, err
 		}
 		split := strings.Split(a.Data.Successes, ",")

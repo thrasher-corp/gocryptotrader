@@ -277,11 +277,11 @@ func TestEnabledStandardMarginAssetsForPair(t *testing.T) {
 	ex := setupExchangeWithSpotOnlyEnabledBTCUSDT(t)
 	pair := currency.NewPairWithDelimiter("BTC", "USDT", "_")
 
-	assets := ex.enabledStandardMarginAssetsForPair(pair)
+	assets := slices.Collect(ex.enabledStandardMarginAssetsForPair(pair))
 	require.Equal(t, []asset.Item{asset.Spot}, assets, "enabledStandardMarginAssetsForPair must only return spot when margin assets are disabled")
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, true), "SetAssetEnabled must not error")
-	assets = ex.enabledStandardMarginAssetsForPair(pair)
+	assets = slices.Collect(ex.enabledStandardMarginAssetsForPair(pair))
 	require.Equal(t, []asset.Item{asset.Spot, asset.Margin}, assets, "enabledStandardMarginAssetsForPair must include margin after enabling margin")
 }
 

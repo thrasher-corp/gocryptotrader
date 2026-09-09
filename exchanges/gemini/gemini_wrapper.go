@@ -500,9 +500,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 	var cancelAllOrdersResponse order.CancelAllResponse
 	resp, err := e.CancelExistingOrders(ctx, false)
 	if err != nil {
-		if len(cancelAllOrdersResponse.Status) > 0 {
-			return &cancelAllOrdersResponse, err
-		}
 		return nil, err
 	}
 

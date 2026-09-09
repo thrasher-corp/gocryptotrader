@@ -693,9 +693,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (*
 
 	fPair, err := e.FormatExchangeCurrency(cancel.Pair, cancel.AssetType)
 	if err != nil {
-		if len(resp.Status) > 0 {
-			return &resp, err
-		}
 		return nil, err
 	}
 	var orderTypeStr string
@@ -717,9 +714,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (*
 		cancelData, err = e.SubmitCancelAllByInstrument(ctx, fPair.String(), orderTypeStr, true, true)
 	}
 	if err != nil {
-		if len(resp.Status) > 0 {
-			return &resp, err
-		}
 		return nil, err
 	}
 	for a := range cancelData.CancelDetails {

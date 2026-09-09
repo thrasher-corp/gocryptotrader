@@ -110,14 +110,14 @@ func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string, enabl
 		if err != nil {
 			return nil, err
 		}
-		if isMatch {
+		if isMatch && e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 			resp = append(resp, asset.Spot)
 		}
 		isMatch, err = e.pairMatchesRequirement(pair, asset.Margin, enabledOnly)
 		if err != nil {
 			return nil, err
 		}
-		if isMatch {
+		if isMatch && e.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 			resp = append(resp, asset.Margin)
 		}
 		if len(resp) > 0 {

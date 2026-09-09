@@ -905,9 +905,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if !orderCancellation.Pair.IsEmpty() {
 		orderCancellation.Pair, err = e.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 		if err != nil {
-			if len(result.Status) > 0 {
-				return &result, err
-			}
 			return nil, err
 		}
 		pairString = orderCancellation.Pair.String()
@@ -927,9 +924,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			var response *OCOOrderCancellationResponse
 			response, err = e.CancelOCOMultipleOrders(ctx, orderIDs, orderCancellation.Pair.String())
 			if err != nil {
-				if len(result.Status) > 0 {
-					return &result, err
-				}
 				return nil, err
 			}
 			values = response.CancelledOrderIDs
@@ -939,34 +933,22 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 				e.AccountToTradeTypeString(orderCancellation.AssetType, MarginModeToString(orderCancellation.MarginType)),
 				orderIDs)
 			if err != nil {
-				if len(result.Status) > 0 {
-					return &result, err
-				}
 				return nil, err
 			}
 		default:
 			tradeType := e.AccountToTradeTypeString(orderCancellation.AssetType, MarginModeToString(orderCancellation.MarginType))
 			values, err = e.CancelAllOpenOrders(ctx, pairString, tradeType)
 			if err != nil {
-				if len(result.Status) > 0 {
-					return &result, err
-				}
 				return nil, err
 			}
 		}
 	case asset.Futures:
 		values, err = e.CancelMultipleFuturesLimitOrders(ctx, orderCancellation.Pair.String())
 		if err != nil {
-			if len(result.Status) > 0 {
-				return &result, err
-			}
 			return nil, err
 		}
 		stopOrders, err := e.CancelAllFuturesStopOrders(ctx, orderCancellation.Pair.String())
 		if err != nil {
-			if len(result.Status) > 0 {
-				return &result, err
-			}
 			return nil, err
 		}
 		values = append(values, stopOrders...)

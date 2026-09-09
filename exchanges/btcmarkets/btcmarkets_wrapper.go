@@ -555,16 +555,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 	}
 	fPair, err := e.FormatExchangeCurrency(req.Pair, req.AssetType)
 	if err != nil {
-		if len(resp.Status) > 0 {
-			return &resp, err
-		}
 		return nil, err
 	}
 	orders, err := e.GetOrders(ctx, fPair.String(), -1, -1, -1, true)
 	if err != nil {
-		if len(resp.Status) > 0 {
-			return &resp, err
-		}
 		return nil, err
 	}
 
@@ -575,9 +569,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 	for _, batch := range common.Batch(orderIDs, 20) {
 		cancelResp, err := e.CancelBatch(ctx, batch)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return &resp, err
-			}
 			return nil, err
 		}
 		for _, r := range cancelResp.CancelOrders {

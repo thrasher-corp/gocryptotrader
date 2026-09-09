@@ -1053,26 +1053,26 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
 	switch {
 	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
-		futuresEnabled, err := e.IsPairEnabled(cp, asset.Futures)
+		futuresAvailable, err := e.IsPairAvailable(cp, asset.Futures)
 		if err != nil {
 			if errors.Is(err, currency.ErrCurrencyNotFound) {
 				return nil, nil
 			}
 			return nil, err
 		}
-		if !futuresEnabled {
+		if !futuresAvailable {
 			return nil, nil
 		}
 		return []asset.Item{asset.Futures}, nil
 	case strings.HasPrefix(topic, "/margin"), strings.HasPrefix(topic, "/index"):
-		marginEnabled, err := e.IsPairEnabled(cp, asset.Margin)
+		marginAvailable, err := e.IsPairAvailable(cp, asset.Margin)
 		if err != nil {
 			if errors.Is(err, currency.ErrCurrencyNotFound) {
 				return nil, nil
 			}
 			return nil, err
 		}
-		if !marginEnabled {
+		if !marginAvailable {
 			return nil, nil
 		}
 		return []asset.Item{asset.Margin}, nil

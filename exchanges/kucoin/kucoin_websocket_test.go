@@ -1019,3 +1019,28 @@ func assertCollapsedBatch(t *testing.T, expectedOriginal subscription.List, expe
 	assert.Equal(t, marketMatchChannel+":"+strings.Join(expectedSuffixes, ","), got.QualifiedChannel, "the collapsed subscription should join the qualified channel suffixes")
 	assert.False(t, got.Authenticated, "the collapsed market subscription should remain public")
 }
+
+func TestCalculateAssets(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		topic string
+		asset asset.Item
+	}{
+		{name: "futures", topic: "/contractMarket/ticker", asset: asset.Futures},
+		{name: "margin", topic: "/margin/position", asset: asset.Margin},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			pairs, err := ex.GetEnabledPairs(tc.asset)
+			require.NoError(t, err, "enabled pairs must load")
+			require.NotEmpty(t, pairs, "fixture must have enabled pairs")
+			require.NoError(t, ex.CurrencyPairs.DisablePair(tc.asset, pairs[0]), "pair must disable")
+			got, err := ex.CalculateAssets(tc.topic, pairs[0])
+			require.NoError(t, err, "available pair must remain processable")
+			assert.Equal(t, []asset.Item{tc.asset}, got, "disabled available pair should retain its asset")
+		})
+	}
+}
