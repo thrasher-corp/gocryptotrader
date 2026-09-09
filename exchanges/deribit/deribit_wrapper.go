@@ -560,27 +560,27 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%s: orderType %v is not valid", e.Name, s.AssetType)
 	}
 	var orderID string
+	var err error
 	var fmtPair currency.Pair
 	status := order.New
 	fmtPair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
 	}
-	timeInForce := ""
-	if s.TimeInForce.Is(order.ImmediateOrCancel) {
-		timeInForce = "immediate_or_cancel"
+	timeInForce, err := timeInForceString(s.TimeInForce)
+	if err != nil {
+		return nil, err
 	}
 	var data *PrivateTradeData
 	reqParams := &OrderBuyAndSellParams{
-		Instrument:   fmtPair.String(),
+		Instrument:   formatPairString(s.AssetType, fmtPair),
 		OrderType:    strings.ToLower(s.Type.String()),
 		Label:        s.ClientOrderID,
 		TimeInForce:  timeInForce,
@@ -626,6 +626,57 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
+// WebsocketSubmitOrder submits a new order via websocket.
+func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, fmt.Errorf("%w: %s: %w", request.ErrAuthRequestFailed, e.Name, exchange.ErrAuthenticationSupportNotEnabled)
+	}
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(s.AssetType) {
+		return nil, fmt.Errorf("%s: asset type %v not supported: %w", e.Name, s.AssetType, asset.ErrNotSupported)
+	}
+	fmtPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	timeInForce, err := timeInForceString(s.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
+	reqParams := &OrderBuyAndSellParams{
+		Instrument:   formatPairString(s.AssetType, fmtPair),
+		OrderType:    strings.ToLower(s.Type.String()),
+		Label:        s.ClientOrderID,
+		TimeInForce:  timeInForce,
+		Amount:       s.Amount,
+		Price:        s.Price,
+		TriggerPrice: s.TriggerPrice,
+		PostOnly:     s.TimeInForce.Is(order.PostOnly),
+		ReduceOnly:   s.ReduceOnly,
+	}
+
+	var data *PrivateTradeData
+	if s.Side.IsLong() {
+		data, err = e.WSSubmitBuy(ctx, reqParams)
+	} else { // Submit.Validate guarantees every accepted side is long or short.
+		data, err = e.WSSubmitSell(ctx, reqParams)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, common.ErrNoResponse
+	}
+	resp, err := s.DeriveSubmitResponse(data.Order.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = order.New
+	return resp, nil
+}
+
 // ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
@@ -659,6 +710,35 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	return resp, nil
 }
 
+// WebsocketModifyOrder modifies an order via websocket.
+func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, fmt.Errorf("%w: %s: %w", request.ErrAuthRequestFailed, e.Name, exchange.ErrAuthenticationSupportNotEnabled)
+	}
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(action.AssetType) {
+		return nil, fmt.Errorf("%s: %w - %v", e.Name, asset.ErrNotSupported, action.AssetType)
+	}
+	modify, err := e.WSSubmitEdit(ctx, &OrderBuyAndSellParams{
+		TriggerPrice: action.TriggerPrice,
+		PostOnly:     action.TimeInForce.Is(order.PostOnly),
+		Amount:       action.Amount,
+		OrderID:      action.OrderID,
+		Price:        action.Price,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = modify.Order.OrderID
+	return resp, nil
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !e.SupportsAsset(ord.AssetType) {
@@ -677,6 +757,21 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return err
 	}
 	return nil
+}
+
+// WebsocketCancelOrder cancels an order by ID via websocket.
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return fmt.Errorf("%w: %s: %w", request.ErrAuthRequestFailed, e.Name, exchange.ErrAuthenticationSupportNotEnabled)
+	}
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
+		return err
+	}
+	if !e.SupportsAsset(ord.AssetType) {
+		return fmt.Errorf("%s: %w - %s", e.Name, asset.ErrNotSupported, ord.AssetType)
+	}
+	_, err := e.WSSubmitCancel(ctx, ord.OrderID)
+	return err
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -1562,4 +1657,20 @@ func timeInForceFromString(timeInForceString string, postOnly bool) (order.TimeI
 		tif |= order.PostOnly
 	}
 	return tif, nil
+}
+
+// timeInForceString keeps REST and websocket order duration semantics consistent.
+func timeInForceString(tif order.TimeInForce) (string, error) {
+	switch tif {
+	case order.UnknownTIF, order.GoodTillCancel, order.PostOnly, order.GoodTillCancel | order.PostOnly:
+		return "good_til_cancelled", nil
+	case order.GoodTillDay:
+		return "good_til_day", nil
+	case order.FillOrKill:
+		return "fill_or_kill", nil
+	case order.ImmediateOrCancel:
+		return "immediate_or_cancel", nil
+	default:
+		return "", fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, tif)
+	}
 }
