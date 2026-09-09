@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -33,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 type assetPairFmt struct {
@@ -2071,7 +2071,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: lrt,
-					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
+					Rate: decimal.MustFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
 			})

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -64,6 +65,86 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestSetUnixTimeRangeParams(t *testing.T) {
+	t.Parallel()
+	from := time.Unix(1710000000, 0)
+	to := from.Add(time.Hour)
+	for _, tc := range []struct {
+		name           string
+		from           time.Time
+		to             time.Time
+		expectedParams url.Values
+		expectedErr    error
+	}{
+		{
+			name:           "both set",
+			from:           from,
+			to:             to,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:           "from only",
+			from:           from,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}},
+		},
+		{
+			name:           "to only",
+			to:             to,
+			expectedParams: url.Values{"to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:           "both zero",
+			expectedParams: url.Values{},
+		},
+		{
+			name:           "start after end",
+			from:           to,
+			to:             from,
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterEnd,
+		},
+		{
+			name:           "start equals end",
+			from:           from,
+			to:             from,
+			expectedParams: url.Values{"from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Unix(), 10)}},
+		},
+		{
+			name:           "start after current time",
+			from:           time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			to:             time.Date(2222, 1, 2, 0, 0, 0, 0, time.UTC),
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterTimeNow,
+		},
+		{
+			name:           "equal times after current time",
+			from:           time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			to:             time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC),
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrStartAfterTimeNow,
+		},
+		{
+			name:           "unix epoch",
+			from:           time.Unix(0, 0),
+			to:             to,
+			expectedParams: url.Values{},
+			expectedErr:    common.ErrDateUnset,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := url.Values{}
+			err := setUnixTimeRangeParams(&params, tc.from, tc.to)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "setUnixTimeRangeParams must return the expected error")
+			} else {
+				require.NoError(t, err, "setUnixTimeRangeParams must not error")
+			}
+			assert.Equal(t, tc.expectedParams, params, "params should match expected values")
+		})
+	}
+}
+
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -99,6 +180,131 @@ func TestGetAccountBalances(t *testing.T) {
 		_, err := e.UpdateAccountBalances(t.Context(), a)
 		assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
 	}
+}
+
+func TestSetCrossMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	balances := accounts.CurrencyBalances{}
+	setCrossMarginAccountBalances(&balances, nil)
+
+	setCrossMarginAccountBalances(&balances, &CrossMarginAccount{
+		Balances: map[string]CrossMarginCurrencyBalance{
+			"BTC": {
+				Available: types.Number(2),
+				Freeze:    types.Number(0.5),
+				Borrowed:  types.Number(0.25),
+				Interest:  types.Number(0.05),
+			},
+		},
+	})
+
+	got := balances[currency.BTC]
+	assert.InDelta(t, 2.5, got.Total, 0.00000001, "total should include available and frozen balances")
+	assert.InDelta(t, 0.5, got.Hold, 0.00000001, "hold should match frozen balance")
+	assert.InDelta(t, 2, got.Free, 0.00000001, "free should match available balance")
+	assert.InDelta(t, 0.3, got.Borrowed, 0.00000001, "borrowed should include principal and interest")
+	assert.InDelta(t, 1.7, got.AvailableWithoutBorrow, 0.00000001, "available without borrow should subtract borrowed principal and interest")
+}
+
+func TestSetIsolatedMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	err := setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		Base: AccountBalanceInformation{Currency: currency.BTC},
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = setIsolatedMarginAccountBalances(&accounts.CurrencyBalances{}, []MarginAccountItem{{
+		AccountType: "inactive",
+	}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	balances := accounts.CurrencyBalances{}
+	err = setIsolatedMarginAccountBalances(&balances, []MarginAccountItem{
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(1),
+				LockedAmount: types.Number(0.2),
+				Borrowed:     types.Number(0.25),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(10),
+				LockedAmount: types.Number(2),
+				Borrowed:     types.Number(2),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.BTC,
+				Available:    types.Number(3),
+				LockedAmount: types.Number(0.4),
+				Borrowed:     types.Number(0.5),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(5),
+				LockedAmount: types.Number(0.6),
+			},
+		},
+		{
+			Base: AccountBalanceInformation{
+				Currency:     currency.ETH,
+				Available:    types.Number(7),
+				LockedAmount: types.Number(0.8),
+				Borrowed:     types.Number(1),
+			},
+			Quote: AccountBalanceInformation{
+				Currency:     currency.USDT,
+				Available:    types.Number(20),
+				LockedAmount: types.Number(4),
+			},
+		},
+	})
+	require.NoError(t, err, "setIsolatedMarginAccountBalances must add valid isolated margin balances")
+
+	btc := balances[currency.BTC]
+	assert.InDelta(t, 4.6, btc.Total, 0.00000001, "BTC total should include all isolated margin markets")
+	assert.InDelta(t, 0.6, btc.Hold, 0.00000001, "BTC hold should include all isolated margin markets")
+	assert.InDelta(t, 4, btc.Free, 0.00000001, "BTC free should include all isolated margin markets")
+	assert.InDelta(t, 0.75, btc.Borrowed, 0.00000001, "BTC borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 3.25, btc.AvailableWithoutBorrow, 0.00000001, "BTC available without borrow should subtract borrowed principal")
+
+	usdt := balances[currency.USDT]
+	assert.InDelta(t, 36, usdt.Total, 0.00000001, "USDT total should include all isolated margin markets")
+	assert.InDelta(t, 6, usdt.Hold, 0.00000001, "USDT hold should include all isolated margin markets")
+	assert.InDelta(t, 30, usdt.Free, 0.00000001, "USDT free should include all isolated margin markets")
+	assert.InDelta(t, 2, usdt.Borrowed, 0.00000001, "USDT borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 28, usdt.AvailableWithoutBorrow, 0.00000001, "USDT available without borrow should subtract borrowed principal")
+
+	eth := balances[currency.ETH]
+	assert.InDelta(t, 13.4, eth.Total, 0.00000001, "ETH total should include base and quote isolated margin entries")
+	assert.InDelta(t, 1.4, eth.Hold, 0.00000001, "ETH hold should include base and quote isolated margin entries")
+	assert.InDelta(t, 12, eth.Free, 0.00000001, "ETH free should include base and quote isolated margin entries")
+	assert.InDelta(t, 1, eth.Borrowed, 0.00000001, "ETH borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 11, eth.AvailableWithoutBorrow, 0.00000001, "ETH available without borrow should subtract borrowed principal")
+}
+
+func TestAddIsolatedMarginAccountBalanceWithNegativeAvailable(t *testing.T) {
+	t.Parallel()
+	balances := accounts.CurrencyBalances{}
+	err := addIsolatedMarginAccountBalance(&balances, AccountBalanceInformation{
+		Currency:  currency.LRC,
+		Available: types.Number(-0.01462404),
+		Borrowed:  types.Number(4.85),
+	})
+	require.NoError(t, err, "addIsolatedMarginAccountBalance must add a valid isolated margin balance")
+
+	lrc := balances[currency.LRC]
+	assert.InDelta(t, -0.01462404, lrc.Total, 0.00000001, "total should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
+	assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
 }
 
 func TestWithdraw(t *testing.T) {
@@ -482,37 +688,6 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 	}
 }
 
-func TestGetMarginAccountList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "GetMarginAccountList must not error")
-	for i := range result {
-		assert.NotEmpty(t, result[i].CurrencyPair, "CurrencyPair should not be empty")
-		assert.NotEmpty(t, result[i].AccountType, "AccountType should not be empty")
-	}
-}
-
-func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, currency.Pair{
-		Base:      currency.BTC,
-		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT,
-	}, time.Time{}, time.Time{}, 0, 0); err != nil {
-		t.Errorf("%s ListMarginAccountBalanceChangeHistory() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginFundingAccountList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginFundingAccountList(t.Context(), currency.BTC); err != nil {
-		t.Errorf("%s GetMarginFundingAccountList %v", e.Name, err)
-	}
-}
-
 func TestMarginLoan(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -590,49 +765,6 @@ func TestRepayALoan(t *testing.T) {
 	}
 }
 
-func TestUniLoanBorrowOrRepay(t *testing.T) {
-	t.Parallel()
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), nil), errNilArgument)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		Currency: currency.BTC,
-		Type:     "borrow",
-		Amount:   1,
-	}), currency.ErrCurrencyPairEmpty)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Type:         "borrow",
-		Amount:       1,
-	}), currency.ErrCurrencyCodeEmpty)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Currency:     currency.BTC,
-		Type:         "invalid",
-		Amount:       1,
-	}), errInvalidUniLoanType)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Currency:     currency.BTC,
-		Type:         "borrow",
-		Amount:       0,
-	}), errInvalidAmount)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	assert.NoError(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
-		Currency:     currency.BTC,
-		Type:         "borrow",
-		Amount:       0.001,
-	}))
-}
-
-func TestGetUniLoanInterestRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 1, 100, time.Time{}, time.Time{})
-	assert.NoError(t, err)
-	assert.NotNil(t, records)
-}
-
 func TestListLoanRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -671,41 +803,22 @@ func TestModifyALoanRecord(t *testing.T) {
 	}
 }
 
-func TestUpdateUsersAutoRepaymentSetting(t *testing.T) {
+func TestQueryInterestDeductionRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.UpdateUsersAutoRepaymentSetting(t.Context(), true); err != nil {
-		t.Errorf("%s UpdateUsersAutoRepaymentSetting() error %v", e.Name, err)
-	}
-}
 
-func TestGetUserAutoRepaymentSetting(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetUserAutoRepaymentSetting(t.Context()); err != nil {
-		t.Errorf("%s GetUserAutoRepaymentSetting() error %v", e.Name, err)
-	}
-}
+	_, err := e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 101, time.Time{}, time.Time{}, "")
+	require.ErrorIs(t, err, errInvalidLimit)
 
-func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMaxTransferableAmountForSpecificMarginCurrency() error %v", e.Name, err)
-	}
-}
+	tn := time.Now()
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, tn.Add(time.Hour), tn, "")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.EMPTYCODE, BTCUSDT)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, time.Time{}, time.Time{}, "invalid")
+	require.ErrorIs(t, err, errInvalidLoanType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, BTCUSDT)
-	assert.NoError(t, err, "GetMaxBorrowableAmountForSpecificMarginCurrency should not error")
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.EMPTYCODE, 0, 0, time.Time{}, time.Time{}, "")
+	require.NoError(t, err, "QueryInterestDeductionRecords must not error")
 }
 
 func TestCurrencySupportedByCrossMargin(t *testing.T) {
@@ -852,6 +965,54 @@ func TestTransferCurrency(t *testing.T) {
 	}
 }
 
+func TestAssetTypeToString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		asset    asset.Item
+		expected string
+	}{
+		{name: "spot", asset: asset.Spot, expected: spotAccount},
+		{name: "margin", asset: asset.Margin, expected: marginAccount},
+		{name: "cross margin", asset: asset.CrossMargin, expected: crossMarginAccount},
+		{name: "options", asset: asset.Options, expected: optionsAccount},
+		{name: "fallback", asset: asset.CoinMarginedFutures, expected: asset.CoinMarginedFutures.String()},
+		{name: "empty", asset: asset.Empty, expected: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, e.assetTypeToString(tc.asset), "assetTypeToString should return expected account type")
+		})
+	}
+}
+
+func TestIsSpotOrderAccount(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		account  string
+		expected bool
+	}{
+		{name: "spot", account: spotAccount, expected: true},
+		{name: "margin", account: marginAccount, expected: true},
+		{name: "cross margin", account: crossMarginAccount, expected: true},
+		{name: "empty", account: "", expected: false},
+		{name: "options", account: optionsAccount, expected: false},
+		{name: "futures", account: futuresAccount, expected: false},
+		{name: "spot uppercase", account: "SPOT", expected: true},
+		{name: "margin mixed case", account: "Margin", expected: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isSpotOrderAccount(tc.account), "isSpotOrderAccount should return expected support status")
+		})
+	}
+}
+
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -952,20 +1113,6 @@ func TestGetUsersTotalBalance(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if _, err := e.GetUsersTotalBalance(t.Context(), currency.BTC); err != nil {
 		t.Errorf("%s GetUsersTotalBalance() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginSupportedCurrencyPairs(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GetMarginSupportedCurrencyPairs(t.Context()); err != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginSupportedCurrencyPair(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GetSingleMarginSupportedCurrencyPair(t.Context(), getPair(t, asset.Margin)); err != nil {
-		t.Errorf("%s GetMarginSupportedCurrencyPair() error %v", e.Name, err)
 	}
 }
 
@@ -1674,10 +1821,11 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 	}
 }
 
-func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
+func TestGetSupportedFlashSwapCurrencyPairs(t *testing.T) {
 	t.Parallel()
-	if _, err := e.GetSupportedFlashSwapCurrencies(t.Context()); err != nil {
-		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", e.Name, err)
+
+	if _, err := e.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.EMPTYCODE, 0, 0); err != nil {
+		t.Errorf("%s GetSupportedFlashSwapCurrencyPairs() error %v", e.Name, err)
 	}
 }
 
@@ -2997,31 +3145,28 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "GetOpenInterest should error correctly")
 
 	var resp []futures.OpenInterest
+	validPairs := make(map[asset.Item]key.PairAsset, 3)
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		p := getPair(t, a)
-		resp, err = e.GetOpenInterest(t.Context(), key.PairAsset{
-			Base:  p.Base.Item,
-			Quote: p.Quote.Item,
-			Asset: a,
-		})
-		assert.NoErrorf(t, err, "GetOpenInterest should not error for %s asset", a)
+		pair, response := getPairWithOpenInterest(t, a)
+		validPairs[a] = pair
+		resp = response
 		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
 		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
 	}
 
-	coinPair := getPair(t, asset.CoinMarginedFutures)
-	usdtPair := getPair(t, asset.USDTMarginedFutures)
+	coinPair := validPairs[asset.CoinMarginedFutures]
+	usdtPair := validPairs[asset.USDTMarginedFutures]
 	resp, err = e.GetOpenInterest(
 		t.Context(),
-		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
-		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
+		coinPair,
+		usdtPair,
 	)
 	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
 	require.Len(t, resp, 2, "GetOpenInterest returns exactly the requested perpetual pairs")
 
 	expected := map[asset.Item]currency.Pair{
-		asset.CoinMarginedFutures: coinPair,
-		asset.USDTMarginedFutures: usdtPair,
+		asset.CoinMarginedFutures: coinPair.Pair(),
+		asset.USDTMarginedFutures: usdtPair.Pair(),
 	}
 	found := make(map[asset.Item]bool, len(expected))
 	for _, oi := range resp {
@@ -3632,6 +3777,33 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	return currency.EMPTYPAIR
 }
 
+func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futures.OpenInterest) {
+	t.Helper()
+	var lastErr error
+	var receivedResponse bool
+	for _, pair := range getPairs(t, a) {
+		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
+		response, err := e.GetOpenInterest(t.Context(), pairAsset)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		receivedResponse = true
+		if len(response) == 1 && response[0].OpenInterest > 0 {
+			return pairAsset, response
+		}
+	}
+	switch {
+	case !receivedResponse:
+		t.Fatalf("GetOpenInterest must find a live pair for %s asset: every request failed, last error: %v", a, lastErr)
+	case lastErr != nil:
+		t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset: no pair returned positive open interest and some requests failed, last error: %v", a, lastErr)
+	default:
+		t.Fatalf("GetOpenInterest must find a live pair with positive open interest for %s asset: no request errored, but no pair returned positive open interest", a)
+	}
+	return key.PairAsset{}, nil
+}
+
 func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 	tb.Helper()
 	pairsGuard.RLock()
@@ -4047,36 +4219,4 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
-}
-
-func TestGetEstimatedInterestRate(t *testing.T) {
-	t.Parallel()
-
-	_, err := e.GetEstimatedInterestRate(t.Context(), nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
-
-	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{
-		currency.USDT,
-		currency.BTC,
-		currency.ETH,
-		currency.XRP,
-		currency.LTC,
-		currency.DOGE,
-		currency.BCH,
-		currency.SOL,
-		currency.ADA,
-		currency.DOT,
-		currency.MATIC,
-	})
-	require.ErrorIs(t, err, errTooManyCurrencyCodes)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	got, err := e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC})
-	require.NoError(t, err)
-	val, ok := got["BTC"]
-	require.True(t, ok, "result map must contain BTC key")
-	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
 }

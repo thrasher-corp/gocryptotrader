@@ -60,66 +60,9 @@ type Orderbook struct {
 	Bids       []orderbook.Level
 }
 
-// MarketCandle stores candle data for a given pair
-type MarketCandle struct {
-	Time   time.Time
-	Open   float64
-	Close  float64
-	Low    float64
-	High   float64
-	Volume float64
-}
-
 // TimeResp stores server time
 type TimeResp struct {
 	Time time.Time `json:"timestamp"`
-}
-
-// TradingFee 30 day trade volume
-type TradingFee struct {
-	Success        bool    `json:"success"`
-	ErrorCode      int     `json:"errorCode"`
-	ErrorMessage   string  `json:"errorMessage"`
-	TradingFeeRate float64 `json:"tradingfeerate"`
-	Volume30Day    float64 `json:"volume30day"`
-}
-
-// OrderToGo holds order information to be sent to the exchange
-type OrderToGo struct {
-	Currency        string `json:"currency"`
-	Instrument      string `json:"instrument"`
-	Price           int64  `json:"price"`
-	Volume          int64  `json:"volume"`
-	OrderSide       string `json:"orderSide"`
-	OrderType       string `json:"ordertype"`
-	ClientRequestID string `json:"clientRequestId"`
-}
-
-// Order holds order information
-type Order struct {
-	ID              int64           `json:"id"`
-	Currency        string          `json:"currency"`
-	Instrument      string          `json:"instrument"`
-	OrderSide       string          `json:"orderSide"`
-	OrderType       string          `json:"ordertype"`
-	CreationTime    time.Time       `json:"creationTime"`
-	Status          string          `json:"status"`
-	ErrorMessage    string          `json:"errorMessage"`
-	Price           float64         `json:"price"`
-	Volume          float64         `json:"volume"`
-	OpenVolume      float64         `json:"openVolume"`
-	ClientRequestID string          `json:"clientRequestId"`
-	Trades          []TradeResponse `json:"trades"`
-}
-
-// TradeResponse holds trade information
-type TradeResponse struct {
-	ID           int64     `json:"id"`
-	CreationTime time.Time `json:"creationTime"`
-	Description  string    `json:"description"`
-	Price        float64   `json:"price"`
-	Volume       float64   `json:"volume"`
-	Fee          float64   `json:"fee"`
 }
 
 // AccountData stores account data
@@ -275,23 +218,6 @@ type BatchTradeResponse struct {
 type BatchCancelResponse struct {
 	CancelOrders        []CancelOrderResp      `json:"cancelOrders"`
 	UnprocessedRequests []UnprocessedBatchResp `json:"unprocessedRequests"`
-}
-
-// WithdrawRequestCrypto is a generalised withdraw request type
-type WithdrawRequestCrypto struct {
-	Amount   int64  `json:"amount"`
-	Currency string `json:"currency"`
-	Address  string `json:"address"`
-}
-
-// WithdrawRequestAUD is a generalised withdraw request type
-type WithdrawRequestAUD struct {
-	Amount        int64  `json:"amount"`
-	Currency      string `json:"currency"`
-	AccountName   string `json:"accountName"`
-	AccountNumber string `json:"accountNumber"`
-	BankName      string `json:"bankName"`
-	BSBNumber     string `json:"bsbNumber"`
 }
 
 // CancelBatch stores data for batch cancel request

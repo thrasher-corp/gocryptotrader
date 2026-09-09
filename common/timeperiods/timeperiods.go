@@ -2,6 +2,7 @@ package timeperiods
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"time"
 
@@ -33,7 +34,6 @@ func FindTimeRangesContainingData(start, end time.Time, period time.Duration, co
 	t.comparisonTimes = comparisonTimes
 
 	t.setTimePeriodExists()
-	t.Sort(false)
 	t.calculateRanges()
 
 	return t.TimeRanges, nil
@@ -125,23 +125,39 @@ func (t *TimePeriodCalculator) calculatePeriods() {
 // against calculated TimePeriods to determine whether
 // there is existing data within the time period
 func (t *TimePeriodCalculator) setTimePeriodExists() {
+	periodOffset := len(t.TimePeriods)
 	t.calculatePeriods()
-	for i := range t.TimePeriods {
-		for j := range t.comparisonTimes {
-			if t.comparisonTimes[j].Truncate(t.periodDuration).Equal(t.TimePeriods[i].Time) {
-				t.TimePeriods[i].dataInRange = true
-				break
+	if len(t.TimePeriods) == 0 {
+		return
+	}
+	newPeriods := t.TimePeriods[periodOffset:]
+	// Check every period retained from earlier calls because the same
+	// timestamp may appear in more than one previously appended range.
+	for i := range t.comparisonTimes {
+		comparisonTime := t.comparisonTimes[i].Truncate(t.periodDuration)
+		for j := range periodOffset {
+			if t.TimePeriods[j].Time.Equal(comparisonTime) {
+				t.TimePeriods[j].dataInRange = true
 			}
+		}
+		// The range appended by calculatePeriods contains one entry per
+		// interval in ascending time order. Find the first period at or after
+		// comparisonTime, then mark it only when the timestamps match exactly.
+		periodIndex := sort.Search(len(newPeriods), func(j int) bool {
+			return !newPeriods[j].Time.Before(comparisonTime)
+		})
+		if periodIndex < len(newPeriods) && newPeriods[periodIndex].Time.Equal(comparisonTime) {
+			newPeriods[periodIndex].dataInRange = true
 		}
 	}
 }
 
 // Sort will sort the time period asc or desc
 func (t *TimePeriodCalculator) Sort(desc bool) {
-	sort.Slice(t.TimePeriods, func(i, j int) bool {
+	slices.SortFunc(t.TimePeriods, func(a, b TimePeriod) int {
 		if desc {
-			return t.TimePeriods[i].Time.After(t.TimePeriods[j].Time)
+			return b.Time.Compare(a.Time)
 		}
-		return t.TimePeriods[i].Time.Before(t.TimePeriods[j].Time)
+		return a.Time.Compare(b.Time)
 	})
 }

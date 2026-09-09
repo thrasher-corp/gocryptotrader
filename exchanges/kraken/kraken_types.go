@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -141,9 +140,6 @@ type Ticker struct {
 	High                       float64
 	Open                       float64
 }
-
-// Tickers stores a map of tickers
-type Tickers map[string]Ticker
 
 // TickerResponse holds ticker information before its put into the Ticker struct
 type TickerResponse struct {
@@ -577,33 +573,6 @@ type WebsocketSubscriptionData struct {
 	Token    string `json:"token,omitempty"`    // Optional - Token for authenticated channels
 }
 
-// WebsocketEventResponse holds all data response types
-type WebsocketEventResponse struct {
-	Event        string                            `json:"event"`
-	Status       string                            `json:"status"`
-	Pair         currency.Pair                     `json:"pair"`
-	RequestID    int64                             `json:"reqid,omitempty"`
-	Subscription WebsocketSubscriptionResponseData `json:"subscription"`
-	ChannelName  string                            `json:"channelName,omitempty"`
-	WebsocketSubscriptionEventResponse
-	WebsocketErrorResponse
-}
-
-// WebsocketSubscriptionEventResponse defines a websocket socket event response
-type WebsocketSubscriptionEventResponse struct {
-	ChannelID int64 `json:"channelID"`
-}
-
-// WebsocketSubscriptionResponseData defines a websocket subscription response
-type WebsocketSubscriptionResponseData struct {
-	Name string `json:"name"`
-}
-
-// WebsocketErrorResponse defines a websocket error response
-type WebsocketErrorResponse struct {
-	ErrorMessage string `json:"errorMessage"`
-}
-
 // WsTokenResponse holds the WS auth token
 type WsTokenResponse struct {
 	Expires int64  `json:"expires"`
@@ -662,38 +631,6 @@ type WsOwnTrade struct {
 	Vol                float64    `json:"vol,string"`
 }
 
-// WsOpenOrders ws auth open order data
-type WsOpenOrders struct {
-	Cost           float64                `json:"cost,string"`
-	Description    WsOpenOrderDescription `json:"descr"`
-	ExpireTime     types.Time             `json:"expiretm"`
-	Fee            float64                `json:"fee,string"`
-	LimitPrice     float64                `json:"limitprice,string"`
-	Misc           string                 `json:"misc"`
-	OFlags         string                 `json:"oflags"`
-	OpenTime       types.Time             `json:"opentm"`
-	Price          float64                `json:"price,string"`
-	RefID          string                 `json:"refid"`
-	StartTime      types.Time             `json:"starttm"`
-	Status         string                 `json:"status"`
-	StopPrice      float64                `json:"stopprice,string"`
-	UserReference  float64                `json:"userref"`
-	Volume         float64                `json:"vol,string"`
-	ExecutedVolume float64                `json:"vol_exec,string"`
-}
-
-// WsOpenOrderDescription additional data for WsOpenOrders
-type WsOpenOrderDescription struct {
-	Close     string  `json:"close"`
-	Leverage  string  `json:"leverage"`
-	Order     string  `json:"order"`
-	OrderType string  `json:"ordertype"`
-	Pair      string  `json:"pair"`
-	Price     float64 `json:"price,string"`
-	Price2    float64 `json:"price2,string"`
-	Type      string  `json:"type"`
-}
-
 // WsAddOrderRequest request type for ws adding order
 type WsAddOrderRequest struct {
 	Event           string  `json:"event"`
@@ -742,14 +679,6 @@ type WsCancelOrderResponse struct {
 	ErrorMessage string `json:"errorMessage"`
 	RequestID    int64  `json:"reqid"`
 	Count        int64  `json:"count"`
-}
-
-// OrderVars stores side, status and type for any order/trade
-type OrderVars struct {
-	Side      order.Side
-	Status    order.Status
-	OrderType order.Type
-	Fee       float64
 }
 
 type genericRESTResponse struct {

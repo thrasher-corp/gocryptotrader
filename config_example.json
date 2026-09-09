@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 12,
+ "version": 13,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -162,7 +162,7 @@
    "enabled": false,
    "verbose": false,
    "apiKey": "Key",
-   "accountPlan": "accountPlan"
+   "accountPlan": "basic"
   },
   "currencyPairFormat": {
    "uppercase": true,

@@ -3,16 +3,39 @@ package bybit
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+func TestWebsocketOrderResponse(t *testing.T) {
+	t.Parallel()
+	const response = `{"topic":"order","id":"74199870_22004_157776604406","creationTime":1786689290245,"data":[{"category":"spot","symbol":"FLOWUSDT","orderId":"2281309546159014400","orderLinkId":"019ffefa-ffb4-738f-9c29-ad4fe85302e5","blockTradeId":"","side":"Sell","positionIdx":0,"orderStatus":"Filled","cancelType":"UNKNOWN","rejectReason":"EC_NoError","timeInForce":"FOK","isLeverage":"0","price":"0.03154","qty":"194.10","avgPrice":"0.03154","leavesQty":"0","leavesValue":"0.0000000","cumExecQty":"194.1","cumExecValue":"6.1219140","cumExecFee":"0.0048975312","orderType":"Limit","stopOrderType":"","orderIv":"","triggerPrice":"0.00000","takeProfit":"0.00000","stopLoss":"0.00000","triggerBy":"","tpTriggerBy":"","slTriggerBy":"","triggerDirection":0,"placeType":"","lastPriceOnCreated":"0.03157","closeOnTrigger":false,"reduceOnly":false,"smpGroup":"0","smpType":"None","smpOrderId":"","slLimitPrice":"0.00000","tpLimitPrice":"0.00000","marketUnit":"","createdTime":"1786689290243","updatedTime":"1786689290244","feeCurrency":"USDT","slippageTolerance":"","slippageToleranceType":"UNKNOWN","cumFeeDetail":{"USDT":"0.0048975312"},"rpiTakerAccess":false,"rpiMatchedQty":"0"}]}`
+
+	var result WebsocketOrderResponse
+	require.NoError(t, json.Unmarshal([]byte(response), &result), "order response must decode")
+	require.Len(t, result.OrderDetails, 1, "response must contain one order")
+	require.Equal(t, "74199870_22004_157776604406", result.ID, "response ID must match")
+	require.Equal(t, "order", result.Topic, "response topic must match")
+	require.Equal(t, "FLOWUSDT", result.OrderDetails[0].Symbol, "order symbol must match")
+	require.Equal(t, "2281309546159014400", result.OrderDetails[0].OrderID, "order ID must match")
+	require.Equal(t, "Filled", result.OrderDetails[0].OrderStatus, "order status must match")
+	require.Equal(t, types.Time(time.UnixMilli(1786689290245)), result.CreationTime, "creation time must match")
+	require.Equal(t, types.Time(time.UnixMilli(1786689290243)), result.OrderDetails[0].CreatedTime, "created time must match")
+	require.Equal(t, types.Time(time.UnixMilli(1786689290244)), result.OrderDetails[0].UpdatedTime, "updated time must match")
+	require.Equal(t, order.Sell, result.OrderDetails[0].Side, "order side must match")
+	require.Equal(t, "UNKNOWN", result.OrderDetails[0].SlippageToleranceType, "slippage tolerance type must match")
+	require.Equal(t, types.Number(0.0048975312), result.OrderDetails[0].CumulativeFeeDetail["USDT"], "cumulative fee must match")
+}
 
 func TestWSCreateOrder(t *testing.T) {
 	t.Parallel()

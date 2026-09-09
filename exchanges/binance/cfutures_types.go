@@ -23,26 +23,6 @@ type FuturesPublicTradesData struct {
 	IsBuyerMaker bool       `json:"isBuyerMaker"`
 }
 
-// CompressedTradesData stores futures trades data in a compressed format
-type CompressedTradesData struct {
-	TradeID      int64      `json:"a"`
-	Price        float64    `json:"p"`
-	Quantity     float64    `json:"q"`
-	FirstTradeID int64      `json:"f"`
-	LastTradeID  int64      `json:"l"`
-	Timestamp    types.Time `json:"t"`
-	BuyerMaker   bool       `json:"b"`
-}
-
-// MarkPriceData stores mark price data for futures
-type MarkPriceData struct {
-	Symbol          string     `json:"symbol"`
-	MarkPrice       float64    `json:"markPrice"`
-	LastFundingRate float64    `json:"lastFundingRate"`
-	NextFundingTime types.Time `json:"nextFundingTime"`
-	Time            types.Time `json:"time"`
-}
-
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
 	Symbol string     `json:"symbol"`
@@ -80,20 +60,6 @@ func (f *FuturesCandleStick) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[11]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.BaseAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume})
 }
 
-// AllLiquidationOrders gets all liquidation orders
-type AllLiquidationOrders struct {
-	Symbol       string     `json:"symbol"`
-	Price        float64    `json:"price,string"`
-	OrigQty      float64    `json:"origQty,string"`
-	ExecutedQty  float64    `json:"executedQty,string"`
-	AveragePrice float64    `json:"averagePrice,string"`
-	Status       string     `json:"status"`
-	TimeInForce  string     `json:"timeInForce"`
-	OrderType    string     `json:"type"`
-	Side         string     `json:"side"`
-	Time         types.Time `json:"time"`
-}
-
 // OpenInterestData stores open interest data
 type OpenInterestData struct {
 	Symbol       string     `json:"symbol"`
@@ -127,15 +93,6 @@ type TopTraderPositionRatio struct {
 	LongShortRatio float64    `json:"longShortRatio,string"`
 	LongPosition   float64    `json:"longPosition,string"`
 	ShortPosition  float64    `json:"shortPosition,string"`
-	Timestamp      types.Time `json:"timestamp"`
-}
-
-// GlobalLongShortRatio stores ratio data of all longs vs shorts
-type GlobalLongShortRatio struct {
-	Symbol         string     `json:"symbol"`
-	LongShortRatio float64    `json:"longShortRatio"`
-	LongAccount    float64    `json:"longAccount"`
-	ShortAccount   float64    `json:"shortAccount"`
 	Timestamp      types.Time `json:"timestamp"`
 }
 
@@ -330,28 +287,6 @@ type AutoCancelAllOrdersData struct {
 	CountdownTime int64  `json:"countdownTime,string"`
 }
 
-// LevelDetail stores level detail data
-type LevelDetail struct {
-	Level         string  `json:"level"`
-	MaxBorrowable float64 `json:"maxBorrowable,string"`
-	InterestRate  float64 `json:"interestRate,string"`
-}
-
-// MarginInfoData stores margin info data
-type MarginInfoData struct {
-	Data []struct {
-		MarginRatio string `json:"marginRatio"`
-		Base        struct {
-			AssetName    string        `json:"assetName"`
-			LevelDetails []LevelDetail `json:"levelDetails"`
-		} `json:"base"`
-		Quote struct {
-			AssetName    string        `json:"assetName"`
-			LevelDetails []LevelDetail `json:"levelDetails"`
-		} `json:"quote"`
-	} `json:"data"`
-}
-
 // FuturesAccountBalanceData stores account balance data for futures
 type FuturesAccountBalanceData struct {
 	AccountAlias       string     `json:"accountAlias"`
@@ -428,14 +363,6 @@ type FuturesLeverageData struct {
 	Leverage int64   `json:"leverage"`
 	MaxQty   float64 `json:"maxQty,string"`
 	Symbol   string  `json:"symbol"`
-}
-
-// ModifyIsolatedMarginData stores margin modification data
-type ModifyIsolatedMarginData struct {
-	Amount  float64 `json:"amount"`
-	Code    int64   `json:"code"`
-	Msg     string  `json:"msg"`
-	ModType string  `json:"modType"`
 }
 
 // GetPositionMarginChangeHistoryData gets margin change history for positions
@@ -542,22 +469,6 @@ type ADLEstimateData struct {
 		Short float64 `json:"SHORT"`
 		Hedge float64 `json:"HEDGE"`
 	} `json:"adlQuantile"`
-}
-
-// InterestHistoryData gets interest history data
-type InterestHistoryData struct {
-	Asset       string     `json:"asset"`
-	Interest    float64    `json:"interest"`
-	LendingType string     `json:"lendingType"`
-	ProductName string     `json:"productName"`
-	Time        types.Time `json:"time"`
-}
-
-// FundingRateData stores funding rates data
-type FundingRateData struct {
-	Symbol      string     `json:"symbol"`
-	FundingRate float64    `json:"fundingRate,string"`
-	FundingTime types.Time `json:"fundingTime"`
 }
 
 // SymbolsData stores perp futures' symbols

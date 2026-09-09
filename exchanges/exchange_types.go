@@ -200,13 +200,6 @@ type OpenInterestSupport struct {
 	SupportsRestBatch  bool
 }
 
-// MarginCapabilities stores the exchange's margin capabilities
-type MarginCapabilities struct {
-	SetMarginType        bool
-	ChangePositionMargin bool
-	GetMarginRateHistory bool
-}
-
 // Endpoints stores running url endpoints for exchanges
 type Endpoints struct {
 	Exchange string

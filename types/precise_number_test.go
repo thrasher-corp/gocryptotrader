@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // highPrecisionValue is a decimal string with 19 significant digits — beyond

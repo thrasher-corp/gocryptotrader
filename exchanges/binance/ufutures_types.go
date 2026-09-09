@@ -124,20 +124,6 @@ type USymbolOrderbookTicker struct {
 	Time     types.Time `json:"time"`
 }
 
-// ULiquidationOrdersData stores liquidation orders data
-type ULiquidationOrdersData struct {
-	Symbol       string     `json:"symbol"`
-	Price        float64    `json:"price,string"`
-	OrigQty      float64    `json:"origQty,string"`
-	ExecutedQty  float64    `json:"executedQty,string"`
-	AveragePrice float64    `json:"averagePrice,string"`
-	Status       string     `json:"status"`
-	TimeInForce  string     `json:"timeInForce"`
-	OrderType    string     `json:"type"`
-	Side         string     `json:"side"`
-	Time         types.Time `json:"time"`
-}
-
 // UOpenInterestData stores open interest data
 type UOpenInterestData struct {
 	OpenInterest float64    `json:"openInterest,string"`

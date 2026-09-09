@@ -10,14 +10,6 @@ type WebsocketRequest struct {
 	Arguments []any  `json:"args"`
 }
 
-// WebsocketErrorResponse main error response
-type WebsocketErrorResponse struct {
-	Status  int64            `json:"status"`
-	Error   string           `json:"error"`
-	Meta    any              `json:"meta"`
-	Request WebsocketRequest `json:"request"`
-}
-
 // WebsocketWelcome initial welcome type
 type WebsocketWelcome struct {
 	Info      string `json:"info"`
@@ -34,28 +26,6 @@ type WebsocketSubscribeResp struct {
 	Success   bool             `json:"success"`
 	Subscribe string           `json:"subscribe"`
 	Request   WebsocketRequest `json:"request"`
-}
-
-// WebsocketMainResponse main table defined response
-type WebsocketMainResponse struct {
-	Table string   `json:"table"`
-	Keys  []string `json:"keys"`
-	Types struct {
-		ID     string `json:"id"`
-		Price  string `json:"price"`
-		Side   string `json:"side"`
-		Size   string `json:"size"`
-		Symbol string `json:"symbol"`
-	} `json:"types"`
-	ForeignKeys struct {
-		Side   string `json:"side"`
-		Symbol string `json:"symbol"`
-	} `json:"foreignKeys"`
-	Attributes struct {
-		ID     string `json:"id"`
-		Symbol string `json:"symbol"`
-	} `json:"Attributes"`
-	Action string `json:"action,omitempty"`
 }
 
 // OrderBookData contains orderbook resp data with action to be taken
