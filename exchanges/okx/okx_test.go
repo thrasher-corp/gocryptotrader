@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
@@ -3763,6 +3765,44 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, id string
+		side     order.Side
+	}{
+		{name: "buy side", side: order.Buy},
+		{name: "order ID", id: "buy-1"},
+	} {
+		t.Run("mocked filter "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","side":"buy"}]}`
+				if strings.Contains(r.URL.Path, "cancel-batch-orders") {
+					var args []CancelOrderRequestParam
+					if err := json.NewDecoder(r.Body).Decode(&args); !assert.NoError(t, err, "request should decode") {
+						return
+					}
+					assert.Len(t, args, 1, "only the selected order should be sent without empty entries")
+					for _, arg := range args {
+						assert.Equal(t, "buy-1", arg.OrderID, "only the matching order should be cancelled")
+						assert.Equal(t, "BTC-USDT", arg.InstrumentID, "cancellation should include its instrument")
+					}
+					body = `{"code":"0","data":[{"ordId":"buy-1","sCode":"0"}]}`
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Side: tc.side, OrderID: tc.id})
+			require.NoError(t, err, "filtered cancellation must succeed")
+			require.NotNil(t, resp, "response must be returned")
+			assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+		})
+	}
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject unsupported assets")
 
