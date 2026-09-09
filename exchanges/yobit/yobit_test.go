@@ -94,6 +94,7 @@ func TestGetTickerResponseHandling(t *testing.T) {
 		{name: "failure with empty ticker", body: `{"success":0,"error":"Pair is off: btc_usd","btc_usd":{}}`, errIs: errTickerRequestFailed},
 		{name: "failure with populated ticker", body: `{"success":0,"btc_usd":{"last":80001}}`, errIs: errTickerRequestFailed},
 		{name: "error without success", body: `{"error":"Pair is off: btc_usd"}`, errIs: errTickerRequestFailed},
+		{name: "failure metadata alongside a populated ticker", body: `{"success":0,"error":"Pair is off: eth_btc","btc_usd":{"last":80001}}`, errIs: errTickerRequestFailed, errString: "Pair is off: eth_btc"},
 		{name: "empty response", body: `{}`, want: map[string]Ticker{}},
 		{name: "error with null ticker", body: `{"error":"Pair is off: btc_usd","btc_usd":null}`, errIs: errTickerRequestFailed, errString: "empty ticker for btc_usd"},
 		{name: "error with empty ticker", body: `{"error":"Pair is off: btc_usd","btc_usd":{}}`, errIs: errTickerRequestFailed},
@@ -152,6 +153,9 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 		{name: "success with null ticker", body: `{"success":1,"btc_usd":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
 		{name: "success with empty ticker", body: `{"success":1,"btc_usd":{}}`, errIs: errTickerRequestFailed, btcLast: 80001},
 		{name: "null ticker without metadata", body: `{"btc_usd":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "failure metadata alongside a populated ticker", body: `{"success":0,"error":"Pair is off: eth_btc","btc_usd":{"last":80002}}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "healthy ticker beside null entry", body: `{"btc_usd":{"last":80002},"eth_btc":null}`, errIs: errTickerRequestFailed, btcLast: 80001},
+		{name: "healthy ticker beside empty entry", body: `{"btc_usd":{"last":80002},"eth_btc":{}}`, errIs: errTickerRequestFailed, btcLast: 80001},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
