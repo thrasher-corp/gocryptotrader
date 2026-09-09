@@ -199,6 +199,19 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 	return errs
 }
 
+// UpdateSuccessfulSubscriptionKey marks a stored subscription as subscribed and
+// replaces its key without removing it from the store between keys.
+func (m *Manager) UpdateSuccessfulSubscriptionKey(conn Connection, sub *subscription.Subscription, key any) error {
+	if m == nil {
+		return fmt.Errorf("%w: UpdateSuccessfulSubscriptionKey called on nil Websocket", common.ErrNilPointer)
+	}
+	subscriptionStore := m.subscriptionStore(conn)
+	if subscriptionStore == nil {
+		return fmt.Errorf("%w: UpdateSuccessfulSubscriptionKey called on uninitialised Websocket", common.ErrNilPointer)
+	}
+	return subscriptionStore.UpdateKeyAndState(sub, key, subscription.SubscribedState)
+}
+
 // GetSubscription returns a subscription at the key provided
 // returns nil if no subscription is at that key or the key is nil
 // Keys can implement subscription.MatchableKey in order to provide custom matching logic

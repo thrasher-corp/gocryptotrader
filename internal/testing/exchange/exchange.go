@@ -117,6 +117,7 @@ func MockWsInstance[T any, PT interface {
 	b := e.GetBase()
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
 
@@ -254,4 +255,11 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	cache := new(currency.PairsManager)
 	cache.Load(&b.CurrencyPairs)
 	updatePairsOnce[e.GetName()] = cache
+}
+
+// GetMockConn returns an isolated websocket connection for handler tests without
+// connecting to a real websocket server.
+func GetMockConn(tb testing.TB, e exchange.IBotExchange, u string) websocket.Connection {
+	tb.Helper()
+	return e.GetBase().Websocket.CreateUnmanagedTestConnection(u)
 }

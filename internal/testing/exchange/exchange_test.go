@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
@@ -107,7 +108,17 @@ func TestMockWsInstanceVerbose(t *testing.T) {
 }
 
 func TestMockWsInstanceSupportsMultiConnectionManagement(t *testing.T) {
-	b := MockWsInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+	b := MockWsInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, raw []byte, conn *gws.Conn) error {
+		tb.Helper()
+		var req struct {
+			ID string `json:"req_id"`
+			Op string `json:"op"`
+		}
+		if err := json.Unmarshal(raw, &req); err != nil {
+			return err
+		}
+		return conn.WriteJSON(map[string]any{"req_id": req.ID, "op": req.Op, "success": true, "retCode": 0})
+	}))
 	require.NotNil(t, b, "MockWsInstance must not be nil for multi-connection websocket exchanges")
 	t.Cleanup(func() {
 		if b.GetBase().Websocket.IsConnected() {
@@ -139,4 +150,19 @@ func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {
 	require.NoError(t, err, "GetConnection must not error after SetupWs on a multi-connection manager")
 	assert.NotNil(t, conn, "GetConnection should return a connection after SetupWs on a multi-connection manager")
 	assert.Empty(t, conn.Subscriptions().List(), "Connection subscriptions should remain empty when subscriptions are not required")
+}
+
+func TestGetMockConn(t *testing.T) {
+	t.Parallel()
+
+	e := new(multiConnectionSetupExchange)
+	e.Base.Websocket = websocket.NewManager()
+	conn := GetMockConn(t, e, "wss://isolated.example/ws")
+
+	assert.Equal(t, "wss://isolated.example/ws", conn.GetURL(), "connection should retain the requested URL")
+	require.NotNil(t, conn.Subscriptions(), "connection must have an isolated subscription store")
+	_, err := e.Base.Websocket.Match.Set("manager request", 1)
+	require.NoError(t, err, "manager matcher setup must not error")
+	t.Cleanup(func() { e.Base.Websocket.Match.RemoveSignature("manager request") })
+	assert.False(t, conn.IncomingWithData("manager request", []byte("response")), "connection should not use manager-global matcher state")
 }

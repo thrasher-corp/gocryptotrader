@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -67,13 +68,29 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
-var errNoChannelsSupplied = errors.New("no channels supplied")
+var (
+	errNoChannelsSupplied             = errors.New("no channels supplied")
+	errUnsupportedFuturesWebsocketURL = errors.New("unsupported futures websocket URL")
+)
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	a := asset.USDTMarginedFutures
-	if conn.GetURL() == btcFuturesWebsocketURL {
+	wsUSDTMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
+	if err != nil {
+		return err
+	}
+	wsCoinMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
+	if err != nil {
+		return err
+	}
+	var a asset.Item
+	switch conn.GetURL() {
+	case wsUSDTMarginedURL:
+		a = asset.USDTMarginedFutures
+	case wsCoinMarginedURL:
 		a = asset.CoinMarginedFutures
+	default:
+		return fmt.Errorf("%w: %s", errUnsupportedFuturesWebsocketURL, conn.GetURL())
 	}
 	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err

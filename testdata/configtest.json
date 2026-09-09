@@ -2150,7 +2150,8 @@
     },
     "urlEndpoints": {
      "RestSpotURL": "https://api.gemini.com",
-     "WebsocketSpotURL": "wss://api.gemini.com"
+     "WebsocketSpotURL": "wss://api.gemini.com/v2/marketdata",
+     "WebsocketSpotSupplementaryURL": "wss://api.gemini.com/v1/order/events"
     }
    },
    "features": {
