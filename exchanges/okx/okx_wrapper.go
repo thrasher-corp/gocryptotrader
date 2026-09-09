@@ -1445,11 +1445,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
 	for i := range myOrders {
 		ord := &myOrders[i]
-		if orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "" {
-			if (orderCancellation.OrderID == "" || ord.OrderID != orderCancellation.OrderID) &&
-				(orderCancellation.ClientOrderID == "" || ord.ClientOrderID != orderCancellation.ClientOrderID) {
-				continue
-			}
+		if (orderCancellation.OrderID != "" && ord.OrderID != orderCancellation.OrderID) ||
+			(orderCancellation.ClientOrderID != "" && ord.ClientOrderID != orderCancellation.ClientOrderID) {
+			continue
 		}
 		if (orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell) && ord.Side != orderCancellation.Side {
 			continue

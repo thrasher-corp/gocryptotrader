@@ -1041,6 +1041,10 @@ func TestCalculateAssets(t *testing.T) {
 			got, err := ex.CalculateAssets(tc.topic, pairs[0])
 			require.NoError(t, err, "available pair must remain processable")
 			assert.Equal(t, []asset.Item{tc.asset}, got, "disabled available pair should retain its asset")
+			require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(tc.asset, false), "asset must disable")
+			got, err = ex.CalculateAssets(tc.topic, pairs[0])
+			require.ErrorIs(t, err, asset.ErrNotEnabled, "disabled asset must be rejected")
+			assert.Empty(t, got, "disabled asset should not receive updates")
 		})
 	}
 }

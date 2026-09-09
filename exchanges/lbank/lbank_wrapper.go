@@ -426,6 +426,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order
 	for _, batch := range common.Batch(orderIDs, 3) {
 		cancelResponse, err := e.RemoveOrder(ctx, fPair.String(), strings.Join(batch, ","))
 		if err != nil {
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
 			return nil, err
 		}
 		for success := range strings.SplitSeq(cancelResponse.Success, ",") {

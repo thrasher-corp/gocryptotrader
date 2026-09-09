@@ -1953,6 +1953,23 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	t.Parallel()
 
+	t.Run("disabled asset cannot win shared symbol", func(t *testing.T) {
+		t.Parallel()
+		pair := currency.NewPair(currency.BTC, currency.USDT)
+		b := Base{CurrencyPairs: currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{}}}
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			b.CurrencyPairs.Pairs[a] = &currency.PairStore{AssetEnabled: a == asset.Spot, Enabled: currency.Pairs{pair}, Available: currency.Pairs{pair}, RequestFormat: &currency.PairFormat{Uppercase: true}, ConfigFormat: &currency.EMPTYFORMAT}
+		}
+		for range 100 {
+			_, a, err := b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
+			require.NoError(t, err, "shared symbol must resolve")
+			assert.Equal(t, asset.Spot, a, "disabled margin should never win")
+			_, a, err = b.GetRequestFormattedPairAndAssetType("BTCUSDT")
+			require.NoError(t, err, "request symbol must resolve")
+			assert.Equal(t, asset.Spot, a, "disabled margin should never win request resolution")
+		}
+	})
+
 	expected := currency.Pair{Base: currency.BTC, Quote: currency.USDT}
 	enabledPairs := currency.Pairs{expected}
 	availablePairs := currency.Pairs{

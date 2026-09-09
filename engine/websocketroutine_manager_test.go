@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -170,17 +171,6 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		AssetType:    asset.Spot,
 	})
 	assert.NoError(t, err)
-	testPair := currency.NewPair(currency.NewCode("AAA"), currency.NewCode("BBB"))
-	err = exch.GetBase().CurrencyPairs.SetAssetEnabled(asset.Spot, false)
-	require.NoError(t, err)
-	err = m.websocketDataHandler(exchName, &ticker.Price{
-		ExchangeName: exchName,
-		Pair:         testPair,
-		AssetType:    asset.Spot,
-	})
-	assert.NoError(t, err)
-	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
-	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 
 	err = m.websocketDataHandler(exchName, kline.Item{})
 	require.NoError(t, err)
@@ -336,4 +326,21 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 	if len(m.dataHandlers) != 1 {
 		t.Fatal("unexpected data handler count")
 	}
+}
+
+func TestWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	syncer := &SyncManager{}
+	syncer.config.SynchronizeTicker = true
+	syncer.started.Store(true)
+	syncer.initSyncStarted.Store(true)
+	syncer.initSyncCompleted.Store(true)
+	pair := currency.NewPair(currency.BTC, currency.USD)
+	tracked := syncer.add(key.NewExchangeAssetPair("batch-test", asset.Spot, pair), syncBase{})
+	manager := &WebsocketRoutineManager{syncer: syncer}
+	require.NoError(t, manager.websocketDataHandler("batch-test", []ticker.Price{{Pair: currency.NewPair(currency.ETH, currency.USD), AssetType: asset.Spot}, {Pair: pair, AssetType: asset.Spot}}), "untracked ticker must not abort the batch")
+	assert.True(t, tracked.trackers[SyncItemTicker].HaveData, "tracked ticker should be synchronised")
+	assert.False(t, tracked.trackers[SyncItemTicker].LastUpdated.IsZero(), "tracked sync timestamp should advance")
+	_, err := ticker.GetTicker("batch-test", pair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "routine manager should not cache tickers")
 }

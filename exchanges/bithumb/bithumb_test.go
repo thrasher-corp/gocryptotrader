@@ -253,6 +253,21 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
+	for _, body := range []string{`{"status":"0000","data":{}}`, `{"status":"0000","data":{"ZZZZNOTAPAIR":{"closing_price":"1"}}}`} {
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "endpoint must update")
+			require.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Spot), common.ErrInvalidResponse, "unmatched response must fail")
+		})
+	}
+
 	t.Run("mocked missing available ticker", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)

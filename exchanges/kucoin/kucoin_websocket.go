@@ -1060,6 +1060,9 @@ func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item
 			}
 			return nil, err
 		}
+		if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+			return nil, err
+		}
 		if !futuresAvailable {
 			return nil, nil
 		}
@@ -1070,6 +1073,9 @@ func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item
 			if errors.Is(err, currency.ErrCurrencyNotFound) {
 				return nil, nil
 			}
+			return nil, err
+		}
+		if err := e.CurrencyPairs.IsAssetEnabled(asset.Margin); err != nil {
 			return nil, err
 		}
 		if !marginAvailable {

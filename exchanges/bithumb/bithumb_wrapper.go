@@ -219,6 +219,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
+	stored := 0
 	for i := range pairs {
 		curr := pairs[i].Base.String()
 		t, ok := tickers[curr]
@@ -242,6 +243,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
+		stored++
+	}
+	if stored == 0 && len(pairs) > 0 {
+		return fmt.Errorf("%w: no available pair matched the returned ticker map", common.ErrInvalidResponse)
 	}
 	return nil
 }

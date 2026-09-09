@@ -244,7 +244,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		for x := range d {
 			err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil)
 			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
-			if err != nil {
+			if err != nil && !errors.Is(err, errCouldNotSyncNewData) {
 				return err
 			}
 		}

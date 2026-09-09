@@ -127,7 +127,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 
 			for _, pair := range symbolAliases {
 				isAvailable, _ := e.CurrencyPairs.IsPairAvailable(pair, asset.Spot)
-				if !isAvailable {
+				if !isAvailable || e.CurrencyPairs.IsAssetEnabled(asset.Spot) != nil {
 					continue
 				}
 				t.Pair = pair

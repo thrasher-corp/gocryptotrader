@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -431,6 +434,50 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+
+	t.Run("partial batch failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "setup must succeed")
+		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: base64.StdEncoding.EncodeToString([]byte("test-secret"))})
+		ex.API.AuthenticatedSupport = true
+		calls := 0
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet {
+				orders := make([]map[string]string, 21)
+				for i := range orders {
+					orders[i] = map[string]string{"orderId": strconv.Itoa(i + 1)}
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(orders), "orders should encode")
+				return
+			}
+			calls++
+			if calls == 2 {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			ids := strings.Split(strings.TrimPrefix(r.URL.Path, "/v3/batchorders/"), ",")
+			cancelled := make([]map[string]string, len(ids))
+			for i, id := range ids {
+				cancelled[i] = map[string]string{"orderId": id}
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"cancelOrders": cancelled}), "cancellations should encode")
+		}))
+		t.Cleanup(server.Close)
+		transport, ok := server.Client().Transport.(*http.Transport)
+		require.True(t, ok, "standard transport must be available")
+		transport = transport.Clone()
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+		transport.TLSClientConfig.ServerName = "example.com"
+		transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+		}
+		require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: transport}), "test client must be installed")
+		response, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewPair(currency.BTC, currency.AUD), AssetType: asset.Spot})
+		require.Error(t, err, "second batch must fail")
+		require.NotNil(t, response, "successful first batch must be returned")
+		assert.Len(t, response.Status, 20, "all successful cancellations should be retained")
+	})
 
 	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
 	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")

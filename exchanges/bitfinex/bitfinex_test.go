@@ -1320,6 +1320,16 @@ func TestWSAuth(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	t.Run("spot disabled", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "setup must succeed")
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "spot must disable")
+		subs, err := ex.generateSubscriptions()
+		require.NoError(t, err, "disabled spot must not break other subscriptions")
+		assert.NotEmpty(t, subs, "margin and funding subscriptions should remain")
+	})
+
 	expectedQualifiedChannel := func(t *testing.T, s *subscription.Subscription, a asset.Item, p currency.Pair) string {
 		t.Helper()
 

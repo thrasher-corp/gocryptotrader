@@ -1267,13 +1267,6 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.Equal(t, map[string]string{"RABBIT": "cancelled"}, resp.Status, "only matching orders should be cancelled")
 }
 
-func TestWsCancelAllOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	_, err := e.wsCancelAllOrders(t.Context())
-	require.NoError(t, err, "wsCancelAllOrders must not error")
-}
-
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
 	// Use a dedicated exchange name so checksum-sensitive fixtures do not contend

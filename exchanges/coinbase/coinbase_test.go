@@ -1743,6 +1743,12 @@ func TestWsProcessTickerCachesAliasTickers(t *testing.T) {
 	got, err = ticker.GetTicker(ex.Name, disabledAlias, asset.Spot)
 	require.NoError(t, err, "GetTicker must return cached disabled available alias ticker")
 	assert.InDelta(t, 123.45, got.Last, 0.000001, "disabled available ticker should match websocket payload")
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "spot asset must disable")
+	resp.Events = json.RawMessage(`[{"type":"snapshot","tickers":[{"product_id":"BTC-USD","price":"999"}]}]`)
+	require.NoError(t, ex.wsProcessTicker(t.Context(), resp), "disabled asset message must be ignored")
+	got, err = ticker.GetTicker(ex.Name, enabledAlias, asset.Spot)
+	require.NoError(t, err, "previous cached value must remain")
+	assert.InDelta(t, 123.45, got.Last, 0.000001, "disabled asset should not update cached prices")
 }
 
 func TestProcessSnapshotUpdate(t *testing.T) {

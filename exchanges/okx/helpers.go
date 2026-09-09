@@ -136,7 +136,7 @@ func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string, enabl
 		isMatch, err := e.pairMatchesRequirement(pair, aType, enabledOnly)
 		if err != nil {
 			return nil, err
-		} else if isMatch {
+		} else if isMatch && e.CurrencyPairs.IsAssetEnabled(aType) == nil {
 			return []asset.Item{aType}, nil
 		}
 	}

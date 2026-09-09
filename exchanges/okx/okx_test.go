@@ -3766,11 +3766,14 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name, id string
-		side     order.Side
+		name, id, clientID string
+		noMatch            bool
+		side               order.Side
 	}{
 		{name: "buy side", side: order.Buy},
 		{name: "order ID", id: "buy-1"},
+		{name: "conflicting IDs", id: "buy-1", clientID: "sell-client", noMatch: true},
+		{name: "matching IDs", id: "buy-1", clientID: "buy-client"},
 	} {
 		t.Run("mocked filter "+tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -3779,8 +3782,9 @@ func TestCancelAllOrders(t *testing.T) {
 			ex.API.AuthenticatedSupport = true
 			ex.SkipAuthCheck = true
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				body := `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","side":"buy"}]}`
+				body := `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","clOrdId":"sell-client","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","clOrdId":"buy-client","side":"buy"}]}`
 				if strings.Contains(r.URL.Path, "cancel-batch-orders") {
+					assert.False(t, tc.noMatch, "conflicting identifiers should not send cancellations")
 					var args []CancelOrderRequestParam
 					if err := json.NewDecoder(r.Body).Decode(&args); !assert.NoError(t, err, "request should decode") {
 						return
@@ -3797,10 +3801,14 @@ func TestCancelAllOrders(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
-			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Side: tc.side, OrderID: tc.id})
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Side: tc.side, OrderID: tc.id, ClientOrderID: tc.clientID})
 			require.NoError(t, err, "filtered cancellation must succeed")
 			require.NotNil(t, resp, "response must be returned")
-			assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+			if tc.noMatch {
+				assert.Empty(t, resp.Status, "conflicting IDs should cancel nothing")
+			} else {
+				assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+			}
 		})
 	}
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})

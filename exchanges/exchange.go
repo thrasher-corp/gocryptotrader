@@ -235,7 +235,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 	if symbol == "" {
 		return currency.EMPTYPAIR, asset.Empty, currency.ErrCurrencyPairEmpty
 	}
-	assetTypes := b.GetAssetTypes(false)
+	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		pFmt, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
@@ -405,7 +405,7 @@ func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
 // along with its asset type. Only use when there is no chance of the same name crossing over
 func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
-	assetTypes := b.GetAssetTypes(false)
+	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		format, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {

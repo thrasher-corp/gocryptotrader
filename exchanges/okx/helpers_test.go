@@ -12,6 +12,21 @@ import (
 func TestGetAssetsFromInstrumentIDWithCheck(t *testing.T) {
 	t.Parallel()
 
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap, asset.Options} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			pairs, err := ex.GetAvailablePairs(a)
+			require.NoError(t, err, "pairs must load")
+			require.NotEmpty(t, pairs, "fixture must have pairs")
+			require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "asset must disable")
+			got, err := ex.getAssetsFromInstrumentIDWithCheck(pairs[0].String(), false)
+			require.Error(t, err, "disabled asset must not resolve")
+			assert.Empty(t, got, "disabled asset should be excluded")
+		})
+	}
+
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 

@@ -1640,7 +1640,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"subToMap": subToMap,
 		"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) (string, error) {
 			spotPairs, err := e.GetEnabledPairs(asset.Spot)
-			if err != nil {
+			if err != nil && !errors.Is(err, asset.ErrNotEnabled) {
 				return "", err
 			}
 			return removeSpotFromMargin(ap, spotPairs), nil
