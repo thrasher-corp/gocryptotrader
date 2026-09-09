@@ -3406,7 +3406,7 @@ func ackGateioWSHandler() mockws.WsMockFunc {
 		}
 		resp, err := json.Marshal(map[string]any{
 			"time":    1726121320,
-			"time_ms": 1726121320745,
+			"time_ms": int64(1726121320745),
 			"id":      req.ID,
 			"channel": req.Channel,
 			"event":   req.Event,

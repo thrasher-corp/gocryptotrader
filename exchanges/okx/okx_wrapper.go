@@ -1149,7 +1149,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if math.Trunc(action.Amount) != action.Amount {
+	if action.AssetType != asset.Spot && action.AssetType != asset.Margin && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	// When asset type is asset.Spread
@@ -1274,7 +1274,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	if math.Trunc(action.Amount) != action.Amount {
+	if action.AssetType != asset.Spot && action.AssetType != asset.Margin && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	if action.AssetType == asset.Spread {
@@ -1472,7 +1472,7 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	if action.AssetType == asset.Spread {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
-	if math.Trunc(action.Amount) != action.Amount {
+	if action.AssetType != asset.Spot && action.AssetType != asset.Margin && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	pairFormat, err := e.GetPairFormat(action.AssetType, true)
@@ -1800,36 +1800,23 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if err != nil {
 		return cancelAllResponse, err
 	}
-	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))
-ordersLoop:
-	for x := range myOrders {
-		switch {
-		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
-			if myOrders[x].OrderID == orderCancellation.OrderID ||
-				myOrders[x].ClientOrderID == orderCancellation.ClientOrderID {
-				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-					InstrumentID:  myOrders[x].InstrumentID,
-					OrderID:       myOrders[x].OrderID,
-					ClientOrderID: myOrders[x].ClientOrderID,
-				}
-				break ordersLoop
-			}
-		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
-			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
-				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-					InstrumentID:  myOrders[x].InstrumentID,
-					OrderID:       myOrders[x].OrderID,
-					ClientOrderID: myOrders[x].ClientOrderID,
-				}
+	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
+	for i := range myOrders {
+		ord := &myOrders[i]
+		if orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "" {
+			if (orderCancellation.OrderID == "" || ord.OrderID != orderCancellation.OrderID) &&
+				(orderCancellation.ClientOrderID == "" || ord.ClientOrderID != orderCancellation.ClientOrderID) {
 				continue
 			}
-		default:
-			cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-				InstrumentID:  myOrders[x].InstrumentID,
-				OrderID:       myOrders[x].OrderID,
-				ClientOrderID: myOrders[x].ClientOrderID,
-			}
 		}
+		if (orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell) && ord.Side != orderCancellation.Side {
+			continue
+		}
+		cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+			InstrumentID:  ord.InstrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
+		})
 	}
 	remaining := cancelAllOrdersRequestParams
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid() {

@@ -253,6 +253,21 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		t.Run("fractional "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+			modify := &order.Modify{OrderID: "order-1", AssetType: a, Pair: mainPair, Amount: 0.25, Price: 100}
+			args, err := ex.deriveAmendOrderArguments(modify)
+			require.NoError(t, err, "fractional currency amount must be accepted")
+			assert.Equal(t, 0.25, args.NewQuantity, "amendment should preserve fractional quantity")
+			_, err = ex.WebsocketModifyOrder(t.Context(), modify)
+			assert.NoError(t, err, "websocket amendment should accept fractional currency amounts")
+			_, err = ex.ModifyOrder(t.Context(), modify)
+			assert.NoError(t, err, "engine amendment should accept fractional currency amounts")
+		})
+	}
+
 	ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
 
 	modify := &order.Modify{

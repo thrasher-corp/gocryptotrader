@@ -70,6 +70,45 @@ func TestSymbolChannelSeparator(t *testing.T) {
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
 
+	for _, tc := range []struct {
+		tif  order.TimeInForce
+		want string
+	}{
+		{order.GoodTillCancel, "good_til_cancelled"},
+		{order.GoodTillDay, "good_til_day"},
+		{order.FillOrKill, "fill_or_kill"},
+		{order.PostOnly, "good_til_cancelled"},
+	} {
+		t.Run("mocked TIF "+tc.tif.String(), func(t *testing.T) {
+			t.Parallel()
+			seen := make(chan string, 2)
+			ex := connectDeribitWithMockedWebsocket(t, func(tb testing.TB, p []byte, conn *gws.Conn) error {
+				tb.Helper()
+				var req struct {
+					Method string                `json:"method"`
+					Params OrderBuyAndSellParams `json:"params"`
+				}
+				if err := json.Unmarshal(p, &req); err != nil {
+					return err
+				}
+				if req.Method == submitBuy {
+					seen <- req.Params.TimeInForce
+					assert.Equal(tb, "BTC_USDC-25JUN27", req.Params.Instrument, "linear futures order should use the exchange instrument format")
+					assert.Equal(tb, tc.tif.Is(order.PostOnly), req.Params.PostOnly, "post-only should remain a separate flag")
+				}
+				return deribitOrderWSMock(nil)(tb, p, conn)
+			})
+			sub := &order.Submit{Exchange: ex.Name, AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("BTC", "USDC-25JUN27", "-"), Side: order.Buy, Type: order.Limit, Amount: 10, Price: 100, TimeInForce: tc.tif}
+			_, err := ex.WebsocketSubmitOrder(t.Context(), sub)
+			require.NoError(t, err, "websocket submission must accept supported TIF")
+			_, err = ex.SubmitOrder(t.Context(), sub)
+			require.NoError(t, err, "engine wrapper must accept supported TIF")
+			require.Len(t, seen, 2, "both wrappers must send an order")
+			assert.Equal(t, tc.want, <-seen, "websocket order should preserve TIF")
+			assert.Equal(t, tc.want, <-seen, "engine order should preserve TIF")
+		})
+	}
+
 	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
 	unavailable := new(Exchange)
 	require.NoError(t, testexch.Setup(unavailable))
@@ -107,7 +146,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	unsupportedTIF := *sub
-	unsupportedTIF.TimeInForce = order.FillOrKill
+	unsupportedTIF.TimeInForce = order.GoodTillTime
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &unsupportedTIF)
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 
@@ -255,4 +294,32 @@ func TestWebsocketCancelOrder(t *testing.T) {
 
 	err = ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.NoError(t, err)
+}
+
+func TestTimeInForceString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		tif  order.TimeInForce
+		want string
+	}{
+		{order.UnknownTIF, "good_til_cancelled"},
+		{order.GoodTillCancel, "good_til_cancelled"},
+		{order.GoodTillDay, "good_til_day"},
+		{order.FillOrKill, "fill_or_kill"},
+		{order.ImmediateOrCancel, "immediate_or_cancel"},
+		{order.PostOnly, "good_til_cancelled"},
+		{order.GoodTillCancel | order.PostOnly, "good_til_cancelled"},
+		{order.TimeInForce(65535), ""},
+	} {
+		t.Run(tc.tif.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := timeInForceString(tc.tif)
+			if tc.want == "" {
+				assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "unsupported TIF should return its sentinel")
+			} else {
+				require.NoError(t, err, "supported TIF must map")
+				assert.Equal(t, tc.want, got, "TIF should match the exchange value")
+			}
+		})
+	}
 }

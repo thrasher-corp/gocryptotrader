@@ -574,13 +574,13 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	timeInForce := ""
-	if s.TimeInForce.Is(order.ImmediateOrCancel) {
-		timeInForce = "immediate_or_cancel"
+	timeInForce, err := timeInForceString(s.TimeInForce)
+	if err != nil {
+		return nil, err
 	}
 	var data *PrivateTradeData
 	reqParams := &OrderBuyAndSellParams{
-		Instrument:   fmtPair.String(),
+		Instrument:   formatPairString(s.AssetType, fmtPair),
 		OrderType:    strings.ToLower(s.Type.String()),
 		Label:        s.ClientOrderID,
 		TimeInForce:  timeInForce,
@@ -634,11 +634,6 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	if s.TimeInForce != order.UnknownTIF &&
-		s.TimeInForce != order.ImmediateOrCancel &&
-		s.TimeInForce != order.PostOnly {
-		return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, s.TimeInForce)
-	}
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%s: asset type %v not supported: %w", e.Name, s.AssetType, asset.ErrNotSupported)
 	}
@@ -646,12 +641,12 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	timeInForce := ""
-	if s.TimeInForce.Is(order.ImmediateOrCancel) {
-		timeInForce = "immediate_or_cancel"
+	timeInForce, err := timeInForceString(s.TimeInForce)
+	if err != nil {
+		return nil, err
 	}
 	reqParams := &OrderBuyAndSellParams{
-		Instrument:   fmtPair.String(),
+		Instrument:   formatPairString(s.AssetType, fmtPair),
 		OrderType:    strings.ToLower(s.Type.String()),
 		Label:        s.ClientOrderID,
 		TimeInForce:  timeInForce,
@@ -665,8 +660,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	var data *PrivateTradeData
 	if s.Side.IsLong() {
 		data, err = e.WSSubmitBuy(ctx, reqParams)
-	} else {
-		// Submit.Validate guarantees every accepted side is long or short.
+	} else { // Submit.Validate guarantees every accepted side is long or short.
 		data, err = e.WSSubmitSell(ctx, reqParams)
 	}
 	if err != nil {
@@ -1663,4 +1657,20 @@ func timeInForceFromString(timeInForceString string, postOnly bool) (order.TimeI
 		tif |= order.PostOnly
 	}
 	return tif, nil
+}
+
+// timeInForceString keeps REST and websocket order duration semantics consistent.
+func timeInForceString(tif order.TimeInForce) (string, error) {
+	switch tif {
+	case order.UnknownTIF, order.GoodTillCancel, order.PostOnly, order.GoodTillCancel | order.PostOnly:
+		return "good_til_cancelled", nil
+	case order.GoodTillDay:
+		return "good_til_day", nil
+	case order.FillOrKill:
+		return "fill_or_kill", nil
+	case order.ImmediateOrCancel:
+		return "immediate_or_cancel", nil
+	default:
+		return "", fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, tif)
+	}
 }

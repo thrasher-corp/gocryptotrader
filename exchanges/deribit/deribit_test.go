@@ -4021,6 +4021,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	exp := subscription.List{}
 	for _, s := range e.Features.Subscriptions {
+		if s.Channel == subscription.MyAccountChannel {
+			exp = append(exp, &subscription.Subscription{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true, QualifiedChannel: "user.portfolio.any"})
+			continue
+		}
+
 		for _, a := range e.GetAssetTypes(true) {
 			if !e.IsAssetWebsocketSupported(a) {
 				continue

@@ -1394,10 +1394,23 @@ func (e *Exchange) generateSubscriptions(public bool) (subscription.List, error)
 	if err != nil {
 		return nil, err
 	}
-	if public {
-		return list.Public(), nil
+	// Family channels unsubscribe as a unit, so track all member pairs together.
+	families := make(map[string]*subscription.Subscription)
+	grouped := make(subscription.List, 0, len(list))
+	for _, sub := range list {
+		if isInstFamilyChannel(sub) {
+			if existing := families[sub.QualifiedChannel]; existing != nil {
+				existing.Pairs = existing.Pairs.Add(sub.Pairs...)
+				continue
+			}
+			families[sub.QualifiedChannel] = sub
+		}
+		grouped = append(grouped, sub)
 	}
-	return list.Private(), nil
+	if public {
+		return grouped.Public(), nil
+	}
+	return grouped.Private(), nil
 }
 
 func optionInstrumentFamilyFromPair(pair currency.Pair) string {

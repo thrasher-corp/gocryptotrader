@@ -810,7 +810,11 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", s.Channel, 50, pairFmt.Format(pair)))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
-			arg.Arguments = append(arg.Arguments, s.Channel+"."+pairFmt.Format(pair))
+			symbol := pairFmt.Format(pair)
+			if assetType == asset.Options && s.Channel == chanPublicTrade {
+				symbol = pair.Base.Upper().String()
+			}
+			arg.Arguments = append(arg.Arguments, s.Channel+"."+symbol)
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanKline, chanLeverageTokenKline:
 			interval, err := intervalToString(kline.FiveMin)

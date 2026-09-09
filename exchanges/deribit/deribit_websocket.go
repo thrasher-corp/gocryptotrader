@@ -74,7 +74,6 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel:          tradesChannel,
 	subscription.MyTradesChannel:           userTradesChannel,
 	subscription.MyOrdersChannel:           userOrdersChannel,
-	subscription.MyAccountChannel:          userPortfolioChannel,
 	announcementsChannel:                   announcementsChannel,
 	priceIndexChannel:                      priceIndexChannel,
 	priceRankingChannel:                    priceRankingChannel,

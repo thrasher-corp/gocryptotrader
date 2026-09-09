@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
@@ -3781,6 +3783,51 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, id string
+		side     order.Side
+	}{
+		{name: "buy side", side: order.Buy},
+		{name: "order ID", id: "buy-1"},
+	} {
+		t.Run("mocked filter "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, p []byte, conn *gws.Conn) error {
+				tb.Helper()
+				var req struct {
+					ID   string                    `json:"id"`
+					Op   string                    `json:"op"`
+					Args []CancelOrderRequestParam `json:"args"`
+				}
+				if err := json.Unmarshal(p, &req); err != nil {
+					return err
+				}
+				assert.Equal(tb, "batch-cancel-orders", req.Op, "cancellation should use the batch operation")
+				assert.Len(tb, req.Args, 1, "only the selected order should be sent without empty entries")
+				for _, arg := range req.Args {
+					assert.Equal(tb, "buy-1", arg.OrderID, "only the matching order should be cancelled")
+					assert.Equal(tb, int64(42), arg.InstrumentIDCode, "cancellation should include the resolved instrument code")
+				}
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"0","data":[{"ordId":"buy-1","sCode":"0"}]}`))
+			})
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := `{"code":"0","data":[{"instId":"BTC-USDT","instIdCode":"42"}]}`
+				if strings.Contains(r.URL.Path, "orders-pending") {
+					body = `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","side":"buy"}]}`
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: tc.side, OrderID: tc.id})
+			require.NoError(t, err, "filtered cancellation must succeed")
+			assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+		})
+	}
+
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -6562,6 +6609,36 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
+
+	t.Run("family membership refresh", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		pairs := currency.Pairs{
+			currency.NewPairWithDelimiter("BTC", "USD-270625-42000-C", "-"),
+			currency.NewPairWithDelimiter("BTC", "USD-270625-44000-C", "-"),
+		}
+		require.NoError(t, ex.SetPairs(pairs, asset.Options, false), "available options must update")
+		require.NoError(t, ex.SetPairs(pairs, asset.Options, true), "enabled options must update")
+		ex.Features.Subscriptions = subscription.List{{Channel: subscription.AllTradesChannel, Asset: asset.Options}, {Channel: channelOptSummary, Asset: asset.Options}}
+		before, err := ex.generateSubscriptions(true)
+		require.NoError(t, err, "family subscriptions must generate")
+		require.Len(t, before, 2, "each channel must have one family subscription")
+		store, err := subscription.NewStoreFromList(before)
+		require.NoError(t, err, "family subscriptions must be stored")
+		require.NoError(t, ex.SetPairs(pairs[1:], asset.Options, true), "one option must be disabled")
+		after, err := ex.generateSubscriptions(true)
+		require.NoError(t, err, "updated families must generate")
+		added, removed := store.Diff(after)
+		require.Len(t, removed, 2, "refresh must remove both complete old family subscriptions")
+		require.Len(t, added, 2, "refresh must resubscribe both families for remaining pairs")
+		for _, sub := range removed {
+			assert.Len(t, sub.Pairs, 2, "unsubscription should retire all old family members")
+		}
+		for _, sub := range added {
+			assert.True(t, sub.Pairs.Equal(pairs[1:]), "replacement should retain the surviving option")
+		}
+	})
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")

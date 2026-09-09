@@ -4050,3 +4050,22 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 		})
 	}
 }
+
+func TestDirectSubscriptionPayload(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+	pair := currency.NewPairWithDelimiter("BTC", "25JUN27-160000-C-USDT", "-")
+	for _, tc := range []struct{ channel, topic string }{
+		{chanPublicTrade, "publicTrade.BTC"},
+		{chanPublicTicker, "tickers.BTC-25JUN27-160000-C-USDT"},
+	} {
+		t.Run(tc.channel, func(t *testing.T) {
+			t.Parallel()
+			got, err := ex.directSubscriptionPayload(asset.Options, "subscribe", subscription.List{{Channel: tc.channel, Pairs: currency.Pairs{pair}}})
+			require.NoError(t, err, "options payload must build")
+			require.Len(t, got, 1, "one request must be generated")
+			assert.Equal(t, []string{tc.topic}, got[0].Arguments, "options topic should use the correct scope")
+		})
+	}
+}

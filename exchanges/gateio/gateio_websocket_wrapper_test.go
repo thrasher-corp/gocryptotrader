@@ -200,8 +200,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		Amount:    1,
 		Price:     100,
 	})
-	require.NoError(t, err)
-	require.Equal(t, "12345", deliveryResp.OrderID)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "delivery websocket orders must be rejected")
+	assert.Nil(t, deliveryResp, "delivery orders should not produce a websocket response")
 
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
 		Exchange:  ex.Name,
@@ -219,6 +219,11 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
+	t.Run("delivery unsupported", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{OrderID: "delivery-1", AssetType: asset.DeliveryFutures, Pair: getPair(t, asset.DeliveryFutures), Side: order.Buy, Amount: 1, Price: 101})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "delivery websocket order operation should be unsupported")
+	})
 
 	spotResp, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
 		OrderID:   "spot-1",
@@ -357,6 +362,11 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 
 	ex := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
+	t.Run("delivery unsupported", func(t *testing.T) {
+		t.Parallel()
+		err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "delivery-1", AssetType: asset.DeliveryFutures, Pair: getPair(t, asset.DeliveryFutures)})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "delivery websocket order operation should be unsupported")
+	})
 
 	err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
 		OrderID:   "spot-1",

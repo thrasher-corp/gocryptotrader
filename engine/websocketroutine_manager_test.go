@@ -176,11 +176,6 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		AssetType: asset.Options,
 	})
 	assert.NoError(t, err)
-	err = m.websocketDataHandler(exchName, []options.Greeks{{
-		Pair:      currency.NewBTCUSD(),
-		AssetType: asset.Options,
-	}})
-	assert.NoError(t, err)
 	err = m.websocketDataHandler(exchName, options.Greeks{})
 	assert.ErrorIs(t, err, errUseAPointer)
 

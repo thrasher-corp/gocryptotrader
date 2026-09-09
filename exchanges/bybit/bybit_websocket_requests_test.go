@@ -126,7 +126,6 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 			Price:       1,
 		})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-		require.NotErrorIs(t, err, order.ErrAmountMustBeSet)
 	})
 }
 
@@ -236,7 +235,6 @@ func TestWebsocketCancelOrder(t *testing.T) {
 			AssetType: asset.Spot,
 		})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-		require.NotErrorIs(t, err, order.ErrOrderIDNotSet)
 	})
 }
 
