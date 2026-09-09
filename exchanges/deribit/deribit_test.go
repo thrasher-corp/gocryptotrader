@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -4533,17 +4532,14 @@ func TestProcessIncrementalTicker(t *testing.T) {
 		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "processIncrementalTicker should dispatch a ticker")
 	})
 
-	t.Run("options ticker and greeks", func(t *testing.T) {
+	t.Run("options ticker", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
 		require.NoError(t, err)
 		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
-		greeks, ok := (<-ex.Websocket.DataHandler.C).Data.(*options.Greeks)
-		require.True(t, ok, "second dispatch must contain option greeks")
-		assert.Equal(t, 0.1, greeks.Delta, "Delta should be normalised")
-		assert.Equal(t, 0.5, greeks.Rho, "Rho should be normalised")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "incremental ticker should not emit incomplete Greeks")
 	})
 
 	t.Run("ticker dispatch error", func(t *testing.T) {
@@ -4554,15 +4550,6 @@ func TestProcessIncrementalTicker(t *testing.T) {
 		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"), "DataHandler.Send must not error")
 		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
 		assert.Error(t, err, "processIncrementalTicker should return ticker dispatch errors")
-	})
-
-	t.Run("greeks dispatch error", func(t *testing.T) {
-		t.Parallel()
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-		ex.Websocket.DataHandler = stream.NewRelay(1)
-		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
-		assert.Error(t, err, "processIncrementalTicker should return greeks dispatch errors")
 	})
 }
 

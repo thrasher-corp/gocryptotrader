@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -253,7 +254,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap} {
 		t.Run("fractional "+a.String(), func(t *testing.T) {
 			t.Parallel()
 			ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
@@ -285,7 +286,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 		OrderID:   "spread-1",
 		AssetType: asset.Spread,
 		Pair:      spreadPair,
-		Amount:    1,
+		Amount:    0.5,
 		Price:     1,
 	})
 	require.NoError(t, err)
@@ -681,6 +682,17 @@ func TestIsSpotMarketBuyWithQuoteAmount(t *testing.T) {
 func TestDeriveAmendOrderArguments(t *testing.T) {
 	t.Parallel()
 
+	for _, ai := range []asset.Item{asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap} {
+		t.Run("fractional "+ai.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			arg, err := ex.deriveAmendOrderArguments(&order.Modify{OrderID: "1", AssetType: ai, Pair: mainPair, Amount: 0.5})
+			require.NoError(t, err, "fractional amendment must be accepted")
+			assert.Equal(t, 0.5, arg.NewQuantity, "quantity should remain fractional")
+		})
+	}
+
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	badFormat := new(Exchange)
@@ -902,6 +914,32 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 func TestResolveInstrumentIDCode(t *testing.T) {
 	t.Parallel()
 
+	t.Run("mocked concurrent cache misses preserve published slices", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		published := []Instrument{{InstrumentID: currency.NewBTCUSDT()}}
+		ex.instrumentsInfoMap = map[string][]Instrument{"SPOT": published}
+		var requests atomic.Int64
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			_, _ = w.Write([]byte(`{"code":"0","data":[{"instId":"BTC-USDT","instIdCode":"42"}]}`))
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "endpoint must update")
+		var wg sync.WaitGroup
+		for range 12 {
+			wg.Go(func() {
+				code, err := ex.resolveInstrumentIDCode(t.Context(), asset.Spot, "BTC-USDT")
+				assert.NoError(t, err, "lookup should succeed")
+				assert.Equal(t, int64(42), code, "lookup should return the code")
+				assert.Zero(t, published[0].InstrumentIDCode.Int64(), "published slice should remain unchanged")
+			})
+		}
+		wg.Wait()
+		assert.Equal(t, int64(1), requests.Load(), "concurrent misses should share the fetched result")
+	})
+
 	const instrumentID = "BTC-USDT-260101-100000-C"
 	var requests atomic.Int64
 	var invalidOptionsQuery atomic.Bool
@@ -959,7 +997,7 @@ func TestWsProcessOptionSummary(t *testing.T) {
 	err := ex.wsProcessOptionSummary(t.Context(), []byte("{"))
 	require.ErrorIs(t, err, errOptionSummaryUnmarshal)
 
-	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"0.1","gamma":"0.2","theta":"-0.3","vega":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
+	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"9.1","gamma":"9.2","theta":"-9.3","vega":"9.4","deltaBS":"0.1","gammaBS":"0.2","thetaBS":"-0.3","vegaBS":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
 	require.NoError(t, err)
 
 	select {
@@ -986,6 +1024,6 @@ func TestWsProcessOptionSummary(t *testing.T) {
 
 	ex.Websocket.DataHandler = stream.NewRelay(1)
 	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"))
-	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"0.1","gamma":"0.2","theta":"-0.3","vega":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
+	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"9.1","gamma":"9.2","theta":"-9.3","vega":"9.4","deltaBS":"0.1","gammaBS":"0.2","thetaBS":"-0.3","vegaBS":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
 	require.ErrorIs(t, err, errOptionSummaryDispatch)
 }

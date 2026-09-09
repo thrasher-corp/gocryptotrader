@@ -3061,7 +3061,7 @@ func TestWSHandleData(t *testing.T) {
 		require.NoError(t, err, "GetEnabledPairs must not error")
 		require.NotEmpty(t, pairs, "options pairs must not be empty")
 		symbol := pairs[0].String()
-		payload := fmt.Sprintf(`{"topic":%q,"ts":1672304486868,"type":"snapshot","data":{"symbol":%q,"lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markIv":"0.13"}}`, "tickers."+symbol, symbol)
+		payload := fmt.Sprintf(`{"topic":%q,"ts":1672304486868,"type":"snapshot","data":{"symbol":%q,"lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markPriceIv":"0.13"}}`, "tickers."+symbol, symbol)
 		err = ex.wsHandleData(t.Context(), nil, asset.Options, []byte(payload))
 		require.NoError(t, err, "wsHandleData must process an options ticker")
 		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
@@ -3076,7 +3076,7 @@ func TestWSHandleData(t *testing.T) {
 		ex := testInstance()
 		ex.Websocket.DataHandler.Close()
 
-		err := ex.wsHandleData(t.Context(), nil, asset.Options, []byte(`{"topic":"tickers.BTC-26NOV24-92000-C","ts":1672304486868,"type":"snapshot","data":{"symbol":"BTC-26NOV24-92000-C","lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markIv":"0.13"}}`))
+		err := ex.wsHandleData(t.Context(), nil, asset.Options, []byte(`{"topic":"tickers.BTC-26NOV24-92000-C","ts":1672304486868,"type":"snapshot","data":{"symbol":"BTC-26NOV24-92000-C","lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markPriceIv":"0.13"}}`))
 		require.Error(t, err, "wsHandleData must return an error when data handler send fails")
 	})
 }
@@ -3437,7 +3437,7 @@ func TestWsTicker(t *testing.T) {
 			assert.Equal(t, 3520.00, v.AskPrice, "AskPrice should be correct")
 			assert.Equal(t, 0.5479, v.BidImpliedVolatility, "BidImpliedVolatility should be correct")
 			assert.Equal(t, 0.5534, v.AskImpliedVolatility, "AskImpliedVolatility should be correct")
-			assert.Equal(t, 0.0, v.MarkImpliedVolatility, "MarkImpliedVolatility should be correct")
+			assert.Equal(t, 0.5513, v.MarkImpliedVolatility, "MarkImpliedVolatility should be correct")
 		case error:
 			t.Error(v)
 		default:

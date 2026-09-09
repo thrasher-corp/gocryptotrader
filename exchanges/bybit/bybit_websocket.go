@@ -571,7 +571,7 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 		Volume24h:             tickResp.Volume24H.Float64(),
 		BidImpliedVolatility:  tickResp.BidIv.Float64(),
 		AskImpliedVolatility:  tickResp.AskIv.Float64(),
-		MarkImpliedVolatility: tickResp.MarkIv.Float64(),
+		MarkImpliedVolatility: tickResp.MarkPriceIv.Float64(),
 	})
 }
 

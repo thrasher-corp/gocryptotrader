@@ -3784,16 +3784,20 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name, id string
-		side     order.Side
+		name, id, clientID string
+		noMatch            bool
+		side               order.Side
 	}{
 		{name: "buy side", side: order.Buy},
 		{name: "order ID", id: "buy-1"},
+		{name: "conflicting IDs", id: "buy-1", clientID: "sell-client", noMatch: true},
+		{name: "matching IDs", id: "buy-1", clientID: "buy-client"},
 	} {
 		t.Run("mocked filter "+tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, p []byte, conn *gws.Conn) error {
 				tb.Helper()
+				assert.False(tb, tc.noMatch, "conflicting identifiers should not send cancellations")
 				var req struct {
 					ID   string                    `json:"id"`
 					Op   string                    `json:"op"`
@@ -3815,16 +3819,20 @@ func TestCancelAllOrders(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				body := `{"code":"0","data":[{"instId":"BTC-USDT","instIdCode":"42"}]}`
 				if strings.Contains(r.URL.Path, "orders-pending") {
-					body = `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","side":"buy"}]}`
+					body = `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","clOrdId":"sell-client","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","clOrdId":"buy-client","side":"buy"}]}`
 				}
 				_, err := w.Write([]byte(body))
 				assert.NoError(t, err, "mock response should write")
 			}))
 			t.Cleanup(server.Close)
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
-			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: tc.side, OrderID: tc.id})
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: tc.side, OrderID: tc.id, ClientOrderID: tc.clientID})
 			require.NoError(t, err, "filtered cancellation must succeed")
-			assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+			if tc.noMatch {
+				assert.Empty(t, resp.Status, "conflicting identifiers should cancel nothing")
+			} else {
+				assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+			}
 		})
 	}
 
@@ -3847,6 +3855,14 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	for _, ai := range []asset.Item{asset.Binary, asset.Index} {
+		t.Run("unsupported "+ai.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.ModifyOrder(t.Context(), &order.Modify{OrderID: "1", Pair: mainPair, AssetType: ai, Amount: 0.5})
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "unsupported asset should be rejected before dispatch")
+		})
+	}
+
 	_, err := e.ModifyOrder(contextGenerate(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil)
 

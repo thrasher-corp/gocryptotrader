@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -551,7 +550,7 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 	if err != nil {
 		return err
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -564,38 +563,6 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 		QuoteVolume:  incrementalTicker.Stats.VolumeUsd,
 		Ask:          incrementalTicker.ImpliedAsk,
 		Bid:          incrementalTicker.ImpliedBid,
-	}); err != nil {
-		return err
-	}
-	if a != asset.Options {
-		return nil
-	}
-	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
-		ExchangeName:          e.Name,
-		Pair:                  cp,
-		AssetType:             a,
-		InstrumentID:          incrementalTicker.InstrumentName,
-		LastUpdated:           incrementalTicker.Timestamp.Time(),
-		ExchangeTimestamp:     incrementalTicker.Timestamp.Time(),
-		ReceivedAt:            time.Now().UTC(),
-		Delta:                 incrementalTicker.Greeks.Delta,
-		Gamma:                 incrementalTicker.Greeks.Gamma,
-		Vega:                  incrementalTicker.Greeks.Vega,
-		Theta:                 incrementalTicker.Greeks.Theta,
-		Rho:                   incrementalTicker.Greeks.Rho,
-		BidPrice:              incrementalTicker.BestBidPrice,
-		AskPrice:              incrementalTicker.BestAskPrice,
-		BidSize:               incrementalTicker.BestBidAmount,
-		AskSize:               incrementalTicker.BestAskAmount,
-		MarkPrice:             incrementalTicker.MarkPrice,
-		IndexPrice:            incrementalTicker.IndexPrice,
-		UnderlyingPrice:       incrementalTicker.UnderlyingPrice,
-		LastTradePrice:        incrementalTicker.LastPrice,
-		OpenInterest:          incrementalTicker.OpenInterest,
-		Volume24h:             incrementalTicker.Stats.Volume,
-		BidImpliedVolatility:  incrementalTicker.BidIv,
-		AskImpliedVolatility:  incrementalTicker.AskIv,
-		MarkImpliedVolatility: incrementalTicker.MarkIv,
 	})
 }
 

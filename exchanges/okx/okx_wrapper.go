@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1148,8 +1149,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
+	if !e.SupportsAsset(action.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
+	}
 	var err error
-	if action.AssetType != asset.Spot && action.AssetType != asset.Margin && math.Trunc(action.Amount) != action.Amount {
+	if action.AssetType == asset.Options && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	// When asset type is asset.Spread
@@ -1274,7 +1278,10 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	if action.AssetType != asset.Spot && action.AssetType != asset.Margin && math.Trunc(action.Amount) != action.Amount {
+	if !e.SupportsAsset(action.AssetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
+	}
+	if action.AssetType == asset.Options && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	if action.AssetType == asset.Spread {
@@ -1472,7 +1479,7 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	if action.AssetType == asset.Spread {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
-	if action.AssetType != asset.Spot && action.AssetType != asset.Margin && math.Trunc(action.Amount) != action.Amount {
+	if action.AssetType == asset.Options && math.Trunc(action.Amount) != action.Amount {
 		return nil, errContractAmountCanNotBeDecimal
 	}
 	pairFormat, err := e.GetPairFormat(action.AssetType, true)
@@ -1688,6 +1695,15 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 		return instrumentIDCode, nil
 	}
 
+	e.instrumentsInfoFetchLock.Lock()
+	defer e.instrumentsInfoFetchLock.Unlock()
+	e.instrumentsInfoMapLock.Lock()
+	instrumentIDCode = lookupInstrumentIDCode(e.instrumentsInfoMap[instType], instrumentID)
+	e.instrumentsInfoMapLock.Unlock()
+	if instrumentIDCode > 0 {
+		return instrumentIDCode, nil
+	}
+
 	params := InstrumentsFetchParams{InstrumentType: instType}
 	if ai == asset.Options {
 		params.InstrumentFamily = optionInstrumentSelector(instrumentID)
@@ -1707,7 +1723,8 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 	if e.instrumentsInfoMap == nil {
 		e.instrumentsInfoMap = make(map[string][]Instrument)
 	}
-	cached := e.instrumentsInfoMap[instType]
+	// Published instrument slices may still be held by concurrent readers.
+	cached := slices.Clone(e.instrumentsInfoMap[instType])
 	for i := range instruments {
 		updated := false
 		for j := range cached {
@@ -1803,11 +1820,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
 	for i := range myOrders {
 		ord := &myOrders[i]
-		if orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "" {
-			if (orderCancellation.OrderID == "" || ord.OrderID != orderCancellation.OrderID) &&
-				(orderCancellation.ClientOrderID == "" || ord.ClientOrderID != orderCancellation.ClientOrderID) {
-				continue
-			}
+		if (orderCancellation.OrderID != "" && ord.OrderID != orderCancellation.OrderID) ||
+			(orderCancellation.ClientOrderID != "" && ord.ClientOrderID != orderCancellation.ClientOrderID) {
+			continue
 		}
 		if (orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell) && ord.Side != orderCancellation.Side {
 			continue
