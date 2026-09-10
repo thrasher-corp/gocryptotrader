@@ -32,7 +32,7 @@ func newKeylessContractProvider(t *testing.T, path, fixture string) (provider *F
 	t.Helper()
 	provider, closeServer = newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, path, r.URL.Path, "request path should match the documented endpoint")
-		assert.Empty(t, r.Header.Get("X-API-Key"), "keyless request must not send an API key header")
+		assert.Empty(t, r.Header.Get("X-API-Key"), "keyless request should not send an API key header")
 		w.Header().Set("Content-Type", "application/json")
 		_, err := w.Write([]byte(fixture))
 		assert.NoError(t, err, "fixture response should write successfully")
@@ -66,7 +66,7 @@ func TestAuthenticatedEndpointsRefuseWithoutAnAPIKey(t *testing.T) {
 	provider.APIKey = ""
 
 	_, err := provider.Forex(t.Context(), "USD", "AUD", nil)
-	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "an authenticated endpoint must refuse without a key")
+	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "an authenticated endpoint should refuse without a key")
 }
 
 func TestForex(t *testing.T) {
