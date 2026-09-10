@@ -11,7 +11,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -323,6 +327,36 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 
+	for _, failBatch := range []int{0, 1, 2} {
+		t.Run(fmt.Sprintf("mocked failure batch %d", failBatch), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+			var err error
+			ex.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+			require.NoError(t, err, "test signing key must generate")
+			errBatch := errors.New("mocked cancellation batch failed")
+			transport := &cancellationTransport{t: t, failBatch: failBatch, errBatch: errBatch}
+			require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: transport}), "mocked transport must install")
+			response, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: testPair, AssetType: asset.Spot})
+			if failBatch == 0 {
+				require.NoError(t, err, "successful batches must complete")
+				require.NotNil(t, response, "successful result must exist")
+				assert.Len(t, response.Status, 4, "all cancellations should be retained")
+			} else {
+				require.ErrorIs(t, err, errBatch, "batch failure must propagate")
+				if failBatch == 1 {
+					assert.Nil(t, response, "failure before cancellation should have no partial result")
+				} else {
+					require.NotNil(t, response, "first batch must survive second batch failure")
+					assert.Equal(t, map[string]string{"1": "Cancelled", "2": "Cancelled", "3": "Cancelled"}, response.Status, "successful batch statuses should be retained")
+				}
+			}
+		})
+	}
+
 	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
 	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")
 }
@@ -518,4 +552,40 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+// cancellationTransport isolates batching from Lbank's authenticated URL construction.
+type cancellationTransport struct {
+	t         *testing.T
+	calls     int
+	failBatch int
+	errBatch  error
+}
+
+func (c *cancellationTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+	assert.Equal(c.t, http.MethodPost, r.Method, "authenticated c.calls should use POST")
+	assert.Equal(c.t, "btc_usdt", r.Form.Get("symbol"), "requests should preserve pair scope")
+	body := `{"orders":[]}`
+	if strings.HasSuffix(r.URL.Path, lbankOpeningOrders) {
+		if r.Form.Get("current_page") == "1" {
+			body = `{"orders":[{"order_id":"1"},{"order_id":"2"},{"order_id":"3"},{"order_id":"4"}]}`
+		}
+	} else {
+		assert.True(c.t, strings.HasSuffix(r.URL.Path, lbankCancelOrder), "only cancellation requests should follow discovery")
+		c.calls++
+		if c.failBatch != 0 && c.calls >= c.failBatch {
+			return nil, c.errBatch
+		}
+		ids := r.Form.Get("order_id")
+		if c.calls == 1 {
+			assert.Equal(c.t, "1,2,3", ids, "first batch should contain three orders")
+		} else {
+			assert.Equal(c.t, "4", ids, "second batch should contain the remaining order")
+		}
+		body = `{"success":"` + ids + `"}`
+	}
+	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
 }

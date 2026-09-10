@@ -1206,6 +1206,23 @@ func TestUpdateTicker(t *testing.T) {
 
 // TestUpdateOrderbook does not run in parallel; being parallel causes intermittent errors with another test for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
+	for _, disabledAsset := range []bool{false, true} {
+		t.Run(fmt.Sprintf("mocked available pair disabled asset %t", disabledAsset), func(t *testing.T) {
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			ex.Name += "-" + t.Name()
+			ex.pairAliases.Load(map[currency.Pair]currency.Pairs{testPairFiat: {testPairFiat}})
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPairFiat}, false), "available pair must be stored")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, nil, true), "enabled pairs must be cleared")
+			require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, !disabledAsset), "asset state must be set")
+			book, err := ex.UpdateOrderbook(t.Context(), testPairFiat, asset.Spot)
+			require.NoError(t, err, "explicit available pair must return an orderbook")
+			require.NotNil(t, book, "orderbook must be returned")
+			assert.True(t, book.Pair.Equal(testPairFiat), "orderbook should retain the requested pair")
+			assert.NotEmpty(t, book.Bids, "orderbook should contain fixture bids")
+		})
+	}
+
 	testexch.UpdatePairsOnce(t, e)
 	_, err := e.UpdateOrderbook(t.Context(), currency.Pair{}, asset.Empty)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -1746,6 +1763,7 @@ func TestWsProcessTickerCachesAliasTickers(t *testing.T) {
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "spot asset must disable")
 	resp.Events = json.RawMessage(`[{"type":"snapshot","tickers":[{"product_id":"BTC-USD","price":"999"}]}]`)
 	require.NoError(t, ex.wsProcessTicker(t.Context(), resp), "disabled asset message must be ignored")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "disabled asset should not emit an empty batch")
 	got, err = ticker.GetTicker(ex.Name, enabledAlias, asset.Spot)
 	require.NoError(t, err, "previous cached value must remain")
 	assert.InDelta(t, 123.45, got.Last, 0.000001, "disabled asset should not update cached prices")

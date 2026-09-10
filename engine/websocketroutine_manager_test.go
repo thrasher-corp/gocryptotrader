@@ -330,17 +330,33 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 
 func TestWebsocketDataHandler(t *testing.T) {
 	t.Parallel()
-	syncer := &SyncManager{}
-	syncer.config.SynchronizeTicker = true
-	syncer.started.Store(true)
-	syncer.initSyncStarted.Store(true)
-	syncer.initSyncCompleted.Store(true)
 	pair := currency.NewBTCUSD()
-	tracked := syncer.add(key.NewExchangeAssetPair("batch-test", asset.Spot, pair), syncBase{})
-	manager := &WebsocketRoutineManager{syncer: syncer}
-	require.NoError(t, manager.websocketDataHandler("batch-test", []ticker.Price{{Pair: currency.NewPair(currency.ETH, currency.USD), AssetType: asset.Spot}, {Pair: pair, AssetType: asset.Spot}}), "untracked ticker must not abort the batch")
-	assert.True(t, tracked.trackers[SyncItemTicker].HaveData, "tracked ticker should be synchronised")
-	assert.False(t, tracked.trackers[SyncItemTicker].LastUpdated.IsZero(), "tracked sync timestamp should advance")
-	_, err := ticker.GetTicker("batch-test", pair, asset.Spot)
-	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "routine manager should not cache tickers")
+	untracked := currency.NewPair(currency.ETH, currency.USD)
+	for _, tc := range []struct {
+		name    string
+		data    any
+		tracked bool
+	}{
+		{name: "untracked single", data: &ticker.Price{Pair: untracked, AssetType: asset.Spot}},
+		{name: "tracked single", data: &ticker.Price{Pair: pair, AssetType: asset.Spot}, tracked: true},
+		{name: "untracked batch", data: []ticker.Price{{Pair: untracked, AssetType: asset.Spot}}},
+		{name: "untracked before tracked", data: []ticker.Price{{Pair: untracked, AssetType: asset.Spot}, {Pair: pair, AssetType: asset.Spot}}, tracked: true},
+		{name: "tracked before untracked", data: []ticker.Price{{Pair: pair, AssetType: asset.Spot}, {Pair: untracked, AssetType: asset.Spot}}, tracked: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			syncer := &SyncManager{}
+			syncer.config.SynchronizeTicker = true
+			syncer.started.Store(true)
+			syncer.initSyncStarted.Store(true)
+			syncer.initSyncCompleted.Store(true)
+			tracked := syncer.add(key.NewExchangeAssetPair(t.Name(), asset.Spot, pair), syncBase{})
+			manager := &WebsocketRoutineManager{syncer: syncer}
+			require.NoError(t, manager.websocketDataHandler(t.Name(), tc.data), "untracked tickers must be tolerated")
+			assert.Equal(t, tc.tracked, tracked.trackers[SyncItemTicker].HaveData, "tracked ticker should be synchronised when present")
+			assert.Equal(t, !tc.tracked, tracked.trackers[SyncItemTicker].LastUpdated.IsZero(), "tracked sync timestamp should advance when present")
+			_, err := ticker.GetTicker(t.Name(), pair, asset.Spot)
+			assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "routine manager should not cache tickers")
+		})
+	}
 }

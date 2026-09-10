@@ -27,6 +27,23 @@ func TestGetAssetsFromInstrumentIDWithCheck(t *testing.T) {
 		})
 	}
 
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		t.Run("disabled "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			pairs, err := ex.GetAvailablePairs(a)
+			require.NoError(t, err, "available pairs must load")
+			require.NotEmpty(t, pairs, "available pairs must exist")
+			require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "asset must disable")
+			got, err := ex.getAssetsFromInstrumentIDWithCheck(pairs[0].String(), false)
+			if err != nil {
+				require.ErrorIs(t, err, asset.ErrNotSupported, "unmatched instrument must report no asset")
+			}
+			assert.NotContains(t, got, a, "disabled asset should never resolve through the two-part branch")
+		})
+	}
+
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 

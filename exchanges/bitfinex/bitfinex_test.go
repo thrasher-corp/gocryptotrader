@@ -160,7 +160,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 				}
 			case asset.MarginFunding:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented, "funding limits must report not implemented so startup can continue")
 			default:
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			}

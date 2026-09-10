@@ -506,11 +506,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Spot, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Margin:
-		pairs, err := e.GetAvailablePairs(assetType)
-		if err != nil {
+		if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 			return err
 		}
-
 		instrumentType := GetInstrumentTypeFromAssetItem(assetType)
 		if assetType == asset.Margin {
 			instrumentType = instTypeSpot
@@ -521,36 +519,30 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		}
 
 		for y := range ticks {
-			pair, err := e.GetPairFromInstrumentID(ticks[y].InstrumentID.String())
+			pairFmt, err := e.MatchSymbolWithAvailablePairs(ticks[y].InstrumentID.String(), assetType, true)
 			if err != nil {
-				return err
-			}
-			for i := range pairs {
-				pairFmt, err := e.FormatExchangeCurrency(pairs[i], assetType)
-				if err != nil {
-					return err
-				}
-				if !pair.Equal(pairFmt) {
+				if errors.Is(err, currency.ErrPairNotFound) {
 					continue
 				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         ticks[y].LastTradePrice.Float64(),
-					High:         ticks[y].High24H.Float64(),
-					Low:          ticks[y].Low24H.Float64(),
-					Bid:          ticks[y].BestBidPrice.Float64(),
-					BidSize:      ticks[y].BestBidSize.Float64(),
-					Ask:          ticks[y].BestAskPrice.Float64(),
-					AskSize:      ticks[y].BestAskSize.Float64(),
-					Volume:       ticks[y].Vol24H.Float64(),
-					QuoteVolume:  ticks[y].VolCcy24H.Float64(),
-					Open:         ticks[y].Open24H.Float64(),
-					Pair:         pairFmt,
-					ExchangeName: e.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return err
-				}
+				return err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks[y].LastTradePrice.Float64(),
+				High:         ticks[y].High24H.Float64(),
+				Low:          ticks[y].Low24H.Float64(),
+				Bid:          ticks[y].BestBidPrice.Float64(),
+				BidSize:      ticks[y].BestBidSize.Float64(),
+				Ask:          ticks[y].BestAskPrice.Float64(),
+				AskSize:      ticks[y].BestAskSize.Float64(),
+				Volume:       ticks[y].Vol24H.Float64(),
+				QuoteVolume:  ticks[y].VolCcy24H.Float64(),
+				Open:         ticks[y].Open24H.Float64(),
+				Pair:         pairFmt,
+				ExchangeName: e.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	default:

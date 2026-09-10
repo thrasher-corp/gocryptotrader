@@ -235,6 +235,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			return nil
 		}
 		err := m.syncer.WebsocketUpdate(exchName, d.Pair, d.AssetType, SyncItemTicker, nil)
+		if errors.Is(err, errCouldNotSyncNewData) {
+			return nil
+		}
 		m.syncer.PrintTickerSummary(d, "websocket", err)
 		return err
 	case []ticker.Price:
@@ -243,8 +246,11 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		for x := range d {
 			err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil)
+			if errors.Is(err, errCouldNotSyncNewData) {
+				continue
+			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
-			if err != nil && !errors.Is(err, errCouldNotSyncNewData) {
+			if err != nil {
 				return err
 			}
 		}

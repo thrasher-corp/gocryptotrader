@@ -59,6 +59,10 @@ gctcli --rpchost localhost:9052 getticker --exchange Binance BTC-USDT spot
 Negative numeric positional values remain supported. Use `--` before positional
 values that begin with a dash and should be treated literally.
 
+If `cancelallorders` completes some cancellations before a later batch fails, the
+CLI prints the retained order statuses as JSON and still exits with an error.
+Inspect those results before retrying the request.
+
 ## Autocomplete
 
 Bash/ZSH autocomplete entries can be found [here](/contrib).

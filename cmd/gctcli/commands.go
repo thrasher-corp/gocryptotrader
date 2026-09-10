@@ -2036,12 +2036,7 @@ func cancelAllOrders(c *cli.Context) error {
 	}
 
 	result, err := client.CancelAllOrders(c.Context, req)
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(result)
-	return nil
+	return writeCancelAllOrdersResponse(os.Stdout, result, err)
 }
 
 func modifyOrder(c *cli.Context) error {

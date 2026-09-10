@@ -35,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -3478,6 +3479,31 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap, asset.Options} {
+		t.Run("mocked available "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			ex.Name += "-" + t.Name()
+			pairs, err := ex.GetAvailablePairs(a)
+			require.NoError(t, err, "available pairs must load")
+			require.NotEmpty(t, pairs, "available pairs must exist")
+			pair, err := ex.FormatExchangeCurrency(pairs[0], a)
+			require.NoError(t, err, "pair must format")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(a, nil, true), "enabled pairs must clear")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"instId":"UNKNOWN-USDT","last":"1"},{"instId":%q,"last":"123.45","bidPx":"123","askPx":"124"}]}`, pair.String())
+				assert.NoError(t, err, "ticker response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			require.NoError(t, ex.UpdateTickers(t.Context(), a), "available ticker must be processed after an unknown instrument")
+			got, err := ticker.GetTicker(ex.Name, pair, a)
+			require.NoError(t, err, "available-only ticker must be cached")
+			assert.InDelta(t, 123.45, got.Last, 0.000001, "cached ticker should match the returned price")
+		})
+	}
+
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(contextGenerate(), a)

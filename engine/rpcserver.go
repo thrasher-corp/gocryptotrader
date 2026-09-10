@@ -56,6 +56,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -1451,15 +1452,30 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 
 	// TODO: Change to order manager
 	resp, err := exch.CancelAllOrders(ctx, req)
-	if err != nil {
+	if err != nil && (resp == nil || len(resp.Status) == 0) {
 		return nil, err
 	}
-
-	cancelledOrders := new(gctrpc.Orders)
-	cancelledOrders.Exchange = r.Exchange
-	cancelledOrders.OrderStatus = resp.Status
-
-	return &gctrpc.CancelAllOrdersResponse{Orders: []*gctrpc.Orders{cancelledOrders}, Count: int64(len(resp.Status))}, nil
+	if resp == nil {
+		return nil, common.ErrInvalidResponse
+	}
+	result := &gctrpc.CancelAllOrdersResponse{
+		Orders: []*gctrpc.Orders{{Exchange: r.Exchange, OrderStatus: resp.Status}},
+		Count:  int64(len(resp.Status)),
+	}
+	if err != nil {
+		// Unary gRPC discards response messages when an error is returned. Carry
+		// completed cancellations in status details while retaining failure status.
+		rpcStatus, ok := grpcstatus.FromError(err)
+		if !ok {
+			rpcStatus = grpcstatus.FromContextError(err)
+		}
+		partial, detailErr := rpcStatus.WithDetails(result)
+		if detailErr != nil {
+			return nil, fmt.Errorf("%w: attaching partial cancellation results: %w", err, detailErr)
+		}
+		return nil, partial.Err()
+	}
+	return result, nil
 }
 
 // ModifyOrder modifies an existing order if it exists
