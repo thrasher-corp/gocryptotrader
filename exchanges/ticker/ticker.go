@@ -178,6 +178,16 @@ func ProcessTicker(p *Price) error {
 	return service.update(p)
 }
 
+// ProcessBatch processes a batch of tickers.
+func ProcessBatch(p []Price) error {
+	for i := range p {
+		if err := ProcessTicker(&p[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // update updates ticker price
 func (s *Service) update(p *Price) error {
 	name := strings.ToLower(p.ExchangeName)

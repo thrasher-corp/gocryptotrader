@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
@@ -15,7 +17,11 @@ var (
 )
 
 func validPair(pair string) bool {
-	return strings.Contains(pair, pairDelimiter)
+	if !strings.ContainsFunc(pair, unicode.IsPunct) {
+		return false
+	}
+	p, _ := currency.NewPairFromString(pair)
+	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
 }
 
 func validAsset(i string) bool {

@@ -2,6 +2,8 @@ package bithumb
 
 import (
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -250,6 +253,40 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
+	for _, body := range []string{`{"status":"0000","data":{}}`, `{"status":"0000","data":{"ZZZZNOTAPAIR":{"closing_price":"1"}}}`} {
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "endpoint must update")
+			require.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Spot), common.ErrInvalidResponse, "unmatched response must fail")
+		})
+	}
+
+	t.Run("mocked missing available ticker", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		ex.Name = "BithumbMissingTicker"
+		pair := currency.NewPairWithDelimiter("BTC", "KRW", "_")
+		require.NoError(t, ex.UpdatePairs(currency.Pairs{currency.NewPairWithDelimiter("AERGO", "KRW", "_"), pair}, asset.Spot, false), "available pairs must update")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte(`{"status":"0000","data":{"BTC":{"closing_price":"100","max_price":"110","min_price":"90"}}}`))
+			assert.NoError(t, err, "ticker response should write")
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "endpoint must update")
+		require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "missing available ticker must not abort refresh")
+		got, err := ticker.GetTicker(ex.Name, pair, asset.Spot)
+		require.NoError(t, err, "later ticker must be stored")
+		assert.Equal(t, 100.0, got.Close, "later ticker should retain its price")
+	})
+
 	testexch.UpdatePairsOnce(t, e)
 	err := e.UpdateTickers(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateTickers must not error")
@@ -404,6 +441,12 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{
+		AssetType: asset.Spot,
+	})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	orderCancellation := &order.Cancel{

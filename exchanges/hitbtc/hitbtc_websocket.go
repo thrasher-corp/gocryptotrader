@@ -164,24 +164,12 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(asset.Spot)
+		p, err := e.MatchSymbolWithAvailablePairs(wsTicker.Params.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
 
-		format, err := e.GetPairFormat(asset.Spot, true)
-		if err != nil {
-			return err
-		}
-
-		p, err := currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
-			pairs,
-			format)
-		if err != nil {
-			return err
-		}
-
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
 			Open:         wsTicker.Params.Open,
 			Volume:       wsTicker.Params.Volume,
@@ -194,7 +182,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			LastUpdated:  wsTicker.Params.Timestamp,
 			AssetType:    asset.Spot,
 			Pair:         p,
-		})
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, tickPrice)
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook
 		err := json.Unmarshal(respRaw, &obSnapshot)
@@ -226,15 +218,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
-		format, err := e.GetPairFormat(asset.Spot, true)
-		if err != nil {
-			return err
-		}
-		p, err := currency.NewPairFromFormattedPairs(candlesResponse.Params.Symbol, pairs, format)
+		p, err := e.MatchSymbolWithAvailablePairs(candlesResponse.Params.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -270,18 +254,12 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		var trades []trade.Data
 		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
+			return err
 		}
 		for i := range tradeSnapshot.Params.Data {
 			side, err := order.StringToOrderSide(tradeSnapshot.Params.Data[i].Side)
 			if err != nil {
-				return &order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			trades = append(trades, trade.Data{
 				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,
@@ -402,17 +380,7 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 		}
 	}
 
-	pairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	p, err := currency.NewPairFromFormattedPairs(ob.Params.Symbol, pairs, format)
+	p, err := e.MatchSymbolWithAvailablePairs(ob.Params.Symbol, asset.Spot, false)
 	if err != nil {
 		return err
 	}
@@ -504,19 +472,7 @@ func (e *Exchange) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 		}
 	}
 
-	pairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	p, err := currency.NewPairFromFormattedPairs(update.Params.Symbol,
-		pairs,
-		format)
+	p, err := e.MatchSymbolWithAvailablePairs(update.Params.Symbol, asset.Spot, false)
 	if err != nil {
 		return err
 	}

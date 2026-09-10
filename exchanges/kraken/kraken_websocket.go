@@ -53,7 +53,6 @@ const (
 	krakenWsOpenOrders           = "openOrders"
 	krakenWsAddOrder             = "addOrder"
 	krakenWsCancelOrder          = "cancelOrder"
-	krakenWsCancelAll            = "cancelAll"
 	krakenWsAddOrderStatus       = "addOrderStatus"
 	krakenWsCancelOrderStatus    = "cancelOrderStatus"
 	krakenWsCancelAllOrderStatus = "cancelAllStatus"
@@ -371,7 +370,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 		return fmt.Errorf("error unmarshalling ticker data: %w", err)
 	}
 
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Ask:          t.Ask[0].Float64(),
 		Bid:          t.Bid[0].Float64(),
@@ -382,7 +381,11 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 		Open:         t.Open[0].Float64(),
 		AssetType:    asset.Spot,
 		Pair:         pair,
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 // wsProcessSpread converts spread/orderbook data and sends it to the datahandler
@@ -1060,30 +1063,6 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
 	}
 
 	return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, err)
-}
-
-// wsCancelAllOrders cancels all opened orders
-// Returns number (count param) of affected orders or 0 if no open orders found
-func (e *Exchange) wsCancelAllOrders(ctx context.Context) (*WsCancelOrderResponse, error) {
-	req := WsCancelOrderRequest{
-		Event:     krakenWsCancelAll,
-		Token:     e.websocketAuthToken(),
-		RequestID: e.MessageSequence(),
-	}
-
-	jsonResp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
-	if err != nil {
-		return &WsCancelOrderResponse{}, err
-	}
-	var resp WsCancelOrderResponse
-	err = json.Unmarshal(jsonResp, &resp)
-	if err != nil {
-		return &WsCancelOrderResponse{}, err
-	}
-	if resp.ErrorMessage != "" {
-		return &WsCancelOrderResponse{}, errors.New(resp.ErrorMessage)
-	}
-	return &resp, nil
 }
 
 /*

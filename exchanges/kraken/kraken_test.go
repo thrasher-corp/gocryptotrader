@@ -725,9 +725,13 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out when native websocket cancel all is unavailable")
+
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSD()})
 
 	if sharedtestvalues.AreAPICredentialsSet(e) {
 		assert.NoError(t, err, "CancelAllOrders should not error")
@@ -735,7 +739,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "CancelBatchOrders should error correctly")
 	}
 
-	assert.Empty(t, resp.Status, "CancelAllOrders Status should not contain any failed order errors")
+	if err == nil {
+		assert.Empty(t, resp.Status, "CancelAllOrders Status should not contain any failed order errors")
+	}
 }
 
 // TestUpdateAccountBalances exercises UpdateAccountBalances
@@ -1243,11 +1249,22 @@ func TestWsCancelOrders(t *testing.T) {
 	assert.NoError(t, err, "Should not error with valid ids")
 }
 
-func TestWsCancelAllOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	_, err := e.wsCancelAllOrders(t.Context())
-	require.NoError(t, err, "wsCancelAllOrders must not error")
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
+	require.True(t, k.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "mocked websocket must be authenticated and connected")
+	_, err := k.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "unscoped cancellation should fail even with authenticated websocket")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Contains(t, r.URL.Path, "OpenOrders", "scoped cancellation should fetch open orders")
+		_, err := w.Write([]byte(`{"error":[],"result":{"open":{"RABBIT":{"descr":{"pair":"XBTUSD"}},"BATFISH":{"descr":{"pair":"ETHUSD"}}}}}`))
+		assert.NoError(t, err, "open orders response should write")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, k.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mocked REST endpoint must update")
+	resp, err := k.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.XBT, currency.USD)})
+	require.NoError(t, err, "pair scoped websocket cancellation must succeed")
+	assert.Equal(t, map[string]string{"RABBIT": "cancelled"}, resp.Status, "only matching orders should be cancelled")
 }
 
 func TestWsHandleData(t *testing.T) {

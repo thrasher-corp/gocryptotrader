@@ -183,8 +183,9 @@ func (c *CustomEx) CancelBatchOrders(context.Context, []order.Cancel) (*order.Ca
 }
 
 // CancelAllOrders is a mock method for CustomEx
-func (c *CustomEx) CancelAllOrders(context.Context, *order.Cancel) (order.CancelAllResponse, error) {
-	return order.CancelAllResponse{}, nil
+func (c *CustomEx) CancelAllOrders(context.Context, *order.Cancel) (*order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
+	return &resp, nil
 }
 
 // GetOrderInfo is a mock method for CustomEx

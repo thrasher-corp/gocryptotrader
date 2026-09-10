@@ -203,7 +203,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
 			Volume:       tick.Volume,
 			High:         tick.High24,
@@ -214,7 +214,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			LastUpdated:  tick.Timestamp,
 			AssetType:    asset.Spot,
 			Pair:         tick.MarketID,
-		})
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, tickPrice)
 	case fundChange:
 		var transferData WsFundTransfer
 		err := json.Unmarshal(respRaw, &transferData)

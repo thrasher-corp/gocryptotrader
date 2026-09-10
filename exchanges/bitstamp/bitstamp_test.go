@@ -1,6 +1,8 @@
 package bitstamp
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -551,6 +553,29 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("rejects unsupported pair scope", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.CancelAllOrders(t.Context(), &order.Cancel{Pair: btcusdPair})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should reject pair-scoped requests")
+	})
+	t.Run("returns failure sentinel", func(t *testing.T) {
+		t.Parallel()
+		testExchange := new(Exchange)
+		require.NoError(t, testexch.Setup(testExchange), "Setup must not error")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method, "CancelAllOrders request method should be POST")
+			assert.Equal(t, "/api/cancel_all_orders/", r.URL.Path, "CancelAllOrders request path should be correct")
+			_, err := w.Write([]byte("false"))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		t.Cleanup(server.Close)
+		testExchange.SkipAuthCheck = true
+		require.NoError(t, testExchange.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, testExchange.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+		_, err := testExchange.CancelAllOrders(t.Context(), &order.Cancel{})
+		assert.ErrorIs(t, err, errCancelAllOrdersFailed, "CancelAllOrders should return the failure sentinel")
+	})
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

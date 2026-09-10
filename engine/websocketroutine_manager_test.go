@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -229,17 +230,6 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Error(err)
 	}
 
-	classificationError := order.ClassificationError{
-		Exchange: "test",
-		OrderID:  "one",
-		Err:      errors.New("lol"),
-	}
-	err = m.websocketDataHandler(exchName, classificationError)
-	if err == nil {
-		t.Error("Expected error")
-	}
-	assert.ErrorIs(t, err, classificationError.Err)
-
 	err = m.websocketDataHandler(exchName, &orderbook.Book{
 		Exchange: "Bitstamp",
 		Pair:     currency.NewBTCUSD(),
@@ -335,5 +325,38 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 
 	if len(m.dataHandlers) != 1 {
 		t.Fatal("unexpected data handler count")
+	}
+}
+
+func TestWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewBTCUSD()
+	untracked := currency.NewPair(currency.ETH, currency.USD)
+	for _, tc := range []struct {
+		name    string
+		data    any
+		tracked bool
+	}{
+		{name: "untracked single", data: &ticker.Price{Pair: untracked, AssetType: asset.Spot}},
+		{name: "tracked single", data: &ticker.Price{Pair: pair, AssetType: asset.Spot}, tracked: true},
+		{name: "untracked batch", data: []ticker.Price{{Pair: untracked, AssetType: asset.Spot}}},
+		{name: "untracked before tracked", data: []ticker.Price{{Pair: untracked, AssetType: asset.Spot}, {Pair: pair, AssetType: asset.Spot}}, tracked: true},
+		{name: "tracked before untracked", data: []ticker.Price{{Pair: pair, AssetType: asset.Spot}, {Pair: untracked, AssetType: asset.Spot}}, tracked: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			syncer := &SyncManager{}
+			syncer.config.SynchronizeTicker = true
+			syncer.started.Store(true)
+			syncer.initSyncStarted.Store(true)
+			syncer.initSyncCompleted.Store(true)
+			tracked := syncer.add(key.NewExchangeAssetPair(t.Name(), asset.Spot, pair), syncBase{})
+			manager := &WebsocketRoutineManager{syncer: syncer}
+			require.NoError(t, manager.websocketDataHandler(t.Name(), tc.data), "untracked tickers must be tolerated")
+			assert.Equal(t, tc.tracked, tracked.trackers[SyncItemTicker].HaveData, "tracked ticker should be synchronised when present")
+			assert.Equal(t, !tc.tracked, tracked.trackers[SyncItemTicker].LastUpdated.IsZero(), "tracked sync timestamp should advance when present")
+			_, err := ticker.GetTicker(t.Name(), pair, asset.Spot)
+			assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "routine manager should not cache tickers")
+		})
 	}
 }

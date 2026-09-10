@@ -705,8 +705,8 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
+func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (*order.CancelAllResponse, error) {
+	cancelAllOrdersResponse := &order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
 	var emptyParams OrderCancelAllParams

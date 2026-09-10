@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -415,6 +416,47 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		})
 	}
 	require.NoError(t, e.Collect())
+}
+
+func TestProcessBatch(t *testing.T) {
+	t.Parallel()
+
+	err := ProcessBatch(nil)
+	require.NoError(t, err, "ProcessBatch must not error for empty input")
+
+	exchName := strings.ReplaceAll(t.Name(), "/", "-")
+	pairOne := currency.NewBTCUSD()
+	pairTwo := currency.NewPair(currency.ETH, currency.USD)
+	err = ProcessBatch([]Price{
+		{
+			ExchangeName: exchName,
+			Pair:         pairOne,
+			AssetType:    asset.Spot,
+			Last:         100,
+		},
+		{
+			ExchangeName: exchName,
+			Pair:         pairTwo,
+			AssetType:    asset.Spot,
+			Last:         200,
+		},
+	})
+	require.NoError(t, err, "ProcessBatch must not error for valid ticker batches")
+
+	_, err = GetTicker(exchName, pairOne, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error after ProcessBatch stores the first ticker")
+	_, err = GetTicker(exchName, pairTwo, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error after ProcessBatch stores the second ticker")
+
+	err = ProcessBatch([]Price{
+		{
+			ExchangeName: exchName,
+			Pair:         currency.EMPTYPAIR,
+			AssetType:    asset.Spot,
+			Last:         1,
+		},
+	})
+	assert.Error(t, err, "ProcessBatch should return an error when a batch entry is invalid")
 }
 
 func TestGetAssociation(t *testing.T) {

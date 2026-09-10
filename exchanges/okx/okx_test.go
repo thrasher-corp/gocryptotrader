@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
@@ -33,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -3476,6 +3479,31 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap, asset.Options} {
+		t.Run("mocked available "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			ex.Name += "-" + t.Name()
+			pairs, err := ex.GetAvailablePairs(a)
+			require.NoError(t, err, "available pairs must load")
+			require.NotEmpty(t, pairs, "available pairs must exist")
+			pair, err := ex.FormatExchangeCurrency(pairs[0], a)
+			require.NoError(t, err, "pair must format")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(a, nil, true), "enabled pairs must clear")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"instId":"UNKNOWN-USDT","last":"1"},{"instId":%q,"last":"123.45","bidPx":"123","askPx":"124"}]}`, pair.String())
+				assert.NoError(t, err, "ticker response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			require.NoError(t, ex.UpdateTickers(t.Context(), a), "available ticker must be processed after an unknown instrument")
+			got, err := ticker.GetTicker(ex.Name, pair, a)
+			require.NoError(t, err, "available-only ticker must be cached")
+			assert.InDelta(t, 123.45, got.Last, 0.000001, "cached ticker should match the returned price")
+		})
+	}
+
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(contextGenerate(), a)
@@ -3763,19 +3791,68 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, id, clientID string
+		noMatch            bool
+		side               order.Side
+	}{
+		{name: "buy side", side: order.Buy},
+		{name: "order ID", id: "buy-1"},
+		{name: "conflicting IDs", id: "buy-1", clientID: "sell-client", noMatch: true},
+		{name: "matching IDs", id: "buy-1", clientID: "buy-client"},
+	} {
+		t.Run("mocked filter "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","clOrdId":"sell-client","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","clOrdId":"buy-client","side":"buy"}]}`
+				if strings.Contains(r.URL.Path, "cancel-batch-orders") {
+					assert.False(t, tc.noMatch, "conflicting identifiers should not send cancellations")
+					var args []CancelOrderRequestParam
+					if err := json.NewDecoder(r.Body).Decode(&args); !assert.NoError(t, err, "request should decode") {
+						return
+					}
+					assert.Len(t, args, 1, "only the selected order should be sent without empty entries")
+					for _, arg := range args {
+						assert.Equal(t, "buy-1", arg.OrderID, "only the matching order should be cancelled")
+						assert.Equal(t, "BTC-USDT", arg.InstrumentID, "cancellation should include its instrument")
+					}
+					body = `{"code":"0","data":[{"ordId":"buy-1","sCode":"0"}]}`
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Side: tc.side, OrderID: tc.id, ClientOrderID: tc.clientID})
+			require.NoError(t, err, "filtered cancellation must succeed")
+			require.NotNil(t, resp, "response must be returned")
+			if tc.noMatch {
+				assert.Empty(t, resp.Status, "conflicting IDs should cancel nothing")
+			} else {
+				assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+			}
+		})
+	}
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject unsupported assets")
+
+	_, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot})
+	require.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders must require an explicit pair to avoid fan-out")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Futures})
+	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Futures, Pair: perpetualSwapPair})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot})
+	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4561,8 +4638,8 @@ func TestWSProcessTrades(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	assets, err := e.getAssetsFromInstrumentID(mainPair.String())
-	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
+	assets, err := e.getAssetsFromInstrumentIDWithCheck(mainPair.String(), false)
+	require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
 
@@ -4785,11 +4862,11 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	_, err := e.getAssetsFromInstrumentID("")
+	_, err := e.getAssetsFromInstrumentIDWithCheck("", false)
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String(), false)
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		switch a {
 		case asset.Spot, asset.Margin:
@@ -4801,16 +4878,34 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
 	}
 
-	_, err = e.getAssetsFromInstrumentID("test")
+	_, err = e.getAssetsFromInstrumentIDWithCheck("test", false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = e.getAssetsFromInstrumentID("test-test")
-	assert.ErrorIs(t, err, asset.ErrNotEnabled)
+	_, err = e.getAssetsFromInstrumentIDWithCheck("test-test", false)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String(), false)
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		assert.Contains(t, assets, a)
 	}
+
+	t.Run("EnabledLookupCanDifferFromAvailableLookup", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+		pair := ex.CurrencyPairs.Pairs[asset.Spot].Enabled[0]
+		require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Spot, pair), "DisablePair must not error")
+
+		availableAssets, err := ex.getAssetsFromInstrumentIDWithCheck(pair.String(), false)
+		require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
+		assert.Contains(t, availableAssets, asset.Spot, "available lookup should still include spot")
+
+		enabledAssets, err := ex.getAssetsFromInstrumentIDWithCheck(pair.String(), true)
+		require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
+		assert.NotContains(t, enabledAssets, asset.Spot, "enabled lookup should not include disabled spot pair")
+	})
 }
 
 func TestSetMarginType(t *testing.T) {

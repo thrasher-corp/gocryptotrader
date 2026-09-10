@@ -196,7 +196,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -320,11 +320,15 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 	return nil, common.ErrNotYetImplemented
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	// TODO, implement BitFlyer API
-	e.CancelAllExistingOrders()
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+// CancelAllOrders cancels all orders associated with a currency pair.
+func (e *Exchange) CancelAllOrders(_ context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if req.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -412,7 +416,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) e
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

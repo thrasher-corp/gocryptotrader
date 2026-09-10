@@ -394,11 +394,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	// if err := orderCancellation.Validate(); err != nil {
-	//	 return order.CancelAllResponse{}, err
+	//	 return nil, err
 	// }
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns order information based on order ID
