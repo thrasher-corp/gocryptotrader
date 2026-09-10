@@ -1526,15 +1526,20 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	}
 	responses := make([]*order.SubmitResponse, len(orders))
 	for i := range orders {
+		if orderResp.Data[i].Code != 0 && orderResp.Data[i].Code != 200 {
+			responses[i] = &order.SubmitResponse{
+				Exchange:        e.Name,
+				ClientOrderID:   orderResp.Data[i].ClientOrderID,
+				SubmissionError: fmt.Errorf("%d %w", orderResp.Data[i].Code, htxError(orderResp.Data[i].Message)),
+			}
+			continue
+		}
 		responses[i], err = orders[i].DeriveSubmitResponse(orderResp.Data[i].OrderID)
 		if err != nil {
 			return nil, err
 		}
 		responses[i].ClientOrderID = orderResp.Data[i].ClientOrderID
 		responses[i].Status = order.New
-		if orderResp.Data[i].Code != 0 && orderResp.Data[i].Code != 200 {
-			responses[i].SubmissionError = fmt.Errorf("%d %w", orderResp.Data[i].Code, htxError(orderResp.Data[i].Message))
-		}
 	}
 	return responses, nil
 }

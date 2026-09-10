@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1537,6 +1538,45 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("mocked mixed batch results", func(t *testing.T) {
+		t.Parallel()
+		h := newV5TradeWebsocketTestExchange(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+			tb.Helper()
+			var req V5WsTradeRequest
+			if err := json.Unmarshal(message, &req); err != nil {
+				return err
+			}
+			if req.Operation != "place_batch_orders" {
+				return wsFixture(tb, message, conn)
+			}
+			return conn.WriteMessage(gws.TextMessage, []byte(`{"code":200,"cid":"`+req.CID+`","data":[{"code":0,"order_id":"1","client_order_id":"first"},{"code":400,"message":"insufficient margin","order_id":"","client_order_id":"rejected"},{"code":200,"order_id":"3","client_order_id":"last"}]}`))
+		})
+		setV5PositionModeEndpoint(t, h, "single_side")
+		orders := make([]*order.Submit, 3)
+		for i := range orders {
+			orders[i] = &order.Submit{
+				Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures,
+				Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1,
+			}
+		}
+		responses, err := h.WebsocketSubmitOrders(t.Context(), orders)
+		require.NoError(t, err, "a rejected member must not fail the entire batch")
+		require.Len(t, responses, 3, "each submitted order must retain its response")
+		for i, expected := range []struct{ orderID, clientOrderID string }{{"1", "first"}, {"", "rejected"}, {"3", "last"}} {
+			require.NotNil(t, responses[i], "each response must be populated")
+			assert.Equal(t, expected.orderID, responses[i].OrderID, "order IDs should retain batch order")
+			assert.Equal(t, expected.clientOrderID, responses[i].ClientOrderID, "client order IDs should retain batch order")
+			assert.Equal(t, h.Name, responses[i].Exchange, "each response should identify the exchange")
+			if i == 1 {
+				assert.ErrorIs(t, responses[i].SubmissionError, htxError("insufficient margin"), "rejection should preserve the exchange error")
+				assert.EqualError(t, responses[i].SubmissionError, "400 insufficient margin", "rejection should include its code and reason")
+				assert.NotEqual(t, order.New, responses[i].Status, "rejected order should not be marked as accepted")
+				continue
+			}
+			assert.NoError(t, responses[i].SubmissionError, "successful siblings should not have submission errors")
+			assert.Equal(t, order.New, responses[i].Status, "successful siblings should retain their accepted status")
+		}
+	})
 	h := newV5TradeWebsocketTestExchange(t, wsFixture)
 	setV5PositionModeEndpoint(t, h, "single_side")
 	_, err := h.WebsocketSubmitOrders(t.Context(), nil)
