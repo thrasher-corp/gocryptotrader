@@ -70,8 +70,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 	var failed bool
 	for pair, entry := range raw {
 		switch pair {
-        // these cases only appear when there is an error
-        // standard responses do not contain these fields
+		// these cases only appear when there is an error, standard responses do not contain these fields
 		case "success":
 			var success uint8
 			if err := json.Unmarshal(entry, &success); err != nil {
