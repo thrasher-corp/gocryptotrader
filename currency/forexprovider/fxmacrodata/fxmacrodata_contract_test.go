@@ -25,6 +25,50 @@ func newContractProvider(t *testing.T, path, fixture string, authenticated bool)
 	}))
 }
 
+// newKeylessContractProvider builds a provider with no API key configured, which
+// is how a caller uses the public USD endpoints. Every other test here supplies
+// one, so without this the headline keyless path went untested.
+func newKeylessContractProvider(t *testing.T, path, fixture string) (provider *FXMacroData, closeServer func()) {
+	t.Helper()
+	provider, closeServer = newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, path, r.URL.Path, "request path should match the documented endpoint")
+		assert.Empty(t, r.Header.Get("X-API-Key"), "keyless request must not send an API key header")
+		w.Header().Set("Content-Type", "application/json")
+		_, err := w.Write([]byte(fixture))
+		assert.NoError(t, err, "fixture response should write successfully")
+	}))
+	provider.APIKey = ""
+	return provider, closeServer
+}
+
+func TestPublicEndpointsWorkWithoutAnAPIKey(t *testing.T) {
+	provider, closeServer := newKeylessContractProvider(t, "/api/v1/data_catalogue/usd", `{
+		"inflation":{"name":"Inflation (CPI)","unit":"%YoY","frequency":"Monthly",
+		"coverage":{"available":true,"requires_api_key":false,"row_count":42,"latest_release_date":"2026-08-12"},
+		"aliases":["CPI"],"source_url":"https://www.bls.gov/","source_url_scope":"dataset"}
+	}`)
+	defer closeServer()
+
+	response, err := provider.DataCatalogue(t.Context(), "USD")
+	require.NoError(t, err, "a public endpoint must work with no API key configured")
+	item, ok := (*response)["inflation"]
+	require.True(t, ok, "DataCatalogue must contain the fixture indicator")
+	assert.Equal(t, []string{"CPI"}, item.Aliases, "keyless catalogue should decode aliases")
+	assert.Equal(t, "2026-08-12", item.Coverage.LatestReleaseDate.String(),
+		"keyless catalogue should decode the release date")
+}
+
+func TestAuthenticatedEndpointsRefuseWithoutAnAPIKey(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		t.Error("an unconfigured key must fail before any request is issued")
+	}))
+	defer closeServer()
+	provider.APIKey = ""
+
+	_, err := provider.Forex(t.Context(), "USD", "AUD", nil)
+	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "an authenticated endpoint must refuse without a key")
+}
+
 func TestForex(t *testing.T) {
 	provider, closeServer := newContractProvider(t, "/api/v1/forex/usd/aud", `{
 		"base":"USD","quote":"AUD","source":"official_reference_rates",
@@ -38,9 +82,7 @@ func TestForex(t *testing.T) {
 	response, err := provider.Forex(t.Context(), "USD", "AUD", url.Values{"limit": {"1"}})
 	require.NoError(t, err, "Forex must decode a documented response")
 	require.Len(t, response.Data, 1, "Forex must decode one data point")
-	require.NotNil(t, response.Data[0].Val, "Forex value must be present")
 	assert.Equal(t, 1.53, response.Data[0].Val, "Forex should decode the rate")
-	require.NotNil(t, response.Data[0].RSI14, "Forex RSI must be present")
 	assert.Equal(t, 55.2, response.Data[0].RSI14, "Forex should decode technical fields")
 }
 
@@ -58,7 +100,6 @@ func TestDataCatalogue(t *testing.T) {
 	item, ok := (*response)["inflation"]
 	require.True(t, ok, "DataCatalogue must contain the fixture indicator")
 	assert.Equal(t, "Inflation (CPI)", item.Name, "DataCatalogue should decode indicator metadata")
-	require.NotNil(t, item.Coverage, "DataCatalogue coverage must be present")
 	assert.Equal(t, 42, item.Coverage.RowCount, "DataCatalogue should decode coverage")
 }
 
@@ -80,7 +121,6 @@ func TestAnnouncements(t *testing.T) {
 	response, err := provider.Announcements(t.Context(), "USD", "inflation", url.Values{"limit": {"1"}})
 	require.NoError(t, err, "Announcements must decode a documented response")
 	require.Len(t, response.Data, 1, "Announcements must decode one data point")
-	require.NotNil(t, response.Data[0].PreviousValue, "Announcements previous value must be present")
 	assert.Equal(t, 2.6, response.Data[0].PreviousValue, "Announcements should preserve previous values")
 	assert.Equal(t, "2026-07-31", response.Data[0].Date.String(), "Announcements should decode ISO dates")
 	assert.Equal(t, int64(1786105800), response.Data[0].AnnouncementDatetime.Time().Unix(),
@@ -121,7 +161,6 @@ func TestLatestAnnouncements(t *testing.T) {
 	require.NoError(t, err, "LatestAnnouncements must decode a documented response")
 	require.Len(t, response.Data, 1, "LatestAnnouncements must decode one indicator")
 	assert.Equal(t, "inflation", response.Data[0].Indicator, "LatestAnnouncements should decode the indicator")
-	require.NotNil(t, response.Data[0].Latest.Val, "LatestAnnouncements value must be present")
 	assert.Equal(t, 2.7, response.Data[0].Latest.Val, "LatestAnnouncements should decode the latest value")
 }
 

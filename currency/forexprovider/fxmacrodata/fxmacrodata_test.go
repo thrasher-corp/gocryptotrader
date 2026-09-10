@@ -176,7 +176,7 @@ func TestGetRatesPropagatesLatestRateError(t *testing.T) {
 	defer closeServer()
 
 	rates, err := provider.GetRates("USD", "AUD")
-	assert.ErrorContains(t, err, "no FXMacroData rate returned", "GetRates should propagate latest rate lookup errors")
+	assert.ErrorIs(t, err, errNoRateAvailable, "GetRates should propagate latest rate lookup errors")
 	assert.Nil(t, rates, "rates should be nil when latest rate lookup fails")
 }
 
@@ -198,9 +198,48 @@ func TestGetLatestForexRateEmptyData(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rate, err := provider.GetLatestForexRate(context.Background(), "USD", "AUD")
-	assert.ErrorContains(t, err, "no FXMacroData rate returned", "GetLatestForexRate should reject empty data")
+	rate, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
+	assert.ErrorIs(t, err, errNoRateAvailable, "GetLatestForexRate should reject empty data")
 	assert.Zero(t, rate, "rate should be zero when no data is returned")
+}
+
+func TestGetLatestForexRateRejectsRowWithoutAValue(t *testing.T) {
+	// date is the only required field and val is anyOf[number, null], so all
+	// three of these are contract-legal responses. Each decodes to Val == 0,
+	// and returning that as a rate puts +Inf into the conversion engine for
+	// every pair touching the currency, with no error anywhere in the chain.
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"null value", `{"data":[{"date":"2026-09-09","val":null}]}`},
+		{"absent value", `{"data":[{"date":"2026-09-09"}]}`},
+		{"zero value", `{"data":[{"date":"2026-09-09","val":0}]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer closeServer()
+
+			rate, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
+			assert.ErrorIs(t, err, errNoRateAvailable, "GetLatestForexRate should reject a row carrying no usable value")
+			assert.Zero(t, rate, "rate should be zero when the row carries no usable value")
+		})
+	}
+}
+
+func TestGetRatesRejectsRowWithoutAValue(t *testing.T) {
+	// GetRates is the only method the conversion engine calls, so the guard has
+	// to hold through it rather than only on the lower-level accessor.
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":null}]}`))
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("USD", "AUD")
+	assert.ErrorIs(t, err, errNoRateAvailable, "GetRates should not hand a valueless row to the conversion engine")
+	assert.Nil(t, rates, "rates should be nil when the row carries no usable value")
 }
 
 func TestGetLatestForexRateHTTPError(t *testing.T) {
@@ -209,9 +248,23 @@ func TestGetLatestForexRateHTTPError(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rate, err := provider.GetLatestForexRate(context.Background(), "USD", "AUD")
+	rate, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
 	assert.Error(t, err, "GetLatestForexRate should return HTTP errors")
 	assert.Zero(t, rate, "rate should be zero when the request fails")
+}
+
+func TestHealth(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("X-API-Key"), "public status requests should not include an API key")
+		assert.Equal(t, "/api/v1/health", r.URL.Path, "Health should use the documented endpoint")
+		_, _ = w.Write([]byte(`{"status":"ok","service":"fxmacrodata-api"}`))
+	}))
+	defer closeServer()
+
+	health, err := provider.Health(t.Context())
+	require.NoError(t, err, "Health must not error")
+	assert.Equal(t, "ok", health.Status, "Health should decode the status")
+	assert.Equal(t, "fxmacrodata-api", health.Service, "Health should decode the service name")
 }
 
 func TestPing(t *testing.T) {
@@ -242,7 +295,7 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 
-	_, err := provider.DataCatalogue(context.Background(), "usd")
+	_, err := provider.DataCatalogue(t.Context(), "usd")
 	require.NoError(t, err, "public data catalogue request does not require an API key")
 }
 
@@ -271,7 +324,7 @@ func TestGetLatestForexRateHonoursCancellation(t *testing.T) {
 	}))
 	defer closeServer()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	_, err := provider.GetLatestForexRate(ctx, "USD", "AUD")
 	assert.ErrorIs(t, err, context.Canceled, "GetLatestForexRate should return the caller cancellation")
@@ -289,6 +342,6 @@ func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter())
 
-	_, err := provider.GetLatestForexRate(context.Background(), "USD", "AUD")
+	_, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
 	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "forex requests should require a configured API key")
 }

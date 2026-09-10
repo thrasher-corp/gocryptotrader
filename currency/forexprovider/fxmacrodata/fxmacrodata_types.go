@@ -172,6 +172,13 @@ type FxSource struct {
 	PublicationFrequency   string   `json:"publication_frequency"`
 	NativePairCount        int64    `json:"native_pair_count"`
 	SourceUniverseEndpoint string   `json:"source_universe_endpoint"`
+	// NativePairs is what the authority publishes; ServedPairs is what this API
+	// will actually return for it, and the two diverge sharply -- several
+	// sources publish dozens of pairs and serve none. A caller reading only
+	// NativePairs is misled about what it can request.
+	ServedPairs     []string `json:"served_pairs"`
+	ServedPairCount int64    `json:"served_pair_count"`
+	CoverageNote    string   `json:"coverage_note"`
 }
 
 // DataQuality describes the source and freshness characteristics of a result.
@@ -249,6 +256,19 @@ type DataCatalogueItem struct {
 	SeriesVariants      []CatalogueSeriesVariant `json:"series_variants"`
 	Coverage            CatalogueCoverage        `json:"coverage"`
 	SupportedOptions    map[string][]string      `json:"supported_options"`
+	SourceURL           string                   `json:"source_url"`
+	SourceURLScope      string                   `json:"source_url_scope"`
+	IsProxy             bool                     `json:"is_proxy"`
+	// Aliases carries the names a series is also known by (non_farm_payrolls
+	// answers to "NFP"), and RelatedIndicators the sibling slugs, so a caller
+	// can resolve a user's wording without a second lookup.
+	Aliases                   []string `json:"aliases"`
+	RelatedIndicators         []string `json:"related_indicators"`
+	StandardizationNote       string   `json:"standardization_note"`
+	SourceHistoryStart        Date     `json:"source_history_start"`
+	SupportedFrequencyOptions []string `json:"supported_frequency_options"`
+	MaturityMonths            float64  `json:"maturity_months"`
+	YieldType                 string   `json:"yield_type"`
 }
 
 // CatalogueSeriesVariant describes one selectable variant of a catalogue series.
@@ -265,6 +285,16 @@ type CatalogueSeriesVariant struct {
 	Unit               string `json:"unit"`
 	Frequency          string `json:"frequency"`
 	IsDefault          bool   `json:"is_default"`
+	// A variant carries its own identity and coverage: selecting one by
+	// SeriesID without reading these reports the parent series' source and
+	// availability, which can differ.
+	Name                string            `json:"name"`
+	Source              string            `json:"source"`
+	SourceURL           string            `json:"source_url"`
+	SourceURLScope      string            `json:"source_url_scope"`
+	StandardizationNote string            `json:"standardization_note"`
+	HasOfficialForecast bool              `json:"has_official_forecast"`
+	Coverage            CatalogueCoverage `json:"coverage"`
 }
 
 // CatalogueCoverage describes availability and freshness for a catalogue series.
@@ -287,6 +317,9 @@ type CatalogueCoverage struct {
 	HasYearOverYearTransform   bool   `json:"has_yoy_transform"`
 	HasQuarterlyTransform      bool   `json:"has_qoq_transform"`
 	HasMonthOverMonthTransform bool   `json:"has_mom_transform"`
+	// LatestReleaseDate is present on every catalogue entry and is the date the
+	// most recent observation was published, as opposed to the period it covers.
+	LatestReleaseDate Date `json:"latest_release_date"`
 }
 
 // CBTargetEntry is one central-bank target effective from a date.
@@ -445,6 +478,13 @@ type LatestAnnouncementItem struct {
 	Frequency           string                  `json:"frequency"`
 	HasOfficialForecast bool                    `json:"has_official_forecast"`
 	Latest              LatestAnnouncementValue `json:"latest"`
+	// Previous carries the same shape as Latest and is what a caller needs to
+	// compute a change without a second request.
+	Previous     LatestAnnouncementValue `json:"previous"`
+	PctChangeYoY float64                 `json:"pct_change_yoy"`
+	PctChangeQoQ float64                 `json:"pct_change_qoq"`
+	PctChangeMoM float64                 `json:"pct_change_mom"`
+	PctDiffPrev  float64                 `json:"pct_diff_prev"`
 }
 
 // LatestAnnouncementValue contains the latest value and release timestamp.
@@ -454,6 +494,13 @@ type LatestAnnouncementValue struct {
 	AnnouncementDatetime types.Time `json:"announcement_datetime"`
 	Source               string     `json:"source"`
 	SourceURL            string     `json:"source_url"`
+	// SourceURLScope says whether SourceURL points at the series, the dataset
+	// or the release. OriginalVal/OriginalUnit are the publisher's own figure
+	// before standardisation, which is what a reconciliation against the
+	// source has to compare with.
+	SourceURLScope string  `json:"source_url_scope"`
+	OriginalVal    float64 `json:"original_val"`
+	OriginalUnit   string  `json:"original_unit"`
 }
 
 // AnnouncementChangesResponse contains changed announcement events.
@@ -581,48 +628,38 @@ type COTFXOverlay struct {
 	Pair string `json:"pair"`
 }
 
-// COTPaginationInfo describes pagination returned by the COT endpoint.
-type COTPaginationInfo struct {
-	Limit         int  `json:"limit"`
-	Offset        int  `json:"offset"`
-	ReturnedCount int  `json:"returned_count"`
-	TotalCount    int  `json:"total_count"`
-	HasMore       bool `json:"has_more"`
-	NextOffset    int  `json:"next_offset"`
-}
-
 // COTResponse contains CFTC positioning observations.
 type COTResponse struct {
-	Currency                               string            `json:"currency"`
-	Instrument                             string            `json:"instrument"`
-	Source                                 string            `json:"source"`
-	SourceURL                              string            `json:"source_url"`
-	Provenance                             COTProvenance     `json:"provenance"`
-	FXOverlay                              COTFXOverlay      `json:"fx_overlay"`
-	StartDate                              Date              `json:"start_date"`
-	EndDate                                Date              `json:"end_date"`
-	LatestAvailableDate                    Date              `json:"latest_available_date"`
-	LatestAvailableAnnouncementDatetime    types.Time        `json:"latest_available_announcement_datetime"`
-	ExpectedNextRelease                    string            `json:"expected_next_release"`
-	ExpectedNextReleaseEpoch               types.Time        `json:"expected_next_release_epoch"`
-	LastSyncStatus                         string            `json:"last_sync_status"`
-	LastSyncDatetime                       string            `json:"last_sync_datetime"`
-	DataLagDays                            int               `json:"data_lag_days"`
-	NextExpectedCFTCReportDate             Date              `json:"next_expected_cftc_report_date"`
-	NextExpectedCFTCReleaseDate            Date              `json:"next_expected_cftc_release_date"`
-	ExpectedNextReleaseHolidayAdjusted     bool              `json:"expected_next_release_holiday_adjusted"`
-	ExpectedNextReleaseSource              string            `json:"expected_next_release_source"`
-	ExpectedNextReleaseSourceURL           string            `json:"expected_next_release_source_url"`
-	ExpectedNextReleaseScheduleStorage     string            `json:"expected_next_release_schedule_storage"`
-	ExpectedNextReleaseScheduleLastUpdated string            `json:"expected_next_release_schedule_last_updated"`
-	RequestedWindowHasData                 bool              `json:"requested_window_has_data"`
-	RequestedWindowLatestDate              Date              `json:"requested_window_latest_date"`
-	RequestedWindowIncludesLatestAvailable bool              `json:"requested_window_includes_latest_available"`
-	PageIncludesLatestAvailable            bool              `json:"page_includes_latest_available"`
-	LastUpdated                            string            `json:"last_updated"`
-	DataQuality                            DataQuality       `json:"data_quality"`
-	Pagination                             COTPaginationInfo `json:"pagination"`
-	Data                                   []COTDataPoint    `json:"data"`
+	Currency                               string         `json:"currency"`
+	Instrument                             string         `json:"instrument"`
+	Source                                 string         `json:"source"`
+	SourceURL                              string         `json:"source_url"`
+	Provenance                             COTProvenance  `json:"provenance"`
+	FXOverlay                              COTFXOverlay   `json:"fx_overlay"`
+	StartDate                              Date           `json:"start_date"`
+	EndDate                                Date           `json:"end_date"`
+	LatestAvailableDate                    Date           `json:"latest_available_date"`
+	LatestAvailableAnnouncementDatetime    types.Time     `json:"latest_available_announcement_datetime"`
+	ExpectedNextRelease                    string         `json:"expected_next_release"`
+	ExpectedNextReleaseEpoch               types.Time     `json:"expected_next_release_epoch"`
+	LastSyncStatus                         string         `json:"last_sync_status"`
+	LastSyncDatetime                       string         `json:"last_sync_datetime"`
+	DataLagDays                            int            `json:"data_lag_days"`
+	NextExpectedCFTCReportDate             Date           `json:"next_expected_cftc_report_date"`
+	NextExpectedCFTCReleaseDate            Date           `json:"next_expected_cftc_release_date"`
+	ExpectedNextReleaseHolidayAdjusted     bool           `json:"expected_next_release_holiday_adjusted"`
+	ExpectedNextReleaseSource              string         `json:"expected_next_release_source"`
+	ExpectedNextReleaseSourceURL           string         `json:"expected_next_release_source_url"`
+	ExpectedNextReleaseScheduleStorage     string         `json:"expected_next_release_schedule_storage"`
+	ExpectedNextReleaseScheduleLastUpdated string         `json:"expected_next_release_schedule_last_updated"`
+	RequestedWindowHasData                 bool           `json:"requested_window_has_data"`
+	RequestedWindowLatestDate              Date           `json:"requested_window_latest_date"`
+	RequestedWindowIncludesLatestAvailable bool           `json:"requested_window_includes_latest_available"`
+	PageIncludesLatestAvailable            bool           `json:"page_includes_latest_available"`
+	LastUpdated                            string         `json:"last_updated"`
+	DataQuality                            DataQuality    `json:"data_quality"`
+	Pagination                             Pagination     `json:"pagination"`
+	Data                                   []COTDataPoint `json:"data"`
 }
 
 // COTDataPoint is one CFTC positioning observation.

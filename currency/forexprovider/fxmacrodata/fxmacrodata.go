@@ -19,6 +19,7 @@ var (
 	errEmptyCurrency       = errors.New("currency symbol must not be empty")
 	errDuplicateCurrency   = errors.New("duplicate currency symbol")
 	errNoTargetCurrencies  = errors.New("at least one target currency is required")
+	errNoRateAvailable     = errors.New("no FXMacroData rate available")
 	errAPIKeyNotConfigured = errors.New("FXMacroData API key is required for this endpoint")
 )
 
@@ -97,12 +98,12 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 		return nil, fmt.Errorf("%w: %s", errUnsupportedCurrency, strings.Join(unsupported, ","))
 	}
 
+	// The empty-target case is already handled above, and getLatestForexRates
+	// returns one entry per target or an error, so there is no path here where
+	// the map is empty and unsupported is not.
 	standardisedRates, err := f.getLatestForexRates(context.TODO(), baseCurrency, targetSymbols)
 	if err != nil {
 		return nil, err
-	}
-	if len(standardisedRates) == 0 && len(unsupported) != 0 {
-		return nil, fmt.Errorf("%w: %s", errUnsupportedCurrency, strings.Join(unsupported, ","))
 	}
 	return standardisedRates, nil
 }
@@ -140,7 +141,15 @@ func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quot
 		return 0, err
 	}
 	if len(response.Data) == 0 {
-		return 0, fmt.Errorf("no FXMacroData rate returned for %s/%s", baseCurrency, quoteCurrency)
+		return 0, fmt.Errorf("%w for %s/%s", errNoRateAvailable, baseCurrency, quoteCurrency)
+	}
+	// val is documented as anyOf[number, null] and date is the only required
+	// field, so a row can legitimately carry no value. It decodes to 0 here,
+	// and ConversionRates.Update stores 1/rate, which turns a missing value
+	// into +Inf on every pair that touches this currency. Guard the value, not
+	// just the row count.
+	if response.Data[0].Val <= 0 {
+		return 0, fmt.Errorf("%w for %s/%s: %v", errNoRateAvailable, baseCurrency, quoteCurrency, response.Data[0].Val)
 	}
 	return response.Data[0].Val, nil
 }
@@ -149,6 +158,14 @@ func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quot
 func (f *FXMacroData) Ping(ctx context.Context) (*ServiceStatusResponse, error) {
 	response := new(ServiceStatusResponse)
 	return response, f.sendHTTPPublicRequest(ctx, "ping", nil, response)
+}
+
+// Health returns the public FXMacroData service health status. It is a
+// separate endpoint from Ping and is restored here after being dropped in the
+// context refactor; both are public and neither requires an API key.
+func (f *FXMacroData) Health(ctx context.Context) (*ServiceStatusResponse, error) {
+	response := new(ServiceStatusResponse)
+	return response, f.sendHTTPPublicRequest(ctx, "health", nil, response)
 }
 
 // DataCatalogue returns the available FXMacroData indicators for a currency.
@@ -280,13 +297,8 @@ func (f *FXMacroData) sendHTTPPublicRequest(ctx context.Context, endpoint string
 }
 
 func (f *FXMacroData) send(ctx context.Context, endpoint string, values url.Values, result any, auth request.AuthType) error {
-	query := make(url.Values, len(values))
-	for k, v := range values {
-		query[k] = append([]string(nil), v...)
-	}
-
 	baseURL := strings.TrimRight(f.APIURL, "/") + "/"
-	path := common.EncodeURLValues(baseURL+strings.TrimLeft(endpoint, "/"), query)
+	path := common.EncodeURLValues(baseURL+strings.TrimLeft(endpoint, "/"), values)
 	headers := map[string]string{
 		"Accept": "application/json",
 	}
