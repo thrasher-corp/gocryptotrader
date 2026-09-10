@@ -1955,7 +1955,7 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 
 	t.Run("disabled asset cannot win shared symbol", func(t *testing.T) {
 		t.Parallel()
-		pair := currency.NewPair(currency.BTC, currency.USDT)
+		pair := currency.NewBTCUSDT()
 		b := Base{CurrencyPairs: currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{}}}
 		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
 			b.CurrencyPairs.Pairs[a] = &currency.PairStore{AssetEnabled: a == asset.Spot, Enabled: currency.Pairs{pair}, Available: currency.Pairs{pair}, RequestFormat: &currency.PairFormat{Uppercase: true}, ConfigFormat: &currency.EMPTYFORMAT}

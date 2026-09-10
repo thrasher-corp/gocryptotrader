@@ -32,6 +32,33 @@ go build or go run .
 For a full list of commands, you can run `gctcli --help`. Alternatively, you can also
 visit our [GoCryptoTrader API reference.](https://api.gocryptotrader.app/)
 
+Supply command parameters either entirely as positional arguments or entirely as
+named flags. Mixing the two forms is rejected, including flags placed after
+positional arguments. This applies to all commands and subcommands.
+
+```bash
+gctcli getticker Binance BTC-USDT spot
+gctcli getticker --exchange Binance --pair BTC-USDT --asset spot
+```
+
+Global options are separate from command parameters. **You can use global options
+with positional command arguments or with named command flags.** Place global
+options, such as `--rpchost`, before the command name:
+
+```bash
+# Allowed: global option with positional command arguments
+gctcli --rpchost localhost:9052 getticker Binance BTC-USDT spot
+
+# Allowed: global option with named command flags
+gctcli --rpchost localhost:9052 getticker --exchange Binance --pair BTC-USDT --asset spot
+
+# Rejected: a named command flag mixed with positional command arguments
+gctcli --rpchost localhost:9052 getticker --exchange Binance BTC-USDT spot
+```
+
+Negative numeric positional values remain supported. Use `--` before positional
+values that begin with a dash and should be treated literally.
+
 ## Autocomplete
 
 Bash/ZSH autocomplete entries can be found [here](/contrib).

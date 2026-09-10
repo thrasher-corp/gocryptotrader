@@ -335,7 +335,7 @@ func TestWebsocketDataHandler(t *testing.T) {
 	syncer.started.Store(true)
 	syncer.initSyncStarted.Store(true)
 	syncer.initSyncCompleted.Store(true)
-	pair := currency.NewPair(currency.BTC, currency.USD)
+	pair := currency.NewBTCUSD()
 	tracked := syncer.add(key.NewExchangeAssetPair("batch-test", asset.Spot, pair), syncBase{})
 	manager := &WebsocketRoutineManager{syncer: syncer}
 	require.NoError(t, manager.websocketDataHandler("batch-test", []ticker.Price{{Pair: currency.NewPair(currency.ETH, currency.USD), AssetType: asset.Spot}, {Pair: pair, AssetType: asset.Spot}}), "untracked ticker must not abort the batch")

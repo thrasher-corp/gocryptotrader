@@ -221,6 +221,7 @@ func main() {
 		orderbookCommand,
 		getCurrencyTradeURLCommand,
 	}
+	registerArgumentValidation(app.Commands)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
