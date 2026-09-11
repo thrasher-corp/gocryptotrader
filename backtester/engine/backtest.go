@@ -75,7 +75,7 @@ func (bt *BackTest) Reset() error {
 }
 
 // RunLive is a proof of concept function that does not yet support multi currency usage
-// It tasks by constantly checking for new live datas and running through the list of events
+// It works by constantly checking for new live data and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
 	if bt.LiveDataHandler == nil {

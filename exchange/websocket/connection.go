@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"bytes"
-	"compress/flate"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -304,7 +303,7 @@ func (c *connection) ReadMessage() Response {
 	case gws.TextMessage:
 		standardMessage = resp
 	case gws.BinaryMessage:
-		standardMessage, err = c.parseBinaryResponse(resp)
+		standardMessage, err = parseBinaryResponse(resp)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%v %v: Parse binary response error: %v", c.ExchangeName, removeURLQueryString(c.URL), err)
 			return Response{Raw: []byte(``)} // Non-nil response to avoid the reader returning on this case.
@@ -316,23 +315,23 @@ func (c *connection) ReadMessage() Response {
 	return Response{Raw: standardMessage, Type: mType}
 }
 
-// parseBinaryResponse parses a websocket binary response into a usable byte array
-func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
-	var reader io.ReadCloser
-	var err error
-	if len(resp) >= 2 && resp[0] == 31 && resp[1] == 139 { // Detect GZIP
-		reader, err = gzip.NewReader(bytes.NewReader(resp))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		reader = flate.NewReader(bytes.NewReader(resp))
+// parseBinaryResponse decompresses GZIP frames and returns all other payloads unchanged
+func parseBinaryResponse(resp []byte) ([]byte, error) {
+	if len(resp) < 2 || resp[0] != 0x1f || resp[1] != 0x8b {
+		return resp, nil // non-GZIP response, return as-is
 	}
-	standardMessage, err := io.ReadAll(reader)
+	reader, err := gzip.NewReader(bytes.NewReader(resp))
 	if err != nil {
 		return nil, err
 	}
-	return standardMessage, reader.Close()
+	msg, err := io.ReadAll(reader)
+	if closeErr := reader.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return nil, err
+	}
+	return msg, nil
 }
 
 // Shutdown shuts down and closes specific connection

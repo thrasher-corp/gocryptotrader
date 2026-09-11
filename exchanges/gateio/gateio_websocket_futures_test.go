@@ -5,12 +5,41 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
+
+func TestProcessFuturesTickers(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	payload := []byte(`{"time":1541659086,"channel":"futures.tickers","event":"update","result":[{"contract":"BTC_USDT","last":"118.4","mark_price":"118.35","index_price":"118.36","volume_24h_quote":"1665006","volume_24h_base":"5526","low_24h":"99.2","high_24h":"132.5"}]}`)
+	require.NoError(t, ex.processFuturesTickers(t.Context(), payload, asset.USDTMarginedFutures), "futures ticker processing must succeed")
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]ticker.Price)
+		require.True(t, ok, "message must contain futures ticker prices")
+		require.Len(t, got, 1, "message must contain one futures ticker")
+		assert.Equal(t, 118.35, got[0].MarkPrice, "mark price should match the response")
+		assert.Equal(t, 118.36, got[0].IndexPrice, "index price should match the response")
+		assert.Equal(t, asset.USDTMarginedFutures, got[0].AssetType, "asset should be USDT margined futures")
+		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), got[0].Pair, "ticker pair should match the response")
+		assert.Equal(t, time.Unix(1541659086, 0), got[0].LastUpdated, "ticker timestamp should match the response")
+	default:
+		require.Fail(t, "WebSocket futures ticker payload must be emitted")
+	}
+}
 
 func TestGenerateFuturesPayload(t *testing.T) {
 	t.Parallel()
@@ -168,7 +197,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.Name = "generateFuturesPayloadAuthTest"
 		ex.API.AuthenticatedWebsocketSupport = true
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		ex.SetCredentials("key", "secret", "", "", "", "")
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{

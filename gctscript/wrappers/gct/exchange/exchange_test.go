@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -220,7 +221,7 @@ func configureExchangeKeys() bool {
 		return false
 	}
 	b := ex.GetBase()
-	b.SetCredentials(exchAPIKEY, exchAPISECRET, exchClientID, "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: exchAPIKEY, Secret: exchAPISECRET, ClientID: exchClientID})
 	b.SkipAuthCheck = true
 	return b.AreCredentialsValid(context.Background())
 }

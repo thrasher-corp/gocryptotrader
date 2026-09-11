@@ -944,13 +944,6 @@ type AuthRequest struct {
 	Signature        string `json:"signature"`
 }
 
-// WebsocketAuthenticationResponse represents websocket authentication response.
-type WebsocketAuthenticationResponse struct {
-	Success   bool       `json:"success"`
-	Message   string     `json:"message"`
-	Timestamp types.Time `json:"ts"`
-}
-
 // WebsocketTradeOrder represents a websocket trade order.
 type WebsocketTradeOrder struct {
 	Symbol         currency.Pair `json:"symbol"`

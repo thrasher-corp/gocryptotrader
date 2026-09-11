@@ -350,6 +350,8 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
+		MarkPrice:    data.MarkPrice.Float64(),
+		IndexPrice:   data.IndexPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
 		Ask:          data.Ask1Price.Float64(),
 		AskSize:      data.Ask1Size.Float64(),

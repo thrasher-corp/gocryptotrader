@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -78,7 +78,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 		return nil, err
 	}
 	rsi := indicators.RSI(backfilledData, int(s.rsiPeriod.IntPart()))
-	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
+	latestRSIValue := decimal.MustFromFloat(rsi[len(rsi)-1])
 	hasDataAtTime, err := d.HasDataAtTime(latest.GetTime())
 	if err != nil {
 		return nil, err
@@ -142,19 +142,19 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || rsiHigh <= 0 {
 				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiHigh = decimal.NewFromFloat(rsiHigh)
+			s.rsiHigh = decimal.MustFromFloat(rsiHigh)
 		case rsiLowKey:
 			rsiLow, ok := v.(float64)
 			if !ok || rsiLow <= 0 {
 				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiLow = decimal.NewFromFloat(rsiLow)
+			s.rsiLow = decimal.MustFromFloat(rsiLow)
 		case rsiPeriodKey:
 			rsiPeriod, ok := v.(float64)
 			if !ok || rsiPeriod <= 0 {
 				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiPeriod = decimal.NewFromFloat(rsiPeriod)
+			s.rsiPeriod = decimal.MustFromFloat(rsiPeriod)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}

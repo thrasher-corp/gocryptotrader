@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -415,6 +417,160 @@ func TestSorting(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSortAsks(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		levels Levels
+	}{
+		{name: "nil"},
+		{name: "empty", levels: Levels{}},
+		{name: "singleton", levels: Levels{{Price: 1, Amount: 2, ID: 1}}},
+		{name: "ordered duplicates", levels: Levels{{Price: 1, ID: 1}, {Price: 2, ID: 2}, {Price: 2, ID: 3}, {Price: 3, ID: 4}}},
+		{name: "long ordered duplicates", levels: Levels{{Price: 1, ID: 1}, {Price: 1, ID: 2}, {Price: 2, ID: 3}, {Price: 2, ID: 4}, {Price: 3, ID: 5}, {Price: 3, ID: 6}, {Price: 4, ID: 7}, {Price: 4, ID: 8}, {Price: 5, ID: 9}, {Price: 5, ID: 10}, {Price: 6, ID: 11}, {Price: 6, ID: 12}, {Price: 7, ID: 13}, {Price: 7, ID: 14}, {Price: 8, ID: 15}, {Price: 8, ID: 16}, {Price: 9, ID: 17}, {Price: 9, ID: 18}, {Price: 10, ID: 19}, {Price: 10, ID: 20}}},
+		{
+			name: "long scattered duplicates",
+			levels: func() Levels {
+				rng := rand.New(rand.NewSource(1)) //nolint:gosec // Deterministic test fixture.
+				levels := make(Levels, 100)
+				for i := range levels {
+					levels[i] = Level{Price: float64(rng.Intn(16) + 1), ID: int64(i + 1)}
+				}
+				return levels
+			}(),
+		},
+		{name: "final inversion", levels: Levels{{Price: 1, ID: 1}, {Price: 2, ID: 2}, {Price: 2, ID: 3}, {Price: 0.5, ID: 4}}},
+		{name: "reverse ordered", levels: Levels{{Price: 3, ID: 1}, {Price: 2, ID: 2}, {Price: 1, ID: 3}}},
+		{name: "infinities", levels: Levels{{Price: math.Inf(1), ID: 1}, {Price: 0, ID: 2}, {Price: math.Inf(-1), ID: 3}}},
+		{name: "signed zero ordered", levels: Levels{{Price: -1, ID: 1}, {Price: math.Copysign(0, -1), ID: 2}, {Price: 0, ID: 3}, {Price: 1, ID: 4}}},
+		{name: "signed zero after inversion", levels: Levels{{Price: 1, ID: 1}, {Price: math.Copysign(0, -1), ID: 2}, {Price: 0, ID: 3}, {Price: -1, ID: 4}}},
+		{name: "NaN first", levels: Levels{{Price: math.NaN(), ID: 1}, {Price: 1, ID: 2}, {Price: 2, ID: 3}}},
+		{name: "NaN final", levels: Levels{{Price: 1, ID: 1}, {Price: 2, ID: 2}, {Price: math.NaN(), ID: 3}}},
+		{name: "NaN after inversion", levels: Levels{{Price: 2, ID: 1}, {Price: 1, ID: 2}, {Price: math.NaN(), ID: 3}}},
+		{name: "multiple NaNs", levels: Levels{{Price: 3, ID: 1}, {Price: math.NaN(), ID: 2}, {Price: 1, ID: 3}, {Price: math.NaN(), ID: 4}, {Price: 2, ID: 5}}},
+		{
+			name: "NaN masks non-adjacent inversion",
+			levels: Levels{
+				{Price: 1, ID: 1},
+				{Price: 2, ID: 2},
+				{Price: 3, ID: 3},
+				{Price: 4, ID: 4},
+				{Price: 10, ID: 5},
+				{Price: math.NaN(), ID: 6},
+				{Price: math.NaN(), ID: 7},
+				{Price: math.NaN(), ID: 8},
+				{Price: 5, ID: 9},
+				{Price: 6, ID: 10},
+				{Price: 7, ID: 11},
+				{Price: math.NaN(), ID: 12},
+				{Price: 1, ID: 13},
+				{Price: 2, ID: 14},
+				{Price: 3, ID: 15},
+				{Price: 4, ID: 16},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			expected := slices.Clone(tc.levels)
+			sort.Slice(expected, func(i, j int) bool { return expected[i].Price < expected[j].Price })
+			actual := slices.Clone(tc.levels)
+			actual.SortAsks()
+			if !slices.ContainsFunc(tc.levels, func(level Level) bool { return math.IsNaN(level.Price) }) {
+				assert.Equal(t, expected, actual, "SortAsks should preserve legacy ordering")
+				return
+			}
+
+			expectedIDs := make([]int64, len(expected))
+			actualIDs := make([]int64, len(actual))
+			for i := range expected {
+				expectedIDs[i] = expected[i].ID
+				actualIDs[i] = actual[i].ID
+			}
+			assert.Equal(t, expectedIDs, actualIDs, "SortAsks should preserve legacy NaN ordering")
+		})
+	}
+}
+
+func TestSortBids(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		levels Levels
+	}{
+		{name: "nil"},
+		{name: "empty", levels: Levels{}},
+		{name: "singleton", levels: Levels{{Price: 1, Amount: 2, ID: 1}}},
+		{name: "ordered duplicates", levels: Levels{{Price: 3, ID: 1}, {Price: 2, ID: 2}, {Price: 2, ID: 3}, {Price: 1, ID: 4}}},
+		{name: "long ordered duplicates", levels: Levels{{Price: 10, ID: 1}, {Price: 10, ID: 2}, {Price: 9, ID: 3}, {Price: 9, ID: 4}, {Price: 8, ID: 5}, {Price: 8, ID: 6}, {Price: 7, ID: 7}, {Price: 7, ID: 8}, {Price: 6, ID: 9}, {Price: 6, ID: 10}, {Price: 5, ID: 11}, {Price: 5, ID: 12}, {Price: 4, ID: 13}, {Price: 4, ID: 14}, {Price: 3, ID: 15}, {Price: 3, ID: 16}, {Price: 2, ID: 17}, {Price: 2, ID: 18}, {Price: 1, ID: 19}, {Price: 1, ID: 20}}},
+		{
+			name: "long scattered duplicates",
+			levels: func() Levels {
+				rng := rand.New(rand.NewSource(2)) //nolint:gosec // Deterministic test fixture.
+				levels := make(Levels, 100)
+				for i := range levels {
+					levels[i] = Level{Price: float64(rng.Intn(16) + 1), ID: int64(i + 1)}
+				}
+				return levels
+			}(),
+		},
+		{name: "final inversion", levels: Levels{{Price: 3, ID: 1}, {Price: 2, ID: 2}, {Price: 2, ID: 3}, {Price: 4, ID: 4}}},
+		{name: "reverse ordered", levels: Levels{{Price: 1, ID: 1}, {Price: 2, ID: 2}, {Price: 3, ID: 3}}},
+		{name: "infinities", levels: Levels{{Price: math.Inf(-1), ID: 1}, {Price: 0, ID: 2}, {Price: math.Inf(1), ID: 3}}},
+		{name: "signed zero ordered", levels: Levels{{Price: 1, ID: 1}, {Price: 0, ID: 2}, {Price: math.Copysign(0, -1), ID: 3}, {Price: -1, ID: 4}}},
+		{name: "signed zero after inversion", levels: Levels{{Price: -1, ID: 1}, {Price: 0, ID: 2}, {Price: math.Copysign(0, -1), ID: 3}, {Price: 1, ID: 4}}},
+		{name: "NaN first", levels: Levels{{Price: math.NaN(), ID: 1}, {Price: 2, ID: 2}, {Price: 1, ID: 3}}},
+		{name: "NaN final", levels: Levels{{Price: 2, ID: 1}, {Price: 1, ID: 2}, {Price: math.NaN(), ID: 3}}},
+		{name: "NaN after inversion", levels: Levels{{Price: 1, ID: 1}, {Price: 2, ID: 2}, {Price: math.NaN(), ID: 3}}},
+		{name: "multiple NaNs", levels: Levels{{Price: 1, ID: 1}, {Price: math.NaN(), ID: 2}, {Price: 3, ID: 3}, {Price: math.NaN(), ID: 4}, {Price: 2, ID: 5}}},
+		{
+			name: "NaN masks non-adjacent inversion",
+			levels: Levels{
+				{Price: 10, ID: 1},
+				{Price: 9, ID: 2},
+				{Price: 8, ID: 3},
+				{Price: 7, ID: 4},
+				{Price: 1, ID: 5},
+				{Price: math.NaN(), ID: 6},
+				{Price: math.NaN(), ID: 7},
+				{Price: math.NaN(), ID: 8},
+				{Price: 6, ID: 9},
+				{Price: 5, ID: 10},
+				{Price: 4, ID: 11},
+				{Price: math.NaN(), ID: 12},
+				{Price: 10, ID: 13},
+				{Price: 9, ID: 14},
+				{Price: 8, ID: 15},
+				{Price: 7, ID: 16},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			expected := slices.Clone(tc.levels)
+			sort.Slice(expected, func(i, j int) bool { return expected[i].Price > expected[j].Price })
+			actual := slices.Clone(tc.levels)
+			actual.SortBids()
+			if !slices.ContainsFunc(tc.levels, func(level Level) bool { return math.IsNaN(level.Price) }) {
+				assert.Equal(t, expected, actual, "SortBids should preserve legacy ordering")
+				return
+			}
+
+			expectedIDs := make([]int64, len(expected))
+			actualIDs := make([]int64, len(actual))
+			for i := range expected {
+				expectedIDs[i] = expected[i].ID
+				actualIDs[i] = actual[i].ID
+			}
+			assert.Equal(t, expectedIDs, actualIDs, "SortBids should preserve legacy NaN ordering")
+		})
+	}
+}
+
 func levelsFixture() Levels {
 	lvls := make(Levels, 1000)
 	for i := range 1000 {
@@ -435,86 +591,6 @@ func TestReverse(t *testing.T) {
 
 	b.Asks.Reverse()
 	assert.NoError(t, b.Validate())
-}
-
-// 705985	      1856 ns/op	       0 B/op	       0 allocs/op
-func BenchmarkReverse(b *testing.B) {
-	lvls := levelsFixture()
-	if len(lvls) != 1000 {
-		b.Fatal("incorrect length")
-	}
-
-	for b.Loop() {
-		lvls.Reverse()
-	}
-}
-
-// 361266	      3556 ns/op	      24 B/op	       1 allocs/op (old)
-// 385783	      3000 ns/op	     152 B/op	       3 allocs/op (new)
-func BenchmarkSortAsksDecending(b *testing.B) {
-	lvls := levelsFixture()
-	bucket := make(Levels, len(lvls))
-	for b.Loop() {
-		copy(bucket, lvls)
-		bucket.SortAsks()
-	}
-}
-
-// 266998	      4292 ns/op	      40 B/op	       2 allocs/op (old)
-// 372396	      3001 ns/op	     152 B/op	       3 allocs/op (new)
-func BenchmarkSortBidsAscending(b *testing.B) {
-	lvls := levelsFixture()
-	lvls.Reverse()
-	bucket := make(Levels, len(lvls))
-	for b.Loop() {
-		copy(bucket, lvls)
-		bucket.SortBids()
-	}
-}
-
-// 22119	     46532 ns/op	      35 B/op	       1 allocs/op (old)
-// 16233	     76951 ns/op	     167 B/op	       3 allocs/op (new)
-func BenchmarkSortAsksStandard(b *testing.B) {
-	lvls := levelsFixtureRandom()
-	bucket := make(Levels, len(lvls))
-	for b.Loop() {
-		copy(bucket, lvls)
-		bucket.SortAsks()
-	}
-}
-
-// 19504	     62518 ns/op	      53 B/op	       2 allocs/op (old)
-// 15698	     72859 ns/op	     168 B/op	       3 allocs/op (new)
-func BenchmarkSortBidsStandard(b *testing.B) {
-	lvls := levelsFixtureRandom()
-	bucket := make(Levels, len(lvls))
-	for b.Loop() {
-		copy(bucket, lvls)
-		bucket.SortBids()
-	}
-}
-
-// 376708	      3559 ns/op	      24 B/op 		   1 allocs/op (old)
-// 377113	      3020 ns/op	     152 B/op	       3 allocs/op (new)
-func BenchmarkSortAsksAscending(b *testing.B) {
-	lvls := levelsFixture()
-	bucket := make(Levels, len(lvls))
-	for b.Loop() {
-		copy(bucket, lvls)
-		bucket.SortAsks()
-	}
-}
-
-// 262874	      4364 ns/op	      40 B/op	       2 allocs/op (old)
-// 401788	      3348 ns/op	     152 B/op	       3 allocs/op (new)
-func BenchmarkSortBidsDescending(b *testing.B) {
-	lvls := levelsFixture()
-	lvls.Reverse()
-	bucket := make(Levels, len(lvls))
-	for b.Loop() {
-		copy(bucket, lvls)
-		bucket.SortBids()
-	}
 }
 
 func TestCheckAlignment(t *testing.T) {
@@ -538,24 +614,6 @@ func TestCheckAlignment(t *testing.T) {
 	itemWithFunding[0].StrPrice = "1337.0000000"
 	err = checkAlignment(itemWithFunding, true, true, false, true, isDsc, "Binance")
 	require.NoError(t, err)
-}
-
-// 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)
-// 3748009	       312.7 ns/op	      32 B/op	       1 allocs/op (previous)
-func BenchmarkProcess(b *testing.B) {
-	book := &Book{
-		Pair:     currency.NewBTCUSD(),
-		Asks:     make(Levels, 100),
-		Bids:     make(Levels, 100),
-		Exchange: "BenchmarkProcessOrderbook",
-		Asset:    asset.Spot,
-	}
-
-	for b.Loop() {
-		if err := book.Process(); err != nil {
-			b.Fatal(err)
-		}
-	}
 }
 
 func TestLevelsArrayPriceAmountUnmarshalJSON(t *testing.T) {

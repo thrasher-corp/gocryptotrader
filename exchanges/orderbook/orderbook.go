@@ -2,6 +2,8 @@ package orderbook
 
 import (
 	"fmt"
+	"math"
+	"slices"
 	"sort"
 	"time"
 
@@ -198,12 +200,62 @@ func (l *Levels) Reverse() {
 // scattered. If order from exchange is descending consider using the Reverse
 // function.
 func (l Levels) SortAsks() {
-	sort.Slice(l, func(i, j int) bool { return l[i].Price < l[j].Price })
+	for i := range l {
+		// NaN masks inversions on either side, so preserve the legacy sort path.
+		if math.IsNaN(l[i].Price) {
+			sort.Slice(l, func(x, y int) bool { return l[x].Price < l[y].Price })
+			return
+		}
+		if i > 0 && l[i].Price < l[i-1].Price {
+			for j := i + 1; j < len(l); j++ {
+				if math.IsNaN(l[j].Price) {
+					sort.Slice(l, func(x, y int) bool { return l[x].Price < l[y].Price })
+					return
+				}
+			}
+			slices.SortFunc(l, func(x, y Level) int {
+				switch {
+				case x.Price < y.Price:
+					return -1
+				case x.Price > y.Price:
+					return 1
+				default:
+					return 0
+				}
+			})
+			return
+		}
+	}
 }
 
 // SortBids sorts bid items to the correct descending order if pricing values
 // are scattered. If order from exchange is ascending consider using the Reverse
 // function.
 func (l Levels) SortBids() {
-	sort.Slice(l, func(i, j int) bool { return l[i].Price > l[j].Price })
+	for i := range l {
+		// NaN masks inversions on either side, so preserve the legacy sort path.
+		if math.IsNaN(l[i].Price) {
+			sort.Slice(l, func(x, y int) bool { return l[x].Price > l[y].Price })
+			return
+		}
+		if i > 0 && l[i].Price > l[i-1].Price {
+			for j := i + 1; j < len(l); j++ {
+				if math.IsNaN(l[j].Price) {
+					sort.Slice(l, func(x, y int) bool { return l[x].Price > l[y].Price })
+					return
+				}
+			}
+			slices.SortFunc(l, func(x, y Level) int {
+				switch {
+				case x.Price > y.Price:
+					return -1
+				case x.Price < y.Price:
+					return 1
+				default:
+					return 0
+				}
+			})
+			return
+		}
+	}
 }

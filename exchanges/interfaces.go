@@ -87,25 +87,14 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-	GetCredentials(ctx context.Context) (*accounts.Credentials, error)
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
 	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
-	// ValidateAPICredentials function validates the API keys by sending an
-	// authenticated REST request. See exchange specific wrapper implementation.
-	ValidateAPICredentials(ctx context.Context, a asset.Item) error
-	// VerifyAPICredentials determines if the credentials supplied have unset
-	// required values. See exchanges/credentials.go Base method for
-	// implementation.
-	VerifyAPICredentials(creds *accounts.Credentials) error
-	// GetDefaultCredentials returns the exchange.Base api credentials loaded by
-	// config.json. See exchanges/credentials.go Base method for implementation.
-	GetDefaultCredentials() *accounts.Credentials
-
 	FunctionalityChecker
 	AccountManagement
+	CredentialsManagement
 	OrderManagement
 	CurrencyStateManagement
 	FuturesManagement
@@ -157,6 +146,28 @@ type AccountManagement interface {
 	GetCachedCurrencyBalances(ctx context.Context, a asset.Item) (accounts.CurrencyBalances, error)
 	HasAssetTypeAccountSegregation() bool
 	SubscribeAccountBalances() (dispatch.Pipe, error)
+}
+
+// CredentialsManagement defines functionality for managing an exchange's API
+// credentials
+type CredentialsManagement interface {
+	// GetCredentials returns the credentials set within the context or, if
+	// absent, falls back to the exchange's default credentials loaded from
+	// config.json.
+	GetCredentials(ctx context.Context) (*accounts.Credentials, error)
+	// SetCredentials sets the exchange's default API credentials. See
+	// exchanges/credentials.go Base method for implementation.
+	SetCredentials(creds *accounts.Credentials)
+	// GetDefaultCredentials returns the exchange.Base API credentials loaded by
+	// config.json. See exchanges/credentials.go Base method for implementation.
+	GetDefaultCredentials() *accounts.Credentials
+	// ValidateAPICredentials validates the API keys by sending an authenticated
+	// REST request. See exchange specific wrapper implementation.
+	ValidateAPICredentials(ctx context.Context, a asset.Item) error
+	// VerifyAPICredentials determines if the credentials supplied have unset
+	// required values. See exchanges/credentials.go Base method for
+	// implementation.
+	VerifyAPICredentials(creds *accounts.Credentials) error
 }
 
 // FunctionalityChecker defines functionality for retrieving exchange

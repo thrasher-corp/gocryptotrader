@@ -117,15 +117,15 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 		return nil, err
 	}
 
-	if len(ret.Data) != 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(ret.Data))
+	if len(ret.OrderDetails) != 1 {
+		return nil, fmt.Errorf("expected 1 response, received %d", len(ret.OrderDetails))
 	}
 
-	if ret.Data[0].RejectReason != "EC_NoError" {
-		return nil, fmt.Errorf("order rejected: %s", ret.Data[0].RejectReason)
+	if ret.OrderDetails[0].RejectReason != "EC_NoError" {
+		return nil, fmt.Errorf("order rejected: %s", ret.OrderDetails[0].RejectReason)
 	}
 
-	return &ret.Data[0], nil
+	return &ret.OrderDetails[0], nil
 }
 
 var retCode = map[int64]string{

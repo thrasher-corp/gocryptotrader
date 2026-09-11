@@ -7,7 +7,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -30,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets default values for the exchange
@@ -505,15 +505,25 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	canSlice := []order.Cancel{*o}
-	resp, err := e.CancelBatchOrders(ctx, canSlice)
+	results, err := e.CancelOrders(ctx, []string{o.OrderID})
 	if err != nil {
 		return err
 	}
-	if resp.Status[o.OrderID] != order.Cancelled.String() {
+	if len(results) != 1 {
 		return fmt.Errorf("%w %v", errOrderFailedToCancel, o.OrderID)
 	}
-	return nil
+	return cancelOrderResultError(results[0], o.OrderID)
+}
+
+func cancelOrderResultError(result OrderCancelDetail, orderID string) error {
+	switch {
+	case result.Success:
+		return nil
+	case result.FailureReason == unknownCancelOrderFailure:
+		return fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
+	default:
+		return fmt.Errorf("%w %v", errOrderFailedToCancel, orderID)
+	}
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -841,7 +851,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	for i := perpStart; i < len(products.Products); i++ {
 		funRate := fundingrate.Rate{
 			Time: products.Products[i].FutureProductDetails.PerpetualDetails.FundingTime,
-			Rate: decimal.NewFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
+			Rate: decimal.MustFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
 		}
 		funding[i] = fundingrate.LatestRateResponse{
 			Exchange:    e.Name,
@@ -870,7 +880,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	for i := range products.Products {
 		funRate := fundingrate.Rate{
 			Time: products.Products[i].FutureProductDetails.PerpetualDetails.FundingTime,
-			Rate: decimal.NewFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
+			Rate: decimal.MustFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
 		}
 		contracts[i] = futures.Contract{
 			Exchange:           e.Name,

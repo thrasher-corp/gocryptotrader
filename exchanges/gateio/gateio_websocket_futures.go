@@ -343,6 +343,8 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, asset
 			High:         resp.Result[x].High24H.Float64(),
 			Low:          resp.Result[x].Low24H.Float64(),
 			Last:         resp.Result[x].Last.Float64(),
+			MarkPrice:    resp.Result[x].MarkPrice.Float64(),
+			IndexPrice:   resp.Result[x].IndexPrice.Float64(),
 			AssetType:    assetType,
 			Pair:         resp.Result[x].Contract,
 			LastUpdated:  resp.Time.Time(),

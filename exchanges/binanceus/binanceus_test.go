@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -25,11 +26,13 @@ import (
 )
 
 // Please supply your own keys here to test authenticated endpoints
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+// Please supply your own credentials here to do authenticated endpoint testing
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e               = &Exchange{}
@@ -44,10 +47,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Binanceus Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -1465,7 +1468,8 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"a":"25.36520000",
 			"A":"40.66000000" 
 		}
-	  }`)
+	  }`,
+	)
 	if err := e.wsHandleData(t.Context(), bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
@@ -1504,7 +1508,8 @@ func TestWebsocketAggTrade(t *testing.T) {
 				"m": true,
 				"M": true         
 			}
-	   }`)
+	   }`,
+	)
 	if err := e.wsHandleData(t.Context(), aggTradejson); err != nil {
 		t.Error("Binanceus Aggregated Trade Order Json() error", err)
 	}
@@ -1607,7 +1612,8 @@ var websocketDepthUpdate = []byte(
 		  ]
 		]
 	  }
-	`)
+	`,
+)
 
 func TestProcessUpdate(t *testing.T) {
 	t.Parallel()

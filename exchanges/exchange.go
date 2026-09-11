@@ -536,13 +536,14 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	b.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
 	b.API.credentials.SubAccount = exch.API.Credentials.Subaccount
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		b.SetCredentials(exch.API.Credentials.Key,
-			exch.API.Credentials.Secret,
-			exch.API.Credentials.ClientID,
-			exch.API.Credentials.Subaccount,
-			exch.API.Credentials.PEMKey,
-			exch.API.Credentials.OTPSecret,
-		)
+		b.SetCredentials(&accounts.Credentials{
+			Key:             exch.API.Credentials.Key,
+			Secret:          exch.API.Credentials.Secret,
+			ClientID:        exch.API.Credentials.ClientID,
+			SubAccount:      exch.API.Credentials.Subaccount,
+			PEMKey:          exch.API.Credentials.PEMKey,
+			OneTimePassword: exch.API.Credentials.OTPSecret,
+		})
 	}
 
 	if exch.HTTPTimeout <= time.Duration(0) {
@@ -796,11 +797,7 @@ func (b *Base) SetAPIURL() error {
 		if strings.Contains(endpoint, "https") || strings.Contains(endpoint, "wss") {
 			return
 		}
-		log.Warnf(log.ExchangeSys,
-			"%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an"+
-				" attacker could eavesdrop on this connection. Use at your"+
-				" own risk.",
-			b.Name, endpoint)
+		log.Warnf(log.ExchangeSys, "%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an attacker could eavesdrop on this connection. Use at your own risk.", b.Name, endpoint)
 	}
 	var err error
 	if b.Config.API.OldEndPoints != nil {
@@ -843,12 +840,7 @@ func (b *Base) SetAPIURL() error {
 			var defaultURL string
 			defaultURL, err = b.API.Endpoints.GetURL(u)
 			if err != nil {
-				log.Warnf(
-					log.ExchangeSys,
-					"%s: Config cannot match with default endpoint URL: [%s] with key: [%s], please remove or update core support endpoints.",
-					b.Name,
-					val,
-					u)
+				log.Warnf(log.ExchangeSys, "%s: Config cannot match with default endpoint URL: [%s] with key: [%s], please remove or update core support endpoints.", b.Name, val, u)
 				continue
 			}
 
@@ -856,13 +848,7 @@ func (b *Base) SetAPIURL() error {
 				continue
 			}
 
-			log.Warnf(
-				log.ExchangeSys,
-				"%s: Config is overwriting default endpoint URL values from: [%s] to: [%s] for: [%s]",
-				b.Name,
-				defaultURL,
-				val,
-				u)
+			log.Warnf(log.ExchangeSys, "%s: Config is overwriting default endpoint URL values from: [%s] to: [%s] for: [%s]", b.Name, defaultURL, val, u)
 
 			checkInsecureEndpoint(val)
 

@@ -14,7 +14,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -35,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func main() {
@@ -227,7 +227,14 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 		creds.OTPSecret = "-" // Ensure OTP is available for use
 	}
 
-	base.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.PEMKey, creds.OTPSecret)
+	base.SetCredentials(&accounts.Credentials{
+		Key:             creds.Key,
+		Secret:          creds.Secret,
+		ClientID:        creds.ClientID,
+		SubAccount:      creds.Subaccount,
+		PEMKey:          creds.PEMKey,
+		OneTimePassword: creds.OTPSecret,
+	})
 
 	base.Config.API.Credentials.Key = creds.Key
 	base.Config.API.Credentials.Secret = creds.Secret

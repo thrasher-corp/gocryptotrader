@@ -1,10 +1,10 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -21,44 +21,71 @@ var ErrInvalidTimestampFormat = errors.New("invalid timestamp format")
 
 // UnmarshalJSON deserialises json and timestamp information.
 func (t *Time) UnmarshalJSON(data []byte) error {
-	s := string(data)
+	timestamp := data
 
-	if s[0] == '"' {
-		s = s[1 : len(s)-1]
+	if len(timestamp) == 0 {
+		return nil
+	}
+	if timestamp[0] == '"' {
+		timestamp = timestamp[1 : len(timestamp)-1]
 	}
 
-	if s == "" || s[0] == 'n' || s == "0" {
+	if len(timestamp) == 0 || timestamp[0] == 'n' || (len(timestamp) == 1 && timestamp[0] == '0') {
 		return nil
 	}
 
-	if target := strings.Index(s, "."); target != -1 {
-		s = s[:target] + s[target+1:]
-
-		if strings.Trim(s, "0") == "" {
+	target := bytes.IndexByte(timestamp, '.')
+	length := len(timestamp)
+	if target != -1 {
+		length--
+	}
+	padding := 0
+	switch length {
+	case 12, 15, 18: // Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
+		padding = 1
+	case 11, 14, 17:
+		padding = 2
+	}
+	if target != -1 || padding != 0 {
+		var normalised [19]byte // A nanosecond Unix timestamp is the largest supported representation.
+		length += padding
+		var destination []byte
+		if length <= len(normalised) {
+			destination = normalised[:length]
+		} else {
+			destination = make([]byte, length)
+		}
+		if target == -1 {
+			copy(destination, timestamp)
+		} else {
+			copy(destination, timestamp[:target])
+			copy(destination[target:], timestamp[target+1:])
+		}
+		for x := length - padding; x < length; x++ {
+			destination[x] = '0'
+		}
+		timestamp = destination
+		if target != -1 && len(bytes.Trim(timestamp, "0")) == 0 {
 			return nil
 		}
 	}
 
-	switch len(s) {
-	case 8:
-		parsed, err := time.Parse("20060102", s)
+	if len(timestamp) == 8 {
+		value := string(timestamp)
+		parsed, err := time.Parse("20060102", value)
 		if err != nil {
-			return fmt.Errorf("%w error parsing %q into date: %w", ErrInvalidTimestampFormat, s, err)
+			return fmt.Errorf("%w error parsing %q into date: %w", ErrInvalidTimestampFormat, value, err)
 		}
 		*t = Time(parsed)
 		return nil
-	case 12, 15, 18: // Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
-		s += "0"
-	case 11, 14, 17:
-		s += "00"
 	}
 
-	unixTS, err := strconv.ParseInt(s, 10, 64)
+	unixTS, err := strconv.ParseInt(string(timestamp), 10, 64)
 	if err != nil {
 		return fmt.Errorf("error parsing unix timestamp: %w", err)
 	}
 
-	switch len(s) {
+	switch len(timestamp) {
 	case 10:
 		*t = Time(time.Unix(unixTS, 0))
 	case 13:

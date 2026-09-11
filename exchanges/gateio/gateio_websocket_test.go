@@ -228,7 +228,10 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err)
 
-	conn := &FixtureConnection{}
+	baseConn, err := e.Websocket.CreateTestConnection(asset.Spot)
+	require.NoError(t, err, "test connection creation must succeed")
+	conn := &FixtureConnection{Connection: baseConn}
+	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "fixture connection registration must succeed")
 	err = e.Websocket.AddSubscriptions(conn, subs...)
 	require.NoError(t, err)
 
@@ -267,4 +270,9 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 		}
 		require.NoError(t, err)
 	}
+
+	require.Eventually(t, func() bool {
+		sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ob.BTC_USDT.50"}})
+		return sub != nil && sub.State() == subscription.SubscribedState
+	}, time.Second, 10*time.Millisecond, "out-of-order update must successfully resubscribe in the background")
 }

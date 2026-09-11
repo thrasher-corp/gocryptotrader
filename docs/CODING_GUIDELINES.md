@@ -8,6 +8,14 @@ This document outlines the coding, formatting, and testing standards for impleme
 - Code must adhere to these [Effective Go](https://go.dev/doc/effective_go) guidelines.
 - Code must also follow these [Go Style](https://google.github.io/styleguide/go/) guidelines.
 
+## Security
+
+See [SECURITY.md](/SECURITY.md) for the project's security policy, supported versions and reporting process.
+
+- Never commit API keys, secrets, client IDs or a populated `config.json`. Use placeholder values in tests and examples.
+- Never log or return credentials in error messages, RPC responses or test output.
+- If you discover a vulnerability while working on the codebase, report it privately as described in [SECURITY.md](/SECURITY.md). Do not describe it in a public issue, pull request or commit message.
+
 ## Exchange Implementation Guidelines
 
 Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for comprehensive steps on integrating a new exchange.
@@ -153,6 +161,13 @@ Use `require` and `assert` appropriately:
 - Maintain original test inputs unless they are incorrect.
 - Full test coverage is preferable; mock external calls as needed.
 - All unit tests must pass before finalising changes.
+
+### Interface Contracts
+
+- Name tests and files according to what they prove. Compile-time interface assertions establish API compatibility, not equivalent runtime behaviour; reserve "parity" for tests that compare behaviour.
+- Assert conformance against existing standard-library or dependency interfaces instead of duplicating their method signatures. Use custom contract interfaces only for the additional API being checked.
+- For build-tag-selected implementations, validate shared contracts and run relevant tests under every supported backend configuration affected by the change.
+- Keep signature compatibility separate from behavioural expectations. Document intentional backend differences and test them explicitly where relevant.
 
 ### Test deduplication
 
