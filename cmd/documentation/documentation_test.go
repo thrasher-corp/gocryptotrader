@@ -124,6 +124,16 @@ func TestRunTemplateNormalizesMarkdown(t *testing.T) {
 			input:    "- ```\n```go\n\t```\n\tcode\n",
 			expected: "- ```\n```go\n\t```\n\tcode\n",
 		},
+		{
+			name:     "blockquote tab before fence",
+			input:    "> \t```make\n> \tall:\n> \t\t@echo ok\n> \t```\n",
+			expected: ">   ```make\n> \tall:\n> \t\t@echo ok\n>   ```\n",
+		},
+		{
+			name:     "blockquote tab before fence character at end of input",
+			input:    "> \t~",
+			expected: ">   ~\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -143,6 +153,21 @@ func TestRunTemplateNormalizesMarkdown(t *testing.T) {
 			assert.Zero(t, info.Mode().Perm()&0o111, "generated documentation should not be executable")
 		})
 	}
+}
+
+func TestRunTemplateKeepsExistingFileOnTemplateError(t *testing.T) {
+	t.Parallel()
+	outputPath := filepath.Join(t.TempDir(), "README.md")
+	require.NoError(t, os.WriteFile(outputPath, []byte("old contents\n"), 0o644), "fixture must be written")
+
+	tmpl := template.Must(template.New("documentation").Parse(`{{define "documentation"}}new contents {{.Missing}}{{end}}`))
+	err := runTemplate(DocumentationDetails{Tmpl: tmpl}, outputPath, "documentation")
+	var execErr template.ExecError
+	require.ErrorAs(t, err, &execErr, "runTemplate must return the template execution error")
+
+	contents, err := os.ReadFile(outputPath)
+	require.NoError(t, err, "existing documentation must still be readable")
+	assert.Equal(t, "old contents\n", string(contents), "a template error should leave existing documentation untouched")
 }
 
 func TestRunTemplateReplacesExistingFile(t *testing.T) {

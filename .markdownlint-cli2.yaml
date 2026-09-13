@@ -9,3 +9,4 @@ config:
   MD060: false
 ignores:
   - cmd/documentation/sub_templates/contributors.tmpl
+  - vendor/**
