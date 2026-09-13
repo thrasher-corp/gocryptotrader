@@ -109,7 +109,6 @@ type websocketResponse struct {
 	Type    string        `json:"type"`
 	Pair    currency.Pair `json:"pair"`
 	Message string        `json:"message"`
-	Status  string        `json:"status"`
 }
 
 // websocketTickResponse holds a ticker websocket message
@@ -202,16 +201,6 @@ type websocketOrderUpdateData struct {
 	Price       types.Number `json:"price"`
 	UpdateTime  types.Time   `json:"updateTime"`
 	UUID        string       `json:"uuid"`
-}
-
-// OrderHistory stores data for past orders
-type OrderHistory struct {
-	Result      bool            `json:"result,string"`
-	Total       string          `json:"total"`
-	PageLength  uint8           `json:"page_length"`
-	Orders      json.RawMessage `json:"orders"`
-	CurrentPage uint8           `json:"current_page"`
-	ErrorCode   int64           `json:"error_code"`
 }
 
 // OrderHistoryResponse stores past orders

@@ -70,9 +70,11 @@ func (e *Exchange) SetDefaults() {
 				TradeFetching:          true,
 				OrderbookFetching:      true,
 				TickerFetching:         true,
+				KlineFetching:          true,
 				Subscribe:              true,
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
 				GetOrders:              true,
 			},
 

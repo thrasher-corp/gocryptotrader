@@ -630,7 +630,7 @@ func (e *Exchange) GetWebsocketSubscribeKey(ctx context.Context) (string, error)
 func (e *Exchange) RefreshWebsocketSubscribeKey(ctx context.Context, key string) error {
 	params := url.Values{}
 	params.Set("subscribeKey", key)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankSubscribeRefreshKey
+	path := "/v" + lbankAPIVersion2 + "/" + lbankSubscribeRefreshKey
 	var resp struct {
 		Result string `json:"result"`
 	}
@@ -641,7 +641,7 @@ func (e *Exchange) RefreshWebsocketSubscribeKey(ctx context.Context, key string)
 func (e *Exchange) DestroyWebsocketSubscribeKey(ctx context.Context, key string) error {
 	params := url.Values{}
 	params.Set("subscribeKey", key)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankSubscribeDestroyKey
+	path := "/v" + lbankAPIVersion2 + "/" + lbankSubscribeDestroyKey
 	var resp struct {
 		Result string `json:"result"`
 	}
