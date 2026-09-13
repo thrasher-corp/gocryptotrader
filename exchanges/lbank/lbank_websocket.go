@@ -321,20 +321,27 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-
 	status, err := lbankOrderStatusToOrderStatus(resp.OrderUpdate.OrderStatus)
 	if err != nil {
 		return err
 	}
+	side, err := order.StringToOrderSide(resp.OrderUpdate.Type)
+	if err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
-		Exchange:    e.Name,
-		AssetType:   asset.Spot,
-		Pair:        resp.Pair,
-		Price:       resp.OrderUpdate.Price.Float64(),
-		Amount:      resp.OrderUpdate.Amount.Float64(),
-		OrderID:     resp.OrderUpdate.UUID,
-		Status:      status,
-		LastUpdated: resp.OrderUpdate.UpdateTime.Time(),
+		Exchange:             e.Name,
+		AssetType:            asset.Spot,
+		Pair:                 resp.Pair,
+		Price:                resp.OrderUpdate.OrderPrice.Float64(),
+		Amount:               resp.OrderUpdate.OrderAmt.Float64(),
+		ExecutedAmount:       resp.OrderUpdate.AccAmt.Float64(),
+		RemainingAmount:      resp.OrderUpdate.RemainAmt.Float64(),
+		AverageExecutedPrice: resp.OrderUpdate.AvgPrice.Float64(),
+		Side:                 side,
+		OrderID:              resp.OrderUpdate.UUID,
+		Status:               status,
+		LastUpdated:          resp.OrderUpdate.UpdateTime.Time(),
 	})
 }
 

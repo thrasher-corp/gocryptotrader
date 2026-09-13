@@ -52,7 +52,7 @@ func TestWsHandleOrderUpdate(t *testing.T) {
 	err := ex.wsHandleData(t.Context(), []byte(`{
 		"type": "orderUpdate",
 		"pair": "btc_usdt",
-		"orderUpdate": {"amount": "0.5","orderStatus": 2,"price": "29000.0","role": "maker","updateTime": 1704067200000,"uuid": "test-order-uuid","txUuid": "test-tx-uuid","volumePrice": "14500.0"},
+		"orderUpdate": {"accAmt": "0.5","avgPrice": "29000.0","orderAmt": "1.0","orderPrice": "29000.0","orderStatus": 2,"remainAmt": "0.5","type": "buy","updateTime": 1704067200000,"uuid": "test-order-uuid"},
 		"SERVER": "V2",
 		"TS": 1704067200000
 	}`))
@@ -63,9 +63,19 @@ func TestWsHandleOrderUpdate(t *testing.T) {
 		err := ex.wsHandleData(t.Context(), []byte(`{
 			"type": "orderUpdate",
 			"pair": "btc_usdt",
-			"orderUpdate": {"amount": "0.5","orderStatus": 99,"price": "100","updateTime": 1704067200000,"uuid": "test"}
+			"orderUpdate": {"orderAmt": "1.0","orderStatus": 99,"orderPrice": "100","type": "buy","updateTime": 1704067200000,"uuid": "test"}
 		}`))
 		assert.Error(t, err, "invalid order status should return error")
+	})
+
+	t.Run("invalid order side", func(t *testing.T) {
+		t.Parallel()
+		err := ex.wsHandleData(t.Context(), []byte(`{
+			"type": "orderUpdate",
+			"pair": "btc_usdt",
+			"orderUpdate": {"orderAmt": "1.0","orderStatus": 2,"orderPrice": "100","type": "notaside","updateTime": 1704067200000,"uuid": "test"}
+		}`))
+		assert.Error(t, err, "invalid order side should return error")
 	})
 
 	t.Run("malformed JSON", func(t *testing.T) {

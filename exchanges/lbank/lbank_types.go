@@ -196,9 +196,13 @@ type websocketOrderUpdateResponse struct {
 
 // websocketOrderUpdateData holds order update fields
 type websocketOrderUpdateData struct {
-	Amount      types.Number `json:"amount"`
+	AccAmt      types.Number `json:"accAmt"`
+	AvgPrice    types.Number `json:"avgPrice"`
+	OrderAmt    types.Number `json:"orderAmt"`
+	OrderPrice  types.Number `json:"orderPrice"`
 	OrderStatus int64        `json:"orderStatus"`
-	Price       types.Number `json:"price"`
+	RemainAmt   types.Number `json:"remainAmt"`
+	Type        string       `json:"type"`
 	UpdateTime  types.Time   `json:"updateTime"`
 	UUID        string       `json:"uuid"`
 }
