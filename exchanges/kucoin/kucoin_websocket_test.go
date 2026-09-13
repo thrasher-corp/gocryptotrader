@@ -634,6 +634,44 @@ func TestGenerateFuturesOrderbookOverlap(t *testing.T) {
 	}
 }
 
+func TestGenerateRealtimeOrderbooksLeavesDepthFedPairs(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	ku.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+		{Enabled: true, Channel: futuresOrderbookDepth5Channel, Asset: asset.Futures},
+		{Enabled: true, Channel: marketOrderbookDepth5Channel, Asset: asset.Spot},
+		{
+			Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot,
+			Pairs:            currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-"), currency.NewPairWithDelimiter("DOGE", "USDT", "-")},
+			QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT,DOGE-USDT",
+		},
+	}
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	feeds := make(map[string][]string)
+	for _, sub := range subs {
+		channel, symbols, _ := strings.Cut(sub.QualifiedChannel, ":")
+		for symbol := range strings.SplitSeq(symbols, ",") {
+			feeds[symbol] = append(feeds[symbol], channel)
+		}
+	}
+	for symbol, want := range map[string][]string{
+		"BTC-USDT":  {marketOrderbookDepth5Channel},
+		"XBTUSDCM":  {futuresOrderbookDepth5Channel},
+		"SOL-USDC":  {marketOrderbookChannel},
+		"DOGE-USDT": {marketOrderbookChannel},
+	} {
+		assert.Equalf(t, want, feeds[symbol], "%s should be fed by exactly one topic", symbol)
+	}
+	for symbol, channels := range feeds {
+		realtime := slices.Contains(channels, marketOrderbookChannel) || slices.Contains(channels, futuresOrderbookChannel)
+		depth := slices.ContainsFunc(channels, func(channel string) bool { return strings.Contains(channel, "Depth") })
+		assert.Falsef(t, realtime && depth, "%s should not be fed by both a depth and a realtime topic: %v", symbol, channels)
+	}
+}
+
 func TestMergeMarginPairsWithSpotDisabled(t *testing.T) {
 	t.Parallel()
 	for _, channel := range []string{subscription.OrderbookChannel, subscription.TickerChannel, subscription.AllTradesChannel} {

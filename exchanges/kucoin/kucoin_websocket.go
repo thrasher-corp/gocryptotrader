@@ -1049,6 +1049,21 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	if err != nil || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return subs, err
 	}
+	// Depth channels reload the whole book on every push, which would clobber a realtime book for the same pair, so
+	// the realtime upgrade leaves pairs an explicit depth channel already feeds to that channel.
+	depthFed := make(map[bool]map[[2]*currency.Item]struct{}, 2)
+	for _, s := range subs {
+		switch s.Channel {
+		case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel, futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
+			isFutures := s.Channel == futuresOrderbookDepth5Channel || s.Channel == futuresOrderbookDepth50Channel
+			if depthFed[isFutures] == nil {
+				depthFed[isFutures] = make(map[[2]*currency.Item]struct{})
+			}
+			for _, pair := range s.Pairs {
+				depthFed[isFutures][[2]*currency.Item{pair.Base.Item, pair.Quote.Item}] = struct{}{}
+			}
+		}
+	}
 	// Resolve authenticated orderbooks after expansion so the realtime feed is reflected in
 	// subscription reconciliation keys and does not retain the public depth feed interval.
 	configured := subscription.NewStore()
@@ -1063,6 +1078,15 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 			return nil, err
 		}
 		s = s.Clone()
+		if fed := depthFed[s.Asset == asset.Futures]; len(fed) != 0 && len(s.Pairs) != 0 {
+			s.Pairs = slices.DeleteFunc(s.Pairs, func(pair currency.Pair) bool {
+				_, ok := fed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}]
+				return ok
+			})
+			if len(s.Pairs) == 0 {
+				continue
+			}
+		}
 		channel := marketOrderbookChannel
 		formatAsset := s.Asset
 		if s.Asset == asset.Futures {
