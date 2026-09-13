@@ -1,5 +1,8 @@
 on: [push, pull_request]
 name: CI
+permissions:
+  contents: read
+  actions: write # required by styfle/cancel-workflow-action to cancel superseded runs
 env:
   GO_VERSION: 1.26.x
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
