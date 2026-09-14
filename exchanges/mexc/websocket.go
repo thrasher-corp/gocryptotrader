@@ -94,15 +94,14 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 	// marks so every subscribed symbol reloads its snapshot instead of applying increments onto a
 	// book kept from the previous connection.
 	e.resetOrderbookSnapshots()
+	var listenKey string
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err := e.GenerateListenKey(ctx)
-		if err != nil {
+		var err error
+		if listenKey, err = e.GenerateListenKey(ctx); err != nil {
 			return err
 		}
 		e.setWsListenKey(listenKey)
 		conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
-		// The stream closes 60 minutes after creation unless a keepalive is sent; renew it on a timer.
-		go e.keepListenKeyAlive(ctx)
 	}
 	if err := conn.Dial(ctx, &gws.Dialer{
 		EnableCompression: true,
@@ -116,6 +115,11 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		Message:     []byte(`{"method": "PING"}`),
 		Delay:       time.Second * 20,
 	})
+	if listenKey != "" {
+		// The stream closes 60 minutes after creation unless a keepalive is sent; renew it on a
+		// timer, but only once the connection is up so a failed dial does not leak the renewer.
+		go e.keepListenKeyAlive(ctx)
+	}
 	return nil
 }
 
@@ -594,7 +598,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		klineData := kline.Candle{}
 		// MEXC sends windowStart/windowEnd in whole seconds (measured live on BTCUSDT Min1:
 		// windowStart=1788890580 => 2026-09-08 18:03:00Z). Reading windowEnd as milliseconds put
-		// every candle in January 1970. The candle is stamped with its open (windowStart), matching
+		// every candle near the Unix epoch. The candle is stamped with its open (windowStart), matching
 		// this repository's kline convention that Candle.Time is the interval start.
 		klineData.Time = time.Unix(body.WindowStart, 0)
 		// `volume` is the base-asset volume; `amount` is the quote turnover (measured live for one
@@ -884,7 +888,8 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			}(),
 			Status:      oStatus,
 			AssetType:   asset.Spot,
-			LastUpdated: time.UnixMilli(body.CreateTime),
+			Date:        time.UnixMilli(body.CreateTime),
+			LastUpdated: wsSendTime(result),
 			Pair:        cp,
 			TimeInForce: tif,
 		})

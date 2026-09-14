@@ -70,7 +70,7 @@ func TestWsHandleAggreDeals(t *testing.T) {
 // TestWsHandleKline asserts the candle is decoded, including that the candle time is the window
 // start read as seconds and the volume is the base-asset `volume` field. MEXC sends windowStart/
 // windowEnd in whole seconds (measured live: windowStart=1788890580 => 2026-09-08 18:03:00Z), so
-// reading windowEnd as milliseconds stamped every candle in January 1970, and `amount` is the quote
+// reading windowEnd as milliseconds stamped every candle near the Unix epoch, and `amount` is the quote
 // turnover rather than the base volume.
 func TestWsHandleKline(t *testing.T) {
 	drainData(t)
@@ -271,7 +271,7 @@ func TestWsHandlePrivateAccount(t *testing.T) {
 // TestWsHandlePrivateDeals asserts a private fill is decoded with the base quantity as Amount and the
 // trade id as TID. MEXC's private deals frame carries both a base quantity and a quote amount, and
 // both a tradeId and an orderId: the fill previously used the quote amount as size and the order id
-// as TID (which collides across a partially filled order's fills). Contract: group T defect #6.
+// as TID (which collides across a partially filled order's fills).
 func TestWsHandlePrivateDeals(t *testing.T) {
 	drainData(t)
 	raw := wsPushFrame(t, "spot@"+channelPrivateDealsV3, 1736409765052,
@@ -316,7 +316,8 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 	assert.Equal(t, order.GoodTillCancel, detail.TimeInForce, "orderType 1 should map to GoodTillCancel")
 	assert.Equal(t, order.PartiallyFilled, detail.Status, "status 3 should map to PartiallyFilled")
 	assert.Equal(t, order.Buy, detail.Side, "tradeType 1 should map to Buy")
-	assert.Equal(t, int64(1736409765000), detail.LastUpdated.UnixMilli(), "LastUpdated should come from createTime")
+	assert.Equal(t, int64(1736409765000), detail.Date.UnixMilli(), "Date should come from createTime")
+	assert.Equal(t, int64(1736409765052), detail.LastUpdated.UnixMilli(), "LastUpdated should come from the push send time")
 	assert.Equal(t, asset.Spot, detail.AssetType, "AssetType should be correct")
 }
 
