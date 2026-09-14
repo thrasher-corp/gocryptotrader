@@ -609,11 +609,18 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		var ordStatus order.Status
-		if result.Status != "" {
+		switch {
+		case result.Status != "":
 			ordStatus, err = orderStatusFromString(result.Status)
 			if err != nil {
 				return nil, err
 			}
+		case result.OrderID != "":
+			// MEXC's create-order ACK omits status; a populated OrderID from a successful NewOrder
+			// means the order was placed, so report New to keep WasOrderPlaced() true instead of
+			// UnknownStatus. The sweep resolves the real lifecycle status (FILLED/PARTIALLY_FILLED/…)
+			// from GetOrderInfo afterwards.
+			ordStatus = order.New
 		}
 		return &order.SubmitResponse{
 			// s.Pair is already in exchange format; the response symbol is concatenated and a naive
@@ -744,9 +751,13 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			lastUpdated = result.Time.Time()
 		}
 		return &order.Detail{
-			Price:                result.Price.Float64(),
-			Amount:               result.OrigQty.Float64(),
-			QuoteAmount:          result.CummulativeQuoteQty.Float64(),
+			Price:       result.Price.Float64(),
+			Amount:      result.OrigQty.Float64(),
+			QuoteAmount: result.CummulativeQuoteQty.Float64(),
+			// Cost is the quote actually spent (cumulative filled value); the rpc server maps
+			// Detail.Cost to the proto cost field, so a market order's real executed cost reaches
+			// the caller instead of a zero. Price alone is the protective limit, not the average.
+			Cost:                 result.CummulativeQuoteQty.Float64(),
 			AverageExecutedPrice: result.Price.Float64(),
 			ExecutedAmount:       result.ExecutedQty.Float64(),
 			RemainingAmount:      result.OrigQty.Float64() - result.ExecutedQty.Float64(),
@@ -849,19 +860,22 @@ func (e *Exchange) orderDetailFromRESTOrder(o *OrderDetail, fallbackPair currenc
 		Amount:               o.OrigQty.Float64(),
 		AverageExecutedPrice: o.Price.Float64(),
 		QuoteAmount:          o.CummulativeQuoteQty.Float64(),
-		ExecutedAmount:       o.ExecutedQty.Float64(),
-		RemainingAmount:      o.OrigQty.Float64() - o.ExecutedQty.Float64(),
-		Exchange:             e.Name,
-		OrderID:              o.OrderID,
-		ClientOrderID:        o.ClientOrderID,
-		Type:                 oType,
-		Side:                 oSide,
-		Status:               oStatus,
-		AssetType:            asset.Spot,
-		Date:                 o.Time.Time(),
-		LastUpdated:          lastUpdated,
-		Pair:                 pair,
-		TimeInForce:          tif,
+		// Cost is the quote actually spent (cumulative filled value), mapped to the proto cost
+		// field by the rpc server; without it a market order reports a zero cost to the caller.
+		Cost:            o.CummulativeQuoteQty.Float64(),
+		ExecutedAmount:  o.ExecutedQty.Float64(),
+		RemainingAmount: o.OrigQty.Float64() - o.ExecutedQty.Float64(),
+		Exchange:        e.Name,
+		OrderID:         o.OrderID,
+		ClientOrderID:   o.ClientOrderID,
+		Type:            oType,
+		Side:            oSide,
+		Status:          oStatus,
+		AssetType:       asset.Spot,
+		Date:            o.Time.Time(),
+		LastUpdated:     lastUpdated,
+		Pair:            pair,
+		TimeInForce:     tif,
 	}, nil
 }
 

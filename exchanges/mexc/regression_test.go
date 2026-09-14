@@ -222,6 +222,31 @@ func TestSubmitOrderPairFromRequest(t *testing.T) {
 	assert.Equal(t, currency.USDT, resp.Pair.Quote, "the response pair quote should be USDT")
 }
 
+// TestSubmitOrderPlacedWhenStatusAbsent covers MEXC's create-order ACK, which carries an orderId but
+// no status field (unlike Binance). A populated OrderID from a successful NewOrder means the order was
+// placed, so the response must report a placed status and WasOrderPlaced() must be true — otherwise a
+// filled market order is mis-read as never placed. group T defect (Fix B, INC-295).
+func TestSubmitOrderPlacedWhenStatusAbsent(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"symbol":"KASUSDT","orderId":"C02__728298455591530497024","clientOrderId":"sbo000045","price":"0","origQty":"171.65","executedQty":"0","type":"MARKET","side":"BUY","transactTime":1736409765052}`))
+	}))
+	resp, err := e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  e.Name,
+		Pair:      currency.NewPair(currency.NewCode("KAS"), currency.USDT),
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Type:      order.Market,
+		Amount:    171.65,
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	require.NotEmpty(t, resp.OrderID, "the venue order id must be reported")
+	assert.Equal(t, order.New, resp.Status, "an accepted order with an id must report a placed status, not UnknownStatus")
+	// The engine derives its Detail from this SubmitResponse (DeriveDetail copies Status), and
+	// order_placed on the gRPC boundary is Detail.WasOrderPlaced(): prove the status maps to placed.
+	assert.True(t, (&order.Detail{Status: resp.Status}).WasOrderPlaced(), "the derived detail must report the order as placed")
+}
+
 // TestGetOrderInfoPairAndTimestamps asserts GetOrderInfo reports the requested pair (not one re-split
 // from the concatenated response symbol) and both timestamps. The Query Order response carries time
 // and updateTime but no transactTime (that field only exists on the New Order response), so reading
@@ -241,6 +266,7 @@ func TestGetOrderInfoPairAndTimestamps(t *testing.T) {
 		assert.Equal(t, currency.USDT, detail.Pair.Quote, "Pair quote should be USDT")
 		assert.Equal(t, int64(1736409765000), detail.Date.UnixMilli(), "Date should come from the order time")
 		assert.Equal(t, int64(1736409770000), detail.LastUpdated.UnixMilli(), "LastUpdated should come from updateTime")
+		assert.Equal(t, 10.0, detail.Cost, "Cost should carry the cumulative quote spent, not a zero")
 	})
 
 	t.Run("updateTime absent falls back to time", func(t *testing.T) {
@@ -299,7 +325,7 @@ func TestGetDepositAddressMultiNetwork(t *testing.T) {
 func TestGetActiveOrdersToleratesUncatalogedSymbol(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"b1","price":"20000","origQty":"1","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","time":1736409765000},{"symbol":"DOGEUSDT","orderId":"d1","price":"0.1","origQty":"100","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","time":1736409765000}]`))
+		_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"b1","price":"20000","origQty":"1","executedQty":"1","cummulativeQuoteQty":"20000","type":"LIMIT","side":"BUY","status":"FILLED","time":1736409765000},{"symbol":"DOGEUSDT","orderId":"d1","price":"0.1","origQty":"100","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","time":1736409765000}]`))
 	}))
 	btc := currency.NewBTCUSDT()
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, false), "storing available pairs must not error")
@@ -312,6 +338,7 @@ func TestGetActiveOrdersToleratesUncatalogedSymbol(t *testing.T) {
 	for i := range orders {
 		if orders[i].OrderID == "b1" {
 			found = true
+			assert.Equal(t, 20000.0, orders[i].Cost, "Cost should carry the cumulative quote spent from the REST order")
 		}
 	}
 	assert.True(t, found, "the catalogued BTCUSDT order should be present in the listing")
