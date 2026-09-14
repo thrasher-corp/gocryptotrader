@@ -6913,7 +6913,7 @@
           "type": "number",
           "format": "double"
         },
-        "cost": {
+        "executedQuoteAmount": {
           "type": "number",
           "format": "double"
         },

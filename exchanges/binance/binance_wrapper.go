@@ -1104,20 +1104,20 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 
 		return &order.Detail{
-			Amount:         resp.OrigQty,
-			Exchange:       e.Name,
-			OrderID:        strconv.FormatInt(resp.OrderID, 10),
-			ClientOrderID:  resp.ClientOrderID,
-			Side:           side,
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           resp.CumulativeQuoteQty,
-			AssetType:      assetType,
-			Status:         status,
-			Price:          resp.Price,
-			ExecutedAmount: resp.ExecutedQty,
-			Date:           resp.Time.Time(),
-			LastUpdated:    resp.UpdateTime.Time(),
+			Amount:              resp.OrigQty,
+			Exchange:            e.Name,
+			OrderID:             strconv.FormatInt(resp.OrderID, 10),
+			ClientOrderID:       resp.ClientOrderID,
+			Side:                side,
+			Type:                orderType,
+			Pair:                pair,
+			ExecutedQuoteAmount: resp.CumulativeQuoteQty,
+			AssetType:           assetType,
+			Status:              status,
+			Price:               resp.Price,
+			ExecutedAmount:      resp.ExecutedQty,
+			Date:                resp.Time.Time(),
+			LastUpdated:         resp.UpdateTime.Time(),
 		}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := e.FuturesOpenOrderData(ctx, pair, orderID, "")
@@ -1414,22 +1414,21 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					cost = resp[i].CumulativeQuoteQty
 				}
 				detail := order.Detail{
-					Amount:          resp[i].OrigQty,
-					ExecutedAmount:  resp[i].ExecutedQty,
-					RemainingAmount: resp[i].OrigQty - resp[i].ExecutedQty,
-					Cost:            cost,
-					CostAsset:       req.Pairs[x].Quote,
-					Date:            resp[i].Time.Time(),
-					LastUpdated:     resp[i].UpdateTime.Time(),
-					Exchange:        e.Name,
-					OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
-					Side:            side,
-					Type:            orderType,
-					Price:           resp[i].Price,
-					Pair:            req.Pairs[x],
-					Status:          orderStatus,
+					Amount:              resp[i].OrigQty,
+					ExecutedAmount:      resp[i].ExecutedQty,
+					RemainingAmount:     resp[i].OrigQty - resp[i].ExecutedQty,
+					ExecutedQuoteAmount: cost,
+					Date:                resp[i].Time.Time(),
+					LastUpdated:         resp[i].UpdateTime.Time(),
+					Exchange:            e.Name,
+					OrderID:             strconv.FormatInt(resp[i].OrderID, 10),
+					Side:                side,
+					Type:                orderType,
+					Price:               resp[i].Price,
+					Pair:                req.Pairs[x],
+					Status:              orderStatus,
 				}
-				detail.InferCostsAndTimes()
+				detail.InferExecutionAndTimes()
 				orders = append(orders, detail)
 			}
 		}
@@ -2649,7 +2648,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 							AverageExecutedPrice: orders[i].AvgPrice,
 							ExecutedAmount:       orders[i].ExecutedQty,
 							RemainingAmount:      orders[i].OrigQty - orders[i].ExecutedQty,
-							CostAsset:            req.Pairs[x].Quote,
 							Leverage:             result[y].Leverage,
 							Exchange:             e.Name,
 							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
@@ -2703,11 +2701,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
-						var orderPair currency.Pair
-						orderPair, err = currency.NewPairFromString(orders[i].Pair)
-						if err != nil {
-							return nil, err
-						}
 						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
 						var mt margin.Type
 						mt, err = margin.StringToMarginType(result[y].MarginType)
@@ -2725,7 +2718,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 							ExecutedAmount:       orders[i].ExecutedQty,
 							RemainingAmount:      orders[i].OrigQty - orders[i].ExecutedQty,
 							Leverage:             result[y].Leverage,
-							CostAsset:            orderPair.Base,
 							Exchange:             e.Name,
 							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 							ClientOrderID:        orders[i].ClientOrderID,

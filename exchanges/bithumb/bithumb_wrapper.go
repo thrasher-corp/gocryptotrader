@@ -701,7 +701,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				orderDetail.Side = order.Sell
 			}
 
-			orderDetail.InferCostsAndTimes()
+			orderDetail.InferExecutionAndTimes()
 			orders = append(orders, orderDetail)
 		}
 	}

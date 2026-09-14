@@ -501,7 +501,6 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 			Side:           side,
 			Type:           orderType,
 			Pair:           resp.Result[x].CurrencyPair,
-			Cost:           resp.Result[x].Fee.Float64(),
 			AssetType:      a,
 			Price:          resp.Result[x].Price.Float64(),
 			ExecutedAmount: resp.Result[x].Amount.Float64() - resp.Result[x].Left.Float64(),

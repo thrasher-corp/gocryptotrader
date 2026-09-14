@@ -1647,7 +1647,6 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		Price:           52789.1,
 		Amount:          0.00028400,
 		RemainingAmount: 0.00028400,
-		CostAsset:       currency.USDT,
 		FeeAsset:        currency.BTC,
 		Exchange:        "Binanceus",
 		OrderID:         "5340845958",

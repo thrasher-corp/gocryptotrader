@@ -1123,7 +1123,6 @@ func (e *Exchange) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse, p
 		QuoteAmount:          quoteAmount,
 		ExecutedAmount:       genOrderDetail.FilledSize.Float64(),
 		RemainingAmount:      remainingAmount,
-		Cost:                 genOrderDetail.TotalValueAfterFees.Float64(),
 		Fee:                  genOrderDetail.TotalFees.Float64(),
 		Exchange:             e.GetName(),
 		OrderID:              genOrderDetail.OrderID,

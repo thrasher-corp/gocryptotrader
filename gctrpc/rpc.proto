@@ -303,7 +303,7 @@ message OrderDetails {
   double amount = 13;
   double open_volume = 14;
   double fee = 15;
-  double cost = 16;
+  double executed_quote_amount = 16;
   repeated TradeHistory trades = 17;
   double contract_amount = 18;
 }

@@ -2323,6 +2323,51 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
+func TestSpotExecutionResponseMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
+		"StorePairs must enable the test pair")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"limit","account":"spot","side":"buy","amount":"3","price":"10","time_in_force":"gtc","left":"1","avg_deal_price":"10","fee":"0.02","fee_currency":"USDT","filled_total":"20"}`))
+		assert.NoError(t, err, "Mock spot order response must be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	response, err := ex.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:    ex.Name,
+		Pair:        currency.NewBTCUSDT(),
+		Side:        order.Buy,
+		Type:        order.Limit,
+		Price:       10,
+		Amount:      3,
+		AssetType:   asset.Spot,
+		TimeInForce: order.GoodTillCancel,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1.0, response.RemainingAmount, "remaining amount must be copied from the exchange response")
+	require.Equal(t, 10.0, response.AverageExecutedPrice, "average execution price must be copied from the exchange response")
+	require.Equal(t, 20.0, response.ExecutedQuoteAmount, "filled quote amount must be copied from the exchange response")
+	require.Equal(t, 0.02, response.Fee, "fee must be copied from the exchange response")
+	require.Equal(t, currency.USDT, response.FeeAsset, "fee asset must be copied from the exchange response")
+
+	detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err)
+	require.Equal(t, 2.0, detail.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
+	require.Equal(t, 1.0, detail.RemainingAmount, "remaining amount must be copied from the exchange response")
+	require.Equal(t, 10.0, detail.AverageExecutedPrice, "average execution price must be copied from the exchange response")
+	require.Equal(t, 20.0, detail.ExecutedQuoteAmount, "executed quote amount must be copied from the exchange filled total")
+	require.Equal(t, 0.02, detail.Fee, "fee must not be stored as execution cost")
+	require.Equal(t, currency.USDT, detail.FeeAsset, "fee asset must be copied from the exchange response")
+}
+
 func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	for _, a := range e.GetAssetTypes(false) {
@@ -3539,13 +3584,12 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 		Date:                 time.UnixMilli(1735720637188),
 		LastUpdated:          time.UnixMilli(1735720637188),
 		Amount:               0.0001,
+		ExecutedQuoteAmount:  9.35033,
 		AverageExecutedPrice: 93503.3,
 		Type:                 order.Market,
 		Side:                 order.Sell,
 		Status:               order.Filled,
 		TimeInForce:          order.ImmediateOrCancel,
-		Cost:                 0.0001,
-		Purchased:            9.35033,
 	}, got)
 }
 
@@ -3582,13 +3626,12 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735720637188),
 					LastUpdated:          time.UnixMilli(1735720637188),
 					Amount:               0.0001,
+					ExecutedQuoteAmount:  9.35033,
 					AverageExecutedPrice: 93503.3,
 					Type:                 order.Market,
 					Side:                 order.Sell,
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
-					Cost:                 0.0001,
-					Purchased:            9.35033,
 				},
 				{
 					Exchange:             e.Name,
@@ -3598,15 +3641,13 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					ClientOrderID:        "t-1735720637126962151",
 					Date:                 time.UnixMilli(1735720637142),
 					LastUpdated:          time.UnixMilli(1735720637142),
-					RemainingAmount:      0.000008,
-					Amount:               9.99152,
+					QuoteAmount:          9.99152,
+					ExecutedQuoteAmount:  9.991512,
 					AverageExecutedPrice: 0.01224,
 					Type:                 order.Market,
 					Side:                 order.Buy,
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
-					Cost:                 9.991512,
-					Purchased:            816.3,
 				},
 				{
 					Exchange:             e.Name,
@@ -3617,14 +3658,13 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735778597363),
 					LastUpdated:          time.UnixMilli(1735778597363),
 					Amount:               200,
+					ExecutedQuoteAmount:  7.346,
 					Price:                0.03673,
 					AverageExecutedPrice: 0.03673,
 					Type:                 order.Limit,
 					Side:                 order.Buy,
 					Status:               order.Filled,
 					TimeInForce:          order.FillOrKill,
-					Cost:                 7.346,
-					Purchased:            200,
 				},
 				{
 					Exchange:        e.Name,
@@ -3663,7 +3703,8 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 		{
 			name: "batch of spot orders with error at end",
 			// This is specifically testing the return responses of WebsocketSpotSubmitOrders
-			// AverageDealPrice is not returned when using this endpoint so purchased and cost fields cannot be set.
+			// AverageDealPrice is not returned when using this endpoint, but the
+			// authoritative filled quote total must still be retained.
 			orders: [][]byte{
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
@@ -3671,34 +3712,34 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			},
 			expected: []*order.SubmitResponse{
 				{
-					Exchange:        e.Name,
-					OrderID:         "775453816782",
-					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-740",
-					Date:            time.UnixMilli(1736980695949),
-					LastUpdated:     time.UnixMilli(1736980695949),
-					Amount:          9.98,
-					RemainingAmount: 0.047239,
-					Type:            order.Market,
-					Side:            order.Buy,
-					Status:          order.Filled,
-					TimeInForce:     order.FillOrKill,
+					Exchange:            e.Name,
+					OrderID:             "775453816782",
+					AssetType:           asset.Spot,
+					Pair:                currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:       "t-740",
+					Date:                time.UnixMilli(1736980695949),
+					LastUpdated:         time.UnixMilli(1736980695949),
+					QuoteAmount:         9.98,
+					ExecutedQuoteAmount: 9.932761,
+					Type:                order.Market,
+					Side:                order.Buy,
+					Status:              order.Filled,
+					TimeInForce:         order.FillOrKill,
 				},
 				{
-					Exchange:        e.Name,
-					OrderID:         "775453816824",
-					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.LIKE, currency.ETH).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-741",
-					Date:            time.UnixMilli(1736980695956),
-					LastUpdated:     time.UnixMilli(1736980695956),
-					RemainingAmount: 0.00000000962,
-					Amount:          0.00289718,
-					Type:            order.Market,
-					Side:            order.Buy,
-					Status:          order.Filled,
-					TimeInForce:     order.FillOrKill,
+					Exchange:            e.Name,
+					OrderID:             "775453816824",
+					AssetType:           asset.Spot,
+					Pair:                currency.NewPair(currency.LIKE, currency.ETH).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:       "t-741",
+					Date:                time.UnixMilli(1736980695956),
+					LastUpdated:         time.UnixMilli(1736980695956),
+					QuoteAmount:         0.00289718,
+					ExecutedQuoteAmount: 0.00289717038,
+					Type:                order.Market,
+					Side:                order.Buy,
+					Status:              order.Filled,
+					TimeInForce:         order.FillOrKill,
 				},
 				{
 					Exchange:        e.Name,

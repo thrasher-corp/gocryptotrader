@@ -614,20 +614,20 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 
 	return &order.Detail{
-		Amount:         resp.OrigQty,
-		Exchange:       e.Name,
-		OrderID:        strconv.FormatUint(resp.OrderID, 10),
-		ClientOrderID:  resp.ClientOrderID,
-		Side:           orderSide,
-		Type:           orderType,
-		Pair:           pair,
-		Cost:           resp.CumulativeQuoteQty,
-		AssetType:      assetType,
-		Status:         status,
-		Price:          resp.Price,
-		ExecutedAmount: resp.ExecutedQty,
-		Date:           resp.Time.Time(),
-		LastUpdated:    resp.UpdateTime.Time(),
+		Amount:              resp.OrigQty,
+		Exchange:            e.Name,
+		OrderID:             strconv.FormatUint(resp.OrderID, 10),
+		ClientOrderID:       resp.ClientOrderID,
+		Side:                orderSide,
+		Type:                orderType,
+		Pair:                pair,
+		ExecutedQuoteAmount: resp.CumulativeQuoteQty,
+		AssetType:           assetType,
+		Status:              status,
+		Price:               resp.Price,
+		ExecutedAmount:      resp.ExecutedQty,
+		Date:                resp.Time.Time(),
+		LastUpdated:         resp.UpdateTime.Time(),
 	}, nil
 }
 

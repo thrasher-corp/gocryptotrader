@@ -59,6 +59,12 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
   field, extend that contract or document the omission; do not overload a field
   with different units or semantics. In particular, fees must populate fee
   fields and must not be stored as execution cost.
+- Generic execution fields must have stable units and meaning across side and
+  transport. Do not expose direction-dependent convenience values, such as one
+  field meaning purchased base for buys and received quote for sells. Preserve
+  unit-stable exchange facts and leave derived execution counterparts to the
+  consumer. Ambiguous generic `Cost`, `CostAsset`, and `Purchased` execution
+  fields are prohibited; use explicit requested and executed quantity fields.
 - REST and websocket adapters for the same exchange must expose compatible
   units and semantics. Tests must cover both mappings when either path is
   changed. Missing or contradictory execution facts must remain visible so the

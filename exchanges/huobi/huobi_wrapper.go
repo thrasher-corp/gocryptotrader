@@ -1556,22 +1556,21 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 			for x := range resp {
 				orderDetail := order.Detail{
-					OrderID:         strconv.FormatInt(resp[x].ID, 10),
-					Price:           resp[x].Price,
-					Amount:          resp[x].Amount,
-					ExecutedAmount:  resp[x].FilledAmount,
-					RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
-					Cost:            resp[x].FilledCashAmount,
-					CostAsset:       req.Pairs[i].Quote,
-					Pair:            req.Pairs[i],
-					Exchange:        e.Name,
-					Date:            resp[x].CreatedAt.Time(),
-					CloseTime:       resp[x].FinishedAt.Time(),
-					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
-					Fee:             resp[x].FilledFees,
+					OrderID:             strconv.FormatInt(resp[x].ID, 10),
+					Price:               resp[x].Price,
+					Amount:              resp[x].Amount,
+					ExecutedAmount:      resp[x].FilledAmount,
+					RemainingAmount:     resp[x].Amount - resp[x].FilledAmount,
+					ExecutedQuoteAmount: resp[x].FilledCashAmount,
+					Pair:                req.Pairs[i],
+					Exchange:            e.Name,
+					Date:                resp[x].CreatedAt.Time(),
+					CloseTime:           resp[x].FinishedAt.Time(),
+					AccountID:           strconv.FormatInt(resp[x].AccountID, 10),
+					Fee:                 resp[x].FilledFees,
 				}
 				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
-				orderDetail.InferCostsAndTimes()
+				orderDetail.InferExecutionAndTimes()
 				orders = append(orders, orderDetail)
 			}
 		}

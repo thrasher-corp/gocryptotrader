@@ -939,7 +939,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			Type:                 oType,
 			Pair:                 pair,
 		}
-		orderDetail.InferCostsAndTimes()
+		orderDetail.InferExecutionAndTimes()
 
 		orders[i] = orderDetail
 	}

@@ -1491,7 +1491,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				Type:            oType,
 				Pair:            pair,
 			})
-			orders[i].InferCostsAndTimes()
+			orders[i].InferExecutionAndTimes()
 		}
 	case asset.Spot, asset.Margin:
 		var singlePair currency.Pair
@@ -1632,7 +1632,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 					Type:            oType,
 					Pair:            pair,
 				}
-				orders[i].InferCostsAndTimes()
+				orders[i].InferExecutionAndTimes()
 			}
 		}
 	}
@@ -2247,7 +2247,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 				ContractAmount:  positionOrders.Items[y].Size,
 				ExecutedAmount:  positionOrders.Items[y].FilledSize,
 				RemainingAmount: positionOrders.Items[y].Size - positionOrders.Items[y].FilledSize,
-				CostAsset:       currency.NewCode(positionOrders.Items[y].SettleCurrency),
 				Exchange:        e.Name,
 				OrderID:         positionOrders.Items[y].ID,
 				ClientOrderID:   positionOrders.Items[y].ClientOid,

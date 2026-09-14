@@ -372,47 +372,47 @@ func TestOrderTypeToString(t *testing.T) {
 	}
 }
 
-func TestInferCostsAndTimes(t *testing.T) {
+func TestInferExecutionAndTimes(t *testing.T) {
 	t.Parallel()
 	var detail Detail
-	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.Amount, "InferCostsAndTimes on empty details should set correct Amount")
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.Amount, "InferExecutionAndTimes on empty details should set correct Amount")
 
 	detail.CloseTime = time.Now()
-	detail.InferCostsAndTimes()
+	detail.InferExecutionAndTimes()
 	assert.Equal(t, detail.CloseTime, detail.LastUpdated, "Order last updated not equals close time")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
-	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.AverageExecutedPrice, "InferCostsAndTimes should set AverageExecutedPrice correctly")
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.AverageExecutedPrice, "InferExecutionAndTimes should set AverageExecutedPrice correctly")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
-	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.Cost, "InferCostsAndTimes should set Cost correctly")
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.ExecutedQuoteAmount, "InferExecutionAndTimes should set ExecutedQuoteAmount correctly")
 
 	detail.ExecutedAmount = 0
 
 	detail.Amount = 1
 	detail.RemainingAmount = 1
-	detail.InferCostsAndTimes()
+	detail.InferExecutionAndTimes()
 	assert.Equal(t, detail.ExecutedAmount+detail.RemainingAmount, detail.Amount)
 	detail.RemainingAmount = 0
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.Price = 2
-	detail.InferCostsAndTimes()
+	detail.InferExecutionAndTimes()
 	assert.Equal(t, 2.0, detail.AverageExecutedPrice)
 
-	detail = Detail{Amount: 1, ExecutedAmount: 2, Cost: 3, Price: 0}
-	detail.InferCostsAndTimes()
+	detail = Detail{Amount: 1, ExecutedAmount: 2, ExecutedQuoteAmount: 3, Price: 0}
+	detail.InferExecutionAndTimes()
 	assert.Equal(t, 1.5, detail.AverageExecutedPrice)
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
-	detail.InferCostsAndTimes()
-	assert.Equal(t, 6.0, detail.Cost)
+	detail.InferExecutionAndTimes()
+	assert.Equal(t, 6.0, detail.ExecutedQuoteAmount)
 }
 
 func TestFilterOrdersByType(t *testing.T) {
@@ -1063,7 +1063,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, "BTCUSD", od.Pair.String())
 	assert.Zero(t, od.ContractAmount)
 	assert.Zero(t, od.AverageExecutedPrice)
-	assert.Zero(t, od.Cost)
+	assert.Zero(t, od.ExecutedQuoteAmount)
 	assert.True(t, od.CloseTime.IsZero())
 	assert.Nil(t, od.Trades)
 
@@ -1097,14 +1097,14 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(&Detail{
 		ContractAmount:       10,
 		AverageExecutedPrice: 11,
-		Cost:                 12,
+		ExecutedQuoteAmount:  12,
 		CloseTime:            closeTime,
 		LastUpdated:          lastUpdated,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 10.0, od.ContractAmount)
 	assert.Equal(t, 11.0, od.AverageExecutedPrice)
-	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, 12.0, od.ExecutedQuoteAmount)
 	assert.Equal(t, closeTime, od.CloseTime)
 	assert.Equal(t, lastUpdated, od.LastUpdated)
 
@@ -1122,7 +1122,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 10.0, od.ContractAmount)
 	assert.Equal(t, 11.0, od.AverageExecutedPrice)
-	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, 12.0, od.ExecutedQuoteAmount)
 	assert.Equal(t, nextCloseTime, od.CloseTime)
 	assert.Equal(t, lastUpdatedWithoutIncoming, od.LastUpdated)
 

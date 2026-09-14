@@ -1114,7 +1114,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			QuoteAmount:          resp.QuoteAmount.Float64(),
 			ExecutedAmount:       resp.FilledQuantity.Float64(),
 			RemainingAmount:      resp.BaseAmount.Float64() - resp.FilledAmount.Float64(),
-			Cost:                 resp.FilledQuantity.Float64() * resp.AveragePrice.Float64(),
 			Side:                 resp.Side,
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
@@ -1463,7 +1462,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					LastUpdated:          tOrder.UpdateTime.Time(),
 					TimeInForce:          tOrder.TimeInForce,
 				}
-				detail.InferCostsAndTimes()
+				detail.InferExecutionAndTimes()
 				orders = append(orders, detail)
 			}
 			return req.Filter(e.Name, orders), nil
@@ -1516,7 +1515,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					LastUpdated:   smartOrder.UpdateTime.Time(),
 					TimeInForce:   smartOrder.TimeInForce,
 				}
-				detail.InferCostsAndTimes()
+				detail.InferExecutionAndTimes()
 				orders = append(orders, detail)
 			}
 			return orders, nil
@@ -1558,7 +1557,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			LastUpdated:     fOrder.UpdateTime.Time(),
 			TimeInForce:     fOrder.TimeInForce,
 		}
-		detail.InferCostsAndTimes()
+		detail.InferExecutionAndTimes()
 		orders = append(orders, detail)
 	}
 	return req.Filter(e.Name, orders), nil

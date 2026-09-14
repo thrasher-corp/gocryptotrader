@@ -368,7 +368,11 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 		submitResponse.Status = gctorder.Filled
 		submitResponse.OrderID = orderID.String()
 		submitResponse.Fee = fee.InexactFloat64()
-		submitResponse.Cost = submit.Price
+		if submit.QuoteAmount > 0 {
+			submitResponse.ExecutedQuoteAmount = submit.QuoteAmount
+		} else {
+			submitResponse.ExecutedQuoteAmount = submit.Amount * submit.Price
+		}
 		submitResponse.LastUpdated = f.GetTime()
 		submitResponse.Date = f.GetTime()
 		resp, err = orderManager.SubmitFakeOrder(submit, submitResponse, useExchangeLimits)
