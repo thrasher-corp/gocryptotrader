@@ -1046,23 +1046,36 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
-	if err != nil || !e.Websocket.CanUseAuthenticatedEndpoints() {
+	if err != nil {
 		return subs, err
 	}
 	// Depth channels reload the whole book on every push, which would clobber a realtime book for the same pair, so
-	// the realtime upgrade leaves pairs an explicit depth channel already feeds to that channel.
-	depthFed := make(map[bool]map[[2]*currency.Item]struct{}, 2)
+	// the realtime upgrade leaves pairs an explicit depth channel already feeds to that channel. Symbols are matched as
+	// the depth topic spells them, so a topic KuCoin will not serve, such as a config-format pair or a candle suffix,
+	// keeps its realtime feed. Level 1 is left out: its best bid and ask never decode as a book.
+	depthFed := make(map[bool]map[string]struct{}, 2)
+	depthTopics := make(map[string]struct{})
 	for _, s := range subs {
 		switch s.Channel {
-		case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel, futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
+		case marketOrderbookDepth5Channel, marketOrderbookDepth50Channel, futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
 			isFutures := s.Channel == futuresOrderbookDepth5Channel || s.Channel == futuresOrderbookDepth50Channel
 			if depthFed[isFutures] == nil {
-				depthFed[isFutures] = make(map[[2]*currency.Item]struct{})
+				depthFed[isFutures] = make(map[string]struct{})
 			}
-			for _, pair := range s.Pairs {
-				depthFed[isFutures][[2]*currency.Item{pair.Base.Item, pair.Quote.Item}] = struct{}{}
+			channel, symbols, _ := strings.Cut(s.QualifiedChannel, ":")
+			for symbol := range strings.SplitSeq(symbols, ",") {
+				depthFed[isFutures][symbol] = struct{}{}
+				depthTopics[channel+":"+symbol] = struct{}{}
 			}
 		}
+	}
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		// KuCoin keeps one subscription per topic, so a generic orderbook on an explicit depth channel's topic would
+		// silence it when the realtime upgrade unsubscribes the generic; the explicit channel carries that topic alone.
+		return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
+			_, shared := depthTopics[s.QualifiedChannel]
+			return shared && s.Channel == subscription.OrderbookChannel
+		}), nil
 	}
 	// Resolve authenticated orderbooks after expansion so the realtime feed is reflected in
 	// subscription reconciliation keys and does not retain the public depth feed interval.
@@ -1078,15 +1091,6 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 			return nil, err
 		}
 		s = s.Clone()
-		if fed := depthFed[s.Asset == asset.Futures]; len(fed) != 0 && len(s.Pairs) != 0 {
-			s.Pairs = slices.DeleteFunc(s.Pairs, func(pair currency.Pair) bool {
-				_, ok := fed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}]
-				return ok
-			})
-			if len(s.Pairs) == 0 {
-				continue
-			}
-		}
 		channel := marketOrderbookChannel
 		formatAsset := s.Asset
 		if s.Asset == asset.Futures {
@@ -1097,6 +1101,15 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 		format, err := e.GetPairFormat(formatAsset, true)
 		if err != nil {
 			return nil, err
+		}
+		if fed := depthFed[s.Asset == asset.Futures]; len(fed) != 0 && len(s.Pairs) != 0 {
+			s.Pairs = slices.DeleteFunc(s.Pairs, func(pair currency.Pair) bool {
+				_, ok := fed[pair.Format(format).String()]
+				return ok
+			})
+			if len(s.Pairs) == 0 {
+				continue
+			}
 		}
 		s.Channel = channel
 		s.QualifiedChannel = channel + ":" + s.Pairs.Format(format).Join()
@@ -1135,12 +1148,18 @@ func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item
 	switch {
 	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
 		if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
-			return nil, err
+			if !errors.Is(err, asset.ErrNotSupported) {
+				return nil, err
+			}
+			return nil, nil
 		}
 		return []asset.Item{asset.Futures}, nil
 	case strings.HasPrefix(topic, "/margin"), strings.HasPrefix(topic, "/index"):
 		if err := e.CurrencyPairs.IsAssetEnabled(asset.Margin); err != nil {
-			return nil, err
+			if !errors.Is(err, asset.ErrNotSupported) {
+				return nil, err
+			}
+			return nil, nil
 		}
 		return []asset.Item{asset.Margin}, nil
 	default:
@@ -1338,14 +1357,14 @@ func (e *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.I
 }
 
 func (e *Exchange) filterAssetFeedPairs(s *subscription.Subscription, assetType asset.Item, pairs currency.Pairs) currency.Pairs {
-	score := sharedFeedPriority(s)
+	score := e.sharedFeedPriority(s)
 	claimed := make(map[[2]*currency.Item]struct{})
 	for _, other := range e.Features.Subscriptions {
 		if other == s || other.QualifiedChannel != "" || other.Authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() ||
 			(other.Asset != asset.All && other.Asset != assetType) || !sameSharedFeed(other, s) {
 			continue
 		}
-		if otherScore := sharedFeedPriority(other); otherScore > score || otherScore == score && other.Asset != s.Asset && other.Asset == assetType {
+		if otherScore := e.sharedFeedPriority(other); otherScore > score || otherScore == score && other.Asset != s.Asset && other.Asset == assetType {
 			for _, pair := range e.subscriptionPairsForAsset(other, assetType) {
 				claimed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}] = struct{}{}
 			}
@@ -1369,13 +1388,13 @@ func (e *Exchange) subscriptionPairsForAsset(s *subscription.Subscription, asset
 }
 
 func (e *Exchange) filterSharedFeedPairs(s *subscription.Subscription, pairs currency.Pairs) currency.Pairs {
-	score := sharedFeedPriority(s)
+	score := e.sharedFeedPriority(s)
 	claimed := make(map[[2]*currency.Item]struct{})
 	for _, other := range e.Features.Subscriptions {
 		if other == s || !e.sharedFeedCandidate(other, s) {
 			continue
 		}
-		if otherScore := sharedFeedPriority(other); otherScore > score || otherScore == score && other.Asset != s.Asset && sharedAssetPriority(other.Asset) > sharedAssetPriority(s.Asset) {
+		if otherScore := e.sharedFeedPriority(other); otherScore > score || otherScore == score && other.Asset != s.Asset && sharedAssetPriority(other.Asset) > sharedAssetPriority(s.Asset) {
 			for _, pair := range e.sharedFeedPairs(other) {
 				claimed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}] = struct{}{}
 			}
@@ -1422,13 +1441,20 @@ func (e *Exchange) sharedFeedPairs(s *subscription.Subscription) currency.Pairs 
 	return pairs
 }
 
-func sharedFeedPriority(s *subscription.Subscription) int {
+func (e *Exchange) sharedFeedPriority(s *subscription.Subscription) int {
 	priority := 0
 	if len(s.Pairs) != 0 {
 		priority += 2
 	}
 	if s.Asset != asset.All {
 		priority++
+	}
+	// A public orderbook topic keeps any candle suffix, where KuCoin sends nothing, so that entry ranks below every entry
+	// with a served topic and yields the pairs they share; the realtime rewrite drops the suffix, so auth leaves ranks alone.
+	if s.Channel == subscription.OrderbookChannel && !e.Websocket.CanUseAuthenticatedEndpoints() {
+		if _, err := IntervalToString(s.Interval); err == nil {
+			priority -= 4
+		}
 	}
 	return priority
 }

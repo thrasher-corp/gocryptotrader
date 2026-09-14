@@ -327,16 +327,23 @@ func TestGenerateRealtimeOrderbooksCoalescesNormalisedKeys(t *testing.T) {
 				require.NoError(t, genErr, "distinct configured subscriptions must generate")
 				_, err = subscription.NewStoreFromList(subs)
 				require.NoError(t, err, "normalised subscriptions must fit the connection store")
-				var books, tickers int
+				var tickers int
+				served := make(map[string]int)
 				for _, sub := range subs {
 					if sub.Channel == subscription.TickerChannel {
 						tickers++
-					} else {
-						books++
+						continue
+					}
+					// KuCoin never serves a suffixed orderbook topic, so only unsuffixed symbols count as coverage.
+					if _, symbol, _ := strings.Cut(sub.QualifiedChannel, ":"); !strings.Contains(symbol, "_") {
+						served[symbol]++
 					}
 				}
 				assert.Equal(t, 4, tickers, "unrelated ticker subscriptions should remain intact")
-				assert.Equal(t, 9, books, "shared-feed subscriptions should contain each pair once")
+				assert.Lenf(t, served, 9, "every enabled pair should keep a served orderbook topic with authentication=%t", authenticated)
+				for symbol, count := range served {
+					assert.Equalf(t, 1, count, "%s should be served by one orderbook subscription with authentication=%t", symbol, authenticated)
+				}
 			}
 		})
 	}
@@ -669,6 +676,160 @@ func TestGenerateRealtimeOrderbooksLeavesDepthFedPairs(t *testing.T) {
 		realtime := slices.Contains(channels, marketOrderbookChannel) || slices.Contains(channels, futuresOrderbookChannel)
 		depth := slices.ContainsFunc(channels, func(channel string) bool { return strings.Contains(channel, "Depth") })
 		assert.Falsef(t, realtime && depth, "%s should not be fed by both a depth and a realtime topic: %v", symbol, channels)
+	}
+}
+
+func TestGenerateRealtimeOrderbooksKeepsUnservedDepthPairs(t *testing.T) {
+	t.Parallel()
+	configFormat, err := currency.NewPairFromString("XBT_USDCM")
+	require.NoError(t, err, "config-format futures pair must parse")
+	for _, test := range []struct {
+		name  string
+		sub   *subscription.Subscription
+		topic string
+	}{
+		{name: "level 1", sub: &subscription.Subscription{Channel: marketOrderbookDepth1Channel, Asset: asset.Spot}, topic: marketOrderbookChannel + ":BTC-USDT"},
+		{name: "config-format pair", sub: &subscription.Subscription{Channel: futuresOrderbookDepth5Channel, Asset: asset.Futures, Pairs: currency.Pairs{configFormat}}, topic: futuresOrderbookChannel + ":XBTUSDCM"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Features.Subscriptions = subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+				test.sub,
+			}
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			subs, err := ku.generateSubscriptions()
+			require.NoError(t, err, "generateSubscriptions must not error")
+			assert.True(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
+				return sub.QualifiedChannel == test.topic
+			}), "a depth topic that cannot feed the book should not displace its realtime feed")
+		})
+	}
+}
+
+func TestGenerateOrderbooksAuthFlipKeepsSharedTopics(t *testing.T) {
+	t.Parallel()
+	generic := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}
+	depth := &subscription.Subscription{Channel: marketOrderbookDepth5Channel, Asset: asset.Spot}
+	batch := &subscription.Subscription{
+		Channel: marketOrderbookDepth5Channel, Asset: asset.Spot,
+		Pairs:            currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-"), currency.NewPairWithDelimiter("ETH", "BTC", "-")},
+		QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT,ETH-BTC",
+	}
+	candle := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin}
+	topics := func(l subscription.List) map[string]bool {
+		out := make(map[string]bool)
+		for _, sub := range l {
+			channel, symbols, _ := strings.Cut(sub.QualifiedChannel, ":")
+			for symbol := range strings.SplitSeq(symbols, ",") {
+				out[channel+":"+symbol] = true
+			}
+		}
+		return out
+	}
+	for _, test := range []struct {
+		name string
+		subs subscription.List
+	}{
+		{name: "explicit depth", subs: subscription.List{generic, depth}},
+		{name: "pre-expanded depth batch", subs: subscription.List{generic, batch}},
+		{name: "candle interval entry", subs: subscription.List{generic, candle, depth}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Features.Subscriptions = test.subs.Clone()
+			for _, authenticated := range []bool{false, true} {
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+				before, err := ku.generateSubscriptions()
+				require.NoErrorf(t, err, "subscriptions must generate with authentication=%t", authenticated)
+				store, err := subscription.NewStoreFromList(before)
+				require.NoErrorf(t, err, "subscriptions must fit the store with authentication=%t", authenticated)
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(!authenticated)
+				after, err := ku.generateSubscriptions()
+				require.NoErrorf(t, err, "subscriptions must generate with authentication=%t", !authenticated)
+				added, removed := store.Diff(after)
+				kept := slices.DeleteFunc(slices.Clone(after), func(sub *subscription.Subscription) bool { return slices.Contains(added, sub) })
+				stays := topics(kept)
+				for topic := range topics(removed) {
+					assert.Falsef(t, stays[topic], "unsubscribing %s should not silence a subscription that stays", topic)
+				}
+			}
+		})
+	}
+}
+
+func TestGeneratePublicOrderbooksKeepServedTopics(t *testing.T) {
+	t.Parallel()
+	generic := func(a asset.Item, interval kline.Interval, pairs ...currency.Pair) *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: a, Interval: interval, Pairs: pairs}
+	}
+	for _, test := range []struct {
+		name  string
+		subs  subscription.List
+		topic string
+	}{
+		{name: "spot", subs: subscription.List{generic(asset.All, kline.HundredMilliseconds), generic(asset.Spot, kline.OneMin)}, topic: marketOrderbookDepth5Channel + ":BTC-USDT"},
+		{name: "pinned spot", subs: subscription.List{generic(asset.All, kline.HundredMilliseconds), generic(asset.Spot, kline.OneMin, currency.NewBTCUSDT())}, topic: marketOrderbookDepth5Channel + ":BTC-USDT"},
+		{name: "futures", subs: subscription.List{generic(asset.All, kline.HundredMilliseconds), generic(asset.Futures, kline.OneMin)}, topic: futuresOrderbookDepth5Channel + ":XBTUSDCM"},
+		{name: "margin", subs: subscription.List{generic(asset.Spot, kline.HundredMilliseconds), generic(asset.Margin, kline.OneMin)}, topic: marketOrderbookDepth5Channel + ":SOL-USDC"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Features.Subscriptions = test.subs
+			subs, err := ku.generateSubscriptions()
+			require.NoError(t, err, "generateSubscriptions must not error")
+			for _, sub := range subs {
+				assert.NotContainsf(t, sub.QualifiedChannel, "_1min", "orderbook topic %s should not carry a candle suffix", sub.QualifiedChannel)
+			}
+			assert.True(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
+				return sub.QualifiedChannel == test.topic
+			}), "a candle interval should not take a pair off a topic KuCoin serves")
+		})
+	}
+}
+
+func TestGeneratePublicOrderbooksKeepRankAmongSuffixedEntries(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	ku.Features.Subscriptions = subscription.List{
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin, Levels: 5, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+	}
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	topics := make(map[string]int)
+	for _, sub := range subs {
+		topics[sub.QualifiedChannel]++
+	}
+	for topic, count := range topics {
+		assert.Equalf(t, 1, count, "%s should be generated once", topic)
+	}
+}
+
+func TestCalculateAssetsToleratesUnsupportedAsset(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name  string
+		asset asset.Item
+		topic string
+		pair  string
+	}{
+		{name: "futures", asset: asset.Futures, topic: futuresOrderbookChannel, pair: "XBT-USDTM"},
+		{name: "margin", asset: asset.Margin, topic: marginPositionChannel, pair: "ETH-BTC"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			delete(ku.CurrencyPairs.Pairs, test.asset)
+			pair, err := currency.NewPairFromString(test.pair)
+			require.NoError(t, err, "pair must parse")
+			assets, err := ku.CalculateAssets(test.topic, pair)
+			require.NoError(t, err, "CalculateAssets must tolerate an unsupported asset")
+			assert.Empty(t, assets, "an unsupported asset should not be returned")
+		})
 	}
 }
 
@@ -1129,7 +1290,7 @@ func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 		t.Parallel()
 
 		ku := testInstance(t)
-		ku.Name += "-TestProcessSpotOrderbookWithDepth"
+		ku.Name = t.Name()
 		pair, err := currency.NewPairFromString("ETH-BTC")
 		require.NoError(t, err, "NewPairFromString must not error")
 		assets, err := ku.CalculateAssets(marketOrderbookChannel, pair)
