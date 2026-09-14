@@ -1035,6 +1035,9 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 			continue
 		}
 		od := raw[i].OrderDetail
+		if od.ClientOrderID == "" {
+			od.ClientOrderID = raw[i].NewClientOrderID // placed entry echoes the caller id as newClientOrderId
+		}
 		resp = append(resp, &od)
 	}
 	return resp, rejected
