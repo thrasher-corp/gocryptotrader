@@ -241,10 +241,10 @@ func TestSubmitOrderPlacedWhenStatusAbsent(t *testing.T) {
 	})
 	require.NoError(t, err, "SubmitOrder must not error")
 	require.NotEmpty(t, resp.OrderID, "the venue order id must be reported")
-	assert.Equal(t, order.New, resp.Status, "an accepted order with an id must report a placed status, not UnknownStatus")
+	assert.Equal(t, order.New, resp.Status, "an accepted order with an id should report a placed status, not UnknownStatus")
 	// The engine derives its Detail from this SubmitResponse (DeriveDetail copies Status), and
 	// order_placed on the gRPC boundary is Detail.WasOrderPlaced(): prove the status maps to placed.
-	assert.True(t, (&order.Detail{Status: resp.Status}).WasOrderPlaced(), "the derived detail must report the order as placed")
+	assert.True(t, (&order.Detail{Status: resp.Status}).WasOrderPlaced(), "the derived detail should report the order as placed")
 }
 
 // TestGetOrderInfoPairAndTimestamps asserts GetOrderInfo reports the requested pair (not one re-split
