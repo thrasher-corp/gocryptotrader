@@ -40,7 +40,7 @@ func TestResubscribe(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e))
-	e.Name = "Resubscribe"
+	e.Name = t.Name()
 
 	baseConn, err := e.Websocket.CreateTestConnection(asset.Spot)
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestResubscribeWithoutOrderbook(t *testing.T) {
 	require.NoError(t, err, "test connection creation must succeed")
 	conn := &FixtureConnection{Connection: baseConn}
 	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "fixture connection registration must succeed")
-	require.NoError(t, e.Websocket.AddSuccessfulSubscriptions(conn, subs...), "subscriptions must register")
+	require.NoError(t, e.Websocket.AddSubscriptions(conn, subs...), "subscriptions must register")
 	require.NoError(t, e.wsOBResubMgr.Resubscribe(t.Context(), e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot), "Resubscribe must not require an existing orderbook")
 	assert.True(t, e.wsOBResubMgr.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "a pair whose first snapshot was rejected should be able to resubscribe")
 	assert.Eventually(t,

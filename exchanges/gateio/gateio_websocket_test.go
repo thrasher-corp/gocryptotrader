@@ -227,7 +227,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e))
-	e.Name = "ProcessOrderbookUpdateWithSnapshot"
+	e.Name = t.Name()
 	e.ValidateOrderbook = true
 	e.Features.Subscriptions = subscription.List{
 		{Enabled: true, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
