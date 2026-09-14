@@ -2,7 +2,9 @@ on: [push, pull_request]
 name: CI
 permissions:
   contents: read
-  actions: write # required by styfle/cancel-workflow-action to cancel superseded runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 env:
   GO_VERSION: 1.26.x
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,11 +61,6 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.13.1
-      with:
-        access_token: ${{ github.token }}
-
     - name: Setup Postgres
       if: matrix.psql == true
       uses: ikalnytskyi/action-setup-postgres@v8
@@ -149,11 +146,6 @@ jobs:
       GCT_SKIP_LIVE_TESTS: true
 
     steps:
-    - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.13.1
-      with:
-        access_token: ${{ github.token }}
-
     - name: Setup Postgres
       uses: ikalnytskyi/action-setup-postgres@v8
       with:
@@ -189,11 +181,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.13.1
-      with:
-        access_token: ${{ github.token }}
-
     - name: Checkout code
       uses: actions/checkout@v7
 
