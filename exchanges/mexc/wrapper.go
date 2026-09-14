@@ -517,7 +517,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		resp := make([]trade.Data, len(result))
 		for t := range result {
 			side := order.Buy
-			if !result[t].IsBuyerMaker {
+			if result[t].IsBuyerMaker { // the buyer was the maker, so the taker sold
 				side = order.Sell
 			}
 			resp[t] = trade.Data{
@@ -551,10 +551,8 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 		}
 		resp := make([]trade.Data, len(result))
 		for t := range result {
-			var oSide order.Side
-			if result[t].MakerBuyer {
-				oSide = order.Buy
-			} else {
+			oSide := order.Buy
+			if result[t].MakerBuyer { // the buyer was the maker, so the taker sold
 				oSide = order.Sell
 			}
 			resp[t] = trade.Data{
@@ -850,7 +848,7 @@ func (e *Exchange) orderDetailFromRESTOrder(o *OrderDetail, fallbackPair currenc
 		}
 	}
 	// MEXC returns updateTime:null on an open (still-working) order, which decodes to the zero time.
-	// Fall back to the creation time so LastUpdated is never stamped at 1970. CERT finding ADR-272 §8.
+	// Fall back to the creation time so LastUpdated is never the zero time.
 	lastUpdated := o.UpdateTime.Time()
 	if lastUpdated.IsZero() {
 		lastUpdated = o.Time.Time()
