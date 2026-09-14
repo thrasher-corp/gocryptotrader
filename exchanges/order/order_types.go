@@ -135,6 +135,7 @@ type SubmitResponse struct {
 	Price                float64
 	Amount               float64
 	QuoteAmount          float64
+	ExecutedQuoteAmount  float64 // Authoritative filled amount denominated in the quote currency.
 	RemainingAmount      float64
 	TriggerPrice         float64
 	ClientID             string

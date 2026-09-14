@@ -996,8 +996,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		response.Status = status
-		response.Fee = sOrder.FeeDeducted.Float64()
-		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
+		applySpotExecutionToSubmitResponse(response, sOrder)
 		response.Pair = s.Pair
 		response.Date = sOrder.CreateTime.Time()
 		response.ClientOrderID = sOrder.Text
@@ -1094,6 +1093,23 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, s.AssetType)
 	}
+}
+
+func applySpotExecutionToSubmitResponse(response *order.SubmitResponse, spotOrder *SpotOrder) {
+	response.RemainingAmount = spotOrder.RemainingAmount.Float64()
+	response.AverageExecutedPrice = spotOrder.AverageFillPrice.Float64()
+	response.ExecutedQuoteAmount = spotOrder.FilledTotal.Float64()
+	response.Fee = spotOrder.FeeDeducted.Float64()
+	response.FeeAsset = currency.NewCode(spotOrder.FeeCurrency)
+}
+
+func applySpotExecutionToOrderDetail(detail *order.Detail, spotOrder *SpotOrder) {
+	detail.AverageExecutedPrice = spotOrder.AverageFillPrice.Float64()
+	detail.ExecutedAmount = spotOrder.Amount.Float64() - spotOrder.RemainingAmount.Float64()
+	detail.RemainingAmount = spotOrder.RemainingAmount.Float64()
+	detail.Cost = spotOrder.FilledTotal.Float64()
+	detail.Fee = spotOrder.FeeDeducted.Float64()
+	detail.FeeAsset = currency.NewCode(spotOrder.FeeCurrency)
 }
 
 // ModifyOrder modifies an existing order
@@ -1324,21 +1340,21 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		return &order.Detail{
-			Amount:         spotOrder.Amount.Float64(),
-			Exchange:       e.Name,
-			OrderID:        spotOrder.OrderID,
-			Side:           side,
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           spotOrder.FeeDeducted.Float64(),
-			AssetType:      a,
-			Status:         orderStatus,
-			Price:          spotOrder.Price.Float64(),
-			ExecutedAmount: spotOrder.Amount.Float64() - spotOrder.RemainingAmount.Float64(),
-			Date:           spotOrder.CreateTime.Time(),
-			LastUpdated:    spotOrder.UpdateTime.Time(),
-		}, nil
+		detail := &order.Detail{
+			Amount:      spotOrder.Amount.Float64(),
+			Exchange:    e.Name,
+			OrderID:     spotOrder.OrderID,
+			Side:        side,
+			Type:        orderType,
+			Pair:        pair,
+			AssetType:   a,
+			Status:      orderStatus,
+			Price:       spotOrder.Price.Float64(),
+			Date:        spotOrder.CreateTime.Time(),
+			LastUpdated: spotOrder.UpdateTime.Time(),
+		}
+		applySpotExecutionToOrderDetail(detail, spotOrder)
+		return detail, nil
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(pair, a)
 		if err != nil {
@@ -2873,6 +2889,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			LastUpdated:          resp.UpdateTimeMs.Time(),
 			RemainingAmount:      resp.Left.Float64(),
 			Amount:               resp.Amount.Float64(),
+			ExecutedQuoteAmount:  resp.FilledTotal.Float64(),
 			Price:                resp.Price.Float64(),
 			Type:                 oType,
 			Side:                 side,
