@@ -36,7 +36,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### Want to make your own configs?
 
-Use the provided config builder under `/backtester/config/configbuilder` or modify tests under `/backtester/config/config_test.go` to generates strategy files quickly
+Use the provided config builder under `/backtester/config/strategyconfigbuilder` or modify tests under `/backtester/config/strategyconfig_test.go` to generate strategy files quickly
 
 ## Donations
 

@@ -19,7 +19,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### What does the config builder do?
 
-The config builder runs you through the process of creating a strategy config (`.strat`) file. Configs can also be generated via test code under `config_test.go`.
+The config builder runs you through the process of creating a strategy config (`.strat`) file. Configs can also be generated via test code under `/backtester/config/strategyconfig_test.go`.
 Once the config is created, when running the backtester, you can reference it via `go run . -configpath=(path-to-strat-file)`
 
 ### How do I run it?

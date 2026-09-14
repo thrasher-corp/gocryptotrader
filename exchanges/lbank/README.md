@@ -23,7 +23,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### How to enable
 
-+ [Enable via configuration](https://githul.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
++ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
 
 + Individual package example below:
 

@@ -176,8 +176,8 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 787 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 485 |
-| [shazbert](https://github.com/shazbert) | 416 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 488 |
+| [shazbert](https://github.com/shazbert) | 417 |
 | [gloriousCode](https://github.com/gloriousCode) | 247 |
 | [gbjk](https://github.com/gbjk) | 145 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
@@ -190,7 +190,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Rots](https://github.com/Rots) | 15 |
 | [Copilot](https://github.com/apps/copilot-swe-agent) | 14 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [junnplus](https://github.com/junnplus) | 9 |
 | [cranktakular](https://github.com/cranktakular) | 9 |

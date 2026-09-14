@@ -79,7 +79,7 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 	assert.NotRegexp(t, `(?m)[ \t]+$`, string(readme), "generated README should not include trailing whitespace")
 
 	err = os.RemoveAll(testExchangeDir)
-	require.NoErrorf(t, err, "RemoveAll failed: %s, manual deletion of test directory required", err)
+	require.NoError(t, err, "removing the REST and websocket test exchange must not error")
 	_, err = makeExchange(
 		testExchangeDir,
 		cfg,
@@ -95,7 +95,7 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 	assert.NotContains(t, string(readme), "\n\n\n", "websocket-only README should not include consecutive blank lines")
 
 	err = os.RemoveAll(testExchangeDir)
-	require.NoErrorf(t, err, "RemoveAll failed: %s, manual deletion of test directory required", err)
+	require.NoError(t, err, "removing the websocket-only test exchange must not error")
 
 	exchCfg, err := makeExchange(
 		testExchangeDir,
