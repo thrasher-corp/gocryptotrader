@@ -49,8 +49,8 @@ type Orderbook struct {
 type TradingPair struct {
 	Name            string  `json:"name"`
 	URLSymbol       string  `json:"url_symbol"`
-	BaseDecimals    int     `json:"base_decimals"`    // int because math.Pow10 takes one
-	CounterDecimals int     `json:"counter_decimals"` // int because math.Pow10 takes one
+	BaseDecimals    uint8   `json:"base_decimals"`
+	CounterDecimals uint8   `json:"counter_decimals"`
 	MinimumOrder    float64 `json:"-"`
 	Trading         string  `json:"trading"`
 	Description     string  `json:"description"`

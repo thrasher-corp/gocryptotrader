@@ -11,16 +11,31 @@ import (
 
 func TestTradingPairUnmarshalJSON(t *testing.T) {
 	t.Parallel()
+	const inp = `
+{
+	"name": "BTC/USD",
+	"url_symbol": "btcusd",
+	"base_decimals": 8,
+	"counter_decimals": 2,
+	"instant_order_counter_decimals": 2,
+	"minimum_order": "10.00 USD",
+	"trading": "Enabled",
+	"instant_and_market_orders": "Enabled",
+	"description": "Bitcoin / U.S. dollar"
+}
+`
 	var p TradingPair
-	err := json.Unmarshal([]byte(`{"name":"EUR/USD","url_symbol":"eurusd","base_decimals":5,"counter_decimals":5,"minimum_order":"10.00000 USD","trading":"Enabled","description":"Euro / U.S. dollar"}`), &p)
-	require.NoError(t, err, "Unmarshal must not error")
-	assert.Equal(t, 10.0, p.MinimumOrder, "MinimumOrder should drop the currency suffix")
-	assert.Equal(t, "EUR/USD", p.Name, "Name should decode")
-	assert.Equal(t, "eurusd", p.URLSymbol, "URLSymbol should decode")
-	assert.Equal(t, 5, p.BaseDecimals, "BaseDecimals should decode")
-	assert.Equal(t, 5, p.CounterDecimals, "CounterDecimals should decode")
-	assert.Equal(t, "Enabled", p.Trading, "Trading should decode")
-	assert.Equal(t, "Euro / U.S. dollar", p.Description, "Description should decode")
+	require.NoError(t, json.Unmarshal([]byte(inp), &p), "Unmarshal must not error")
+	exp := TradingPair{
+		Name:            "BTC/USD",
+		URLSymbol:       "btcusd",
+		BaseDecimals:    8,
+		CounterDecimals: 2,
+		MinimumOrder:    10,
+		Trading:         "Enabled",
+		Description:     "Bitcoin / U.S. dollar",
+	}
+	assert.Equal(t, exp, p, "TradingPair should unmarshal correctly")
 
 	require.NoError(t, json.Unmarshal([]byte(`{"minimum_order":"0.0002"}`), &p), "Unmarshal must not error on a bare number")
 	assert.Equal(t, 0.0002, p.MinimumOrder, "MinimumOrder should parse a value with no currency suffix")

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -26,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do better tests
@@ -318,6 +320,27 @@ func TestCreateWalletAddress(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.CreateWalletAddress(t.Context(), "XRP")
 	assert.NoError(t, err, "CreateWalletAddress should not error")
+}
+
+func TestWalletAddressUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	const inp = `
+[
+	{
+		"address": "Blockchain address",
+		"created": 1592627542
+	}
+]
+`
+	var resp []WalletAddress
+	require.NoError(t, json.Unmarshal([]byte(inp), &resp), "Unmarshal must not error")
+	exp := []WalletAddress{
+		{
+			Address: "Blockchain address",
+			Created: types.Time(time.Unix(1592627542, 0)),
+		},
+	}
+	assert.Equal(t, exp, resp, "WalletAddress should unmarshal correctly")
 }
 
 func TestGetDepositAddress(t *testing.T) {

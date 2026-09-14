@@ -162,8 +162,8 @@ func (e *Exchange) GetOHLCV(ctx context.Context, symbol string, start, end time.
 }
 
 // GetPrice get current price for requested symbol
-func (e *Exchange) GetPrice(ctx context.Context, symbol string) (Price, error) {
-	var p Price
+func (e *Exchange) GetPrice(ctx context.Context, symbol string) ([]Price, error) {
+	var p []Price
 	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
 	return p, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &p, true, queryFunc)
 }
@@ -191,8 +191,8 @@ func (e *Exchange) GetFeeInformation(ctx context.Context, symbol string) ([]Acco
 }
 
 // GetWalletHistory returns the users account balance
-func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count uint64) (WalletHistory, error) {
-	var resp WalletHistory
+func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count uint64) ([]WalletHistory, error) {
+	var resp []WalletHistory
 
 	urlValues := url.Values{}
 	if symbol != "" {
@@ -212,8 +212,8 @@ func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, e
 }
 
 // GetWalletAddress returns the users account balance
-func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
-	var resp WalletAddress
+func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) ([]WalletAddress, error) {
+	var resp []WalletAddress
 	urlValues := url.Values{}
 	if ccy != "" {
 		urlValues.Add("currency", ccy)
@@ -222,8 +222,8 @@ func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) (WalletAddr
 }
 
 // CreateWalletAddress create new deposit address for requested currency
-func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
-	var resp WalletAddress
+func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) ([]WalletAddress, error) {
+	var resp []WalletAddress
 	req := make(map[string]any, 1)
 	req["currency"] = ccy
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
@@ -236,7 +236,7 @@ func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) (WalletA
 		}
 		if errResp.ErrorCode == 3528 {
 			walletAddress := strings.Split(errResp.Message, "BADREQUEST: ")
-			return WalletAddress{
+			return []WalletAddress{
 				{
 					Address: walletAddress[1],
 				},
@@ -396,8 +396,8 @@ func (e *Exchange) IndexOrderPeg(ctx context.Context, clOrderID string, deviatio
 }
 
 // TradeHistory returns previous trades on exchange
-func (e *Exchange) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count uint64, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
-	var resp TradeHistory
+func (e *Exchange) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count uint64, includeOld bool, clOrderID, orderID string) ([]TradeHistory, error) {
+	var resp []TradeHistory
 	urlValues := url.Values{}
 	if symbol != "" {
 		urlValues.Add("symbol", symbol)

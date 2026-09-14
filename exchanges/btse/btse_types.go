@@ -68,8 +68,8 @@ type MarketPair struct {
 // OHLCV holds Open, High Low, Close, Volume data for set symbol
 type OHLCV [][]float64
 
-// Price stores last price for requested symbol
-type Price []struct {
+// Price stores the last, index and mark price for a symbol
+type Price struct {
 	IndexPrice float64 `json:"indexPrice"`
 	LastPrice  float64 `json:"lastPrice"`
 	MarkPrice  float64 `json:"markPrice"`
@@ -121,34 +121,34 @@ type AccountFees struct {
 	TakerFee float64 `json:"takerFee"`
 }
 
-// TradeHistory stores user trades for exchange
-type TradeHistory []struct {
-	Base         string     `json:"base"`
-	ClOrderID    string     `json:"clOrderID"`
-	FeeAmount    float64    `json:"feeAmount"`
-	FeeCurrency  string     `json:"feeCurrency"`
-	FilledPrice  float64    `json:"filledPrice"`
-	FilledSize   float64    `json:"filledSize"`
-	OrderID      string     `json:"orderId"`
-	OrderType    uint64     `json:"orderType"`
-	Price        float64    `json:"price"`
-	Quote        string     `json:"quote"`
-	RealizedPNL  float64    `json:"realizedPnl"`
-	SerialID     int64      `json:"serialId"`
-	Side         string     `json:"side"`
-	Size         float64    `json:"size"`
-	Symbol       string     `json:"symbol"`
-	Timestamp    types.Time `json:"timestamp"`
-	Total        float64    `json:"total"`
-	TradeID      string     `json:"tradeId"`
-	TriggerPrice float64    `json:"triggerPrice"`
-	TriggerType  uint64     `json:"triggerType"`
-	Username     string     `json:"username"`
-	Wallet       string     `json:"wallet"`
+// TradeHistory stores one of a user's trades
+type TradeHistory struct {
+	Base          string     `json:"base"`
+	ClientOrderID string     `json:"clOrderID"`
+	FeeAmount     float64    `json:"feeAmount"`
+	FeeCurrency   string     `json:"feeCurrency"`
+	FilledPrice   float64    `json:"filledPrice"`
+	FilledSize    float64    `json:"filledSize"`
+	OrderID       string     `json:"orderId"`
+	OrderType     uint64     `json:"orderType"`
+	Price         float64    `json:"price"`
+	Quote         string     `json:"quote"`
+	RealizedPNL   float64    `json:"realizedPnl"`
+	SerialID      int64      `json:"serialId"`
+	Side          string     `json:"side"`
+	Size          float64    `json:"size"`
+	Symbol        string     `json:"symbol"`
+	Timestamp     types.Time `json:"timestamp"`
+	Total         float64    `json:"total"`
+	TradeID       string     `json:"tradeId"`
+	TriggerPrice  float64    `json:"triggerPrice"`
+	TriggerType   uint64     `json:"triggerType"`
+	Username      string     `json:"username"`
+	Wallet        string     `json:"wallet"`
 }
 
-// WalletHistory stores account funding history
-type WalletHistory []struct {
+// WalletHistory stores one entry of an account's funding history
+type WalletHistory struct {
 	Amount      float64    `json:"amount"`
 	Currency    string     `json:"currency"`
 	Description string     `json:"description"`
@@ -161,10 +161,10 @@ type WalletHistory []struct {
 	Wallet      string     `json:"wallet"`
 }
 
-// WalletAddress stores address for crypto deposit's
-type WalletAddress []struct {
-	Address string `json:"address"`
-	Created int    `json:"created"` // Unix seconds, left as int so it changes type once, to types.Time
+// WalletAddress stores a crypto deposit address
+type WalletAddress struct {
+	Address string     `json:"address"`
+	Created types.Time `json:"created"`
 }
 
 // WithdrawalResponse response received when submitting a crypto withdrawal request
@@ -176,7 +176,7 @@ type WithdrawalResponse struct {
 type OpenOrder struct {
 	AverageFillPrice             float64    `json:"averageFillPrice"`
 	CancelDuration               int64      `json:"cancelDuration"`
-	ClOrderID                    string     `json:"clOrderID"`
+	ClientOrderID                string     `json:"clOrderID"`
 	FillSize                     float64    `json:"fillSize"`
 	FilledSize                   float64    `json:"filledSize"`
 	OrderID                      string     `json:"orderID"`
@@ -207,7 +207,7 @@ type CancelOrder []Order
 // Order stores information for a single order
 type Order struct {
 	AverageFillPrice float64    `json:"averageFillPrice"`
-	ClOrderID        string     `json:"clOrderID"`
+	ClientOrderID    string     `json:"clOrderID"`
 	Deviation        float64    `json:"deviation"`
 	FillSize         float64    `json:"fillSize"`
 	Message          string     `json:"message"`

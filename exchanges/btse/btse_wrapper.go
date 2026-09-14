@@ -826,7 +826,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			}
 			tempOrder := order.Detail{
 				OrderID:              currentOrder[y].OrderID,
-				ClientID:             currentOrder[y].ClOrderID,
+				ClientID:             currentOrder[y].ClientOrderID,
 				Exchange:             e.Name,
 				Price:                currentOrder[y].Price,
 				AverageExecutedPrice: currentOrder[y].AverageFillPrice,

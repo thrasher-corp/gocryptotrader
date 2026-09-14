@@ -226,8 +226,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
-			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
+			PriceStepIncrementSize:  math.Pow10(-int(info.CounterDecimals)),
+			AmountStepIncrementSize: math.Pow10(-int(info.BaseDecimals)),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
