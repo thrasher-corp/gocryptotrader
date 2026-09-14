@@ -1,6 +1,8 @@
 package currencyconverter
 
-import "testing"
+import (
+	"testing"
+)
 
 var c CurrencyConverter
 

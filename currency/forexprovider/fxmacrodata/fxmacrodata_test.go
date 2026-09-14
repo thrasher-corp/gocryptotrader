@@ -14,6 +14,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 )
 
+const (
+	providerName = "FXMacroData"
+	usd          = "USD"
+	inflation    = "inflation"
+)
+
 // Live test toggles. The unit and contract tests are hermetic and always run;
 // the two smoke tests below reach the live FXMacroData API and are opt-in.
 // Set these to true, or set the matching environment variable, to enable them.
@@ -54,7 +60,7 @@ func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData,
 	server := httptest.NewServer(handler)
 	provider = &FXMacroData{}
 	err := provider.Setup(base.Settings{
-		Name:            "FXMacroData",
+		Name:            providerName,
 		Enabled:         true,
 		APIKey:          "placeholder",
 		PrimaryProvider: true,
@@ -106,7 +112,7 @@ func TestGetRatesDuplicateTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD,EUR,AUD")
+	rates, err := provider.GetRates(usd, "AUD,EUR,AUD")
 	assert.ErrorIs(t, err, errDuplicateCurrency, "GetRates should reject duplicate target currencies")
 	assert.Nil(t, rates, "rates should be nil when target currencies are duplicated")
 }
@@ -118,7 +124,7 @@ func TestGetRatesEmptyTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD,,EUR")
+	rates, err := provider.GetRates(usd, "AUD,,EUR")
 	assert.ErrorIs(t, err, errEmptyCurrency, "GetRates should reject empty target currency segments")
 	assert.Nil(t, rates, "rates should be nil when target currencies include an empty segment")
 }
@@ -130,7 +136,7 @@ func TestGetRatesRejectsNoEffectiveTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", " USD ")
+	rates, err := provider.GetRates(usd, " USD ")
 	assert.ErrorIs(t, err, errNoTargetCurrencies, "GetRates should reject target lists that only contain the base currency")
 	assert.Nil(t, rates, "rates should be nil when no target currencies remain")
 }
@@ -148,7 +154,7 @@ func TestGetRatesDefaultsToSupportedTargets(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "")
+	rates, err := provider.GetRates(usd, "")
 	require.NoError(t, err, "GetRates must not error")
 	supported, err := provider.GetSupportedCurrencies()
 	require.NoError(t, err, "GetSupportedCurrencies must not error")
@@ -163,7 +169,7 @@ func TestGetRatesUnsupportedTargetsOnly(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "XYZ")
+	rates, err := provider.GetRates(usd, "XYZ")
 	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported target currencies when no rates are available")
 	assert.Nil(t, rates, "rates should be nil when every target currency is unsupported")
 }
@@ -175,7 +181,7 @@ func TestGetRatesPropagatesLatestRateError(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD")
+	rates, err := provider.GetRates(usd, "AUD")
 	assert.ErrorIs(t, err, errNoRateAvailable, "GetRates should propagate latest rate lookup errors")
 	assert.Nil(t, rates, "rates should be nil when latest rate lookup fails")
 }
@@ -198,7 +204,7 @@ func TestGetLatestForexRateEmptyData(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rate, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
+	rate, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
 	assert.ErrorIs(t, err, errNoRateAvailable, "GetLatestForexRate should reject empty data")
 	assert.Zero(t, rate, "rate should be zero when no data is returned")
 }
@@ -222,7 +228,7 @@ func TestGetLatestForexRateRejectsRowWithoutAValue(t *testing.T) {
 			}))
 			defer closeServer()
 
-			rate, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
+			rate, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
 			assert.ErrorIs(t, err, errNoRateAvailable, "GetLatestForexRate should reject a row carrying no usable value")
 			assert.Zero(t, rate, "rate should be zero when the row carries no usable value")
 		})
@@ -237,9 +243,53 @@ func TestGetRatesRejectsRowWithoutAValue(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD")
+	rates, err := provider.GetRates(usd, "AUD")
 	assert.ErrorIs(t, err, errNoRateAvailable, "GetRates should not hand a valueless row to the conversion engine")
 	assert.Nil(t, rates, "rates should be nil when the row carries no usable value")
+}
+
+func TestGetRatesSkipsPairWithoutAValue(t *testing.T) {
+	// One pair with no usable value must not discard the rates of every other
+	// pair in the batch; only the empty pair is left out of the result.
+	var requestCount atomic.Int64
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		switch r.URL.Path {
+		case "/api/v1/forex/usd/aud":
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":1.5}]}`))
+		case "/api/v1/forex/usd/eur":
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":null}]}`))
+		case "/api/v1/forex/usd/gbp":
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":0.75}]}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD,EUR,GBP")
+	require.NoError(t, err, "GetRates must not fail the batch when one pair carries no usable value")
+	assert.Equal(t, map[string]float64{"USDAUD": 1.5, "USDGBP": 0.75}, rates, "GetRates should return every pair that carried a value")
+	assert.Equal(t, int64(3), requestCount.Load(), "GetRates should still request every target once")
+}
+
+func TestGetRatesFailsBatchOnTransportError(t *testing.T) {
+	// Skipping is limited to a pair with no usable value; any other failure,
+	// such as an upstream outage, still fails the whole call.
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/forex/usd/aud" {
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":1.5}]}`))
+			return
+		}
+		http.Error(w, "upstream unavailable", http.StatusServiceUnavailable)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD,EUR")
+	assert.Error(t, err, "GetRates should fail the batch on a transport error")
+	assert.NotErrorIs(t, err, errNoRateAvailable, "a transport error should not be reported as a missing rate")
+	assert.Nil(t, rates, "rates should be nil when the batch fails")
 }
 
 func TestGetLatestForexRateHTTPError(t *testing.T) {
@@ -248,7 +298,7 @@ func TestGetLatestForexRateHTTPError(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rate, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
+	rate, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
 	assert.Error(t, err, "GetLatestForexRate should return HTTP errors")
 	assert.Zero(t, rate, "rate should be zero when the request fails")
 }
@@ -290,13 +340,13 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	defer server.Close()
 
 	provider := new(FXMacroData)
-	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}), "Setup allows API-key-free public use")
+	require.NoError(t, provider.Setup(base.Settings{Name: providerName}), "Setup must allow API-key-free public use")
 	assert.Equal(t, APIURL, provider.APIURL, "Setup should use the canonical FXMacroData API URL")
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 
 	_, err := provider.DataCatalogue(t.Context(), "usd")
-	require.NoError(t, err, "public data catalogue request does not require an API key")
+	require.NoError(t, err, "public data catalogue request must not require an API key")
 }
 
 func TestPublicEndpointsLive(t *testing.T) {
@@ -305,7 +355,7 @@ func TestPublicEndpointsLive(t *testing.T) {
 	}
 
 	provider := new(FXMacroData)
-	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}),
+	require.NoError(t, provider.Setup(base.Settings{Name: providerName}),
 		"Setup must configure the public endpoint client")
 
 	ping, err := provider.Ping(t.Context())
@@ -314,7 +364,7 @@ func TestPublicEndpointsLive(t *testing.T) {
 
 	catalogue, err := provider.DataCatalogue(t.Context(), "usd")
 	require.NoError(t, err, "DataCatalogue must not error")
-	assert.NotNil(t, catalogue, "DataCatalogue should return a response")
+	assert.NotEmpty(t, *catalogue, "DataCatalogue should return indicators")
 }
 
 func TestGetLatestForexRateHonoursCancellation(t *testing.T) {
@@ -326,7 +376,7 @@ func TestGetLatestForexRateHonoursCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err := provider.GetLatestForexRate(ctx, "USD", "AUD")
+	_, err := provider.GetLatestForexRate(ctx, usd, "AUD")
 	assert.ErrorIs(t, err, context.Canceled, "GetLatestForexRate should return the caller cancellation")
 }
 
@@ -338,10 +388,10 @@ func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {
 	defer server.Close()
 
 	provider := new(FXMacroData)
-	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}))
+	require.NoError(t, provider.Setup(base.Settings{Name: providerName}), "Setup must not error")
 	provider.APIURL = server.URL + "/api/v1/"
-	require.NoError(t, provider.Requester.DisableRateLimiter())
+	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 
-	_, err := provider.GetLatestForexRate(t.Context(), "USD", "AUD")
+	_, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
 	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "forex requests should require a configured API key")
 }
