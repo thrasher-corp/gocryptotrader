@@ -98,6 +98,10 @@ type Manager struct {
 	connectionManagerMu           sync.RWMutex
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
+	resubscriptionsMu             sync.Mutex
+	resubscriptions               map[*subscription.Subscription]*resubscribeTracker
+	resubscribePreLockHook        func(*subscription.Subscription) // test-only, never set in production: signals a caller reached the pre-lock point
+	resubscribeWaiterHook         func(*subscription.Subscription) // test-only, never set in production: signals a caller coalesced onto an in-flight recovery
 	connector                     func() error
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 	Subscriber                    func(subscription.List) error
@@ -189,6 +193,7 @@ func NewManager() *Manager {
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
 		connections:       make(map[Connection]*websocket),
+		resubscriptions:   make(map[*subscription.Subscription]*resubscribeTracker),
 	}
 }
 
@@ -422,6 +427,7 @@ func (m *Manager) snapshotManagedConnections(ws *websocket) []Connection {
 	if ws == nil {
 		return nil
 	}
+
 	m.connectionManagerMu.RLock()
 	defer m.connectionManagerMu.RUnlock()
 	return slices.Clone(ws.connections)
@@ -883,6 +889,7 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		if defaultVals {
 			u = m.defaultURL
 		}
+
 		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
@@ -902,6 +909,7 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, u)
 		return m.Shutdown()
 	}
+
 	return nil
 }
 
@@ -1018,6 +1026,7 @@ func checkWebsocketURL(s string) error {
 	if u.Scheme != "ws" && u.Scheme != "wss" {
 		return fmt.Errorf("cannot set %w %s", errInvalidWebsocketURL, s)
 	}
+
 	return nil
 }
 
