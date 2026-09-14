@@ -996,9 +996,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		response.Status = status
-		if s.Amount == 0 && s.QuoteAmount > 0 {
+		if s.AssetType == asset.Spot && s.Type == order.Market && s.Side.IsLong() {
 			// Gate reports market-buy amount and left in quote units. The
 			// generic RemainingAmount is base-denominated, so leave it unset.
+			response.Amount = 0
 			response.RemainingAmount = 0
 		} else {
 			response.RemainingAmount = sOrder.RemainingAmount.Float64()
@@ -2744,14 +2745,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		if err != nil {
 			return nil, err
 		}
-		response.Amount = s.Amount
-		response.QuoteAmount = s.QuoteAmount
-		if s.Amount == 0 && s.QuoteAmount > 0 {
-			// Gate transports spot market-buy amount and left in quote units.
-			// RemainingAmount is base-denominated in the generic response, so
-			// no lossless mapping is available for this request form.
-			response.RemainingAmount = 0
-		}
+		applySpotSubmitRequest(response, s)
 		return response, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		req, err := getFuturesOrderRequest(s)
@@ -3084,18 +3078,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		if err != nil {
 			return nil, err
 		}
-		if len(responses) != len(orders) {
-			return nil, fmt.Errorf("%w: received %d responses for %d orders", common.ErrNoResponse, len(responses), len(orders))
-		}
-		for i := range responses {
-			responses[i].Amount = orders[i].Amount
-			responses[i].QuoteAmount = orders[i].QuoteAmount
-			if orders[i].Amount == 0 && orders[i].QuoteAmount > 0 {
-				// Gate transports spot market-buy amount and left in quote units.
-				responses[i].RemainingAmount = 0
-			}
-		}
-		return responses, nil
+		return reconcileSpotWebsocketSubmitResponses(responses, orders, reqs)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		reqs := make([]*FuturesOrderCreateParams, len(orders))
 		for i, s := range orders {
@@ -3116,6 +3099,41 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
+}
+
+func applySpotSubmitRequest(response *order.SubmitResponse, submitted *order.Submit) {
+	response.Amount = submitted.Amount
+	response.QuoteAmount = submitted.QuoteAmount
+	if submitted.AssetType == asset.Spot && submitted.Type == order.Market && submitted.Side.IsLong() {
+		// Gate transports spot market-buy amount and left in quote units.
+		// RemainingAmount is base-denominated in the generic response, so
+		// no lossless mapping is available for this request form.
+		response.Amount = 0
+		response.RemainingAmount = 0
+	}
+}
+
+func reconcileSpotWebsocketSubmitResponses(responses []*order.SubmitResponse, orders []*order.Submit, requests []*CreateOrderRequest) ([]*order.SubmitResponse, error) {
+	if len(responses) != len(orders) || len(requests) != len(orders) {
+		return nil, fmt.Errorf("%w: received %d responses for %d orders", common.ErrInvalidResponse, len(responses), len(orders))
+	}
+	requestIndexByText := make(map[string]int, len(requests))
+	for i := range requests {
+		if _, exists := requestIndexByText[requests[i].Text]; exists {
+			return nil, fmt.Errorf("%w: duplicate client order ID %q", common.ErrInvalidResponse, requests[i].Text)
+		}
+		requestIndexByText[requests[i].Text] = i
+	}
+	orderedResponses := make([]*order.SubmitResponse, len(responses))
+	for i := range responses {
+		orderIndex, exists := requestIndexByText[responses[i].ClientOrderID]
+		if !exists || orderedResponses[orderIndex] != nil {
+			return nil, fmt.Errorf("%w: unexpected client order ID %q", common.ErrInvalidResponse, responses[i].ClientOrderID)
+		}
+		applySpotSubmitRequest(responses[i], orders[orderIndex])
+		orderedResponses[orderIndex] = responses[i]
+	}
+	return orderedResponses, nil
 }
 
 // MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs

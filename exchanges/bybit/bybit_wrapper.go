@@ -1095,20 +1095,22 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			remainingAmt = resp.List[0].OrderQuantity.Float64() - resp.List[0].CumulativeExecQuantity.Float64()
 		}
 		detail := &order.Detail{
-			Amount:          resp.List[0].OrderQuantity.Float64(),
-			Exchange:        e.Name,
-			OrderID:         resp.List[0].OrderID,
-			ClientOrderID:   resp.List[0].OrderLinkID,
-			Side:            getSide(resp.List[0].Side),
-			Type:            orderType,
-			Pair:            pair,
-			AssetType:       assetType,
-			Status:          StringToOrderStatus(resp.List[0].OrderStatus),
-			Price:           resp.List[0].Price.Float64(),
-			ExecutedAmount:  resp.List[0].CumulativeExecQuantity.Float64(),
-			RemainingAmount: remainingAmt,
-			Date:            resp.List[0].CreatedTime.Time(),
-			LastUpdated:     resp.List[0].UpdatedTime.Time(),
+			Amount:               resp.List[0].OrderQuantity.Float64(),
+			Exchange:             e.Name,
+			OrderID:              resp.List[0].OrderID,
+			ClientOrderID:        resp.List[0].OrderLinkID,
+			Side:                 getSide(resp.List[0].Side),
+			Type:                 orderType,
+			Pair:                 pair,
+			AssetType:            assetType,
+			Status:               StringToOrderStatus(resp.List[0].OrderStatus),
+			Price:                resp.List[0].Price.Float64(),
+			ExecutedAmount:       resp.List[0].CumulativeExecQuantity.Float64(),
+			AverageExecutedPrice: resp.List[0].AveragePrice.Float64(),
+			RemainingAmount:      remainingAmt,
+			Fee:                  resp.List[0].CumulativeExecFee.Float64(),
+			Date:                 resp.List[0].CreatedTime.Time(),
+			LastUpdated:          resp.List[0].UpdatedTime.Time(),
 		}
 		if assetType != asset.CoinMarginedFutures {
 			detail.ExecutedQuoteAmount = resp.List[0].CumulativeExecValue.Float64()

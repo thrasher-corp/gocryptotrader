@@ -277,10 +277,21 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 	id, err := uuid.NewV4()
 	require.NoError(t, err)
 
-	s = &SubmitResponse{}
+	s = &SubmitResponse{
+		AverageExecutedPrice: 2,
+		ExecutedQuoteAmount:  3,
+		RemainingAmount:      4,
+		Fee:                  5,
+		FeeAsset:             currency.USDT,
+	}
 	deets, err := s.DeriveDetail(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, deets.InternalOrderID)
+	assert.Equal(t, 2.0, deets.AverageExecutedPrice)
+	assert.Equal(t, 3.0, deets.ExecutedQuoteAmount)
+	assert.Equal(t, 4.0, deets.RemainingAmount)
+	assert.Equal(t, 5.0, deets.Fee)
+	assert.Equal(t, currency.USDT, deets.FeeAsset)
 }
 
 func TestOrderSides(t *testing.T) {
@@ -404,7 +415,7 @@ func TestInferExecutionAndTimes(t *testing.T) {
 	detail.ExecutedAmount = 1
 	detail.Price = 2
 	detail.InferExecutionAndTimes()
-	assert.Equal(t, 2.0, detail.AverageExecutedPrice)
+	assert.Zero(t, detail.AverageExecutedPrice, "request price should not be treated as an authoritative average execution price")
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, ExecutedQuoteAmount: 3, Price: 0}
 	detail.InferExecutionAndTimes()
@@ -412,7 +423,7 @@ func TestInferExecutionAndTimes(t *testing.T) {
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
 	detail.InferExecutionAndTimes()
-	assert.Equal(t, 6.0, detail.ExecutedQuoteAmount)
+	assert.Zero(t, detail.ExecutedQuoteAmount, "average execution price should not synthesize an authoritative executed quote amount")
 }
 
 func TestFilterOrdersByType(t *testing.T) {
@@ -1014,6 +1025,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		ExecutedAmount:  1,
 		RemainingAmount: 1,
 		Fee:             1,
+		FeeAsset:        currency.USDT,
 		Exchange:        "1",
 		InternalOrderID: id,
 		OrderID:         "1",
@@ -1051,6 +1063,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, 1.0, od.ExecutedAmount)
 	assert.Equal(t, 1.0, od.RemainingAmount)
 	assert.Equal(t, 1.0, od.Fee)
+	assert.Equal(t, currency.USDT, od.FeeAsset)
 	assert.Equal(t, "test", od.Exchange, "Should not be able to update exchange via modify")
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, "1", od.ClientID)

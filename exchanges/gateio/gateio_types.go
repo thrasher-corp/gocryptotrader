@@ -2168,6 +2168,7 @@ type WsSpotOrder struct {
 	Iceberg            string        `json:"iceberg,omitempty"`
 	Left               types.Number  `json:"left,omitempty"`
 	FilledTotal        types.Number  `json:"filled_total,omitempty"`
+	AverageDealPrice   types.Number  `json:"avg_deal_price,omitempty"`
 	Fee                types.Number  `json:"fee,omitempty"`
 	FeeCurrency        string        `json:"fee_currency,omitempty"`
 	PointFee           string        `json:"point_fee,omitempty"`

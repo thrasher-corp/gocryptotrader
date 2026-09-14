@@ -2237,6 +2237,26 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err, "book_lv2 update should not error")
 }
 
+func TestProcessOrdersExecutionAmounts(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	result := &SubscriptionResponse{Data: json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"2","orderId":"1","accountType":"SPOT","side":"BUY","filledQuantity":"0.5","filledAmount":"10","state":"PARTIALLY_FILLED","orderAmount":"40","price":"20"}]`)}
+	require.NoError(t, ex.processOrders(t.Context(), result))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		details, ok := msg.Data.([]order.Detail)
+		require.True(t, ok, "websocket payload should contain order details")
+		require.Len(t, details, 1)
+		assert.Equal(t, 0.5, details[0].ExecutedAmount)
+		assert.Equal(t, 10.0, details[0].ExecutedQuoteAmount)
+		assert.Equal(t, 1.5, details[0].RemainingAmount)
+	default:
+		require.Fail(t, "expected websocket order payload")
+	}
+}
+
 func TestProcessCandlestickDataIntervalMapping(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)

@@ -210,6 +210,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Fee = m.Fee
 		updated = true
 	}
+	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+		d.FeeAsset = m.FeeAsset
+		updated = true
+	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
 		d.AccountID = m.AccountID
 		updated = true
@@ -603,13 +607,16 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 
 		InternalOrderID: internal,
 
-		LastUpdated:         s.LastUpdated,
-		Date:                s.Date,
-		Status:              s.Status,
-		OrderID:             s.OrderID,
-		Trades:              s.Trades,
-		Fee:                 s.Fee,
-		ExecutedQuoteAmount: s.ExecutedQuoteAmount,
+		LastUpdated:          s.LastUpdated,
+		Date:                 s.Date,
+		Status:               s.Status,
+		OrderID:              s.OrderID,
+		Trades:               s.Trades,
+		Fee:                  s.Fee,
+		FeeAsset:             s.FeeAsset,
+		AverageExecutedPrice: s.AverageExecutedPrice,
+		ExecutedQuoteAmount:  s.ExecutedQuoteAmount,
+		RemainingAmount:      s.RemainingAmount,
 	}, nil
 }
 
@@ -884,12 +891,7 @@ func (d *Detail) InferExecutionAndTimes() {
 	if d.AverageExecutedPrice == 0 {
 		if d.ExecutedQuoteAmount != 0 {
 			d.AverageExecutedPrice = d.ExecutedQuoteAmount / d.ExecutedAmount
-		} else {
-			d.AverageExecutedPrice = d.Price
 		}
-	}
-	if d.ExecutedQuoteAmount == 0 {
-		d.ExecutedQuoteAmount = d.AverageExecutedPrice * d.ExecutedAmount
 	}
 }
 

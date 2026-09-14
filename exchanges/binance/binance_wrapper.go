@@ -1102,6 +1102,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if resp.Type == "MARKET" {
 			orderType = order.Market
 		}
+		executedQuoteAmount := resp.CumulativeQuoteQty
+		if executedQuoteAmount < 0 {
+			executedQuoteAmount = 0
+		}
 
 		return &order.Detail{
 			Amount:              resp.OrigQty,
@@ -1111,7 +1115,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                side,
 			Type:                orderType,
 			Pair:                pair,
-			ExecutedQuoteAmount: resp.CumulativeQuoteQty,
+			ExecutedQuoteAmount: executedQuoteAmount,
 			AssetType:           assetType,
 			Status:              status,
 			Price:               resp.Price,

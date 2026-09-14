@@ -494,18 +494,34 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 		if err != nil {
 			return err
 		}
+		amount := resp.Result[x].Amount.Float64()
+		quoteAmount := 0.0
+		executedAmount := amount - resp.Result[x].Left.Float64()
+		remainingAmount := resp.Result[x].Left.Float64()
+		if a == asset.Spot && side.IsLong() && orderType == order.Market {
+			quoteAmount = amount
+			amount = 0
+			executedAmount = 0
+			remainingAmount = 0
+		}
 		details[x] = order.Detail{
-			Amount:         resp.Result[x].Amount.Float64(),
-			Exchange:       e.Name,
-			OrderID:        resp.Result[x].ID,
-			Side:           side,
-			Type:           orderType,
-			Pair:           resp.Result[x].CurrencyPair,
-			AssetType:      a,
-			Price:          resp.Result[x].Price.Float64(),
-			ExecutedAmount: resp.Result[x].Amount.Float64() - resp.Result[x].Left.Float64(),
-			Date:           resp.Result[x].CreateTime.Time(),
-			LastUpdated:    resp.Result[x].UpdateTime.Time(),
+			Amount:               amount,
+			QuoteAmount:          quoteAmount,
+			Exchange:             e.Name,
+			OrderID:              resp.Result[x].ID,
+			Side:                 side,
+			Type:                 orderType,
+			Pair:                 resp.Result[x].CurrencyPair,
+			AssetType:            a,
+			Price:                resp.Result[x].Price.Float64(),
+			AverageExecutedPrice: resp.Result[x].AverageDealPrice.Float64(),
+			ExecutedAmount:       executedAmount,
+			RemainingAmount:      remainingAmount,
+			ExecutedQuoteAmount:  resp.Result[x].FilledTotal.Float64(),
+			Fee:                  resp.Result[x].Fee.Float64(),
+			FeeAsset:             currency.NewCode(resp.Result[x].FeeCurrency),
+			Date:                 resp.Result[x].CreateTime.Time(),
+			LastUpdated:          resp.Result[x].UpdateTime.Time(),
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, details)
