@@ -209,7 +209,7 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, respRaw []byte) error {
 		High:         resp.Tick.High.Float64(),
 		Low:          resp.Tick.Low.Float64(),
 		Last:         resp.Tick.Latest.Float64(),
-		Volume:       resp.Tick.Vol.Float64(),
+		Volume:       resp.Tick.Volume.Float64(),
 	})
 }
 
@@ -236,7 +236,7 @@ func (e *Exchange) wsHandleTrades(ctx context.Context, respRaw []byte) error {
 		CurrencyPair: resp.Pair,
 		Price:        resp.Trade.Price.Float64(),
 		Amount:       resp.Trade.Volume.Float64(),
-		Timestamp:    resp.Trade.Timestamp,
+		Timestamp:    resp.Trade.Timestamp.Time(),
 		Side:         side,
 	}
 	if tradeFeed {
@@ -264,7 +264,7 @@ func (e *Exchange) wsHandleOrderbook(respRaw []byte) error {
 		ValidateOrderbook: e.ValidateOrderbook,
 		Asks:              resp.Depth.Asks.Levels(),
 		Bids:              resp.Depth.Bids.Levels(),
-		LastUpdated:       time.Now(),
+		LastUpdated:       resp.Timestamp.Time(),
 	})
 }
 
@@ -285,7 +285,7 @@ func (e *Exchange) wsHandleKbar(ctx context.Context, respRaw []byte) error {
 		Asset:    asset.Spot,
 		Interval: interval,
 		Candles: []kline.Candle{{
-			Time:   resp.Kbar.Timestamp,
+			Time:   resp.Kbar.Timestamp.Time(),
 			Open:   resp.Kbar.Open.Float64(),
 			High:   resp.Kbar.High.Float64(),
 			Low:    resp.Kbar.Low.Float64(),
@@ -334,10 +334,10 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 		AssetType:            asset.Spot,
 		Pair:                 resp.Pair,
 		Price:                resp.OrderUpdate.OrderPrice.Float64(),
-		Amount:               resp.OrderUpdate.OrderAmt.Float64(),
-		ExecutedAmount:       resp.OrderUpdate.AccAmt.Float64(),
-		RemainingAmount:      resp.OrderUpdate.RemainAmt.Float64(),
-		AverageExecutedPrice: resp.OrderUpdate.AvgPrice.Float64(),
+		Amount:               resp.OrderUpdate.OrderAmount.Float64(),
+		ExecutedAmount:       resp.OrderUpdate.AccumulatedAmount.Float64(),
+		RemainingAmount:      resp.OrderUpdate.RemainingAmount.Float64(),
+		AverageExecutedPrice: resp.OrderUpdate.AveragePrice.Float64(),
 		Side:                 side,
 		OrderID:              resp.OrderUpdate.UUID,
 		Status:               status,
@@ -423,6 +423,8 @@ func (e *Exchange) wsRefreshSubscribeKey(ctx context.Context) {
 				e.ws.subscribeKey = newKey
 				e.ws.mu.Unlock()
 			}
+		case <-e.Websocket.ShutdownC:
+			return
 		case <-ctx.Done():
 			return
 		}

@@ -44,7 +44,6 @@ type Exchange struct {
 const (
 	lbankAPIURL              = "https://api.lbkex.com"
 	lbankWSURL               = "wss://www.lbkex.net/ws/V2/"
-	lbankAPIVersion1         = "1"
 	lbankAPIVersion2         = "2"
 	lbankFeeNotFound         = 0.0
 	tradeBaseURL             = "https://www.lbank.com/trade/"

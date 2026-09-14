@@ -1,6 +1,8 @@
 package lbank
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -8,6 +10,33 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+const wsTimeLayout = "2006-01-02T15:04:05.999"
+
+var wsTimeLocation = time.FixedZone("UTC+8", 8*60*60)
+
+var errInvalidWebsocketTime = errors.New("invalid lbank websocket timestamp")
+
+type websocketTime time.Time
+
+func (t *websocketTime) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if s == "" {
+		return nil
+	}
+	parsed, err := time.ParseInLocation(wsTimeLayout, s, wsTimeLocation)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errInvalidWebsocketTime, err)
+	}
+	*t = websocketTime(parsed)
+	return nil
+}
+
+// Time returns the UTC time.Time representation of websocketTime
+func (t websocketTime) Time() time.Time { return time.Time(t).UTC() }
 
 // Ticker stores the ticker price data for a currency pair
 type Ticker struct {
@@ -106,9 +135,10 @@ type QueryOrderFinalResponse struct {
 
 // websocketResponse is the base envelope for all LBank websocket messages
 type websocketResponse struct {
-	Type    string        `json:"type"`
-	Pair    currency.Pair `json:"pair"`
-	Message string        `json:"message"`
+	Type      string        `json:"type"`
+	Pair      currency.Pair `json:"pair"`
+	Message   string        `json:"message"`
+	Timestamp websocketTime `json:"TS"`
 }
 
 // websocketTickResponse holds a ticker websocket message
@@ -122,7 +152,7 @@ type websocketTickData struct {
 	High   types.Number `json:"high"`
 	Low    types.Number `json:"low"`
 	Latest types.Number `json:"latest"`
-	Vol    types.Number `json:"vol"`
+	Volume types.Number `json:"vol"`
 }
 
 // websocketTradeResponse holds a trade websocket message
@@ -147,10 +177,10 @@ type websocketAssetUpdateData struct {
 
 // websocketTradeData holds trade data fields
 type websocketTradeData struct {
-	Volume    types.Number `json:"volume"`
-	Price     types.Number `json:"price"`
-	Direction string       `json:"direction"`
-	Timestamp time.Time    `json:"TS"`
+	Volume    types.Number  `json:"volume"`
+	Price     types.Number  `json:"price"`
+	Direction string        `json:"direction"`
+	Timestamp websocketTime `json:"TS"`
 }
 
 // websocketDepthResponse holds an orderbook websocket message
@@ -179,13 +209,13 @@ type websocketPingResponse struct {
 
 // websocketKbarData holds kline fields
 type websocketKbarData struct {
-	Open      types.Number `json:"o"`
-	High      types.Number `json:"h"`
-	Low       types.Number `json:"l"`
-	Close     types.Number `json:"c"`
-	Volume    types.Number `json:"v"`
-	Timestamp time.Time    `json:"t"`
-	Slot      string       `json:"slot"`
+	Open      types.Number  `json:"o"`
+	High      types.Number  `json:"h"`
+	Low       types.Number  `json:"l"`
+	Close     types.Number  `json:"c"`
+	Volume    types.Number  `json:"v"`
+	Timestamp websocketTime `json:"t"`
+	Slot      string        `json:"slot"`
 }
 
 // websocketOrderUpdateResponse holds an order update websocket message
@@ -196,15 +226,15 @@ type websocketOrderUpdateResponse struct {
 
 // websocketOrderUpdateData holds order update fields
 type websocketOrderUpdateData struct {
-	AccAmt      types.Number `json:"accAmt"`
-	AvgPrice    types.Number `json:"avgPrice"`
-	OrderAmt    types.Number `json:"orderAmt"`
-	OrderPrice  types.Number `json:"orderPrice"`
-	OrderStatus int64        `json:"orderStatus"`
-	RemainAmt   types.Number `json:"remainAmt"`
-	Type        string       `json:"type"`
-	UpdateTime  types.Time   `json:"updateTime"`
-	UUID        string       `json:"uuid"`
+	AccumulatedAmount types.Number `json:"accAmt"`
+	AveragePrice      types.Number `json:"avgPrice"`
+	OrderAmount       types.Number `json:"orderAmt"`
+	OrderPrice        types.Number `json:"orderPrice"`
+	OrderStatus       int64        `json:"orderStatus"`
+	RemainingAmount   types.Number `json:"remainAmt"`
+	Type              string       `json:"type"`
+	UpdateTime        types.Time   `json:"updateTime"`
+	UUID              string       `json:"uuid"`
 }
 
 // OrderHistoryResponse stores past orders
