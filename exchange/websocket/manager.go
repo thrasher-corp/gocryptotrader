@@ -521,6 +521,9 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	// TODO: Implement concurrency below.
 	for i, ws := range connectionManager {
+		if ws.setup.ConnectionEnabled != nil && !ws.setup.ConnectionEnabled() {
+			continue
+		}
 		var subs subscription.List
 		if !ws.setup.SubscriptionsNotRequired {
 			if ws.setup.GenerateSubscriptions == nil {
