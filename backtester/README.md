@@ -75,7 +75,7 @@ We welcome pull requests on any feature for the Backtester! We will be especiall
   - The currency/currencies to use
   - The exchange(s) to run against
   - See the [configuration documentation](/backtester/config/README.md) for a breakdown of all config features
-- The GoCryptoTrader Backtester will retrieve the data specified in the config ([backtest documentation](/backtester/backtest/README.md))
+- The GoCryptoTrader Backtester will retrieve the data specified in the config ([backtest documentation](/backtester/engine/README.md))
 - The data is converted into candles and each candle is streamed as a data event.
 - The data event is analysed by the strategy which will output a purchasing signal such as `BUY`, `SELL` or `DONOTHING` ([signal event documentation](/backtester/eventtypes/signal/README.md))
 - The purchase signal is then processed by the [portfolio manager](/backtester/eventhandlers/portfolio/README.md), which will [size the order](/backtester/eventhandlers/portfolio/size/README.md) and [assess risk](/backtester/eventhandlers/portfolio/risk/README.md) before sending it to the exchange
@@ -88,7 +88,7 @@ To run the application using the provided dollar cost average strategy, simply r
 
 ### How do I create my own config?
 
-There is a config generating helper application under `/backtester/config/configbuilder` to help you create a `.strat` file. Read the [config builder documentation](/backtester/config/configbuilder/README.md). There are also a number of tests under `/config/config_test.go` which generate configs into the `examples` folder, which if you have code knowledge, can write your own configs programmatically.
+There is a config generating helper application under `/backtester/config/strategyconfigbuilder` to help you create a `.strat` file. Read the [config builder documentation](/backtester/config/strategyconfigbuilder/README.md). There are also a number of tests under `/config/config_test.go` which generate configs into the `examples` folder, which if you have code knowledge, can write your own configs programmatically.
 
 ### How do I create my own strategy?
 
