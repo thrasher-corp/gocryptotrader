@@ -59,7 +59,7 @@ func TestOrderbookSnapshotClaim(t *testing.T) {
 // TestOrderbookSnapshotPerInstance asserts the snapshot-loaded bookkeeping belongs to each Exchange
 // instance, not the whole process: a second instance must load its own snapshot for a symbol the
 // first has claimed, and resetting one instance must not clear the other's marks. A package-level map
-// let a second instance find every symbol already claimed and never load its book. group T defect #9.
+// let a second instance find every symbol already claimed and never load its book.
 func TestOrderbookSnapshotPerInstance(t *testing.T) {
 	t.Parallel()
 	const symbol = "PERINSTUSDT"

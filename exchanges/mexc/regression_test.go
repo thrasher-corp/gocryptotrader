@@ -85,7 +85,7 @@ func TestPrivateEndpointRequestConstruction(t *testing.T) {
 		body         string
 	}{
 		{"CreateBrokerSubAccount", func(ctx context.Context, e *Exchange) error {
-			_, err := e.CreateBrokerSubAccount(ctx)
+			_, err := e.CreateBrokerSubAccount(ctx, &BrokerSubAccountCreationParams{SubAccount: "sub1", Note: "note"})
 			return err
 		}, http.MethodPost, "/broker/sub-account/virtualSubAccount", "{}"},
 		{"GetBrokerAccountSubAccountList", func(ctx context.Context, e *Exchange) error {
@@ -201,8 +201,7 @@ func TestGetOrderInfoAmountIsBaseQuantity(t *testing.T) {
 
 // TestSubmitOrderPairFromRequest asserts SubmitOrder reports the pair the caller submitted rather than
 // one re-parsed from the response symbol. The venue echoes the symbol concatenated without a
-// delimiter, and a naive split mis-reads most MEXC symbols (METALUSDT read as MET/ALUSDT). group T
-// defect #3.
+// delimiter, and a naive split mis-reads most MEXC symbols (METALUSDT read as MET/ALUSDT).
 func TestSubmitOrderPairFromRequest(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -225,7 +224,7 @@ func TestSubmitOrderPairFromRequest(t *testing.T) {
 // TestSubmitOrderPlacedWhenStatusAbsent covers MEXC's create-order ACK, which carries an orderId but
 // no status field (unlike Binance). A populated OrderID from a successful NewOrder means the order was
 // placed, so the response must report a placed status and WasOrderPlaced() must be true — otherwise a
-// filled market order is mis-read as never placed. group T defect (Fix B, INC-295).
+// filled market order is mis-read as never placed.
 func TestSubmitOrderPlacedWhenStatusAbsent(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -250,7 +249,7 @@ func TestSubmitOrderPlacedWhenStatusAbsent(t *testing.T) {
 // TestGetOrderInfoPairAndTimestamps asserts GetOrderInfo reports the requested pair (not one re-split
 // from the concatenated response symbol) and both timestamps. The Query Order response carries time
 // and updateTime but no transactTime (that field only exists on the New Order response), so reading
-// LastUpdated from transactTime left both timestamps at the zero time. group T defect #4.
+// LastUpdated from transactTime left both timestamps at the zero time.
 func TestGetOrderInfoPairAndTimestamps(t *testing.T) {
 	t.Parallel()
 	metalUSDT := currency.NewPair(currency.NewCode("METAL"), currency.USDT)
@@ -284,7 +283,7 @@ func TestGetOrderInfoPairAndTimestamps(t *testing.T) {
 // TestGetDepositAddressMultiNetwork asserts GetDepositAddress copes with the list the venue returns
 // when no network is pinned (one address per network) by taking the first, and that the destination
 // tag is read from memo with a fallback to tag. Rejecting anything but a single-element list dropped
-// every multi-network coin. group T defect #6.
+// every multi-network coin.
 func TestGetDepositAddressMultiNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -321,7 +320,7 @@ func TestGetDepositAddressMultiNetwork(t *testing.T) {
 
 // TestGetActiveOrdersToleratesUncatalogedSymbol asserts that one order whose symbol is no longer in
 // the available pairs (delisted with a working order, or a catalogue not yet refreshed) does not sink
-// the whole listing. The catalogued order must still be returned. group T defect #8.
+// the whole listing. The catalogued order must still be returned.
 func TestGetActiveOrdersToleratesUncatalogedSymbol(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -346,8 +345,7 @@ func TestGetActiveOrdersToleratesUncatalogedSymbol(t *testing.T) {
 
 // TestUpdateOrderbookStampsVenueTime asserts the REST orderbook carries the venue's own timestamp and
 // update id rather than being stamped with the local clock. The depth payload decodes both, but they
-// were never copied onto the book, so Process fell back to time.Now() and a zero update id. group T
-// defect #10.
+// were never copied onto the book, so Process fell back to time.Now() and a zero update id.
 func TestUpdateOrderbookStampsVenueTime(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -366,21 +364,23 @@ func TestUpdateOrderbookStampsVenueTime(t *testing.T) {
 // TestCreateBatchOrderPartialRejection asserts a partially rejected batch does not report a rejected
 // entry as a placed order. MEXC returns a mixed array where a rejected order carries code+msg in
 // place of the order fields; decoding it into []*OrderDetail turned it into a zero-value order the
-// caller could not tell from a success. group T defect #12.
+// caller could not tell from a success. A placed entry echoes the caller id as newClientOrderId, so
+// the accepted order must still carry the client order id.
 func TestCreateBatchOrderPartialRejection(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"ok1","price":"20000","origQty":"1","type":"LIMIT","side":"BUY","status":"NEW"},{"newClientOrderId":"rej1","code":30002,"msg":"oversold"}]`))
+		_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"ok1","newClientOrderId":"101","price":"20000","origQty":"1","type":"LIMIT","side":"BUY","status":"NEW"},{"newClientOrderId":"rej1","code":30002,"msg":"oversold"}]`))
 	}))
 	args := []BatchOrderCreationParam{
-		{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), OrderType: "LIMIT", Quantity: 1, Price: 20000},
+		{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), OrderType: "LIMIT", Quantity: 1, Price: 20000, NewClientOrderID: 101},
 		{Symbol: currency.NewBTCUSDT(), Side: order.Sell.String(), OrderType: "LIMIT", Quantity: 1, Price: 21000},
 	}
 	orders, err := e.CreateBatchOrder(t.Context(), args)
-	require.Error(t, err, "a rejected batch entry must surface as an error")
+	require.ErrorIs(t, err, errBatchOrderRejected, "a rejected batch entry must surface as an error")
 	assert.Contains(t, err.Error(), "30002", "the rejection code should be reported")
 	require.Len(t, orders, 1, "only the accepted order must be returned, not a zero-value stand-in for the rejected one")
 	assert.Equal(t, "ok1", orders[0].OrderID, "the accepted order should be present")
+	assert.Equal(t, "101", orders[0].ClientOrderID, "the accepted order should carry the echoed client order id")
 }
 
 // TestAuthRequestReSignsOnRetry asserts each attempt of an authenticated request signs a fresh
@@ -412,7 +412,7 @@ func TestAuthRequestReSignsOnRetry(t *testing.T) {
 
 // TestAuthRequestErrorWrapsTransport asserts an authenticated request failure keeps the underlying
 // transport error matchable with errors.Is. Wrapping it with %v (and duplicating the wrap SendPayload
-// already applies) severed the chain. group T defect #11b.
+// already applies) severed the chain.
 func TestAuthRequestErrorWrapsTransport(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -427,7 +427,7 @@ func TestAuthRequestErrorWrapsTransport(t *testing.T) {
 
 // TestAuthRequestSignsQueryAndBody asserts the signature covers the query string plus the request
 // body. MEXC signs totalParams = query string + body; signing the query alone means the three
-// body-carrying broker callers sign something other than what they send. group T defect #11c.
+// body-carrying broker callers sign something other than what they send.
 func TestAuthRequestSignsQueryAndBody(t *testing.T) {
 	t.Parallel()
 	var (
@@ -461,9 +461,34 @@ func TestAuthRequestSignsQueryAndBody(t *testing.T) {
 	assert.Equal(t, hex.EncodeToString(expected), sig, "the signature should cover the query string plus the request body")
 }
 
+// TestTradeSideIsTakerSide pins trade sides to the taker. MEXC documents isBuyerMaker and m as "was
+// the buyer the maker?", so true means the taker sold.
+func TestTradeSideIsTakerSide(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/aggTrades") {
+			_, _ = w.Write([]byte(`[{"p":"77234.92","q":"0.1","T":1789251250000,"m":true,"M":true},{"p":"77234.93","q":"0.1","T":1789251248000,"m":false,"M":true}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[{"price":"77234.92","qty":"0.1","time":1789251246575,"isBuyerMaker":true,"tradeType":"ASK"},{"price":"77234.93","qty":"0.1","time":1789251244778,"isBuyerMaker":false,"tradeType":"BID"}]`))
+	}))
+	btc := currency.NewBTCUSDT()
+	recent, err := e.GetRecentTrades(t.Context(), btc, asset.Spot)
+	require.NoError(t, err, "GetRecentTrades must not error")
+	require.Len(t, recent, 2, "GetRecentTrades must return both trades")
+	assert.Equal(t, order.Sell, recent[0].Side, "a buyer-maker trade should be a taker sell")
+	assert.Equal(t, order.Buy, recent[1].Side, "a seller-maker trade should be a taker buy")
+	end := time.Now()
+	historic, err := e.GetHistoricTrades(t.Context(), btc, asset.Spot, end.Add(-time.Minute), end)
+	require.NoError(t, err, "GetHistoricTrades must not error")
+	require.Len(t, historic, 2, "GetHistoricTrades must return both trades")
+	assert.Equal(t, order.Sell, historic[0].Side, "a buyer-maker aggregate trade should be a taker sell")
+	assert.Equal(t, order.Buy, historic[1].Side, "a seller-maker aggregate trade should be a taker buy")
+}
+
 // TestExtendListenKey asserts the user data stream keepalive is a PUT to userDataStream carrying the
 // listen key. The private stream closes 60 minutes after creation unless a keepalive is sent, and
-// nothing renewed it. group T defect #13.
+// nothing renewed it.
 func TestExtendListenKey(t *testing.T) {
 	t.Parallel()
 
@@ -497,6 +522,6 @@ func TestExtendListenKey(t *testing.T) {
 		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{}`))
 		}))
-		assert.Error(t, e.ExtendListenKey(t.Context(), ""), "an empty listen key should be rejected")
+		assert.ErrorIs(t, e.ExtendListenKey(t.Context(), ""), errListenKeyRequired, "an empty listen key should be rejected")
 	})
 }

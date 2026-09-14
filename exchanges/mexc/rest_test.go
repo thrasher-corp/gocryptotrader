@@ -1048,7 +1048,7 @@ func TestGetBrokerUniversalTransferHistory(t *testing.T) {
 func TestCreateBrokerSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CreateBrokerSubAccount(t.Context())
+	result, err := e.CreateBrokerSubAccount(t.Context(), &BrokerSubAccountCreationParams{SubAccount: "sub1", Note: "created by gct integration test"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1514,7 +1514,7 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err := e.CancelAllOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
 
-	// A symbol-wide cancel does not require an order id (group T defect #4): an empty request now
+	// A symbol-wide cancel does not require an order id: an empty request now
 	// fails on the unset asset, and supplying an order id changes nothing.
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{})
 	require.ErrorIs(t, err, asset.ErrNotSupported)

@@ -110,7 +110,7 @@ collect:
 
 // TestLiveSpotKlineTimestamp subscribes to the live candle channel and asserts the decoded candle
 // carries a current timestamp. MEXC sends windowStart/windowEnd in seconds; the previous code read
-// windowEnd as milliseconds, which stamped every candle in January 1970. Only a live candle can show
+// windowEnd as milliseconds, which stamped every candle near the Unix epoch. Only a live candle can show
 // the timestamp is both recent and close to the exchange clock. Public channel only, no credentials.
 func TestLiveSpotKlineTimestamp(t *testing.T) {
 	pairFormat, err := e.GetPairFormat(asset.Spot, false)

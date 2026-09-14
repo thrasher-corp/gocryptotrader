@@ -58,8 +58,7 @@ func TestUnsupportedOperations(t *testing.T) {
 // TestGetFeeByTypeOffline asserts the offline fee estimate, which is the path taken when no
 // credentials are available to ask the exchange for the account's own schedule. GetFeeByType returns
 // the absolute fee amount (rate * price * quantity), not the bare rate; the offline branch must apply
-// the same calculation against a fixed worst-case rate so both branches speak the same unit. group T
-// defect #5.
+// the same calculation against a fixed worst-case rate so both branches speak the same unit.
 func TestGetFeeByTypeOffline(t *testing.T) {
 	t.Parallel()
 	maker, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, IsMaker: true, PurchasePrice: 50000, Amount: 0.5})

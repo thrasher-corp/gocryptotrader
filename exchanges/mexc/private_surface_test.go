@@ -18,7 +18,7 @@ import (
 
 // newPrivateTestExchange builds an isolated Exchange whose spot REST endpoint points at a local
 // httptest server returning recorded (fixture) MEXC responses. It never reaches a live private
-// endpoint (proving the private mapping is CERT's job, not the agent's): the credentials are dummy
+// endpoint: it exercises the private response mapping without live keys. The credentials are dummy
 // and the server ignores the signature. It exists because the shipped auth tests skip under mock
 // without keys, so the private response-mapping was never exercised - which is how these defects
 // reached review.
@@ -54,7 +54,7 @@ func jsonHandler(t *testing.T, bySuffix map[string]string) http.HandlerFunc {
 
 // TestGetAccountFundingHistoryDepositTimestamp stamps the deposit at insertTime, not confirmTimes.
 // confirmTimes is a confirmation counter ("241"): decoding it as a timestamp failed to parse or
-// stamped 1970. Contract: group T defect #1.
+// stamped the record at the zero time.
 func TestGetAccountFundingHistoryDepositTimestamp(t *testing.T) {
 	t.Parallel()
 	const insertTime = 1704067200000 // 2024-01-01T00:00:00Z
@@ -71,8 +71,7 @@ func TestGetAccountFundingHistoryDepositTimestamp(t *testing.T) {
 }
 
 // TestGetOrderHistoryPairAndTimestamps fills the pair and the order's real timestamps, and parses the
-// MEXC-specific IMMEDIATE_OR_CANCEL type instead of failing the whole query. Contract: group T
-// defects #2 and #3.
+// MEXC-specific IMMEDIATE_OR_CANCEL type instead of failing the whole query.
 func TestGetOrderHistoryPairAndTimestamps(t *testing.T) {
 	t.Parallel()
 	const (
@@ -98,7 +97,7 @@ func TestGetOrderHistoryPairAndTimestamps(t *testing.T) {
 }
 
 // TestUpdateAccountBalancesArithmetic reports free/locked as Total=free+locked, Hold=locked,
-// Free=free. Free was left unset, so available balance read as zero. Contract: group T defect #5.
+// Free=free. Free was left unset, so available balance read as zero.
 func TestUpdateAccountBalancesArithmetic(t *testing.T) {
 	t.Parallel()
 	ex := newPrivateTestExchange(t, jsonHandler(t, map[string]string{
@@ -132,8 +131,8 @@ func TestCancelOrderFormatsSymbol(t *testing.T) {
 	assert.Equal(t, "BTCUSDT", sentSymbol, "the cancel should send the delimiter-free symbol")
 }
 
-// TestCancelAllOrdersNoOrderID is a symbol-wide cancel: it must not require an order id. Contract:
-// group T defect #4 (StandardCancel removed from symbol-wide).
+// TestCancelAllOrdersNoOrderID is a symbol-wide cancel: it must not require an order id
+// (StandardCancel is not used on the symbol-wide path).
 func TestCancelAllOrdersNoOrderID(t *testing.T) {
 	t.Parallel()
 	ex := newPrivateTestExchange(t, jsonHandler(t, map[string]string{
@@ -148,7 +147,7 @@ func TestCancelAllOrdersNoOrderID(t *testing.T) {
 }
 
 // TestGetFeeByTypeReturnsAmount returns the absolute fee (rate * price * quantity), not the bare
-// rate. Contract: group T defect #12.
+// rate.
 func TestGetFeeByTypeReturnsAmount(t *testing.T) {
 	t.Parallel()
 	ex := newPrivateTestExchange(t, jsonHandler(t, map[string]string{
@@ -165,8 +164,7 @@ func TestGetFeeByTypeReturnsAmount(t *testing.T) {
 }
 
 // TestOrderTypeStringPostOnlyAndTIF maps a limit order's time-in-force into MEXC's order type field:
-// post-only is LIMIT_MAKER and a limit IOC/FOK must not degrade to a plain LIMIT. Contract: group T
-// defect #10.
+// post-only is LIMIT_MAKER and a limit IOC/FOK must not degrade to a plain LIMIT.
 func TestOrderTypeStringPostOnlyAndTIF(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -191,7 +189,7 @@ func TestOrderTypeStringPostOnlyAndTIF(t *testing.T) {
 }
 
 // TestStringToOrderTypeAndTimeInForceIOC asserts the reverse mapping recognises MEXC's own order
-// types (the generic parser rejects them). Contract: group T defect #2.
+// types (the generic parser rejects them).
 func TestStringToOrderTypeAndTimeInForceIOC(t *testing.T) {
 	t.Parallel()
 	oType, tif, err := e.StringToOrderTypeAndTimeInForce(typeImmediateOrCancel)
@@ -202,8 +200,8 @@ func TestStringToOrderTypeAndTimeInForceIOC(t *testing.T) {
 
 // TestActiveOrdersLastUpdatedFallback covers the LastUpdated timestamp for open orders. MEXC returns
 // updateTime:null on an open (still-working) order; without a fallback LastUpdated was stamped at the
-// zero time (1970). The fallback uses the creation time (time) when updateTime is empty, and keeps
-// updateTime when it is present. CERT finding ADR-272 §8.
+// zero time. The fallback uses the creation time (time) when updateTime is empty, and keeps
+// updateTime when it is present.
 func TestActiveOrdersLastUpdatedFallback(t *testing.T) {
 	t.Parallel()
 	const (
