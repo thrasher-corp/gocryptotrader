@@ -166,7 +166,10 @@ func (m *Manager) resubscribeToChannel(ctx context.Context, conn Connection, s *
 	}
 	if err := m.SubscribeToChannels(ctx, conn, l); err != nil {
 		m.m.Lock()
-		restoreFailedRecovery(wsStore, connStore, s, origKey)
+		// Once Shutdown or a scale-down has untracked the connection its subscriptions are gone; restoring would resurrect one
+		if m.subscriptionStore(conn) == wsStore {
+			restoreFailedRecovery(wsStore, connStore, s, origKey)
+		}
 		m.m.Unlock()
 		resErr = err
 		return err
@@ -877,11 +880,14 @@ func (m *Manager) resubscribeFromConnection(ctx context.Context, conn Connection
 	remaining, err := m.subscribeToConnection(ctx, conn, subs)
 	if err != nil {
 		m.m.Lock()
-		for _, snap := range snapshots {
-			if snap.sub.State() == subscription.SubscribedState {
-				continue
+		// Once Shutdown or a scale-down has untracked the connection its subscriptions are gone; restoring would resurrect them
+		if m.subscriptionStore(conn) == wsStore {
+			for _, snap := range snapshots {
+				if snap.sub.State() == subscription.SubscribedState {
+					continue
+				}
+				restoreFailedRecovery(wsStore, connStore, snap.sub, snap.origKey)
 			}
-			restoreFailedRecovery(wsStore, connStore, snap.sub, snap.origKey)
 		}
 		m.m.Unlock()
 		resErr = err

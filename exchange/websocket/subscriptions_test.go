@@ -2493,3 +2493,95 @@ func TestFlushChannels_ResubscribingState(t *testing.T) {
 	}
 	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must succeed when subscriptions are in ResubscribingState")
 }
+
+func TestFlushChannelsAfterFailedManagedRecovery(t *testing.T) {
+	t.Parallel()
+
+	m, conn := newManagedSubscriptionTestManager(t)
+	m.state.Store(connectedState)
+	m.setEnabled(true)
+	ws := m.connections[conn]
+	sub := &subscription.Subscription{Channel: "managedFailedRecovery"}
+	require.NoError(t, m.AddSuccessfulSubscriptions(conn, sub))
+	require.NoError(t, conn.Subscriptions().Add(sub))
+	subscribes := 0
+	ws.setup.Subscriber = func(_ context.Context, c Connection, l subscription.List) error {
+		subscribes++
+		if subscribes == 1 {
+			return errDastardlyReason
+		}
+		return m.AddSuccessfulSubscriptions(c, l...)
+	}
+	ws.setup.GenerateSubscriptions = func() (subscription.List, error) {
+		return subscription.List{{Channel: "managedFailedRecovery"}}, nil
+	}
+	require.ErrorIs(t, m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub}), errDastardlyReason)
+	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must resubscribe a failed recovery on a managed connection")
+	assert.Equal(t, 2, subscribes, "FlushChannels should send one subscribe for the failed recovery")
+	assert.Equal(t, 1, ws.subscriptions.Len(), "websocket store should track the subscription once")
+	assert.Equal(t, 1, conn.Subscriptions().Len(), "connection store should track the subscription once")
+}
+
+func TestFlushChannelsDuringInFlightRecovery(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	require.NoError(t, m.Setup(newDefaultSetup()))
+	m.state.Store(connectedState)
+	m.setEnabled(true)
+	sub := &subscription.Subscription{Channel: "inFlightFlush"}
+	require.NoError(t, m.AddSuccessfulSubscriptions(nil, sub))
+	unsubscribing := make(chan struct{})
+	release := make(chan struct{})
+	m.Unsubscriber = func(subscription.List) error {
+		close(unsubscribing)
+		<-release
+		return nil
+	}
+	subscribes := 0
+	m.Subscriber = func(l subscription.List) error {
+		subscribes++
+		return m.AddSuccessfulSubscriptions(nil, l...)
+	}
+	m.GenerateSubs = func() (subscription.List, error) {
+		return subscription.List{{Channel: "inFlightFlush"}}, nil
+	}
+	recovered := make(chan error, 1)
+	go func() { recovered <- m.ResubscribeToChannel(t.Context(), nil, sub) }()
+	<-unsubscribing
+	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must not error while a recovery is in flight")
+	assert.Zero(t, subscribes, "FlushChannels should leave an in-flight recovery to finish")
+	close(release)
+	require.NoError(t, <-recovered, "recovery must complete")
+	assert.Equal(t, 1, subscribes, "only the recovery should subscribe")
+	assert.Equal(t, subscription.SubscribedState, sub.State(), "recovered subscription should be subscribed")
+}
+
+func TestResubscribeAfterShutdownDoesNotRestore(t *testing.T) {
+	t.Parallel()
+	for name, resubscribe := range map[string]func(context.Context, *Manager, Connection, *subscription.Subscription) error{
+		"ResubscribeToChannel": func(ctx context.Context, m *Manager, conn Connection, s *subscription.Subscription) error {
+			return m.ResubscribeToChannel(ctx, conn, s)
+		},
+		"ResubscribeFromConnection": func(ctx context.Context, m *Manager, conn Connection, s *subscription.Subscription) error {
+			return m.ResubscribeFromConnection(ctx, conn, subscription.List{s})
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m, conn := newManagedSubscriptionTestManager(t)
+			ws := m.connections[conn]
+			sub := &subscription.Subscription{Channel: "shutdownDuringRecovery"}
+			require.NoError(t, m.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+			require.NoError(t, conn.Subscriptions().Add(sub), "connection store Add must not error")
+			m.state.Store(connectedState)
+			ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+				require.NoError(t, m.Shutdown(), "Shutdown must not error")
+				return errDastardlyReason
+			}
+			require.ErrorIs(t, resubscribe(t.Context(), m, conn, sub), errDastardlyReason, "recovery must return the subscribe error")
+			assert.Zero(t, ws.subscriptions.Len(), "a recovery that fails after Shutdown should not restore its subscription")
+			assert.Zero(t, conn.Subscriptions().Len(), "a recovery that fails after Shutdown should not restore onto the closed connection")
+		})
+	}
+}
