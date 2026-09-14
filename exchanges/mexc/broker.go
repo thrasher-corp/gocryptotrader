@@ -54,10 +54,19 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "broker/sub-account/universalTransfer", params, nil, &resp, true)
 }
 
-// CreateBrokerSubAccount holds a broker sub-account detail
-func (e *Exchange) CreateBrokerSubAccount(ctx context.Context) (*BrokerSubAccounts, error) {
+// CreateBrokerSubAccount creates a virtual sub-account under the broker account
+func (e *Exchange) CreateBrokerSubAccount(ctx context.Context, arg *BrokerSubAccountCreationParams) (*BrokerSubAccounts, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.SubAccount == "" {
+		return nil, errInvalidSubAccountName
+	}
+	if arg.Note == "" {
+		return nil, errInvalidSubAccountNote
+	}
 	var resp *BrokerSubAccounts
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "broker/sub-account/virtualSubAccount", nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "broker/sub-account/virtualSubAccount", nil, arg, &resp, true)
 }
 
 // GetBrokerAccountSubAccountList represents a list of broker sub-accounts and their details of the broker account

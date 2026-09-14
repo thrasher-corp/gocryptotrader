@@ -85,6 +85,14 @@ type BrokerSubAccountAPIKeyDeletionParams struct {
 	APIKey     string `json:"apiKey"`
 }
 
+// BrokerSubAccountCreationParams holds request parameters for creating a broker sub-account. The
+// endpoint requires the sub-account name and note; the password is optional.
+type BrokerSubAccountCreationParams struct {
+	SubAccount string `json:"subAccount"`
+	Note       string `json:"note"`
+	Password   string `json:"password,omitempty"`
+}
+
 // BrokerSubAccountDepositAddress holds a broker sub-account deposit address
 type BrokerSubAccountDepositAddress struct {
 	Address string `json:"address"`
@@ -95,7 +103,7 @@ type BrokerSubAccountDepositAddress struct {
 
 // BrokerSubAccountDepositAddressCreationParams holds sub-account deposit address creation parameter
 type BrokerSubAccountDepositAddressCreationParams struct {
-	Coin    currency.Code `json:"code"`
+	Coin    currency.Code `json:"coin"`
 	Network string        `json:"network"`
 }
 
