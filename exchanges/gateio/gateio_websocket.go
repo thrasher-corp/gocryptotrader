@@ -433,7 +433,7 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 	}
 
 	if data.Full {
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Exchange:          e.Name,
 			Pair:              pair,
 			Asset:             a,
@@ -443,11 +443,9 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 			Bids:              data.Bids.Levels(),
 			Asks:              data.Asks.Levels(),
 			ValidateOrderbook: e.ValidateOrderbook,
-		}); err != nil {
-			return err
-		}
-		e.wsOBResubMgr.CompletedResubscribe(pair, a)
-		return nil
+		})
+		e.wsOBResubMgr.CompletedResubscribe(pair, a) // Clear even when loading fails, otherwise later updates are dropped and nothing resubscribes
+		return err
 	}
 
 	if e.wsOBResubMgr.IsResubscribing(pair, a) {

@@ -48,7 +48,7 @@ func TestResubscribe(t *testing.T) {
 	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn))
 
 	err = m.Resubscribe(t.Context(), e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
-	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
+	require.ErrorIs(t, err, subscription.ErrNotFound)
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 
 	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
@@ -118,6 +118,32 @@ func TestResubscribe(t *testing.T) {
 			assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "a failed background resubscription should clear the tracking entry")
 		})
 	})
+}
+
+func TestResubscribeWithoutOrderbook(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "test instance setup must not error")
+	e.Name = t.Name()
+	e.Features.Subscriptions = subscription.List{{Enabled: true, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50}}
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	baseConn, err := e.Websocket.CreateTestConnection(asset.Spot)
+	require.NoError(t, err, "test connection creation must succeed")
+	conn := &FixtureConnection{Connection: baseConn}
+	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "fixture connection registration must succeed")
+	require.NoError(t, e.Websocket.AddSuccessfulSubscriptions(conn, subs...), "subscriptions must register")
+	require.NoError(t, e.wsOBResubMgr.Resubscribe(t.Context(), e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot), "Resubscribe must not require an existing orderbook")
+	assert.True(t, e.wsOBResubMgr.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "a pair whose first snapshot was rejected should be able to resubscribe")
+	assert.Eventually(t,
+		func() bool {
+			sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ob.BTC_USDT.50", Asset: asset.Spot}})
+			return sub != nil && sub.State() == subscription.SubscribedState
+		},
+		time.Second,
+		10*time.Millisecond,
+		"subscription should be resubscribed by the background routine",
+	)
 }
 
 func TestFuturesV2GapRecovery(t *testing.T) {
