@@ -210,6 +210,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Fee = m.Fee
 		updated = true
 	}
+	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+		d.FeeAsset = m.FeeAsset
+		updated = true
+	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
 		d.AccountID = m.AccountID
 		updated = true

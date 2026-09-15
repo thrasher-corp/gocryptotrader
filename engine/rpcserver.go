@@ -1147,6 +1147,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		Amount:        result.Amount,
 		OpenVolume:    result.RemainingAmount,
 		Fee:           result.Fee,
+		FeeCurrency:   result.FeeAsset.String(),
 		Trades:        trades,
 		Cost:          result.Cost,
 		UpdateTime:    updateTime,
