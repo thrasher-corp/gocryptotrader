@@ -501,7 +501,7 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 		if a == asset.Spot && side.IsLong() && orderType == order.Market {
 			quoteAmount = amount
 			amount = 0
-			executedAmount = 0
+			executedAmount = resp.Result[x].FilledAmount.Float64()
 			remainingAmount = 0
 		}
 		details[x] = order.Detail{

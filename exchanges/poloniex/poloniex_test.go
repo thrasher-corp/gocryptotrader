@@ -3,6 +3,7 @@ package poloniex
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -1557,6 +1558,53 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestSpotOrderExecutionMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	const orderResponse = `{"id":"1","symbol":"BTC_USDT","state":"FILLED","accountType":"SPOT","side":"BUY","type":"LIMIT","price":"61000","avgPrice":"60000","quantity":"0.01","amount":"610","filledQuantity":"0.01","filledAmount":"600","createTime":1735720637000,"updateTime":1735720638000}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var response string
+		switch r.URL.Path {
+		case "/orders/1/trades":
+			response = `[]`
+		case "/orders/1":
+			response = orderResponse
+		case "/orders/history":
+			response = `[{"id":1,"symbol":"BTC_USDT","state":"FILLED","accountType":"SPOT","side":"BUY","type":"LIMIT","price":"61000","avgPrice":"60000","quantity":"0.01","amount":"610","filledQuantity":"0.01","filledAmount":"600","createTime":1735720637000,"updateTime":1735720638000}]`
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "mock order response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	detail, err := ex.GetOrderInfo(t.Context(), "1", currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, 0.01, detail.ExecutedAmount, "GetOrderInfo should retain filled base quantity")
+	assert.Equal(t, 600.0, detail.ExecutedQuoteAmount, "GetOrderInfo should retain filled quote amount")
+	assert.Zero(t, detail.RemainingAmount, "GetOrderInfo should report no remaining quantity for a filled order")
+
+	history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, history, 1, "GetOrderHistory must return one order")
+	assert.Equal(t, 0.01, history[0].ExecutedAmount, "GetOrderHistory should retain filled base quantity")
+	assert.Equal(t, 600.0, history[0].ExecutedQuoteAmount, "GetOrderHistory should retain filled quote amount")
+	assert.Zero(t, history[0].RemainingAmount, "GetOrderHistory should report no remaining quantity for a filled order")
+}
+
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -2247,7 +2295,7 @@ func TestProcessOrdersExecutionAmounts(t *testing.T) {
 	select {
 	case msg := <-ex.Websocket.DataHandler.C:
 		details, ok := msg.Data.([]order.Detail)
-		require.True(t, ok, "websocket payload should contain order details")
+		require.True(t, ok, "websocket payload must contain order details")
 		require.Len(t, details, 1)
 		assert.Equal(t, 0.5, details[0].ExecutedAmount)
 		assert.Equal(t, 10.0, details[0].ExecutedQuoteAmount)

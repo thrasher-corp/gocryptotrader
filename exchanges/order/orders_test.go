@@ -279,18 +279,20 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 
 	s = &SubmitResponse{
 		AverageExecutedPrice: 2,
-		ExecutedQuoteAmount:  3,
-		RemainingAmount:      4,
-		Fee:                  5,
+		ExecutedAmount:       3,
+		ExecutedQuoteAmount:  4,
+		RemainingAmount:      5,
+		Fee:                  6,
 		FeeAsset:             currency.USDT,
 	}
 	deets, err := s.DeriveDetail(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, deets.InternalOrderID)
 	assert.Equal(t, 2.0, deets.AverageExecutedPrice)
-	assert.Equal(t, 3.0, deets.ExecutedQuoteAmount)
-	assert.Equal(t, 4.0, deets.RemainingAmount)
-	assert.Equal(t, 5.0, deets.Fee)
+	assert.Equal(t, 3.0, deets.ExecutedAmount)
+	assert.Equal(t, 4.0, deets.ExecutedQuoteAmount)
+	assert.Zero(t, deets.RemainingAmount, "DeriveDetail should not seed RemainingAmount, which UpdateOrderFromDetail cannot clear once filled")
+	assert.Equal(t, 6.0, deets.Fee)
 	assert.Equal(t, currency.USDT, deets.FeeAsset)
 }
 

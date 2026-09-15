@@ -1102,11 +1102,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if resp.Type == "MARKET" {
 			orderType = order.Market
 		}
-		executedQuoteAmount := resp.CumulativeQuoteQty
-		if executedQuoteAmount < 0 {
-			executedQuoteAmount = 0
-		}
-
 		return &order.Detail{
 			Amount:              resp.OrigQty,
 			Exchange:            e.Name,
@@ -1115,7 +1110,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                side,
 			Type:                orderType,
 			Pair:                pair,
-			ExecutedQuoteAmount: executedQuoteAmount,
+			ExecutedQuoteAmount: nonNegativeExecutedQuoteAmount(resp.CumulativeQuoteQty),
 			AssetType:           assetType,
 			Status:              status,
 			Price:               resp.Price,
@@ -1185,6 +1180,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return &respData, nil
+}
+
+// Binance reports a negative total when it is unavailable for a historical order.
+func nonNegativeExecutedQuoteAmount(amount float64) float64 {
+	if amount < 0 {
+		return 0
+	}
+	return amount
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1411,17 +1414,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					continue
 				}
 
-				var cost float64
-				// For some historical orders cumulativeQuoteQty will be < 0,
-				// meaning the data is not available at this time.
-				if resp[i].CumulativeQuoteQty > 0 {
-					cost = resp[i].CumulativeQuoteQty
-				}
 				detail := order.Detail{
 					Amount:              resp[i].OrigQty,
 					ExecutedAmount:      resp[i].ExecutedQty,
 					RemainingAmount:     resp[i].OrigQty - resp[i].ExecutedQty,
-					ExecutedQuoteAmount: cost,
+					ExecutedQuoteAmount: nonNegativeExecutedQuoteAmount(resp[i].CumulativeQuoteQty),
 					Date:                resp[i].Time.Time(),
 					LastUpdated:         resp[i].UpdateTime.Time(),
 					Exchange:            e.Name,

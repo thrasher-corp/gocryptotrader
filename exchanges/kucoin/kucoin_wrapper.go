@@ -1620,17 +1620,18 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 				}
 				orders[i] = order.Detail{
-					Price:           responseOrders.Items[i].Price.Float64(),
-					Amount:          responseOrders.Items[i].Size.Float64(),
-					ExecutedAmount:  responseOrders.Items[i].DealSize.Float64(),
-					RemainingAmount: responseOrders.Items[i].Size.Float64() - responseOrders.Items[i].DealSize.Float64(),
-					Date:            responseOrders.Items[i].CreatedAt.Time(),
-					Exchange:        e.Name,
-					OrderID:         responseOrders.Items[i].ID,
-					Side:            orderSide,
-					Status:          orderStatus,
-					Type:            oType,
-					Pair:            pair,
+					Price:               responseOrders.Items[i].Price.Float64(),
+					Amount:              responseOrders.Items[i].Size.Float64(),
+					ExecutedAmount:      responseOrders.Items[i].DealSize.Float64(),
+					ExecutedQuoteAmount: responseOrders.Items[i].DealFunds.Float64(),
+					RemainingAmount:     responseOrders.Items[i].Size.Float64() - responseOrders.Items[i].DealSize.Float64(),
+					Date:                responseOrders.Items[i].CreatedAt.Time(),
+					Exchange:            e.Name,
+					OrderID:             responseOrders.Items[i].ID,
+					Side:                orderSide,
+					Status:              orderStatus,
+					Type:                oType,
+					Pair:                pair,
 				}
 				orders[i].InferExecutionAndTimes()
 			}

@@ -615,8 +615,8 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Fee:                  s.Fee,
 		FeeAsset:             s.FeeAsset,
 		AverageExecutedPrice: s.AverageExecutedPrice,
+		ExecutedAmount:       s.ExecutedAmount,
 		ExecutedQuoteAmount:  s.ExecutedQuoteAmount,
-		RemainingAmount:      s.RemainingAmount,
 	}, nil
 }
 

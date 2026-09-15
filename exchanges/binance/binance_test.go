@@ -1420,6 +1420,12 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
+func TestNonNegativeExecutedQuoteAmount(t *testing.T) {
+	t.Parallel()
+	assert.Zero(t, nonNegativeExecutedQuoteAmount(-1), "unavailable historical quote amount should be zero")
+	assert.Equal(t, 10.0, nonNegativeExecutedQuoteAmount(10), "available historical quote amount should be retained")
+}
+
 func TestNewOrderTest(t *testing.T) {
 	t.Parallel()
 

@@ -2375,7 +2375,7 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 		"StorePairs must enable the test pair")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","fee":"0.000000398","fee_currency":"BTC","filled_total":"9.95"}`))
+		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","fee":"0.000000398","fee_currency":"BTC","filled_total":"9.95"}`))
 		assert.NoError(t, err, "Mock spot market-buy response should be written")
 	}))
 	t.Cleanup(server.Close)
@@ -2399,6 +2399,7 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, response.Amount)
 	assert.Equal(t, 10.0, response.QuoteAmount)
+	assert.Equal(t, 0.000199, response.ExecutedAmount)
 	assert.Zero(t, response.RemainingAmount)
 	assert.Equal(t, 9.95, response.ExecutedQuoteAmount)
 	assert.Equal(t, 50000.0, response.AverageExecutedPrice)
@@ -2409,7 +2410,7 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, detail.Amount)
 	assert.Equal(t, 10.0, detail.QuoteAmount)
-	assert.Zero(t, detail.ExecutedAmount)
+	assert.Equal(t, 0.000199, detail.ExecutedAmount)
 	assert.Zero(t, detail.RemainingAmount)
 	assert.Equal(t, 9.95, detail.ExecutedQuoteAmount)
 	assert.Equal(t, 50000.0, detail.AverageExecutedPrice)
@@ -2417,31 +2418,33 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 	assert.Equal(t, currency.BTC, detail.FeeAsset)
 }
 
-func TestReconcileSpotWebsocketSubmitResponses(t *testing.T) {
-	t.Parallel()
-	orders := []*order.Submit{
-		{AssetType: asset.Spot, Type: order.Market, Side: order.Buy, Amount: 0.001, QuoteAmount: 10},
-		{AssetType: asset.Spot, Type: order.Limit, Side: order.Sell, Amount: 2},
-	}
-	requests := []*CreateOrderRequest{{Text: "t-first"}, {Text: "t-second"}}
-	responses := []*order.SubmitResponse{
-		{ClientOrderID: "t-second", RemainingAmount: 1},
-		{ClientOrderID: "t-first", RemainingAmount: 0.05},
-	}
+func TestGetOrderHistorySpotExecutionPrice(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
+		"StorePairs must enable the test pair")
 
-	result, err := reconcileSpotWebsocketSubmitResponses(responses, orders, requests)
-	require.NoError(t, err)
-	require.Len(t, result, 2)
-	assert.Equal(t, "t-first", result[0].ClientOrderID)
-	assert.Zero(t, result[0].Amount)
-	assert.Equal(t, 10.0, result[0].QuoteAmount)
-	assert.Zero(t, result[0].RemainingAmount)
-	assert.Equal(t, "t-second", result[1].ClientOrderID)
-	assert.Equal(t, 2.0, result[1].Amount)
-	assert.Equal(t, 1.0, result[1].RemainingAmount)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`[{"id":"1","create_time_ms":1735720637000,"currency_pair":"BTC_USDT","order_id":"2","side":"buy","amount":"0.01","price":"60000","fee":"0.1","fee_currency":"USDT"}]`))
+		assert.NoError(t, err, "mock spot trade history response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
-	_, err = reconcileSpotWebsocketSubmitResponses(responses[:1], orders, requests)
-	require.ErrorIs(t, err, common.ErrInvalidResponse)
+	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot,
+		Pairs:     currency.Pairs{currency.NewBTCUSDT()},
+		Side:      order.AnySide,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, orders, 1, "spot trade history must contain one fill")
+	assert.Equal(t, 60000.0, orders[0].AverageExecutedPrice, "single-fill price should be the average execution price")
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
@@ -2758,17 +2761,17 @@ func TestWsPushSpotMarketBuyOrder(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	payload := []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`)
+	payload := []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`)
 	require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload))
 
 	select {
 	case msg := <-ex.Websocket.DataHandler.C:
 		details, ok := msg.Data.([]order.Detail)
-		require.True(t, ok, "websocket payload should contain order details")
+		require.True(t, ok, "websocket payload must contain order details")
 		require.Len(t, details, 1)
 		assert.Zero(t, details[0].Amount)
 		assert.Equal(t, 10.0, details[0].QuoteAmount)
-		assert.Zero(t, details[0].ExecutedAmount)
+		assert.Equal(t, 0.000199, details[0].ExecutedAmount)
 		assert.Zero(t, details[0].RemainingAmount)
 		assert.Equal(t, 9.95, details[0].ExecutedQuoteAmount)
 		assert.Equal(t, 50000.0, details[0].AverageExecutedPrice)
@@ -3672,7 +3675,7 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()
 
 	var resp *WebsocketOrderResponse
-	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
+	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_amount":"0.0001","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
 
 	got, err := e.deriveSpotWebsocketOrderResponse(resp)
 	require.NoError(t, err)
@@ -3685,6 +3688,7 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 		Date:                 time.UnixMilli(1735720637188),
 		LastUpdated:          time.UnixMilli(1735720637188),
 		Amount:               0.0001,
+		ExecutedAmount:       0.0001,
 		ExecutedQuoteAmount:  9.35033,
 		AverageExecutedPrice: 93503.3,
 		Type:                 order.Market,
@@ -3712,7 +3716,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			name: "assortment of spot orders",
 			orders: [][]byte{
 				[]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
-				[]byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
+				[]byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_amount":"816.3","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
 				[]byte(`{"left":"0","update_time":"1735778597","amount":"200","create_time":"1735778597","price":"0.03673","finish_as":"filled","time_in_force":"fok","currency_pair":"REX_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1364","status":"closed","iceberg":"0","avg_deal_price":"0.03673","filled_total":"7.346","id":"766488882062","fill_price":"7.346","update_time_ms":1735778597363,"create_time_ms":1735778597363}`),
 				[]byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
 				[]byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
@@ -3743,6 +3747,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735720637142),
 					LastUpdated:          time.UnixMilli(1735720637142),
 					QuoteAmount:          9.99152,
+					ExecutedAmount:       816.3,
 					ExecutedQuoteAmount:  9.991512,
 					AverageExecutedPrice: 0.01224,
 					Type:                 order.Market,
@@ -3807,7 +3812,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			// AverageDealPrice is not returned when using this endpoint, but the
 			// authoritative filled quote total must still be retained.
 			orders: [][]byte{
-				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_amount":"0.003","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
 				[]byte(`{"text":"t-742","label":"BALANCE_NOT_ENOUGH","message":"Not enough balance"}`),
 			},
@@ -3821,6 +3826,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                time.UnixMilli(1736980695949),
 					LastUpdated:         time.UnixMilli(1736980695949),
 					QuoteAmount:         9.98,
+					ExecutedAmount:      0.003,
 					ExecutedQuoteAmount: 9.932761,
 					Type:                order.Market,
 					Side:                order.Buy,

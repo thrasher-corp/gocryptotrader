@@ -1005,6 +1005,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			response.RemainingAmount = sOrder.RemainingAmount.Float64()
 		}
 		response.AverageExecutedPrice = sOrder.AverageFillPrice.Float64()
+		response.ExecutedAmount = sOrder.FilledAmount.Float64()
 		response.ExecutedQuoteAmount = sOrder.FilledTotal.Float64()
 		response.Fee = sOrder.FeeDeducted.Float64()
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
@@ -1339,10 +1340,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		remainingAmount := spotOrder.RemainingAmount.Float64()
 		if a == asset.Spot && side.IsLong() && orderType == order.Market {
 			// Gate's spot market-buy amount is quote-denominated. Preserve it
-			// as requested quote and leave unavailable base quantities unset.
+			// as requested quote and leave unavailable requested and remaining
+			// base quantities unset. The filled base amount is authoritative.
 			quoteAmount = amount
 			amount = 0
-			executedAmount = 0
+			executedAmount = spotOrder.FilledAmount.Float64()
 			remainingAmount = 0
 		}
 		detail := &order.Detail{
@@ -1703,6 +1705,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Fee:            o[j].Fee.Float64(),
 					FeeAsset:       o[j].FeeCurrency,
 				}
+				// Each row is a single fill, so its price is the execution price.
+				od.AverageExecutedPrice = o[j].Price.Float64()
 				od.InferExecutionAndTimes()
 				resp = append(resp, od)
 			}
@@ -2905,6 +2909,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			RemainingAmount:      remainingAmount,
 			Amount:               amount,
 			QuoteAmount:          quoteAmount,
+			ExecutedAmount:       resp.FilledAmount.Float64(),
 			ExecutedQuoteAmount:  resp.FilledTotal.Float64(),
 			Price:                resp.Price.Float64(),
 			Type:                 oType,
@@ -3074,11 +3079,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		if err != nil {
 			return nil, err
 		}
-		responses, err := e.deriveSpotWebsocketOrderResponses(resp)
-		if err != nil {
-			return nil, err
-		}
-		return reconcileSpotWebsocketSubmitResponses(responses, orders, reqs)
+		return e.deriveSpotWebsocketOrderResponses(resp)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		reqs := make([]*FuturesOrderCreateParams, len(orders))
 		for i, s := range orders {
@@ -3111,29 +3112,6 @@ func applySpotSubmitRequest(response *order.SubmitResponse, submitted *order.Sub
 		response.Amount = 0
 		response.RemainingAmount = 0
 	}
-}
-
-func reconcileSpotWebsocketSubmitResponses(responses []*order.SubmitResponse, orders []*order.Submit, requests []*CreateOrderRequest) ([]*order.SubmitResponse, error) {
-	if len(responses) != len(orders) || len(requests) != len(orders) {
-		return nil, fmt.Errorf("%w: received %d responses for %d orders", common.ErrInvalidResponse, len(responses), len(orders))
-	}
-	requestIndexByText := make(map[string]int, len(requests))
-	for i := range requests {
-		if _, exists := requestIndexByText[requests[i].Text]; exists {
-			return nil, fmt.Errorf("%w: duplicate client order ID %q", common.ErrInvalidResponse, requests[i].Text)
-		}
-		requestIndexByText[requests[i].Text] = i
-	}
-	orderedResponses := make([]*order.SubmitResponse, len(responses))
-	for i := range responses {
-		orderIndex, exists := requestIndexByText[responses[i].ClientOrderID]
-		if !exists || orderedResponses[orderIndex] != nil {
-			return nil, fmt.Errorf("%w: unexpected client order ID %q", common.ErrInvalidResponse, responses[i].ClientOrderID)
-		}
-		applySpotSubmitRequest(responses[i], orders[orderIndex])
-		orderedResponses[orderIndex] = responses[i]
-	}
-	return orderedResponses, nil
 }
 
 // MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs

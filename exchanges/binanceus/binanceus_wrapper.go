@@ -621,7 +621,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Side:                orderSide,
 		Type:                orderType,
 		Pair:                pair,
-		ExecutedQuoteAmount: resp.CumulativeQuoteQty,
+		ExecutedQuoteAmount: nonNegativeExecutedQuoteAmount(resp.CumulativeQuoteQty),
 		AssetType:           assetType,
 		Status:              status,
 		Price:               resp.Price,
@@ -629,6 +629,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Date:                resp.Time.Time(),
 		LastUpdated:         resp.UpdateTime.Time(),
 	}, nil
+}
+
+// Binance.US reports a negative total when it is unavailable for a historical order.
+func nonNegativeExecutedQuoteAmount(amount float64) float64 {
+	if amount < 0 {
+		return 0
+	}
+	return amount
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
