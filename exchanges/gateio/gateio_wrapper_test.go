@@ -86,16 +86,44 @@ func TestCancelAllOrders(t *testing.T) {
 func TestOpenInterestFromStats(t *testing.T) {
 	t.Parallel()
 
-	_, err := openInterestFromStats(nil)
-	require.ErrorIs(t, err, errNoValidResponseFromServer)
+	for _, tc := range []struct {
+		name   string
+		stats  []ContractStat
+		expect float64
+		errIs  error
+	}{
+		{name: "missing statistics", errIs: errNoValidResponseFromServer},
+		{
+			name: "quote notional instead of contract count",
+			stats: []ContractStat{{
+				Time:            types.Time(time.Unix(100, 0)),
+				OpenInterest:    types.Number(9_999_999),
+				OpenInterestUSD: types.Number(123_456.78),
+			}},
+			expect: 123_456.78,
+		},
+		{
+			name: "latest statistic from unordered response",
+			stats: []ContractStat{
+				{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2), OpenInterestUSD: types.Number(20)},
+				{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4), OpenInterestUSD: types.Number(40)},
+				{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3), OpenInterestUSD: types.Number(30)},
+			},
+			expect: 40,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	openInterest, err := openInterestFromStats([]ContractStat{
-		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
-		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
-		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 4.0, openInterest)
+			openInterest, err := openInterestFromStats(tc.stats)
+			if tc.errIs != nil {
+				require.ErrorIs(t, err, tc.errIs, "missing statistics must return the expected error")
+				return
+			}
+			require.NoError(t, err, "open interest statistics must be valid")
+			assert.Equal(t, tc.expect, openInterest, "open interest should use the latest USD notional")
+		})
+	}
 }
 
 func TestUseOpenInterestStats(t *testing.T) {
@@ -122,7 +150,7 @@ func TestGetOpenInterestFromStatsUsesTwoRows(t *testing.T) {
 		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
 		assert.NoError(t, err, "request limit should be an integer")
 		assert.GreaterOrEqual(t, limit, 2, "request should leave room for a fallback statistics row")
-		_, err = fmt.Fprint(w, `[{"time":1720000000,"open_interest":4},{"time":1710000000,"open_interest":3}]`)
+		_, err = fmt.Fprint(w, `[{"time":1720000000,"open_interest":9999999,"open_interest_usd":123456.78},{"time":1710000000,"open_interest":8888888,"open_interest_usd":100000}]`)
 		assert.NoError(t, err, "writing contract stats should not error")
 	}))
 	t.Cleanup(server.Close)
@@ -133,7 +161,7 @@ func TestGetOpenInterestFromStatsUsesTwoRows(t *testing.T) {
 	pair := currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}
 	openInterest, err := ex.getOpenInterestFromStats(t.Context(), asset.USDTMarginedFutures, pair)
 	require.NoError(t, err, "getOpenInterestFromStats must not error")
-	assert.Equal(t, 4.0, openInterest, "getOpenInterestFromStats should return the latest open interest")
+	assert.Equal(t, 123_456.78, openInterest, "getOpenInterestFromStats should return the latest quote notional, not contract count")
 }
 
 func TestContractStatUnmarshalLastFundingRate(t *testing.T) {

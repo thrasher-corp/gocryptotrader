@@ -152,7 +152,8 @@ func (e *Exchange) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
-	e.Requester, err = request.New(e.Name,
+	e.Requester, err = request.New(
+		e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(packageRateLimits),
 	)
@@ -194,6 +195,12 @@ func (e *Exchange) SetDefaults() {
 	})
 }
 
+// Bootstrap caches futures account user IDs before websocket subscriptions are generated.
+func (e *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
+	e.prepareFuturesUserIDs(ctx)
+	return true, nil
+}
+
 // Setup sets user configuration
 func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
@@ -212,6 +219,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		PreConnect:                   e.prepareFuturesUserIDs,
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
@@ -247,7 +255,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
 		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.USDTMarginedFutures)
 		},
 		Connector:     e.WsFuturesConnect,
 		Authenticate:  e.authenticateFutures,
@@ -268,7 +276,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
 		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+			return e.GenerateFuturesDefaultSubscriptions(context.TODO(), asset.CoinMarginedFutures)
 		},
 		Connector:     e.WsFuturesConnect,
 		MessageFilter: asset.CoinMarginedFutures,
@@ -371,6 +379,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			Last:         tickers[0].Last.Float64(),
 			Volume:       tickers[0].Volume24HBase.Float64(),
 			QuoteVolume:  tickers[0].Volume24HQuote.Float64(),
+			MarkPrice:    tickers[0].MarkPrice.Float64(),
+			IndexPrice:   tickers[0].IndexPrice.Float64(),
 			ExchangeName: e.Name,
 			AssetType:    a,
 		}
@@ -394,6 +404,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			tickerData = &ticker.Price{
 				Pair:         tickers[x].Name,
 				Last:         tickers[x].LastPrice.Float64(),
+				MarkPrice:    tickers[x].MarkPrice.Float64(),
+				IndexPrice:   tickers[x].IndexPrice.Float64(),
 				Bid:          tickers[x].Bid1Price.Float64(),
 				Ask:          tickers[x].Ask1Price.Float64(),
 				AskSize:      tickers[x].Ask1Size.Float64(),
@@ -617,6 +629,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          tickers[i].Low24H.Float64(),
 				Volume:       tickers[i].Volume24H.Float64(),
 				QuoteVolume:  tickers[i].Volume24HQuote.Float64(),
+				MarkPrice:    tickers[i].MarkPrice.Float64(),
+				IndexPrice:   tickers[i].IndexPrice.Float64(),
 				ExchangeName: e.Name,
 				Pair:         currencyPair,
 				AssetType:    a,
@@ -642,6 +656,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			for x := range tickers {
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tickers[x].LastPrice.Float64(),
+					MarkPrice:    tickers[x].MarkPrice.Float64(),
+					IndexPrice:   tickers[x].IndexPrice.Float64(),
 					Ask:          tickers[x].Ask1Price.Float64(),
 					AskSize:      tickers[x].Ask1Size.Float64(),
 					Bid:          tickers[x].Bid1Price.Float64(),
@@ -2559,7 +2575,7 @@ func openInterestFromStats(stats []ContractStat) (float64, error) {
 			latest = stats[i]
 		}
 	}
-	return latest.OpenInterest.Float64(), nil
+	return latest.OpenInterestUSD.Float64(), nil
 }
 
 func useOpenInterestStats(keys []key.PairAsset, a asset.Item) bool {
@@ -2574,6 +2590,9 @@ func getRequestedOpenInterestPair(e *Exchange, keys []key.PairAsset, a asset.Ite
 }
 
 func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p currency.Pair) (float64, error) {
+	if err := validateFuturesAsset(a); err != nil {
+		return 0, err
+	}
 	settle, err := getSettlementCurrency(p, a)
 	if err != nil {
 		return 0, err
@@ -2588,6 +2607,9 @@ func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p
 }
 
 func (e *Exchange) getOpenInterestContracts(ctx context.Context, a asset.Item, p currency.Pair) ([]openInterestContract, error) {
+	if err := validateFuturesAsset(a); err != nil {
+		return nil, err
+	}
 	settle, err := getSettlementCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -2626,17 +2648,13 @@ func getClientOrderIDFromText(text string) string {
 
 // getTypeFromTimeInForce returns the order type and if the order is post only
 func getTypeFromTimeInForce(tif string, price float64) (orderType order.Type) {
-	switch tif {
-	case iocTIF, fokTIF:
-		return order.Market
-	case pocTIF, gtcTIF:
-		return order.Limit
-	default:
-		if price == 0 {
+	if price == 0 {
+		switch tif {
+		case iocTIF, fokTIF:
 			return order.Market
 		}
-		return order.Limit
 	}
+	return order.Limit
 }
 
 // getSideAndAmountFromSize returns the order side, amount and remaining amounts
@@ -2977,7 +2995,7 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 
 func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error) {
 	switch a {
-	case asset.DeliveryFutures:
+	case asset.DeliveryFutures, asset.Options:
 		return currency.USDT, nil
 	case asset.USDTMarginedFutures:
 		if p.IsEmpty() || p.Quote.Equal(currency.USDT) {
@@ -2996,6 +3014,15 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 		return currency.BTC, nil
 	}
 	return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+}
+
+func validateFuturesAsset(a asset.Item) error {
+	switch a {
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		return nil
+	default:
+		return fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
 }
 
 // WebsocketSubmitOrders submits orders to the exchange through the websocket
