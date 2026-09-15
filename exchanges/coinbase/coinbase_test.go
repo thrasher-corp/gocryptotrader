@@ -42,6 +42,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your APIKeys here for better testing
@@ -1501,13 +1502,14 @@ func TestGetOrderRespToOrderDetail(t *testing.T) {
 			StopLimitStopLimitGTD: &StopLimitStopLimitGTD{},
 		},
 		SizeInQuote: false,
+		FilledValue: types.Number(42),
 		Side:        "BUY",
 		Status:      "OPEN",
 		Settled:     true,
 		EditHistory: []EditHistory{(EditHistory{})},
 	}
 	resp := e.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected := &order.Detail{TimeInForce: order.ImmediateOrCancel, Exchange: "Coinbase", Type: order.StopLimit, Side: order.Buy, Status: order.Open, AssetType: asset.Spot, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
+	expected := &order.Detail{TimeInForce: order.ImmediateOrCancel, ExecutedQuoteAmount: 42, Exchange: "Coinbase", Type: order.StopLimit, Side: order.Buy, Status: order.Open, AssetType: asset.Spot, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
 	assert.Equal(t, expected, resp)
 	mockData.Side = "SELL"
 	mockData.Status = "FILLED"

@@ -3040,27 +3040,27 @@ func (x *GetForexRatesResponse) GetForexRates() []*ForexRatesConversion {
 }
 
 type OrderDetails struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Exchange       string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
-	Id             string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	ClientOrderId  string                 `protobuf:"bytes,3,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
-	BaseCurrency   string                 `protobuf:"bytes,4,opt,name=base_currency,json=baseCurrency,proto3" json:"base_currency,omitempty"`
-	QuoteCurrency  string                 `protobuf:"bytes,5,opt,name=quote_currency,json=quoteCurrency,proto3" json:"quote_currency,omitempty"`
-	AssetType      string                 `protobuf:"bytes,6,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
-	OrderSide      string                 `protobuf:"bytes,7,opt,name=order_side,json=orderSide,proto3" json:"order_side,omitempty"`
-	OrderType      string                 `protobuf:"bytes,8,opt,name=order_type,json=orderType,proto3" json:"order_type,omitempty"`
-	CreationTime   string                 `protobuf:"bytes,9,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
-	UpdateTime     string                 `protobuf:"bytes,10,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
-	Status         string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
-	Price          float64                `protobuf:"fixed64,12,opt,name=price,proto3" json:"price,omitempty"`
-	Amount         float64                `protobuf:"fixed64,13,opt,name=amount,proto3" json:"amount,omitempty"`
-	OpenVolume     float64                `protobuf:"fixed64,14,opt,name=open_volume,json=openVolume,proto3" json:"open_volume,omitempty"`
-	Fee            float64                `protobuf:"fixed64,15,opt,name=fee,proto3" json:"fee,omitempty"`
-	Cost           float64                `protobuf:"fixed64,16,opt,name=cost,proto3" json:"cost,omitempty"`
-	Trades         []*TradeHistory        `protobuf:"bytes,17,rep,name=trades,proto3" json:"trades,omitempty"`
-	ContractAmount float64                `protobuf:"fixed64,18,opt,name=contract_amount,json=contractAmount,proto3" json:"contract_amount,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Exchange            string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	Id                  string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	ClientOrderId       string                 `protobuf:"bytes,3,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
+	BaseCurrency        string                 `protobuf:"bytes,4,opt,name=base_currency,json=baseCurrency,proto3" json:"base_currency,omitempty"`
+	QuoteCurrency       string                 `protobuf:"bytes,5,opt,name=quote_currency,json=quoteCurrency,proto3" json:"quote_currency,omitempty"`
+	AssetType           string                 `protobuf:"bytes,6,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
+	OrderSide           string                 `protobuf:"bytes,7,opt,name=order_side,json=orderSide,proto3" json:"order_side,omitempty"`
+	OrderType           string                 `protobuf:"bytes,8,opt,name=order_type,json=orderType,proto3" json:"order_type,omitempty"`
+	CreationTime        string                 `protobuf:"bytes,9,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
+	UpdateTime          string                 `protobuf:"bytes,10,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
+	Status              string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	Price               float64                `protobuf:"fixed64,12,opt,name=price,proto3" json:"price,omitempty"`
+	Amount              float64                `protobuf:"fixed64,13,opt,name=amount,proto3" json:"amount,omitempty"`
+	OpenVolume          float64                `protobuf:"fixed64,14,opt,name=open_volume,json=openVolume,proto3" json:"open_volume,omitempty"`
+	Fee                 float64                `protobuf:"fixed64,15,opt,name=fee,proto3" json:"fee,omitempty"`
+	ExecutedQuoteAmount float64                `protobuf:"fixed64,16,opt,name=executed_quote_amount,json=executedQuoteAmount,proto3" json:"executed_quote_amount,omitempty"`
+	Trades              []*TradeHistory        `protobuf:"bytes,17,rep,name=trades,proto3" json:"trades,omitempty"`
+	ContractAmount      float64                `protobuf:"fixed64,18,opt,name=contract_amount,json=contractAmount,proto3" json:"contract_amount,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *OrderDetails) Reset() {
@@ -3198,9 +3198,9 @@ func (x *OrderDetails) GetFee() float64 {
 	return 0
 }
 
-func (x *OrderDetails) GetCost() float64 {
+func (x *OrderDetails) GetExecutedQuoteAmount() float64 {
 	if x != nil {
-		return x.Cost
+		return x.ExecutedQuoteAmount
 	}
 	return 0
 }
@@ -15335,7 +15335,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\finverse_rate\x18\x04 \x01(\x01R\vinverseRate\"V\n" +
 	"\x15GetForexRatesResponse\x12=\n" +
 	"\vforex_rates\x18\x01 \x03(\v2\x1c.gctrpc.ForexRatesConversionR\n" +
-	"forexRates\"\xb5\x04\n" +
+	"forexRates\"\xd5\x04\n" +
 	"\fOrderDetails\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12&\n" +
@@ -15357,8 +15357,8 @@ const file_rpc_proto_rawDesc = "" +
 	"\x06amount\x18\r \x01(\x01R\x06amount\x12\x1f\n" +
 	"\vopen_volume\x18\x0e \x01(\x01R\n" +
 	"openVolume\x12\x10\n" +
-	"\x03fee\x18\x0f \x01(\x01R\x03fee\x12\x12\n" +
-	"\x04cost\x18\x10 \x01(\x01R\x04cost\x12,\n" +
+	"\x03fee\x18\x0f \x01(\x01R\x03fee\x122\n" +
+	"\x15executed_quote_amount\x18\x10 \x01(\x01R\x13executedQuoteAmount\x12,\n" +
 	"\x06trades\x18\x11 \x03(\v2\x14.gctrpc.TradeHistoryR\x06trades\x12'\n" +
 	"\x0fcontract_amount\x18\x12 \x01(\x01R\x0econtractAmount\"\xf3\x01\n" +
 	"\fTradeHistory\x12#\n" +

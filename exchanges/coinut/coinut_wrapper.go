@@ -878,7 +878,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
 						RemainingAmount: trades.Trades[x].OpenQuantity,
 					}
-					detail.InferCostsAndTimes()
+					detail.InferExecutionAndTimes()
 					allOrders = append(allOrders, detail)
 				}
 				if len(trades.Trades) < 100 {
