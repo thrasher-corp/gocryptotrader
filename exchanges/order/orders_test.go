@@ -1138,6 +1138,21 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
 }
 
+// TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
+// management. A venue that reports its fee in a named asset (and a zero fee, as with a maker rebate)
+// must not lose the currency when the fresh detail is merged into the stored order.
+func TestUpdateOrderFromDetailMergesFeeAsset(t *testing.T) {
+	t.Parallel()
+	stored := &Detail{}
+	err := stored.UpdateOrderFromDetail(&Detail{Fee: 0, FeeAsset: currency.USDT})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "the fee currency should merge even when the fee is zero")
+
+	err = stored.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "an empty incoming fee currency should not clear the stored one")
+}
+
 func TestClassificationError_Error(t *testing.T) {
 	class := ClassificationError{OrderID: "1337", Exchange: "test", Err: errors.New("test error")}
 	require.Equal(t, "Exchange test: OrderID: 1337 classification error: test error", class.Error())

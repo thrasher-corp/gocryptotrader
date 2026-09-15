@@ -794,7 +794,7 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 		}
 		fmt.Fprintf(&breakdown, "%v/%q", f.Commission.Float64(), f.CommissionAsset)
 	}
-	log.Infof(log.ExchangeSys, "%s: order %s myTrades fills=%d totalFee=%v feeAsset=%q uniform=%v [%s]",
+	log.Debugf(log.ExchangeSys, "%s: order %s myTrades fills=%d totalFee=%v feeAsset=%q uniform=%v [%s]",
 		e.Name, orderID, len(fills), totalFee, feeAsset.String(), uniformFee, breakdown.String())
 	return trades, totalFee, feeAsset
 }
