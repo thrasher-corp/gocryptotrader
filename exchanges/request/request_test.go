@@ -33,6 +33,27 @@ var (
 	serverLimit *RateLimiterWithWeight
 )
 
+func TestHeaderValuesForLog(t *testing.T) {
+	t.Parallel()
+
+	values := []string{"sensitive-value"}
+	for _, header := range []string{
+		"Authorization",
+		"Cookie",
+		"Key",
+		"OK-ACCESS-PASSPHRASE",
+		"Sign",
+		"X-API-Key",
+		"X-Auth-Token",
+		"X-Signature",
+	} {
+		require.Equal(t, []string{"[REDACTED]"}, headerValuesForLog(header, values),
+			header+" must be redacted")
+	}
+	require.Equal(t, values, headerValuesForLog("Content-Type", values),
+		"non-sensitive header values must remain available for diagnostics")
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (r roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -192,7 +193,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	if verbose {
 		log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
 		for k, d := range req.Header {
-			log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
+			log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, headerValuesForLog(k, d))
 		}
 		log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
 		if req.GetBody != nil {
@@ -267,7 +268,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 
 	if verbose {
 		for k, d := range resp.Header {
-			log.Debugf(log.RequestSys, "%s response header [%s]: %s", r.name, k, d)
+			log.Debugf(log.RequestSys, "%s response header [%s]: %s", r.name, k, headerValuesForLog(k, d))
 		}
 		log.Debugf(log.RequestSys, "HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 		if !p.HTTPDebugging {
@@ -275,6 +276,25 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 		}
 	}
 	return false, unmarshallError
+}
+
+func headerValuesForLog(name string, values []string) []string {
+	lowerName := strings.ToLower(name)
+	switch {
+	case lowerName == "key",
+		lowerName == "sign",
+		strings.Contains(lowerName, "authorization"),
+		strings.Contains(lowerName, "api-key"),
+		strings.Contains(lowerName, "apikey"),
+		strings.Contains(lowerName, "signature"),
+		strings.Contains(lowerName, "secret"),
+		strings.Contains(lowerName, "token"),
+		strings.Contains(lowerName, "passphrase"),
+		strings.Contains(lowerName, "cookie"):
+		return []string{"[REDACTED]"}
+	default:
+		return values
+	}
 }
 
 // evaluateRetry checks whether a request should be retried based on the retry
