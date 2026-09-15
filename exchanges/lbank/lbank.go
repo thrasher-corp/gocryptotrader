@@ -33,7 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Exchange implements the exchange interface for LBank
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Lbank
 type Exchange struct {
 	exchange.Base
 	privateKey *rsa.PrivateKey
@@ -45,7 +45,7 @@ type Exchange struct {
 
 const (
 	lbankAPIURL              = "https://api.lbkex.com"
-	lbankWSURL               = "wss://www.lbkex.net/ws/V2/"
+	lbankWSURL               = "wss://api.lbank.info/ws/V2/"
 	lbankAPIVersion2         = "2"
 	lbankFeeNotFound         = 0.0
 	tradeBaseURL             = "https://www.lbank.com/trade/"

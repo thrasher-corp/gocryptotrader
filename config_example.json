@@ -2815,7 +2815,7 @@
     },
     "urlEndpoints": {
      "RestSpotURL": "https://api.lbkex.com",
-     "WebsocketSpotURL": "wss://www.lbkex.net/ws/V2/"
+     "WebsocketSpotURL": "wss://api.lbank.info/ws/V2/"
     }
    },
    "features": {

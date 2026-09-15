@@ -11,14 +11,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// wsTimeLayout matches LBank's websocket timestamps, which carry no timezone offset
 const wsTimeLayout = "2006-01-02T15:04:05.999"
 
+// wsTimeLocation is the Beijing offset LBank expresses its websocket timestamps in
 var wsTimeLocation = time.FixedZone("UTC+8", 8*60*60)
 
 var errInvalidWebsocketTime = errors.New("invalid lbank websocket timestamp")
 
+// websocketTime wraps time.Time to unmarshal LBank's websocket timestamps
 type websocketTime time.Time
 
+// UnmarshalJSON implements the json.Unmarshaler interface for websocketTime
 func (t *websocketTime) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
