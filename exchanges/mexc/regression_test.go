@@ -592,7 +592,9 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		// executedQty=0 on a filled order is a known MEXC quirk; cummulativeQuoteQty>0 still triggers
 		// enrichment.
 		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"0","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
-		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":true,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":false,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
+		// clientOrderId is a string on MEXC (e.g. "C02__…"), not a number — the fixture pins the
+		// decode contract so a numeric field type would fail here.
+		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","clientOrderId":"C02__1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":true,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","clientOrderId":"C02__1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":false,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
 		e := newSignedTestExchange(t, routeVenue(orderBody, tradesBody))
 		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
 		require.NoError(t, err, "GetOrderInfo must not error")

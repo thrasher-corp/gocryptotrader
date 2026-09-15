@@ -306,7 +306,7 @@ type AccountDetail struct {
 type AccountTrade struct {
 	Symbol          string       `json:"symbol"`
 	ID              string       `json:"id"`
-	ClientOrderID   int64        `json:"clientOrderId"`
+	ClientOrderID   string       `json:"clientOrderId"`
 	OrderID         string       `json:"orderId"`
 	OrderListID     int64        `json:"orderListId"`
 	Commission      types.Number `json:"commission"`
