@@ -725,6 +725,50 @@ func averageExecutedPrice(o *OrderDetail) float64 {
 	return o.CummulativeQuoteQty.Float64() / executed
 }
 
+// tradesForOrder fetches the fills of a spot order and maps them to domain trade records plus the
+// aggregated commission. MEXC charges commission per fill in an asset the venue chooses (base,
+// quote, or the MX discount token), so the fee currency is read from the fill and never assumed;
+// when fills disagree on the asset the aggregate currency is left unset. It is best-effort: a
+// myTrades failure must not sink the order lookup, so callers pass through the base order.
+func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, orderID string) (trades []order.TradeHistory, totalFee float64, feeAsset currency.Code) {
+	fills, err := e.GetAccountTradeList(ctx, pair, orderID, time.Time{}, time.Time{}, 0)
+	if err != nil || len(fills) == 0 {
+		return nil, 0, currency.EMPTYCODE
+	}
+	trades = make([]order.TradeHistory, 0, len(fills))
+	uniformFee := true
+	for _, f := range fills {
+		side := order.Buy
+		if !f.IsBuyer {
+			side = order.Sell
+		}
+		fillAsset := currency.NewCode(f.CommissionAsset)
+		totalFee += f.Commission.Float64()
+		switch {
+		case feeAsset.IsEmpty():
+			feeAsset = fillAsset
+		case !feeAsset.Equal(fillAsset):
+			uniformFee = false
+		}
+		trades = append(trades, order.TradeHistory{
+			Price:     f.Price.Float64(),
+			Amount:    f.Quantity.Float64(),
+			Fee:       f.Commission.Float64(),
+			Exchange:  e.Name,
+			TID:       f.ID,
+			Side:      side,
+			Timestamp: f.Time.Time(),
+			IsMaker:   f.IsMaker,
+			FeeAsset:  f.CommissionAsset,
+			Total:     f.QuoteQuantity.Float64(),
+		})
+	}
+	if !uniformFee {
+		feeAsset = currency.EMPTYCODE
+	}
+	return trades, totalFee, feeAsset
+}
+
 // GetOrderInfo returns order information based on order ID
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	pairFormat, err := e.GetPairFormat(assetType, true)
@@ -762,7 +806,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if lastUpdated.IsZero() {
 			lastUpdated = result.Time.Time()
 		}
-		return &order.Detail{
+		detail := &order.Detail{
 			Price:       result.Price.Float64(),
 			Amount:      result.OrigQty.Float64(),
 			QuoteAmount: result.CummulativeQuoteQty.Float64(),
@@ -787,7 +831,19 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			// split mis-reads most MEXC symbols (METALUSDT read as MET/ALUSDT).
 			Pair:        pair.Format(pairFormat),
 			TimeInForce: tif,
-		}, nil
+		}
+		// Enrich with the venue's commission facts when the order actually filled. The Query Order
+		// response carries no commission, so the fee and its currency come from myTrades keyed by
+		// this order. Gate on cumulative quote value rather than executedQty: MEXC reports
+		// executedQty=0 on some filled limit orders, so executedQty is not a reliable "has fills".
+		if result.CummulativeQuoteQty.Float64() > 0 {
+			if trades, fee, feeAsset := e.tradesForOrder(ctx, pair.Format(pairFormat), orderID); len(trades) > 0 {
+				detail.Trades = trades
+				detail.Fee = fee
+				detail.FeeAsset = feeAsset
+			}
+		}
+		return detail, nil
 	default:
 		return nil, fmt.Errorf("%w: asset type: %v", order.ErrAssetNotSet, assetType)
 	}

@@ -565,6 +565,84 @@ func TestGetOrderInfoAverageExecutedPrice(t *testing.T) {
 	assert.Equal(t, 0.183503, detail.Price, "Price should still carry the reported price field")
 }
 
+// TestGetOrderInfoEnrichesVenueFee asserts GetOrderInfo reads the commission facts from myTrades for a
+// filled order: the Query Order response carries no commission, so the fee amount and its currency come
+// from the fills. The fee currency is taken from the fill (MEXC may charge in base, quote, or the MX
+// token), never assumed, and is left unset when fills disagree. Enrichment is gated on cumulative quote
+// value, not executedQty, because MEXC reports executedQty=0 on some filled limit orders.
+func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
+	t.Parallel()
+	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
+
+	// routeVenue serves the Query Order body on the order endpoint and the myTrades body on the trade
+	// list endpoint, so one handler drives both REST calls GetOrderInfo makes for a filled order.
+	routeVenue := func(order, trades string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "myTrades") {
+				_, _ = w.Write([]byte(trades))
+				return
+			}
+			_, _ = w.Write([]byte(order))
+		}
+	}
+
+	t.Run("uniform commission asset aggregates fee and currency", func(t *testing.T) {
+		t.Parallel()
+		// executedQty=0 on a filled order is a known MEXC quirk; cummulativeQuoteQty>0 still triggers
+		// enrichment.
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"0","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":true,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":false,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
+		e := newSignedTestExchange(t, routeVenue(orderBody, tradesBody))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		require.Len(t, detail.Trades, 2, "both fills must be mapped onto the order")
+		assert.InDelta(t, 0.007, detail.Fee, 1e-9, "Fee should be the sum of the fill commissions")
+		assert.Equal(t, currency.USDT, detail.FeeAsset, "FeeAsset should be the fill commission asset")
+		assert.Equal(t, "USDT", detail.Trades[0].FeeAsset, "the per-fill commission asset should be carried")
+	})
+
+	t.Run("mixed commission assets leave the aggregate currency unset", func(t *testing.T) {
+		t.Parallel()
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.0035","commissionAsset":"USDT","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","commission":"0.1","commissionAsset":"MX","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
+		e := newSignedTestExchange(t, routeVenue(orderBody, tradesBody))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		require.Len(t, detail.Trades, 2, "both fills must be mapped even with mixed commission assets")
+		assert.InDelta(t, 0.1035, detail.Fee, 1e-9, "Fee should still be the sum of the fill commissions")
+		assert.True(t, detail.FeeAsset.IsEmpty(), "the aggregate FeeAsset should be unset when fills disagree, never guessed")
+	})
+
+	t.Run("no fills leaves fee unenriched without a trade call", func(t *testing.T) {
+		t.Parallel()
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"0","cummulativeQuoteQty":"0","type":"LIMIT","side":"SELL","status":"NEW","time":1736409765000}`
+		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NotContains(t, r.URL.Path, "myTrades", "myTrades must not be called for an order with no fills")
+			_, _ = w.Write([]byte(orderBody))
+		}))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Empty(t, detail.Trades, "no trades should be attached when the order has not filled")
+		assert.Zero(t, detail.Fee, "Fee should stay zero when there is nothing to enrich")
+	})
+
+	t.Run("myTrades failure does not sink the order lookup", func(t *testing.T) {
+		t.Parallel()
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "myTrades") {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write([]byte(orderBody))
+		}))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "a myTrades failure must not fail the order lookup")
+		assert.Empty(t, detail.Trades, "no trades should be attached when myTrades fails")
+		assert.Equal(t, order.Filled, detail.Status, "the base order should still be reported")
+	})
+}
+
 // TestGetActiveOrdersAverageExecutedPrice asserts the shared REST mapping reports the average fill for
 // orders returned by GetActiveOrders.
 func TestGetActiveOrdersAverageExecutedPrice(t *testing.T) {
