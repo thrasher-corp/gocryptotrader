@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -60,6 +61,9 @@ var klineIntervals = map[kline.Interval]string{
 	kline.OneMonth:   lbankWsKlineMonth,
 	kline.OneYear:    lbankWsKlineYear,
 }
+
+// Declared as a var (not const) so tests can override it.
+var wsRefreshInterval = 50 * time.Minute
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
@@ -162,11 +166,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	}
 
 	// Handle ping challenge before type check
-	var ping websocketPingResponse
-	if err := json.Unmarshal(respRaw, &ping); err == nil && ping.Action == lbankWsPing {
+	if base.Action == lbankWsPing {
 		return e.Websocket.Conn.SendJSONMessage(ctx, 0, map[string]string{
 			lbankWsAction: lbankWsPong,
-			"pong":        ping.Ping,
+			"pong":        base.Ping,
 		})
 	}
 
@@ -210,6 +213,7 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, respRaw []byte) error {
 		Low:          resp.Tick.Low.Float64(),
 		Last:         resp.Tick.Latest.Float64(),
 		Volume:       resp.Tick.Volume.Float64(),
+		LastUpdated:  resp.Timestamp.Time(),
 	})
 }
 
@@ -226,7 +230,8 @@ func (e *Exchange) wsHandleTrades(ctx context.Context, respRaw []byte) error {
 		return err
 	}
 
-	side, err := order.StringToOrderSide(resp.Trade.Direction)
+	sideStr, _, _ := strings.Cut(resp.Trade.Direction, "_")
+	side, err := order.StringToOrderSide(sideStr)
 	if err != nil {
 		return err
 	}
@@ -325,24 +330,35 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 	if err != nil {
 		return err
 	}
-	side, err := order.StringToOrderSide(resp.OrderUpdate.Type)
+	sideStr, orderType, _ := strings.Cut(resp.OrderUpdate.Type, "_")
+	side, err := order.StringToOrderSide(sideStr)
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
+
+	detail := &order.Detail{
 		Exchange:             e.Name,
 		AssetType:            asset.Spot,
 		Pair:                 resp.Pair,
 		Price:                resp.OrderUpdate.OrderPrice.Float64(),
-		Amount:               resp.OrderUpdate.OrderAmount.Float64(),
-		ExecutedAmount:       resp.OrderUpdate.AccumulatedAmount.Float64(),
-		RemainingAmount:      resp.OrderUpdate.RemainingAmount.Float64(),
 		AverageExecutedPrice: resp.OrderUpdate.AveragePrice.Float64(),
 		Side:                 side,
 		OrderID:              resp.OrderUpdate.UUID,
 		Status:               status,
 		LastUpdated:          resp.OrderUpdate.UpdateTime.Time(),
-	})
+	}
+	if orderType == "market" {
+		// Market buys are quote-denominated per LBank's docs and CCXT's handling;
+		// remainAmt is not reliably quote-denominated for market orders, so
+		// RemainingAmount is deliberately left unset here.
+		detail.QuoteAmount = resp.OrderUpdate.OrderAmount.Float64()
+		detail.ExecutedAmount = resp.OrderUpdate.AccumulatedAmount.Float64()
+	} else {
+		detail.Amount = resp.OrderUpdate.OrderAmount.Float64()
+		detail.ExecutedAmount = resp.OrderUpdate.AccumulatedAmount.Float64()
+		detail.RemainingAmount = resp.OrderUpdate.RemainingAmount.Float64()
+	}
+	return e.Websocket.DataHandler.Send(ctx, detail)
 }
 
 // wsHandleAssetUpdate handles asset update websocket messages
@@ -351,7 +367,8 @@ func (e *Exchange) wsHandleAssetUpdate(ctx context.Context, respRaw []byte) erro
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, accounts.Change{
+
+	change := accounts.Change{
 		AssetType: asset.Spot,
 		Balance: accounts.Balance{
 			Currency: currency.NewCode(resp.Data.AssetCode),
@@ -359,7 +376,15 @@ func (e *Exchange) wsHandleAssetUpdate(ctx context.Context, respRaw []byte) erro
 			Free:     resp.Data.Free.Float64(),
 			Hold:     resp.Data.Freeze.Float64(),
 		},
-	})
+	}
+
+	subAcct := accounts.NewSubAccount(asset.Spot, "")
+	subAcct.Balances.Set(change.Balance.Currency, change.Balance)
+	if err := e.Accounts.Save(ctx, accounts.SubAccounts{subAcct}, false); err != nil {
+		return err
+	}
+
+	return e.Websocket.DataHandler.Send(ctx, change)
 }
 
 // klineIntervalFromString converts an LBank interval string to a kline.Interval
@@ -400,29 +425,47 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return defaultSubscriptionTemplate, nil
 }
 
-// wsRefreshSubscribeKey refreshes the subscribe key every 50 minutes
+// doRefreshSubscribeKey performs a single subscribe-key refresh attempt
+func (e *Exchange) doRefreshSubscribeKey(ctx context.Context) {
+	e.ws.mu.RLock()
+	key := e.ws.subscribeKey
+	e.ws.mu.RUnlock()
+
+	if err := e.RefreshWebsocketSubscribeKey(ctx, key); err != nil {
+		log.Warnf(log.ExchangeSys, "%s failed to refresh websocket subscribe key, attempting to get new one: %v\n", e.Name, err)
+		newKey, err := e.GetWebsocketSubscribeKey(ctx)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to get new websocket subscribe key: %v\n", e.Name, err)
+			return
+		}
+		e.ws.mu.Lock()
+		e.ws.subscribeKey = newKey
+		e.ws.mu.Unlock()
+
+		subs := e.Websocket.GetSubscriptions()
+		var authSubs subscription.List
+		for _, s := range subs {
+			if s.Authenticated {
+				authSubs = append(authSubs, s)
+			}
+		}
+		if len(authSubs) > 0 {
+			if err := e.Subscribe(authSubs); err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to re-subscribe after key refresh: %v\n", e.Name, err)
+			}
+		}
+	}
+}
+
+// wsRefreshSubscribeKey refreshes the subscribe key every wsRefreshInterval
 func (e *Exchange) wsRefreshSubscribeKey(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
-	refreshTicker := time.NewTicker(50 * time.Minute)
+	refreshTicker := time.NewTicker(wsRefreshInterval)
 	defer refreshTicker.Stop()
 	for {
 		select {
 		case <-refreshTicker.C:
-			e.ws.mu.RLock()
-			key := e.ws.subscribeKey
-			e.ws.mu.RUnlock()
-
-			if err := e.RefreshWebsocketSubscribeKey(ctx, key); err != nil {
-				log.Warnf(log.ExchangeSys, "%s failed to refresh websocket subscribe key, attempting to get new one: %v\n", e.Name, err)
-				newKey, err := e.GetWebsocketSubscribeKey(ctx)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s failed to get new websocket subscribe key: %v\n", e.Name, err)
-					continue
-				}
-				e.ws.mu.Lock()
-				e.ws.subscribeKey = newKey
-				e.ws.mu.Unlock()
-			}
+			e.doRefreshSubscribeKey(ctx)
 		case <-e.Websocket.ShutdownC:
 			return
 		case <-ctx.Done():
@@ -481,10 +524,14 @@ subscriptionLoop:
 		for _, p := range s.Pairs {
 			switch s.Channel {
 			case subscription.OrderbookChannel:
+				levels := s.Levels
+				if levels <= 0 {
+					levels = 100 // matches defaultSubscriptions' OrderbookChannel default
+				}
 				req = map[string]any{
 					lbankWsAction: action,
 					"subscribe":   chName,
-					"depth":       strconv.Itoa(s.Levels),
+					"depth":       strconv.Itoa(levels),
 					"pair":        p.Lower().String(),
 				}
 			case subscription.CandlesChannel:
@@ -510,6 +557,9 @@ subscriptionLoop:
 				errs = common.AppendError(errs, err)
 				continue subscriptionLoop
 			}
+		}
+		if len(s.Pairs) == 0 {
+			continue
 		}
 		if action == lbankWsSubscribe {
 			errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))

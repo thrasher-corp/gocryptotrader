@@ -14,6 +14,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"maps"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -74,12 +76,17 @@ const (
 	lbankWithdraw                = "withdraw.do"
 	lbankRevokeWithdraw          = "withdrawCancel.do"
 	lbankTimestamp               = "timestamp.do"
+
+	lbankSignatureMethod = "RSA"
+	lbankEchostrLength   = 35
 )
 
 var (
 	errPEMBlockIsNil           = errors.New("pem block is nil")
 	errUnableToParsePrivateKey = errors.New("unable to parse private key")
 	errPrivateKeyNotLoaded     = errors.New("private key not loaded")
+	errEmptySubscribeKey       = errors.New("lbank: empty subscribe key returned")
+	errFailedToGenerateEchostr = errors.New("lbank: failed to generate echostr")
 )
 
 // GetTicker returns a ticker for the specified symbol
@@ -157,7 +164,9 @@ func (e *Exchange) GetKlines(ctx context.Context, symbol, size, klineType string
 	params.Set("symbol", symbol)
 	params.Set("size", size)
 	params.Set("type", klineType)
-	params.Set("time", strconv.FormatInt(tm.Unix(), 10))
+	if !tm.IsZero() {
+		params.Set("time", strconv.FormatInt(tm.Unix(), 10))
+	}
 	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankKlines, params)
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &klineTemp)
 	if err != nil {
@@ -538,9 +547,9 @@ func (e *Exchange) loadPrivKey(ctx context.Context) error {
 		return err
 	}
 	key := strings.Join([]string{
-		"-----BEGIN RSA PRIVATE KEY-----",
+		"-----BEGIN PRIVATE KEY-----",
 		creds.Secret,
-		"-----END RSA PRIVATE KEY-----",
+		"-----END PRIVATE KEY-----",
 	}, "\n")
 
 	block, _ := pem.Decode([]byte(key))
@@ -575,7 +584,12 @@ func (e *Exchange) sign(data string) (string, error) {
 }
 
 // SendAuthHTTPRequest sends an authenticated request
-func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint string, vals url.Values, result any) error {
+func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, path string, vals url.Values, result any) error {
+	endpoint, err := e.API.Endpoints.GetURL(exchange.RestSpot)
+	if err != nil {
+		return err
+	}
+
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -585,20 +599,39 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint str
 		vals = url.Values{}
 	}
 
+	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	echostr, err := generateEchostr()
+	if err != nil {
+		return err
+	}
+
 	vals.Set("api_key", creds.Key)
-	sig, err := e.sign(vals.Encode())
+	// LBank's v2 signing spec requires timestamp/signature_method/echostr to be
+	// part of the signed parameter set, even though they're transmitted as
+	// headers rather than form-body fields.
+
+	signVals := maps.Clone(vals)
+	signVals.Set("timestamp", timestamp)
+	signVals.Set("signature_method", lbankSignatureMethod)
+	signVals.Set("echostr", echostr)
+
+	sig, err := e.sign(signVals.Encode())
 	if err != nil {
 		return err
 	}
 
 	vals.Set("sign", sig)
 	payload := vals.Encode()
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	headers := map[string]string{
+		"Content-Type":     "application/x-www-form-urlencoded",
+		"timestamp":        timestamp,
+		"signature_method": lbankSignatureMethod,
+		"echostr":          echostr,
+	}
 
 	item := &request.Item{
 		Method:                 method,
-		Path:                   endpoint,
+		Path:                   endpoint + path,
 		Headers:                headers,
 		Result:                 result,
 		Verbose:                e.Verbose,
@@ -616,13 +649,20 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint str
 // GetWebsocketSubscribeKey gets a subscribe key for websocket authentication
 func (e *Exchange) GetWebsocketSubscribeKey(ctx context.Context) (string, error) {
 	var resp struct {
-		Key string `json:"key"`
+		ErrCapture
+		Data string `json:"data"`
 	}
 	path := "/v" + lbankAPIVersion2 + "/" + lbankSubscribeGetKey
 	if err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, nil, &resp); err != nil {
 		return "", err
 	}
-	return resp.Key, nil
+	if resp.Error != 0 {
+		return "", ErrorCapture(resp.Error)
+	}
+	if resp.Data == "" {
+		return "", errEmptySubscribeKey
+	}
+	return resp.Data, nil
 }
 
 // RefreshWebsocketSubscribeKey refreshes an existing subscribe key
@@ -631,9 +671,15 @@ func (e *Exchange) RefreshWebsocketSubscribeKey(ctx context.Context, key string)
 	params.Set("subscribeKey", key)
 	path := "/v" + lbankAPIVersion2 + "/" + lbankSubscribeRefreshKey
 	var resp struct {
-		Result string `json:"result"`
+		ErrCapture
 	}
-	return e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
+	if err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp); err != nil {
+		return err
+	}
+	if resp.Error != 0 {
+		return ErrorCapture(resp.Error)
+	}
+	return nil
 }
 
 // DestroyWebsocketSubscribeKey destroys an existing subscribe key
@@ -642,7 +688,30 @@ func (e *Exchange) DestroyWebsocketSubscribeKey(ctx context.Context, key string)
 	params.Set("subscribeKey", key)
 	path := "/v" + lbankAPIVersion2 + "/" + lbankSubscribeDestroyKey
 	var resp struct {
-		Result string `json:"result"`
+		ErrCapture
 	}
-	return e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
+	if err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp); err != nil {
+		return err
+	}
+	if resp.Error != 0 {
+		return ErrorCapture(resp.Error)
+	}
+	return nil
+}
+
+// generateEchostr returns a random alphanumeric string of the length LBank's
+// v2 signing spec requires (30-40 chars; we use a fixed 35)
+func generateEchostr() (string, error) {
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	charsetLen := big.NewInt(int64(len(charset)))
+
+	b := make([]byte, lbankEchostrLength)
+	for i := range b {
+		n, err := rand.Int(rand.Reader, charsetLen)
+		if err != nil {
+			return "", fmt.Errorf("%w: %w", errFailedToGenerateEchostr, err)
+		}
+		b[i] = charset[n.Int64()]
+	}
+	return string(b), nil
 }

@@ -139,6 +139,8 @@ type websocketResponse struct {
 	Pair      currency.Pair `json:"pair"`
 	Message   string        `json:"message"`
 	Timestamp websocketTime `json:"TS"`
+	Action    string        `json:"action"`
+	Ping      string        `json:"ping"`
 }
 
 // websocketTickResponse holds a ticker websocket message
@@ -199,12 +201,6 @@ type websocketDepthData struct {
 type websocketKbarResponse struct {
 	websocketResponse
 	Kbar websocketKbarData `json:"kbar"`
-}
-
-// websocketPingResponse holds a ping message from the server
-type websocketPingResponse struct {
-	Action string `json:"action"`
-	Ping   string `json:"ping"`
 }
 
 // websocketKbarData holds kline fields
@@ -321,7 +317,7 @@ type WithdrawResponse struct {
 // RevokeWithdrawResponse stores info about the revoked withdrawal
 type RevokeWithdrawResponse struct {
 	ErrCapture
-	WithdrawID string `json:"string"`
+	WithdrawID string `json:"withdrawId"`
 }
 
 // ListDataResponse contains some of withdrawal data
