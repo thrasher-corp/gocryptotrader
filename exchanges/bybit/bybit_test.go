@@ -15,7 +15,6 @@ import (
 
 	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -41,6 +40,7 @@ import (
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -3314,17 +3314,17 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, currency.XRP, v[0].Underlying, "underlying should be correct")
 			assert.Equal(t, currency.USDT, v[0].CollateralCurrency, "collateral currency should be correct")
 			assert.True(t, v[0].Leverage.Equal(decimal.NewFromInt(10)), "leverage should be correct")
-			assert.True(t, v[0].NotionalSize.Equal(decimal.NewFromFloat(27.1125)), "notional size should be correct")
-			assert.True(t, v[0].PositionMargin.Equal(decimal.NewFromFloat(2.72589075)), "position margin should be correct")
-			assert.True(t, v[0].InitialMarginRequirement.Equal(decimal.NewFromFloat(2.72589075)), "initial margin should be correct")
-			assert.True(t, v[0].MaintenanceMarginRequirement.Equal(decimal.NewFromFloat(0.28576575)), "maintenance margin should be correct")
+			assert.True(t, v[0].NotionalSize.Equal(decimal.MustFromFloat(27.1125)), "notional size should be correct")
+			assert.True(t, v[0].PositionMargin.Equal(decimal.MustFromFloat(2.72589075)), "position margin should be correct")
+			assert.True(t, v[0].InitialMarginRequirement.Equal(decimal.MustFromFloat(2.72589075)), "initial margin should be correct")
+			assert.True(t, v[0].MaintenanceMarginRequirement.Equal(decimal.MustFromFloat(0.28576575)), "maintenance margin should be correct")
 			assert.Equal(t, order.Open, v[0].Status, "status should identify an open position")
 			assert.Equal(t, order.Long, v[0].OpeningDirection, "opening direction should be correct")
 			assert.Equal(t, order.Long, v[0].LatestDirection, "latest direction should be correct")
 			assert.True(t, v[0].LatestSize.Equal(decimal.NewFromInt(75)), "size should be correct")
-			assert.True(t, v[0].OpeningPrice.Equal(decimal.NewFromFloat(0.3615)), "entry price should be correct")
-			assert.True(t, v[0].LatestPrice.Equal(decimal.NewFromFloat(0.3374)), "mark price should be correct")
-			assert.True(t, v[0].UnrealisedPNL.Equal(decimal.NewFromFloat(-1.8075)), "unrealised PnL should be correct")
+			assert.True(t, v[0].OpeningPrice.Equal(decimal.MustFromFloat(0.3615)), "entry price should be correct")
+			assert.True(t, v[0].LatestPrice.Equal(decimal.MustFromFloat(0.3374)), "mark price should be correct")
+			assert.True(t, v[0].UnrealisedPNL.Equal(decimal.MustFromFloat(-1.8075)), "unrealised PnL should be correct")
 			assert.Equal(t, int64(42), v[0].UpdateID, "update ID should be correct")
 			assert.Equal(t, time.UnixMilli(1672207582216), v[0].OpeningDate, "opening date should use position open time")
 			assert.Equal(t, time.UnixMilli(1672364174449), v[0].LastUpdated, "updated time should be correct")
