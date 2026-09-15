@@ -2,6 +2,9 @@ package engine
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -12,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
 )
@@ -436,6 +440,83 @@ func TestDryRunParamInteraction(t *testing.T) {
 	if !bot.Settings.EnableDryRun ||
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
+	}
+}
+
+func TestValidateAPICredentials(t *testing.T) {
+	t.Parallel()
+	t.Run("no enabled assets", func(t *testing.T) {
+		t.Parallel()
+		called := false
+		err := validateAPICredentials(t.Context(), testExchange, nil, func(context.Context, asset.Item) error {
+			called = true
+			return nil
+		})
+		require.ErrorIs(t, err, asset.ErrNotEnabled, "validation must fail when no assets are enabled")
+		assert.ErrorContains(t, err, testExchange, "error should name the exchange it came from")
+		assert.False(t, called, "validation should not run without an enabled asset")
+	})
+
+	errDeliveryAccountMissing := errors.New("delivery account missing")
+	var validated asset.Items
+	err := validateAPICredentials(t.Context(), testExchange, asset.Items{
+		asset.DeliveryFutures,
+		asset.USDTMarginedFutures,
+	}, func(_ context.Context, a asset.Item) error {
+		validated = append(validated, a)
+		if a == asset.DeliveryFutures {
+			return errDeliveryAccountMissing
+		}
+		return nil
+	})
+	require.NoError(t, err, "validation must succeed when another enabled account is available")
+	assert.Equal(t, asset.Items{asset.DeliveryFutures, asset.USDTMarginedFutures}, validated,
+		"validation should try another enabled futures account after an account-specific failure")
+
+	err = validateAPICredentials(t.Context(), testExchange, asset.Items{asset.DeliveryFutures}, func(context.Context, asset.Item) error {
+		return errDeliveryAccountMissing
+	})
+	require.ErrorIs(t, err, errDeliveryAccountMissing, "validation must return an error when every enabled account fails")
+
+	var seen asset.Items
+	err = validateAPICredentials(t.Context(), testExchange, asset.Items{
+		asset.Options,
+		asset.USDTMarginedFutures,
+		asset.Margin,
+		asset.Spot,
+		asset.PerpetualSwap,
+		asset.DeliveryFutures,
+		asset.Index,
+	}, func(_ context.Context, a asset.Item) error {
+		seen = append(seen, a)
+		return errDeliveryAccountMissing
+	})
+	require.ErrorIs(t, err, errDeliveryAccountMissing, "mixed asset validation must return the aggregated error")
+	assert.Equal(t, asset.Items{
+		asset.Spot,
+		asset.USDTMarginedFutures,
+		asset.PerpetualSwap,
+		asset.DeliveryFutures,
+		asset.Options,
+		asset.Margin,
+		asset.Index,
+	}, seen, "assets should be tried spot first, then futures, then the rest")
+	for _, a := range seen {
+		assert.ErrorContainsf(t, err, a.String()+": "+errDeliveryAccountMissing.Error(), "aggregated error should name %s and why it failed", a)
+	}
+
+	for _, venueWideErr := range []error{
+		exchange.ErrCredentialsAreEmpty,
+		exchange.ErrAuthenticationSupportNotEnabled,
+		&url.Error{Op: "Get", URL: "https://example.com/accounts", Err: context.DeadlineExceeded},
+	} {
+		validated = nil
+		err = validateAPICredentials(t.Context(), testExchange, asset.Items{asset.Spot, asset.USDTMarginedFutures}, func(_ context.Context, a asset.Item) error {
+			validated = append(validated, a)
+			return fmt.Errorf("%w, authenticated request failed", venueWideErr)
+		})
+		require.ErrorIs(t, err, venueWideErr, "venue-wide failure must be returned")
+		assert.Equal(t, asset.Items{asset.Spot}, validated, "venue-wide failure should stop further validation")
 	}
 }
 
