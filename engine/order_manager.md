@@ -1,6 +1,6 @@
 # GoCryptoTrader package Order Manager
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
+<img src="../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -20,11 +20,11 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + The order manager subsystem stores and monitors all orders from enabled exchanges with API keys and `authenticatedSupport` enabled
 + It can be enabled or disabled via runtime command `-ordermanager=false` and defaults to true
 + All orders placed via GoCryptoTrader will be added to the order manager store
-+ Any futures based order will be tracked via the [futures positions controller](/exchanges/order/README.md) which can be used to track PNL. Use GRPC command [getfuturesposition](https://api.gocryptotrader.app/#gocryptotrader_getfuturesposition) to view position data for an exchange, asset, pair
++ Any futures based order will be tracked via the [futures positions controller](../exchanges/order/README.md) which can be used to track PNL. Use GRPC command [getfuturesposition](https://api.gocryptotrader.app/#gocryptotrader_getfuturesposition) to view position data for an exchange, asset, pair
 
 ## Donations
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+<img src="../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

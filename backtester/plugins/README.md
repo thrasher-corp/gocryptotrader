@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Plugins package
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
+<img src="../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -39,7 +39,7 @@ A plugin is a Go main package with exported functions and variables that has bee
 go build -buildmode=plugin
 ```
 
-This outputs a file named `plugins.so` which can be loaded by the backtester. At present, only custom strategies can be loaded. See the [custom strategy plugin example](/backtester/plugins/strategies/example/README.md) for more information.
+This outputs a file named `plugins.so` which can be loaded by the backtester. At present, only custom strategies can be loaded. See the [custom strategy plugin example](../../backtester/plugins/strategies/example/README.md) for more information.
 
 You must ensure that the plugin is built with the same version of code as the GoCryptoTrader Backtester. Otherwise the plugin will refuse to load.
 
@@ -49,7 +49,7 @@ See the [Go installation instructions](https://go.dev/doc/install) and follow th
 
 ## Donations
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

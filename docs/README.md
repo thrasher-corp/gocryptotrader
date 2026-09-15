@@ -1,6 +1,6 @@
 # GoCryptoTrader Documentation
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/page-logo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
+<img src="../docs/assets/page-logo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -21,10 +21,10 @@ See below for feature documentation:
 
 + [Exchange unified API documentation](EXCHANGE_API.md)
 + [File hierarchy documentation](FILES.md)
-+ [Config documentation](/config/README.md)
-+ [gRPC service documentation](/gctrpc/README.md)
-+ [gctcli documentation](/cmd/gctcli/README.md)
-+ [Database documentation](/database/README.md)
-+ [Currency documentation](/currency/README.md)
-+ [Exchange documentation](/exchanges/README.md)
-+ [Portfolio documentation](/portfolio/README.md)
++ [Config documentation](../config/README.md)
++ [gRPC service documentation](../gctrpc/README.md)
++ [gctcli documentation](../cmd/gctcli/README.md)
++ [Database documentation](../database/README.md)
++ [Currency documentation](../currency/README.md)
++ [Exchange documentation](../exchanges/README.md)
++ [Portfolio documentation](../portfolio/README.md)

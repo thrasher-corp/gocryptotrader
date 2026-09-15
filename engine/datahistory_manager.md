@@ -1,6 +1,6 @@
 # GoCryptoTrader package Datahistory Manager
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
+<img src="../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -42,11 +42,11 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## What are the requirements for the data history manager?
 
-+ Ensure you have a database setup; read the [database documentation](/database)
-+ Ensure you have run dbmigrate under `/cmd/dbmigrate` via `dbmigrate -command=up`; read the [migration documentation](/database#create-and-run-migrations)
-+ Ensure you have seeded exchanges to the database via the application dbseed under `/cmd/dbseed`; read the [dbseed documentation](/cmd/dbseed)
-+ Ensure you have the database setup and enabled in your config, as shown in the [database configuration documentation](/database)
-+ Data retrieval can only be made on exchanges that support it, see the readmes for [candles](/docs/OHLCV.md) and [trades](/exchanges/trade#exchange-support-table)
++ Ensure you have a database setup; read the [database documentation](../database)
++ Ensure you have run dbmigrate under `/cmd/dbmigrate` via `dbmigrate -command=up`; read the [migration documentation](../database#create-and-run-migrations)
++ Ensure you have seeded exchanges to the database via the application dbseed under `/cmd/dbseed`; read the [dbseed documentation](../cmd/dbseed)
++ Ensure you have the database setup and enabled in your config, as shown in the [database configuration documentation](../database)
++ Data retrieval can only be made on exchanges that support it, see the readmes for [candles](../docs/OHLCV.md) and [trades](../exchanges/trade#exchange-support-table)
 + Read below on how to enable the data history manager and add data history jobs
 
 ## What is a data history job?
@@ -216,7 +216,7 @@ The candle table also has relationships to data history jobs. Only the relevant 
 
 ## Donations
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+<img src="../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

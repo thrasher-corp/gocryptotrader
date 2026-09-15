@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Strategies package
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
+<img src="../../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -20,13 +20,13 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ### Designing a strategy
 
 - File must contain `main` package
-- Custom strategy plugins must adhere to the strategy.Handler interface. See the [strategy.Handler interface documentation](/backtester/eventhandlers/strategies/README.md) for more information.
+- Custom strategy plugins must adhere to the strategy.Handler interface. See the [strategy.Handler interface documentation](../../../backtester/eventhandlers/strategies/README.md) for more information.
 - Must contain function `func GetStrategies() []strategy.Handler` to return a slice of implemented `strategy.Handler`.
   - If only using one custom strategy, can simply `return []strategy.Handler{&customStrategy{}}`.
 
 ### Building
 
-See the [plugin build instructions](/backtester/plugins/README.md) for details on how to build the plugin file.
+See the [plugin build instructions](../../../backtester/plugins/README.md) for details on how to build the plugin file.
 
 ### Running
 
@@ -42,7 +42,7 @@ Upon startup, the GoCryptoTrader Backtester will load the strategy and run it fo
 
 ## Donations
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+<img src="../../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

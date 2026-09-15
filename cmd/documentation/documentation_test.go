@@ -2,16 +2,20 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"text/template"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 )
 
-func TestRunTemplateNormalizesMarkdown(t *testing.T) {
+func TestRunTemplateNormalisesMarkdown(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -145,12 +149,74 @@ func TestRunTemplateNormalizesMarkdown(t *testing.T) {
 
 			contents, err := os.ReadFile(outputPath)
 			require.NoError(t, err, "reading generated documentation must not error")
-			assert.Equal(t, tt.expected, string(contents), "runTemplate should normalize generated Markdown")
-			assert.Equal(t, tt.expected, normalizeMarkdown(tt.expected), "normalizeMarkdown should be idempotent")
+			assert.Equal(t, tt.expected, string(contents), "runTemplate should normalise generated Markdown")
+			assert.Equal(t, tt.expected, normaliseMarkdown(tt.expected), "normaliseMarkdown should be idempotent")
 
 			info, err := os.Stat(outputPath)
 			require.NoError(t, err, "stat generated documentation must not error")
 			assert.Zero(t, info.Mode().Perm()&0o111, "generated documentation should not be executable")
+		})
+	}
+}
+
+func TestRelativeRepoRoot(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	tests := []struct {
+		name     string
+		path     string
+		expected string
+	}{
+		{name: "root", path: filepath.Join(root, "README.md"), expected: "."},
+		{name: "nested", path: filepath.Join(root, "backtester", "btcli", "README.md"), expected: "../.."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actual, err := relativeRepoRoot(tt.path, root)
+			require.NoError(t, err, "relativeRepoRoot must not error")
+			assert.Equal(t, tt.expected, actual, "relativeRepoRoot should return the README-relative repository root")
+		})
+	}
+}
+
+func TestMarkdownDestinationsAreRepositoryRelative(t *testing.T) {
+	t.Parallel()
+	repositoryRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err, "repository root must resolve")
+	command := exec.CommandContext(t.Context(), "git", "-c", "safe.directory=*", "ls-files", "*.md", "*.tmpl")
+	command.Dir = repositoryRoot
+	output, err := command.Output()
+	require.NoError(t, err, "tracked Markdown sources must be listed")
+
+	for path := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		t.Run(filepath.ToSlash(path), func(t *testing.T) {
+			t.Parallel()
+			contents, err := os.ReadFile(filepath.Join(repositoryRoot, filepath.FromSlash(path)))
+			require.NoError(t, err, "Markdown source must be readable")
+			document := markdownParser.Parse(text.NewReader(contents))
+			err = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+				if !entering {
+					return ast.WalkContinue, nil
+				}
+				var destination []byte
+				switch node := node.(type) {
+				case *ast.Link:
+					destination = node.Destination
+				case *ast.Image:
+					destination = node.Destination
+				default:
+					return ast.WalkContinue, nil
+				}
+				assert.Falsef(t, strings.HasPrefix(string(destination), "/"),
+					"Markdown destination %q should be relative to its source file", destination)
+				return ast.WalkContinue, nil
+			})
+			require.NoError(t, err, "Markdown syntax tree must be walked")
 		})
 	}
 }

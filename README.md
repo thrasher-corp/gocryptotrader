@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
+<img src="./common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -58,21 +58,21 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Unified API for exchange usage.
 + Customisation of HTTP client features including setting a proxy, user agent and adjusting transport settings.
 + NTP client package.
-+ Database support (Postgres and SQLite3). See [database](/database/README.md).
-+ OTP generation tool. See [gen otp](/cmd/gen_otp).
++ Database support (Postgres and SQLite3). See [database](./database/README.md).
++ OTP generation tool. See [gen otp](./cmd/gen_otp).
 + Connection monitor package.
-+ gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
-+ gRPC client. See [gctcli](/cmd/gctcli/README.md).
++ gRPC service and JSON RPC proxy. See [gRPC service](./gctrpc/README.md).
++ gRPC client. See [gctcli](./cmd/gctcli/README.md).
 + Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Exchange Rates, Fixer.io, OpenExchangeRates, Exchange Rate Host).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
-+ OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
-+ Scripting support. See [gctscript](/gctscript/README.md).
-+ Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
-+ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
-+ Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
-+ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
++ OHLCV/Candle retrieval support. See [OHLCV](./docs/OHLCV.md).
++ Scripting support. See [gctscript](./gctscript/README.md).
++ Recent and historic trade processing. See [trades](./exchanges/trade/README.md).
++ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](./backtester/README.md).
++ Exchange HTTP mock testing. See [mock](./exchanges/mock/README.md).
++ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](./docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
 ## Development Tracking
 
@@ -89,7 +89,7 @@ Follow our progress as we continuously improve GoCryptoTrader.
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
 
-When submitting a PR, please abide by our [coding guidelines](/docs/CODING_GUIDELINES.md).
+When submitting a PR, please abide by our [coding guidelines](./docs/CODING_GUIDELINES.md).
 
 ## Compiling and Running instructions
 
@@ -159,7 +159,7 @@ The suite defaults to five 500 ms samples per operation. Override these with `DE
 
 ## Donations
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+<img src="./docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
@@ -175,9 +175,9 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 787 |
+| [thrasher-](https://github.com/thrasher-) | 788 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 488 |
-| [shazbert](https://github.com/shazbert) | 418 |
+| [shazbert](https://github.com/shazbert) | 419 |
 | [gloriousCode](https://github.com/gloriousCode) | 247 |
 | [gbjk](https://github.com/gbjk) | 145 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |

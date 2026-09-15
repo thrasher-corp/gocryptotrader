@@ -7,7 +7,7 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 
 ### Features
 
-- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme](/docs/OHLCV.md) and [trade readme](/exchanges/trade/README.md) for supported exchanges
+- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme]({{.RepoRoot}}/docs/OHLCV.md) and [trade readme]({{.RepoRoot}}/exchanges/trade/README.md) for supported exchanges
 - CSV data import
 - Database data import
 - Proof of concept live data running
@@ -55,18 +55,18 @@ We welcome pull requests on any feature for the Backtester! We will be especiall
   - Start & end dates
   - The strategy to run
   - The candle interval
-  - Where the data is to be sourced ([API](/backtester/data/kline/api/README.md), [CSV](/backtester/data/kline/csv/README.md), [database](/backtester/data/kline/database/README.md), [live](/backtester/data/kline/live/README.md))
-  - Whether to use trade or candle data ([kline data documentation](/backtester/data/kline/README.md))
+  - Where the data is to be sourced ([API]({{.RepoRoot}}/backtester/data/kline/api/README.md), [CSV]({{.RepoRoot}}/backtester/data/kline/csv/README.md), [database]({{.RepoRoot}}/backtester/data/kline/database/README.md), [live]({{.RepoRoot}}/backtester/data/kline/live/README.md))
+  - Whether to use trade or candle data ([kline data documentation]({{.RepoRoot}}/backtester/data/kline/README.md))
   - A nickname for the strategy (to help differentiate between runs/configs using the same strategy)
   - The currency/currencies to use
   - The exchange(s) to run against
-  - See the [configuration documentation](/backtester/config/README.md) for a breakdown of all config features
-- The GoCryptoTrader Backtester will retrieve the data specified in the config ([backtest documentation](/backtester/engine/README.md))
+  - See the [configuration documentation]({{.RepoRoot}}/backtester/config/README.md) for a breakdown of all config features
+- The GoCryptoTrader Backtester will retrieve the data specified in the config ([backtest documentation]({{.RepoRoot}}/backtester/engine/README.md))
 - The data is converted into candles and each candle is streamed as a data event.
-- The data event is analysed by the strategy which will output a purchasing signal such as `BUY`, `SELL` or `DONOTHING` ([signal event documentation](/backtester/eventtypes/signal/README.md))
-- The purchase signal is then processed by the [portfolio manager](/backtester/eventhandlers/portfolio/README.md), which will [size the order](/backtester/eventhandlers/portfolio/size/README.md) and [assess risk](/backtester/eventhandlers/portfolio/risk/README.md) before sending it to the exchange
-- The exchange order event handler will size to the candle data, run a [slippage estimator](/backtester/eventhandlers/exchange/slippage/README.md), and [place the order](/backtester/eventhandlers/exchange/README.md)
-- Upon an order being placed, the order is snapshot for analysis in both the [statistics package](/backtester/eventhandlers/statistics/README.md) and the [report package](/backtester/report/README.md)
+- The data event is analysed by the strategy which will output a purchasing signal such as `BUY`, `SELL` or `DONOTHING` ([signal event documentation]({{.RepoRoot}}/backtester/eventtypes/signal/README.md))
+- The purchase signal is then processed by the [portfolio manager]({{.RepoRoot}}/backtester/eventhandlers/portfolio/README.md), which will [size the order]({{.RepoRoot}}/backtester/eventhandlers/portfolio/size/README.md) and [assess risk]({{.RepoRoot}}/backtester/eventhandlers/portfolio/risk/README.md) before sending it to the exchange
+- The exchange order event handler will size to the candle data, run a [slippage estimator]({{.RepoRoot}}/backtester/eventhandlers/exchange/slippage/README.md), and [place the order]({{.RepoRoot}}/backtester/eventhandlers/exchange/README.md)
+- Upon an order being placed, the order is snapshot for analysis in both the [statistics package]({{.RepoRoot}}/backtester/eventhandlers/statistics/README.md) and the [report package]({{.RepoRoot}}/backtester/report/README.md)
 
 ### Cool story, how do I use it?
 
@@ -74,11 +74,11 @@ To run the application using the provided dollar cost average strategy, simply r
 
 ### How do I create my own config?
 
-There is a config generating helper application under `/backtester/config/strategyconfigbuilder` to help you create a `.strat` file. Read the [config builder documentation](/backtester/config/strategyconfigbuilder/README.md). There are also a number of tests under `/backtester/config/strategyconfig_test.go` which generate configs into the `strategyexamples` folder, which if you have code knowledge, can write your own configs programmatically.
+There is a config generating helper application under `/backtester/config/strategyconfigbuilder` to help you create a `.strat` file. Read the [config builder documentation]({{.RepoRoot}}/backtester/config/strategyconfigbuilder/README.md). There are also a number of tests under `/backtester/config/strategyconfig_test.go` which generate configs into the `strategyexamples` folder, which if you have code knowledge, can write your own configs programmatically.
 
 ### How do I create my own strategy?
 
-Creating strategies requires programming skills. Start with the [strategy documentation](/backtester/eventhandlers/strategies/README.md), then review the [example strategies](/backtester/eventhandlers/strategies/) to understand how to write your own.
+Creating strategies requires programming skills. Start with the [strategy documentation]({{.RepoRoot}}/backtester/eventhandlers/strategies/README.md), then review the [example strategies]({{.RepoRoot}}/backtester/eventhandlers/strategies/) to understand how to write your own.
 
 ### How does it work technically?
 

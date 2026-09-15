@@ -1,6 +1,6 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
+<img src="../docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -113,7 +113,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 **Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported by the exchange
 
-#### Add exchange to the [root README template](/cmd/documentation/root_templates/root_readme.tmpl) file
+#### Add exchange to the [root README template](../cmd/documentation/root_templates/root_readme.tmpl) file
 
 ```go
 | Exchange | REST API | Websocket API | FIX API |
@@ -223,7 +223,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ### Code Consistency Guidelines
 
-Please refer to our [coding guidelines](/docs/CODING_GUIDELINES.md).
+Please refer to our [coding guidelines](../docs/CODING_GUIDELINES.md).
 
 ### Create functions supported by the exchange
 

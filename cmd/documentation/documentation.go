@@ -126,6 +126,7 @@ type Attributes struct {
 	Name            string
 	Contributors    []Contributor
 	NameURL         string
+	RepoRoot        string
 	Year            int
 	CapitalName     string
 	DonationAddress string
@@ -516,20 +517,37 @@ func UpdateDocumentation(details DocumentationDetails) {
 func runTemplate(details DocumentationDetails, mainPath, name string) error {
 	var output bytes.Buffer
 	attr := GetDocumentationAttributes(name, details.Contributors)
+	root := repoDir
+	if root == "" {
+		root = filepath.Dir(mainPath)
+	}
+	var err error
+	attr.RepoRoot, err = relativeRepoRoot(mainPath, root)
+	if err != nil {
+		return err
+	}
 	if err := details.Tmpl.ExecuteTemplate(&output, name, attr); err != nil {
 		return err
 	}
 
-	contents := normalizeMarkdown(output.String())
+	contents := normaliseMarkdown(output.String())
 	if err := os.Remove(mainPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return os.WriteFile(mainPath, []byte(contents), 0o644)
 }
 
+func relativeRepoRoot(mainPath, root string) (string, error) {
+	relativeRoot, err := filepath.Rel(filepath.Dir(mainPath), root)
+	if err != nil {
+		return "", fmt.Errorf("cannot determine repository root for %s: %w", mainPath, err)
+	}
+	return filepath.ToSlash(relativeRoot), nil
+}
+
 var markdownParser = goldmark.New().Parser()
 
-func normalizeMarkdown(contents string) string {
+func normaliseMarkdown(contents string) string {
 	contents = strings.ReplaceAll(contents, "\r\n", "\n")
 	code := markdownCodeLines([]byte(contents))
 	lines := strings.Split(contents, "\n")

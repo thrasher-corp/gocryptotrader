@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Top2bottom2 package
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
+<img src="../../../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -21,7 +21,7 @@ The Top 2 Bottom 2 (T2B2) strategy utilises [the gct-ta MFI package](https://git
 It is a basic example strategy to highlight how the backtester can perform more complex data event signal processing
 
 This strategy *requires* at least 4 exchange currency settings to determine the 4 signals to process
-This strategy *requires* `SimultaneousSignalProcessing` aka [use-simultaneous-signal-processing](/backtester/config/README.md).
+This strategy *requires* `SimultaneousSignalProcessing` aka [use-simultaneous-signal-processing](../../../../backtester/config/README.md).
 This strategy does support strategy customisation in the following ways:
 
 | Field | Description |  Example |
@@ -32,7 +32,7 @@ This strategy does support strategy customisation in the following ways:
 
 ## Donations
 
-<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+<img src="../../../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

@@ -16,14 +16,14 @@ On the last event, the strategy will close the SHORT position by raising a LONG 
 ### Requirements
 
 - At this time of writing, this strategy is only compatible with Binance
-- This strategy *requires* `Simultaneous Signal Processing` aka [use-simultaneous-signal-processing](/backtester/config/README.md).
-- This strategy *requires* `Exchange Level Funding` aka [use-exchange-level-funding](/backtester/config/README.md).
+- This strategy *requires* `Simultaneous Signal Processing` aka [use-simultaneous-signal-processing]({{.RepoRoot}}/backtester/config/README.md).
+- This strategy *requires* `Exchange Level Funding` aka [use-exchange-level-funding]({{.RepoRoot}}/backtester/config/README.md).
 
 ### Creating a strategy config
 
 - The long-dated futures contract will need to be part of the `currency-settings` of the contract
 - Funding for purchasing SPOT assets will need to be part of `funding-settings`
-- See the [example config](/backtester/config/strategyexamples/binance-cash-and-carry.strat)
+- See the [example config]({{.RepoRoot}}/backtester/config/strategyexamples/binance-cash-and-carry.strat)
 
 ### Customisation
 

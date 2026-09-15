@@ -10,15 +10,15 @@ This document outlines the coding, formatting, and testing standards for impleme
 
 ## Security
 
-See [SECURITY.md](/SECURITY.md) for the project's security policy, supported versions and reporting process.
+See [SECURITY.md](../SECURITY.md) for the project's security policy, supported versions and reporting process.
 
 - Never commit API keys, secrets, client IDs or a populated `config.json`. Use placeholder values in tests and examples.
 - Never log or return credentials in error messages, RPC responses or test output.
-- If you discover a vulnerability while working on the codebase, report it privately as described in [SECURITY.md](/SECURITY.md). Do not describe it in a public issue, pull request or commit message.
+- If you discover a vulnerability while working on the codebase, report it privately as described in [SECURITY.md](../SECURITY.md). Do not describe it in a public issue, pull request or commit message.
 
 ## Exchange Implementation Guidelines
 
-Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for comprehensive steps on integrating a new exchange.
+Refer to the [ADD_NEW_EXCHANGE.md](../docs/ADD_NEW_EXCHANGE.md) document for comprehensive steps on integrating a new exchange.
 
 ### Endpoint Organisation
 
@@ -114,7 +114,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 
 ## Configuration Migrations
 
-Migration code lives in [config/versions](/config/versions), with each version in its own `vN` package. Start with the package instructions and the `ExchangeVersion` and `ConfigVersion` interfaces in [config/versions/versions.go](/config/versions/versions.go). Register new versions in [config/versions/register.go](/config/versions/register.go). For an exchange-specific example, see [config/versions/v14/v14.go](/config/versions/v14/v14.go) and its tests in [config/versions/v14/v14_test.go](/config/versions/v14/v14_test.go).
+Migration code lives in [config/versions](../config/versions), with each version in its own `vN` package. Start with the package instructions and the `ExchangeVersion` and `ConfigVersion` interfaces in [config/versions/versions.go](../config/versions/versions.go). Register new versions in [config/versions/register.go](../config/versions/register.go). For an exchange-specific example, see [config/versions/v14/v14.go](../config/versions/v14/v14.go) and its tests in [config/versions/v14/v14_test.go](../config/versions/v14/v14_test.go).
 
 - Add a new version for subsequent configuration changes rather than rewriting historical migrations to match new types. Keep migration-specific types local to the version package instead of depending on evolving types in the config package.
 - For every configuration change, assess how existing saved configurations behave after upgrade. Implement a versioned migration when existing values would otherwise lose functionality, change meaning, or prevent adoption of an intended replacement.
@@ -270,9 +270,10 @@ This ensures proper formatting across the codebase.
     Add focused regression coverage when changing normalisation behaviour.
 - Keep code samples correctly formatted. Markdown auto-fixes must not alter
     indentation or semantics inside fenced code blocks.
-- Use HTTPS `raw.githubusercontent.com` URLs for shared README logos. Leading
-    slash repository paths render on GitHub but are not reliable in VS Code
-    Markdown preview, especially in multi-root workspaces.
+- Use paths relative to each README for repository images and links so they
+    resolve at the checked-out revision on GitHub and pkg.go.dev. Generated
+    documentation must use `{{.RepoRoot}}` in templates for repository-root
+    resources.
 - When upgrading `markdownlint-cli2` in the `markdownlint` Makefile target,
     review newly introduced rules before changing the config.
 - Lint both Markdown and template sources using the same scope as CI:
@@ -307,7 +308,7 @@ The full local verification flow can be run with:
     make check
 ```
 
-This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](/.github/workflows/misc.yml).
+This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](../.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.
