@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetupPositionController creates a position controller
@@ -390,7 +390,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *order.Detail) error {
 	}
 	setup := &PositionTrackerSetup{
 		Pair:                      d.Pair,
-		EntryPrice:                decimal.NewFromFloat(d.Price),
+		EntryPrice:                decimal.MustFromFloat(d.Price),
 		Underlying:                d.Pair.Base,
 		CollateralCurrency:        m.collateralCurrency,
 		Asset:                     d.AssetType,
@@ -558,10 +558,10 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	}
 	p.m.Lock()
 	defer func() {
-		p.latestPrice = decimal.NewFromFloat(currentPrice)
+		p.latestPrice = decimal.MustFromFloat(currentPrice)
 		p.m.Unlock()
 	}()
-	price := decimal.NewFromFloat(currentPrice)
+	price := decimal.MustFromFloat(currentPrice)
 	result := &PNLResult{
 		Time:   t,
 		Price:  price,
@@ -760,8 +760,8 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 			errTimeUnset, d.Exchange, d.AssetType, d.Pair, d.OrderID)
 	}
 	if len(p.shortPositions) == 0 && len(p.longPositions) == 0 {
-		p.openingPrice = decimal.NewFromFloat(d.Price)
-		p.openingSize = decimal.NewFromFloat(d.Amount)
+		p.openingPrice = decimal.MustFromFloat(d.Price)
+		p.openingSize = decimal.MustFromFloat(d.Amount)
 		p.openingDate = d.Date
 	}
 
@@ -804,10 +804,10 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 	}
 	var shortSideAmount, longSideAmount decimal.Decimal
 	for i := range p.shortPositions {
-		shortSideAmount = shortSideAmount.Add(decimal.NewFromFloat(p.shortPositions[i].Amount))
+		shortSideAmount = shortSideAmount.Add(decimal.MustFromFloat(p.shortPositions[i].Amount))
 	}
 	for i := range p.longPositions {
-		longSideAmount = longSideAmount.Add(decimal.NewFromFloat(p.longPositions[i].Amount))
+		longSideAmount = longSideAmount.Add(decimal.MustFromFloat(p.longPositions[i].Amount))
 	}
 
 	if isInitialOrder {
@@ -817,9 +817,9 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 
 	var result *PNLResult
 	var price, amount, leverage decimal.Decimal
-	price = decimal.NewFromFloat(d.Price)
-	amount = decimal.NewFromFloat(d.Amount)
-	leverage = decimal.NewFromFloat(d.Leverage)
+	price = decimal.MustFromFloat(d.Price)
+	amount = decimal.MustFromFloat(d.Amount)
+	leverage = decimal.MustFromFloat(d.Leverage)
 	cal := &PNLCalculatorRequest{
 		Underlying:       p.underlying,
 		Asset:            p.asset,
@@ -834,7 +834,7 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 		CurrentDirection: p.latestDirection,
 		PNLHistory:       p.pnlHistory,
 		Exposure:         p.exposure,
-		Fee:              decimal.NewFromFloat(d.Fee),
+		Fee:              decimal.MustFromFloat(d.Fee),
 		CalculateOffline: p.offlinePNLCalculation,
 	}
 	if len(p.pnlHistory) != 0 {
@@ -922,7 +922,7 @@ func (p *PositionTracker) TrackNewOrder(d *order.Detail, isInitialOrder bool) er
 
 	if p.exposure.Equal(decimal.Zero) {
 		p.status = order.Closed
-		p.closingPrice = decimal.NewFromFloat(d.Price)
+		p.closingPrice = decimal.MustFromFloat(d.Price)
 		p.realisedPNL = calculateRealisedPNL(p.pnlHistory)
 		p.unrealisedPNL = decimal.Zero
 		p.pnlHistory[len(p.pnlHistory)-1].RealisedPNL = p.realisedPNL

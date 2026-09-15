@@ -1,5 +1,7 @@
 name: golangci-lint
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   golangci:
     name: lint
@@ -13,3 +15,8 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.9.0
+      - name: golangci-lint (udecimal)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.9.0
+          args: --build-tags=udecimal_on

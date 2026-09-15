@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -42,6 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // NewBacktester returns a new BackTest instance
@@ -684,7 +684,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 		return decimal.Zero, decimal.Zero, err
 	}
 
-	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee), nil
+	return decimal.MustFromFloat(fMakerFee), decimal.MustFromFloat(fTakerFee), nil
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
