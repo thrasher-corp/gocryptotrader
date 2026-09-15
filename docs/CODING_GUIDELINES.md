@@ -37,6 +37,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
   - Aligns well with `strconv.FormatUint`.
+- Use a dedicated currency pair constructor when one exists (for example, `currency.NewBTCUSD()` or `currency.NewBTCUSDT()`) instead of constructing the same pair with `currency.NewPair`. Use `currency.NewPair` when no dedicated constructor exists or the currencies are selected at runtime.
 
 ### TestMain usage
 
