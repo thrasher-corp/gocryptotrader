@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -44,6 +43,7 @@ import (
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -2713,9 +2713,9 @@ func TestFuturesDataHandler(t *testing.T) {
 				assert.Equal(t, order.Open, positions[0].Status, "position status should be open")
 				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalized")
 				assert.Equal(t, "5", positions[0].Leverage.String(), "replacement cross-margin leverage should take precedence")
-				assert.True(t, positions[0].PositionMargin.Equal(decimal.NewFromFloat(49.999890611186)), "position margin should be populated")
-				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.005)), "maintenance margin rate should be populated")
-				assert.True(t, positions[0].EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.1)), "liquidation price should be populated")
+				assert.True(t, positions[0].PositionMargin.Equal(decimal.MustFromFloat(49.999890611186)), "position margin should be populated")
+				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.MustFromFloat(0.005)), "maintenance margin rate should be populated")
+				assert.True(t, positions[0].EstimatedLiquidationPrice.Equal(decimal.MustFromFloat(0.1)), "liquidation price should be populated")
 				assert.Equal(t, int64(42), positions[0].UpdateID, "update ID should be populated")
 			} else {
 				sawPositionClose = true
@@ -2759,11 +2759,11 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	assert.Equal(t, "1", position.Leverage.String(), "position leverage should use the isolated leverage field")
 	assert.Equal(t, int64(267), position.UpdateID, "position update ID should be preserved")
 	assert.Equal(t, time.UnixMilli(1787206135038), position.LastUpdated, "position update time should be preserved")
-	assert.True(t, position.OpeningPrice.Equal(decimal.NewFromFloat(0.012071295652)), "position opening price should be correct")
-	assert.True(t, position.PositionMargin.Equal(decimal.NewFromFloat(66.491714276087)), "position margin should be correct")
-	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.NewFromFloat(0.9)), "position maintenance rate should be correct")
-	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.NewFromFloat(0.023554)), "position liquidation price should be correct")
-	assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(0.079661896)), "position realised PNL should be correct")
+	assert.True(t, position.OpeningPrice.Equal(decimal.MustFromFloat(0.012071295652)), "position opening price should be correct")
+	assert.True(t, position.PositionMargin.Equal(decimal.MustFromFloat(66.491714276087)), "position margin should be correct")
+	assert.True(t, position.MaintenanceMarginFraction.Equal(decimal.MustFromFloat(0.9)), "position maintenance rate should be correct")
+	assert.True(t, position.EstimatedLiquidationPrice.Equal(decimal.MustFromFloat(0.023554)), "position liquidation price should be correct")
+	assert.True(t, position.RealisedPNL.Equal(decimal.MustFromFloat(0.079661896)), "position realised PNL should be correct")
 
 	classicCrossPayload := []byte(strings.NewReplacer(
 		`"leverage":1`, `"leverage":0`,
@@ -2915,9 +2915,9 @@ func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
 		assert.Equal(t, "1", position.Leverage.String(), "isolated position should use the quoted lever field")
 		assert.Equal(t, wantUpdateIDs[i], position.UpdateID, "position update ID should be preserved")
 		assert.Equal(t, time.UnixMilli(1788148634648), position.LastUpdated, "position update time should preserve milliseconds")
-		assert.True(t, position.OpeningPrice.Equal(decimal.NewFromFloat(wantOpeningPrices[i])), "position opening price should be correct")
-		assert.True(t, position.PositionMargin.Equal(decimal.NewFromFloat(wantMargins[i])), "position margin should be correct")
-		assert.True(t, position.RealisedPNL.Equal(decimal.NewFromFloat(wantRealisedPNLs[i])), "position realised PNL should be correct")
+		assert.True(t, position.OpeningPrice.Equal(decimal.MustFromFloat(wantOpeningPrices[i])), "position opening price should be correct")
+		assert.True(t, position.PositionMargin.Equal(decimal.MustFromFloat(wantMargins[i])), "position margin should be correct")
+		assert.True(t, position.RealisedPNL.Equal(decimal.MustFromFloat(wantRealisedPNLs[i])), "position realised PNL should be correct")
 	}
 }
 
@@ -4071,7 +4071,7 @@ func TestFuturesLiveCapturedPayloads(t *testing.T) {
 		assert.Equal(t, order.Short, positions[0].LatestDirection, "negative captured position size should map to short")
 		assert.Equal(t, "37", positions[0].LatestSize.String(), "captured position size should be absolute")
 		assert.Equal(t, int64(4815), positions[0].UpdateID, "captured position update ID should be preserved")
-		assert.True(t, positions[0].RealisedPNL.Equal(decimal.NewFromFloat(2.0063498704)), "captured realised PNL should be preserved")
+		assert.True(t, positions[0].RealisedPNL.Equal(decimal.MustFromFloat(2.0063498704)), "captured realised PNL should be preserved")
 	})
 }
 
