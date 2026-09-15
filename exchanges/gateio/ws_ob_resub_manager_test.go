@@ -151,7 +151,7 @@ func TestFuturesV2GapRecovery(t *testing.T) {
 	exchange := new(Exchange)
 	require.NoError(t, testexch.Setup(exchange), "test exchange setup must succeed")
 	exchange.Name = t.Name()
-	subs, err := exchange.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	subs, err := exchange.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "futures subscriptions must generate")
 	var futures *subscription.Subscription
 	for _, sub := range subs {

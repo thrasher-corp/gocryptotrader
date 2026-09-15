@@ -99,6 +99,7 @@ type Manager struct {
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
+	preConnect                    func(context.Context)
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
@@ -127,11 +128,13 @@ type Manager struct {
 
 // ManagerSetup defines variables for setting up a websocket manager
 type ManagerSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
+	ExchangeConfig *config.Exchange
+	DefaultURL     string
+	RunningURL     string
+	RunningURLAuth string
+	Connector      func() error
+	// PreConnect performs context-aware preparation before the manager lock is acquired.
+	PreConnect            func(context.Context)
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
@@ -225,6 +228,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
 	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
+	m.preConnect = s.PreConnect
 
 	if !m.useMultiConnectionManagement {
 		// TODO: Remove this block when all exchanges are updated and backwards
@@ -448,6 +452,9 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (m *Manager) Connect(ctx context.Context) error {
+	if m.IsEnabled() && !m.IsConnecting() && !m.IsConnected() && m.preConnect != nil {
+		m.preConnect(ctx)
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	return m.connect(ctx)
@@ -530,7 +537,13 @@ func (m *Manager) connect(ctx context.Context) error {
 
 			var err error
 			subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+			var generationError error
 			if err != nil {
+				generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+			}
+			var fatalErr error
+			subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, generationError)
+			if fatalErr != nil {
 				multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 				break
 			}
