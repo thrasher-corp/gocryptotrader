@@ -617,7 +617,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		t.Parallel()
 		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"0","cummulativeQuoteQty":"0","type":"LIMIT","side":"SELL","status":"NEW","time":1736409765000}`
 		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.NotContains(t, r.URL.Path, "myTrades", "myTrades must not be called for an order with no fills")
+			assert.NotContains(t, r.URL.Path, "myTrades", "myTrades should not be called for an order with no fills")
 			_, _ = w.Write([]byte(orderBody))
 		}))
 		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
