@@ -7,6 +7,14 @@ This document outlines the coding, formatting, and testing standards for impleme
 - Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 - Code must adhere to these [Effective Go](https://go.dev/doc/effective_go) guidelines.
 - Code must also follow these [Go Style](https://google.github.io/styleguide/go/) guidelines.
+- Use Australian/British English in project-owned prose, comments, test
+    messages and identifiers. Prefer `-ise` and `-isation` spellings over
+    `-ize` and `-ization`, for example `normalise`, `serialise` and
+    `standardisation`. Preserve externally defined API names, protocol fields,
+    quotations and compatibility-sensitive public identifiers. When codespell
+    reports an American spelling, use the replacement in the
+    [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
+    unless an external contract requires the original spelling.
 
 ## Security
 
@@ -184,6 +192,9 @@ Use `require` and `assert` appropriately:
 - Derive expected outcomes from intended behaviour and downstream requirements, not solely from the current implementation. Passing tests can preserve an incorrect policy.
 - When fixing behaviour for one accepted representation, extend the regression matrix to its equivalent forms. Cross relevant input dimensions, such as aliases, wildcards, accepted capitalisation, authentication or authorisation states, explicit, omitted or `null` values, and forward or reverse lifecycle transitions, where they can affect runtime behaviour.
 - Integration tests must reproduce the registration order, ownership and lookup paths relevant to the bug. For isolation tests, make the competing entry reachable first so lookup order cannot conceal a missing discriminator. Where practical, verify the test fails with the targeted fix removed, then restore the fix and verify it passes.
+- When resolving review feedback, fix the underlying source of truth, add
+    focused regression coverage, regenerate derived files when applicable and
+    avoid unrelated behavioural or formatting changes.
 - Full test coverage is preferable; mock external calls as needed.
 - All unit tests must pass before finalising changes.
 
@@ -274,6 +285,9 @@ This ensures proper formatting across the codebase.
     resolve at the checked-out revision on GitHub and pkg.go.dev. Generated
     documentation must use `{{.RepoRoot}}` in templates for repository-root
     resources.
+- Validate repository-relative resource references from the location of every
+    generated file. Checks must cover source templates and generated outputs
+    and verify that each referenced repository file exists.
 - When upgrading `markdownlint-cli2` in the `markdownlint` Makefile target,
     review newly introduced rules before changing the config.
 - Lint both Markdown and template sources using the same scope as CI:
@@ -289,6 +303,15 @@ This ensures proper formatting across the codebase.
     changes.
 
 ## Linters and other miscellaneous checks
+
+- Checks for structured formats such as Markdown, JSON, YAML and Go should use
+    an appropriate parser where practical. Scan tracked source files and
+    templates, ignore examples inside code blocks and add a regression fixture
+    that proves the prohibited form is detected.
+- When a repository check requires a tool or runtime, provision that dependency
+    explicitly in its CI workflow and document the local prerequisite. Local
+    and CI execution must use the same check entry point, and a missing
+    dependency must fail clearly rather than silently skip validation.
 
 Run the following to check for linting issues:
 
