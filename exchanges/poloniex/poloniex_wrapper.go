@@ -1145,7 +1145,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Price:                orderDetail.Price.Float64(),
 			Amount:               orderDetail.Size.Float64(),
 			AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
-			QuoteAmount:          orderDetail.AveragePrice.Float64() * orderDetail.ExecutedQuantity.Float64(),
+			Cost:                 orderDetail.ExecutedAmount.Float64(),
+			CostAsset:            orderDetail.QuoteCurrency,
 			ExecutedAmount:       orderDetail.ExecutedQuantity.Float64(),
 			RemainingAmount:      orderDetail.Size.Float64() - orderDetail.ExecutedQuantity.Float64(),
 			OrderID:              orderDetail.OrderID,
@@ -1541,25 +1542,26 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		detail := order.Detail{
-			Side:            fOrder.Side,
-			Amount:          fOrder.Size.Float64(),
-			ExecutedAmount:  fOrder.ExecutedQuantity.Float64(),
-			Price:           fOrder.Price.Float64(),
-			Pair:            fOrder.Symbol,
-			Type:            oType,
-			Exchange:        e.Name,
-			RemainingAmount: fOrder.Size.Float64() - fOrder.ExecutedQuantity.Float64(),
-			OrderID:         fOrder.OrderID,
-			ClientOrderID:   fOrder.ClientOrderID,
-			Status:          orderStateFromString(fOrder.State),
-			AssetType:       asset.Futures,
-			Date:            fOrder.CreationTime.Time(),
-			LastUpdated:     fOrder.UpdateTime.Time(),
-			TimeInForce:     fOrder.TimeInForce,
-		}
-		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders = append(orders, order.Detail{
+			Side:                 fOrder.Side,
+			Amount:               fOrder.Size.Float64(),
+			ExecutedAmount:       fOrder.ExecutedQuantity.Float64(),
+			AverageExecutedPrice: fOrder.AveragePrice.Float64(),
+			Cost:                 fOrder.ExecutedAmount.Float64(),
+			CostAsset:            fOrder.QuoteCurrency,
+			Price:                fOrder.Price.Float64(),
+			Pair:                 fOrder.Symbol,
+			Type:                 oType,
+			Exchange:             e.Name,
+			RemainingAmount:      fOrder.Size.Float64() - fOrder.ExecutedQuantity.Float64(),
+			OrderID:              fOrder.OrderID,
+			ClientOrderID:        fOrder.ClientOrderID,
+			Status:               orderStateFromString(fOrder.State),
+			AssetType:            asset.Futures,
+			Date:                 fOrder.CreationTime.Time(),
+			LastUpdated:          fOrder.UpdateTime.Time(),
+			TimeInForce:          fOrder.TimeInForce,
+		})
 	}
 	return req.Filter(e.Name, orders), nil
 }

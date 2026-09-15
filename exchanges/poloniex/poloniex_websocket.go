@@ -251,7 +251,7 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 					Side:      r.Side,
 					Timestamp: r.Timestamp.Time(),
 					FeeAsset:  r.FeeCurrency.String(),
-					Total:     r.BaseAmount.Float64(),
+					Total:     r.TradeAmount.Float64(),
 				},
 			},
 		}
