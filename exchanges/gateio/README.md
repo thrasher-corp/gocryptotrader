@@ -23,6 +23,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + REST functions
 
+### Spot Orderbook Depth
+
+The default spot orderbook subscription uses `spot.obu` with `levels: 50`, retaining the existing V2 entry's depth. The previous `orderbook` subscription at `100ms` seeded a 100-level snapshot, so migration to the V2 default reduces the initial book depth. Gate documents 50 and 400 levels for V2, which are the levels GoCryptoTrader accepts. Set `levels: 400` on the spot `spot.obu` subscription when more depth is required.
+
 ### How to enable
 
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
