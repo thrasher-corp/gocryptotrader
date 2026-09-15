@@ -787,6 +787,15 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 	if !uniformFee {
 		feeAsset = currency.EMPTYCODE
 	}
+	var breakdown strings.Builder
+	for i, f := range fills {
+		if i > 0 {
+			breakdown.WriteByte(' ')
+		}
+		fmt.Fprintf(&breakdown, "%v/%q", f.Commission.Float64(), f.CommissionAsset)
+	}
+	log.Infof(log.ExchangeSys, "%s: order %s myTrades fills=%d totalFee=%v feeAsset=%q uniform=%v [%s]",
+		e.Name, orderID, len(fills), totalFee, feeAsset.String(), uniformFee, breakdown.String())
 	return trades, totalFee, feeAsset
 }
 
