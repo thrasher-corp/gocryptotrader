@@ -1,0 +1,397 @@
+package fxmacrodata
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+)
+
+const (
+	providerName = "FXMacroData"
+	usd          = "USD"
+	inflation    = "inflation"
+)
+
+// Live test toggles. The unit and contract tests are hermetic and always run;
+// the two smoke tests below reach the live FXMacroData API and are opt-in.
+// Set these to true, or set the matching environment variable, to enable them.
+//
+//	testLive   / GCT_RUN_LIVE_TESTS               public endpoints, no key needed
+//	testAuth   / GCT_RUN_FXMACRODATA_AUTH_TESTS   authenticated endpoints
+//	testAPIKey / FXMACRODATA_API_KEY, FXMD_API_KEY  key for the authenticated test
+var (
+	testLive   = false
+	testAuth   = false
+	testAPIKey = ""
+)
+
+// liveTestsEnabled reports whether the public live smoke test should run.
+func liveTestsEnabled() bool {
+	return testLive || os.Getenv("GCT_RUN_LIVE_TESTS") == "true"
+}
+
+// authTestsEnabled reports whether the authenticated live smoke test should run.
+func authTestsEnabled() bool {
+	return testAuth || os.Getenv("GCT_RUN_FXMACRODATA_AUTH_TESTS") == "true"
+}
+
+// liveTestAPIKey returns the API key used by the authenticated smoke test,
+// preferring the package variable over the environment.
+func liveTestAPIKey() string {
+	if testAPIKey != "" {
+		return testAPIKey
+	}
+	if key := os.Getenv("FXMACRODATA_API_KEY"); key != "" {
+		return key
+	}
+	return os.Getenv("FXMD_API_KEY")
+}
+
+func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData, closeServer func()) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	provider = &FXMacroData{}
+	err := provider.Setup(base.Settings{
+		Name:            providerName,
+		Enabled:         true,
+		APIKey:          "placeholder",
+		PrimaryProvider: true,
+	})
+	if err != nil {
+		server.Close()
+		require.NoError(t, err, "Setup must not error")
+	}
+	provider.APIURL = server.URL + "/api/v1/"
+	err = provider.Requester.DisableRateLimiter()
+	require.NoError(t, err, "rate limiter must disable for local httptest provider")
+	return provider, server.Close
+}
+
+func TestGetRates(t *testing.T) {
+	var requestCount atomic.Int64
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		if r.Header.Get("X-API-Key") != "placeholder" {
+			t.Errorf("expected X-API-Key header auth")
+			http.Error(w, "missing API key", http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/api/v1/forex/usd/aud":
+			_, _ = w.Write([]byte(`{"data":[{"val":1.5}]}`))
+		case "/api/v1/forex/usd/eur":
+			_, _ = w.Write([]byte(`{"data":[{"val":0.9}]}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(" USD ", " AUD, EUR ,XYZ, usd ")
+	require.NoError(t, err, "GetRates must not error")
+	assert.Equal(t, 1.5, rates["USDAUD"], "USDAUD should match mocked latest rate")
+	assert.Equal(t, 0.9, rates["USDEUR"], "USDEUR should match mocked latest rate")
+	assert.NotContains(t, rates, "USDXYZ", "unsupported currency should not be requested")
+	assert.Len(t, rates, 2, "GetRates should return only unique supported targets")
+	assert.Equal(t, int64(2), requestCount.Load(), "GetRates should request each unique supported target once")
+}
+
+func TestGetRatesDuplicateTarget(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("duplicate targets should not issue HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD,EUR,AUD")
+	assert.ErrorIs(t, err, errDuplicateCurrency, "GetRates should reject duplicate target currencies")
+	assert.Nil(t, rates, "rates should be nil when target currencies are duplicated")
+}
+
+func TestGetRatesEmptyTarget(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("empty targets should not issue HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD,,EUR")
+	assert.ErrorIs(t, err, errEmptyCurrency, "GetRates should reject empty target currency segments")
+	assert.Nil(t, rates, "rates should be nil when target currencies include an empty segment")
+}
+
+func TestGetRatesRejectsNoEffectiveTarget(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("a base-only request should not issue an HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, " USD ")
+	assert.ErrorIs(t, err, errNoTargetCurrencies, "GetRates should reject target lists that only contain the base currency")
+	assert.Nil(t, rates, "rates should be nil when no target currencies remain")
+}
+
+func TestGetRatesDefaultsToSupportedTargets(t *testing.T) {
+	var requestCount atomic.Int64
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/forex/usd/") {
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"val":1.0}]}`))
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "")
+	require.NoError(t, err, "GetRates must not error")
+	supported, err := provider.GetSupportedCurrencies()
+	require.NoError(t, err, "GetSupportedCurrencies must not error")
+	assert.Len(t, rates, len(supported)-1, "GetRates should default to every supported target except base currency")
+	assert.Equal(t, int64(len(supported)-1), requestCount.Load(), "GetRates should request each default target once")
+}
+
+func TestGetRatesUnsupportedTargetsOnly(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unsupported targets should not issue HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "XYZ")
+	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported target currencies when no rates are available")
+	assert.Nil(t, rates, "rates should be nil when every target currency is unsupported")
+}
+
+func TestGetRatesPropagatesLatestRateError(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v1/forex/usd/aud", r.URL.Path, "GetRates should request the expected FX pair")
+		_, _ = w.Write([]byte(`{"inflation":{"name":"Inflation (CPI)","unit":"%YoY","frequency":"Monthly","source":"BLS"}}`))
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD")
+	assert.ErrorIs(t, err, errNoRateAvailable, "GetRates should propagate latest rate lookup errors")
+	assert.Nil(t, rates, "rates should be nil when latest rate lookup fails")
+}
+
+func TestGetRatesUnsupportedBase(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unsupported base should not issue HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("MXN", "AUD")
+	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported base currency")
+	assert.Nil(t, rates, "rates should be nil when base currency is unsupported")
+}
+
+func TestGetLatestForexRateEmptyData(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer closeServer()
+
+	rate, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
+	assert.ErrorIs(t, err, errNoRateAvailable, "GetLatestForexRate should reject empty data")
+	assert.Zero(t, rate, "rate should be zero when no data is returned")
+}
+
+func TestGetLatestForexRateRejectsRowWithoutAValue(t *testing.T) {
+	// date is the only required field and val is anyOf[number, null], so all
+	// three of these are contract-legal responses. Each decodes to Val == 0,
+	// and returning that as a rate puts +Inf into the conversion engine for
+	// every pair touching the currency, with no error anywhere in the chain.
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{"null value", `{"data":[{"date":"2026-09-09","val":null}]}`},
+		{"absent value", `{"data":[{"date":"2026-09-09"}]}`},
+		{"zero value", `{"data":[{"date":"2026-09-09","val":0}]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer closeServer()
+
+			rate, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
+			assert.ErrorIs(t, err, errNoRateAvailable, "GetLatestForexRate should reject a row carrying no usable value")
+			assert.Zero(t, rate, "rate should be zero when the row carries no usable value")
+		})
+	}
+}
+
+func TestGetRatesRejectsRowWithoutAValue(t *testing.T) {
+	// GetRates is the only method the conversion engine calls, so the guard has
+	// to hold through it rather than only on the lower-level accessor.
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":null}]}`))
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD")
+	assert.ErrorIs(t, err, errNoRateAvailable, "GetRates should not hand a valueless row to the conversion engine")
+	assert.Nil(t, rates, "rates should be nil when the row carries no usable value")
+}
+
+func TestGetRatesSkipsPairWithoutAValue(t *testing.T) {
+	// One pair with no usable value must not discard the rates of every other
+	// pair in the batch; only the empty pair is left out of the result.
+	var requestCount atomic.Int64
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		switch r.URL.Path {
+		case "/api/v1/forex/usd/aud":
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":1.5}]}`))
+		case "/api/v1/forex/usd/eur":
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":null}]}`))
+		case "/api/v1/forex/usd/gbp":
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":0.75}]}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD,EUR,GBP")
+	require.NoError(t, err, "GetRates must not fail the batch when one pair carries no usable value")
+	assert.Equal(t, map[string]float64{"USDAUD": 1.5, "USDGBP": 0.75}, rates, "GetRates should return every pair that carried a value")
+	assert.Equal(t, int64(3), requestCount.Load(), "GetRates should still request every target once")
+}
+
+func TestGetRatesFailsBatchOnTransportError(t *testing.T) {
+	// Skipping is limited to a pair with no usable value; any other failure,
+	// such as an upstream outage, still fails the whole call.
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/forex/usd/aud" {
+			_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-09","val":1.5}]}`))
+			return
+		}
+		http.Error(w, "upstream unavailable", http.StatusServiceUnavailable)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates(usd, "AUD,EUR")
+	assert.Error(t, err, "GetRates should fail the batch on a transport error")
+	assert.NotErrorIs(t, err, errNoRateAvailable, "a transport error should not be reported as a missing rate")
+	assert.Nil(t, rates, "rates should be nil when the batch fails")
+}
+
+func TestGetLatestForexRateHTTPError(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "upstream unavailable", http.StatusServiceUnavailable)
+	}))
+	defer closeServer()
+
+	rate, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
+	assert.Error(t, err, "GetLatestForexRate should return HTTP errors")
+	assert.Zero(t, rate, "rate should be zero when the request fails")
+}
+
+func TestHealth(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("X-API-Key"), "public status requests should not include an API key")
+		assert.Equal(t, "/api/v1/health", r.URL.Path, "Health should use the documented endpoint")
+		_, _ = w.Write([]byte(`{"status":"ok","service":"fxmacrodata-api"}`))
+	}))
+	defer closeServer()
+
+	health, err := provider.Health(t.Context())
+	require.NoError(t, err, "Health must not error")
+	assert.Equal(t, "ok", health.Status, "Health should decode the status")
+	assert.Equal(t, "fxmacrodata-api", health.Service, "Health should decode the service name")
+}
+
+func TestPing(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("X-API-Key"), "public status requests should not include an API key")
+		assert.Equal(t, "/api/v1/ping", r.URL.Path, "Ping should use the documented endpoint")
+		_, _ = w.Write([]byte(`{"status":"ok","service":"fxmacrodata-api"}`))
+	}))
+	defer closeServer()
+
+	ping, err := provider.Ping(t.Context())
+	require.NoError(t, err, "Ping must not error")
+	assert.Equal(t, "ok", ping.Status, "Ping should decode the status")
+	assert.Equal(t, "fxmacrodata-api", ping.Service, "Ping should decode the service name")
+}
+
+func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("X-API-Key"), "public requests should not include an API key")
+		assert.Equal(t, "/api/v1/data_catalogue/usd", r.URL.Path, "public request should use the requested endpoint")
+		_, _ = w.Write([]byte(`{"inflation":{"name":"Inflation (CPI)","unit":"%YoY","frequency":"Monthly","source":"BLS"}}`))
+	}))
+	defer server.Close()
+
+	provider := new(FXMacroData)
+	require.NoError(t, provider.Setup(base.Settings{Name: providerName}), "Setup must allow API-key-free public use")
+	assert.Equal(t, APIURL, provider.APIURL, "Setup should use the canonical FXMacroData API URL")
+	provider.APIURL = server.URL + "/api/v1/"
+	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
+
+	_, err := provider.DataCatalogue(t.Context(), "usd")
+	require.NoError(t, err, "public data catalogue request must not require an API key")
+}
+
+func TestPublicEndpointsLive(t *testing.T) {
+	if !liveTestsEnabled() {
+		t.Skip("set testLive = true or GCT_RUN_LIVE_TESTS=true to run the public FXMacroData smoke test")
+	}
+
+	provider := new(FXMacroData)
+	require.NoError(t, provider.Setup(base.Settings{Name: providerName}),
+		"Setup must configure the public endpoint client")
+
+	ping, err := provider.Ping(t.Context())
+	require.NoError(t, err, "Ping must not error")
+	assert.NotEmpty(t, ping.Status, "Ping should return a status")
+
+	catalogue, err := provider.DataCatalogue(t.Context(), "usd")
+	require.NoError(t, err, "DataCatalogue must not error")
+	assert.NotEmpty(t, *catalogue, "DataCatalogue should return indicators")
+}
+
+func TestGetLatestForexRateHonoursCancellation(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("a cancelled context should not issue an HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := provider.GetLatestForexRate(ctx, usd, "AUD")
+	assert.ErrorIs(t, err, context.Canceled, "GetLatestForexRate should return the caller cancellation")
+}
+
+func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("an API-key-required endpoint should fail before issuing an HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	provider := new(FXMacroData)
+	require.NoError(t, provider.Setup(base.Settings{Name: providerName}), "Setup must not error")
+	provider.APIURL = server.URL + "/api/v1/"
+	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
+
+	_, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
+	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "forex requests should require a configured API key")
+}

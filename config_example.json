@@ -141,6 +141,14 @@
     "primaryProvider": false
    },
    {
+    "name": "FXMacroData",
+    "enabled": false,
+    "verbose": false,
+    "apiKey": "Key",
+    "apiKeyLvl": -1,
+    "primaryProvider": false
+   },
+   {
     "name": "OpenExchangeRates",
     "enabled": false,
     "verbose": false,

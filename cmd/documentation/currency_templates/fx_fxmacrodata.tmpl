@@ -1,0 +1,56 @@
+{{define "currency forexprovider fxmacrodata" -}}
+{{template "header" .}}
+## Current Features for {{.Name}}
+
++ Fetches up to date currency data from [FXMacroData](https://fxmacrodata.com/)
++ Provides official-source macroeconomic, central-bank and release-calendar data
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-currency-via-config-example)
+
++ Individual package example below:
+```go
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fxmacrodata"
+)
+
+c := fxmacrodata.FXMacroData{}
+
+// Define configuration
+newSettings := base.Settings{
+	Name:             "FXMacroData",
+	Enabled:          true,
+	Verbose:          false,
+	RESTPollingDelay: time.Duration,
+	APIKey:           "key",
+	PrimaryProvider:  true,
+}
+
+c.Setup(newSettings)
+
+mapstringfloat, err := c.GetRates("USD", "EUR,AUD")
+// Handle error
+```
+
+### Testing
+
+The unit and contract tests run entirely against local `httptest` servers and
+need no credentials or network access. Two additional smoke tests are opt-in
+because they reach the live FXMacroData API.
+
+Enable them either by flipping the package-level bool variables at the top of
+`fxmacrodata_test.go`, or by setting the matching environment variables:
+
+| Bool variable | Environment variable | Purpose |
+|---|---|---|
+| `testLive` | `GCT_RUN_LIVE_TESTS=true` | Runs the public endpoint smoke test. No API key required. |
+| `testAuth` | `GCT_RUN_FXMACRODATA_AUTH_TESTS=true` | Runs the authenticated endpoint smoke test. Requires an API key. |
+| `testAPIKey` | `FXMACRODATA_API_KEY` (or `FXMD_API_KEY`) | Supplies the API key used by the authenticated smoke test. |
+
+Each smoke test skips with an explanatory message when its toggle is unset, so
+the default `go test ./...` run stays hermetic.
+
+{{template "donations" .}}
+{{end}}
