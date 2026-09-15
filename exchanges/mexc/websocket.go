@@ -372,6 +372,7 @@ type privateOrderNumbers struct {
 	price, avgPrice            float64
 	quantity, remainQuantity   float64
 	amount, cumulativeQuantity float64
+	cumulativeAmount           float64
 }
 
 // parse decodes the numeric fields of a private order push, which the exchange sends as strings and
@@ -388,6 +389,7 @@ func (n *privateOrderNumbers) parse(body *mexc_proto_types.PrivateOrdersV3Api) e
 		{"remainQuantity", body.RemainQuantity, &n.remainQuantity},
 		{"amount", body.Amount, &n.amount},
 		{"cumulativeQuantity", body.CumulativeQuantity, &n.cumulativeQuantity},
+		{"cumulativeAmount", body.CumulativeAmount, &n.cumulativeAmount},
 	} {
 		v, err := parseOptionalFloat(f.raw)
 		if err != nil {
@@ -831,17 +833,18 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			oType = order.Limit
 		case 2:
 			tif = order.PostOnly
-			oType = order.Market
+			oType = order.Limit
 		case 3:
 			tif = order.ImmediateOrCancel
-			oType = order.Market
+			oType = order.Limit
 		case 4:
-			oType = order.Market
+			oType = order.Limit
 			tif = order.FillOrKill
 		case 5:
 			oType = order.Market
 		case 100:
-			oType = order.OCO
+			// Documented as a market stop-loss/take-profit order.
+			oType = order.StopMarket
 		}
 		var oStatus order.Status
 		switch body.Status {
@@ -875,11 +878,15 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			Amount:               nums.quantity,
 			AverageExecutedPrice: nums.avgPrice,
 			QuoteAmount:          nums.amount,
-			ExecutedAmount:       nums.cumulativeQuantity,
-			RemainingAmount:      nums.remainQuantity,
-			OrderID:              body.Id,
-			ClientID:             body.ClientId,
-			Type:                 oType,
+			// cumulativeAmount is the quote actually spent; without it a filled order reports a zero cost.
+			Cost:            nums.cumulativeAmount,
+			ExecutedAmount:  nums.cumulativeQuantity,
+			RemainingAmount: nums.remainQuantity,
+			OrderID:         body.Id,
+			// clientId on the order push is the caller's own client order id; ClientID is the
+			// account-level identifier and does not belong here.
+			ClientOrderID: body.ClientId,
+			Type:          oType,
 			Side: func() order.Side {
 				if body.TradeType == 1 {
 					return order.Buy

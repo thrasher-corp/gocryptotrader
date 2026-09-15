@@ -305,11 +305,12 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 
 	detail := requireOneOf[*order.Detail](t)
 	assert.Equal(t, "o-2", detail.OrderID, "OrderID should be correct")
-	assert.Equal(t, "c-2", detail.ClientID, "ClientID should be correct")
+	assert.Equal(t, "c-2", detail.ClientOrderID, "ClientOrderID should carry the order's client id")
 	assert.Equal(t, 100.0, detail.Price, "Price should be correct")
 	assert.Equal(t, 101.0, detail.AverageExecutedPrice, "AverageExecutedPrice should be correct")
 	assert.Equal(t, 10.0, detail.Amount, "Amount should be the base quantity")
 	assert.Equal(t, 1000.0, detail.QuoteAmount, "QuoteAmount should be the quote amount")
+	assert.Equal(t, 404.0, detail.Cost, "Cost should be the cumulative quote amount")
 	assert.Equal(t, 4.0, detail.ExecutedAmount, "ExecutedAmount should be the base cumulative quantity")
 	assert.Equal(t, 6.0, detail.RemainingAmount, "RemainingAmount should be the base remaining quantity")
 	assert.Equal(t, order.Limit, detail.Type, "orderType 1 should map to a limit order")
@@ -319,6 +320,35 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 	assert.Equal(t, int64(1736409765000), detail.Date.UnixMilli(), "Date should come from createTime")
 	assert.Equal(t, int64(1736409765052), detail.LastUpdated.UnixMilli(), "LastUpdated should come from the push send time")
 	assert.Equal(t, asset.Spot, detail.AssetType, "AssetType should be correct")
+}
+
+// TestWsHandlePrivateOrdersTypeMapping asserts the private order push maps MEXC's numeric order types
+// to the domain type and time-in-force. Types 2, 3 and 4 are limit orders (post-only, IOC and FOK):
+// the exchange carries the constraint in the order type field and the order still rests as a limit.
+func TestWsHandlePrivateOrdersTypeMapping(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		orderType int32
+		wantType  order.Type
+		wantTIF   order.TimeInForce
+	}{
+		{"post-only", 2, order.Limit, order.PostOnly},
+		{"ioc", 3, order.Limit, order.ImmediateOrCancel},
+		{"fok", 4, order.Limit, order.FillOrKill},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			drainData(t)
+			raw := wsPushFrame(t, "spot@"+channelPrivateOrdersAPI, 1736409765052,
+				&mexc_proto_types.PrivateOrdersV3Api{
+					Id: "o-3", ClientId: "c-3", Price: "100", Quantity: "1",
+					OrderType: tc.orderType, TradeType: 1, Status: 1, CreateTime: 1736409765000,
+				})
+			require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+			detail := requireOneOf[*order.Detail](t)
+			assert.Equal(t, tc.wantType, detail.Type, "order type mapping mismatch")
+			assert.Equal(t, tc.wantTIF, detail.TimeInForce, "time-in-force mapping mismatch")
+		})
+	}
 }
 
 // TestWsBookTickerFeedsTickerNotOrderbook asserts the book ticker updates each pair's ticker and
