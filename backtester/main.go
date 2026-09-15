@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	backtest "github.com/thrasher-corp/gocryptotrader/backtester/engine"
 	"github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -130,7 +129,7 @@ func main() {
 	}
 
 	defaultLogSettings := log.GenDefaultSettings()
-	defaultLogSettings.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
+	defaultLogSettings.AdvancedSettings.ShowLogSystemName = new(logSubHeader)
 	defaultLogSettings.AdvancedSettings.Headers.Info = common.CMDColours.Info + "[INFO]" + common.CMDColours.Default
 	defaultLogSettings.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
 	defaultLogSettings.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default

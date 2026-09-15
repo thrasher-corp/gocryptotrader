@@ -21,10 +21,8 @@ func main() {
 	}
 
 	engine.Bot.Settings = engine.Settings{
-		CoreSettings: engine.CoreSettings{EnableDryRun: true},
-		ExchangeTuningSettings: engine.ExchangeTuningSettings{
-			DisableExchangeAutoPairUpdates: true,
-		},
+		EnableDryRun:                   true,
+		DisableExchangeAutoPairUpdates: true,
 	}
 
 	engine.Bot.Config.PurgeExchangeAPICredentials()
@@ -49,8 +47,8 @@ func main() {
 
 	exchanges := engine.Bot.GetExchanges()
 	for x := range exchanges {
-		wg.Add(1)
-		go func(exch exchange.IBotExchange) {
+		wg.Go(func() {
+			exch := exchanges[x]
 			strResults, err := testWrappers(exch)
 			if err != nil {
 				log.Printf("Failed to test wrappers for %s. Err: %s", exch.GetName(), err)
@@ -58,8 +56,7 @@ func main() {
 			mtx.Lock()
 			results[exch.GetName()] = strResults
 			mtx.Unlock()
-			wg.Done()
-		}(exchanges[x])
+		})
 	}
 	wg.Wait()
 	log.Println("Done.")

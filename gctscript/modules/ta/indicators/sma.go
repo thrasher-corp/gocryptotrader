@@ -14,7 +14,7 @@ import (
 
 // SMAModule simple moving average indicator commands
 var SMAModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: sma},
+	calculate: &objects.UserFunction{Name: calculate, Value: sma},
 }
 
 // SimpleMovingAverage is the string constant
@@ -37,7 +37,7 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(SMA)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 

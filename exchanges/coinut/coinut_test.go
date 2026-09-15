@@ -135,14 +135,13 @@ func TestGetTradeHistoryPagination(t *testing.T) {
 					err     error
 				}
 				requestC := make(chan requestResult, 1)
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					var payload map[string]json.RawMessage
 					err := json.NewDecoder(r.Body).Decode(&payload)
 					requestC <- requestResult{payload: payload, err: err}
 					_, err = w.Write([]byte(`{"status":["OK"],"total_number":0,"trades":[]}`))
 					assert.NoError(t, err, "GetTradeHistory fixture response writing should not error")
 				}))
-				t.Cleanup(server.Close)
 
 				ex := new(Exchange)
 				require.NoError(t, testexch.Setup(ex), "Test exchange setup must not error")
@@ -459,7 +458,7 @@ func TestGetOrderHistory(t *testing.T) {
 				requestMutex sync.Mutex
 				requests     []map[string]any
 			)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var payload map[string]any
 				err := json.NewDecoder(r.Body).Decode(&payload)
 				requestMutex.Lock()
@@ -473,7 +472,6 @@ func TestGetOrderHistory(t *testing.T) {
 				_, err = w.Write([]byte(response))
 				assert.NoError(t, err, "GetOrderHistory fixture response writing should not error")
 			}))
-			t.Cleanup(server.Close)
 
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "GetOrderHistory exchange setup must not error")

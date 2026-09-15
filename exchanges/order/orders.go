@@ -2,18 +2,16 @@ package order
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
-	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -316,7 +314,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	if d.OrderID == "" {
 		d.OrderID = m.OrderID
 	}
-	if d.InternalOrderID.IsNil() {
+	if d.InternalOrderID == uuid.Nil() {
 		d.InternalOrderID = m.InternalOrderID
 	}
 	return nil
@@ -403,7 +401,7 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 		return false
 	case f.ClientID != "" && d.ClientID != f.ClientID:
 		return false
-	case !f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID:
+	case f.InternalOrderID != uuid.Nil() && d.InternalOrderID != f.InternalOrderID:
 		return false
 	case f.AccountID != "" && d.AccountID != f.AccountID:
 		return false
@@ -444,24 +442,18 @@ func (d *Detail) WasOrderPlaced() bool {
 	return notPlaced&d.Status != d.Status
 }
 
-// GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
-// the V4 function returns an error
+// GenerateInternalOrderID sets a new V4 order ID if one is not already set
 func (d *Detail) GenerateInternalOrderID() {
-	if !d.InternalOrderID.IsNil() {
+	if d.InternalOrderID != uuid.Nil() {
 		return
 	}
-	var err error
-	d.InternalOrderID, err = uuid.NewV4()
-	if err != nil {
-		d.InternalOrderID = uuid.NewV5(uuid.UUID{}, d.OrderID)
-	}
+	d.InternalOrderID = uuid.NewV4()
 }
 
 // CopyToPointer will return the address of a new copy of the order Detail
 // WARNING: DO NOT DEREFERENCE USE METHOD Copy().
 func (d *Detail) CopyToPointer() *Detail {
-	c := d.Copy()
-	return &c
+	return new(d.Copy())
 }
 
 // Copy makes a full copy of underlying details NOTE: This is Addressable.
@@ -984,109 +976,38 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 	*orders = (*orders)[:target]
 }
 
-func (b ByPrice) Len() int {
-	return len(b)
-}
-
-func (b ByPrice) Less(i, j int) bool {
-	return b[i].Price < b[j].Price
-}
-
-func (b ByPrice) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+// sortOrders sorts in place by cmpFn, or by its inverse when reverse is set
+func sortOrders(orders *[]Detail, reverse bool, cmpFn func(a, b Detail) int) {
+	if reverse {
+		slices.SortFunc(*orders, func(a, b Detail) int { return cmpFn(b, a) })
+		return
+	}
+	slices.SortFunc(*orders, cmpFn)
 }
 
 // SortOrdersByPrice the caller function to sort orders
 func SortOrdersByPrice(orders *[]Detail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByPrice(*orders)))
-	} else {
-		sort.Sort(ByPrice(*orders))
-	}
-}
-
-func (b ByOrderType) Len() int {
-	return len(b)
-}
-
-func (b ByOrderType) Less(i, j int) bool {
-	return b[i].Type.String() < b[j].Type.String()
-}
-
-func (b ByOrderType) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+	sortOrders(orders, reverse, func(a, b Detail) int { return cmp.Compare(a.Price, b.Price) })
 }
 
 // SortOrdersByType the caller function to sort orders
 func SortOrdersByType(orders *[]Detail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByOrderType(*orders)))
-	} else {
-		sort.Sort(ByOrderType(*orders))
-	}
-}
-
-func (b ByCurrency) Len() int {
-	return len(b)
-}
-
-func (b ByCurrency) Less(i, j int) bool {
-	return b[i].Pair.String() < b[j].Pair.String()
-}
-
-func (b ByCurrency) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+	sortOrders(orders, reverse, func(a, b Detail) int { return cmp.Compare(a.Type.String(), b.Type.String()) })
 }
 
 // SortOrdersByCurrency the caller function to sort orders
 func SortOrdersByCurrency(orders *[]Detail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByCurrency(*orders)))
-	} else {
-		sort.Sort(ByCurrency(*orders))
-	}
-}
-
-func (b ByDate) Len() int {
-	return len(b)
-}
-
-func (b ByDate) Less(i, j int) bool {
-	return b[i].Date.Unix() < b[j].Date.Unix()
-}
-
-func (b ByDate) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+	sortOrders(orders, reverse, func(a, b Detail) int { return cmp.Compare(a.Pair.String(), b.Pair.String()) })
 }
 
 // SortOrdersByDate the caller function to sort orders
 func SortOrdersByDate(orders *[]Detail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByDate(*orders)))
-	} else {
-		sort.Sort(ByDate(*orders))
-	}
-}
-
-func (b ByOrderSide) Len() int {
-	return len(b)
-}
-
-func (b ByOrderSide) Less(i, j int) bool {
-	return b[i].Side.String() < b[j].Side.String()
-}
-
-func (b ByOrderSide) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+	sortOrders(orders, reverse, func(a, b Detail) int { return a.Date.Compare(b.Date) })
 }
 
 // SortOrdersBySide the caller function to sort orders
 func SortOrdersBySide(orders *[]Detail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByOrderSide(*orders)))
-	} else {
-		sort.Sort(ByOrderSide(*orders))
-	}
+	sortOrders(orders, reverse, func(a, b Detail) int { return cmp.Compare(a.Side.String(), b.Side.String()) })
 }
 
 // StringToOrderSide for converting case insensitive order side
@@ -1118,7 +1039,7 @@ func StringToOrderSide(side string) (Side, error) {
 func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	if !bytes.HasPrefix(data, []byte(`"`)) {
 		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
-		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[*Side]()}
+		return fmt.Errorf("%w: expected a JSON string, got %s", ErrSideIsInvalid, data)
 	}
 	*s, err = StringToOrderSide(string(data[1 : len(data)-1])) // Remove quotes
 	return err

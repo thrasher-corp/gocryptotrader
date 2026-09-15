@@ -136,6 +136,7 @@ type Instrument struct {
 	FairBasisRate                  float64       `json:"fairBasisRate"`
 	FairMethod                     string        `json:"fairMethod"`
 	FairPrice                      float64       `json:"fairPrice"`
+	ForeignNotional24Hour          float64       `json:"foreignNotional24h"`
 	Front                          string        `json:"front"`
 	FundingBaseSymbol              string        `json:"fundingBaseSymbol"`
 	FundingInterval                time.Time     `json:"fundingInterval"`
@@ -145,13 +146,14 @@ type Instrument struct {
 	FundingTimestamp               time.Time     `json:"fundingTimestamp"`
 	HasLiquidity                   bool          `json:"hasLiquidity"`
 	HighPrice                      float64       `json:"highPrice"`
+	HomeNotional24Hour             float64       `json:"homeNotional24h"`
 	ImpactAskPrice                 float64       `json:"impactAskPrice"`
 	ImpactBidPrice                 float64       `json:"impactBidPrice"`
 	ImpactMidPrice                 float64       `json:"impactMidPrice"`
 	IndicativeFundingRate          float64       `json:"indicativeFundingRate"`
 	IndicativeSettlePrice          float64       `json:"indicativeSettlePrice"`
 	IndicativeTaxRate              float64       `json:"indicativeTaxRate"`
-	InitMargin                     float64       `json:"initMargin"`
+	InitialMargin                  float64       `json:"initMargin"`
 	InsuranceFee                   float64       `json:"insuranceFee"`
 	InverseLeg                     string        `json:"inverseLeg"`
 	IsInverse                      bool          `json:"isInverse"`
@@ -166,7 +168,7 @@ type Instrument struct {
 	Listing                        string        `json:"listing"`
 	LotSize                        float64       `json:"lotSize"`
 	LowPrice                       float64       `json:"lowPrice"`
-	MaintMargin                    float64       `json:"maintMargin"`
+	MaintenanceMargin              float64       `json:"maintMargin"`
 	MakerFee                       float64       `json:"makerFee"`
 	MarkMethod                     string        `json:"markMethod"`
 	MarkPrice                      float64       `json:"markPrice"`
@@ -183,10 +185,10 @@ type Instrument struct {
 	OptionStrikeRound              float64       `json:"optionStrikeRound"`
 	OptionUnderlyingPrice          float64       `json:"optionUnderlyingPrice"`
 	PositionCurrency               string        `json:"positionCurrency"`
-	PrevClosePrice                 float64       `json:"prevClosePrice"`
-	PrevPrice24h                   float64       `json:"prevPrice24h"`
-	PrevTotalTurnover              float64       `json:"prevTotalTurnover"`
-	PrevTotalVolume                float64       `json:"prevTotalVolume"`
+	PreviousClosePrice             float64       `json:"prevClosePrice"`
+	PreviousPrice24Hour            float64       `json:"prevPrice24h"`
+	PreviousTotalTurnover          float64       `json:"prevTotalTurnover"`
+	PreviousTotalVolume            float64       `json:"prevTotalVolume"`
 	PublishInterval                string        `json:"publishInterval"`
 	PublishTime                    time.Time     `json:"publishTime"`
 	QuoteCurrency                  string        `json:"quoteCurrency"`
@@ -214,14 +216,14 @@ type Instrument struct {
 	TotalTurnover                  float64       `json:"totalTurnover"`
 	TotalVolume                    float64       `json:"totalVolume"`
 	Turnover                       float64       `json:"turnover"`
-	Turnover24h                    float64       `json:"turnover24h"`
+	Turnover24Hour                 float64       `json:"turnover24h"`
 	Typ                            string        `json:"typ"`
 	Underlying                     string        `json:"underlying"`
 	UnderlyingSymbol               string        `json:"underlyingSymbol"`
 	UnderlyingToPositionMultiplier float64       `json:"underlyingToPositionMultiplier"`
 	UnderlyingToSettleMultiplier   float64       `json:"underlyingToSettleMultiplier"`
 	Volume                         float64       `json:"volume"`
-	Volume24h                      float64       `json:"volume24h"`
+	Volume24Hour                   float64       `json:"volume24h"` // contract count, not an amount; see HomeNotional24Hour and ForeignNotional24Hour
 	Vwap                           float64       `json:"vwap"`
 }
 
@@ -451,12 +453,12 @@ type Settlement struct {
 
 // Stats Exchange Statistics
 type Stats struct {
-	Currency     string `json:"currency"`
-	OpenInterest int64  `json:"openInterest"`
-	OpenValue    int64  `json:"openValue"`
-	RootSymbol   string `json:"rootSymbol"`
-	Turnover24h  int64  `json:"turnover24h"`
-	Volume24h    int64  `json:"volume24h"`
+	Currency       string `json:"currency"`
+	OpenInterest   int64  `json:"openInterest"`
+	OpenValue      int64  `json:"openValue"`
+	RootSymbol     string `json:"rootSymbol"`
+	Turnover24Hour int64  `json:"turnover24h"`
+	Volume24Hour   int64  `json:"volume24h"`
 }
 
 // StatsHistory stats history
@@ -470,12 +472,12 @@ type StatsHistory struct {
 
 // StatsUSD contains summary of exchange stats
 type StatsUSD struct {
-	Currency     string `json:"currency"`
-	RootSymbol   string `json:"rootSymbol"`
-	Turnover     int64  `json:"turnover"`
-	Turnover24h  int64  `json:"turnover24h"`
-	Turnover30d  int64  `json:"turnover30d"`
-	Turnover365d int64  `json:"turnover365d"`
+	Currency       string `json:"currency"`
+	RootSymbol     string `json:"rootSymbol"`
+	Turnover       int64  `json:"turnover"`
+	Turnover24Hour int64  `json:"turnover24h"`
+	Turnover30Day  int64  `json:"turnover30d"`
+	Turnover365Day int64  `json:"turnover365d"`
 }
 
 // Trade Individual & Bucketed Trades

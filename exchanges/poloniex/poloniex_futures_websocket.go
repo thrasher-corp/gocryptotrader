@@ -438,23 +438,7 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 	}
 	tickerPrices := make([]ticker.Price, len(resp))
 	for i, r := range resp {
-		tickerPrices[i] = ticker.Price{
-			High:         r.HighPrice.Float64(),
-			Low:          r.LowPrice.Float64(),
-			Bid:          r.BestBidPrice.Float64(),
-			BidSize:      r.BestBidSize.Float64(),
-			Ask:          r.BestAskPrice.Float64(),
-			AskSize:      r.BestAskSize.Float64(),
-			Volume:       r.BaseAmount.Float64(),
-			QuoteVolume:  r.QuoteAmount.Float64(),
-			Open:         r.OpeningPrice.Float64(),
-			Close:        r.ClosingPrice.Float64(),
-			MarkPrice:    r.MarkPrice.Float64(),
-			Pair:         r.Symbol,
-			ExchangeName: e.Name,
-			AssetType:    asset.Futures,
-			LastUpdated:  r.Timestamp.Time(),
-		}
+		tickerPrices[i] = *e.futuresTicker(r)
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
 }

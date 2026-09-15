@@ -77,8 +77,9 @@ const (
 )
 
 var (
-	assetTranslator     assetTranslatorStore
-	errBadChannelSuffix = errors.New("bad websocket channel suffix")
+	assetTranslator           assetTranslatorStore
+	errBadChannelSuffix       = errors.New("bad websocket channel suffix")
+	errUnexpectedCandleLength = errors.New("unexpected candle length")
 )
 
 // GenericResponse stores general response data for functions that only return success
@@ -98,8 +99,8 @@ type genericFuturesResponse struct {
 type Asset struct {
 	Altname         string `json:"altname"`
 	AclassBase      string `json:"aclass_base"`
-	Decimals        int    `json:"decimals"`
-	DisplayDecimals int    `json:"display_decimals"`
+	Decimals        uint64 `json:"decimals"`
+	DisplayDecimals uint64 `json:"display_decimals"`
 }
 
 // AssetPairs holds asset pair information
@@ -111,16 +112,16 @@ type AssetPairs struct {
 	AclassQuote       string      `json:"aclass_quote"`
 	Quote             string      `json:"quote"`
 	Lot               string      `json:"lot"`
-	PairDecimals      int         `json:"pair_decimals"`
-	LotDecimals       int         `json:"lot_decimals"`
-	LotMultiplier     int         `json:"lot_multiplier"`
-	LeverageBuy       []int       `json:"leverage_buy"`
-	LeverageSell      []int       `json:"leverage_sell"`
+	PairDecimals      uint64      `json:"pair_decimals"`
+	LotDecimals       uint64      `json:"lot_decimals"`
+	LotMultiplier     uint64      `json:"lot_multiplier"`
+	LeverageBuy       []uint64    `json:"leverage_buy"`
+	LeverageSell      []uint64    `json:"leverage_sell"`
 	Fees              [][]float64 `json:"fees"`
 	FeesMaker         [][]float64 `json:"fees_maker"`
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
-	MarginCall        int         `json:"margin_call"`
-	MarginStop        int         `json:"margin_stop"`
+	MarginCall        uint64      `json:"margin_call"`
+	MarginStop        uint64      `json:"margin_stop"`
 	OrderMinimum      float64     `json:"ordermin,string"`
 	TickSize          float64     `json:"tick_size,string"`
 	Status            string      `json:"status"`
@@ -568,8 +569,8 @@ type WebsocketSubRequest struct {
 // WebsocketSubscriptionData contains details on WS channel
 type WebsocketSubscriptionData struct {
 	Name     string `json:"name,omitempty"`     // ticker|ohlc|trade|book|spread|*, * for all (ohlc interval value is 1 if all channels subscribed)
-	Interval int    `json:"interval,omitempty"` // Optional - Timeframe for candles subscription in minutes; default 1. Valid: 1|5|15|30|60|240|1440|10080|21600
-	Depth    int    `json:"depth,omitempty"`    // Optional - Depth associated with orderbook; default 10. Valid: 10|25|100|500|1000
+	Interval uint64 `json:"interval,omitempty"` // Optional - Timeframe for candles subscription in minutes; default 1. Valid: 1|5|15|30|60|240|1440|10080|21600
+	Depth    int    `json:"depth,omitempty"`    // Optional - Depth associated with orderbook; default 10. Valid: 10|25|100|500|1000. int to take subscription.Levels without a narrowing conversion
 	Token    string `json:"token,omitempty"`    // Optional - Token for authenticated channels
 }
 

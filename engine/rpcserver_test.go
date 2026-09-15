@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -19,8 +19,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
@@ -138,10 +137,7 @@ func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (collatera
 }
 
 func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	resp := make([]futures.PositionResponse, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
@@ -312,7 +308,7 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 		Low:          1337,
 		Bid:          1337,
 		Ask:          1337,
-		Volume:       1337,
+		BaseVolume:   1337,
 		QuoteVolume:  1337,
 		PriceATH:     1337,
 		Open:         1337,
@@ -444,12 +440,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 	t.Helper()
 	var err error
 	dbConf := database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite3,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test123.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite3,
+		Host:     "localhost",
+		Database: "test123.db",
 	}
 	engerino := new(Engine)
 	dbm, err := SetupDatabaseConnectionManager(&dbConf)
@@ -524,14 +518,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
 	}
-	uuider, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
-	uuider2, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
+	uuider := uuid.NewV4()
+	uuider2 := uuid.NewV4()
 	err = dbexchange.InsertMany([]dbexchange.Details{{Name: testExchange, UUID: uuider}, {Name: "Binance", UUID: uuider2}})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
@@ -3718,7 +3706,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		t.FailNow()
 	}
 
-	gRPCPort := rand.Intn(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
+	gRPCPort := rand.IntN(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
 	gRPCProxyPort := gRPCPort + 1
 
 	e := &Engine{

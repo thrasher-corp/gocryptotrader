@@ -3,8 +3,8 @@ package ticker
 import (
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -40,7 +40,7 @@ type Price struct {
 	BidSize      float64       `json:"BidSize"`
 	Ask          float64       `json:"Ask"`
 	AskSize      float64       `json:"AskSize"`
-	Volume       float64       `json:"Volume"`
+	BaseVolume   float64       `json:"BaseVolume"`
 	QuoteVolume  float64       `json:"QuoteVolume"`
 	PriceATH     float64       `json:"PriceATH"`
 	Open         float64       `json:"Open"`

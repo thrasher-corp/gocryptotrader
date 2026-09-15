@@ -1,6 +1,6 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
-LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0
+LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
 GOPATH ?= $(shell go env GOPATH)
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GOFUMPTBIN = $(GOPATH)/bin/gofumpt
@@ -24,7 +24,7 @@ lint:
 
 lint_docker:
 	@command -v docker >/dev/null 2>&1 || (echo "Docker not found. Please install Docker to run this target." && exit 1)
-	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint run --verbose
+	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:v2.13.2 golangci-lint run --verbose
 
 misc_checks:
 	bash ./scripts/misc_checks.sh

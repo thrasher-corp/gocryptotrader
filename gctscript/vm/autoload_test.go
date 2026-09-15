@@ -10,11 +10,11 @@ func TestGctScriptManagerAutoLoadNonExisting(t *testing.T) {
 		config: &Config{
 			AutoLoad: []string{"non-existing"},
 		},
-		started:            1,
 		MaxVirtualMachines: &vms,
 	}
+	g.started.Store(true)
 	g.autoLoad()
-	if VMSCount != 0 {
-		t.Errorf("Expected no VMs, got %v", VMSCount)
+	if VMSCount.Len() != 0 {
+		t.Errorf("Expected no VMs, got %v", VMSCount.Len())
 	}
 }

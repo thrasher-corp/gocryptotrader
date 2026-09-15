@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -101,7 +100,7 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
-	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
+	if r.disableRateLimiter.Load() {
 		return nil
 	}
 	if err := common.NilGuard(r.limiter); err != nil {
@@ -182,7 +181,7 @@ func (r *Requester) DisableRateLimiter() error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
-	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
+	if !r.disableRateLimiter.CompareAndSwap(false, true) {
 		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
 	}
 	return nil
@@ -193,7 +192,7 @@ func (r *Requester) EnableRateLimiter() error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
-	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
+	if !r.disableRateLimiter.CompareAndSwap(true, false) {
 		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
 	}
 	return nil

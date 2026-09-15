@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -68,11 +70,7 @@ func (e *Exchange) GetTradablePairs(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	currencies := make([]string, 0, len(result))
-	for x := range result {
-		currencies = append(currencies, x)
-	}
-	return currencies, nil
+	return slices.AppendSeq(make([]string, 0, len(result)), maps.Keys(result)), nil
 }
 
 // GetTicker returns ticker information
@@ -578,7 +576,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 		headers := make(map[string]string)
 		headers["Api-Key"] = creds.Key
-		headers["Api-Sign"] = base64.StdEncoding.EncodeToString(([]byte(hex.EncodeToString(hmac))))
+		headers["Api-Sign"] = base64.StdEncoding.EncodeToString([]byte(hex.EncodeToString(hmac)))
 		headers["Api-Nonce"] = n
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 

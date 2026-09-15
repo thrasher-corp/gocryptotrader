@@ -938,7 +938,7 @@ func paramsToURLValues(params Parameter) (url.Values, error) {
 	if !v.IsValid() {
 		return url.Values{}, nil
 	}
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return url.Values{}, nil
 		}
