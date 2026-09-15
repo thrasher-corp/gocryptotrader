@@ -454,20 +454,40 @@ func TestWsHandleOrderUpdate(t *testing.T) {
 
 func TestWsHandleOrderUpdateCompoundTypes(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = t.Name()
-
-	types := []string{"buy", "sell", "buy_market", "sell_market", "buy_maker", "sell_maker", "buy_ioc", "sell_ioc", "buy_fok", "sell_fok"}
-	for _, typ := range types {
-		t.Run(typ, func(t *testing.T) {
+	for _, tc := range []struct {
+		typ                      string
+		side                     order.Side
+		amount, quote, remaining float64
+	}{
+		{"buy", order.Buy, 5, 0, 3},
+		{"sell", order.Sell, 5, 0, 3},
+		{"buy_market", order.Buy, 0, 5, 0},
+		{"sell_market", order.Sell, 5, 0, 3},
+		{"buy_maker", order.Buy, 5, 0, 3},
+		{"sell_maker", order.Sell, 5, 0, 3},
+		{"buy_ioc", order.Buy, 5, 0, 3},
+		{"sell_ioc", order.Sell, 5, 0, 3},
+		{"buy_fok", order.Buy, 5, 0, 3},
+		{"sell_fok", order.Sell, 5, 0, 3},
+	} {
+		t.Run(tc.typ, func(t *testing.T) {
 			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			err := ex.wsHandleData(t.Context(), fmt.Appendf(nil, `{
 				"type": "orderUpdate",
 				"pair": "btc_usdt",
-				"orderUpdate": {"orderAmt": "5","orderStatus": 0,"orderPrice": "0.009834","type": %q,"updateTime": 1705676718532,"uuid": "test"}
-			}`, typ))
-			assert.NoError(t, err, "type %s should parse successfully", typ)
+				"orderUpdate": {"accAmt": "2","orderAmt": "5","orderStatus": 1,"orderPrice": "0.009834","remainAmt": "3","type": %q,"updateTime": 1705676718532,"uuid": "test"}
+			}`, tc.typ))
+			require.NoError(t, err, "wsHandleData must not error")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsHandleData must send one order update")
+			d, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+			require.True(t, ok, "DataHandler must receive an *order.Detail")
+			assert.Equal(t, tc.side, d.Side, "Side should come from the type prefix")
+			assert.Equal(t, tc.amount, d.Amount, "Amount should be orderAmt except for a market buy")
+			assert.Equal(t, tc.quote, d.QuoteAmount, "QuoteAmount should be orderAmt only for a market buy")
+			assert.Equal(t, 2.0, d.ExecutedAmount, "ExecutedAmount should be accAmt")
+			assert.Equal(t, tc.remaining, d.RemainingAmount, "RemainingAmount should be remainAmt except for a market buy")
 		})
 	}
 }

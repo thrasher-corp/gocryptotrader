@@ -89,6 +89,15 @@ var (
 	errFailedToGenerateEchostr = errors.New("lbank: failed to generate echostr")
 )
 
+// ErrorCapture captures errors
+func ErrorCapture(code int64) error {
+	msg, ok := errorCodes[code]
+	if !ok {
+		return fmt.Errorf("%w: undefined code please check api docs for error code definition: %v", request.ErrAuthRequestFailed, code)
+	}
+	return fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, msg)
+}
+
 // GetTicker returns a ticker for the specified symbol
 // symbol: eth_btc
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (*TickerResponse, error) {
@@ -493,15 +502,6 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, assetCode string, p
 	}
 
 	return resp, nil
-}
-
-// ErrorCapture captures errors
-func ErrorCapture(code int64) error {
-	msg, ok := errorCodes[code]
-	if !ok {
-		return fmt.Errorf("undefined code please check api docs for error code definition: %v", code)
-	}
-	return errors.New(msg)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

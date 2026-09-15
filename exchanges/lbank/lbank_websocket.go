@@ -347,10 +347,7 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 		Status:               status,
 		LastUpdated:          resp.OrderUpdate.UpdateTime.Time(),
 	}
-	if orderType == "market" {
-		// Market buys are quote-denominated per LBank's docs and CCXT's handling;
-		// remainAmt is not reliably quote-denominated for market orders, so
-		// RemainingAmount is deliberately left unset here.
+	if orderType == "market" && side == order.Buy {
 		detail.QuoteAmount = resp.OrderUpdate.OrderAmount.Float64()
 		detail.ExecutedAmount = resp.OrderUpdate.AccumulatedAmount.Float64()
 	} else {

@@ -348,8 +348,8 @@ type WithdrawalResponse struct {
 
 // ErrCapture helps with error info
 type ErrCapture struct {
-	Error  int64 `json:"error_code"`
-	Result bool  `json:"result,string"`
+	Error  int64         `json:"error_code"`
+	Result types.Boolean `json:"result"`
 }
 
 // V2Response wraps all LBank v2 API responses

@@ -223,7 +223,7 @@ func TestDoRefreshSubscribeKeyResubscribesOnNewKey(t *testing.T) {
 
 	// The initial Subscribe above sends the first message; doRefreshSubscribeKey's
 	// re-subscribe sends the second, now carrying the new key.
-	require.Len(t, conn.sentMessages, 2, "initial Subscribe plus doRefreshSubscribeKey's re-subscribe should send two messages")
+	require.Len(t, conn.sentMessages, 2, "initial Subscribe plus doRefreshSubscribeKey's re-subscribe must send two messages")
 	req, ok := conn.sentMessages[1].(map[string]any)
 	require.True(t, ok, "second sent message must be a map[string]any")
 	assert.Equal(t, lbankWsSubscribe, req[lbankWsAction])
@@ -339,6 +339,7 @@ func TestWsConnectAuthSuccess(t *testing.T) {
 
 	conn := &wsConnectFixtureConnection{}
 	ex.Websocket.Conn = conn
+	t.Cleanup(func() { close(ex.Websocket.ShutdownC); waitForWaitGroup(t, &ex.Websocket.Wg, 2*time.Second) })
 
 	err = ex.WsConnect()
 	require.NoError(t, err, "WsConnect must not error")

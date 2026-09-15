@@ -1,6 +1,9 @@
 package lbank
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"net/http"
 	"testing"
 	"time"
 
@@ -8,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -24,6 +28,28 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	assert.NotEmpty(t, subs, "generateSubscriptions should return subscriptions")
+}
+
+func TestWebsocketSubscribeKeySuccess(t *testing.T) {
+	t.Parallel()
+	for _, body := range []string{
+		`{"result":true,"data":"4e9958623e6006bd","error_code":0,"ts":1705602277198}`,
+		`{"result":"true","data":"4e9958623e6006bd","error_code":0,"ts":1705602277198}`,
+	} {
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+		pk, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err, "GenerateKey must not error")
+		ex.privateKey = pk
+		require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: &fakeRoundTripper{body: body}}), "SetHTTPClient must not error")
+		key, err := ex.GetWebsocketSubscribeKey(t.Context())
+		require.NoErrorf(t, err, "GetWebsocketSubscribeKey must accept %s", body)
+		assert.Equalf(t, "4e9958623e6006bd", key, "GetWebsocketSubscribeKey should return data from %s", body)
+		assert.NoErrorf(t, ex.RefreshWebsocketSubscribeKey(t.Context(), key), "RefreshWebsocketSubscribeKey should accept %s", body)
+		assert.NoErrorf(t, ex.DestroyWebsocketSubscribeKey(t.Context(), key), "DestroyWebsocketSubscribeKey should accept %s", body)
+	}
 }
 
 func TestSubscribeUnsubscribe(t *testing.T) {
@@ -71,7 +97,7 @@ func TestManageSubsMockWsInstance(t *testing.T) {
 	})
 
 	msgs := handler.captured()
-	require.Len(t, msgs, 3, "manageSubs should send one message per subscription")
+	require.Len(t, msgs, 3, "manageSubs must send one message per subscription")
 
 	var tickerReq, depthReq, kbarReq map[string]any
 	for _, raw := range msgs {
@@ -104,9 +130,9 @@ func TestManageSubsMockWsInstance(t *testing.T) {
 	})
 
 	msgs = handler.captured()
-	require.Len(t, msgs, 6, "Unsubscribe should send one more message per subscription")
+	require.Len(t, msgs, 6, "Unsubscribe must send one more message per subscription")
 
 	var req map[string]any
 	require.NoError(t, json.Unmarshal(msgs[len(msgs)-1], &req), "last sent message must be valid JSON")
-	assert.Equal(t, lbankWsUnsubscribe, req[lbankWsAction], "last message should be an unsubscribe action")
+	assert.Equal(t, lbankWsUnsubscribe, req[lbankWsAction], "last message must be an unsubscribe action")
 }
