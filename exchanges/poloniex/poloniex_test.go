@@ -249,6 +249,9 @@ func TestGetOrderHistory(t *testing.T) {
 	assert.Equal(t, 3.0, result[0].Amount, "Amount should be the order size")
 	assert.Equal(t, 3.0, result[0].ExecutedAmount, "ExecutedAmount should be the executed contract quantity")
 	assert.Equal(t, 0.0, result[0].RemainingAmount, "RemainingAmount should be zero for a filled order")
+	assert.Equal(t, 59900.0, result[0].AverageExecutedPrice, "AverageExecutedPrice should be the exchange avgPx")
+	assert.Equal(t, 179.7, result[0].Cost, "Cost should be the exchange execAmt, not avgPx times contracts")
+	assert.Equal(t, currency.USDT, result[0].CostAsset, "CostAsset should be the quote currency")
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -1593,6 +1596,12 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, 0.2, result.ExecutedAmount, "ExecutedAmount should be the filled base quantity")
 	assert.Equal(t, 0.3, result.RemainingAmount, "RemainingAmount should be the unfilled base quantity")
 	assert.Equal(t, 12000.0, result.Cost, "Cost should be the filled quote amount")
+
+	result, err = e.GetOrderInfo(generateContext(t), "12345", futuresTradablePair, asset.Futures)
+	require.NoError(t, err)
+	assert.Equal(t, 0.6272, result.AverageExecutedPrice, "AverageExecutedPrice should be the exchange avgPx")
+	assert.Equal(t, 1.8816, result.Cost, "Cost should be the exchange execAmt")
+	assert.Equal(t, currency.USDT, result.CostAsset, "CostAsset should be the quote currency")
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -2285,17 +2294,37 @@ func TestProcessOrders(t *testing.T) {
 		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"32471407854219265","tradeFee":"0.0001","clientOrderId":"","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","source":"API","side":"BUY","filledQuantity":"0.2","filledAmount":"12000","matchRole":"MAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"12000","orderAmount":"0","createTime":1757800000000,"price":"60000","tradeQty":"0.2","tradePrice":"60000","tradeId":"68561300","ts":1757800060010}]`),
 	}
 	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error")
-	ex.Websocket.DataHandler.Close()
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
-	for r := range ex.Websocket.DataHandler.C {
-		details, ok := r.Data.([]order.Detail)
-		require.Truef(t, ok, "DataHandler payload must be []order.Detail, got %T", r.Data)
-		require.Len(t, details, 1, "Must see exactly one order detail")
-		assert.Equal(t, 0.5, details[0].Amount, "Amount should be the base quantity")
-		assert.Equal(t, 0.2, details[0].ExecutedAmount, "ExecutedAmount should be the filled base quantity")
-		assert.Equal(t, 0.3, details[0].RemainingAmount, "RemainingAmount should be the unfilled base quantity")
-		assert.Equal(t, order.PartiallyFilled, details[0].Status, "Status should be PartiallyFilled")
-	}
+	exp := []order.Detail{{
+		Price:           60000,
+		Amount:          0.5,
+		ExecutedAmount:  0.2,
+		RemainingAmount: 0.3,
+		Fee:             0.0001,
+		FeeAsset:        currency.BTC,
+		Exchange:        ex.Name,
+		OrderID:         "32471407854219265",
+		Type:            order.Limit,
+		Side:            order.Buy,
+		Status:          order.PartiallyFilled,
+		AssetType:       asset.Spot,
+		Date:            time.UnixMilli(1757800000000),
+		LastUpdated:     time.UnixMilli(1757800060000),
+		Pair:            currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+		Trades: []order.TradeHistory{{
+			Price:     60000,
+			Amount:    0.2,
+			Fee:       0.0001,
+			Exchange:  ex.Name,
+			TID:       "68561300",
+			Type:      order.Limit,
+			Side:      order.Buy,
+			Timestamp: time.UnixMilli(1757800060010),
+			FeeAsset:  "BTC",
+			Total:     12000,
+		}},
+	}}
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should map the order update")
 }
 
 func TestProcessCandlestickDataIntervalMapping(t *testing.T) {

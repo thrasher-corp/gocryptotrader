@@ -13554,13 +13554,13 @@
       "code": 200,
       "data": [
        {
-        "avgPx": "0.6272",
+        "avgPx": "59900",
         "cTime": "1719973768748",
         "cancelReason": "",
         "clOrdId": "polo331380922769473536",
         "deductAmt": "0",
         "deductCcy": "0",
-        "execAmt": "1.8816",
+        "execAmt": "179.7",
         "execQty": "3",
         "feeAmt": "0.00009408",
         "feeCcy": "USDT",
