@@ -731,8 +731,29 @@ func averageExecutedPrice(o *OrderDetail) float64 {
 // when fills disagree on the asset the aggregate currency is left unset. It is best-effort: a
 // myTrades failure must not sink the order lookup, so callers pass through the base order.
 func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, orderID string) (trades []order.TradeHistory, totalFee float64, feeAsset currency.Code) {
-	fills, err := e.GetAccountTradeList(ctx, pair, orderID, time.Time{}, time.Time{}, 0)
-	if err != nil || len(fills) == 0 {
+	// MEXC can report an order as filled a moment before its fills surface in myTrades, so a single
+	// immediate lookup often finds nothing for a just-completed order. Retry a few times with a short
+	// gap. Best-effort throughout: the order lookup still returns without commission on failure, but
+	// the reason is named rather than dropped silently.
+	var fills []*AccountTrade
+	for attempt := 0; ; attempt++ {
+		var err error
+		fills, err = e.GetAccountTradeList(ctx, pair, orderID, time.Time{}, time.Time{}, 0)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "%s: myTrades lookup failed for order %s (%s): %v", e.Name, orderID, pair, err)
+			return nil, 0, currency.EMPTYCODE
+		}
+		if len(fills) > 0 || attempt >= 2 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, 0, currency.EMPTYCODE
+		case <-time.After(time.Second):
+		}
+	}
+	if len(fills) == 0 {
+		log.Warnf(log.ExchangeSys, "%s: myTrades returned no fills for order %s (%s); commission not materialised", e.Name, orderID, pair)
 		return nil, 0, currency.EMPTYCODE
 	}
 	trades = make([]order.TradeHistory, 0, len(fills))

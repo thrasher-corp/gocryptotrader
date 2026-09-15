@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -640,6 +641,32 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		require.NoError(t, err, "a myTrades failure must not fail the order lookup")
 		assert.Empty(t, detail.Trades, "no trades should be attached when myTrades fails")
 		assert.Equal(t, order.Filled, detail.Status, "the base order should still be reported")
+	})
+
+	t.Run("empty myTrades is retried before giving up", func(t *testing.T) {
+		t.Parallel()
+		// MEXC can mark an order filled a moment before its fills appear in myTrades. The first
+		// lookup returns no fills; the retry finds them and the commission is materialised.
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.007","commissionAsset":"USDT","price":"0.035","qty":"200","quoteQty":"7","time":1736409770000}]`
+		var tradeCalls atomic.Int64
+		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "myTrades") {
+				if tradeCalls.Add(1) == 1 {
+					_, _ = w.Write([]byte(`[]`)) // first lookup: fills not visible yet
+					return
+				}
+				_, _ = w.Write([]byte(tradesBody))
+				return
+			}
+			_, _ = w.Write([]byte(orderBody))
+		}))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.GreaterOrEqual(t, tradeCalls.Load(), int64(2), "an empty myTrades result should be retried")
+		require.Len(t, detail.Trades, 1, "the retry must pick up the fill")
+		assert.InDelta(t, 0.007, detail.Fee, 1e-9, "Fee should be materialised from the retried lookup")
+		assert.Equal(t, currency.USDT, detail.FeeAsset, "FeeAsset should be materialised from the retried lookup")
 	})
 }
 
