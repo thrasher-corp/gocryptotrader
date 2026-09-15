@@ -1,5 +1,5 @@
 {{define "root" -}}
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="{{.RepoRoot}}/common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -42,7 +42,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
 
-We are aiming to support the top 30 exchanges sorted by average liquidity as [ranked by CoinMarketCap](https://coinmarketcap.com/rankings/exchanges/). 
+We are aiming to support the top 30 exchanges sorted by average liquidity as [ranked by CoinMarketCap](https://coinmarketcap.com/rankings/exchanges/).
 However, we welcome pull requests for any exchange which does not match this criterion. If you need help with this, please join us on [Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g).
 
 ** NA means not applicable as the exchange does not support the feature.
@@ -59,21 +59,21 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Unified API for exchange usage.
 + Customisation of HTTP client features including setting a proxy, user agent and adjusting transport settings.
 + NTP client package.
-+ Database support (Postgres and SQLite3). See [database](/database/README.md).
-+ OTP generation tool. See [gen otp](/cmd/gen_otp).
++ Database support (Postgres and SQLite3). See [database]({{.RepoRoot}}/database/README.md).
++ OTP generation tool. See [gen otp]({{.RepoRoot}}/cmd/gen_otp).
 + Connection monitor package.
-+ gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
-+ gRPC client. See [gctcli](/cmd/gctcli/README.md).
++ gRPC service and JSON RPC proxy. See [gRPC service]({{.RepoRoot}}/gctrpc/README.md).
++ gRPC client. See [gctcli]({{.RepoRoot}}/cmd/gctcli/README.md).
 + Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Exchange Rates, Fixer.io, OpenExchangeRates, Exchange Rate Host).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
-+ OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
-+ Scripting support. See [gctscript](/gctscript/README.md).
-+ Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
-+ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
-+ Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
-+ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
++ OHLCV/Candle retrieval support. See [OHLCV]({{.RepoRoot}}/docs/OHLCV.md).
++ Scripting support. See [gctscript]({{.RepoRoot}}/gctscript/README.md).
++ Recent and historic trade processing. See [trades]({{.RepoRoot}}/exchanges/trade/README.md).
++ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester]({{.RepoRoot}}/backtester/README.md).
++ Exchange HTTP mock testing. See [mock]({{.RepoRoot}}/exchanges/mock/README.md).
++ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support]({{.RepoRoot}}/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
 ## Development Tracking
 
@@ -90,7 +90,7 @@ Follow our progress as we continuously improve GoCryptoTrader.
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
 
-When submitting a PR, please abide by our [coding guidelines](/docs/CODING_GUIDELINES.md).
+When submitting a PR, please abide by our [coding guidelines]({{.RepoRoot}}/docs/CODING_GUIDELINES.md).
 
 ## Compiling and Running instructions
 
@@ -140,11 +140,11 @@ go build -tags=udecimal_on
 
 The tag changes both the implementation and some decimal behaviour. Before enabling it, note these differences:
 
-- **Precision:** udecimal retains up to 19 fractional digits. Arithmetic and float conversion truncate anything beyond that without returning an error, so a non-zero result with a magnitude below `1e-19` becomes zero. Parsing does not truncate: `NewFromString` rejects inputs requiring more than 19 fractional digits.
-- **Division:** The udecimal build truncates division results to 19 fractional digits. The default shopspring build rounds division results to 16 fractional digits, so the final digits can differ between builds.
-- **Large values:** Plain decimal values round-trip through text, JSON and SQL codecs even when they exceed udecimal's native 200-character parser limit. Scientific notation is rejected when expanding it would produce more than 200 digits.
-- **API behaviour:** Fractional `Pow` exponents are rejected.
-- **Representation:** A udecimal-backed `Decimal` occupies 32 bytes instead of 16 bytes. Its binary encoding is not compatible with shopspring's and rejects values whose native encoding would exceed its one-byte length field.
++ **Precision:** udecimal retains up to 19 fractional digits. Arithmetic and float conversion truncate anything beyond that without returning an error, so a non-zero result with a magnitude below `1e-19` becomes zero. Parsing does not truncate: `NewFromString` rejects inputs requiring more than 19 fractional digits.
++ **Division:** The udecimal build truncates division results to 19 fractional digits. The default shopspring build rounds division results to 16 fractional digits, so the final digits can differ between builds.
++ **Large values:** Plain decimal values round-trip through text, JSON and SQL codecs even when they exceed udecimal's native 200-character parser limit. Scientific notation is rejected when expanding it would produce more than 200 digits.
++ **API behaviour:** Fractional `Pow` exponents are rejected.
++ **Representation:** A udecimal-backed `Decimal` occupies 32 bytes instead of 16 bytes. Its binary encoding is not compatible with shopspring's and rejects values whose native encoding would exceed its one-byte length field.
 
 Without the tag, `Decimal` remains an alias of shopspring's type.
 
@@ -157,7 +157,6 @@ make decimal_bench
 The suite defaults to five 500 ms samples per operation. Override these with `DECIMAL_BENCH_COUNT` and `DECIMAL_BENCH_TIME` when collecting longer benchmark runs.
 
 `BenchmarkDecimalInexactFloat64` measures conversion to a plain `float64`; `BenchmarkDecimalFloat64` separately measures conversion with the exactness flag required by `Float64()`.
-
 
 {{template "donations" .}}
 

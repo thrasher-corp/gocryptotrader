@@ -1,5 +1,6 @@
 {{define "currency forexprovider currencylayer" -}}
 {{template "header" .}}
+
 ## Current Features for {{.Name}}
 
 + Fetches up to date currency data from [Currency Layer](https://currencylayer.com/)
@@ -9,23 +10,24 @@
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-currency-via-config-example)
 
 + Individual package example below:
+
 ```go
 import (
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
+    "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+    "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
 )
 
 c := currencylayer.CurrencyLayer{}
 
 // Define configuration
 newSettings := base.Settings{
-	Name:             "CurrencyLayer",
-	Enabled:          true,
-	Verbose:          false,
-	RESTPollingDelay: time.Duration,
-	APIKey:           "key",
-	APIKeyLvl:        "keylvl",
-	PrimaryProvider:  true,
+    Name:             "CurrencyLayer",
+    Enabled:          true,
+    Verbose:          false,
+    RESTPollingDelay: time.Duration,
+    APIKey:           "key",
+    APIKeyLvl:        "keylvl",
+    PrimaryProvider:  true,
 }
 
 c.Setup(newSettings)

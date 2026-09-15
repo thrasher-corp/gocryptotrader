@@ -1,13 +1,11 @@
 # GoCryptoTrader package Slack
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/communications/slack)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This slack package is part of the GoCryptoTrader codebase.
 
@@ -28,13 +26,14 @@ app and share different types of data
 ### Current Features
 
 + Basic communication to your slack channel information includes:
-	- Working status of bot
+  + Working status of bot
 
 ### How to enable
 
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
 
 + Individual package example below:
+
 ```go
 import (
 "github.com/thrasher-corp/gocryptotrader/communications/slack"
@@ -45,11 +44,11 @@ s := new(slack.Slack)
 
 // Define slack configuration
 commsConfig := config.CommunicationsConfig{SlackConfig: config.SlackConfig{
-	Name:              "Slack",
-	Enabled:           true,
-	Verbose:           false,
-	TargetChannel:     "targetChan",
-	VerificationToken: "slackGeneratedToken",
+    Name:              "Slack",
+    Enabled:           true,
+    Verbose:           false,
+    TargetChannel:     "targetChan",
+    VerificationToken: "slackGeneratedToken",
 }}
 
 s.Setup(commsConfig)
@@ -60,7 +59,7 @@ err := s.Connect
 Once the bot has started you can interact with the bot using these commands
 via Slack:
 
-```
+```text
 !status 		- Displays current working status of bot
 !help 			- Displays help text
 !settings		- Displays current settings
@@ -68,8 +67,8 @@ via Slack:
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

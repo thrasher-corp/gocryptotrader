@@ -1,13 +1,11 @@
 # GoCryptoTrader package Okx
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/okx)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This okx package is part of the GoCryptoTrader codebase.
 
@@ -31,8 +29,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 
 ```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
+    // Exchanges will be abstracted out in further updates and examples will be
+    // supplied then
 ```
 
 ### How to do REST public/private calls
@@ -44,13 +42,14 @@ for an example of integration usage with GoCryptoTrader. Rudimentary example
 below:
 
 main.go
+
 ```go
 var ok exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "Okx" {
-		y = bot.Exchanges[i]
-	}
+    if bot.Exchanges[i].GetName() == "Okx" {
+        y = bot.Exchanges[i]
+    }
 }
 
 // Public calls - wrapper functions
@@ -58,13 +57,13 @@ for i := range bot.Exchanges {
 // Fetches current ticker information
 tick, err := ok.UpdateTicker(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Fetches current orderbook information
 ob, err := ok.UpdateOrderbook(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Private calls - wrapper functions - make sure your APIKEY, APISECRET, and API_CLIENT_ID are
@@ -73,7 +72,7 @@ if err != nil {
 // Fetches current account information
 accountInfo, err := ok.GetAccountInfo()
 if err != nil {
-	// Handle error
+    // Handle error
 }
 ```
 
@@ -85,26 +84,26 @@ if err != nil {
 // Fetches current ticker information
 ticker, err := ok.GetTicker()
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Fetches current orderbook information
 ob, err := ok.GetOrderBook()
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Fetches historic trade data within the timeframe provided
 tradeDatas, err := ok.GetHistoricTrades(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 
 // Returns an estimate of fee based on the type of transaction
 fee, err := ok.GetFeeByType(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Private calls - make sure your APIKEY and APISECRET are set and
@@ -113,13 +112,13 @@ if err != nil {
 // Submits an order to the exchange and returns its tradeID
 orderID, err := ok.SubmitOrder(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // ModifyOrder modifies an existing order
 updatedOrder, err := ok.ModifyOrder(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 ```
@@ -127,14 +126,14 @@ if err != nil {
 ### How to do Websocket public/private calls
 
 ```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
+    // Exchanges will be abstracted out in further updates and examples will be
+    // supplied then
 ```
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

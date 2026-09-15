@@ -1,5 +1,6 @@
 {{define "exchanges kucoin" -}}
 {{template "header" .}}
+
 ## Kucoin Exchange
 
 ### Current Features
@@ -10,16 +11,18 @@
 ### Subscriptions
 
 Default Public Subscriptions:
-- Ticker for spot, margin and futures
-- Orderbook for spot, margin and futures
-- All trades for spot and margin
+
++ Ticker for spot, margin and futures
++ Orderbook for spot, margin and futures
++ All trades for spot and margin
 
 Default Authenticated Subscriptions:
-- All trades for futures
-- Stop Order Lifecycle events for futures
-- Account Balance events for spot, margin and futures
-- Margin Position updates
-- Margin Loan updates
+
++ All trades for futures
++ Stop Order Lifecycle events for futures
++ Account Balance events for spot, margin and futures
++ Margin Position updates
++ Margin Loan updates
 
 Subscriptions are subject to enabled assets and pairs.
 
@@ -27,14 +30,16 @@ Margin subscriptions for ticker, orderbook and All trades are merged into Spot s
 unless Spot subscription does not exist, i.e. Spot asset not enabled, or subscription configured only for Margin
 
 Limitations:
-- 100 symbols per subscription
-- 300 symbols per connection
+
++ 100 symbols per subscription
++ 300 symbols per connection
 
 Due to these limitations, if more than 10 symbols are enabled, ticker will subscribe to ticker:all.
 
 Unimplemented subscriptions:
-- Candles for Futures
-- Market snapshot for currency
+
++ Candles for Futures
++ Market snapshot for currency
 
 {{template "donations" .}}
 {{end}}

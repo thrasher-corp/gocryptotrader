@@ -1,13 +1,11 @@
 # GoCryptoTrader package Smsglobal
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/communications/smsglobal)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This smsglobal package is part of the GoCryptoTrader codebase.
 
@@ -33,6 +31,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
 
 + Individual package example below:
+
 ```go
 import (
 "github.com/thrasher-corp/gocryptotrader/communications/smsglobal"
@@ -43,12 +42,12 @@ s := new(smsglobal.SMSGlobal)
 
 // Define SMSGlobal configuration
 commsConfig := config.CommunicationsConfig{SMSGlobalConfig: config.SMSGlobalConfig{
-	Name:     "SMSGlobal",
-	Enabled:  true,
-	Verbose:  false,
-	Username: "username",
-	Password: "password",
-	Contacts: []config.SMSContact{}
+    Name:     "SMSGlobal",
+    Enabled:  true,
+    Verbose:  false,
+    Username: "username",
+    Password: "password",
+    Contacts: []config.SMSContact{}
 }}
 
 s.Setup(commsConfig)
@@ -58,8 +57,8 @@ err := s.Connect
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

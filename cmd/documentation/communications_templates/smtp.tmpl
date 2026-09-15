@@ -1,5 +1,6 @@
 {{define "communications smtpservice" -}}
 {{template "header" .}}
+
 ## SMSGlobal Communications package
 
 ### What is SMTP?
@@ -16,6 +17,7 @@
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
 
 + Individual package example below:
+
 ```go
 import (
 "github.com/thrasher-corp/gocryptotrader/communications/smtpservice"
@@ -26,14 +28,14 @@ s := new(smtpservice.SMTPservice)
 
 // Define SMTPservice configuration
 commsConfig := config.CommunicationsConfig{SMTPservice: config.SMTPConfig{
-	Name:            "SMTPservice",
-	Enabled:         true,
-	Verbose:         false,
-	Host:            "host",
-	Port:            "port",
-	AccountName:     "name",
-	AccountPassword: "password",
-	RecipientList:   "something@something.com,somethingelse@something.com"
+    Name:            "SMTPservice",
+    Enabled:         true,
+    Verbose:         false,
+    Host:            "host",
+    Port:            "port",
+    AccountName:     "name",
+    AccountPassword: "password",
+    RecipientList:   "something@something.com,somethingelse@something.com"
 }}
 
 s.Setup(commsConfig)

@@ -1,13 +1,11 @@
 # GoCryptoTrader package gctscript
 
-<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70">
-
+<img src="../docs/assets/page-logo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/gctscript)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This gctscript package is part of the GoCryptoTrader codebase.
 
@@ -34,24 +32,25 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## How to use
 
-##### Prerequisites
+### Prerequisites
 
 To Enable database logging support you must have an active migrated database by following the [database setup guide](../database/README.md)
 
-##### Syntax Highlighting
+### Syntax Highlighting
 
-To enable syntax highlighting for vscode download extension [graphman65/vscode-tengo](https://github.com/graphman65/vscode-tengo/) then add `".gct"` to vscode-tengo package.json [settings](https://github.com/graphman65/vscode-tengo/blob/master/package.json#L27) to enable highlighting of our files. 
+To enable syntax highlighting for vscode download extension [graphman65/vscode-tengo](https://github.com/graphman65/vscode-tengo/) then add `".gct"` to vscode-tengo package.json [settings](https://github.com/graphman65/vscode-tengo/blob/master/package.json#L27) to enable highlighting of our files.
 
-##### Configuration
+### Configuration
 
-The gctscript configuration struct is currently: 
-```shell script
+The gctscript configuration struct is currently:
+
+```go
 type Config struct {
-	Enabled       bool          `json:"enabled"`
-	ScriptTimeout time.Duration `json:"timeout"`
-	AllowImports  bool          `json:"allow_imports"`
-	AutoLoad      []string      `json:"auto_load"`
-	Verbose       bool          `json:"Verbose"`
+    Enabled       bool          `json:"enabled"`
+    ScriptTimeout time.Duration `json:"timeout"`
+    AllowImports  bool          `json:"allow_imports"`
+    AutoLoad      []string      `json:"auto_load"`
+    Verbose       bool          `json:"Verbose"`
 }
 ```
 
@@ -66,20 +65,27 @@ With an example configuration being:
   "debug": false
  },
 ```
-##### Script Control
+
+### Script Control
+
 + You can autoload scripts on bot start up by placing their name in the "auto_load" config entry
+
   ```shell script
   "auto_load": ["one","two"]
   ```
+
   This will look in your GoCryptoTrader data directory in a folder called "scripts" for files one.gct and two.gct and autoload them
 + Manual control of scripts can be done via the gctcli command with support for the following:
 
-  - Enable/Disable GCTScript:
+  + Enable/Disable GCTScript:
+
    ```shell script
     gctcli enablesubsystem "gctscript"
     gctcli disablesubsystem "gctscript"
   ```
-  - Start/Execute:
+
+  + Start/Execute:
+
   ```shell script
     gctcli script execute <scriptname> <pathoverride>
     gctcli script execute "timer.gct" "~/gctscript"
@@ -89,7 +95,9 @@ With an example configuration being:
       "data": "timer.gct executed"
     }
   ```
-  - Stop:
+
+  + Stop:
+
   ```shell script
     gctcli script stop <uuid>
     gctcli script stop 821bd73e-02b1-4974-9463-874cb49f130d
@@ -99,7 +107,9 @@ With an example configuration being:
       "data": "821bd73e-02b1-4974-9463-874cb49f130d terminated"
     }
   ```
-  - Status:
+
+  + Status:
+
   ```shell script
     gctcli script status 
   
@@ -114,7 +124,9 @@ With an example configuration being:
       ]
     }
   ```
-  - Read file:
+
+  + Read file:
+
   ```shell script
     gctcli script read <filename>
     gctcli script read "timer.gct"
@@ -128,7 +140,9 @@ With an example configuration being:
       "data": "fmt := import(\"fmt\")\nt := import(\"times\")\n\nname := \"run\"\ntimer := \"5s\"\n\nload := func() {\n\tfmt.printf(\"5s %s\\n\",t.now())\n}\n\nload()\n"
     }
    ```
-    - Query running script:
+
+  + Query running script:
+
     ```shell script
       gctcli script query <uuid>
       gctcli script query 821bd73e-02b1-4974-9463-874cb49f130d
@@ -144,7 +158,9 @@ With an example configuration being:
       }
       load()  
      ```
-     - Add script to autoload:
+
+  + Add script to autoload:
+
     ```shell script
     gctcli script autoload add timer
     {
@@ -152,7 +168,9 @@ With an example configuration being:
       "data": "script timer added to autoload list"
     }
     ```
-    - Remove script from autoload:
+
+  + Remove script from autoload:
+
     ```shell script
       gctcli script autoload remove timer
       {
@@ -160,35 +178,38 @@ With an example configuration being:
         "data": "script timer removed from autoload list"
       }
     ```
-##### Scripting & Extending modules
 
-The scripting engine utilises [tengo](https://github.com/d5/tengo) an intro tutorial for it can be found [here](https://github.com/d5/tengo/blob/master/docs/tutorial.md)
+### Scripting & Extending modules
 
-Modules have been written so far linking up common exchange features including 
+The scripting engine utilises [Tengo](https://github.com/d5/tengo); see the [Tengo introduction tutorial](https://github.com/d5/tengo/blob/master/docs/tutorial.md).
 
-- Orderbook
-- Ticker
-- Order Management
-- Account information
-- Withdraw funds 
-- Get Deposit Addresses
+Modules have been written so far linking up common exchange features including
+
++ Orderbook
++ Ticker
++ Order Management
++ Account information
++ Withdraw funds
++ Get Deposit Addresses
 
 Extending or creating new modules:
 
 Extending an existing module the exchange module for example is simple
-- Open required [module](modules/gct/exchange.go)
-- Add to exchangeModule map
-- Define function with signature ```(args ...objects.Object) (ret objects.Object, err error)```
+
++ Open required [module](modules/gct/exchange.go)
++ Add to exchangeModule map
++ Define function with signature ```(args ...objects.Object) (ret objects.Object, err error)```
 
 Similar steps can be taken to add a new module with a few adjustments
-- Open required [GCT](modules/gct/gct_types.go)
-- Add module name to GCTModules map
 
-##### GCT module methods
++ Open required [GCT](modules/gct/gct_types.go)
++ Add module name to GCTModules map
+
+### GCT module methods
 
 Current supported methods added and exposed to scripts are as follows:
 
-```
+```text
 accountinfo
 -> exchange:string
 
@@ -246,9 +267,8 @@ withdrawcrypto
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
-

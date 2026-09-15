@@ -1,6 +1,6 @@
 # GoCryptoTrader Unified API
 
-<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70">
+<img src="../docs/assets/page-logo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -21,7 +21,7 @@ GoCryptoTrader supports a unified API for dealing with exchanges. Each exchange
 has its own wrapper file which maps the exchanges own RESTful endpoints into a
 standardised way for bot and standalone application usage.
 
-A full breakdown of all the supported wrapper funcs can be found [here.](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/interfaces.go#L21)
+A full breakdown of all the supported wrapper funcs can be found in the [exchange interface](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/interfaces.go).
 Please note that these change on a regular basis as GoCryptoTrader is undergoing
 rapid development.
 
