@@ -598,6 +598,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
+		if result.ClientOrderID == "" {
+			// If the ACK omits the client id, report the id sent with the request.
+			result.ClientOrderID = s.ClientOrderID
+		}
 		orderType, tif, err := e.StringToOrderTypeAndTimeInForce(result.Type)
 		if err != nil {
 			return nil, err
@@ -623,23 +627,22 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return &order.SubmitResponse{
 			// s.Pair is already in exchange format; the response symbol is concatenated and a naive
 			// split mis-reads most MEXC symbols (METALUSDT read as MET/ALUSDT).
-			Pair:                 s.Pair,
-			Exchange:             e.Name,
-			Type:                 orderType,
-			Side:                 orderSide,
-			AssetType:            asset.Spot,
-			Leverage:             s.Leverage,
-			ReduceOnly:           s.ReduceOnly,
-			AverageExecutedPrice: s.Price,
-			Status:               ordStatus,
-			QuoteAmount:          s.QuoteAmount,
-			OrderID:              result.OrderID,
-			ClientOrderID:        result.ClientOrderID,
-			Price:                result.Price.Float64(),
-			Amount:               result.OrigQty.Float64(),
-			LastUpdated:          result.TransactTime.Time(),
-			RemainingAmount:      result.OrigQty.Float64() - result.ExecutedQty.Float64(),
-			TimeInForce:          tif,
+			Pair:            s.Pair,
+			Exchange:        e.Name,
+			Type:            orderType,
+			Side:            orderSide,
+			AssetType:       asset.Spot,
+			Leverage:        s.Leverage,
+			ReduceOnly:      s.ReduceOnly,
+			Status:          ordStatus,
+			QuoteAmount:     s.QuoteAmount,
+			OrderID:         result.OrderID,
+			ClientOrderID:   result.ClientOrderID,
+			Price:           result.Price.Float64(),
+			Amount:          result.OrigQty.Float64(),
+			LastUpdated:     result.TransactTime.Time(),
+			RemainingAmount: result.OrigQty.Float64() - result.ExecutedQty.Float64(),
+			TimeInForce:     tif,
 		}, nil
 	default:
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
@@ -711,6 +714,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 }
 
+// averageExecutedPrice returns the average fill price of a REST order, cummulativeQuoteQty over
+// executedQty. The price field is not the average: it is the limit on a limit order, and a filled
+// market order reports a price that differs from its fills.
+func averageExecutedPrice(o *OrderDetail) float64 {
+	executed := o.ExecutedQty.Float64()
+	if executed <= 0 {
+		return 0
+	}
+	return o.CummulativeQuoteQty.Float64() / executed
+}
+
 // GetOrderInfo returns order information based on order ID
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	pairFormat, err := e.GetPairFormat(assetType, true)
@@ -756,7 +770,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			// Detail.Cost to the proto cost field, so a market order's real executed cost reaches
 			// the caller instead of a zero. Price alone is the protective limit, not the average.
 			Cost:                 result.CummulativeQuoteQty.Float64(),
-			AverageExecutedPrice: result.Price.Float64(),
+			AverageExecutedPrice: averageExecutedPrice(result),
+			TriggerPrice:         result.StopPrice.Float64(),
 			ExecutedAmount:       result.ExecutedQty.Float64(),
 			RemainingAmount:      result.OrigQty.Float64() - result.ExecutedQty.Float64(),
 			Exchange:             e.Name,
@@ -856,7 +871,8 @@ func (e *Exchange) orderDetailFromRESTOrder(o *OrderDetail, fallbackPair currenc
 	return order.Detail{
 		Price:                o.Price.Float64(),
 		Amount:               o.OrigQty.Float64(),
-		AverageExecutedPrice: o.Price.Float64(),
+		AverageExecutedPrice: averageExecutedPrice(o),
+		TriggerPrice:         o.StopPrice.Float64(),
 		QuoteAmount:          o.CummulativeQuoteQty.Float64(),
 		// Cost is the quote actually spent (cumulative filled value), mapped to the proto cost
 		// field by the rpc server; without it a market order reports a zero cost to the caller.
@@ -917,23 +933,25 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	}
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
-		var pair currency.Pair
-		if len(getOrdersRequest.Pairs) == 1 {
-			pair = getOrdersRequest.Pairs[0].Format(pairFormat)
+		if len(getOrdersRequest.Pairs) == 0 {
+			return nil, currency.ErrCurrencyPairsEmpty
 		}
-		result, err := e.GetAllOrders(ctx, pair, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
-		if err != nil {
-			return nil, err
-		}
-		orderDetails := make(order.FilteredOrders, len(result))
-		for r := range result {
-			detail, err := e.orderDetailFromRESTOrder(result[r], pair)
+		var details order.FilteredOrders
+		for p := range getOrdersRequest.Pairs {
+			pair := getOrdersRequest.Pairs[p].Format(pairFormat)
+			result, err := e.GetAllOrders(ctx, pair, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
 			if err != nil {
 				return nil, err
 			}
-			orderDetails[r] = detail
+			for r := range result {
+				detail, err := e.orderDetailFromRESTOrder(result[r], pair)
+				if err != nil {
+					return nil, err
+				}
+				details = append(details, detail)
+			}
 		}
-		return orderDetails, nil
+		return details, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}

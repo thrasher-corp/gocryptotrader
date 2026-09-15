@@ -17,6 +17,7 @@ const (
 	typeLimit             = "LIMIT"
 	typeMarket            = "MARKET"
 	typeStopLimit         = "STOP_LIMIT"
+	typeStopMarketOrder   = "STOP_MARKET_ORDER"
 	typePostOnly          = "POST_ONLY"
 )
 
@@ -287,7 +288,7 @@ type BatchOrderCreationParam struct {
 	QuoteOrderQty    types.Number  `json:"quoteOrderQty,omitempty"`
 	Symbol           currency.Pair `json:"symbol"`
 	Side             string        `json:"side,omitempty"`
-	NewClientOrderID int64         `json:"newClientOrderId,omitempty"`
+	NewClientOrderID string        `json:"newClientOrderId,omitempty"`
 }
 
 // AccountDetail represents an account detail information

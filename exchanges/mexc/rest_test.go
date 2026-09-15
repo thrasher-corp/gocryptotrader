@@ -471,9 +471,10 @@ func TestStringToOrderTypeAndTimeInForce(t *testing.T) {
 		{typeLimitMaker, order.Limit, order.PostOnly, nil},
 		{typePostOnly, order.Limit, order.PostOnly, nil},
 		{typeMarket, order.Market, order.UnknownTIF, nil},
-		{typeImmediateOrCancel, order.Market, order.ImmediateOrCancel, nil},
-		{typeFillOrKill, order.Market, order.FillOrKill, nil},
+		{typeImmediateOrCancel, order.Limit, order.ImmediateOrCancel, nil},
+		{typeFillOrKill, order.Limit, order.FillOrKill, nil},
 		{typeStopLimit, order.StopLimit, order.UnknownTIF, nil},
+		{typeStopMarketOrder, order.StopMarket, order.UnknownTIF, nil},
 		{"", order.UnknownType, order.UnknownTIF, order.ErrUnsupportedOrderType},
 	}
 	for x := range orderTypeAndTimeInForceFromOrderTypeString {
@@ -501,6 +502,13 @@ func TestNewOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.NewOrder(t.Context(), spotTradablePair, "123123", "SELL", typeMarket, 0, 0, 123456.78)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+	// IMMEDIATE_OR_CANCEL and FILL_OR_KILL are limit order types on MEXC: both require a price.
+	_, err = e.NewOrder(t.Context(), spotTradablePair, "123123", "SELL", typeImmediateOrCancel, 1, 0, 0)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+	_, err = e.NewOrder(t.Context(), spotTradablePair, "123123", "SELL", typeFillOrKill, 1, 0, 0)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+	_, err = e.NewOrder(t.Context(), spotTradablePair, "123123", "SELL", typeFillOrKill, 0, 0, 123456.78)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.NewOrder(t.Context(), spotTradablePair, "123123", "BUY", typeLimit, 1, 0, 123456.78)
@@ -511,7 +519,7 @@ func TestNewOrder(t *testing.T) {
 func TestCreateBatchOrder(t *testing.T) {
 	t.Parallel()
 	arg := BatchOrderCreationParam{
-		NewClientOrderID: 1234,
+		NewClientOrderID: "1234",
 	}
 	_, err := e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)

@@ -164,8 +164,8 @@ func TestBatchOrderCreationParamMarshalsNumbersAsStrings(t *testing.T) {
 		},
 		{
 			name:     "zero numbers omitted",
-			param:    BatchOrderCreationParam{OrderType: "LIMIT", QuoteOrderQty: 10, Symbol: currency.NewBTCUSDT(), Side: "BUY", NewClientOrderID: 7},
-			expected: `{"type":"LIMIT","quoteOrderQty":"10","symbol":"BTCUSDT","side":"BUY","newClientOrderId":7}`,
+			param:    BatchOrderCreationParam{OrderType: "LIMIT", QuoteOrderQty: 10, Symbol: currency.NewBTCUSDT(), Side: "BUY", NewClientOrderID: "7"},
+			expected: `{"type":"LIMIT","quoteOrderQty":"10","symbol":"BTCUSDT","side":"BUY","newClientOrderId":"7"}`,
 		},
 		{
 			name:     "large value stays decimal",
@@ -372,7 +372,7 @@ func TestCreateBatchOrderPartialRejection(t *testing.T) {
 		_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"ok1","newClientOrderId":"101","price":"20000","origQty":"1","type":"LIMIT","side":"BUY","status":"NEW"},{"newClientOrderId":"rej1","code":30002,"msg":"oversold"}]`))
 	}))
 	args := []BatchOrderCreationParam{
-		{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), OrderType: "LIMIT", Quantity: 1, Price: 20000, NewClientOrderID: 101},
+		{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), OrderType: "LIMIT", Quantity: 1, Price: 20000, NewClientOrderID: "101"},
 		{Symbol: currency.NewBTCUSDT(), Side: order.Sell.String(), OrderType: "LIMIT", Quantity: 1, Price: 21000},
 	}
 	orders, err := e.CreateBatchOrder(t.Context(), args)
@@ -524,4 +524,79 @@ func TestExtendListenKey(t *testing.T) {
 		}))
 		assert.ErrorIs(t, e.ExtendListenKey(t.Context(), ""), errListenKeyRequired, "an empty listen key should be rejected")
 	})
+}
+
+// filledMarketOrderSDK77 is a captured Query Order response for a filled KASUSDT market buy: the price
+// field (0.183503) is the last trade price, not the average, while cummulativeQuoteQty over executedQty
+// (5.72522853 / 32.69) is the real average fill of 0.175137.
+const filledMarketOrderSDK77 = `{"symbol":"KASUSDT","orderId":"C02__728298455591530497024","clientOrderId":"sbo000077","price":"0.183503","origQty":"32.69","executedQty":"32.69","cummulativeQuoteQty":"5.72522853","status":"FILLED","type":"MARKET","side":"BUY","time":1736409765000,"updateTime":1736409765000}`
+
+// TestAverageExecutedPrice pins the average fill derivation: cummulativeQuoteQty over executedQty, with
+// a zero for an unfilled order rather than a divide by zero.
+func TestAverageExecutedPrice(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		o    *OrderDetail
+		want float64
+	}{
+		{"filled market order", &OrderDetail{ExecutedQty: 32.69, CummulativeQuoteQty: 5.72522853}, 0.175137},
+		{"partial fill", &OrderDetail{ExecutedQty: 2, CummulativeQuoteQty: 0.34}, 0.17},
+		{"unfilled order", &OrderDetail{ExecutedQty: 0, CummulativeQuoteQty: 0}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.InDelta(t, tc.want, averageExecutedPrice(tc.o), 1e-6, "average executed price mismatch")
+		})
+	}
+}
+
+// TestGetOrderInfoAverageExecutedPrice asserts GetOrderInfo reports the average fill (cummulativeQuoteQty
+// over executedQty), not the price field, which on a filled market order is the last trade price.
+func TestGetOrderInfoAverageExecutedPrice(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(filledMarketOrderSDK77))
+	}))
+	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
+	detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.InDelta(t, 0.175137, detail.AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")
+	assert.Equal(t, 0.183503, detail.Price, "Price should still carry the reported price field")
+}
+
+// TestGetActiveOrdersAverageExecutedPrice asserts the shared REST mapping reports the average fill for
+// orders returned by GetActiveOrders.
+func TestGetActiveOrdersAverageExecutedPrice(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("[" + filledMarketOrderSDK77 + "]"))
+	}))
+	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{kas}, false), "storing available pairs must not error")
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{kas}, true), "storing enabled pairs must not error")
+	orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{kas}})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, orders, 1, "the single order must be returned")
+	assert.InDelta(t, 0.175137, orders[0].AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")
+}
+
+// TestSubmitOrderReportsClientOrderID asserts SubmitOrder falls back to the request client id when the
+// New Order ACK omits clientOrderId, which MEXC does not echo.
+func TestSubmitOrderReportsClientOrderID(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"symbol":"KASUSDT","orderId":"C02__728298455591530497024","price":"0","origQty":"171.65","executedQty":"0","type":"MARKET","side":"BUY","transactTime":1736409765052}`))
+	}))
+	resp, err := e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:      e.Name,
+		Pair:          currency.NewPair(currency.NewCode("KAS"), currency.USDT),
+		AssetType:     asset.Spot,
+		Side:          order.Buy,
+		Type:          order.Market,
+		Amount:        171.65,
+		ClientOrderID: "sbo000045",
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	assert.Equal(t, "sbo000045", resp.ClientOrderID, "the response should report the request client id when the ACK omits it")
 }

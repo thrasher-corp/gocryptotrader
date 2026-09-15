@@ -883,14 +883,15 @@ func (e *Exchange) newOrder(ctx context.Context, symbol currency.Pair, newClient
 	}
 	orderType = strings.ToUpper(orderType)
 	switch orderType {
-	case typeLimit, typeLimitMaker:
+	case typeLimit, typeLimitMaker, typeImmediateOrCancel, typeFillOrKill:
+		// IMMEDIATE_OR_CANCEL and FILL_OR_KILL are limit order types on MEXC: both require a price.
 		if quantity <= 0 {
 			return nil, fmt.Errorf("%w, quantity %v", limits.ErrAmountBelowMin, quantity)
 		}
 		if price <= 0 {
 			return nil, fmt.Errorf("%w, price %v", limits.ErrPriceBelowMin, price)
 		}
-	case typeMarket, typeImmediateOrCancel, typeFillOrKill:
+	case typeMarket:
 		if quantity <= 0 && quoteOrderQty <= 0 {
 			return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", limits.ErrAmountBelowMin)
 		}
@@ -934,12 +935,12 @@ func (e *Exchange) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, 
 		}
 		return typeLimit, nil
 	case order.Market:
-		switch tif {
-		case order.ImmediateOrCancel:
-			return typeImmediateOrCancel, nil
-		case order.FillOrKill:
-			return typeFillOrKill, nil
+		if tif == order.FillOrKill {
+			// A market order cannot be all-or-nothing: MEXC has no market equivalent of FILL_OR_KILL.
+			return "", order.ErrUnsupportedTimeInForce
 		}
+		// A market order never rests, so an IOC market order (and the default) is a plain MARKET; the
+		// IMMEDIATE_OR_CANCEL/FILL_OR_KILL types are limit-only on MEXC and require a price.
 		return typeMarket, nil
 	case order.StopLimit:
 		return typeStopLimit, nil
@@ -968,17 +969,20 @@ func (e *Exchange) StringToOrderTypeAndTimeInForce(oType string) (order.Type, or
 	case typePostOnly:
 		return order.Limit, order.PostOnly, nil
 	case typeImmediateOrCancel:
-		return order.Market, order.ImmediateOrCancel, nil
+		return order.Limit, order.ImmediateOrCancel, nil
 	case typeFillOrKill:
-		return order.Market, order.FillOrKill, nil
+		return order.Limit, order.FillOrKill, nil
 	case typeStopLimit:
 		return order.StopLimit, order.UnknownTIF, nil
+	case typeStopMarketOrder:
+		// MEXC's market take-profit/stop-loss, documented as query only.
+		return order.StopMarket, order.UnknownTIF, nil
 	default:
 		return order.UnknownType, order.UnknownTIF, order.ErrUnsupportedOrderType
 	}
 }
 
-// CreateBatchOrder creates utmost 30 orders with a same symbol in a batch,rate limit:2 times/s.
+// CreateBatchOrder places up to 20 orders for one symbol in a single request.
 func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationParam) ([]*OrderDetail, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams

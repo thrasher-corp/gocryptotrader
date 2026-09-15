@@ -177,7 +177,8 @@ func TestOrderTypeStringPostOnlyAndTIF(t *testing.T) {
 		{"limit IOC is preserved", order.Limit, order.ImmediateOrCancel, typeImmediateOrCancel},
 		{"limit FOK is preserved", order.Limit, order.FillOrKill, typeFillOrKill},
 		{"plain limit stays LIMIT", order.Limit, order.GoodTillCancel, typeLimit},
-		{"market IOC is preserved", order.Market, order.ImmediateOrCancel, typeImmediateOrCancel},
+		{"market IOC is a plain MARKET", order.Market, order.ImmediateOrCancel, typeMarket},
+		{"plain market stays MARKET", order.Market, order.UnknownTIF, typeMarket},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -195,7 +196,7 @@ func TestStringToOrderTypeAndTimeInForceIOC(t *testing.T) {
 	oType, tif, err := e.StringToOrderTypeAndTimeInForce(typeImmediateOrCancel)
 	require.NoError(t, err, "IMMEDIATE_OR_CANCEL must be recognised")
 	assert.Equal(t, order.ImmediateOrCancel, tif, "time-in-force should be IOC")
-	assert.Equal(t, order.Market, oType, "IOC maps to a market order type on MEXC")
+	assert.Equal(t, order.Limit, oType, "IMMEDIATE_OR_CANCEL is a limit order type on MEXC")
 }
 
 // TestActiveOrdersLastUpdatedFallback covers the LastUpdated timestamp for open orders. MEXC returns
@@ -230,4 +231,57 @@ func TestActiveOrdersLastUpdatedFallback(t *testing.T) {
 
 	// Positive case: a real updateTime must still be used verbatim (existing behaviour preserved).
 	assert.Equal(t, int64(updated), orders[1].LastUpdated.UnixMilli(), "LastUpdated should come from updateTime when it is present")
+}
+
+// TestOrderTypeStringMarketTimeInForce covers the forward mapping of a market order's time-in-force. A
+// market order never rests, so IOC (and no time-in-force) is a plain MARKET; all-or-nothing has no
+// market equivalent on MEXC, so a market FOK is rejected rather than silently sent.
+func TestOrderTypeStringMarketTimeInForce(t *testing.T) {
+	t.Parallel()
+	got, err := e.OrderTypeStringFromOrderTypeAndTimeInForce(order.Market, order.ImmediateOrCancel)
+	require.NoError(t, err, "a market IOC order must map without error")
+	assert.Equal(t, typeMarket, got, "a market IOC order should be sent as a plain MARKET")
+
+	got, err = e.OrderTypeStringFromOrderTypeAndTimeInForce(order.Market, order.UnknownTIF)
+	require.NoError(t, err, "a plain market order must map without error")
+	assert.Equal(t, typeMarket, got, "a market order without a time-in-force should be a plain MARKET")
+
+	_, err = e.OrderTypeStringFromOrderTypeAndTimeInForce(order.Market, order.FillOrKill)
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "a market FOK order has no MEXC equivalent and must be rejected")
+}
+
+// TestGetOrderInfoTriggerPrice asserts a stop order's trigger price (stopPrice) is reported on the
+// domain order.
+func TestGetOrderInfoTriggerPrice(t *testing.T) {
+	t.Parallel()
+	ex := newPrivateTestExchange(t, jsonHandler(t, map[string]string{
+		"order": `{"symbol":"BTCUSDT","orderId":"1","price":"19000","origQty":"1","executedQty":"0",` +
+			`"type":"STOP_LIMIT","side":"SELL","status":"NEW","stopPrice":"18000","time":1704067200000}`,
+	}))
+	detail, err := ex.GetOrderInfo(t.Context(), "1", spotTradablePair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, 18000.0, detail.TriggerPrice, "TriggerPrice should carry the stop price")
+	assert.Equal(t, order.StopLimit, detail.Type, "a STOP_LIMIT order should map to StopLimit")
+}
+
+// TestGetOrderHistoryMultiPair asserts GetOrderHistory queries every requested pair, not only the
+// first, and rejects an empty pair set instead of querying across all symbols.
+func TestGetOrderHistoryMultiPair(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		symbol := r.URL.Query().Get("symbol")
+		_, _ = w.Write([]byte(`[{"symbol":"` + symbol + `","orderId":"` + symbol + `-1","price":"1","origQty":"1","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","time":1704067200000}]`))
+	}))
+	btc := currency.NewBTCUSDT()
+	eth := currency.NewPair(currency.ETH, currency.USDT)
+
+	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "an empty pair set must be rejected")
+
+	orders, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btc, eth}})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, orders, 2, "one order per requested pair must be returned")
+	ids := []string{orders[0].OrderID, orders[1].OrderID}
+	assert.Contains(t, ids, "BTCUSDT-1", "the BTCUSDT pair should be queried")
+	assert.Contains(t, ids, "ETHUSDT-1", "the ETHUSDT pair should be queried, not only the first pair")
 }
