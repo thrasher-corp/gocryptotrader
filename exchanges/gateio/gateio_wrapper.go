@@ -1004,7 +1004,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		response.Status = status
-		if s.AssetType == asset.Spot && s.Type == order.Market && s.Side.IsLong() {
+		if isQuoteDenominatedMarketBuy(s.AssetType, s.Side, s.Type) {
 			// Gate reports market-buy amount and left in quote units. The
 			// generic RemainingAmount is base-denominated, so leave it unset.
 			response.Amount = 0
@@ -1346,8 +1346,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		quoteAmount := 0.0
 		executedAmount := amount - spotOrder.RemainingAmount.Float64()
 		remainingAmount := spotOrder.RemainingAmount.Float64()
-		if a == asset.Spot && side.IsLong() && orderType == order.Market {
-			// Gate's spot market-buy amount is quote-denominated. Preserve it
+		if isQuoteDenominatedMarketBuy(a, side, orderType) {
+			// Gate's spot-style market-buy amount is quote-denominated. Preserve it
 			// as requested quote and leave unavailable requested and remaining
 			// base quantities unset. The filled base amount is authoritative.
 			quoteAmount = amount
@@ -1569,9 +1569,11 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					OrderID:              spotOrders[x].Orders[y].OrderID,
 					Amount:               spotOrders[x].Orders[y].Amount.Float64(),
 					ExecutedAmount:       spotOrders[x].Orders[y].Amount.Float64() - spotOrders[x].Orders[y].RemainingAmount.Float64(),
+					ExecutedQuoteAmount:  spotOrders[x].Orders[y].FilledTotal.Float64(),
 					RemainingAmount:      spotOrders[x].Orders[y].RemainingAmount.Float64(),
 					Price:                spotOrders[x].Orders[y].Price.Float64(),
 					AverageExecutedPrice: spotOrders[x].Orders[y].AverageFillPrice.Float64(),
+					Fee:                  spotOrders[x].Orders[y].FeeDeducted.Float64(),
 					Date:                 spotOrders[x].Orders[y].CreateTime.Time(),
 					LastUpdated:          spotOrders[x].Orders[y].UpdateTime.Time(),
 					Exchange:             e.Name,
@@ -2696,6 +2698,13 @@ func getSideAndAmountFromSize(size, left float64) (side order.Side, amount, rema
 	return order.Long, size, left
 }
 
+// isQuoteDenominatedMarketBuy reports whether Gate denominates the order's
+// amount and remaining quantity in the quote currency.
+func isQuoteDenominatedMarketBuy(a asset.Item, side order.Side, t order.Type) bool {
+	return t == order.Market && side.IsLong() &&
+		(a == asset.Spot || a == asset.Margin || a == asset.CrossMargin)
+}
+
 // getFutureOrderSize sets the amount to a negative value if shorting.
 func getFutureOrderSize(s *order.Submit) (float64, error) {
 	switch {
@@ -2901,8 +2910,8 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		amount := resp.Amount.Float64()
 		quoteAmount := 0.0
 		remainingAmount := resp.Left.Float64()
-		if resp.Account == asset.Spot && side.IsLong() && oType == order.Market {
-			// Gate's spot market-buy amount is quote-denominated. Preserve it
+		if isQuoteDenominatedMarketBuy(resp.Account, side, oType) {
+			// Gate's spot-style market-buy amount is quote-denominated. Preserve it
 			// in the matching generic request field.
 			quoteAmount = amount
 			amount = 0
@@ -3124,8 +3133,8 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 func applySpotSubmitRequest(response *order.SubmitResponse, submitted *order.Submit) {
 	response.Amount = submitted.Amount
 	response.QuoteAmount = submitted.QuoteAmount
-	if submitted.AssetType == asset.Spot && submitted.Type == order.Market && submitted.Side.IsLong() {
-		// Gate transports spot market-buy amount and left in quote units.
+	if isQuoteDenominatedMarketBuy(submitted.AssetType, submitted.Side, submitted.Type) {
+		// Gate transports spot-style market-buy amount and left in quote units.
 		// RemainingAmount is base-denominated in the generic response, so
 		// no lossless mapping is available for this request form.
 		response.Amount = 0

@@ -291,7 +291,7 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 	assert.Equal(t, 2.0, deets.AverageExecutedPrice)
 	assert.Equal(t, 3.0, deets.ExecutedAmount)
 	assert.Equal(t, 4.0, deets.ExecutedQuoteAmount)
-	assert.Zero(t, deets.RemainingAmount, "DeriveDetail should not seed RemainingAmount, which UpdateOrderFromDetail cannot clear once filled")
+	assert.Zero(t, deets.RemainingAmount, "DeriveDetail should not seed RemainingAmount from a submission response")
 	assert.Equal(t, 6.0, deets.Fee)
 	assert.Equal(t, currency.USDT, deets.FeeAsset)
 }
@@ -1192,6 +1192,28 @@ func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
 	}
 	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, 2.0, od.RemainingAmount, "RemainingAmount should be updated when the fill is larger than the reported remainder")
+}
+
+func TestUpdateOrderFromDetailClearsRemainingWhenFilled(t *testing.T) {
+	t.Parallel()
+
+	od := &Detail{Exchange: "test", OrderID: "1", Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:        "test",
+		OrderID:         "1",
+		Amount:          2,
+		ExecutedAmount:  2,
+		RemainingAmount: 0,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.RemainingAmount, "a fully executed update should clear RemainingAmount")
+
+	od = &Detail{Exchange: "test", OrderID: "1", Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:       "test",
+		OrderID:        "1",
+		ExecutedAmount: 0.5,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 1.5, od.RemainingAmount, "an update that does not report the order filled should not clear RemainingAmount")
 }
 
 // TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report

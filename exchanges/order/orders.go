@@ -302,8 +302,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 	}
 	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
-	// or from a different snapshot. A supplied non-zero value is preserved.
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+	// or from a different snapshot. Preserve a supplied non-zero value, and
+	// accept zero only when the update establishes that the order is filled.
+	if m.RemainingAmount != d.RemainingAmount &&
+		(m.RemainingAmount > 0 || (m.Amount > 0 && m.ExecutedAmount >= m.Amount)) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}

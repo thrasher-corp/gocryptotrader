@@ -2371,11 +2371,117 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 	require.Equal(t, currency.USDT, detail.FeeAsset, "fee asset must be copied from the exchange response")
 }
 
-func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
+func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
 		"StorePairs must enable the test pair")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`[{"currency_pair":"BTC_USDT","total":"1","orders":[{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":"spot","side":"buy","amount":"2","price":"10","time_in_force":"gtc","left":"1.5","avg_deal_price":"10","fee":"0.001","fee_currency":"BTC","filled_amount":"0.5","filled_total":"5"}]}]`))
+		assert.NoError(t, err, "mock active spot orders response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{currency.NewBTCUSDT()},
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, orders, 1, "GetActiveOrders must return the mocked order")
+	assert.Equal(t, 0.5, orders[0].ExecutedAmount, "executed amount should retain the filled base quantity")
+	assert.Equal(t, 5.0, orders[0].ExecutedQuoteAmount, "executed quote amount should retain the filled quote total")
+	assert.Equal(t, 1.5, orders[0].RemainingAmount, "remaining amount should retain the exchange value")
+	assert.Equal(t, 0.001, orders[0].Fee, "fee should retain the exchange value")
+	assert.Equal(t, currency.BTC, orders[0].FeeAsset, "fee asset should retain the exchange value")
+}
+
+func TestIsQuoteDenominatedMarketBuy(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		assetType asset.Item
+		side      order.Side
+		orderType order.Type
+		expected  bool
+	}{
+		{name: "spot market buy", assetType: asset.Spot, side: order.Buy, orderType: order.Market, expected: true},
+		{name: "margin market buy", assetType: asset.Margin, side: order.Buy, orderType: order.Market, expected: true},
+		{name: "cross margin market buy", assetType: asset.CrossMargin, side: order.Buy, orderType: order.Market, expected: true},
+		{name: "futures market buy", assetType: asset.USDTMarginedFutures, side: order.Buy, orderType: order.Market},
+		{name: "spot market sell", assetType: asset.Spot, side: order.Sell, orderType: order.Market},
+		{name: "spot limit buy", assetType: asset.Spot, side: order.Buy, orderType: order.Limit},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isQuoteDenominatedMarketBuy(tc.assetType, tc.side, tc.orderType),
+				"quote-denominated market-buy classification should match the order shape")
+		})
+	}
+}
+
+func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		account   string
+		assetType asset.Item
+	}{
+		{account: "spot", assetType: asset.Spot},
+		{account: "margin", assetType: asset.Margin},
+		{account: "cross_margin", assetType: asset.CrossMargin},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.account, func(t *testing.T) {
+			t.Parallel()
+			var response *WebsocketOrderResponse
+			payload := fmt.Appendf(nil, `{"left":"0.05","amount":"10","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","time_in_force":"ioc","filled_amount":"0.000199","filled_total":"9.95"}`, tc.account)
+			require.NoError(t, json.Unmarshal(payload, &response),
+				"websocket order response must unmarshal")
+
+			got, err := e.deriveSpotWebsocketOrderResponse(response)
+			require.NoError(t, err, "deriveSpotWebsocketOrderResponse must not error")
+			assert.Equal(t, tc.assetType, got.AssetType)
+			assert.Zero(t, got.Amount)
+			assert.Equal(t, 10.0, got.QuoteAmount)
+			assert.Equal(t, 0.000199, got.ExecutedAmount)
+			assert.Zero(t, got.RemainingAmount)
+			assert.Equal(t, 9.95, got.ExecutedQuoteAmount)
+
+			got.RemainingAmount = 0.05
+			applySpotSubmitRequest(got, &order.Submit{
+				AssetType:   tc.assetType,
+				Side:        order.Buy,
+				Type:        order.Market,
+				Amount:      0.0002,
+				QuoteAmount: 10,
+			})
+			assert.Zero(t, got.Amount)
+			assert.Equal(t, 10.0, got.QuoteAmount)
+			assert.Zero(t, got.RemainingAmount)
+		})
+	}
+}
+
+func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	assetTypes := []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
+	for _, a := range assetTypes {
+		require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{currency.NewBTCUSDT()}, true),
+			"StorePairs must enable the test pair")
+	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","fee":"0.000000398","fee_currency":"BTC","filled_total":"9.95"}`))
@@ -2389,36 +2495,40 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
-	response, err := ex.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:    ex.Name,
-		Pair:        currency.NewBTCUSDT(),
-		Side:        order.Buy,
-		Type:        order.Market,
-		Amount:      0.001,
-		QuoteAmount: 10,
-		AssetType:   asset.Spot,
-		TimeInForce: order.ImmediateOrCancel,
-	})
-	require.NoError(t, err)
-	assert.Zero(t, response.Amount)
-	assert.Equal(t, 10.0, response.QuoteAmount)
-	assert.Equal(t, 0.000199, response.ExecutedAmount)
-	assert.Zero(t, response.RemainingAmount)
-	assert.Equal(t, 9.95, response.ExecutedQuoteAmount)
-	assert.Equal(t, 50000.0, response.AverageExecutedPrice)
-	assert.Equal(t, 0.000000398, response.Fee)
-	assert.Equal(t, currency.BTC, response.FeeAsset)
+	for _, a := range assetTypes {
+		t.Run(a.String(), func(t *testing.T) {
+			response, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:    ex.Name,
+				Pair:        currency.NewBTCUSDT(),
+				Side:        order.Buy,
+				Type:        order.Market,
+				Amount:      0.001,
+				QuoteAmount: 10,
+				AssetType:   a,
+				TimeInForce: order.ImmediateOrCancel,
+			})
+			require.NoError(t, err)
+			assert.Zero(t, response.Amount)
+			assert.Equal(t, 10.0, response.QuoteAmount)
+			assert.Equal(t, 0.000199, response.ExecutedAmount)
+			assert.Zero(t, response.RemainingAmount)
+			assert.Equal(t, 9.95, response.ExecutedQuoteAmount)
+			assert.Equal(t, 50000.0, response.AverageExecutedPrice)
+			assert.Equal(t, 0.000000398, response.Fee)
+			assert.Equal(t, currency.BTC, response.FeeAsset)
 
-	detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), asset.Spot)
-	require.NoError(t, err)
-	assert.Zero(t, detail.Amount)
-	assert.Equal(t, 10.0, detail.QuoteAmount)
-	assert.Equal(t, 0.000199, detail.ExecutedAmount)
-	assert.Zero(t, detail.RemainingAmount)
-	assert.Equal(t, 9.95, detail.ExecutedQuoteAmount)
-	assert.Equal(t, 50000.0, detail.AverageExecutedPrice)
-	assert.Equal(t, 0.000000398, detail.Fee)
-	assert.Equal(t, currency.BTC, detail.FeeAsset)
+			detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), a)
+			require.NoError(t, err)
+			assert.Zero(t, detail.Amount)
+			assert.Equal(t, 10.0, detail.QuoteAmount)
+			assert.Equal(t, 0.000199, detail.ExecutedAmount)
+			assert.Zero(t, detail.RemainingAmount)
+			assert.Equal(t, 9.95, detail.ExecutedQuoteAmount)
+			assert.Equal(t, 50000.0, detail.AverageExecutedPrice)
+			assert.Equal(t, 0.000000398, detail.Fee)
+			assert.Equal(t, currency.BTC, detail.FeeAsset)
+		})
+	}
 }
 
 func TestGetOrderHistorySpotExecutionPrice(t *testing.T) {
@@ -2762,26 +2872,41 @@ func TestWsPushOrders(t *testing.T) {
 
 func TestWsPushSpotMarketBuyOrder(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	payload := []byte(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`)
-	require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload))
 
-	select {
-	case msg := <-ex.Websocket.DataHandler.C:
-		details, ok := msg.Data.([]order.Detail)
-		require.True(t, ok, "websocket payload must contain order details")
-		require.Len(t, details, 1)
-		assert.Zero(t, details[0].Amount)
-		assert.Equal(t, 10.0, details[0].QuoteAmount)
-		assert.Equal(t, 0.000199, details[0].ExecutedAmount)
-		assert.Zero(t, details[0].RemainingAmount)
-		assert.Equal(t, 9.95, details[0].ExecutedQuoteAmount)
-		assert.Equal(t, 50000.0, details[0].AverageExecutedPrice)
-		assert.Equal(t, 0.000000398, details[0].Fee)
-		assert.Equal(t, currency.BTC, details[0].FeeAsset)
-	default:
-		require.Fail(t, "expected websocket spot market-buy order payload")
+	testCases := []struct {
+		account   string
+		assetType asset.Item
+	}{
+		{account: "spot", assetType: asset.Spot},
+		{account: "margin", assetType: asset.Margin},
+		{account: "cross_margin", assetType: asset.CrossMargin},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.account, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			payload := []byte(fmt.Sprintf(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`, tc.account))
+			require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload))
+
+			select {
+			case msg := <-ex.Websocket.DataHandler.C:
+				details, ok := msg.Data.([]order.Detail)
+				require.True(t, ok, "websocket payload must contain order details")
+				require.Len(t, details, 1)
+				assert.Equal(t, tc.assetType, details[0].AssetType)
+				assert.Zero(t, details[0].Amount)
+				assert.Equal(t, 10.0, details[0].QuoteAmount)
+				assert.Equal(t, 0.000199, details[0].ExecutedAmount)
+				assert.Zero(t, details[0].RemainingAmount)
+				assert.Equal(t, 9.95, details[0].ExecutedQuoteAmount)
+				assert.Equal(t, 50000.0, details[0].AverageExecutedPrice)
+				assert.Equal(t, 0.000000398, details[0].Fee)
+				assert.Equal(t, currency.BTC, details[0].FeeAsset)
+			default:
+				require.Fail(t, "expected websocket spot market-buy order payload")
+			}
+		})
 	}
 }
 
