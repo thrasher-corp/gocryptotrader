@@ -790,10 +790,10 @@ func (e *Exchange) GetWalletInfo(ctx context.Context, ccy string) (WalletInfo, e
 
 	// Bitmex has an "interesting" of dealing with currencies,
 	// for instance XBt is actually BTC but in Satoshi units,
-	// for sanity purposes apply here a conversion to normalize
+	// for sanity purposes apply here a conversion to normalise
 	// this
 	// avoid a copy here since this is a big struct
-	normalizeWalletInfo(&info)
+	normaliseWalletInfo(&info)
 
 	return info, nil
 }
@@ -1002,8 +1002,8 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 
 var xbtCurr = currency.NewCode("XBt")
 
-// normalizeWalletInfo converts any non-standard currencies (eg. XBt -> BTC)
-func normalizeWalletInfo(w *WalletInfo) {
+// normaliseWalletInfo converts any non-standard currencies (eg. XBt -> BTC)
+func normaliseWalletInfo(w *WalletInfo) {
 	if !w.Currency.Equal(xbtCurr) {
 		return
 	}

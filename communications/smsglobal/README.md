@@ -28,7 +28,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### How to enable
 
-+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
++ [Enable via configuration](../../config/README.md#enable-communications-via-config-example)
 
 + Individual package example below:
 

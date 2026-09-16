@@ -224,9 +224,10 @@ Binaries will be published once the codebase reaches a stable condition.
 | [roberttidball](https://github.com/roberttidball) | 2 |
 | [whilei](https://github.com/whilei) | 1 |
 | [gopherorg](https://github.com/gopherorg) | 1 |
+| [ginavalent](https://github.com/ginavalent) | 1 |
 | [gcmutator](https://github.com/gcmutator) | 1 |
+| [lookfirst](https://github.com/lookfirst) | 1 |
 | [fmterrors](https://github.com/fmterrors) | 1 |
-| [arttobe](https://github.com/arttobe) | 1 |
 | [findfluctuate](https://github.com/findfluctuate) | 1 |
 | [evgmalkov](https://github.com/evgmalkov) | 1 |
 | [elonfliter](https://github.com/elonfliter) | 1 |
@@ -255,7 +256,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [nuxtreact](https://github.com/nuxtreact) | 1 |
 | [mickychang9](https://github.com/mickychang9) | 1 |
 | [keeghcet](https://github.com/keeghcet) | 1 |
-| [vyloy](https://github.com/vyloy) | 1 |
 | [jimexist](https://github.com/jimexist) | 1 |
 | [Jdpurohit](https://github.com/Jdpurohit) | 1 |
 | [gemscng](https://github.com/gemscng) | 1 |
@@ -273,6 +273,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [blombard](https://github.com/blombard) | 1 |
 | [antonzhukov](https://github.com/antonzhukov) | 1 |
 | [aidan-bailey](https://github.com/aidan-bailey) | 1 |
+| [arttobe](https://github.com/arttobe) | 1 |
+| [vyloy](https://github.com/vyloy) | 1 |
 | [hannut91](https://github.com/hannut91) | 1 |
 | [idealhack](https://github.com/idealhack) | 1 |
 | [varunbhat](https://github.com/varunbhat) | 1 |
@@ -289,6 +291,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [roskee](https://github.com/roskee) | 1 |
 | [zeldrinn](https://github.com/zeldrinn) | 1 |
-| [lookfirst](https://github.com/lookfirst) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
 | [starit](https://github.com/starit) | 1 |

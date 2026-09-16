@@ -1,8 +1,12 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -13,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
+	"golang.org/x/net/html"
 )
 
 func TestRunTemplateNormalisesMarkdown(t *testing.T) {
@@ -184,39 +189,171 @@ func TestMarkdownDestinationsAreRepositoryRelative(t *testing.T) {
 	t.Parallel()
 	repositoryRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	require.NoError(t, err, "repository root must resolve")
-	command := exec.CommandContext(t.Context(), "git", "-c", "safe.directory=*", "ls-files", "*.md", "*.tmpl")
-	command.Dir = repositoryRoot
-	output, err := command.Output()
-	require.NoError(t, err, "tracked Markdown sources must be listed")
+	var sources []string
+	require.NoError(t, filepath.WalkDir(repositoryRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			switch name := d.Name(); {
+			case path == repositoryRoot:
+				return nil
+			case name == ".git", name == "vendor", name == "node_modules":
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if ext := filepath.Ext(d.Name()); ext == ".md" || ext == ".tmpl" {
+			sources = append(sources, path)
+		}
+		return nil
+	}), "repository Markdown sources must be walked")
+	require.NotEmpty(t, sources, "repository must contain Markdown sources")
 
-	for path := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
-		path = strings.TrimSpace(path)
-		if path == "" {
+	for _, path := range sources {
+		t.Run(filepath.ToSlash(strings.TrimPrefix(path, repositoryRoot+string(filepath.Separator))), func(t *testing.T) {
+			t.Parallel()
+			contents, err := os.ReadFile(path)
+			require.NoError(t, err, "Markdown source must be readable")
+			assert.Empty(t, markdownDestinationIssues(path, contents, filepath.Ext(path) != ".tmpl"),
+				"Markdown destinations should be repository-relative, revision-independent and resolvable")
+		})
+	}
+}
+
+type markdownDestination struct {
+	value   string
+	isImage bool
+}
+
+func markdownDestinationIssues(sourcePath string, contents []byte, checkExists bool) []string {
+	document := markdownParser.Parse(text.NewReader(contents))
+	var destinations []markdownDestination
+	if err := ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch node := node.(type) {
+		case *ast.Link:
+			destinations = append(destinations, markdownDestination{value: string(node.Destination)})
+		case *ast.Image:
+			destinations = append(destinations, markdownDestination{value: string(node.Destination), isImage: true})
+		case *ast.RawHTML:
+			htmlDestinations, err := rawHTMLDestinations(node.Segments.Value(contents))
+			if err != nil {
+				return ast.WalkStop, err
+			}
+			destinations = append(destinations, htmlDestinations...)
+		case *ast.HTMLBlock:
+			htmlContents := node.Lines().Value(contents)
+			if node.HasClosure() {
+				htmlContents = append(htmlContents, node.ClosureLine.Value(contents)...)
+			}
+			htmlDestinations, err := rawHTMLDestinations(htmlContents)
+			if err != nil {
+				return ast.WalkStop, err
+			}
+			destinations = append(destinations, htmlDestinations...)
+		}
+		return ast.WalkContinue, nil
+	}); err != nil {
+		return []string{"Markdown syntax tree could not be walked: " + err.Error()}
+	}
+
+	issues := make([]string, 0)
+	for _, destination := range destinations {
+		parsed, err := url.Parse(destination.value)
+		if err != nil {
+			issues = append(issues, "invalid destination "+destination.value+": "+err.Error())
 			continue
 		}
-		t.Run(filepath.ToSlash(path), func(t *testing.T) {
+		external := parsed.IsAbs() || parsed.Host != ""
+		if destination.isImage && external && isMasterPinnedRepositoryURL(parsed) {
+			issues = append(issues, "repository image must not be pinned to master: "+destination.value)
+		}
+		if external || destination.value == "" || strings.HasPrefix(destination.value, "#") {
+			continue
+		}
+		if strings.HasPrefix(parsed.Path, "/") {
+			issues = append(issues, "repository destination must be relative to its source file: "+destination.value)
+			continue
+		}
+		if !checkExists || parsed.Path == "" {
+			continue
+		}
+		path, err := url.PathUnescape(parsed.Path)
+		if err != nil {
+			issues = append(issues, "destination path could not be decoded "+destination.value+": "+err.Error())
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(filepath.Dir(sourcePath), filepath.FromSlash(path))); err != nil {
+			issues = append(issues, "repository destination does not exist "+destination.value+": "+err.Error())
+		}
+	}
+	return issues
+}
+
+func rawHTMLDestinations(contents []byte) ([]markdownDestination, error) {
+	var destinations []markdownDestination
+	tokenizer := html.NewTokenizer(strings.NewReader(string(contents)))
+	for {
+		switch tokenizer.Next() {
+		case html.ErrorToken:
+			if errors.Is(tokenizer.Err(), io.EOF) {
+				return destinations, nil
+			}
+			return nil, fmt.Errorf("cannot parse raw HTML: %w", tokenizer.Err())
+		case html.StartTagToken, html.SelfClosingTagToken:
+			token := tokenizer.Token()
+			for _, attribute := range token.Attr {
+				switch strings.ToLower(attribute.Key) {
+				case "href":
+					destinations = append(destinations, markdownDestination{value: attribute.Val})
+				case "src":
+					destinations = append(destinations, markdownDestination{value: attribute.Val, isImage: true})
+				}
+			}
+		}
+	}
+}
+
+func isMasterPinnedRepositoryURL(destination *url.URL) bool {
+	path := strings.ToLower(destination.EscapedPath())
+	switch strings.ToLower(destination.Hostname()) {
+	case "github.com":
+		return strings.HasPrefix(path, "/thrasher-corp/gocryptotrader/") && strings.Contains(path, "/master/")
+	case "raw.githubusercontent.com":
+		return strings.HasPrefix(path, "/thrasher-corp/gocryptotrader/master/")
+	default:
+		return false
+	}
+}
+
+func TestMarkdownDestinationIssues(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	sourcePath := filepath.Join(directory, "README.md")
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "logo.png"), []byte("fixture"), 0o600), "image fixture must be written")
+
+	for _, test := range []struct {
+		name     string
+		contents string
+		issue    string
+	}{
+		{name: "relative raw HTML image", contents: `<img src="logo.png" alt="logo">`},
+		{name: "root-relative raw HTML image", contents: `<img src="/docs/assets/logo.png" alt="logo">`, issue: "must be relative"},
+		{name: "master-pinned raw HTML image", contents: `<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png" alt="logo">`, issue: "must not be pinned to master"},
+		{name: "missing raw HTML image", contents: `<img src="missing.png" alt="logo">`, issue: "does not exist"},
+		{name: "missing Markdown link", contents: `[missing](missing.md)`, issue: "does not exist"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			contents, err := os.ReadFile(filepath.Join(repositoryRoot, filepath.FromSlash(path)))
-			require.NoError(t, err, "Markdown source must be readable")
-			document := markdownParser.Parse(text.NewReader(contents))
-			err = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-				if !entering {
-					return ast.WalkContinue, nil
-				}
-				var destination []byte
-				switch node := node.(type) {
-				case *ast.Link:
-					destination = node.Destination
-				case *ast.Image:
-					destination = node.Destination
-				default:
-					return ast.WalkContinue, nil
-				}
-				assert.Falsef(t, strings.HasPrefix(string(destination), "/"),
-					"Markdown destination %q should be relative to its source file", destination)
-				return ast.WalkContinue, nil
-			})
-			require.NoError(t, err, "Markdown syntax tree must be walked")
+			issues := markdownDestinationIssues(sourcePath, []byte(test.contents), true)
+			if test.issue == "" {
+				assert.Empty(t, issues, "valid destination should pass")
+				return
+			}
+			assert.Contains(t, strings.Join(issues, "\n"), test.issue, "invalid destination should report the expected issue")
 		})
 	}
 }

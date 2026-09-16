@@ -75,7 +75,7 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 	assert.NoError(t, err)
 	readme, err := os.ReadFile(filepath.Join(testExchangeDir, "README.md"))
 	require.NoError(t, err, "reading generated README must not error")
-	assert.Contains(t, string(readme), `alt="GoCryptoTrader logo"`, "generated README should include logo alt text")
+	assert.Contains(t, string(readme), `<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo"`, "generated README should link the logo relative to the exchange directory")
 	assert.NotRegexp(t, `(?m)[ \t]+$`, string(readme), "generated README should not include trailing whitespace")
 
 	err = os.RemoveAll(testExchangeDir)
