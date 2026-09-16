@@ -431,32 +431,16 @@ func TestNewTestOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestSpotOrderStringFromOrderTypeAndTimeInForce(t *testing.T) {
+// TestOrderTypeStringUnsupportedMessage asserts the unsupported-mapping error leads with the order
+// type, which is the field that has no MEXC mapping, rather than the usually-empty time-in-force,
+// while still wrapping both sentinels so errors.Is resolves either.
+func TestOrderTypeStringUnsupportedMessage(t *testing.T) {
 	t.Parallel()
-	orderTypeAndTimeInForceToOrderTypeString := []struct {
-		OType       order.Type
-		TimeInForce order.TimeInForce
-		String      string
-		Error       error
-	}{
-		{order.Limit, order.PostOnly, typeLimitMaker, nil},
-		{order.Limit, order.UnknownTIF, typeLimit, nil},
-		{order.Market, order.UnknownTIF, typeMarket, nil},
-		{order.UnknownType, order.PostOnly, typeLimitMaker, nil},
-		{order.Market, order.FillOrKill, typeFillOrKill, nil},
-		{order.Market, order.ImmediateOrCancel, typeImmediateOrCancel, nil},
-		{order.UnknownType, order.FillOrKill, typeFillOrKill, nil},
-		{order.UnknownType, order.ImmediateOrCancel, typeImmediateOrCancel, nil},
-		{order.UnknownType, order.UnknownTIF, "", order.ErrTypeIsInvalid},
-	}
-	for x := range orderTypeAndTimeInForceToOrderTypeString {
-		t.Run(orderTypeAndTimeInForceToOrderTypeString[x].String, func(t *testing.T) {
-			t.Parallel()
-			result, err := SpotOrderStringFromOrderTypeAndTimeInForce(orderTypeAndTimeInForceToOrderTypeString[x].OType, orderTypeAndTimeInForceToOrderTypeString[x].TimeInForce)
-			require.ErrorIs(t, err, orderTypeAndTimeInForceToOrderTypeString[x].Error)
-			assert.Equal(t, orderTypeAndTimeInForceToOrderTypeString[x].String, result)
-		})
-	}
+	_, err := e.OrderTypeStringFromOrderTypeAndTimeInForce(order.StopMarket, order.UnknownTIF)
+	require.Error(t, err, "an unmapped order type must return an error")
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "the error must wrap the unsupported order type sentinel")
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "the error must still wrap the time-in-force sentinel")
+	assert.True(t, strings.HasPrefix(err.Error(), order.ErrUnsupportedOrderType.Error()), "the message should lead with the unsupported order type, not the time-in-force")
 }
 
 func TestStringToOrderTypeAndTimeInForce(t *testing.T) {
@@ -1407,7 +1391,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	arg := &order.MultiOrderRequest{AssetType: asset.Options}
+	arg := &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType}
 	_, err := e.GetActiveOrders(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 

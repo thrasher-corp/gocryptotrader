@@ -836,36 +836,6 @@ func (e *Exchange) NewTestOrder(ctx context.Context, symbol currency.Pair, newCl
 	return e.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order/test", quantity, quoteOrderQty, price)
 }
 
-// SpotOrderStringFromOrderTypeAndTimeInForce returns an order type string from order.Type and order.TimeInForce instance.
-func SpotOrderStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (string, error) {
-	switch oType {
-	case order.Limit:
-		if tif == order.PostOnly {
-			return typeLimitMaker, nil
-		}
-		return typeLimit, nil
-	case order.Market:
-		switch tif {
-		case order.ImmediateOrCancel:
-			return typeImmediateOrCancel, nil
-		case order.FillOrKill:
-			return typeFillOrKill, nil
-		}
-		return typeMarket, nil
-	default:
-		switch tif {
-		case order.PostOnly:
-			return typeLimitMaker, nil
-		case order.ImmediateOrCancel:
-			return typeImmediateOrCancel, nil
-		case order.FillOrKill:
-			return typeFillOrKill, nil
-		default:
-			return "", order.ErrTypeIsInvalid
-		}
-	}
-}
-
 // NewOrder creates a new order
 func (e *Exchange) NewOrder(ctx context.Context, symbol currency.Pair, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	return e.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order", quantity, quoteOrderQty, price)
@@ -954,7 +924,10 @@ func (e *Exchange) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, 
 			return typeFillOrKill, nil
 		}
 	}
-	return "", fmt.Errorf("%w %w", order.ErrUnsupportedTimeInForce, order.ErrUnsupportedOrderType)
+	// The order type is what has no MEXC mapping here; the time-in-force is usually empty. Lead with
+	// the order type and name it so the message reads as one sentence, and keep both sentinels wrapped
+	// so errors.Is still resolves either one.
+	return "", fmt.Errorf("%w %q with %w", order.ErrUnsupportedOrderType, oType, order.ErrUnsupportedTimeInForce)
 }
 
 // StringToOrderTypeAndTimeInForce returns an order type from string
