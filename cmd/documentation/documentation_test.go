@@ -336,7 +336,8 @@ func isMasterPinnedRepositoryURL(destination *url.URL) bool {
 	case "github.com":
 		return strings.HasPrefix(path, "/thrasher-corp/gocryptotrader/") && strings.Contains(path, "/master/")
 	case "raw.githubusercontent.com":
-		return strings.HasPrefix(path, "/thrasher-corp/gocryptotrader/master/")
+		return strings.HasPrefix(path, "/thrasher-corp/gocryptotrader/master/") ||
+			strings.HasPrefix(path, "/thrasher-corp/gocryptotrader/refs/heads/master/")
 	default:
 		return false
 	}
@@ -362,6 +363,7 @@ func TestMarkdownDestinationIssues(t *testing.T) {
 		{name: "root-relative raw HTML link", contents: `<a href="/docs/CODING_GUIDELINES.md">guidelines</a>`, issue: "must be relative"},
 		{name: "master-pinned Markdown image", contents: `![logo](https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png)`, issue: "must not be pinned to master"},
 		{name: "master-pinned raw HTML image", contents: `<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png" alt="logo">`, issue: "must not be pinned to master"},
+		{name: "branch-ref-pinned raw HTML image", contents: `<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/refs/heads/master/common/gctlogo.png" alt="logo">`, issue: "must not be pinned to master"},
 		{name: "missing raw HTML image", contents: `<img src="missing.png" alt="logo">`, issue: "does not exist"},
 		{name: "missing Markdown link", contents: `[missing](missing.md)`, issue: "does not exist"},
 	} {
