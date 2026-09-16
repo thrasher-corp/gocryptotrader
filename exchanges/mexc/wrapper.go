@@ -67,7 +67,7 @@ func (e *Exchange) SetDefaults() {
 				exchange.AutoWithdrawFiat,
 		},
 		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: false,
+			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
 					kline.IntervalCapacity{Interval: kline.OneMin},
@@ -130,8 +130,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: exch,
 		Features:       &e.Features.Supports.WebsocketCapabilities,
-		DefaultURL:     spotWebsocketURL,
-		RunningURL:     spotWebsocketURL,
+		// MEXC caps a single spot websocket connection at 30 subscriptions.
+		MaxWebsocketSubscriptionsPerConnection: 30,
+		DefaultURL:                             spotWebsocketURL,
+		RunningURL:                             spotWebsocketURL,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -732,18 +734,20 @@ func averageExecutedPrice(o *OrderDetail) float64 {
 // myTrades failure must not sink the order lookup, so callers pass through the base order.
 func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, orderID string) (trades []order.TradeHistory, totalFee float64, feeAsset currency.Code) {
 	// MEXC can report an order as filled a moment before its fills surface in myTrades, so a single
-	// immediate lookup often finds nothing for a just-completed order. Retry a few times with a short
-	// gap. Best-effort throughout: the order lookup still returns without commission on failure, but
-	// the reason is named rather than dropped silently.
+	// immediate lookup sometimes finds nothing for a just-completed order. Retry once with a short
+	// gap rather than polling repeatedly. Best-effort throughout: the order lookup still returns
+	// without commission on failure, but the reason is named rather than dropped silently. The limit
+	// is set to the documented maximum (1000) so an order with more than the default page of fills
+	// does not undercount its commission.
 	var fills []*AccountTrade
 	for attempt := 0; ; attempt++ {
 		var err error
-		fills, err = e.GetAccountTradeList(ctx, pair, orderID, time.Time{}, time.Time{}, 0)
+		fills, err = e.GetAccountTradeList(ctx, pair, orderID, time.Time{}, time.Time{}, 1000)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%s: myTrades lookup failed for order %s (%s): %v", e.Name, orderID, pair, err)
 			return nil, 0, currency.EMPTYCODE
 		}
-		if len(fills) > 0 || attempt >= 2 {
+		if len(fills) > 0 || attempt >= 1 {
 			break
 		}
 		select {
@@ -785,6 +789,10 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 		})
 	}
 	if !uniformFee {
+		// Commissions charged in different assets cannot be summed into a single figure: the total
+		// would be a meaningless mix of currencies with a stale label. Report no aggregate fee and no
+		// currency; each fill's own commission and asset are still carried on the TradeHistory records.
+		totalFee = 0
 		feeAsset = currency.EMPTYCODE
 	}
 	var breakdown strings.Builder
@@ -871,6 +879,21 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				detail.Trades = trades
 				detail.Fee = fee
 				detail.FeeAsset = feeAsset
+				// MEXC returns executedQty=0 on some filled limit orders while still reporting a
+				// non-zero cummulativeQuoteQty and returning the fills in myTrades. When executedQty is
+				// zero the executed amount, remaining amount and average price are derived from the
+				// fills, the venue's own record of what actually traded, instead of the zero field.
+				if result.ExecutedQty.Float64() == 0 {
+					var executed float64
+					for i := range trades {
+						executed += trades[i].Amount
+					}
+					if executed > 0 {
+						detail.ExecutedAmount = executed
+						detail.RemainingAmount = result.OrigQty.Float64() - executed
+						detail.AverageExecutedPrice = result.CummulativeQuoteQty.Float64() / executed
+					}
+				}
 			}
 		}
 		return detail, nil
@@ -981,6 +1004,9 @@ func (e *Exchange) orderDetailFromRESTOrder(o *OrderDetail, fallbackPair currenc
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
 	pairFormat, err := e.GetPairFormat(getOrdersRequest.AssetType, true)
 	if err != nil {
 		return nil, err
@@ -990,7 +1016,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		if len(getOrdersRequest.Pairs) == 0 {
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
-		var details order.FilteredOrders
+		var details []order.Detail
 		for p := range getOrdersRequest.Pairs {
 			result, err := e.GetOpenOrders(ctx, getOrdersRequest.Pairs[p].Format(pairFormat))
 			if err != nil {
@@ -1004,7 +1030,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				details = append(details, detail)
 			}
 		}
-		return details, nil
+		// The request's side, type and time filters were ignored; apply them here so a caller asking
+		// for only buys or only limit orders is not handed the full open-order set.
+		return getOrdersRequest.Filter(e.Name, details), nil
 	default:
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}
@@ -1013,6 +1041,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
 	pairFormat, err := e.GetPairFormat(getOrdersRequest.AssetType, true)
 	if err != nil {
 		return nil, err
@@ -1022,7 +1053,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		if len(getOrdersRequest.Pairs) == 0 {
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
-		var details order.FilteredOrders
+		var details []order.Detail
 		for p := range getOrdersRequest.Pairs {
 			pair := getOrdersRequest.Pairs[p].Format(pairFormat)
 			result, err := e.GetAllOrders(ctx, pair, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
@@ -1037,7 +1068,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				details = append(details, detail)
 			}
 		}
-		return details, nil
+		// The request's side and type filters were ignored; apply them here so a caller asking for
+		// only sells or only limit orders is not handed the full history.
+		return getOrdersRequest.Filter(e.Name, details), nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}

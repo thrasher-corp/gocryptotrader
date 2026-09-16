@@ -331,7 +331,7 @@ func TestGetActiveOrdersToleratesUncatalogedSymbol(t *testing.T) {
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, false), "storing available pairs must not error")
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, true), "storing enabled pairs must not error")
 
-	orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btc}})
+	orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btc}, Side: order.AnySide, Type: order.AnyType})
 	require.NoError(t, err, "GetActiveOrders must not fail the whole listing because of one uncataloged symbol")
 	require.NotEmpty(t, orders, "the catalogued order must still be returned")
 	var found bool
@@ -604,6 +604,21 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		assert.Equal(t, "USDT", detail.Trades[0].FeeAsset, "the per-fill commission asset should be carried")
 	})
 
+	t.Run("executedQty zero derives executed amount and average from the fills", func(t *testing.T) {
+		t.Parallel()
+		// A filled limit order can report executedQty=0 with a non-zero cummulativeQuoteQty; the fills
+		// are the venue's own record of what traded, so the executed amount, remaining amount and
+		// average price must be derived from them rather than left at the zero field.
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"0","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.0035","commissionAsset":"USDT","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","commission":"0.0035","commissionAsset":"USDT","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
+		e := newSignedTestExchange(t, routeVenue(orderBody, tradesBody))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.InDelta(t, 200.0, detail.ExecutedAmount, 1e-9, "ExecutedAmount should be summed from the fills when executedQty is zero")
+		assert.InDelta(t, 0.0, detail.RemainingAmount, 1e-9, "RemainingAmount should be origQty minus the executed fills")
+		assert.InDelta(t, 0.035, detail.AverageExecutedPrice, 1e-9, "AverageExecutedPrice should be cummulativeQuoteQty over the executed fills")
+	})
+
 	t.Run("mixed commission assets leave the aggregate currency unset", func(t *testing.T) {
 		t.Parallel()
 		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
@@ -612,8 +627,11 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
 		require.NoError(t, err, "GetOrderInfo must not error")
 		require.Len(t, detail.Trades, 2, "both fills must be mapped even with mixed commission assets")
-		assert.InDelta(t, 0.1035, detail.Fee, 1e-9, "Fee should still be the sum of the fill commissions")
+		assert.Zero(t, detail.Fee, "no aggregate fee should be reported when the fills are charged in different assets")
 		assert.True(t, detail.FeeAsset.IsEmpty(), "the aggregate FeeAsset should be unset when fills disagree, never guessed")
+		assert.InDelta(t, 0.0035, detail.Trades[0].Fee, 1e-9, "the per-fill commission should still be reported")
+		assert.Equal(t, "USDT", detail.Trades[0].FeeAsset, "the per-fill commission asset should still be reported")
+		assert.Equal(t, "MX", detail.Trades[1].FeeAsset, "the per-fill commission asset should still be reported")
 	})
 
 	t.Run("no fills leaves fee unenriched without a trade call", func(t *testing.T) {
@@ -670,6 +688,64 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		assert.InDelta(t, 0.007, detail.Fee, 1e-9, "Fee should be materialised from the retried lookup")
 		assert.Equal(t, currency.USDT, detail.FeeAsset, "FeeAsset should be materialised from the retried lookup")
 	})
+
+	t.Run("persistently empty myTrades retries once and gives up", func(t *testing.T) {
+		t.Parallel()
+		// The fills never surface. The lookup makes exactly one retry and then returns the base order
+		// without commission rather than polling the venue repeatedly.
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		var tradeCalls atomic.Int64
+		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "myTrades") {
+				tradeCalls.Add(1)
+				_, _ = w.Write([]byte(`[]`))
+				return
+			}
+			_, _ = w.Write([]byte(orderBody))
+		}))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "an empty myTrades result must not fail the order lookup")
+		assert.Equal(t, int64(2), tradeCalls.Load(), "an empty lookup should be retried exactly once, not polled")
+		assert.Empty(t, detail.Trades, "no trades should be attached when the fills never surface")
+		assert.Zero(t, detail.Fee, "Fee should stay zero when there is nothing to enrich")
+	})
+
+	t.Run("cancellation during the retry wait abandons the lookup", func(t *testing.T) {
+		t.Parallel()
+		// The first lookup is empty; the context is cancelled during the retry wait, so the lookup
+		// returns at once instead of running the wait out and does not make a second call.
+		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		var tradeCalls atomic.Int64
+		served := make(chan struct{})
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "myTrades") {
+				tradeCalls.Add(1)
+				_, _ = w.Write([]byte(`[]`))
+				select {
+				case <-served:
+				default:
+					close(served)
+				}
+				return
+			}
+			_, _ = w.Write([]byte(orderBody))
+		}))
+		go func() {
+			<-served
+			// Let the first lookup finish and enter the retry wait before cancelling it.
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+		start := time.Now()
+		detail, err := e.GetOrderInfo(ctx, "1", kas, asset.Spot)
+		elapsed := time.Since(start)
+		require.NoError(t, err, "a cancelled retry wait must not fail the order lookup")
+		assert.Equal(t, int64(1), tradeCalls.Load(), "the lookup should stop at the first call when the wait is cancelled")
+		assert.Less(t, elapsed, 900*time.Millisecond, "the retry wait should be abandoned on cancellation rather than run its full second")
+		assert.Empty(t, detail.Trades, "no trades should be attached when the wait is cancelled")
+	})
 }
 
 // TestGetActiveOrdersAverageExecutedPrice asserts the shared REST mapping reports the average fill for
@@ -682,7 +758,7 @@ func TestGetActiveOrdersAverageExecutedPrice(t *testing.T) {
 	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{kas}, false), "storing available pairs must not error")
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{kas}, true), "storing enabled pairs must not error")
-	orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{kas}})
+	orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{kas}, Side: order.AnySide, Type: order.AnyType})
 	require.NoError(t, err, "GetActiveOrders must not error")
 	require.Len(t, orders, 1, "the single order must be returned")
 	assert.InDelta(t, 0.175137, orders[0].AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")

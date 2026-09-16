@@ -86,6 +86,8 @@ func TestGetOrderHistoryPairAndTimestamps(t *testing.T) {
 	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 		AssetType: asset.Spot,
 		Pairs:     currency.Pairs{spotTradablePair},
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	})
 	require.NoError(t, err, "GetOrderHistory must not error on an IMMEDIATE_OR_CANCEL order")
 	require.Len(t, orders, 1, "the single order must be relayed")
@@ -221,6 +223,8 @@ func TestActiveOrdersLastUpdatedFallback(t *testing.T) {
 	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
 		AssetType: asset.Spot,
 		Pairs:     currency.Pairs{spotTradablePair},
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	})
 	require.NoError(t, err, "GetActiveOrders must not error")
 	require.Len(t, orders, 2, "both open orders must be relayed")
@@ -275,13 +279,56 @@ func TestGetOrderHistoryMultiPair(t *testing.T) {
 	btc := currency.NewBTCUSDT()
 	eth := currency.NewPair(currency.ETH, currency.USDT)
 
-	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot})
+	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "an empty pair set must be rejected")
 
-	orders, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btc, eth}})
+	orders, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btc, eth}, Side: order.AnySide, Type: order.AnyType})
 	require.NoError(t, err, "GetOrderHistory must not error")
 	require.Len(t, orders, 2, "one order per requested pair must be returned")
 	ids := []string{orders[0].OrderID, orders[1].OrderID}
 	assert.Contains(t, ids, "BTCUSDT-1", "the BTCUSDT pair should be queried")
 	assert.Contains(t, ids, "ETHUSDT-1", "the ETHUSDT pair should be queried, not only the first pair")
+}
+
+// TestOrderListingsValidateAndFilter asserts both spot order listings honour the request contract:
+// an unvalidatable request is rejected, and the returned orders are the filtered set the caller
+// asked for rather than everything the venue returned.
+func TestOrderListingsValidateAndFilter(t *testing.T) {
+	t.Parallel()
+	btc := currency.NewBTCUSDT()
+	body := `[` +
+		`{"symbol":"BTCUSDT","orderId":"buy-limit","price":"1","origQty":"1","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","time":1704067200000},` +
+		`{"symbol":"BTCUSDT","orderId":"sell-limit","price":"1","origQty":"1","executedQty":"0","type":"LIMIT","side":"SELL","status":"NEW","time":1704067200000},` +
+		`{"symbol":"BTCUSDT","orderId":"buy-market","price":"1","origQty":"1","executedQty":"0","type":"MARKET","side":"BUY","status":"NEW","time":1704067200000}` +
+		`]`
+	for _, tc := range []struct {
+		name string
+		call func(*Exchange, *order.MultiOrderRequest) (order.FilteredOrders, error)
+	}{
+		{"GetActiveOrders", func(e *Exchange, r *order.MultiOrderRequest) (order.FilteredOrders, error) {
+			return e.GetActiveOrders(t.Context(), r)
+		}},
+		{"GetOrderHistory", func(e *Exchange, r *order.MultiOrderRequest) (order.FilteredOrders, error) {
+			return e.GetOrderHistory(t.Context(), r)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, false), "storing available pairs must not error")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, true), "storing enabled pairs must not error")
+
+			_, err := tc.call(ex, &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{btc}})
+			require.ErrorIs(t, err, order.ErrSideIsInvalid, "a request with no side must be rejected")
+
+			orders, err := tc.call(ex, &order.MultiOrderRequest{
+				AssetType: asset.Spot, Pairs: currency.Pairs{btc}, Side: order.Buy, Type: order.Limit,
+			})
+			require.NoError(t, err, "the listing must not error")
+			require.Len(t, orders, 1, "only the buy limit order matches the request")
+			assert.Equal(t, "buy-limit", orders[0].OrderID, "the returned order should be the one the request asked for")
+		})
+	}
 }

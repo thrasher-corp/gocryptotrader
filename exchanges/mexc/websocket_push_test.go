@@ -322,6 +322,33 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 	assert.Equal(t, asset.Spot, detail.AssetType, "AssetType should be correct")
 }
 
+// TestWsPrivateOrderTriggerPrice asserts a stop order's trigger price survives the websocket push.
+// The REST mappers already report stopPrice, so the same order must not lose it over the socket.
+func TestWsPrivateOrderTriggerPrice(t *testing.T) {
+	drainData(t)
+	triggerPrice := "18000"
+	raw := wsPushFrame(t, "spot@"+channelPrivateOrdersAPI, 1736409765052,
+		&mexc_proto_types.PrivateOrdersV3Api{
+			Id: "o-4", ClientId: "c-4", Price: "19000", Quantity: "1",
+			OrderType: 100, TradeType: 2, Status: 1, CreateTime: 1736409765000,
+			TriggerPrice: &triggerPrice,
+		})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+	detail := requireOneOf[*order.Detail](t)
+	assert.Equal(t, 18000.0, detail.TriggerPrice, "TriggerPrice should carry the push's trigger price")
+
+	// The field is optional: a push without one must stay at zero rather than fail to decode.
+	drainData(t)
+	raw = wsPushFrame(t, "spot@"+channelPrivateOrdersAPI, 1736409765052,
+		&mexc_proto_types.PrivateOrdersV3Api{
+			Id: "o-5", Price: "19000", Quantity: "1",
+			OrderType: 1, TradeType: 2, Status: 1, CreateTime: 1736409765000,
+		})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error without a trigger price")
+	detail = requireOneOf[*order.Detail](t)
+	assert.Zero(t, detail.TriggerPrice, "TriggerPrice should stay zero when the push omits it")
+}
+
 // TestWsHandlePrivateOrdersTypeMapping asserts the private order push maps MEXC's numeric order types
 // to the domain type and time-in-force. Types 2, 3 and 4 are limit orders (post-only, IOC and FOK):
 // the exchange carries the constraint in the order type field and the order still rests as a limit.
@@ -349,6 +376,23 @@ func TestWsHandlePrivateOrdersTypeMapping(t *testing.T) {
 			assert.Equal(t, tc.wantTIF, detail.TimeInForce, "time-in-force mapping mismatch")
 		})
 	}
+}
+
+// TestWsPrivateOrderUnknownTypePublishes asserts an unrecognised order type or status does not sink
+// the frame: the order is still published, reported as UnknownType/UnknownStatus rather than guessed
+// from a non-authoritative source or silently dropped.
+func TestWsPrivateOrderUnknownTypePublishes(t *testing.T) {
+	drainData(t)
+	raw := wsPushFrame(t, "spot@"+channelPrivateOrdersAPI, 1736409765052,
+		&mexc_proto_types.PrivateOrdersV3Api{
+			Id: "o-6", ClientId: "c-6", Price: "1", Quantity: "1",
+			OrderType: 101, TradeType: 1, Status: 9, CreateTime: 1736409765000,
+		})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "an unknown order type or status must not error or drop the frame")
+	detail := requireOneOf[*order.Detail](t)
+	assert.Equal(t, "o-6", detail.OrderID, "the order should still be published")
+	assert.Equal(t, order.UnknownType, detail.Type, "an unrecognised order type should be reported as unknown, not guessed")
+	assert.Equal(t, order.UnknownStatus, detail.Status, "an unrecognised status should be reported as unknown, not guessed")
 }
 
 // TestWsBookTickerFeedsTickerNotOrderbook asserts the book ticker updates each pair's ticker and

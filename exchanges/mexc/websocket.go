@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -215,7 +216,7 @@ var defaultSubscriptions = subscription.List{
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return defaultSubscriptions.ExpandTemplates(e)
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -373,6 +374,7 @@ type privateOrderNumbers struct {
 	quantity, remainQuantity   float64
 	amount, cumulativeQuantity float64
 	cumulativeAmount           float64
+	triggerPrice               float64
 }
 
 // parse decodes the numeric fields of a private order push, which the exchange sends as strings and
@@ -390,6 +392,9 @@ func (n *privateOrderNumbers) parse(body *mexc_proto_types.PrivateOrdersV3Api) e
 		{"amount", body.Amount, &n.amount},
 		{"cumulativeQuantity", body.CumulativeQuantity, &n.cumulativeQuantity},
 		{"cumulativeAmount", body.CumulativeAmount, &n.cumulativeAmount},
+		// The stop trigger price is only present on stop orders; the REST order carries it as
+		// stopPrice, so a stop order pushed over the socket reports the same trigger the REST side does.
+		{"triggerPrice", body.GetTriggerPrice(), &n.triggerPrice},
 	} {
 		v, err := parseOptionalFloat(f.raw)
 		if err != nil {
@@ -843,8 +848,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		case 5:
 			oType = order.Market
 		case 100:
-			// Documented as a market stop-loss/take-profit order.
+			// Documented only as "Stop loss/take profit". The docs do not state whether the trigger
+			// executes at market or at a limit, so StopMarket is an assumption, not a documented mapping.
 			oType = order.StopMarket
+		default:
+			// An unrecognised order type must not sink the frame: report it as unknown, log the raw
+			// value for diagnosis and still publish the order.
+			oType = order.UnknownType
+			log.Warnf(log.ExchangeSys, "%s: unhandled private order type %d", e.Name, body.OrderType)
 		}
 		var oStatus order.Status
 		switch body.Status {
@@ -858,6 +869,9 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			oStatus = order.Cancelled
 		case 5:
 			oStatus = order.PartiallyCancelled
+		default:
+			oStatus = order.UnknownStatus
+			log.Warnf(log.ExchangeSys, "%s: unhandled private order status %d", e.Name, body.Status)
 		}
 		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
@@ -877,6 +891,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			Price:                nums.price,
 			Amount:               nums.quantity,
 			AverageExecutedPrice: nums.avgPrice,
+			TriggerPrice:         nums.triggerPrice,
 			QuoteAmount:          nums.amount,
 			// cumulativeAmount is the quote actually spent; without it a filled order reports a zero cost.
 			Cost:            nums.cumulativeAmount,
