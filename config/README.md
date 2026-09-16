@@ -244,21 +244,43 @@ See the section `exchange.features.enabled.subscriptions` for configuring subscr
 ```
 
 
-## Configure Network Time Server 
+## Configure Network Time Server
 
-+ To configure and enable a NTP server you need to set the "enabled" field to one of 3 values -1 is disabled 0 is enabled and alert at start up 1 is enabled and warn at start up
-servers are configured by the pool array and attempted first to last allowedDifference and allowedNegativeDifference are how far ahead and behind is acceptable for the time to be out in nanoseconds
+The `enabled` field controls when NTP clock checks run:
+
+These settings take effect only when the engine's NTP client feature is enabled; the command-line
+application enables that feature by default.
+
+- `-1` disables checks.
+- `0` checks during engine startup. The alert/warn/disable prompt is shown only when the complete
+  measured uncertainty interval proves that the local clock is ahead or behind the configured
+  tolerance window.
+- `1` checks every 30 minutes after the `ntp_timekeeper` subsystem is explicitly started. Normal
+  engine startup constructs this subsystem but does not start it.
+
+Pools are attempted in configured order, and the first valid response is used. The result is one of
+four states: in sync, ahead, behind, or inconclusive. An inconclusive result warns without prompting;
+configure a closer or lower-latency NTP server to reduce measurement uncertainty.
+The interval is a diagnostic bound based on the server's reported NTP metadata, not authenticated
+proof of UTC.
+
+`allowedDifference` is the permitted local-clock-behind magnitude and
+`allowedNegativeDifference` is the permitted local-clock-ahead magnitude, both expressed as Go
+`time.Duration` nanoseconds. Missing, zero, or negative values default to 50 milliseconds. An empty
+pool list defaults to `pool.ntp.org:123`.
 
 ```js
- "ntpclient": {
-  "enabled": 0,
-  "pool": [
-   "pool.ntp.org:123"
-  ],
-  "allowedDifference": 0,
-  "allowedNegativeDifference": 0
- },
- ```
+{
+  "ntpclient": {
+    "enabled": 0,
+    "pool": [
+      "pool.ntp.org:123"
+    ],
+    "allowedDifference": 0,
+    "allowedNegativeDifference": 0
+  }
+}
+```
 
 ## Donations
 

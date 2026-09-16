@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -1879,11 +1880,10 @@ func TestCheckRemoteControlConfig(t *testing.T) {
 	assert.True(t, c.RemoteControl.GRPC.GRPCProxyEnabled, "gRPCProxyEnabled should be true when gRPC is enabled")
 }
 
-func TestCheckConfig(t *testing.T) {
-	t.Parallel()
+func newConfigForCheckConfig() *Config {
 	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
 	cp2 := currency.NewPair(currency.DOGE, currency.USD)
-	cfg := &Config{
+	return &Config{
 		Exchanges: []Exchange{
 			{
 				Name:    testFakeExchangeName,
@@ -1909,8 +1909,34 @@ func TestCheckConfig(t *testing.T) {
 			},
 		},
 	}
-	if err := cfg.CheckConfig(); err != nil {
-		t.Fatal(err)
+}
+
+func TestCheckConfigNTP(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		level int
+	}{
+		{name: "disabled", level: NTPClientDisabled},
+		{name: "startup", level: NTPClientStartup},
+		{name: "periodic", level: NTPClientPeriodic},
+		{name: "unknown", level: 42},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := newConfigForCheckConfig()
+			cfg.NTPClient.Level = tt.level
+
+			require.NoError(t, cfg.CheckConfig(), "CheckConfig must not error")
+			assert.Equal(t, tt.level, cfg.NTPClient.Level, "NTP Level should remain unchanged")
+			require.NotNil(t, cfg.NTPClient.AllowedDifference, "AllowedDifference must be normalized")
+			require.NotNil(t, cfg.NTPClient.AllowedNegativeDifference, "AllowedNegativeDifference must be normalized")
+			assert.Equal(t, 50*time.Millisecond, *cfg.NTPClient.AllowedDifference, "AllowedDifference should use the default")
+			assert.Equal(t, 50*time.Millisecond, *cfg.NTPClient.AllowedNegativeDifference, "AllowedNegativeDifference should use the default")
+			assert.Equal(t, []string{"pool.ntp.org:123"}, cfg.NTPClient.Pool, "NTP pools should use the exact default")
+		})
 	}
 }
 
@@ -1976,33 +2002,48 @@ func TestCheckLoggerConfig(t *testing.T) {
 	}
 }
 
-func TestDisableNTPCheck(t *testing.T) {
-	t.Parallel()
+func TestSetNTPCheck(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedLevel int
+		expectedText  string
+	}{
+		{
+			name:          "alert at startup",
+			input:         "a\n",
+			expectedLevel: 0,
+			expectedText:  "Time sync has been set to alert",
+		},
+		{
+			name:          "disable",
+			input:         "d\n",
+			expectedLevel: -1,
+			expectedText:  "Future notifications for out of time sync has been disabled",
+		},
+		{
+			name:          "invalid then warn periodically",
+			input:         "invalid\nw\n",
+			expectedLevel: 1,
+			expectedText:  "Time sync has been set to warn only",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := Config{NTPClient: NTPClientConfig{Level: 42}}
+			input := strings.NewReader(tt.input)
+			response, err := c.SetNTPCheck(iotest.OneByteReader(input))
+			require.NoError(t, err, "SetNTPCheck must not error")
+			assert.Equal(t, tt.expectedText, response, "SetNTPCheck response should remain unchanged")
+			assert.Equal(t, tt.expectedLevel, c.NTPClient.Level, "SetNTPCheck should set the expected Level")
+			assert.Zero(t, input.Len(), "SetNTPCheck should consume the complete input")
+		})
+	}
 
 	var c Config
-
-	warn, err := c.SetNTPCheck(strings.NewReader("w\n"))
-	if err != nil {
-		t.Fatalf("to create ntpclient failed reason: %v", err)
-	}
-
-	if warn != "Time sync has been set to warn only" {
-		t.Errorf("failed expected %v got %v", "Time sync has been set to warn only", warn)
-	}
-	alert, _ := c.SetNTPCheck(strings.NewReader("a\n"))
-	if alert != "Time sync has been set to alert" {
-		t.Errorf("failed expected %v got %v", "Time sync has been set to alert", alert)
-	}
-
-	disable, _ := c.SetNTPCheck(strings.NewReader("d\n"))
-	if disable != "Future notifications for out of time sync has been disabled" {
-		t.Errorf("failed expected %v got %v", "Future notifications for out of time sync has been disabled", disable)
-	}
-
-	_, err = c.SetNTPCheck(strings.NewReader(" "))
-	if err.Error() != "EOF" {
-		t.Errorf("failed expected EOF got: %v", err)
-	}
+	_, err := c.SetNTPCheck(strings.NewReader(" "))
+	require.ErrorIs(t, err, io.EOF, "SetNTPCheck must propagate EOF")
 }
 
 func TestCheckGCTScriptConfig(t *testing.T) {
@@ -2051,23 +2092,76 @@ func TestCheckDatabaseConfig(t *testing.T) {
 
 func TestCheckNTPConfig(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{
-		NTPClient: NTPClientConfig{},
+	durationPointer := func(value time.Duration) *time.Duration {
+		return &value
+	}
+	validConfig := func() NTPClientConfig {
+		return NTPClientConfig{
+			AllowedDifference:         durationPointer(75 * time.Millisecond),
+			AllowedNegativeDifference: durationPointer(25 * time.Millisecond),
+			Pool:                      []string{"configured.example:123"},
+		}
+	}
+	check := func(t *testing.T, input NTPClientConfig, wantAllowed, wantNegative time.Duration, wantPools []string) {
+		t.Helper()
+		cfg := &Config{NTPClient: input}
+		cfg.CheckNTPConfig()
+		require.NotNil(t, cfg.NTPClient.AllowedDifference, "AllowedDifference must be populated")
+		require.NotNil(t, cfg.NTPClient.AllowedNegativeDifference, "AllowedNegativeDifference must be populated")
+		assert.Equal(t, wantAllowed, *cfg.NTPClient.AllowedDifference, "AllowedDifference should be normalized independently")
+		assert.Equal(t, wantNegative, *cfg.NTPClient.AllowedNegativeDifference, "AllowedNegativeDifference should be normalized independently")
+		assert.Equal(t, wantPools, cfg.NTPClient.Pool, "NTP pool order should be preserved")
+	}
+	invalidValues := []struct {
+		name  string
+		value *time.Duration
+	}{
+		{name: "nil"},
+		{name: "zero", value: durationPointer(0)},
+		{name: "negative", value: durationPointer(-time.Millisecond)},
+	}
+	fields := []struct {
+		name         string
+		setInvalid   func(*NTPClientConfig, *time.Duration)
+		wantAllowed  time.Duration
+		wantNegative time.Duration
+	}{
+		{
+			name:         "allowed difference",
+			setInvalid:   func(c *NTPClientConfig, value *time.Duration) { c.AllowedDifference = value },
+			wantAllowed:  50 * time.Millisecond,
+			wantNegative: 25 * time.Millisecond,
+		},
+		{
+			name:         "allowed negative difference",
+			setInvalid:   func(c *NTPClientConfig, value *time.Duration) { c.AllowedNegativeDifference = value },
+			wantAllowed:  75 * time.Millisecond,
+			wantNegative: 50 * time.Millisecond,
+		},
+	}
+	for _, field := range fields {
+		for _, invalid := range invalidValues {
+			t.Run(invalid.name+" "+field.name, func(t *testing.T) {
+				t.Parallel()
+				input := validConfig()
+				field.setInvalid(&input, invalid.value)
+				check(t, input, field.wantAllowed, field.wantNegative, input.Pool)
+			})
+		}
 	}
 
-	cfg.CheckNTPConfig()
-
-	if cfg.NTPClient.Pool[0] != "pool.ntp.org:123" {
-		t.Error("ntpclient with no valid pool should default to pool.ntp.org")
-	}
-
-	if cfg.NTPClient.AllowedDifference == nil {
-		t.Error("ntpclient with nil alloweddifference should default to sane value")
-	}
-
-	if cfg.NTPClient.AllowedNegativeDifference == nil {
-		t.Error("ntpclient with nil allowednegativedifference should default to sane value")
-	}
+	t.Run("default pool", func(t *testing.T) {
+		t.Parallel()
+		input := validConfig()
+		input.Pool = nil
+		check(t, input, 75*time.Millisecond, 25*time.Millisecond, []string{"pool.ntp.org:123"})
+	})
+	t.Run("valid asymmetric values and ordered pools", func(t *testing.T) {
+		t.Parallel()
+		input := validConfig()
+		input.Pool = []string{"first.example:123", "second.example:123"}
+		check(t, input, 75*time.Millisecond, 25*time.Millisecond, input.Pool)
+	})
 }
 
 func TestCheckCurrencyConfigValues(t *testing.T) {

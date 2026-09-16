@@ -1,19 +1,39 @@
 {{define "engine ntp_manager" -}}
 {{template "header" .}}
-## Current Features for {{.CapitalName}}
-+ The NTP manager subsystem is used highlight discrepancies between your system time and specified NTP server times
-+ It is useful for debugging and understanding why a request to an exchange may be rejected
-+ The NTP manager cannot update your system clock, so when it does alert you of issues, you must take it upon yourself to change your system time in the event your requests are being rejected for being too far out of sync
-+ In order to modify the behaviour of the NTP manager subsystem, you can edit the following inside your config file under `ntpclient`:
+## Current Features for NTP Manager
+
+The NTP manager compares the local clock with configured NTP servers. It is a diagnostic feature
+for investigating timestamp-sensitive request failures; it does not adjust the system clock.
+These settings take effect only when the engine's NTP client feature is enabled; the command-line
+application enables that feature by default.
+
+Servers are tried in configured order and the first valid response is used. The clock correction is
+evaluated together with its complete root-distance interval, producing one of four results:
+
+- `in-sync`: the complete interval is within the configured tolerances;
+- `ahead`: the complete interval proves the local clock is ahead;
+- `behind`: the complete interval proves the local clock is behind;
+- `inconclusive`: the interval crosses a tolerance boundary, so no clock verdict is made.
+
+At startup, the alert/warn/disable prompt is shown only for a conclusive `ahead` or `behind` result.
+An inconclusive result warns without prompting and recommends a closer or lower-latency NTP server.
+The interval is a diagnostic bound based on the server's reported NTP metadata, not authenticated
+proof of UTC.
+
+Periodic checks run every 30 minutes only after the `ntp_timekeeper` subsystem is explicitly
+started. Normal engine startup constructs the subsystem but does not start it, including when the
+startup prompt changes the setting to periodic mode.
+
+The following settings are available under `ntpclient`:
 
 ### ntpclient
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
-| enabled | An integer value representing whether the NTP manager is enabled. It will warn you of time sync discrepancies on startup with a value of 0 and will alert you periodically with a value of 1. A value of -1 will disable the manager  |  `1` |
-| pool | A string array of the NTP servers to check for time discrepancies |  `["0.pool.ntp.org:123","pool.ntp.org:123"]` |
-| allowedDifference | A Golang time.Duration representation of the allowable time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
-| allowedNegativeDifference | A Golang time.Duration representation of the allowable negative time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
+| enabled | `-1` disables checks, `0` checks at startup, and `1` permits periodic checks when the subsystem is explicitly started | `1` |
+| pool | NTP servers attempted in configured order until the first valid response | `["0.pool.ntp.org:123","pool.ntp.org:123"]` |
+| allowedDifference | Maximum permitted local-clock-behind duration, expressed as Go `time.Duration` nanoseconds | `50000000` |
+| allowedNegativeDifference | Maximum permitted local-clock-ahead duration, expressed as Go `time.Duration` nanoseconds | `50000000` |
 
 {{template "donations" .}}
 {{end}}
