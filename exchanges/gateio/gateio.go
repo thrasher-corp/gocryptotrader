@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -110,7 +111,7 @@ const (
 	gateioOptionsMyTrades              = "options/my_trades"
 
 	// Flash Swap
-	gateioFlashSwapCurrencies    = "flash_swap/currencies"
+	gateioFlashSwapCurrencyPairs = "flash_swap/currency_pairs"
 	gateioFlashSwapOrders        = "flash_swap/orders"
 	gateioFlashSwapOrdersPreview = "flash_swap/orders/preview"
 
@@ -218,6 +219,9 @@ type Exchange struct {
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *buffer.UpdateManager
+
+	futuresUserIDMu sync.RWMutex
+	futuresUserIDs  map[string]string
 }
 
 // ***************************************** SubAccounts ********************************
@@ -3319,10 +3323,20 @@ func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency
 
 // ********************************** Flash_SWAP *************************
 
-// GetSupportedFlashSwapCurrencies retrieves all supported currencies in flash swap
-func (e *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
-	var currencies []SwapCurrencies
-	return currencies, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, gateioFlashSwapCurrencies, &currencies)
+// GetSupportedFlashSwapCurrencyPairs retrieves the supported flash swap pairs.
+func (e *Exchange) GetSupportedFlashSwapCurrencyPairs(ctx context.Context, ccy currency.Code, limit, page uint64) ([]FlashSwapCurrencyPair, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	var pairs []FlashSwapCurrencyPair
+	return pairs, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, common.EncodeURLValues(gateioFlashSwapCurrencyPairs, params), &pairs)
 }
 
 // CreateFlashSwapOrder creates a new flash swap order

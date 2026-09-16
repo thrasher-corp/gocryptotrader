@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -31,11 +33,11 @@ func (m *wsOBResubManager) IsResubscribing(pair currency.Pair, a asset.Item) boo
 
 // Resubscribe marks a subscription as resubscribing and starts the unsubscribe/resubscribe process
 func (m *wsOBResubManager) Resubscribe(ctx context.Context, e *Exchange, conn websocket.Connection, qualifiedChannel string, pair currency.Pair, a asset.Item) error {
-	if err := e.Websocket.Orderbook.InvalidateOrderbook(pair, a); err != nil {
+	if err := e.Websocket.Orderbook.InvalidateOrderbook(pair, a); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}
 
-	sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: qualifiedChannel}})
+	sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: qualifiedChannel, Asset: a}})
 	if sub == nil {
 		return fmt.Errorf("%w: %q", subscription.ErrNotFound, qualifiedChannel)
 	}
@@ -67,7 +69,8 @@ type qualifiedChannelKey struct {
 }
 
 func (k qualifiedChannelKey) Match(eachKey subscription.MatchableKey) bool {
-	return k.Subscription.QualifiedChannel == eachKey.GetSubscription().QualifiedChannel
+	s := eachKey.GetSubscription()
+	return k.Subscription.QualifiedChannel == s.QualifiedChannel && k.Subscription.Asset == s.Asset
 }
 
 func (k qualifiedChannelKey) GetSubscription() *subscription.Subscription {

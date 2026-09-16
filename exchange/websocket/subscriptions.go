@@ -13,7 +13,10 @@ import (
 
 // Public subscription errors
 var (
-	ErrSubscriptionFailure     = errors.New("subscription failure")
+	ErrSubscriptionFailure = errors.New("subscription failure")
+	// ErrSubscriptionPartial reports degraded multi-connection generation. Returned
+	// subscriptions must remain complete for removals because refresh treats the list as authoritative.
+	ErrSubscriptionPartial     = errors.New("partial subscription generation")
 	ErrSubscriptionsNotAdded   = errors.New("subscriptions not added")
 	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
 )
@@ -326,14 +329,17 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		return m.updateChannelSubscriptions(ctx, m.subscriptions, newSubs)
 	}
 
+	var subscriptionError error
 	for _, ws := range m.snapshotConnectionManager() {
 		if ws.setup.SubscriptionsNotRequired {
 			continue
 		}
 
 		newSubs, err := ws.setup.GenerateSubscriptions()
-		if err != nil {
-			return err
+		var fatalErr error
+		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
+		if fatalErr != nil {
+			return fatalErr
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
@@ -345,7 +351,17 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	return subscriptionError
+}
+
+func collectSubscriptionGenerationError(subscriptionError, generationError error) (updatedSubscriptionError, fatalError error) {
+	if generationError == nil {
+		return subscriptionError, nil
+	}
+	if errors.Is(generationError, ErrSubscriptionPartial) {
+		return common.AppendError(subscriptionError, generationError), nil
+	}
+	return subscriptionError, generationError
 }
 
 // updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels

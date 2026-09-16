@@ -770,7 +770,8 @@ type ContractStat struct {
 	TopLongShortSize       types.Number `json:"top_lsr_size"`
 	ShortLiquidationAmount types.Number `json:"short_liq_amount"`
 	LongLiquidationAmount  types.Number `json:"long_liq_amount"`
-	OpenInterestUsd        types.Number `json:"open_interest_usd"`
+	LastFundingRate        types.Number `json:"last_funding_rate"`
+	OpenInterestUSD        types.Number `json:"open_interest_usd"`
 	TopLongShortAccount    types.Number `json:"top_lsr_account"`
 	LongLiquidationUSD     types.Number `json:"long_liq_usd"`
 	TopLongSize            types.Number `json:"top_long_size"`
@@ -901,12 +902,15 @@ type OptionSettlement struct {
 	StrikePrice types.Number `json:"strike_price"`
 }
 
-// SwapCurrencies represents Flash Swap supported currencies
-type SwapCurrencies struct {
-	Currency  string       `json:"currency"`
-	MinAmount types.Number `json:"min_amount"`
-	MaxAmount types.Number `json:"max_amount"`
-	Swappable []string     `json:"swappable"`
+// FlashSwapCurrencyPair represents a supported flash swap pair.
+type FlashSwapCurrencyPair struct {
+	CurrencyPair  string       `json:"currency_pair"`
+	SellCurrency  string       `json:"sell_currency"`
+	BuyCurrency   string       `json:"buy_currency"`
+	SellMinAmount types.Number `json:"sell_min_amount"`
+	SellMaxAmount types.Number `json:"sell_max_amount"`
+	BuyMinAmount  types.Number `json:"buy_min_amount"`
+	BuyMaxAmount  types.Number `json:"buy_max_amount"`
 }
 
 // MyOptionSettlement represents option private settlement
@@ -927,6 +931,7 @@ type OptionsTicker struct {
 	Name                  currency.Pair `json:"name"`
 	LastPrice             types.Number  `json:"last_price"`
 	MarkPrice             types.Number  `json:"mark_price"`
+	IndexPrice            types.Number  `json:"index_price"`
 	PositionSize          types.Number  `json:"position_size"`
 	Ask1Size              types.Number  `json:"ask1_size"`
 	Ask1Price             types.Number  `json:"ask1_price"`
@@ -941,9 +946,6 @@ type OptionsTicker struct {
 	BidImpliedVolatility  types.Number  `json:"bid_iv"`
 	AskImpliedVolatility  types.Number  `json:"ask_iv"`
 	Leverage              types.Number  `json:"leverage"`
-
-	// Added fields for the websocket
-	IndexPrice types.Number `json:"index_price"`
 }
 
 // OptionsUnderlyingTicker represents underlying ticker
@@ -1897,7 +1899,7 @@ type FuturesOrder struct {
 	Status                    string        `json:"status"`
 	FinishTime                types.Time    `json:"finish_time"`
 	FinishAs                  string        `json:"finish_as"`
-	SelfTradePreventionID     int64         `json:"stp_id"`
+	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
 	OrderValue                types.Number  `json:"order_value"`
@@ -2425,8 +2427,12 @@ type WsFuturesPosition struct {
 	RealisedPoint      types.Number `json:"realised_point"`
 	RiskLimit          types.Number `json:"risk_limit"`
 	Size               types.Number `json:"size"`
+	TimeSeconds        types.Time   `json:"time"`
 	Time               types.Time   `json:"time_ms"`
+	UpdateID           int64        `json:"update_id"`
 	User               string       `json:"user"`
+	PositionMarginMode string       `json:"pos_margin_mode"`
+	PositionLeverage   types.Number `json:"lever"`
 }
 
 // WsFuturesAutoOrder represents an auto order push data.

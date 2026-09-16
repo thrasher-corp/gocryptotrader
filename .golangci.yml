@@ -134,6 +134,17 @@ linters:
           deny:
             - pkg: encoding/json
               desc: Please use the custom JSON package github.com/thrasher-corp/gocryptotrader/encoding/json instead of encoding/json to allow sonic/json switching.
+        prevent_decimal_package_use:
+          list-mode: lax
+          files:
+            - $all
+          allow:
+            - github.com/thrasher-corp/gocryptotrader/types/decimal
+          deny:
+            - pkg: github.com/shopspring/decimal
+              desc: Please use github.com/thrasher-corp/gocryptotrader/types/decimal to allow decimal backend switching.
+            - pkg: github.com/quagmt/udecimal
+              desc: Please use github.com/thrasher-corp/gocryptotrader/types/decimal to allow decimal backend switching.
     goconst:
       min-occurrences: 6
     gosec:
