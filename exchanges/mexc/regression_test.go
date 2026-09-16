@@ -532,6 +532,10 @@ func TestExtendListenKey(t *testing.T) {
 // (5.72522853 / 32.69) is the real average fill of 0.175137.
 const filledMarketOrderSDK77 = `{"symbol":"KASUSDT","orderId":"C02__728298455591530497024","clientOrderId":"sbo000077","price":"0.183503","origQty":"32.69","executedQty":"32.69","cummulativeQuoteQty":"5.72522853","status":"FILLED","type":"MARKET","side":"BUY","time":1736409765000,"updateTime":1736409765000}`
 
+// filledSpotOrderBody is a filled KASUSDT limit order (Query Order response) shared by the
+// GetOrderInfo fee-enrichment subtests below.
+const filledSpotOrderBody = `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+
 // TestAverageExecutedPrice pins the average fill derivation: cummulativeQuoteQty over executedQty, with
 // a zero for an unfilled order rather than a divide by zero.
 func TestAverageExecutedPrice(t *testing.T) {
@@ -588,7 +592,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 
 	t.Run("uniform commission asset aggregates fee and currency", func(t *testing.T) {
 		t.Parallel()
-		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		orderBody := filledSpotOrderBody
 		// clientOrderId is a string on MEXC (e.g. "C02__…"), not a number — the fixture pins the
 		// decode contract so a numeric field type would fail here.
 		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","clientOrderId":"C02__1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":true,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","clientOrderId":"C02__1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":false,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
@@ -603,7 +607,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 
 	t.Run("mixed commission assets leave the aggregate currency unset", func(t *testing.T) {
 		t.Parallel()
-		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		orderBody := filledSpotOrderBody
 		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.0035","commissionAsset":"USDT","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","commission":"0.1","commissionAsset":"MX","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
 		e := newSignedTestExchange(t, routeVenue(orderBody, tradesBody))
 		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
@@ -631,7 +635,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 
 	t.Run("myTrades failure does not sink the order lookup", func(t *testing.T) {
 		t.Parallel()
-		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		orderBody := filledSpotOrderBody
 		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.Contains(r.URL.Path, "myTrades") {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -649,7 +653,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		t.Parallel()
 		// MEXC can mark an order filled a moment before its fills appear in myTrades. The first
 		// lookup returns no fills; the retry finds them and the commission is materialised.
-		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		orderBody := filledSpotOrderBody
 		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.007","commissionAsset":"USDT","price":"0.035","qty":"200","quoteQty":"7","time":1736409770000}]`
 		var tradeCalls atomic.Int64
 		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -675,7 +679,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		t.Parallel()
 		// The fills never surface. The lookup makes exactly one retry and then returns the base order
 		// without commission rather than polling the venue repeatedly.
-		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		orderBody := filledSpotOrderBody
 		var tradeCalls atomic.Int64
 		e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.Contains(r.URL.Path, "myTrades") {
@@ -696,7 +700,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		t.Parallel()
 		// The first lookup is empty; the context is cancelled during the retry wait, so the lookup
 		// returns at once instead of running the wait out and does not make a second call.
-		orderBody := `{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"200","executedQty":"200","cummulativeQuoteQty":"7","type":"LIMIT","side":"SELL","status":"FILLED","time":1736409765000,"updateTime":1736409770000}`
+		orderBody := filledSpotOrderBody
 		var tradeCalls atomic.Int64
 		served := make(chan struct{})
 		ctx, cancel := context.WithCancel(t.Context())
