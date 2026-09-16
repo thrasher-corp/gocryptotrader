@@ -37,6 +37,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
   - Aligns well with `strconv.FormatUint`.
+- Use a dedicated currency pair constructor when one exists (for example, `currency.NewBTCUSD()` or `currency.NewBTCUSDT()`) instead of constructing the same pair with `currency.NewPair`. Use `currency.NewPair` when no dedicated constructor exists or the currencies are selected at runtime.
 
 ### TestMain usage
 
@@ -113,15 +114,24 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 
 ## Configuration Migrations
 
-- Preserve enabled behaviour by scope, not merely by the presence of a replacement entry. A subscription for one asset does not cover another asset; explicit pair restrictions also matter.
-- Determine the coverage required by removed entries, subtract the union of existing enabled coverage, then add replacements only where needed. Resolve unspecified and wildcard scopes according to their documented meaning, and deduplicate before adding entries.
-- Preserve existing configured choices, including disabled entries. Any intentional widening of assets or pairs must be documented and tested.
-- Check replacements against downstream matching, grouping and reconciliation rules. Differences in metadata such as intervals or levels can prevent merging even when subscriptions produce the same wire topic.
-- When normalising fields used in identity keys, check for newly equivalent entries. Coalesce transformation-induced duplicates without silently accepting duplicates that were invalid before the transformation.
-- Keep pair identity separate from wire spelling. Apply exchange request formatting at generation boundaries, including explicitly configured pairs, without rewriting saved configuration solely for wire formatting.
-- Only suppress one feed in favour of another when the replacement will actually generate output. Configured presence alone does not establish coverage; check effective asset enablement, pair availability and websocket support.
-- Test repeated migration and save/reload behaviour. Assert persisted configuration and generated runtime output separately, checking actual pairs or topics for missing coverage and duplicates rather than only asset labels or entry counts.
-- Cover relevant mixed configurations: enabled and disabled entries, pinned and wildcard scopes, duplicate legacy entries, and partially covered scopes. Exercise authentication-dependent output before and after reload where applicable.
+Migration code lives in [config/versions](/config/versions), with each version in its own `vN` package. Start with the package instructions and the `ExchangeVersion` and `ConfigVersion` interfaces in [config/versions/versions.go](/config/versions/versions.go). Register new versions in [config/versions/register.go](/config/versions/register.go). For an exchange-specific example, see [config/versions/v14/v14.go](/config/versions/v14/v14.go) and its tests in [config/versions/v14/v14_test.go](/config/versions/v14/v14_test.go).
+
+- Add a new version for subsequent configuration changes rather than rewriting historical migrations to match new types. Keep migration-specific types local to the version package instead of depending on evolving types in the config package.
+- For every configuration change, assess how existing saved configurations behave after upgrade. Implement a versioned migration when existing values would otherwise lose functionality, change meaning, or prevent adoption of an intended replacement.
+- Updating defaults or example configurations does not migrate existing installations. Test a representative configuration from the previous version through the real configuration loader.
+- When no migration is needed, explain why existing configurations remain compatible and whether retaining their previous behaviour is intentional.
+- Preserve explicit user choices. Apply default-changing migrations only to configurations that can be reliably identified as using the previous defaults.
+
+### Migration Guards
+
+- Before adding a guard that skips migration, identify the downstream dependency it protects and whether the affected entry can reach that code path. A disabled entry must not block migration solely because its channel exists.
+- Match configuration values using the same normalisation rules as the runtime. If runtime parsing is case-insensitive or canonicalises identifiers, test every accepted representation relevant to the migration, such as `spot`, `Spot` and `SPOT`.
+- Evaluate effective scope before filtering literal values. Wildcards such as `asset:"all"` can overlap a specific asset after expansion; test both wildcard and explicitly scoped entries.
+- Evaluate equivalent channel names together. Generic names and exchange-specific aliases may resolve to the same downstream subscription; guards must cover both spellings across explicit and wildcard scopes.
+- Distinguish explicit `false`, explicit `true`, omitted and `null` values where their meanings differ. Use presence-aware decoding when necessary, and document any conservative treatment of unspecified values.
+- Test both sides of each guard: a configuration that must remain unchanged and a minimally different configuration that must migrate. Exercise upgrade and downgrade when the guard is shared, and verify unrelated entries remain unchanged.
+- Validate migrated configurations through the real downstream loading, expansion and validation paths. Assert that the result remains usable, preserves the intended coverage and introduces no conflicting or exclusive entries.
+- Account for version advancement when a migration makes no changes. Do not assume a skipped transformation will be retried after the user changes their configuration.
 
 ## Testing Guidelines
 
@@ -171,8 +181,10 @@ Use `require` and `assert` appropriately:
 ### Test Coverage
 
 - Maintain original test inputs unless they are incorrect.
+- Derive expected outcomes from intended behaviour and downstream requirements, not solely from the current implementation. Passing tests can preserve an incorrect policy.
+- When fixing behaviour for one accepted representation, extend the regression matrix to its equivalent forms. Cross relevant input dimensions, such as aliases, wildcards, accepted capitalisation, authentication or authorisation states, explicit, omitted or `null` values, and forward or reverse lifecycle transitions, where they can affect runtime behaviour.
+- Integration tests must reproduce the registration order, ownership and lookup paths relevant to the bug. For isolation tests, make the competing entry reachable first so lookup order cannot conceal a missing discriminator. Where practical, verify the test fails with the targeted fix removed, then restore the fix and verify it passes.
 - Full test coverage is preferable; mock external calls as needed.
-- For bug fixes, demonstrate that the regression test fails against the previous implementation where practical, then passes with the fix. Preserve unrelated work when checking the previous behaviour.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 

@@ -1069,6 +1069,50 @@ func TestCheckSubscriptionsMigrationEdgeCases(t *testing.T) {
 		require.Len(t, subs, 3, "replacement coverage must retain all enabled futures pairs")
 	})
 
+	t.Run("candle interval coverage unavailable", func(t *testing.T) {
+		t.Parallel()
+		for _, test := range []struct {
+			name     string
+			generic  *subscription.Subscription
+			legacy   *subscription.Subscription
+			depth    string
+			realtime string
+		}{
+			{name: "all-assets generic with spot legacy", generic: &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.OneMin}, legacy: &subscription.Subscription{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}, depth: marketOrderbookDepth5Channel, realtime: marketOrderbookChannel},
+			{name: "all-assets generic with futures legacy", generic: &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.OneMin}, legacy: &subscription.Subscription{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}, depth: futuresOrderbookDepth5Channel, realtime: futuresOrderbookChannel},
+			{name: "authenticated spot generic with spot legacy", generic: &subscription.Subscription{Enabled: true, Authenticated: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin}, legacy: &subscription.Subscription{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}, depth: marketOrderbookDepth5Channel, realtime: marketOrderbookChannel},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				t.Parallel()
+				// Websocket authentication can be unavailable after a migration saved with it, so every combination must
+				// keep the legacy pairs on a served topic.
+				for _, auth := range []struct{ migrated, running bool }{{false, false}, {true, true}, {true, false}} {
+					ku := testInstance(t)
+					ku.API.AuthenticatedWebsocketSupport = auth.migrated
+					ku.Config.Features.Subscriptions = subscription.List{test.generic.Clone(), test.legacy.Clone()}
+					ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+					require.NoErrorf(t, ku.checkSubscriptions(), "migration must succeed with websocket authentication=%t", auth.migrated)
+					ku.Websocket.SetCanUseAuthenticatedEndpoints(auth.running)
+					subs, err := ku.generateSubscriptions()
+					require.NoErrorf(t, err, "migrated subscriptions must generate with authentication=%t", auth.running)
+					channel := test.depth
+					if auth.running {
+						channel = test.realtime
+					}
+					pairs, err := ku.GetEnabledPairs(test.legacy.Asset)
+					require.NoError(t, err, "enabled pairs must load")
+					format, err := ku.GetPairFormat(test.legacy.Asset, true)
+					require.NoError(t, err, "request format must load")
+					for _, pair := range pairs.Format(format) {
+						assert.Truef(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
+							return sub.QualifiedChannel == channel+":"+pair.String()
+						}), "%s should keep a served orderbook topic when migrated with websocket authentication=%t and running with %t", pair, auth.migrated, auth.running)
+					}
+				}
+			})
+		}
+	})
+
 	t.Run("wildcard remains dynamic", func(t *testing.T) {
 		t.Parallel()
 		ku := testInstance(t)

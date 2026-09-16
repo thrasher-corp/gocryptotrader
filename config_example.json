@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 13,
+ "version": 14,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -2041,7 +2041,7 @@
       "interval": "5m"
      },
      {
-      "enabled": true,
+      "enabled": false,
       "channel": "orderbook",
       "asset": "spot",
       "interval": "100ms"
@@ -2061,7 +2061,7 @@
       "levels": 100
      },
      {
-      "enabled": false,
+      "enabled": true,
       "channel": "spot.obu",
       "asset": "spot",
       "levels": 50

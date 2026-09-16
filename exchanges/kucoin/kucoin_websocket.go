@@ -1242,6 +1242,11 @@ func (e *Exchange) checkSubscriptions() error {
 			if !sub.Enabled || sub.Channel != subscription.OrderbookChannel || (sub.Asset != asset.All && sub.Asset != replacement.Asset) {
 				continue
 			}
+			// A generic with a candle interval keeps the suffix on its public topics, where KuCoin sends nothing. It only
+			// covers the legacy feed under websocket authentication, which can change after this migration is saved.
+			if _, err := IntervalToString(sub.Interval); err == nil {
+				continue
+			}
 			if sub.Authenticated && !e.API.AuthenticatedWebsocketSupport {
 				if len(sub.Pairs) == 0 && sub.Asset == replacement.Asset {
 					sub = sub.Clone()
