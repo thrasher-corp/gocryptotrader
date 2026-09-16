@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -190,24 +191,41 @@ func TestMarkdownDestinationsAreRepositoryRelative(t *testing.T) {
 	repositoryRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	require.NoError(t, err, "repository root must resolve")
 	var sources []string
-	require.NoError(t, filepath.WalkDir(repositoryRoot, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	if _, err := os.Stat(filepath.Join(repositoryRoot, ".git")); err == nil {
+		// Read the index in a checkout, so untracked and ignored paths - editor history copies,
+		// scratch notes, the package cmd/exchange_template scaffolds while this test runs - are
+		// never linted.
+		command := exec.CommandContext(t.Context(), "git", "-c", "safe.directory=*", "ls-files", "-z", "*.md", "*.tmpl")
+		command.Dir = repositoryRoot
+		output, err := command.Output()
+		require.NoError(t, err, "tracked Markdown sources must be listed")
+		for path := range strings.SplitSeq(string(output), "\x00") {
+			if path != "" {
+				sources = append(sources, filepath.Join(repositoryRoot, filepath.FromSlash(path)))
+			}
 		}
-		if d.IsDir() {
-			switch name := d.Name(); {
-			case path == repositoryRoot:
+	} else {
+		// A tree exported without repository metadata, such as the image the Docker job builds, has
+		// no index to read, so walk it instead.
+		require.NoError(t, filepath.WalkDir(repositoryRoot, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				switch name := d.Name(); {
+				case path == repositoryRoot:
+					return nil
+				case name == ".git", name == "vendor", name == "node_modules":
+					return fs.SkipDir
+				}
 				return nil
-			case name == ".git", name == "vendor", name == "node_modules":
-				return fs.SkipDir
+			}
+			if ext := filepath.Ext(d.Name()); ext == ".md" || ext == ".tmpl" {
+				sources = append(sources, path)
 			}
 			return nil
-		}
-		if ext := filepath.Ext(d.Name()); ext == ".md" || ext == ".tmpl" {
-			sources = append(sources, path)
-		}
-		return nil
-	}), "repository Markdown sources must be walked")
+		}), "repository Markdown sources must be walked")
+	}
 	require.NotEmpty(t, sources, "repository must contain Markdown sources")
 
 	for _, path := range sources {
@@ -281,12 +299,7 @@ func markdownDestinationIssues(sourcePath string, contents []byte, checkExists b
 		if !checkExists || parsed.Path == "" {
 			continue
 		}
-		path, err := url.PathUnescape(parsed.Path)
-		if err != nil {
-			issues = append(issues, "destination path could not be decoded "+destination.value+": "+err.Error())
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(filepath.Dir(sourcePath), filepath.FromSlash(path))); err != nil {
+		if _, err := os.Stat(filepath.Join(filepath.Dir(sourcePath), filepath.FromSlash(parsed.Path))); err != nil {
 			issues = append(issues, "repository destination does not exist "+destination.value+": "+err.Error())
 		}
 	}
@@ -334,6 +347,7 @@ func TestMarkdownDestinationIssues(t *testing.T) {
 	directory := t.TempDir()
 	sourcePath := filepath.Join(directory, "README.md")
 	require.NoError(t, os.WriteFile(filepath.Join(directory, "logo.png"), []byte("fixture"), 0o600), "image fixture must be written")
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "zz%probe.md"), []byte("fixture"), 0o600), "percent fixture must be written")
 
 	for _, test := range []struct {
 		name     string
@@ -341,7 +355,11 @@ func TestMarkdownDestinationIssues(t *testing.T) {
 		issue    string
 	}{
 		{name: "relative raw HTML image", contents: `<img src="logo.png" alt="logo">`},
+		{name: "encoded percent Markdown link", contents: `[percent](zz%25probe.md)`},
+		{name: "inline raw HTML image", contents: `logo <img src="/docs/assets/logo.png" alt="logo"> here`, issue: "must be relative"},
 		{name: "root-relative raw HTML image", contents: `<img src="/docs/assets/logo.png" alt="logo">`, issue: "must be relative"},
+		{name: "root-relative raw HTML link", contents: `<a href="/docs/CODING_GUIDELINES.md">guidelines</a>`, issue: "must be relative"},
+		{name: "master-pinned Markdown image", contents: `![logo](https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png)`, issue: "must not be pinned to master"},
 		{name: "master-pinned raw HTML image", contents: `<img src="https://raw.githubusercontent.com/thrasher-corp/gocryptotrader/master/common/gctlogo.png" alt="logo">`, issue: "must not be pinned to master"},
 		{name: "missing raw HTML image", contents: `<img src="missing.png" alt="logo">`, issue: "does not exist"},
 		{name: "missing Markdown link", contents: `[missing](missing.md)`, issue: "does not exist"},
