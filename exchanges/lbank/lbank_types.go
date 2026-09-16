@@ -1,6 +1,8 @@
 package lbank
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -8,6 +10,37 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+// wsTimeLayout matches LBank's websocket timestamps, which carry no timezone offset
+const wsTimeLayout = "2006-01-02T15:04:05.999"
+
+// wsTimeLocation is the Beijing offset LBank expresses its websocket timestamps in
+var wsTimeLocation = time.FixedZone("UTC+8", 8*60*60)
+
+var errInvalidWebsocketTime = errors.New("invalid lbank websocket timestamp")
+
+// websocketTime wraps time.Time to unmarshal LBank's websocket timestamps
+type websocketTime time.Time
+
+// UnmarshalJSON implements the json.Unmarshaler interface for websocketTime
+func (t *websocketTime) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if s == "" {
+		return nil
+	}
+	parsed, err := time.ParseInLocation(wsTimeLayout, s, wsTimeLocation)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errInvalidWebsocketTime, err)
+	}
+	*t = websocketTime(parsed)
+	return nil
+}
+
+// Time returns the UTC time.Time representation of websocketTime
+func (t websocketTime) Time() time.Time { return time.Time(t).UTC() }
 
 // Ticker stores the ticker price data for a currency pair
 type Ticker struct {
@@ -104,6 +137,106 @@ type QueryOrderFinalResponse struct {
 	Orders []OrderResponse
 }
 
+// websocketResponse is the base envelope for all LBank websocket messages
+type websocketResponse struct {
+	Type      string        `json:"type"`
+	Pair      currency.Pair `json:"pair"`
+	Message   string        `json:"message"`
+	Timestamp websocketTime `json:"TS"`
+	Action    string        `json:"action"`
+	Ping      string        `json:"ping"`
+}
+
+// websocketTickResponse holds a ticker websocket message
+type websocketTickResponse struct {
+	websocketResponse
+	Tick websocketTickData `json:"tick"`
+}
+
+// websocketTickData holds ticker data fields
+type websocketTickData struct {
+	High   types.Number `json:"high"`
+	Low    types.Number `json:"low"`
+	Latest types.Number `json:"latest"`
+	Volume types.Number `json:"vol"`
+}
+
+// websocketTradeResponse holds a trade websocket message
+type websocketTradeResponse struct {
+	websocketResponse
+	Trade websocketTradeData `json:"trade"`
+}
+
+// websocketAssetUpdateResponse holds an asset update websocket message
+type websocketAssetUpdateResponse struct {
+	websocketResponse
+	Data websocketAssetUpdateData `json:"data"`
+}
+
+// websocketAssetUpdateData holds asset update fields
+type websocketAssetUpdateData struct {
+	Asset     types.Number `json:"asset"`
+	AssetCode string       `json:"assetCode"`
+	Free      types.Number `json:"free"`
+	Freeze    types.Number `json:"freeze"`
+}
+
+// websocketTradeData holds trade data fields
+type websocketTradeData struct {
+	Volume    types.Number  `json:"volume"`
+	Price     types.Number  `json:"price"`
+	Direction string        `json:"direction"`
+	Timestamp websocketTime `json:"TS"`
+}
+
+// websocketDepthResponse holds an orderbook websocket message
+type websocketDepthResponse struct {
+	websocketResponse
+	Depth websocketDepthData `json:"depth"`
+}
+
+// websocketDepthData holds orderbook data fields
+type websocketDepthData struct {
+	Asks orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids orderbook.LevelsArrayPriceAmount `json:"bids"`
+}
+
+// websocketKbarResponse holds a kline websocket message
+type websocketKbarResponse struct {
+	websocketResponse
+	Kbar websocketKbarData `json:"kbar"`
+}
+
+// websocketKbarData holds kline fields
+type websocketKbarData struct {
+	Open      types.Number  `json:"o"`
+	High      types.Number  `json:"h"`
+	Low       types.Number  `json:"l"`
+	Close     types.Number  `json:"c"`
+	Volume    types.Number  `json:"v"`
+	Timestamp websocketTime `json:"t"`
+	Slot      string        `json:"slot"`
+}
+
+// websocketOrderUpdateResponse holds an order update websocket message
+type websocketOrderUpdateResponse struct {
+	websocketResponse
+	OrderUpdate websocketOrderUpdateData `json:"orderUpdate"`
+}
+
+// websocketOrderUpdateData holds order update fields
+type websocketOrderUpdateData struct {
+	AccumulatedAmount types.Number `json:"accAmt"`
+	AveragePrice      types.Number `json:"avgPrice"`
+	OrderAmount       types.Number `json:"orderAmt"`
+	OrderPrice        types.Number `json:"orderPrice"`
+	OrderStatus       int64        `json:"orderStatus"`
+	RemainingAmount   types.Number `json:"remainAmt"`
+	Type              string       `json:"type"`
+	UpdateTime        types.Time   `json:"updateTime"`
+	UUID              string       `json:"uuid"`
+}
+
 // OrderHistoryResponse stores past orders
 type OrderHistoryResponse struct {
 	ErrCapture
@@ -188,7 +321,7 @@ type WithdrawResponse struct {
 // RevokeWithdrawResponse stores info about the revoked withdrawal
 type RevokeWithdrawResponse struct {
 	ErrCapture
-	WithdrawID string `json:"string"`
+	WithdrawID string `json:"withdrawId"`
 }
 
 // ListDataResponse contains some of withdrawal data
@@ -215,8 +348,8 @@ type WithdrawalResponse struct {
 
 // ErrCapture helps with error info
 type ErrCapture struct {
-	Error  int64 `json:"error_code"`
-	Result bool  `json:"result,string"`
+	Error  int64         `json:"error_code"`
+	Result types.Boolean `json:"result"`
 }
 
 // V2Response wraps all LBank v2 API responses
