@@ -1,0 +1,167 @@
+# GoCryptoTrader package Hyperliquid
+
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
+
+
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/hyperliquid)
+[![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
+[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
+
+
+This hyperliquid package is part of the GoCryptoTrader codebase.
+
+## This is still in active development
+
+You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
+
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
+
+## Hyperliquid Exchange
+
+### Current Features
+
++ Spot, default perpetual and HIP-3 DEX market discovery
++ REST and Websocket tickers, L2 orderbooks, trades and candles
++ All 14 Hyperliquid candle intervals
++ Address-scoped Websocket order and fill updates
++ Account balances and open, historical and individual order queries
++ Funding rates, open interest, leverage and online/offline fee estimates
++ EIP-712 signed limit, market, trigger and grouped TP/SL orders
++ Order modification, cancellation and cross or isolated leverage updates
++ Spot/perpetual class transfers, Core sends and generalised asset transfers
++ USDC bridge withdrawals and account ledger history
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
+
+### Credentials and signed actions
+
+Hyperliquid uses EVM addresses and private keys rather than conventional API
+keys:
+
++ `Key` is the master account address whose account is monitored
++ `Secret` is an optional master or approved API wallet private key
++ `SubAccount` is an optional subaccount or vault address controlled by `Key`
+
+The example configuration keeps authenticated features disabled by default,
+consistent with other GoCryptoTrader exchanges. Set `api.authenticatedSupport`
+to `true` for account REST queries and signed actions. Set
+`api.authenticatedWebsocketApiSupport` to `true` for address-scoped order and
+fill subscriptions. At least one of those flags must be enabled for configured
+credentials to be loaded.
+
+Public data and address-scoped account feeds do not require `Secret`. A private
+key is required only for signed exchange actions. Using a dedicated API wallet
+approved in Hyperliquid is strongly recommended for trading; configuring the
+master private key grants broader account authority. API wallet approval must
+be completed outside GoCryptoTrader before its key can be used here. `Key`
+must remain the master account address; configuring the API-wallet address
+itself is rejected. Before allowing trading mutations, the adapter verifies
+the master account, API-wallet relationship and configured vault or subaccount
+authority before consuming a nonce or signing. A successful unchanged
+account/signer/vault/environment tuple is cached, explicit API credential
+validation refreshes it, and an exchange action rejection invalidates it.
+Do not use the same signing wallet concurrently from independent processes
+because Hyperliquid action nonces are coordinated only within one
+GoCryptoTrader process.
+
+Human-readable user-signed actions have a stricter security boundary than
+trading actions. Spot/perpetual class transfers, Core sends, generalised asset
+transfers and bridge withdrawals require `Secret` to be the private key for
+`Key`; an approved API wallet is rejected. The live role for `Key` must also be
+`user` before a nonce is consumed, with the same authority cache and
+exchange-failure invalidation used by trading actions. A configured
+`SubAccount` may be used for class and generalised asset transfers only when it
+is an owned subaccount. Core sends and bridge withdrawals reject configured
+subaccounts or vaults. Generalised transfers validate the current DEX registry,
+spot token identity and perpetual collateral token before signing.
+
+Set the exchange-level `useSandbox` option to `true` when using Hyperliquid
+testnet. This selects the testnet EIP-712 signing domain and changes untouched
+official REST and Websocket endpoints to their official testnet equivalents.
+Custom gateway URLs are retained, so `useSandbox` must still describe the
+environment behind a proxy or private gateway.
+
+Perpetual balance reporting checks Hyperliquid's current account abstraction
+mode. Unified-account and portfolio-margin balances are stored canonically
+under Spot from the authoritative spot clearinghouse state; refreshing
+Perpetual clears the separate balance bucket for every registered DEX.
+Standard and legacy
+DEX-abstraction accounts retain one balance subaccount per perpetual DEX,
+including registered DEXes without a currently active market mapping, and each
+is denominated in that DEX's current collateral token. HIP-3 market pairs and
+funding histories use that same collateral token as their quote or payment
+currency.
+
+Market orders require an explicit `SlippageTolerance` greater than zero and
+less than one. The adapter converts them to slippage-bounded IOC orders.
+Trigger orders are perpetual-only and reduce-only. A parent order with
+take-profit or stop-loss children is submitted with Hyperliquid's grouped TP/SL
+semantics. Hyperliquid evaluates every trigger against mark price, so standalone
+triggers, modifications and each grouped child must explicitly use
+`TriggerPriceType: order.MarkPrice`.
+
+Online fee estimates use the configured account's effective rates. Offline or
+credentialless estimates use Hyperliquid's published base-tier maker/taker
+rates and do not include account tiers or HIP-3 deployer-specific adjustments.
+When the same display pair exists on Spot and Perpetuals, the enabled asset
+configuration selects the applicable fee schedule; enabling both remains
+ambiguous and fails closed.
+
+Subscribe and unsubscribe calls complete only after the server acknowledges the
+exact operation. Rejected, timed-out and disconnected operations roll back
+their local subscription state.
+
+The initial `userFills` Websocket snapshot is intentionally not emitted as live
+fills, which avoids replaying recent executions on each reconnect. Fill events
+that occur while the stream is disconnected are therefore not recovered by the
+Websocket feed.
+
+`WithdrawCryptocurrencyFunds` supports USDC over the environment's Arbitrum
+bridge (`Arbitrum` on mainnet and `Arbitrum Sepolia` on testnet). Setting
+`InternalTransfer` uses a Core USDC send instead. Hyperliquid calculates bridge
+fees, so caller-supplied fees and address tags are rejected.
+
+API wallet approval and HIP-3 deployer or market-administration actions are not
+supported by this integration.
+
+### Wrapper calls
+
+When enabled through configuration, Hyperliquid is available through the
+`exchange.IBotExchange` interface:
+
+```go
+var h exchange.IBotExchange
+
+for i := range bot.Exchanges {
+	if bot.Exchanges[i].GetName() == "Hyperliquid" {
+		h = bot.Exchanges[i]
+	}
+}
+
+tick, err := h.UpdateTicker(ctx, pair, asset.Spot)
+if err != nil {
+	// Handle error
+}
+
+book, err := h.UpdateOrderbook(ctx, pair, asset.PerpetualContract)
+if err != nil {
+	// Handle error
+}
+
+trades, err := h.GetRecentTrades(ctx, pair, asset.PerpetualContract)
+if err != nil {
+	// Handle error
+}
+```
+
+## Donations
+
+<img src="/docs/assets/donate.png" hspace="70">
+
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
+
+***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***

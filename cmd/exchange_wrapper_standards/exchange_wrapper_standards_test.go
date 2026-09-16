@@ -150,8 +150,11 @@ assets:
 }
 
 // isUnacceptableError sentences errs to 10 years dungeon if unacceptable
-func isUnacceptableError(t *testing.T, err error) error {
+func isUnacceptableError(t *testing.T, exchangeName, methodName string, err error) error {
 	t.Helper()
+	if strings.EqualFold(exchangeName, "hyperliquid") && methodName == "GetOrderInfo" && errors.Is(err, order.ErrOrderNotFound) {
+		return nil
+	}
 	for i := range acceptableErrors {
 		if errors.Is(err, acceptableErrors[i]) {
 			return nil
@@ -242,7 +245,7 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if !ok {
 			continue
 		}
-		if isUnacceptableError(t, err) != nil {
+		if isUnacceptableError(t, exch.GetName(), methodName, err) != nil {
 			literalInputs := make([]any, len(methodValues))
 			for j := range methodValues {
 				switch {
@@ -736,6 +739,10 @@ func disruptFormatting(t *testing.T, p currency.Pair) (currency.Pair, error) {
 func getExchangeCredentials(exchangeName string) config.APICredentialsConfig {
 	var resp config.APICredentialsConfig
 	switch exchangeName {
+	case "hyperliquid":
+		// A valid watch-only address prevents the standards suite from issuing
+		// any signed action while still exercising account information wrappers.
+		resp.Key = "0x1111111111111111111111111111111111111111"
 	case "lbank":
 		// these are just random keys, they are not usable
 		resp.Key = `MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3R2vuz3cpQUbCX0TgYZL
@@ -777,6 +784,26 @@ Rsd80LrBCVI8ctzrvYRFSugC`
 		resp.ClientID = "realClientID"
 	}
 	return resp
+}
+
+func TestGetExchangeCredentials(t *testing.T) {
+	hyperliquid := getExchangeCredentials("hyperliquid")
+	require.Equal(t, "0x1111111111111111111111111111111111111111", hyperliquid.Key, "Hyperliquid wrapper credentials must use a valid watch-only address")
+	require.Empty(t, hyperliquid.Secret, "Hyperliquid wrapper credentials must not permit signed actions")
+
+	lbank := getExchangeCredentials("lbank")
+	require.NotEmpty(t, lbank.Key, "Lbank wrapper credentials must include its public key fixture")
+	require.NotEmpty(t, lbank.Secret, "Lbank wrapper credentials must include its private key fixture")
+
+	standard := getExchangeCredentials("standard")
+	require.Equal(t, "realKey", standard.Key, "Standard wrapper credentials must use the generic key fixture")
+	require.NotEmpty(t, standard.Secret, "Standard wrapper credentials must include the generic secret fixture")
+}
+
+func TestIsUnacceptableError(t *testing.T) {
+	require.NoError(t, isUnacceptableError(t, "Hyperliquid", "GetOrderInfo", order.ErrOrderNotFound), "Hyperliquid order lookup must accept a not-found result for a random wrapper fixture")
+	require.ErrorIs(t, isUnacceptableError(t, "Hyperliquid", "GetTicker", order.ErrOrderNotFound), order.ErrOrderNotFound, "Hyperliquid not-found exemption must remain scoped to order lookup")
+	require.ErrorIs(t, isUnacceptableError(t, "Other", "GetOrderInfo", order.ErrOrderNotFound), order.ErrOrderNotFound, "Order not-found exemption must remain scoped to Hyperliquid")
 }
 
 func isCITest() bool {

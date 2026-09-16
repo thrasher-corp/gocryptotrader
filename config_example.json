@@ -2472,6 +2472,134 @@
    }
   },
   {
+   "name": "Hyperliquid",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 15000000000,
+   "websocketResponseCheckTimeout": 30000000,
+   "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
+   "connectionMonitorDelay": 2000000000,
+   "baseCurrencies": "USDC",
+   "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "pairs": {
+     "perpetualcontract": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDC",
+      "available": "BTC-USDC",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "spot": {
+      "assetEnabled": true,
+      "enabled": "HYPE-USDC",
+      "available": "HYPE-USDC",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     }
+    }
+   },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key"
+    },
+    "credentialsValidator": {
+     "requiresKey": true
+    },
+    "urlEndpoints": {
+     "RestFuturesURL": "https://api.hyperliquid.xyz",
+     "RestSpotURL": "https://api.hyperliquid.xyz",
+     "WebsocketSpotURL": "wss://api.hyperliquid.xyz/ws"
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true,
+      "fundingRateFetching": false
+     },
+     "websocketAPI": true
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false,
+     "saveTradeData": false,
+     "tradeFeed": false,
+     "fillsFeed": false
+    },
+    "subscriptions": [
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "all"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "all"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "all"
+     },
+     {
+      "enabled": true,
+      "channel": "candles",
+      "asset": "all",
+      "interval": "1m"
+     },
+     {
+      "enabled": true,
+      "channel": "myOrders",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "myTrades",
+      "authenticated": true
+     }
+    ]
+   },
+   "bankAccounts": [
+    {
+     "enabled": false,
+     "bankName": "",
+     "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ],
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 5,
+    "websocketBufferEnabled": false
+   }
+  },
+  {
    "name": "Kraken",
    "enabled": true,
    "verbose": false,
