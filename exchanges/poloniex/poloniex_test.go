@@ -246,9 +246,9 @@ func TestGetOrderHistory(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result, 1, "Must see exactly one futures order")
-	assert.Equal(t, 3.0, result[0].Amount, "Amount should be the order size")
+	assert.Equal(t, 5.0, result[0].Amount, "Amount should be the order size")
 	assert.Equal(t, 3.0, result[0].ExecutedAmount, "ExecutedAmount should be the executed contract quantity")
-	assert.Equal(t, 0.0, result[0].RemainingAmount, "RemainingAmount should be zero for a filled order")
+	assert.Equal(t, 2.0, result[0].RemainingAmount, "RemainingAmount should be the unfilled contract quantity")
 	assert.Equal(t, 59900.0, result[0].AverageExecutedPrice, "AverageExecutedPrice should be the exchange avgPx")
 	assert.Equal(t, 179.7, result[0].Cost, "Cost should be the exchange execAmt, not avgPx times contracts")
 	assert.Equal(t, currency.USDT, result[0].CostAsset, "CostAsset should be the quote currency")
@@ -1597,11 +1597,15 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, 0.3, result.RemainingAmount, "RemainingAmount should be the unfilled base quantity")
 	assert.Equal(t, 12000.0, result.Cost, "Cost should be the filled quote amount")
 
-	result, err = e.GetOrderInfo(generateContext(t), "12345", futuresTradablePair, asset.Futures)
+	result, err = e.GetOrderInfo(generateContext(t), "331380922769473536", futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
-	assert.Equal(t, 0.6272, result.AverageExecutedPrice, "AverageExecutedPrice should be the exchange avgPx")
-	assert.Equal(t, 1.8816, result.Cost, "Cost should be the exchange execAmt")
+	assert.Equal(t, 5.0, result.Amount, "Amount should be the order size")
+	assert.Equal(t, 3.0, result.ExecutedAmount, "ExecutedAmount should be the executed contract quantity")
+	assert.Equal(t, 2.0, result.RemainingAmount, "RemainingAmount should be the unfilled contract quantity")
+	assert.Equal(t, 59900.0, result.AverageExecutedPrice, "AverageExecutedPrice should be the exchange avgPx")
+	assert.Equal(t, 179.7, result.Cost, "Cost should be the exchange execAmt, not avgPx times contracts")
 	assert.Equal(t, currency.USDT, result.CostAsset, "CostAsset should be the quote currency")
+	assert.Zero(t, result.QuoteAmount, "QuoteAmount should stay unset for a futures order")
 }
 
 func TestGetDepositAddress(t *testing.T) {
