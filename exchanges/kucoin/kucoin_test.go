@@ -179,7 +179,10 @@ func TestGetOrderbookAuthenticatedV1(t *testing.T) {
 	_, err = e.GetOrderbookAuthenticatedV1(t.Context(), futuresTradablePair.String(), asset.Futures, "50")
 	assert.ErrorIs(t, err, errInvalidLimit)
 
-	_, err = e.GetOrderbookAuthenticatedV1(t.Context(), spotTradablePair.String(), asset.Margin, "20")
+	_, err = e.GetOrderbookAuthenticatedV1(t.Context(), spotTradablePair.String(), asset.Margin, "10")
+	require.ErrorIs(t, err, errInvalidLimit)
+
+	_, err = e.GetOrderbookAuthenticatedV1(t.Context(), spotTradablePair.String(), asset.Options, "20")
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -191,6 +194,7 @@ func TestGetOrderbookAuthenticatedV1(t *testing.T) {
 		limit  string
 	}{
 		{name: "spot", symbol: spotTradablePair.String(), asset: asset.Spot, limit: "20"},
+		{name: "margin", symbol: spotTradablePair.String(), asset: asset.Margin, limit: "20"},
 		{name: "futures", symbol: futuresTradablePair.String(), asset: asset.Futures, limit: "20"},
 	} {
 		t.Run(tt.name+"_"+tt.symbol, func(t *testing.T) {
