@@ -347,7 +347,8 @@ func TestMarkdownDestinationIssues(t *testing.T) {
 	directory := t.TempDir()
 	sourcePath := filepath.Join(directory, "README.md")
 	require.NoError(t, os.WriteFile(filepath.Join(directory, "logo.png"), []byte("fixture"), 0o600), "image fixture must be written")
-	require.NoError(t, os.WriteFile(filepath.Join(directory, "zz%probe.md"), []byte("fixture"), 0o600), "percent fixture must be written")
+	percentFilename := "zz" + "%" + "probe.md"
+	require.NoError(t, os.WriteFile(filepath.Join(directory, percentFilename), []byte("fixture"), 0o600), "percent fixture must be written")
 
 	for _, test := range []struct {
 		name     string

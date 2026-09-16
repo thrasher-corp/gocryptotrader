@@ -196,6 +196,7 @@ Use `require` and `assert` appropriately:
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
 - Full test coverage is preferable; mock external calls as needed.
+- Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 
 ### Interface Contracts

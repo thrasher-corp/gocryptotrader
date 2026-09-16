@@ -1008,19 +1008,16 @@ func TestCheckAndGenCerts(t *testing.T) {
 func TestNewSupportedExchangeByName(t *testing.T) {
 	t.Parallel()
 
-	for x := range exchange.Exchanges {
-		exch, err := NewSupportedExchangeByName(exchange.Exchanges[x])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if exch == nil {
-			t.Fatalf("received nil exchange")
-		}
+	for _, name := range exchange.Exchanges {
+		exch, err := NewSupportedExchangeByName(name)
+		require.NoErrorf(t, err, "NewSupportedExchangeByName must not error for %s", name)
+		require.NotNilf(t, exch, "NewSupportedExchangeByName must return an exchange for %s", name)
 	}
 
-	_, err := NewSupportedExchangeByName("")
-	assert.ErrorIs(t, err, ErrExchangeNotFound)
+	for _, name := range []string{"", "Bitmex"} {
+		_, err := NewSupportedExchangeByName(name)
+		assert.ErrorIsf(t, err, ErrExchangeNotFound, "NewSupportedExchangeByName should reject %q", name)
+	}
 }
 
 func TestNewExchangeByNameWithDefaults(t *testing.T) {

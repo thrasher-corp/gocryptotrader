@@ -15,7 +15,9 @@ type ActionType uint8
 // ActionType constants for use with ProcessUpdate
 const (
 	UnknownAction ActionType = iota
-	InsertAction
+	// The former insertion-only action value remains reserved so the surviving
+	// action values stay stable.
+	_
 	UpdateOrInsertAction
 	UpdateAction
 	DeleteAction
@@ -52,7 +54,7 @@ type Update struct {
 	GenerateChecksum func(snapshot *Book) uint32
 	// AllowEmpty, when true, permits loading an empty order book update to set an UpdateID without including actual data
 	AllowEmpty bool
-	// Action defines the action to be performed on the orderbook e.g. amend, delete, insert, update/insert
+	// Action defines the action to be performed on the orderbook e.g. amend, delete, or update/insert
 	// Orderbook IDs are used to identify the orderbook level to be updated, deleted or inserted
 	Action ActionType
 
@@ -145,10 +147,6 @@ func (d *Depth) update(u *Update) error {
 		if err := d.delete(u, bypassErr); err != nil {
 			return fmt.Errorf("%w for %q: %w", errDeleteFailed, u.Action, err)
 		}
-	case InsertAction:
-		if err := d.insert(u); err != nil {
-			return fmt.Errorf("%w for %q: %w", errUpdateFailed, u.Action, err)
-		}
 	case UpdateOrInsertAction:
 		if err := d.updateOrInsert(u); err != nil {
 			return fmt.Errorf("%w for %q: %w", errUpdateFailed, u.Action, err)
@@ -200,21 +198,6 @@ func (d *Depth) delete(update *Update, bypassErr bool) error {
 	return nil
 }
 
-// insert inserts new updates
-func (d *Depth) insert(update *Update) error {
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
-	}
-	if err := d.bidLevels.insertUpdates(update.Bids); err != nil {
-		return err
-	}
-	if err := d.askLevels.insertUpdates(update.Asks); err != nil {
-		return err
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
 // updateOrInsert updates or inserts by ID at current price level.
 func (d *Depth) updateOrInsert(update *Update) error {
 	if update.UpdateTime.IsZero() {
@@ -235,8 +218,6 @@ func (a ActionType) String() string {
 	switch a {
 	case UnknownAction:
 		return "Unknown"
-	case InsertAction:
-		return "Insert"
 	case UpdateOrInsertAction:
 		return "UpdateOrInsert"
 	case UpdateAction:

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
@@ -173,11 +175,16 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp = append(exp, expectedPerPairSubscriptions(subscription.OrderbookChannel, asset.Futures, pairs["futures"], futuresOrderbookDepth5Channel, kline.HundredMilliseconds, nil)...)
 	exp = append(exp, expectedPerPairSubscriptions(subscription.AllTradesChannel, asset.Spot, pairs["both"], marketMatchChannel, 0, nil)...)
 
-	subs, err := ku.generateSubscriptions()
+	publicSubs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp, publicSubs)
 
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	exp = append(subscription.List{}, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Spot, pairs["both"], marketTickerChannel, 0, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Futures, pairs["futures"], futuresTickerChannel, 0, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(marketOrderbookChannel, asset.Spot, pairs["both"], marketOrderbookChannel, 0, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(futuresOrderbookChannel, asset.Futures, pairs["futures"], futuresOrderbookChannel, 0, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(subscription.AllTradesChannel, asset.Spot, pairs["both"], marketMatchChannel, 0, nil)...)
 
 	var loanPairs currency.Pairs
 	loanCurrs := common.SortStrings(pairs["both"].GetCurrencies())
@@ -194,9 +201,216 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: accountBalanceChannel, QualifiedChannel: "/account/balance"},
 	}...)
 
-	subs, err = ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestGenerateRealtimeOrderbookIntervals(t *testing.T) {
+	t.Parallel()
+	for assetType, topics := range map[asset.Item][]string{
+		asset.Spot:    {"/market/level2:BTC-USDT", "/market/level2:ETH-BTC", "/market/level2:ETH-USDT", "/market/level2:LTC-USDT"},
+		asset.Margin:  {"/market/level2:ETH-BTC", "/market/level2:LTC-USDT", "/market/level2:SOL-USDC", "/market/level2:TRX-BTC"},
+		asset.Futures: {"/contractMarket/level2:ETHUSDCM", "/contractMarket/level2:SOLUSDTM", "/contractMarket/level2:XBTUSDCM"},
+	} {
+		for _, interval := range []kline.Interval{kline.OneMin, kline.FourHour} {
+			t.Run(fmt.Sprintf("%s/%s", assetType, interval), func(t *testing.T) {
+				t.Parallel()
+				ku := testInstance(t)
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+				ku.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Asset: assetType, Interval: interval, Levels: 50}}
+				subs, err := ku.generateSubscriptions()
+				require.NoError(t, err, "realtime subscriptions must generate")
+				require.NotEmpty(t, subs, "realtime subscriptions must include enabled pairs")
+				gotTopics := make([]string, 0, len(subs))
+				for _, sub := range subs {
+					gotTopics = append(gotTopics, sub.QualifiedChannel)
+					assert.Zero(t, sub.Interval, "realtime subscriptions should not retain an interval")
+					assert.Zero(t, sub.Levels, "realtime subscriptions should not retain a depth limit")
+				}
+				assert.ElementsMatch(t, topics, gotTopics, "realtime topics should contain the expected pair symbols without interval suffixes")
+			})
+		}
+	}
+}
+
+func TestGenerateRealtimeOrderbooksPreservesConfiguredSubscriptions(t *testing.T) {
+	t.Parallel()
+	for _, mixed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("mixed=%t", mixed), func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			pair, err := currency.NewPairFromString("ETH-BTC")
+			require.NoError(t, err, "pre-expanded pair must parse")
+			configured := &subscription.Subscription{
+				Channel: subscription.OrderbookChannel, Asset: asset.Spot,
+				Pairs: currency.Pairs{pair}, Interval: kline.OneMin, Levels: 50,
+				QualifiedChannel: marketOrderbookDepth5Channel + ":ETH-BTC_1min",
+			}
+			original := configured.Clone()
+			ku.Features.Subscriptions = subscription.List{configured}
+			if mixed {
+				ku.Features.Subscriptions = append(ku.Features.Subscriptions, &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot})
+			}
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			subs, err := ku.generateSubscriptions()
+			require.NoError(t, err, "mixed and qualified subscriptions must generate")
+			require.NotEmpty(t, subs, "generated subscriptions must contain the orderbook")
+			assert.NotSame(t, configured, subs[0], "rewritten orderbook should not alias its configuration")
+			assert.Equal(t, original, configured, "generation should preserve the configured subscription")
+			assert.Equal(t, "/market/level2:ETH-BTC", subs[0].QualifiedChannel, "realtime topic should omit the candle suffix")
+			assert.Zero(t, subs[0].Levels, "realtime subscriptions should not retain the configured depth limit")
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			public, err := ku.generateSubscriptions()
+			require.NoError(t, err, "public subscriptions must generate after authentication is disabled")
+			require.NotEmpty(t, public, "public subscriptions must contain the orderbook")
+			assert.Equal(t, original, public[0], "disabling authentication should restore the configured public subscription")
+		})
+	}
+}
+
+func TestGenerateRealtimeOrderbooksFormatsPreExpandedPairs(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	ku.Features.Subscriptions = subscription.List{{
+		Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()},
+		QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT",
+	}}
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "pre-expanded realtime orderbook must generate")
+	require.Len(t, subs, 1, "pre-expanded realtime orderbook must remain singular")
+	assert.Equal(t, marketOrderbookChannel+":BTC-USDT", subs[0].QualifiedChannel, "realtime topic should retain request-formatted pair spelling")
+}
+
+func TestGenerateOrderbooksSkipsEmptyAsset(t *testing.T) {
+	t.Parallel()
+	for _, authenticated := range []bool{false, true} {
+		ku := testInstance(t)
+		ku.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel}}
+		ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+		subs, err := ku.generateSubscriptions()
+		require.NoErrorf(t, err, "assetless orderbook must not fail with authentication=%t", authenticated)
+		assert.Empty(t, subs, "assetless orderbook should not generate subscriptions")
+	}
+}
+
+func TestGenerateRealtimeOrderbooksCoalescesNormalisedKeys(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name     string
+		interval kline.Interval
+		levels   int
+	}{
+		{name: "levels", interval: kline.HundredMilliseconds, levels: 50},
+		{name: "interval", interval: kline.OneMin},
+		{name: "identical", interval: kline.HundredMilliseconds},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Config.Features.Subscriptions = subscription.List{
+				{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+				{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: test.interval, Levels: test.levels},
+				{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
+			}
+			saved, err := json.Marshal(ku.Config)
+			require.NoError(t, err, "configured subscriptions must serialise")
+			restored := new(config.Exchange)
+			require.NoError(t, json.Unmarshal(saved, restored), "configured subscriptions must deserialise")
+			restarted := new(Exchange)
+			restarted.SetDefaults()
+			require.NoError(t, restarted.Setup(restored), "configured subscriptions must survive setup")
+			for _, authenticated := range []bool{false, true} {
+				restarted.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+				subs, genErr := restarted.generateSubscriptions()
+				require.NoError(t, genErr, "distinct configured subscriptions must generate")
+				_, err = subscription.NewStoreFromList(subs)
+				require.NoError(t, err, "normalised subscriptions must fit the connection store")
+				var tickers int
+				served := make(map[string]int)
+				for _, sub := range subs {
+					if sub.Channel == subscription.TickerChannel {
+						tickers++
+						continue
+					}
+					// KuCoin never serves a suffixed orderbook topic, so only unsuffixed symbols count as coverage.
+					if _, symbol, _ := strings.Cut(sub.QualifiedChannel, ":"); !strings.Contains(symbol, "_") {
+						served[symbol]++
+					}
+				}
+				assert.Equal(t, 4, tickers, "unrelated ticker subscriptions should remain intact")
+				assert.Lenf(t, served, 9, "every enabled pair should keep a served orderbook topic with authentication=%t", authenticated)
+				for symbol, count := range served {
+					assert.Equalf(t, 1, count, "%s should be served by one orderbook subscription with authentication=%t", symbol, authenticated)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateRealtimeOrderbooksCoalescesSameAssetSettings(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	ku.Features.Subscriptions = subscription.List{
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 50},
+	}
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "same-asset orderbooks that differ only in depth must coalesce")
+	assert.Len(t, subs, 4, "each spot pair should be subscribed once after normalisation")
+}
+
+func TestGenerateOrderbooksRejectsConfiguredDuplicates(t *testing.T) {
+	t.Parallel()
+	for _, authenticated := range []bool{false, true} {
+		t.Run(fmt.Sprintf("authenticated=%t", authenticated), func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Features.Subscriptions = subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+			}
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+			subs, err := ku.generateSubscriptions()
+			if err == nil {
+				_, err = subscription.NewStoreFromList(subs)
+			}
+			require.ErrorIs(t, err, subscription.ErrDuplicate, "pre-existing duplicate subscriptions must remain invalid")
+		})
+	}
+}
+
+func TestFormatOrderbookPairs(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name    string
+		channel string
+		asset   asset.Item
+		pair    string
+		want    string
+	}{
+		{name: "spot", channel: subscription.OrderbookChannel, asset: asset.Spot, pair: "BTC_USDT", want: "BTC-USDT"},
+		{name: "margin", channel: subscription.OrderbookChannel, asset: asset.Margin, pair: "ETH_BTC", want: "ETH-BTC"},
+		{name: "futures", channel: subscription.OrderbookChannel, asset: asset.Futures, pair: "ETH_USDCM", want: "ETHUSDCM"},
+		{name: "empty asset", channel: subscription.OrderbookChannel, asset: asset.Empty, pair: "BTC_USDT", want: "BTC_USDT"},
+		{name: "other channel", channel: subscription.TickerChannel, asset: asset.Spot, pair: "BTC_USDT", want: "BTC_USDT"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			pair, err := currency.NewPairFromString(test.pair)
+			require.NoError(t, err, "configured pair must parse")
+			original := currency.Pairs{pair}
+			pairs := map[asset.Item]currency.Pairs{test.asset: original}
+			output, err := ku.formatOrderbookPairs(&subscription.Subscription{Channel: test.channel}, pairs)
+			require.NoError(t, err, "orderbook pairs must format")
+			assert.Empty(t, output, "formatting should not emit template content")
+			assert.Equal(t, test.want, pairs[test.asset].Join(), "expanded pairs should use the request format")
+			assert.Equal(t, test.pair, original.Join(), "formatting should preserve the input slice")
+		})
+	}
 }
 
 func TestGenerateTickerAllSub(t *testing.T) {
@@ -295,6 +509,364 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 }
 
+func TestGenerateSharedSpotMarginFeeds(t *testing.T) {
+	t.Parallel()
+	ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
+	ethBTC := currency.NewPair(currency.ETH, currency.BTC)
+	dogeUSDT := currency.NewPair(currency.DOGE, currency.USDT)
+	for _, test := range []struct {
+		name        string
+		subs        subscription.List
+		disable     asset.Item
+		publicCount int
+		authCount   int
+		threshold   bool
+	}{
+		{
+			name: "restricted spot subscriptions with margin",
+			subs: subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{ethUSDT}},
+				{Channel: subscription.OrderbookChannel, Asset: asset.Margin, Pairs: currency.Pairs{ethBTC}},
+			},
+			publicCount: 3,
+			authCount:   3,
+		},
+		{
+			name: "all assets with margin",
+			subs: subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.All},
+				{Channel: subscription.OrderbookChannel, Asset: asset.Margin},
+			},
+			publicCount: 9,
+			authCount:   9,
+		},
+		{
+			name: "authenticated spot filtered",
+			subs: subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Authenticated: true},
+				{Channel: subscription.OrderbookChannel, Asset: asset.Margin},
+			},
+			publicCount: 4,
+			authCount:   5,
+		},
+		{
+			name: "spot disabled",
+			subs: subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Channel: subscription.OrderbookChannel, Asset: asset.Margin, Pairs: currency.Pairs{ethBTC}},
+			},
+			disable:     asset.Spot,
+			publicCount: 1,
+			authCount:   1,
+		},
+		{
+			name: "margin disabled",
+			subs: subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Channel: subscription.OrderbookChannel, Asset: asset.Margin, Pairs: currency.Pairs{dogeUSDT}},
+			},
+			disable:     asset.Margin,
+			publicCount: 1,
+			authCount:   1,
+		},
+		{
+			name: "restricted ticker stays below all threshold",
+			subs: subscription.List{
+				{Channel: subscription.TickerChannel, Asset: asset.Spot},
+				{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{ethBTC}},
+				{Channel: subscription.TickerChannel, Asset: asset.Margin, Pairs: currency.Pairs{dogeUSDT}},
+			},
+			publicCount: 12,
+			authCount:   12,
+			threshold:   true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			if test.disable != asset.Empty {
+				require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(test.disable, false), "test asset must be disabled")
+			}
+			ku.Features.Subscriptions = test.subs.Clone()
+			if test.threshold {
+				available, err := ku.GetAvailablePairs(asset.Spot)
+				require.NoError(t, err, "available spot pairs must load")
+				require.GreaterOrEqual(t, len(available), 10, "test must have at least ten available spot pairs")
+				ku.Features.Subscriptions[0].Pairs = available[:10]
+			}
+			for _, authenticated := range []bool{false, true} {
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+				got, err := ku.generateSubscriptions()
+				require.NoErrorf(t, err, "shared feeds must generate with authentication=%t", authenticated)
+				wantCount := test.publicCount
+				if authenticated {
+					wantCount = test.authCount
+				}
+				assert.Len(t, got, wantCount, "shared feeds should retain the expected pair coverage")
+				seen := make(map[string]bool, len(got))
+				for _, sub := range got {
+					assert.Falsef(t, seen[sub.QualifiedChannel], "topic %s should only be generated once", sub.QualifiedChannel)
+					if test.threshold {
+						assert.NotEqual(t, marketTickerChannel+":all", sub.QualifiedChannel, "restricted ticker subscriptions should not widen to ticker:all")
+					}
+					seen[sub.QualifiedChannel] = true
+				}
+				_, err = subscription.NewStoreFromList(got)
+				require.NoError(t, err, "shared feeds must fit the subscription store")
+			}
+		})
+	}
+}
+
+func TestGenerateFuturesOrderbookOverlap(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	ku.Features.Subscriptions = subscription.List{
+		{Channel: subscription.OrderbookChannel, Asset: asset.All},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Futures},
+	}
+	for _, authenticated := range []bool{false, true} {
+		ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+		subs, err := ku.generateSubscriptions()
+		require.NoErrorf(t, err, "overlapping futures orderbooks must generate with authentication=%t", authenticated)
+		var symbols []string
+		for _, sub := range subs {
+			if sub.Asset == asset.Futures {
+				_, symbol, _ := strings.Cut(sub.QualifiedChannel, ":")
+				symbols = append(symbols, symbol)
+			}
+		}
+		assert.ElementsMatchf(t, []string{"ETHUSDCM", "SOLUSDTM", "XBTUSDCM"}, symbols, "each futures pair should be subscribed once with authentication=%t", authenticated)
+	}
+}
+
+func TestGenerateRealtimeOrderbooksLeavesDepthFedPairs(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	ku.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+		{Enabled: true, Channel: futuresOrderbookDepth5Channel, Asset: asset.Futures},
+		{Enabled: true, Channel: marketOrderbookDepth5Channel, Asset: asset.Spot},
+		{
+			Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot,
+			Pairs:            currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-"), currency.NewPairWithDelimiter("DOGE", "USDT", "-")},
+			QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT,DOGE-USDT",
+		},
+	}
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	feeds := make(map[string][]string)
+	for _, sub := range subs {
+		channel, symbols, _ := strings.Cut(sub.QualifiedChannel, ":")
+		for symbol := range strings.SplitSeq(symbols, ",") {
+			feeds[symbol] = append(feeds[symbol], channel)
+		}
+	}
+	for symbol, want := range map[string][]string{
+		"BTC-USDT":  {marketOrderbookDepth5Channel},
+		"XBTUSDCM":  {futuresOrderbookDepth5Channel},
+		"SOL-USDC":  {marketOrderbookChannel},
+		"DOGE-USDT": {marketOrderbookChannel},
+	} {
+		assert.Equalf(t, want, feeds[symbol], "%s should be fed by exactly one topic", symbol)
+	}
+	for symbol, channels := range feeds {
+		realtime := slices.Contains(channels, marketOrderbookChannel) || slices.Contains(channels, futuresOrderbookChannel)
+		depth := slices.ContainsFunc(channels, func(channel string) bool { return strings.Contains(channel, "Depth") })
+		assert.Falsef(t, realtime && depth, "%s should not be fed by both a depth and a realtime topic: %v", symbol, channels)
+	}
+}
+
+func TestGenerateRealtimeOrderbooksKeepsUnservedDepthPairs(t *testing.T) {
+	t.Parallel()
+	configFormat, err := currency.NewPairFromString("XBT_USDCM")
+	require.NoError(t, err, "config-format futures pair must parse")
+	for _, test := range []struct {
+		name  string
+		sub   *subscription.Subscription
+		topic string
+	}{
+		{name: "level 1", sub: &subscription.Subscription{Channel: marketOrderbookDepth1Channel, Asset: asset.Spot}, topic: marketOrderbookChannel + ":BTC-USDT"},
+		{name: "config-format pair", sub: &subscription.Subscription{Channel: futuresOrderbookDepth5Channel, Asset: asset.Futures, Pairs: currency.Pairs{configFormat}}, topic: futuresOrderbookChannel + ":XBTUSDCM"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Features.Subscriptions = subscription.List{
+				{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+				test.sub,
+			}
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			subs, err := ku.generateSubscriptions()
+			require.NoError(t, err, "generateSubscriptions must not error")
+			assert.True(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
+				return sub.QualifiedChannel == test.topic
+			}), "a depth topic that cannot feed the book should not displace its realtime feed")
+		})
+	}
+}
+
+func TestGenerateOrderbooksAuthFlipKeepsSharedTopics(t *testing.T) {
+	t.Parallel()
+	generic := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}
+	depth := &subscription.Subscription{Channel: marketOrderbookDepth5Channel, Asset: asset.Spot}
+	batch := &subscription.Subscription{
+		Channel: marketOrderbookDepth5Channel, Asset: asset.Spot,
+		Pairs:            currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-"), currency.NewPairWithDelimiter("ETH", "BTC", "-")},
+		QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT,ETH-BTC",
+	}
+	candle := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin}
+	topics := func(l subscription.List) map[string]bool {
+		out := make(map[string]bool)
+		for _, sub := range l {
+			channel, symbols, _ := strings.Cut(sub.QualifiedChannel, ":")
+			for symbol := range strings.SplitSeq(symbols, ",") {
+				out[channel+":"+symbol] = true
+			}
+		}
+		return out
+	}
+	for _, test := range []struct {
+		name string
+		subs subscription.List
+	}{
+		{name: "explicit depth", subs: subscription.List{generic, depth}},
+		{name: "pre-expanded depth batch", subs: subscription.List{generic, batch}},
+		{name: "candle interval entry", subs: subscription.List{generic, candle, depth}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Features.Subscriptions = test.subs.Clone()
+			for _, authenticated := range []bool{false, true} {
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+				before, err := ku.generateSubscriptions()
+				require.NoErrorf(t, err, "subscriptions must generate with authentication=%t", authenticated)
+				store, err := subscription.NewStoreFromList(before)
+				require.NoErrorf(t, err, "subscriptions must fit the store with authentication=%t", authenticated)
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(!authenticated)
+				after, err := ku.generateSubscriptions()
+				require.NoErrorf(t, err, "subscriptions must generate with authentication=%t", !authenticated)
+				added, removed := store.Diff(after)
+				kept := slices.DeleteFunc(slices.Clone(after), func(sub *subscription.Subscription) bool { return slices.Contains(added, sub) })
+				stays := topics(kept)
+				for topic := range topics(removed) {
+					assert.Falsef(t, stays[topic], "unsubscribing %s should not silence a subscription that stays", topic)
+				}
+			}
+		})
+	}
+}
+
+func TestGeneratePublicOrderbooksKeepServedTopics(t *testing.T) {
+	t.Parallel()
+	generic := func(a asset.Item, interval kline.Interval, pairs ...currency.Pair) *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: a, Interval: interval, Pairs: pairs}
+	}
+	for _, test := range []struct {
+		name  string
+		subs  subscription.List
+		topic string
+	}{
+		{name: "spot", subs: subscription.List{generic(asset.All, kline.HundredMilliseconds), generic(asset.Spot, kline.OneMin)}, topic: marketOrderbookDepth5Channel + ":BTC-USDT"},
+		{name: "pinned spot", subs: subscription.List{generic(asset.All, kline.HundredMilliseconds), generic(asset.Spot, kline.OneMin, currency.NewBTCUSDT())}, topic: marketOrderbookDepth5Channel + ":BTC-USDT"},
+		{name: "futures", subs: subscription.List{generic(asset.All, kline.HundredMilliseconds), generic(asset.Futures, kline.OneMin)}, topic: futuresOrderbookDepth5Channel + ":XBTUSDCM"},
+		{name: "margin", subs: subscription.List{generic(asset.Spot, kline.HundredMilliseconds), generic(asset.Margin, kline.OneMin)}, topic: marketOrderbookDepth5Channel + ":SOL-USDC"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Features.Subscriptions = test.subs
+			subs, err := ku.generateSubscriptions()
+			require.NoError(t, err, "generateSubscriptions must not error")
+			for _, sub := range subs {
+				assert.NotContainsf(t, sub.QualifiedChannel, "_1min", "orderbook topic %s should not carry a candle suffix", sub.QualifiedChannel)
+			}
+			assert.True(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
+				return sub.QualifiedChannel == test.topic
+			}), "a candle interval should not take a pair off a topic KuCoin serves")
+		})
+	}
+}
+
+func TestGeneratePublicOrderbooksKeepRankAmongSuffixedEntries(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	ku.Features.Subscriptions = subscription.List{
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin, Levels: 5, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+	}
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	topics := make(map[string]int)
+	for _, sub := range subs {
+		topics[sub.QualifiedChannel]++
+	}
+	for topic, count := range topics {
+		assert.Equalf(t, 1, count, "%s should be generated once", topic)
+	}
+}
+
+func TestCalculateAssetsToleratesUnsupportedAsset(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name  string
+		asset asset.Item
+		topic string
+		pair  string
+	}{
+		{name: "futures", asset: asset.Futures, topic: futuresOrderbookChannel, pair: "XBT-USDTM"},
+		{name: "margin", asset: asset.Margin, topic: marginPositionChannel, pair: "ETH-BTC"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			delete(ku.CurrencyPairs.Pairs, test.asset)
+			pair, err := currency.NewPairFromString(test.pair)
+			require.NoError(t, err, "pair must parse")
+			assets, err := ku.CalculateAssets(test.topic, pair)
+			require.NoError(t, err, "CalculateAssets must tolerate an unsupported asset")
+			assert.Empty(t, assets, "an unsupported asset should not be returned")
+		})
+	}
+}
+
+func TestMergeMarginPairsWithSpotDisabled(t *testing.T) {
+	t.Parallel()
+	for _, channel := range []string{subscription.OrderbookChannel, subscription.TickerChannel, subscription.AllTradesChannel} {
+		t.Run(channel, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "spot asset must be disabled")
+			marginChannel := channel
+			if channel == subscription.OrderbookChannel {
+				marginChannel = marketOrderbookChannel
+			}
+			ku.Config.Features.Subscriptions = subscription.List{
+				{Enabled: true, Channel: channel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+				{Enabled: true, Channel: marginChannel, Asset: asset.Margin, Interval: kline.HundredMilliseconds},
+			}
+			ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+			require.NoError(t, ku.checkSubscriptions(), "margin subscription migration must succeed")
+			for _, authenticated := range []bool{false, true} {
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+				subs, err := ku.generateSubscriptions()
+				require.NoError(t, err, "margin-only feeds must generate")
+				symbols := make([]string, 0, len(subs))
+				for _, sub := range subs {
+					assert.Equal(t, asset.Margin, sub.Asset, "disabled spot should not consume margin pairs")
+					_, symbol, ok := strings.Cut(sub.QualifiedChannel, ":")
+					require.True(t, ok, "margin topics must contain a symbol")
+					symbols = append(symbols, symbol)
+				}
+				assert.ElementsMatch(t, []string{"ETH-BTC", "LTC-USDT", "SOL-USDC", "TRX-BTC"}, symbols, "all margin pairs should remain subscribed")
+			}
+		})
+	}
+}
+
 // TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -325,9 +897,318 @@ func TestCheckSubscriptions(t *testing.T) {
 		},
 	}
 
-	ku.checkSubscriptions()
+	require.NoError(t, ku.checkSubscriptions(), "subscription migration must succeed")
 	testsubs.EqualLists(t, defaultSubscriptions, ku.Features.Subscriptions)
 	testsubs.EqualLists(t, defaultSubscriptions, ku.Config.Features.Subscriptions)
+}
+
+func TestCheckSubscriptionsPreservesRealtimeOrderbooks(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name        string
+		generic     *subscription.Subscription
+		pinned      subscription.List
+		wantAssets  []asset.Item
+		wantSymbols []string
+		realtime    subscription.List
+		wantBooks   bool
+	}{
+		{name: "disabled generic", generic: &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}, {Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Futures}},
+		{name: "missing generic spot", realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot}},
+		{name: "missing generic futures", realtime: subscription.List{{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}}, wantBooks: true, wantAssets: []asset.Item{asset.Futures}},
+		{name: "enabled generic", generic: &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true},
+		{name: "disabled realtime", generic: &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All}, realtime: subscription.List{{Channel: marketOrderbookChannel, Asset: asset.Spot}, {Channel: futuresOrderbookChannel, Asset: asset.Futures}}},
+		{name: "disabled realtime without generic", realtime: subscription.List{{Channel: marketOrderbookChannel, Asset: asset.Spot}}},
+		{name: "no realtime", generic: &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All}},
+		{name: "pinned spot", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot}, wantSymbols: []string{"BTC-USDT", "ETH-BTC", "ETH-USDT", "LTC-USDT"}},
+		{name: "pinned spot and futures", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}, {Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures}}, realtime: subscription.List{{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Futures}},
+		{name: "pinned spot with disabled all", generic: &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All}, pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot}},
+		{name: "pinned spot with realtime futures", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Futures}, wantSymbols: []string{"BTC-USDT", "ETH-BTC", "ETH-USDT", "LTC-USDT", "ETHUSDCM", "SOLUSDTM", "XBTUSDCM"}},
+		{name: "pinned margin with realtime spot", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Margin}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true, wantAssets: []asset.Item{asset.Margin, asset.Spot}, wantSymbols: []string{"BTC-USDT", "ETH-BTC", "ETH-USDT", "LTC-USDT", "SOL-USDC", "TRX-BTC"}},
+		{name: "pinned spot with realtime futures and margin", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}, {Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Margin}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Margin, asset.Futures}},
+		{name: "pinned spot with duplicate realtime futures", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}, {Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Futures}},
+		{name: "pinned spot with assetless realtime", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Margin, asset.Futures}},
+		{name: "pinned spot with all assets realtime", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.All}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Margin, asset.Futures}},
+		{name: "pinned spot with disabled all and realtime futures", generic: &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.All}, pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot}}, realtime: subscription.List{{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Futures}},
+		{name: "pinned margin settings with realtime spot", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Margin, Interval: kline.HundredMilliseconds, Levels: 50}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true, wantAssets: []asset.Item{asset.Margin, asset.Spot}},
+		{name: "assetless realtime without generic", realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Margin, asset.Futures}},
+		{name: "all assets realtime without generic", realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.All}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Margin, asset.Futures}},
+		{name: "restricted generic spot with unrestricted legacy", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot}, wantSymbols: []string{"BTC-USDT", "ETH-BTC", "ETH-USDT", "LTC-USDT"}},
+		{name: "restricted generic margin with unrestricted legacy", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Margin, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.BTC)}}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Margin}}, wantBooks: true, wantAssets: []asset.Item{asset.Margin}, wantSymbols: []string{"ETH-BTC", "LTC-USDT", "SOL-USDC", "TRX-BTC"}},
+		{name: "restricted legacy without generic", realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot}, wantSymbols: []string{"BTC-USDT"}},
+		{name: "restricted legacy with futures generic", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}}, wantBooks: true, wantAssets: []asset.Item{asset.Futures, asset.Spot}, wantSymbols: []string{"BTC-USDT", "ETHUSDCM", "SOLUSDTM", "XBTUSDCM"}},
+		{name: "restricted generic futures with unrestricted legacy", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USDCM)}}}, realtime: subscription.List{{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}}, wantBooks: true, wantAssets: []asset.Item{asset.Futures}, wantSymbols: []string{"ETHUSDCM", "SOLUSDTM", "XBTUSDCM"}},
+		{name: "restricted spot with unrestricted margin legacy", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.BTC)}}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Margin}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Margin}, wantSymbols: []string{"ETH-BTC", "LTC-USDT", "SOL-USDC", "TRX-BTC"}},
+		{name: "restricted margin with unrestricted spot legacy", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Margin, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.BTC)}}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}}, wantBooks: true, wantAssets: []asset.Item{asset.Margin, asset.Spot}, wantSymbols: []string{"BTC-USDT", "ETH-BTC", "ETH-USDT", "LTC-USDT"}},
+		{name: "restricted spot with unrestricted all-assets legacy", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.BTC)}}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.All}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Margin, asset.Futures}, wantSymbols: []string{"BTC-USDT", "ETH-BTC", "ETH-USDT", "LTC-USDT", "SOL-USDC", "TRX-BTC", "ETHUSDCM", "SOLUSDTM", "XBTUSDCM"}},
+		{name: "generic pair union covers legacy", pinned: subscription.List{{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}, {Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}}}, realtime: subscription.List{{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}}}, wantBooks: true, wantAssets: []asset.Item{asset.Spot, asset.Spot}, wantSymbols: []string{"BTC-USDT", "ETH-USDT"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.Config.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All}}
+			if test.generic != nil {
+				ku.Config.Features.Subscriptions = append(ku.Config.Features.Subscriptions, test.generic.Clone())
+			}
+			ku.Config.Features.Subscriptions = append(ku.Config.Features.Subscriptions, test.realtime.Clone()...)
+			ku.Config.Features.Subscriptions = append(ku.Config.Features.Subscriptions, test.pinned.Clone()...)
+			ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+			require.NoError(t, ku.checkSubscriptions(), "subscription migration must succeed")
+			for _, pinned := range test.pinned {
+				assert.Contains(t, ku.Config.Features.Subscriptions, pinned, "existing pinned choices should remain unchanged")
+			}
+			for _, sub := range ku.Config.Features.Subscriptions {
+				assert.NotContains(t, []string{marketOrderbookChannel, futuresOrderbookChannel}, sub.Channel, "migration should remove obsolete realtime entries")
+			}
+			wantAssets := test.wantAssets
+			if test.wantBooks && len(wantAssets) == 0 {
+				wantAssets = []asset.Item{asset.All}
+			}
+			saved, err := json.Marshal(ku.Config)
+			require.NoError(t, err, "migrated config must serialise")
+			require.NoError(t, ku.checkSubscriptions(), "repeated subscription migration must succeed")
+			again, err := json.Marshal(ku.Config)
+			require.NoError(t, err, "repeated migration must serialise")
+			assert.Equal(t, saved, again, "migration should be idempotent")
+			restored := new(config.Exchange)
+			require.NoError(t, json.Unmarshal(saved, restored), "saved config must deserialise")
+			restarted := new(Exchange)
+			restarted.SetDefaults()
+			require.NoError(t, restarted.Setup(restored), "fresh setup must accept migrated config")
+			for _, instance := range []*Exchange{ku, restarted} {
+				for _, authenticated := range []bool{false, true} {
+					instance.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+					subs, err := instance.generateSubscriptions()
+					require.NoError(t, err, "migrated subscriptions must generate before and after restart")
+					generatedAssets := make(map[asset.Item]bool)
+					topics := make(map[string]bool)
+					var generatedSymbols []string
+					for _, sub := range subs {
+						if sub.Channel != subscription.OrderbookChannel && sub.Channel != marketOrderbookChannel && sub.Channel != futuresOrderbookChannel {
+							continue
+						}
+						generatedAsset := sub.Asset
+						if generatedAsset == asset.Margin {
+							generatedAsset = asset.Spot
+						}
+						generatedAssets[generatedAsset] = true
+						assert.Falsef(t, topics[sub.QualifiedChannel], "orderbook topic %s should not be duplicated", sub.QualifiedChannel)
+						topics[sub.QualifiedChannel] = true
+						_, symbols, ok := strings.Cut(sub.QualifiedChannel, ":")
+						require.True(t, ok, "orderbook topic must contain symbols")
+						generatedSymbols = append(generatedSymbols, strings.Split(symbols, ",")...)
+					}
+					expectedAssets := make(map[asset.Item]bool)
+					for _, assetType := range wantAssets {
+						switch assetType {
+						case asset.All:
+							expectedAssets[asset.Spot], expectedAssets[asset.Futures] = true, true
+						case asset.Margin:
+							expectedAssets[asset.Spot] = true
+						default:
+							expectedAssets[assetType] = true
+						}
+					}
+					assert.Equal(t, expectedAssets, generatedAssets, "generated orderbooks should retain asset coverage before and after restart")
+					if len(test.wantSymbols) > 0 {
+						assert.ElementsMatch(t, test.wantSymbols, generatedSymbols, "generated orderbooks should retain pair coverage before and after restart")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestCheckSubscriptionsMigrationEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("disabled asset", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "spot asset must be disabled")
+		ku.Config.Features.Subscriptions = subscription.List{
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot},
+		}
+		ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+		require.NoError(t, ku.checkSubscriptions(), "disabled asset migration must not stop exchange setup")
+	})
+
+	t.Run("restricted all-assets coverage", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.Config.Features.Subscriptions = subscription.List{
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot},
+		}
+		ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+		require.NoError(t, ku.checkSubscriptions(), "restricted all-assets migration must succeed")
+		for _, authenticated := range []bool{false, true} {
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+			subs, err := ku.generateSubscriptions()
+			require.NoErrorf(t, err, "migrated subscriptions must generate with authentication=%t", authenticated)
+			_, err = subscription.NewStoreFromList(subs)
+			require.NoErrorf(t, err, "migrated subscriptions must not contain duplicate topics with authentication=%t: %v", authenticated, subs)
+		}
+	})
+
+	t.Run("authenticated coverage unavailable", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.API.AuthenticatedWebsocketSupport = false
+		ku.Config.Features.Subscriptions = subscription.List{
+			{Enabled: true, Authenticated: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
+			{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures},
+		}
+		ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+		require.NoError(t, ku.checkSubscriptions(), "migration without websocket authentication must succeed")
+		require.Len(t, ku.Config.Features.Subscriptions, 1, "legacy coverage must consolidate with the authenticated generic entry")
+		assert.False(t, ku.Config.Features.Subscriptions[0].Authenticated, "replacement coverage should generate without authentication")
+		subs, err := ku.generateSubscriptions()
+		require.NoError(t, err, "replacement coverage must generate without authentication")
+		require.Len(t, subs, 3, "replacement coverage must retain all enabled futures pairs")
+	})
+
+	t.Run("candle interval coverage unavailable", func(t *testing.T) {
+		t.Parallel()
+		for _, test := range []struct {
+			name     string
+			generic  *subscription.Subscription
+			legacy   *subscription.Subscription
+			depth    string
+			realtime string
+		}{
+			{name: "all-assets generic with spot legacy", generic: &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.OneMin}, legacy: &subscription.Subscription{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}, depth: marketOrderbookDepth5Channel, realtime: marketOrderbookChannel},
+			{name: "all-assets generic with futures legacy", generic: &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.OneMin}, legacy: &subscription.Subscription{Enabled: true, Channel: futuresOrderbookChannel, Asset: asset.Futures}, depth: futuresOrderbookDepth5Channel, realtime: futuresOrderbookChannel},
+			{name: "authenticated spot generic with spot legacy", generic: &subscription.Subscription{Enabled: true, Authenticated: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin}, legacy: &subscription.Subscription{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot}, depth: marketOrderbookDepth5Channel, realtime: marketOrderbookChannel},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				t.Parallel()
+				// Websocket authentication can be unavailable after a migration saved with it, so every combination must
+				// keep the legacy pairs on a served topic.
+				for _, auth := range []struct{ migrated, running bool }{{false, false}, {true, true}, {true, false}} {
+					ku := testInstance(t)
+					ku.API.AuthenticatedWebsocketSupport = auth.migrated
+					ku.Config.Features.Subscriptions = subscription.List{test.generic.Clone(), test.legacy.Clone()}
+					ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+					require.NoErrorf(t, ku.checkSubscriptions(), "migration must succeed with websocket authentication=%t", auth.migrated)
+					ku.Websocket.SetCanUseAuthenticatedEndpoints(auth.running)
+					subs, err := ku.generateSubscriptions()
+					require.NoErrorf(t, err, "migrated subscriptions must generate with authentication=%t", auth.running)
+					channel := test.depth
+					if auth.running {
+						channel = test.realtime
+					}
+					pairs, err := ku.GetEnabledPairs(test.legacy.Asset)
+					require.NoError(t, err, "enabled pairs must load")
+					format, err := ku.GetPairFormat(test.legacy.Asset, true)
+					require.NoError(t, err, "request format must load")
+					for _, pair := range pairs.Format(format) {
+						assert.Truef(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
+							return sub.QualifiedChannel == channel+":"+pair.String()
+						}), "%s should keep a served orderbook topic when migrated with websocket authentication=%t and running with %t", pair, auth.migrated, auth.running)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("wildcard remains dynamic", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.Config.Features.Subscriptions = subscription.List{
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+			{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot},
+		}
+		ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+		require.NoError(t, ku.checkSubscriptions(), "wildcard migration must succeed")
+		assert.Contains(t, ku.Config.Features.Subscriptions, &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds}, "unrestricted legacy coverage should remain a wildcard")
+		pairs, err := ku.GetEnabledPairs(asset.Spot)
+		require.NoError(t, err, "enabled spot pairs must load")
+		dogeUSDT := currency.NewPair(currency.DOGE, currency.USDT)
+		require.NoError(t, ku.CurrencyPairs.StorePairs(asset.Spot, pairs.Add(dogeUSDT), true), "new spot pair must be enabled")
+		subs, err := ku.generateSubscriptions()
+		require.NoError(t, err, "widened wildcard must generate")
+		assert.True(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
+			return sub.QualifiedChannel == marketOrderbookDepth5Channel+":DOGE-USDT"
+		}), "widened wildcard should track newly enabled pairs")
+	})
+}
+
+func TestCheckSubscriptionsOverlappingCoverage(t *testing.T) {
+	t.Parallel()
+	ethUSDT := currency.NewPair(currency.ETH, currency.USDT)
+	for _, test := range []struct {
+		name        string
+		subs        subscription.List
+		publicCount int
+		authCount   int
+	}{
+		{
+			name: "multiple restricted spot subscriptions",
+			subs: subscription.List{
+				{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{ethUSDT}},
+				{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot},
+			},
+			publicCount: 4,
+			authCount:   4,
+		},
+		{
+			name: "authenticated restricted coverage unavailable",
+			subs: subscription.List{
+				{Enabled: true, Authenticated: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{ethUSDT}},
+				{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot},
+			},
+			publicCount: 4,
+			authCount:   4,
+		},
+		{
+			name: "authenticated all-assets coverage unavailable",
+			subs: subscription.List{
+				{Enabled: true, Authenticated: true, Channel: subscription.OrderbookChannel, Asset: asset.All},
+				{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot},
+			},
+			publicCount: 4,
+			authCount:   9,
+		},
+		{
+			name: "disabled authenticated all-assets fallback",
+			subs: subscription.List{
+				{Authenticated: true, Channel: subscription.OrderbookChannel, Asset: asset.All},
+				{Enabled: true, Channel: marketOrderbookChannel, Asset: asset.Spot},
+			},
+			publicCount: 4,
+			authCount:   4,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			ku := testInstance(t)
+			ku.API.AuthenticatedWebsocketSupport = false
+			ku.Config.Features.Subscriptions = test.subs.Clone()
+			ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
+			require.NoError(t, ku.checkSubscriptions(), "overlapping migration must succeed")
+			for _, authenticated := range []bool{false, true} {
+				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+				got, err := ku.generateSubscriptions()
+				require.NoErrorf(t, err, "migrated coverage must generate with authentication=%t", authenticated)
+				wantCount := test.publicCount
+				if authenticated {
+					wantCount = test.authCount
+				}
+				assert.Len(t, got, wantCount, "migration should retain all covered pairs")
+				seen := make(map[string]bool, len(got))
+				for _, sub := range got {
+					assert.Falsef(t, seen[sub.QualifiedChannel], "topic %s should only be generated once", sub.QualifiedChannel)
+					seen[sub.QualifiedChannel] = true
+				}
+				_, err = subscription.NewStoreFromList(got)
+				require.NoError(t, err, "migrated coverage must fit the subscription store")
+			}
+		})
+	}
 }
 
 func TestProcessOrderbook(t *testing.T) {
@@ -433,6 +1314,63 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 	t.Parallel()
+	newUpdateManager := func(ku *Exchange) *buffer.UpdateManager {
+		return buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+			FetchDelay:    0,
+			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				return &orderbook.Book{
+					Exchange: ku.Name, Pair: p, Asset: a,
+					Bids: []orderbook.Level{{Price: 18890, Amount: 1}}, Asks: []orderbook.Level{{Price: 18910, Amount: 1}},
+					LastUpdateID: 14103843, LastUpdated: time.UnixMilli(1663747970272),
+				}, nil
+			},
+			CheckPendingUpdate: checkPendingUpdate,
+			BufferInstance:     &ku.Websocket.Orderbook,
+		})
+	}
+
+	t.Run("spot_and_margin", func(t *testing.T) {
+		t.Parallel()
+
+		ku := testInstance(t)
+		ku.Name = t.Name()
+		pair, err := currency.NewPairFromString("ETH-BTC")
+		require.NoError(t, err, "NewPairFromString must not error")
+		assets, err := ku.CalculateAssets(marketOrderbookChannel, pair)
+		require.NoError(t, err, "CalculateAssets must not error")
+		require.ElementsMatch(t, []asset.Item{asset.Spot, asset.Margin}, assets, "CalculateAssets must resolve spot and margin")
+
+		ku.wsOBUpdateMgr = newUpdateManager(ku)
+
+		err = ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"ETH-BTC","time":1663747970273}}`), pair.String())
+		require.NoError(t, err, "processSpotOrderbookWithDepth must not error")
+
+		for _, a := range assets {
+			require.EventuallyWithTf(t, func(collect *assert.CollectT) {
+				book, err := ku.Websocket.Orderbook.GetOrderbook(pair, a)
+				require.NoError(collect, err, "GetOrderbook must return the realtime book")
+				assert.Equal(collect, int64(14103847), book.LastUpdateID, "LastUpdateID should include the realtime update")
+				assert.Equal(collect, a, book.Asset, "Asset should match the calculated asset")
+			}, time.Second, time.Millisecond*10, "realtime update must populate the %s book", a)
+		}
+	})
+
+	t.Run("pair not enabled", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.Name = t.Name()
+		pair, err := currency.NewPairFromString("DOGE-USDT")
+		require.NoError(t, err, "pair must parse")
+		ku.wsOBUpdateMgr = newUpdateManager(ku)
+		err = ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"DOGE-USDT","time":1663747970273}}`), "DOGE-USDT")
+		require.NoError(t, err, "a subscribed pair outside the enabled lists must not error")
+		require.EventuallyWithT(t, func(collect *assert.CollectT) {
+			book, err := ku.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+			require.NoError(collect, err, "a subscribed pair outside the enabled lists must be booked as spot")
+			assert.Equal(collect, int64(14103847), book.LastUpdateID, "update should apply to the spot book")
+		}, time.Second, time.Millisecond*10, "realtime update must populate the spot book")
+	})
 
 	t.Run("error_paths", func(t *testing.T) {
 		t.Parallel()
