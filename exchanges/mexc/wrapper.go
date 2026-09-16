@@ -870,30 +870,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Pair:        pair.Format(pairFormat),
 			TimeInForce: tif,
 		}
-		// Enrich with the venue's commission facts when the order actually filled. The Query Order
-		// response carries no commission, so the fee and its currency come from myTrades keyed by
-		// this order. Gate on cumulative quote value rather than executedQty: MEXC reports
-		// executedQty=0 on some filled limit orders, so executedQty is not a reliable "has fills".
-		if result.CummulativeQuoteQty.Float64() > 0 {
+		// Enrich with the venue's commission facts when the order has executed volume. The Query
+		// Order response carries no commission, so the fee and its currency come from myTrades keyed
+		// by this order.
+		if result.ExecutedQty.Float64() > 0 {
 			if trades, fee, feeAsset := e.tradesForOrder(ctx, pair.Format(pairFormat), orderID); len(trades) > 0 {
 				detail.Trades = trades
 				detail.Fee = fee
 				detail.FeeAsset = feeAsset
-				// MEXC returns executedQty=0 on some filled limit orders while still reporting a
-				// non-zero cummulativeQuoteQty and returning the fills in myTrades. When executedQty is
-				// zero the executed amount, remaining amount and average price are derived from the
-				// fills, the venue's own record of what actually traded, instead of the zero field.
-				if result.ExecutedQty.Float64() == 0 {
-					var executed float64
-					for i := range trades {
-						executed += trades[i].Amount
-					}
-					if executed > 0 {
-						detail.ExecutedAmount = executed
-						detail.RemainingAmount = result.OrigQty.Float64() - executed
-						detail.AverageExecutedPrice = result.CummulativeQuoteQty.Float64() / executed
-					}
-				}
 			}
 		}
 		return detail, nil
