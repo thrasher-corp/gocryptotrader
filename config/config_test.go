@@ -1524,7 +1524,38 @@ func TestReadVersion0ConfigFromFile(t *testing.T) {
 		Version int `json:"version"`
 	}
 	require.NoError(t, json.Unmarshal(latestCfg, &latest), "json.Unmarshal must not error when reading latest config version")
-	assert.Equal(t, latest.Version, legacy.Version, "Version 0 fixture should upgrade to the latest registered version")
+	assert.Equal(t, latest.Version, legacy.Version, "ReadConfigFromFile should upgrade version 0 fixture to the latest registered version")
+	_, err = legacy.GetExchangeConfig("Bitmex")
+	assert.ErrorIs(t, err, ErrExchangeNotFound, "GetExchangeConfig should return ErrExchangeNotFound for retired BitMEX")
+}
+
+func TestReadVersion14ConfigFromFile(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(TestFile)
+	require.NoError(t, err, "ReadFile must load the config fixture")
+	var expected Config
+	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
+	require.Equal(t, 15, expected.Version, "Config.Version must use version 15")
+
+	var saved map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
+	exchanges := make([]json.RawMessage, 0, len(expected.Exchanges)+1)
+	require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must preserve saved exchanges")
+	exchanges = append(exchanges, json.RawMessage(`{"name":"Bitmex","enabled":true,"api":{"credentials":{"key":"retired-key","secret":"retired-secret"}}}`))
+	saved["exchanges"], err = json.Marshal(exchanges)
+	require.NoError(t, err, "Marshal must encode the saved exchanges")
+	saved["version"] = json.RawMessage(`14`)
+	data, err = json.Marshal(saved)
+	require.NoError(t, err, "Marshal must encode the version 14 config")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 14 config")
+
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 15")
+	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
+	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
 
 func TestReadConfigFromReader(t *testing.T) {

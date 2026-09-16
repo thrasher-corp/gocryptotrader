@@ -53,6 +53,7 @@ const (
 	futuresAutoOrdersChannel        = "futures.autoorders"
 
 	futuresOrderbookUpdateLimit uint64 = 20
+	futuresOrderbookV2Limit     uint64 = 50
 )
 
 var defaultFuturesSubscriptions = []string{
@@ -185,18 +186,22 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 				params["level"] = strconv.FormatUint(futuresOrderbookUpdateLimit, 10)
 			case futuresOrderbookV2:
 				// Fastest frequency available. 50 levels which defaults to 20ms frequency
-				params["level"] = uint64(50)
+				params["level"] = futuresOrderbookV2Limit
 			}
 			fPair, err := e.FormatExchangeCurrency(pairs[j], a)
 			if err != nil {
 				return nil, err
 			}
-			subscriptions = append(subscriptions, &subscription.Subscription{
+			sub := &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
 				Asset:   a,
-			})
+			}
+			if sub.Channel == futuresOrderbookV2 {
+				sub.QualifiedChannel = "ob." + sub.Pairs[0].String() + "." + strconv.FormatUint(futuresOrderbookV2Limit, 10)
+			}
+			subscriptions = append(subscriptions, sub)
 		}
 	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
