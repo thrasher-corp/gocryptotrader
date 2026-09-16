@@ -1847,6 +1847,8 @@ func TestGetManagedOrders(t *testing.T) {
 	o := order.Detail{
 		Price:     100000,
 		Amount:    0.002,
+		Fee:       0.25,
+		FeeAsset:  currency.USDT,
 		Exchange:  "Binance",
 		Type:      order.Limit,
 		Side:      order.Sell,
@@ -1868,6 +1870,10 @@ func TestGetManagedOrders(t *testing.T) {
 		t.Errorf("non expected Error: %v", err)
 	} else if oo == nil || len(oo.GetOrders()) != 1 {
 		t.Errorf("unexpected order result: %v", oo)
+	} else {
+		got := oo.GetOrders()[0]
+		assert.InDelta(t, 0.25, got.GetFee(), 1e-9, "the managed order should carry its fee")
+		assert.Equal(t, "USDT", got.GetFeeCurrency(), "the managed order should carry its fee currency from the stored order")
 	}
 }
 
