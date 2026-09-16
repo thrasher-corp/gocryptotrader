@@ -3363,13 +3363,12 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
 	var accountRequests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		if _, err := w.Write([]byte(`{"user":20011}`)); err != nil {
 			t.Errorf("Mock futures account response should be written: %v", err)
 		}
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range e.API.Endpoints.GetURLMap() {
 		require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
@@ -3473,11 +3472,10 @@ func TestPrepareFuturesUserIDsLookupFailure(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	var accountRequests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
@@ -3502,7 +3500,7 @@ func TestPreConnectWiring(t *testing.T) {
 
 	var accountRequests atomic.Int64
 	var healthy atomic.Bool
-	rest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	rest := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		if !healthy.Load() {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -3511,17 +3509,16 @@ func TestPreConnectWiring(t *testing.T) {
 		_, err := w.Write([]byte(`{"user":20011}`))
 		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
-	t.Cleanup(rest.Close)
 	require.NoError(t, ex.SetHTTPClient(rest.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, rest.URL+"/"), "SetRunningURL must not error")
 	}
 
 	// Refuses the upgrade, so Connect fails locally after preparation has run.
-	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ws := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
-	t.Cleanup(ws.Close)
+	ws.Start()
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(ws.URL, "http")), "SetAllConnectionURLs must not error")
 
 	ex.API.AuthenticatedSupport = true
@@ -3575,12 +3572,11 @@ func TestGenerateFuturesDefaultSubscriptionsColdCache(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	var accountRequests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		_, err := w.Write([]byte(`{"user":20011}`))
 		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
@@ -3625,11 +3621,10 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`{"user":20011}`))
 		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")

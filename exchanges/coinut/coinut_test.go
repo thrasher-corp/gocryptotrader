@@ -571,7 +571,7 @@ func TestGetOrderHistory(t *testing.T) {
 				requestMutex sync.Mutex
 				requests     []WsTradeHistoryRequest
 			)
-			server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
+			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
 				var request WsTradeHistoryRequest
 				if err := json.Unmarshal(payload, &request); err != nil {
 					return err
@@ -625,7 +625,7 @@ func TestGetOrderHistory(t *testing.T) {
 				}
 				return conn.WriteMessage(gws.TextMessage, response)
 			}))
-			t.Cleanup(server.Close)
+			server.Start()
 
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "GetOrderHistory exchange setup must not error")
