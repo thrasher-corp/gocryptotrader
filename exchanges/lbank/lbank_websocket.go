@@ -121,6 +121,48 @@ func lbankOrderTypeToOrderType(s string) (order.Type, order.TimeInForce) {
 	}
 }
 
+// authSubscribeRequest builds the subscribe/unsubscribe frame for an
+// authenticated channel (MyOrdersChannel or MyAccountChannel), or nil if
+// the channel isn't one of those two.
+func (e *Exchange) authSubscribeRequest(action, ch string) map[string]any {
+	e.ws.mu.RLock()
+	subscribeKey := e.ws.subscribeKey
+	e.ws.mu.RUnlock()
+	switch ch {
+	case subscription.MyOrdersChannel:
+		return map[string]any{
+			lbankWsAction:  action,
+			"subscribe":    lbankWsOrderUpdate,
+			"subscribeKey": subscribeKey,
+			"pair":         "all",
+		}
+	case subscription.MyAccountChannel:
+		return map[string]any{
+			lbankWsAction:  action,
+			"subscribe":    lbankWsAssetUpdate,
+			"subscribeKey": subscribeKey,
+		}
+	}
+	return nil
+}
+
+// resendAuthSubscriptions re-sends subscribe frames for already-tracked
+// authenticated channels after a subscribeKey rotation. It intentionally
+// skips the bookkeeping step, since these channels are already registered.
+func (e *Exchange) resendAuthSubscriptions(ctx context.Context, subs subscription.List) error {
+	var errs error
+	for _, s := range subs {
+		req := e.authSubscribeRequest(lbankWsSubscribe, s.Channel)
+		if req == nil {
+			continue
+		}
+		if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
+			errs = common.AppendError(errs, err)
+		}
+	}
+	return errs
+}
+
 // WsConnect connects to the LBank websocket
 func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
@@ -477,7 +519,7 @@ func (e *Exchange) doRefreshSubscribeKey(ctx context.Context) {
 			}
 		}
 		if len(authSubs) > 0 {
-			if err := e.Subscribe(authSubs); err != nil {
+			if err := e.resendAuthSubscriptions(ctx, authSubs); err != nil {
 				log.Errorf(log.ExchangeSys, "%s failed to re-subscribe after key refresh: %v\n", e.Name, err)
 			}
 		}
@@ -512,28 +554,7 @@ subscriptionLoop:
 			continue
 		}
 
-		var req map[string]any
-		switch s.Channel {
-		case subscription.MyOrdersChannel:
-			e.ws.mu.RLock()
-			subscribeKey := e.ws.subscribeKey
-			e.ws.mu.RUnlock()
-			req = map[string]any{
-				lbankWsAction:  action,
-				"subscribe":    lbankWsOrderUpdate,
-				"subscribeKey": subscribeKey,
-				"pair":         "all",
-			}
-		case subscription.MyAccountChannel:
-			e.ws.mu.RLock()
-			subscribeKey := e.ws.subscribeKey
-			e.ws.mu.RUnlock()
-			req = map[string]any{
-				lbankWsAction:  action,
-				"subscribe":    lbankWsAssetUpdate,
-				"subscribeKey": subscribeKey,
-			}
-		}
+		req := e.authSubscribeRequest(action, s.Channel)
 
 		if req != nil {
 			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
