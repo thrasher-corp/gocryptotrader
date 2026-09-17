@@ -2295,15 +2295,15 @@ func TestProcessOrders(t *testing.T) {
 
 	resp := &SubscriptionResponse{
 		Channel: "orders",
-		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"32471407854219265","tradeFee":"0.0001","clientOrderId":"","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","source":"API","side":"BUY","filledQuantity":"0.2","filledAmount":"12000","matchRole":"MAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"12000","orderAmount":"0","createTime":1757800000000,"price":"60000","tradeQty":"0.2","tradePrice":"60000","tradeId":"68561300","ts":1757800060010}]`),
+		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"32471407854219265","tradeFee":"0.0001","clientOrderId":"","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","source":"API","side":"BUY","filledQuantity":"0.3","filledAmount":"18000","matchRole":"MAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"12000","orderAmount":"0","createTime":1757800000000,"price":"60000","tradeQty":"0.2","tradePrice":"60000","tradeId":"68561300","ts":1757800060010}]`),
 	}
 	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
 	exp := []order.Detail{{
 		Price:           60000,
 		Amount:          0.5,
-		ExecutedAmount:  0.2,
-		RemainingAmount: 0.3,
+		ExecutedAmount:  0.3,
+		RemainingAmount: 0.2,
 		Fee:             0.0001,
 		FeeAsset:        currency.BTC,
 		Exchange:        ex.Name,
