@@ -2032,33 +2032,50 @@ func TestWsTickerUpdate(t *testing.T) {
 
 func TestWsKlineUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
-	  "e": "kline",
-	  "E": 1234567891,
-	  "s": "BTCUSDT",
-	  "k": {
-		"t": 1234000001, 
-		"T": 1234600001, 
-		"s": "BTCUSDT",  
-		"i": "1m",      
-		"f": 100,       
-		"L": 200,       
-		"o": "0.0010",  
-		"c": "0.0020",  
-		"h": "0.0025",  
-		"l": "0.0015",  
-		"v": "1000",    
-		"n": 100,       
-		"x": false,     
-		"q": "1.0000",  
-		"V": "500",     
-		"Q": "0.500",   
-		"B": "123456"   
-	  }
-	}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	tests := []struct {
+		name           string
+		klineClosed    string
+		expectedIssues string
+	}{
+		{name: "StillForming", klineClosed: "false", expectedIssues: kline.PartialCandle},
+		{name: "Closed", klineClosed: "true", expectedIssues: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			pressXToJSON := fmt.Appendf(nil, `{"stream":"btcusdt@kline_1m","data":{
+			  "e": "kline",
+			  "E": 1234567891,
+			  "s": "BTCUSDT",
+			  "k": {
+				"t": 1234000001,
+				"T": 1234600001,
+				"s": "BTCUSDT",
+				"i": "1m",
+				"f": 100,
+				"L": 200,
+				"o": "0.0010",
+				"c": "0.0020",
+				"h": "0.0025",
+				"l": "0.0015",
+				"v": "1000",
+				"n": 100,
+				"x": %s,
+				"q": "1.0000",
+				"V": "500",
+				"Q": "0.500",
+				"B": "123456"
+			  }
+			}}`, tt.klineClosed)
+			require.NoError(t, e.wsHandleData(t.Context(), pressXToJSON), "wsHandleData must not error")
+			res := <-e.Websocket.DataHandler.C
+			require.IsType(t, kline.Item{}, res.Data, "Relay payload must be a kline.Item")
+			k, _ := res.Data.(kline.Item)
+			require.Len(t, k.Candles, 1, "kline.Item must carry a single candle")
+			assert.Equal(t, tt.expectedIssues, k.Candles[0].ValidationIssues, "ValidationIssues should reflect whether the candle has closed")
+		})
 	}
 }
 
