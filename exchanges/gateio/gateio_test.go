@@ -2704,14 +2704,14 @@ func TestFuturesDataHandler(t *testing.T) {
 		if positions, ok := resp.Data.([]futures.Position); ok {
 			require.Len(t, positions, 1, "position update must contain one position")
 			assert.Equal(t, asset.CoinMarginedFutures, positions[0].Asset, "asset should match the websocket")
-			assert.Equal(t, "BTC_USD", positions[0].Pair.String(), "pair should be normalized")
-			assert.Equal(t, currency.BTC, positions[0].Underlying, "underlying should be normalized")
-			assert.Equal(t, currency.BTC, positions[0].CollateralCurrency, "collateral currency should be normalized")
-			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction should be normalized")
+			assert.Equal(t, "BTC_USD", positions[0].Pair.String(), "pair should be normalised")
+			assert.Equal(t, currency.BTC, positions[0].Underlying, "underlying should be normalised")
+			assert.Equal(t, currency.BTC, positions[0].CollateralCurrency, "collateral currency should be normalised")
+			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction should be normalised")
 			if positions[0].CloseDate.IsZero() {
 				sawPosition = true
 				assert.Equal(t, order.Open, positions[0].Status, "position status should be open")
-				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalized")
+				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalised")
 				assert.Equal(t, "5", positions[0].Leverage.String(), "replacement cross-margin leverage should take precedence")
 				assert.True(t, positions[0].PositionMargin.Equal(decimal.MustFromFloat(49.999890611186)), "position margin should be populated")
 				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.MustFromFloat(0.005)), "maintenance margin rate should be populated")
@@ -2724,8 +2724,8 @@ func TestFuturesDataHandler(t *testing.T) {
 			}
 		}
 	}
-	require.True(t, sawPosition, "futures fixture must emit a normalized position")
-	require.True(t, sawPositionClose, "futures fixture must emit a normalized position close")
+	require.True(t, sawPosition, "futures fixture must emit a normalised position")
+	require.True(t, sawPositionClose, "futures fixture must emit a normalised position close")
 }
 
 func TestFuturesPositionCapturedPayload(t *testing.T) {
@@ -2752,7 +2752,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	require.True(t, ok, "captured payload must emit canonical futures positions")
 	require.Len(t, positions, 1, "captured payload must emit one position")
 	position := positions[0]
-	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalized")
+	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalised")
 	assert.Equal(t, order.Open, position.Status, "position status should be open")
 	assert.Equal(t, order.Short, position.LatestDirection, "position direction should be short")
 	assert.Equal(t, "55", position.LatestSize.String(), "position size should be absolute")

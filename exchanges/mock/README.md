@@ -1,13 +1,11 @@
 # GoCryptoTrader package Mock
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/mock)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This mock package is part of the GoCryptoTrader codebase.
 
@@ -20,6 +18,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Mock Testing Suite
 
 ## Current Features for mock
+
 + REST recording service
 + REST mock response server
 
@@ -41,30 +40,30 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 package your_current_exchange_name
 
 import (
-	"os"
-	"testing"
-	"log"
+    "os"
+    "testing"
+    "log"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+    "github.com/thrasher-corp/gocryptotrader/config"
+    "github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
-	if err != nil {
-		log.Fatal("your_current_exchange_name Setup() init error", err)
-	}
-	your_current_exchange_nameConfig.API.AuthenticatedSupport = true
-	your_current_exchange_nameConfig.API.Credentials.Key = apiKey
-	your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
-	s.SetDefaults()
-	s.Setup(&your_current_exchange_nameConfig)
-	log.Printf(sharedtestvalues.LiveTesting, s.Name, s.API.Endpoints.URL)
-	os.Exit(m.Run())
+    cfg := config.GetConfig()
+    cfg.LoadConfig("../../testdata/configtest.json")
+    your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
+    if err != nil {
+        log.Fatal("your_current_exchange_name Setup() init error", err)
+    }
+    your_current_exchange_nameConfig.API.AuthenticatedSupport = true
+    your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+    your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
+    s.SetDefaults()
+    s.Setup(&your_current_exchange_nameConfig)
+    log.Printf(sharedtestvalues.LiveTesting, s.Name, s.API.Endpoints.URL)
+    os.Exit(m.Run())
 }
 ```
 
@@ -78,13 +77,13 @@ func TestMain(m *testing.M) {
 package your_current_exchange_name
 
 import (
-	"os"
-	"testing"
-	"log"
+    "os"
+    "testing"
+    "log"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+    "github.com/thrasher-corp/gocryptotrader/config"
+    "github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+    "github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 const mockfile = "../../testdata/http_mock/your_current_exchange_name/your_current_exchange_name.json"
@@ -92,28 +91,28 @@ const mockfile = "../../testdata/http_mock/your_current_exchange_name/your_curre
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
-	if err != nil {
-		log.Fatal("your_current_exchange_name Setup() init error", err)
-	}
-	your_current_exchange_nameConfig.API.AuthenticatedSupport = true
-	your_current_exchange_nameConfig.API.Credentials.Key = apiKey
-	your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
-	s.SetDefaults()
-	s.Setup(&your_current_exchange_nameConfig)
+    cfg := config.GetConfig()
+    cfg.LoadConfig("../../testdata/configtest.json")
+    your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
+    if err != nil {
+        log.Fatal("your_current_exchange_name Setup() init error", err)
+    }
+    your_current_exchange_nameConfig.API.AuthenticatedSupport = true
+    your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+    your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
+    s.SetDefaults()
+    s.Setup(&your_current_exchange_nameConfig)
 
-	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
+    serverDetails, newClient, err := mock.NewVCRServer(mockfile)
+    if err != nil {
+        log.Fatalf("Mock server error %s", err)
+    }
 
-	s.HTTPClient = newClient
-	s.API.Endpoints.URL = serverDetails
+    s.HTTPClient = newClient
+    s.API.Endpoints.URL = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, s.Name, s.API.Endpoints.URL)
-	os.Exit(m.Run())
+    log.Printf(sharedtestvalues.MockTesting, s.Name, s.API.Endpoints.URL)
+    os.Exit(m.Run())
 }
 
 ```
@@ -121,13 +120,13 @@ func TestMain(m *testing.M) {
 ## Mock test storage
 
 + Under `testdata/http_mock` create a folder matching the name of your exchange. Then create a JSON file matching the name of your exchange with the following formatting:
-```
+
+```json
 {
-	"routes": {
-	}
+    "routes": {
+    }
 }
 ```
-
 
 ## Recording a test result
 
@@ -137,13 +136,13 @@ func TestMain(m *testing.M) {
 var s SomeExchange
 
 func TestDummyTest(t *testing.T) {
-	s.Verbose = true // This will show you some fancy debug output
-	s.HTTPRecording = true // This will record the request and response payloads
-	s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
-	s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
-	s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
-	err := s.SomeExchangeEndpointFunction()
-	// check error
+    s.Verbose = true // This will show you some fancy debug output
+    s.HTTPRecording = true // This will record the request and response payloads
+    s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
+    s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
+    s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
+    err := s.SomeExchangeEndpointFunction()
+    // check error
 }
 ```
 
@@ -157,13 +156,13 @@ func TestDummyTest(t *testing.T) {
 var s SomeExchange
 
 func TestDummyTest(t *testing.T) {
-	s.Verbose = true // This will show you some fancy debug output
-	// s.HTTPRecording = true // This will record the request and response payloads
-	// s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
-	// s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
-	// s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
-	err := s.SomeExchangeEndpointFunction()
-	// check error
+    s.Verbose = true // This will show you some fancy debug output
+    // s.HTTPRecording = true // This will record the request and response payloads
+    // s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
+    // s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
+    // s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
+    err := s.SomeExchangeEndpointFunction()
+    // check error
 }
 ```
 
@@ -172,26 +171,29 @@ func TestDummyTest(t *testing.T) {
 ## Considerations
 
 + Some functions require timestamps. Mock tests _must_ match the same request structure, so `time.Now()` will cause problems for mock testing.
-	+ To address this, use the boolean variable `mockTests` to create a consistent date. An example is below.
+  + To address this, use the boolean variable `mockTests` to create a consistent date. An example is below.
+
+```go
+    startTime := time.Now().Add(-time.Hour * 1)
+    endTime := time.Now()
+    if mockTests {
+        startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+        endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
+    }
 ```
-	startTime := time.Now().Add(-time.Hour * 1)
-	endTime := time.Now()
-	if mockTests {
-		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
-	}
-```
+
 + Authenticated endpoints will typically require valid API keys and a signature to run successfully. Authenticated endpoints should be skipped. See an example below
-```
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
-	}
+
+```go
+    if mockTests {
+        t.Skip("skipping authenticated function for mock testing")
+    }
 ```
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`
