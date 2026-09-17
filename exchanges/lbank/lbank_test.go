@@ -470,10 +470,11 @@ func TestGetStatus(t *testing.T) {
 		resp   order.Status
 	}{
 		{status: -1, resp: order.Cancelled},
-		{status: 0, resp: order.Active},
+		{status: 0, resp: order.New},
 		{status: 1, resp: order.PartiallyFilled},
 		{status: 2, resp: order.Filled},
-		{status: 4, resp: order.Cancelling},
+		{status: 3, resp: order.PartiallyCancelled},
+		{status: 4, resp: order.PendingCancel},
 		{status: 5, resp: order.UnknownStatus},
 	} {
 		t.Run(tt.resp.String(), func(t *testing.T) {

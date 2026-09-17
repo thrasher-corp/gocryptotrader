@@ -319,7 +319,7 @@ func TestWsHandleKbar(t *testing.T) {
 		"pair": "btc_usdt",
 		"kbar": {"o": "29000.0","h": "29500.0","l": "28800.0","c": "29200.0","v": "100.5","t": "2026-07-07T12:30:00.000","slot": "1min"},
 		"SERVER": "V2",
-		"TS": "2026-07-07T12:30:00.000"
+		"TS": "2026-07-07T12:30:45.500"
 	}`))
 	require.NoError(t, err, "wsHandleData kbar must not error")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsHandleData must send one kbar update")
@@ -575,8 +575,7 @@ func TestWsHandleDataServerError(t *testing.T) {
 		"status": "error",
 		"TS": "2021-07-26T19:48:03.270"
 	}`))
-	assert.Error(t, err, "server error message should return error")
-	assert.Contains(t, err.Error(), "Missing parameter")
+	assert.ErrorContains(t, err, "Missing parameter", "wsHandleData should return LBank's error message")
 }
 
 func TestWsHandleData(t *testing.T) {
@@ -764,8 +763,7 @@ func TestWsHandleTradesDataHandlerSendFailure(t *testing.T) {
 		"pair": "eth_usdt",
 		"trade": {"volume": "0.5","price": "2100.0","direction": "buy","TS": "2026-07-07T12:30:00.000"}
 	}`))
-	assert.Error(t, err, "wsHandleData should return an error when DataHandler's buffer is full")
-	assert.Contains(t, err.Error(), "buffer is full", "error should indicate the channel buffer is full")
+	assert.ErrorContains(t, err, "buffer is full", "wsHandleData should return an error when DataHandler's buffer is full")
 }
 
 func TestWsHandleTradesSaveOnly(t *testing.T) {
