@@ -4872,10 +4872,16 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 	// specific test to ensure options with dates work
-	cp = currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C"))
-	resp, err = e.GetCurrencyTradeURL(t.Context(), asset.Options, cp)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	for quote, exp := range map[string]string{
+		"14JUN24-62000-C": tradeBaseURL + tradeOptions + "BTC/BTC-14JUN24",
+		"14jun24-62000-p": tradeBaseURL + tradeOptions + "BTC/BTC-14JUN24",
+		"14JUN24-62000-X": tradeBaseURL + tradeOptions + "BTC",
+		"C":               tradeBaseURL + tradeOptions + "BTC",
+	} {
+		resp, err = e.GetCurrencyTradeURL(t.Context(), asset.Options, currency.NewPair(currency.BTC, currency.NewCode(quote)))
+		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for option quote %s", quote)
+		assert.Equalf(t, exp, resp, "GetCurrencyTradeURL should link option quote %s to its expiry page", quote)
+	}
 }
 
 func TestFormatPairString(t *testing.T) {

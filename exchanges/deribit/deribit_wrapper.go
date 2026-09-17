@@ -1385,10 +1385,9 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	case asset.Options:
 		baseString := cp.Base.Upper().String()
 		quoteString := cp.Quote.Upper().String()
-		quoteSplit := strings.Split(quoteString, currency.DashDelimiter)
-		if len(quoteSplit) > 1 &&
-			(quoteSplit[len(quoteSplit)-1] == "C" || quoteSplit[len(quoteSplit)-1] == "P") {
-			return tradeBaseURL + tradeOptions + baseString + "/" + baseString + currency.DashDelimiter + quoteSplit[0], nil
+		if _, optionType, found := strings.CutLast(quoteString, currency.DashDelimiter); found && (optionType == "C" || optionType == "P") {
+			expiry, _, _ := strings.Cut(quoteString, currency.DashDelimiter)
+			return tradeBaseURL + tradeOptions + baseString + "/" + baseString + currency.DashDelimiter + expiry, nil
 		}
 		return tradeBaseURL + tradeOptions + baseString, nil
 	case asset.FutureCombo:

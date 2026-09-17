@@ -12,7 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -1257,47 +1259,53 @@ func readMessages(t *testing.T, wc *connection) {
 func TestSetupPingHandler(t *testing.T) {
 	t.Parallel()
 
-	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	synctest.Test(t, func(t *testing.T) {
+		var pings atomic.Int64
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
+				assert.Equal(t, Ping, string(msg), "mock server should only receive the configured ping message")
+				pings.Add(1)
+				return nil
+			})
+		}))
 
-	wc := &connection{
-		URL:              "ws" + mock.URL[len("http"):] + "/ws",
-		ResponseMaxLimit: time.Second * 5,
-		Match:            NewMatch(),
-		Wg:               &sync.WaitGroup{},
-	}
+		wc := &connection{
+			URL:              "ws" + mock.URL[len("http"):] + "/ws",
+			ResponseMaxLimit: time.Second * 5,
+			Match:            NewMatch(),
+			Wg:               &sync.WaitGroup{},
+		}
 
-	if wc.ProxyURL != "" && !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
-	}
-	wc.shutdown = make(chan struct{})
-	err := wc.Dial(t.Context(), dialer, http.Header{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if wc.ProxyURL != "" && !useProxyTests {
+			t.Skip("Proxy testing not enabled, skipping")
+		}
+		wc.shutdown = make(chan struct{})
+		require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
 
-	wc.SetupPingHandler(request.Unset, PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       gws.PingMessage,
-		Delay:             100,
+		wc.SetupPingHandler(request.Unset, PingHandler{
+			UseGorillaHandler: true,
+			MessageType:       gws.PingMessage,
+			Delay:             100 * time.Millisecond,
+		})
+		require.NoError(t, wc.Connection.Close(), "Close must not error")
+
+		require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
+		wc.SetupPingHandler(request.Unset, PingHandler{
+			MessageType: gws.TextMessage,
+			Message:     []byte(Ping),
+			Delay:       200 * time.Millisecond,
+		})
+		// the bubble waits for every goroutine, including the mock server's handler, which only returns once the connection closes
+		t.Cleanup(func() {
+			close(wc.shutdown)
+			wc.Wg.Wait()
+			assert.NoError(t, wc.Connection.Close(), "Close should not error")
+		})
+
+		// the ping handler wakes at the same instant, and Sleep also waits for its ping to reach the server
+		synctest.Sleep(200 * time.Millisecond)
+		assert.Equal(t, int64(1), pings.Load(), "ping handler should send one ping once its delay elapses")
 	})
-
-	err = wc.Connection.Close()
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = wc.Dial(t.Context(), dialer, http.Header{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wc.SetupPingHandler(request.Unset, PingHandler{
-		MessageType: gws.TextMessage,
-		Message:     []byte(Ping),
-		Delay:       200,
-	})
-	time.Sleep(time.Millisecond * 201)
-	close(wc.shutdown)
-	wc.Wg.Wait()
 }
 
 // TestParseBinaryResponse logic test

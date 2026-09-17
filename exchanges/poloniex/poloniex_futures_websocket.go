@@ -221,13 +221,13 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 }
 
 func channelToIntervalSplit(intervalString string) (string, kline.Interval, error) {
-	splits := strings.Split(intervalString, "_")
-	length := len(splits)
-	if length < 3 {
+	rest, _, _ := strings.CutLast(intervalString, "_")
+	channel, _, found := strings.CutLast(rest, "_")
+	if !found {
 		return intervalString, kline.Interval(0), fmt.Errorf("%w %q", kline.ErrInvalidInterval, intervalString)
 	}
-	intervalValue, err := stringToInterval(strings.Join(splits[length-2:], "_"))
-	return strings.Join(splits[:length-2], "_"), intervalValue, err
+	intervalValue, err := stringToInterval(intervalString[len(channel)+1:])
+	return channel, intervalValue, err
 }
 
 func (e *Exchange) processFuturesAccountData(ctx context.Context, data []byte) error {
