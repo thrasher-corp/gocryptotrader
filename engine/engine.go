@@ -874,7 +874,7 @@ func (bot *Engine) LoadExchange(name string) error {
 		}
 	}
 
-	// NOTE: This will standardize name to default and apply it to the config.
+	// NOTE: This will standardise name to default and apply it to the config.
 	exchCfg.Name = exch.GetName()
 
 	exchCfg.Enabled = true

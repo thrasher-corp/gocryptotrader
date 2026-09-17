@@ -14,7 +14,7 @@ DECIMAL_BENCH_COUNT ?= 5
 DECIMAL_BENCH_TIME ?= 500ms
 DECIMAL_BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime $(DECIMAL_BENCH_TIME) -count $(DECIMAL_BENCH_COUNT)
 
-.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
+.PHONY: all lint lint_docker markdownlint misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
 
 all: check build
 
@@ -29,7 +29,14 @@ lint_docker:
 misc_checks:
 	bash ./scripts/misc_checks.sh
 
-check: lint misc_checks test
+markdownlint:
+	@if ! command -v npx >/dev/null 2>&1; then \
+		if [ -n "$$CI" ]; then echo "npx not found: Markdown lint cannot run in CI"; exit 1; fi; \
+		echo "npx not found: skipping Markdown lint, which CI still runs"; exit 0; \
+	fi; \
+	npx --yes markdownlint-cli2@0.23.2 "**/*.md" "cmd/documentation/**/*.tmpl"
+
+check: lint misc_checks markdownlint test
 
 test:
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...

@@ -138,8 +138,8 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol string) (*Orderbook,
 	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
-// GetOrderbookAuthenticatedV1 fetches a spot or futures orderbook using the authenticated V1 endpoint
-// For spot: limit options are 20, 50, FULL
+// GetOrderbookAuthenticatedV1 fetches a spot, margin or futures orderbook using the authenticated V1 endpoint
+// For spot and margin: limit options are 20, 50, FULL
 // For futures: limit options are 20, 100, FULL
 func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol string, a asset.Item, limit string) (*Orderbook, error) {
 	if symbol == "" {
@@ -148,7 +148,7 @@ func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol strin
 
 	var tradeType string
 	switch a {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		if limit != "20" && limit != "50" && limit != "FULL" {
 			return nil, fmt.Errorf("%w: %s", errInvalidLimit, limit)
 		}
