@@ -47,11 +47,30 @@ func TestHeaderValuesForLog(t *testing.T) {
 		"X-Auth-Token",
 		"X-Signature",
 	} {
-		require.Equal(t, []string{"[REDACTED]"}, headerValuesForLog(header, values),
-			header+" must be redacted")
+		require.Equal(t, []string{"[REDACTED]"}, headerValuesForLog(header, values), header+" must be redacted")
 	}
-	require.Equal(t, values, headerValuesForLog("Content-Type", values),
-		"non-sensitive header values must remain available for diagnostics")
+	require.Equal(t, values, headerValuesForLog("Content-Type", values), "non-sensitive header values must remain available for diagnostics")
+}
+
+func BenchmarkHeaderValuesForLog(b *testing.B) {
+	values := []string{"sensitive-value"}
+	for _, header := range []string{
+		"Authorization",
+		"Cookie",
+		"Key",
+		"OK-ACCESS-PASSPHRASE",
+		"Sign",
+		"X-API-Key",
+		"X-Auth-Token",
+		"X-Signature",
+		"Content-Type",
+	} {
+		b.Run(header, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = headerValuesForLog(header, values)
+			}
+		})
+	}
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
