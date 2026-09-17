@@ -329,7 +329,7 @@ func TestWsHandleKbar(t *testing.T) {
 		Asset:    asset.Spot,
 		Interval: kline.OneMin,
 		Candles: []kline.Candle{{
-			Time:   time.Date(2026, 7, 7, 12, 30, 0, 0, wsTimeLocation).UTC(),
+			Time:   time.Date(2026, 7, 7, 4, 30, 0, 0, time.UTC),
 			Open:   29000.0,
 			High:   29500.0,
 			Low:    28800.0,
@@ -368,9 +368,9 @@ func TestWebsocketTimeUnmarshal(t *testing.T) {
 	t.Run("valid timestamp", func(t *testing.T) {
 		t.Parallel()
 		var wt websocketTime
-		err := json.Unmarshal([]byte(`"2026-09-06T13:29:00.000"`), &wt)
-		require.NoError(t, err)
-		assert.False(t, wt.Time().IsZero(), "time should not be zero")
+		err := json.Unmarshal([]byte(`"2026-09-06T13:29:00.123"`), &wt)
+		require.NoError(t, err, "Unmarshal must not error")
+		assert.Equal(t, time.Date(2026, 9, 6, 5, 29, 0, 123000000, time.UTC), wt.Time(), "Time should convert LBank's UTC+8 stamp to UTC")
 	})
 
 	t.Run("empty string", func(t *testing.T) {
@@ -400,7 +400,7 @@ func TestWsHandleOrderUpdate(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
-	err := ex.wsHandleData(t.Context(), []byte(`{"orderUpdate":{"accAmt":"0.4","amount":"0.2","avgPrice":"99.5","orderAmt":"1","orderPrice":"100","orderStatus":1,"price":"99","remainAmt":"0.6","type":"buy","updateTime":1704067200000,"uuid":"test-order-uuid"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2024-01-01T08:00:00.000"}`))
+	err := ex.wsHandleData(t.Context(), []byte(`{"orderUpdate":{"accAmt":"0.4","amount":"0.2","avgPrice":"99.5","orderAmt":"1","orderPrice":"100","orderStatus":1,"price":"99","remainAmt":"60","type":"buy","updateTime":1704067200000,"uuid":"test-order-uuid"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2024-01-01T08:00:00.000"}`))
 	require.NoError(t, err, "wsHandleData must not error")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsHandleData must send one order update")
 	exp := &order.Detail{
@@ -413,6 +413,7 @@ func TestWsHandleOrderUpdate(t *testing.T) {
 		RemainingAmount:      0.6,
 		AverageExecutedPrice: 99.5,
 		Side:                 order.Buy,
+		Type:                 order.Limit,
 		OrderID:              "test-order-uuid",
 		Status:               order.PartiallyFilled,
 		LastUpdated:          time.UnixMilli(1704067200000),
@@ -457,18 +458,20 @@ func TestWsHandleOrderUpdateCompoundTypes(t *testing.T) {
 	for _, tc := range []struct {
 		typ                      string
 		side                     order.Side
+		oType                    order.Type
+		tif                      order.TimeInForce
 		amount, quote, remaining float64
 	}{
-		{"buy", order.Buy, 5, 0, 3},
-		{"sell", order.Sell, 5, 0, 3},
-		{"buy_market", order.Buy, 0, 5, 0},
-		{"sell_market", order.Sell, 5, 0, 3},
-		{"buy_maker", order.Buy, 5, 0, 3},
-		{"sell_maker", order.Sell, 5, 0, 3},
-		{"buy_ioc", order.Buy, 5, 0, 3},
-		{"sell_ioc", order.Sell, 5, 0, 3},
-		{"buy_fok", order.Buy, 5, 0, 3},
-		{"sell_fok", order.Sell, 5, 0, 3},
+		{"buy", order.Buy, order.Limit, order.UnknownTIF, 5, 0, 3},
+		{"sell", order.Sell, order.Limit, order.UnknownTIF, 5, 0, 7},
+		{"buy_market", order.Buy, order.Market, order.UnknownTIF, 0, 5, 0},
+		{"sell_market", order.Sell, order.Market, order.UnknownTIF, 5, 0, 7},
+		{"buy_maker", order.Buy, order.Limit, order.PostOnly, 5, 0, 3},
+		{"sell_maker", order.Sell, order.Limit, order.PostOnly, 5, 0, 7},
+		{"buy_ioc", order.Buy, order.Limit, order.ImmediateOrCancel, 5, 0, 3},
+		{"sell_ioc", order.Sell, order.Limit, order.ImmediateOrCancel, 5, 0, 7},
+		{"buy_fok", order.Buy, order.Limit, order.FillOrKill, 5, 0, 3},
+		{"sell_fok", order.Sell, order.Limit, order.FillOrKill, 5, 0, 7},
 	} {
 		t.Run(tc.typ, func(t *testing.T) {
 			t.Parallel()
@@ -477,19 +480,29 @@ func TestWsHandleOrderUpdateCompoundTypes(t *testing.T) {
 			err := ex.wsHandleData(t.Context(), fmt.Appendf(nil, `{
 				"type": "orderUpdate",
 				"pair": "btc_usdt",
-				"orderUpdate": {"accAmt": "2","orderAmt": "5","orderStatus": 1,"orderPrice": "0.009834","remainAmt": "3","type": %q,"updateTime": 1705676718532,"uuid": "test"}
+				"orderUpdate": {"accAmt": "2","customerID": "client-123","orderAmt": "5","orderStatus": 1,"orderPrice": "0.009834","remainAmt": "7","type": %q,"updateTime": 1705676718532,"uuid": "test"}
 			}`, tc.typ))
 			require.NoError(t, err, "wsHandleData must not error")
 			require.Len(t, ex.Websocket.DataHandler.C, 1, "wsHandleData must send one order update")
 			d, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
 			require.True(t, ok, "DataHandler must receive an *order.Detail")
 			assert.Equal(t, tc.side, d.Side, "Side should come from the type prefix")
+			assert.Equal(t, tc.oType, d.Type, "Type should come from the type suffix")
+			assert.Equal(t, tc.tif, d.TimeInForce, "TimeInForce should come from the type suffix")
+			assert.Equal(t, "client-123", d.ClientOrderID, "ClientOrderID should be customerID")
 			assert.Equal(t, tc.amount, d.Amount, "Amount should be orderAmt except for a market buy")
 			assert.Equal(t, tc.quote, d.QuoteAmount, "QuoteAmount should be orderAmt only for a market buy")
 			assert.Equal(t, 2.0, d.ExecutedAmount, "ExecutedAmount should be accAmt")
-			assert.Equal(t, tc.remaining, d.RemainingAmount, "RemainingAmount should be remainAmt except for a market buy")
+			assert.Equal(t, tc.remaining, d.RemainingAmount, "RemainingAmount should be remainAmt on a sell and orderAmt-accAmt on a buy")
 		})
 	}
+}
+
+func TestLbankOrderTypeToOrderType(t *testing.T) {
+	t.Parallel()
+	oType, tif := lbankOrderTypeToOrderType("unrecognised")
+	assert.Equal(t, order.UnknownType, oType, "an unrecognised suffix should map to UnknownType")
+	assert.Equal(t, order.UnknownTIF, tif, "an unrecognised suffix should map to UnknownTIF")
 }
 
 func TestLbankOrderStatusToOrderStatus(t *testing.T) {
@@ -614,7 +627,7 @@ func TestWsHandleTicker(t *testing.T) {
 		Low:          2010.26,
 		Last:         2124.36,
 		Volume:       51774.0345,
-		LastUpdated:  time.Date(2024, 1, 1, 0, 0, 0, 0, wsTimeLocation).UTC(),
+		LastUpdated:  time.Date(2023, 12, 31, 16, 0, 0, 0, time.UTC),
 	}
 	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsHandleData should send the expected ticker")
 
@@ -658,10 +671,11 @@ func TestWsHandleAssetUpdate(t *testing.T) {
 	exp := accounts.Change{
 		AssetType: asset.Spot,
 		Balance: accounts.Balance{
-			Currency: currency.NewCode("usdt"),
-			Total:    114548.31881315,
-			Free:     97430.6739041,
-			Hold:     17117.64490905,
+			Currency:  currency.NewCode("usdt"),
+			Total:     114548.31881315,
+			Free:      97430.6739041,
+			Hold:      17117.64490905,
+			UpdatedAt: time.UnixMilli(1627300043270),
 		},
 	}
 	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsHandleData should send the expected asset update")
@@ -794,7 +808,7 @@ func TestWsHandleTrades(t *testing.T) {
 		CurrencyPair: currency.NewPairWithDelimiter("eth", "usdt", "_"),
 		Price:        2100.0,
 		Amount:       0.5,
-		Timestamp:    time.Date(2026, 7, 7, 12, 30, 0, 0, wsTimeLocation).UTC(),
+		Timestamp:    time.Date(2026, 7, 7, 4, 30, 0, 0, time.UTC),
 		Side:         order.Buy,
 	}
 	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsHandleData should send the expected trade")
@@ -860,7 +874,7 @@ func TestWsHandleOrderbook(t *testing.T) {
 			]
 		},
 		"SERVER": "V2",
-		"TS": "2024-01-01T00:00:00.000"
+		"TS": "2024-01-01T00:30:45.500"
 	}`))
 	require.NoError(t, err, "wsHandleData orderbook must not error")
 
@@ -870,6 +884,7 @@ func TestWsHandleOrderbook(t *testing.T) {
 	require.NoError(t, err, "orderbook.Get must not error")
 	assert.Len(t, ob.Asks, 2, "orderbook should have 2 asks")
 	assert.Len(t, ob.Bids, 2, "orderbook should have 2 bids")
+	assert.Equal(t, time.Date(2023, 12, 31, 16, 30, 45, 500000000, time.UTC), ob.LastUpdated, "orderbook LastUpdated should be the envelope TS in UTC")
 
 	t.Run("mismatched depth type", func(t *testing.T) {
 		t.Parallel()

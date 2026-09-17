@@ -101,6 +101,26 @@ var defaultSubscriptionTemplate = template.Must(template.New("").Funcs(template.
 {{- end }}
 `))
 
+// lbankOrderTypeToOrderType maps the suffix of LBank's compound order type onto a
+// type and time in force. An unrecognised suffix is left unknown rather than
+// rejected, so a new LBank order type cannot drop the whole update.
+func lbankOrderTypeToOrderType(s string) (order.Type, order.TimeInForce) {
+	switch s {
+	case "":
+		return order.Limit, order.UnknownTIF
+	case "market":
+		return order.Market, order.UnknownTIF
+	case "maker":
+		return order.Limit, order.PostOnly
+	case "ioc":
+		return order.Limit, order.ImmediateOrCancel
+	case "fok":
+		return order.Limit, order.FillOrKill
+	default:
+		return order.UnknownType, order.UnknownTIF
+	}
+}
+
 // WsConnect connects to the LBank websocket
 func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
@@ -336,6 +356,7 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 		return err
 	}
 
+	oType, tif := lbankOrderTypeToOrderType(orderType)
 	detail := &order.Detail{
 		Exchange:             e.Name,
 		AssetType:            asset.Spot,
@@ -343,17 +364,25 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 		Price:                resp.OrderUpdate.OrderPrice.Float64(),
 		AverageExecutedPrice: resp.OrderUpdate.AveragePrice.Float64(),
 		Side:                 side,
+		Type:                 oType,
+		TimeInForce:          tif,
 		OrderID:              resp.OrderUpdate.UUID,
+		ClientOrderID:        resp.OrderUpdate.CustomerID,
 		Status:               status,
 		LastUpdated:          resp.OrderUpdate.UpdateTime.Time(),
 	}
+	detail.ExecutedAmount = resp.OrderUpdate.AccumulatedAmount.Float64()
 	if orderType == "market" && side == order.Buy {
 		detail.QuoteAmount = resp.OrderUpdate.OrderAmount.Float64()
-		detail.ExecutedAmount = resp.OrderUpdate.AccumulatedAmount.Float64()
 	} else {
 		detail.Amount = resp.OrderUpdate.OrderAmount.Float64()
-		detail.ExecutedAmount = resp.OrderUpdate.AccumulatedAmount.Float64()
-		detail.RemainingAmount = resp.OrderUpdate.RemainingAmount.Float64()
+		if side == order.Sell {
+			detail.RemainingAmount = resp.OrderUpdate.RemainingAmount.Float64()
+		} else {
+			// LBank documents remainAmt as the remaining trading value on a buy, so
+			// derive the base remainder as the REST order wrappers already do
+			detail.RemainingAmount = detail.Amount - detail.ExecutedAmount
+		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, detail)
 }
@@ -368,10 +397,11 @@ func (e *Exchange) wsHandleAssetUpdate(ctx context.Context, respRaw []byte) erro
 	change := accounts.Change{
 		AssetType: asset.Spot,
 		Balance: accounts.Balance{
-			Currency: currency.NewCode(resp.Data.AssetCode),
-			Total:    resp.Data.Asset.Float64(),
-			Free:     resp.Data.Free.Float64(),
-			Hold:     resp.Data.Freeze.Float64(),
+			Currency:  currency.NewCode(resp.Data.AssetCode),
+			Total:     resp.Data.Asset.Float64(),
+			Free:      resp.Data.Free.Float64(),
+			Hold:      resp.Data.Freeze.Float64(),
+			UpdatedAt: resp.Data.UpdateTime.Time(),
 		},
 	}
 

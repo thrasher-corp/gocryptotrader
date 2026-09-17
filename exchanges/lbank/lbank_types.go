@@ -175,10 +175,11 @@ type websocketAssetUpdateResponse struct {
 
 // websocketAssetUpdateData holds asset update fields
 type websocketAssetUpdateData struct {
-	Asset     types.Number `json:"asset"`
-	AssetCode string       `json:"assetCode"`
-	Free      types.Number `json:"free"`
-	Freeze    types.Number `json:"freeze"`
+	Asset      types.Number `json:"asset"`
+	AssetCode  string       `json:"assetCode"`
+	Free       types.Number `json:"free"`
+	Freeze     types.Number `json:"freeze"`
+	UpdateTime types.Time   `json:"time"`
 }
 
 // websocketTradeData holds trade data fields
@@ -228,6 +229,7 @@ type websocketOrderUpdateResponse struct {
 type websocketOrderUpdateData struct {
 	AccumulatedAmount types.Number `json:"accAmt"`
 	AveragePrice      types.Number `json:"avgPrice"`
+	CustomerID        string       `json:"customerID"`
 	OrderAmount       types.Number `json:"orderAmt"`
 	OrderPrice        types.Number `json:"orderPrice"`
 	OrderStatus       int64        `json:"orderStatus"`

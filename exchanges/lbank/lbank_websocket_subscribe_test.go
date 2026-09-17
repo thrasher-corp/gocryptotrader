@@ -134,5 +134,5 @@ func TestManageSubsMockWsInstance(t *testing.T) {
 
 	var req map[string]any
 	require.NoError(t, json.Unmarshal(msgs[len(msgs)-1], &req), "last sent message must be valid JSON")
-	assert.Equal(t, lbankWsUnsubscribe, req[lbankWsAction], "last message must be an unsubscribe action")
+	assert.Equal(t, lbankWsUnsubscribe, req[lbankWsAction], "last message should be an unsubscribe action")
 }
