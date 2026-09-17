@@ -72,4 +72,5 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2 // indirect
 )

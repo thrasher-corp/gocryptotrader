@@ -245,7 +245,6 @@ func init() {
 	PortfolioMgr = registerNewSubLogger("PORTFOLIO")
 	SyncMgr = registerNewSubLogger("SYNC")
 	TimeMgr = registerNewSubLogger("TIMEKEEPER")
-	GCTScriptMgr = registerNewSubLogger("GCTSCRIPT")
 	WebsocketMgr = registerNewSubLogger("WEBSOCKET")
 	EventMgr = registerNewSubLogger("EVENT")
 	DispatchMgr = registerNewSubLogger("DISPATCH")

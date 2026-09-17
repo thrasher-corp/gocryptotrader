@@ -817,25 +817,6 @@ func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	return out, outItem, nil
 }
 
-func TestLoadCSV(t *testing.T) {
-	v, err := LoadFromGCTScriptCSV(filepath.Join("..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if v[0].Time.UTC() != time.Unix(1546300800, 0).UTC() {
-		t.Fatalf("unexpected value received: %v", v[0].Time)
-	}
-
-	if v[269].Close != 8177.91 {
-		t.Fatalf("unexpected value received: %v", v[269].Close)
-	}
-
-	if v[364].Open != 7246 {
-		t.Fatalf("unexpected value received: %v", v[364].Open)
-	}
-}
-
 func TestVerifyResultsHaveData(t *testing.T) {
 	t.Parallel()
 	tt1 := time.Now().Round(OneDay.Duration())
