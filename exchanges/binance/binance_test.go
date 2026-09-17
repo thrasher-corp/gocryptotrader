@@ -2543,15 +2543,6 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		LastUpdated:          time.UnixMilli(1616627567900),
 		Pair:                 currency.NewBTCUSDT(),
 	}
-	// empty the channel. otherwise mock_test will fail
-drain:
-	for {
-		select {
-		case <-e.Websocket.DataHandler.C:
-		default:
-			break drain
-		}
-	}
 
 	err := e.wsHandleData(t.Context(), payload)
 	if err != nil {
