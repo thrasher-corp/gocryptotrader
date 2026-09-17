@@ -518,31 +518,22 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 
 func TestGetExchangeNamesByCurrency(t *testing.T) {
 	t.Parallel()
-	btsusd, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	btsusd := currency.NewBTCUSD()
 
-	btcjpy, err := currency.NewPairFromStrings("BTC", "JPY")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	blahjpy, err := currency.NewPairFromStrings("blah", "JPY")
-	if err != nil {
-		t.Fatal(err)
-	}
+	btcusdt := currency.NewBTCUSDT()
+	blahusdt, err := currency.NewPairFromStrings("blah", "USDT")
+	require.NoError(t, err, "currency.NewPairFromStrings must not error")
 
 	e := CreateTestBot(t)
-	bf := "Bitflyer"
+	bf := "Binance"
 	e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
 		Enabled: true,
 		Name:    bf,
 		CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
 				AssetEnabled: true,
-				Enabled:      currency.Pairs{btcjpy},
-				Available:    currency.Pairs{btcjpy},
+				Enabled:      currency.Pairs{btcusdt},
+				Available:    currency.Pairs{btcusdt},
 				ConfigFormat: &currency.PairFormat{
 					Uppercase: true,
 				},
@@ -551,26 +542,14 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 	})
 	assetType := asset.Spot
 
-	result := e.GetExchangeNamesByCurrency(btsusd,
-		true,
-		assetType)
-	if !slices.Contains(result, testExchange) {
-		t.Fatal("Unexpected result")
-	}
+	result := e.GetExchangeNamesByCurrency(btsusd, true, assetType)
+	require.Contains(t, result, testExchange, "result must contain testExchange")
 
-	result = e.GetExchangeNamesByCurrency(btcjpy,
-		true,
-		assetType)
-	if !slices.Contains(result, bf) {
-		t.Fatal("Unexpected result")
-	}
+	result = e.GetExchangeNamesByCurrency(btcusdt, true, assetType)
+	require.Contains(t, result, bf, "result must contain bf")
 
-	result = e.GetExchangeNamesByCurrency(blahjpy,
-		true,
-		assetType)
-	if len(result) > 0 {
-		t.Fatal("Unexpected result")
-	}
+	result = e.GetExchangeNamesByCurrency(blahusdt, true, assetType)
+	require.Empty(t, result, "result must be empty")
 }
 
 func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {

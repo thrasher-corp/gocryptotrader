@@ -20,7 +20,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Binance.US| Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
-| Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | Yes       | NA  |
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | Yes       | NA  |
@@ -174,9 +173,9 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 788 |
+| [thrasher-](https://github.com/thrasher-) | 789 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 488 |
-| [shazbert](https://github.com/shazbert) | 419 |
+| [shazbert](https://github.com/shazbert) | 422 |
 | [gloriousCode](https://github.com/gloriousCode) | 247 |
 | [gbjk](https://github.com/gbjk) | 145 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |

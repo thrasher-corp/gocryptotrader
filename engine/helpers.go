@@ -32,7 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
@@ -183,9 +182,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case NTPManagerName:
 		if enable {
 			if bot.ntpManager == nil {
-				bot.ntpManager, err = setupNTPManager(
-					&bot.Config.NTPClient,
-					*bot.Config.Logging.Enabled)
+				bot.ntpManager, err = setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
 				if err != nil {
 					return err
 				}
@@ -226,11 +223,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
 					cfg.NumWorkers = bot.Settings.SyncWorkersCount
 				}
-				bot.currencyPairSyncer, err = SetupSyncManager(
-					&cfg,
-					bot.ExchangeManager,
-					&bot.Config.RemoteControl,
-					bot.Settings.EnableWebsocketRoutine)
+				bot.currencyPairSyncer, err = SetupSyncManager(&cfg, bot.ExchangeManager, &bot.Config.RemoteControl, bot.Settings.EnableWebsocketRoutine)
 				if err != nil {
 					return err
 				}
@@ -270,9 +263,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case strings.ToLower(CurrencyStateManagementName):
 		if enable {
 			if bot.currencyStateManager == nil {
-				bot.currencyStateManager, err = SetupCurrencyStateManager(
-					bot.Config.CurrencyStateManager.Delay,
-					bot.ExchangeManager)
+				bot.currencyStateManager, err = SetupCurrencyStateManager(bot.Config.CurrencyStateManager.Delay, bot.ExchangeManager)
 				if err != nil {
 					return err
 				}
@@ -920,8 +911,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(binance.Exchange), nil
 	case "bitfinex":
 		return new(bitfinex.Exchange), nil
-	case "bitflyer":
-		return new(bitflyer.Exchange), nil
 	case "bithumb":
 		return new(bithumb.Exchange), nil
 	case "bitstamp":
