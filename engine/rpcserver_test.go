@@ -3761,9 +3761,13 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
 			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
+			// the server measures uptime while handling the request, so it must fall within this window; bounding it
+			// here keeps slow response decoding, such as a JSON backend compiling its decoder, out of the measurement
+			sentAfter := time.Since(fakeTime)
 			resp, err := client.Do(req)
 			require.NoError(t, err, "Do must not error")
 			defer resp.Body.Close()
+			receivedBy := time.Since(fakeTime)
 
 			if creds.username == "bobmarley" && creds.password == "Sup3rdup3rS3cr3t" {
 				var info gctrpc.GetInfoResponse
@@ -3772,7 +3776,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 
 				uptimeDuration, err := time.ParseDuration(info.Uptime)
 				require.NoError(t, err, "ParseDuration must not error")
-				assert.InDelta(t, time.Since(fakeTime).Seconds(), uptimeDuration.Seconds(), 1.0, "Uptime should be within 1 second of the expected duration")
+				assert.GreaterOrEqual(t, uptimeDuration, sentAfter, "Uptime should be measured after the request was sent")
+				assert.LessOrEqual(t, uptimeDuration, receivedBy, "Uptime should be measured before the response arrived")
 			} else {
 				respBody, err := io.ReadAll(resp.Body)
 				require.NoError(t, err, "ReadAll must not error")
