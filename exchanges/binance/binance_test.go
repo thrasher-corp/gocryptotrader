@@ -2023,7 +2023,7 @@ func TestSubscribeBadResp(t *testing.T) {
 
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"ETHBTC","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
+	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"BTCUSDT","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
 	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -2034,8 +2034,8 @@ func TestWsKlineUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
 	  "e": "kline",
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
+	  "E": 1234567891,
+	  "s": "BTCUSDT",
 	  "k": {
 		"t": 1234000001, 
 		"T": 1234600001, 
@@ -2066,9 +2066,9 @@ func TestWsTradeUpdate(t *testing.T) {
 	t.Parallel()
 	e.SetSaveTradeDataStatus(true)
 	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
-	  "e": "trade",     
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
+	  "e": "trade",
+	  "E": 1234567891,
+	  "s": "BTCUSDT",
 	  "t": 12345,       
 	  "p": "0.001",     
 	  "q": "100",       
