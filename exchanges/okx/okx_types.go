@@ -83,6 +83,7 @@ var (
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
+	errMissingInstIDCode                    = errors.New("missing instrument ID Code")
 	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
@@ -868,7 +869,7 @@ type CancelMassReqParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
-	InstrumentID    string
+	InstrumentID    string  `json:"instId"`
 	InstIdCode      int64   `json:"instIdCode,string,omitempty"`
 	CancelOnFail    bool    `json:"cxlOnFail,omitempty"`
 	OrderID         string  `json:"ordId,omitempty"`
@@ -987,7 +988,6 @@ type OrderListRequestParams struct {
 	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
 	Underlying     string    `json:"uly"`
 	InstrumentID   string    `json:"instId"`
-	InstIdCode     int64     `json:"instIdCode,string,omitempty"`
 	OrderType      string    `json:"orderType"`
 	State          string    `json:"state"`            // live, partially_filled
 	Before         string    `json:"before,omitempty"` // used for order IDs
@@ -1089,7 +1089,6 @@ type TransactionDetail struct {
 // AlgoOrderParams holds algo order information
 type AlgoOrderParams struct {
 	InstrumentID      string  `json:"instId"` // Required
-	InstIdCode        int64   `json:"instIdCode,string,omitempty"`
 	TradeMode         string  `json:"tdMode"` // Required
 	Currency          string  `json:"ccy,omitempty"`
 	Side              string  `json:"side"` // Required
@@ -1149,7 +1148,6 @@ type AlgoOrder struct {
 // AmendAlgoOrderParam request parameter to amend an algo order
 type AmendAlgoOrderParam struct {
 	InstrumentID              string  `json:"instId"`
-	InstIdCode                int64   `json:"instIdCode,string,omitempty"`
 	AlgoID                    string  `json:"algoId,omitempty"`
 	ClientSuppliedAlgoOrderID string  `json:"algoClOrdId,omitempty"`
 	CancelOrderWhenFail       bool    `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically cancelled when the order amendment fails Valid options: false or true, the default is false.
@@ -1244,7 +1242,6 @@ type AlgoOrderDetail struct {
 type AlgoOrderCancelParams struct {
 	AlgoOrderID  string `json:"algoId"`
 	InstrumentID string `json:"instId"`
-	InstIdCode   int64  `json:"instIdCode"`
 }
 
 // AlgoOrderResponse holds algo order information

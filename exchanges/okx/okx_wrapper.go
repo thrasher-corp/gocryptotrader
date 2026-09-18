@@ -989,7 +989,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	case orderTrigger:
 		result, err = e.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
-			InstIdCode:       instIdCode,
 			TradeMode:        tradeMode,
 			Side:             s.Side.Lower(),
 			PositionSide:     positionSide,
@@ -1003,7 +1002,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		// Trigger Price and type are used as a stop losss trigger price and type.
 		result, err = e.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
-			InstIdCode:               instIdCode,
 			TradeMode:                tradeMode,
 			Side:                     s.Side.Lower(),
 			PositionSide:             positionSide,
@@ -1023,7 +1021,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		result, err = e.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
-			InstIdCode:    instIdCode,
 			TradeMode:     tradeMode,
 			Side:          s.Side.Lower(),
 			PositionSide:  positionSide,
@@ -1046,7 +1043,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		result, err = e.PlaceTrailingStopOrder(ctx, &AlgoOrderParams{
 			InstrumentID:           pairString,
-			InstIdCode:             instIdCode,
 			TradeMode:              tradeMode,
 			Side:                   sideType,
 			PositionSide:           positionSide,
@@ -1070,7 +1066,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		result, err = e.PlaceTWAPOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
-			InstIdCode:    instIdCode,
 			TradeMode:     tradeMode,
 			Side:          sideType,
 			PositionSide:  positionSide,
@@ -1092,7 +1087,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		result, err = e.PlaceAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID: pairString,
-			InstIdCode:   instIdCode,
 			TradeMode:    tradeMode,
 			Side:         sideType,
 			PositionSide: positionSide,
@@ -1215,7 +1209,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
 			InstrumentID:              instrumentID,
-			InstIdCode:                instIdCode,
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
 			NewSize:                   action.Amount,
@@ -1241,7 +1234,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
 			InstrumentID:              instrumentID,
-			InstIdCode:                instIdCode,
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
 			NewSize:                   action.Amount,
@@ -1306,7 +1298,6 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			{
 				AlgoOrderID:  ord.OrderID,
 				InstrumentID: instrumentID,
-				InstIdCode:   instIdCode,
 			},
 		})
 		if err != nil {
@@ -1362,7 +1353,6 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			cancelAlgoOrderParams = append(cancelAlgoOrderParams, AlgoOrderCancelParams{
 				AlgoOrderID:  o[x].OrderID,
 				InstrumentID: pairFormat.Format(ord.Pair),
-				InstIdCode:   instIdCode,
 			})
 		default:
 			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, o[x].Type)
@@ -1448,12 +1438,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if orderCancellation.Pair.IsPopulated() {
 		curr = orderCancellation.Pair.Upper().String()
 	}
-	instIdCode := e.getInstIdCode(orderCancellation.AssetType, curr)
 	myOrders, err := e.GetOrderList(ctx, &OrderListRequestParams{
 		InstrumentType: instrumentType,
 		OrderType:      oType,
 		InstrumentID:   curr,
-		InstIdCode:     instIdCode,
 	})
 	if err != nil {
 		return cancelAllResponse, err

@@ -1880,7 +1880,7 @@ type DeliveryOrderCreateParams struct {
 // FuturesOrder represents future order response
 type FuturesOrder struct {
 	ID                        int64         `json:"id"`
-	User                      uint64        `json:"user"`
+	User                      types.Number  `json:"user"`
 	Contract                  currency.Pair `json:"contract"`
 	CreateTime                types.Time    `json:"create_time"`
 	Size                      types.Number  `json:"size"`
@@ -1891,7 +1891,7 @@ type FuturesOrder struct {
 	MakerFeeRate              types.Number  `json:"mkfr"`
 	TakerFeeRate              types.Number  `json:"tkfr"`
 	TimeInForce               string        `json:"tif"`
-	ReferenceUserID           uint64        `json:"refu"`
+	ReferenceUserID           types.Number  `json:"refu"`
 	IsReduceOnly              bool          `json:"is_reduce_only"`
 	IsClose                   bool          `json:"is_close"`
 	IsOrderForLiquidation     bool          `json:"is_liq"`
