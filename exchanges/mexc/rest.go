@@ -36,9 +36,9 @@ type Exchange struct {
 	// clear the marks of all.
 	orderbookSnapshotLoadedPairs map[string]bool
 	syncOrderbookPairsLock       sync.Mutex
-	// wsListenKey is the user data stream key created on WsConnect; the keepalive goroutine renews it.
-	wsListenKey   string
-	wsListenKeyMu sync.Mutex
+	// wsTickerMu serialises the read-merge-write of the cached spot ticker: bookTicker and miniTicker
+	// for one pair can arrive on different connections once subscriptions span more than one.
+	wsTickerMu sync.Mutex
 }
 
 const (
@@ -79,8 +79,8 @@ func (e *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
 	return resp.ServerTime, e.SendHTTPRequest(ctx, exchange.RestSpot, systemTimeEPL, http.MethodGet, "time", nil, nil, &resp)
 }
 
-// GetDefaultSumbols retrieves all default symbols
-func (e *Exchange) GetDefaultSumbols(ctx context.Context) ([]string, error) {
+// GetDefaultSymbols retrieves all default symbols
+func (e *Exchange) GetDefaultSymbols(ctx context.Context) ([]string, error) {
 	var resp struct {
 		Symbols []string `json:"data"`
 	}
@@ -404,8 +404,8 @@ func (e *Exchange) SubAccountUniversalTransfer(ctx context.Context, fromAccount,
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, subAccountUniversalTransferEPL, http.MethodPost, "capital/sub-account/universalTransfer", params, nil, &resp, true)
 }
 
-// GetSubAccountUnversalTransferHistory retrieves universal assets transfer history of master account
-func (e *Exchange) GetSubAccountUnversalTransferHistory(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, limit int64) (*UniversalTransferHistoryData, error) {
+// GetSubAccountUniversalTransferHistory retrieves universal assets transfer history of master account
+func (e *Exchange) GetSubAccountUniversalTransferHistory(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, limit int64) (*UniversalTransferHistoryData, error) {
 	if !e.SupportsAsset(fromAccountType) {
 		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}

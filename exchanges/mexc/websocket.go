@@ -101,7 +101,6 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		if listenKey, err = e.GenerateListenKey(ctx); err != nil {
 			return err
 		}
-		e.setWsListenKey(listenKey)
 		conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
 	}
 	if err := conn.Dial(ctx, &gws.Dialer{
@@ -117,43 +116,37 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		Delay:       time.Second * 20,
 	})
 	if listenKey != "" {
-		// The stream closes 60 minutes after creation unless a keepalive is sent; renew it on a
-		// timer, but only once the connection is up so a failed dial does not leak the renewer.
-		go e.keepListenKeyAlive(ctx)
+		// The stream closes 60 minutes after creation unless a keepalive is sent; renew this
+		// connection's own key on a timer, but only once the connection is up so a failed dial does
+		// not leak the renewer.
+		go e.keepListenKeyAlive(ctx, listenKey)
 	}
 	return nil
 }
 
-// listenKeyKeepAliveInterval renews the user data stream well within its 60-minute expiry.
-const listenKeyKeepAliveInterval = 30 * time.Minute
+// listenKeyKeepAliveInterval renews the user data stream well within its 60-minute expiry. A variable
+// rather than a constant so tests can shorten it.
+var listenKeyKeepAliveInterval = 30 * time.Minute
 
-func (e *Exchange) setWsListenKey(key string) {
-	e.wsListenKeyMu.Lock()
-	e.wsListenKey = key
-	e.wsListenKeyMu.Unlock()
-}
-
-func (e *Exchange) getWsListenKey() string {
-	e.wsListenKeyMu.Lock()
-	defer e.wsListenKeyMu.Unlock()
-	return e.wsListenKey
-}
-
-// keepListenKeyAlive renews the user data stream on a timer for as long as the connection lives. The
-// stream closes 60 minutes after creation unless a keepalive PUT is sent, so a stream left unrenewed
-// silently stops delivering private updates after an hour; the PING handler keeps the socket open but
-// does not touch the key.
-func (e *Exchange) keepListenKeyAlive(ctx context.Context) {
+// keepListenKeyAlive renews one connection's user data stream on a timer for as long as the connection
+// lives. Each authenticated connection mints its own listen key, so the renewer is handed that key and
+// renews it: once subscriptions span more than one connection, a single shared slot would hold only
+// the last key minted and leave every other stream to expire after an hour, silently stopping the
+// private updates on it. The stream closes 60 minutes after creation unless a keepalive PUT is sent;
+// the PING handler keeps the socket open but does not touch the key.
+func (e *Exchange) keepListenKeyAlive(ctx context.Context, listenKey string) {
 	e.Websocket.Wg.Add(1)
 	defer e.Websocket.Wg.Done()
 	renew := time.NewTicker(listenKeyKeepAliveInterval)
 	defer renew.Stop()
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-e.Websocket.ShutdownC:
 			return
 		case <-renew.C:
-			if err := e.ExtendListenKey(ctx, e.getWsListenKey()); err != nil {
+			if err := e.ExtendListenKey(ctx, listenKey); err != nil {
 				_ = e.Websocket.DataHandler.Send(ctx, err)
 			}
 		}
@@ -325,6 +318,11 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 // miniTicker carries last/high/low/volume — so each update must be applied on top of the current
 // ticker instead of replacing it, otherwise every channel would blank the other one's fields.
 func (e *Exchange) wsUpdateSpotTicker(ctx context.Context, cp currency.Pair, updated time.Time, apply func(*ticker.Price)) error {
+	// bookTicker and miniTicker for one pair can land on different connections once subscriptions span
+	// more than one, so serialise the read-merge-write of the cached ticker or concurrent updates race
+	// and one is lost.
+	e.wsTickerMu.Lock()
+	defer e.wsTickerMu.Unlock()
 	tick, err := e.GetCachedTicker(cp, asset.Spot)
 	if err != nil {
 		tick = &ticker.Price{Pair: cp, ExchangeName: e.Name, AssetType: asset.Spot}
@@ -555,6 +553,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			UpdateTime: wsSendTime(result),
 		})
 	case channelAggreDealsV3:
+		// Read both trade settings per frame so a feed switched on after setup takes effect straight
+		// away; skip the work entirely when neither wants the trades. The private deals channel is
+		// separate and carries the account's own fills.
+		saveTradeData := e.IsSaveTradeDataEnabled()
+		tradeFeed := e.IsTradeFeedEnabled()
+		if !saveTradeData && !tradeFeed {
+			return nil
+		}
 		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
@@ -588,7 +594,17 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 				}(),
 			}
 		}
-		return e.Websocket.DataHandler.Send(ctx, tradesDetail)
+		if tradeFeed {
+			if err := e.Websocket.DataHandler.Send(ctx, tradesDetail); err != nil {
+				return err
+			}
+		}
+		if saveTradeData {
+			// AddTradesToBuffer writes to the trades it is given, so hand it its own copy rather than
+			// the slice already passed to the data handler.
+			return trade.AddTradesToBuffer(slices.Clone(tradesDetail)...)
+		}
+		return nil
 	case channelKlineV3:
 		body := result.GetPublicSpotKline()
 		if body == nil {

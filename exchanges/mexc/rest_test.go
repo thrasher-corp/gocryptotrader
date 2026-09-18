@@ -102,9 +102,9 @@ func TestGetSystemTime(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetDefaultSumbols(t *testing.T) {
+func TestGetDefaultSymbols(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetDefaultSumbols(t.Context())
+	result, err := e.GetDefaultSymbols(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -365,17 +365,17 @@ func TestUniversalTransfer(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetSubAccountUnversalTransferHistory(t *testing.T) {
+func TestGetSubAccountUniversalTransferHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSubAccountUnversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Spot, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	_, err := e.GetSubAccountUniversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Empty, asset.Spot, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = e.GetSubAccountUnversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	_, err = e.GetSubAccountUniversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = e.GetSubAccountUnversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	_, err = e.GetSubAccountUniversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetSubAccountUnversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Spot, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	result, err := e.GetSubAccountUniversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Spot, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1039,6 +1039,13 @@ func TestGetBrokerUniversalTransferHistory(t *testing.T) {
 
 func TestCreateBrokerSubAccount(t *testing.T) {
 	t.Parallel()
+	_, err := e.CreateBrokerSubAccount(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "a nil request must be rejected")
+	_, err = e.CreateBrokerSubAccount(t.Context(), &BrokerSubAccountCreationParams{Note: "note"})
+	require.ErrorIs(t, err, errInvalidSubAccountName, "a missing sub-account name must be rejected")
+	_, err = e.CreateBrokerSubAccount(t.Context(), &BrokerSubAccountCreationParams{SubAccount: "sub1"})
+	require.ErrorIs(t, err, errInvalidSubAccountNote, "a missing note must be rejected")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CreateBrokerSubAccount(t.Context(), &BrokerSubAccountCreationParams{SubAccount: "sub1", Note: "created by gct integration test"})
 	require.NoError(t, err)

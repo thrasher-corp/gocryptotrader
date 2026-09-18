@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -97,8 +98,8 @@ func TestPrivateEndpointRequestConstruction(t *testing.T) {
 			_, err := e.GetSubAccountStatus(ctx, "sub1")
 			return err
 		}, http.MethodGet, "/broker/sub-account/status", "{}"},
-		{"GetSubAccountUnversalTransferHistory", func(ctx context.Context, e *Exchange) error {
-			_, err := e.GetSubAccountUnversalTransferHistory(ctx, "", "", asset.Spot, asset.Spot, time.Time{}, time.Time{}, 0, 0)
+		{"GetSubAccountUniversalTransferHistory", func(ctx context.Context, e *Exchange) error {
+			_, err := e.GetSubAccountUniversalTransferHistory(ctx, "", "", asset.Spot, asset.Spot, time.Time{}, time.Time{}, 0, 0)
 			return err
 		}, http.MethodGet, "/capital/sub-account/universalTransfer", "{}"},
 		{"GetAccountInformation", func(ctx context.Context, e *Exchange) error {
@@ -768,4 +769,134 @@ func TestSubmitOrderReportsClientOrderID(t *testing.T) {
 	})
 	require.NoError(t, err, "SubmitOrder must not error")
 	assert.Equal(t, "sbo000045", resp.ClientOrderID, "the response should report the request client id when the ACK omits it")
+}
+
+// TestSubmitOrderMapsSideToVenueEnum asserts the order side is mapped to MEXC's BUY/SELL enum: a long
+// side (Bid/Buy/Long) must reach the venue as BUY, not the order.Side string (BID/LONG), and an unset
+// side must be rejected rather than sent as UNKNOWN.
+func TestSubmitOrderMapsSideToVenueEnum(t *testing.T) {
+	t.Parallel()
+	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
+	var sentSide string
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sentSide = r.URL.Query().Get("side")
+		_, _ = w.Write([]byte(`{"symbol":"KASUSDT","orderId":"1","clientOrderId":"c1","price":"0.03","origQty":"100","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","transactTime":1736409765052}`))
+	}))
+	_, err := e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange: e.Name, Pair: kas, AssetType: asset.Spot, Side: order.Bid, Type: order.Limit, Amount: 100, Price: 0.03,
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	assert.Equal(t, "BUY", sentSide, "a long side must reach MEXC as BUY, not BID")
+
+	_, err = e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange: e.Name, Pair: kas, AssetType: asset.Spot, Side: order.UnknownSide, Type: order.Limit, Amount: 100, Price: 0.03,
+	})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "an unset side must be rejected, not sent as UNKNOWN")
+}
+
+// TestGetOrderInfoFillLookupAsksMaxPage asserts the commission fill lookup requests the documented
+// maximum page so an order with more than the default ten fills does not report a short commission.
+func TestGetOrderInfoFillLookupAsksMaxPage(t *testing.T) {
+	t.Parallel()
+	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
+	var limit string
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "myTrades") {
+			limit = r.URL.Query().Get("limit")
+			_, _ = w.Write([]byte(`[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.007","commissionAsset":"USDT","price":"0.035","qty":"200","quoteQty":"7","time":1736409770000}]`))
+			return
+		}
+		_, _ = w.Write([]byte(filledSpotOrderBody))
+	}))
+	_, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, "1000", limit, "the fill lookup should request the documented maximum page, not the default")
+}
+
+// TestGetOrderHistoryReportsTriggerPrice asserts the REST listing mapper reports stopPrice as the
+// trigger price, the same as GetOrderInfo, so a stop order does not lose its trigger over the listing.
+func TestGetOrderHistoryReportsTriggerPrice(t *testing.T) {
+	t.Parallel()
+	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"100","executedQty":"0","stopPrice":"0.03","type":"LIMIT","side":"SELL","status":"NEW","time":1736409765000}]`))
+	}))
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{kas}, false), "storing available pairs must not error")
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{kas}, true), "storing enabled pairs must not error")
+	orders, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot, Pairs: currency.Pairs{kas}, Side: order.AnySide, Type: order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, orders, 1, "the order should be returned")
+	assert.Equal(t, 0.03, orders[0].TriggerPrice, "the REST listing mapper should report stopPrice as the trigger price")
+}
+
+// TestCreateBrokerSubAccountRequestBody sends subAccount and note in the JSON body, as the broker docs
+// require for virtualSubAccount.
+func TestCreateBrokerSubAccountRequestBody(t *testing.T) {
+	t.Parallel()
+	var body []byte
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	_, err := e.CreateBrokerSubAccount(t.Context(), &BrokerSubAccountCreationParams{SubAccount: "sub1", Note: "note1"})
+	require.NoError(t, err, "CreateBrokerSubAccount must not error")
+	assert.JSONEq(t, `{"subAccount":"sub1","note":"note1"}`, string(body), "the body should carry subAccount and note")
+}
+
+// TestGenerateBrokerSubAccountDepositAddressRequestBody sends coin and network in the JSON body, as the
+// broker docs require for deposit/subAddress.
+func TestGenerateBrokerSubAccountDepositAddressRequestBody(t *testing.T) {
+	t.Parallel()
+	var body []byte
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	_, err := e.GenerateBrokerSubAccountDepositAddress(t.Context(), &BrokerSubAccountDepositAddressCreationParams{Coin: currency.USDT, Network: "TRC20"})
+	require.NoError(t, err, "GenerateBrokerSubAccountDepositAddress must not error")
+	assert.JSONEq(t, `{"coin":"USDT","network":"TRC20"}`, string(body), "the body should carry coin and network")
+}
+
+// TestKeepListenKeyAliveRenewsEachConnectionsOwnKey asserts that when subscriptions span more than one
+// connection each connection's renewer renews its own listen key, not a shared last-minted slot, so no
+// stream's key is left to expire. Reverting the renewer to a single shared key renews only one of the
+// two here.
+func TestKeepListenKeyAliveRenewsEachConnectionsOwnKey(t *testing.T) {
+	prev := listenKeyKeepAliveInterval
+	listenKeyKeepAliveInterval = 5 * time.Millisecond
+	t.Cleanup(func() { listenKeyKeepAliveInterval = prev })
+
+	var mu sync.Mutex
+	renewed := map[string]int{}
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		renewed[r.URL.Query().Get("listenKey")]++
+		mu.Unlock()
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+	go ex.keepListenKeyAlive(ctx, "KEY_A")
+	go ex.keepListenKeyAlive(ctx, "KEY_B")
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return renewed["KEY_A"] > 0 && renewed["KEY_B"] > 0
+	}, 2*time.Second, 5*time.Millisecond, "each connection's own listen key must be renewed")
+	cancel()
+	ex.Websocket.Wg.Wait()
+}
+
+// TestGenerateSubscriptionsExpandsConfiguredList asserts generateSubscriptions expands the configured
+// subscription list rather than a hardcoded default: clearing the configured list yields none, where
+// returning the package defaults would still yield some.
+func TestGenerateSubscriptionsExpandsConfiguredList(t *testing.T) {
+	t.Parallel()
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	ex.Features.Subscriptions = subscription.List{}
+	subs, err := ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	assert.Empty(t, subs, "an empty configured list must expand to no subscriptions, not the hardcoded defaults")
 }

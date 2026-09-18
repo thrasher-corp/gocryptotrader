@@ -55,6 +55,7 @@ func (e *Exchange) SetDefaults() {
 				KlineFetching:     true,
 				AccountInfo:       true,
 				SubmitOrder:       true,
+				AutoPairUpdates:   true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
@@ -465,7 +466,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Currency:        result[a].Coin.String(),
 			Amount:          result[a].Amount.Float64(),
 			CryptoToAddress: result[a].Address,
-			TransferType:    "diposit",
+			TransferType:    "deposit",
 		}
 	}
 	for w := range withdrawals {
@@ -596,7 +597,18 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		result, err := e.NewOrder(ctx, s.Pair, s.ClientOrderID, s.Side.String(), orderTypeString, s.Amount, s.QuoteAmount, s.Price)
+		// MEXC's side enum is only BUY and SELL; order.Side.String() would send Bid/Ask/Long/Short
+		// (and Unknown for an unset side), which the venue rejects, so map to the venue's two values.
+		var side string
+		switch {
+		case s.Side.IsLong():
+			side = order.Buy.String()
+		case s.Side.IsShort():
+			side = order.Sell.String()
+		default:
+			return nil, fmt.Errorf("%w: %v", order.ErrSideIsInvalid, s.Side)
+		}
+		result, err := e.NewOrder(ctx, s.Pair, s.ClientOrderID, side, orderTypeString, s.Amount, s.QuoteAmount, s.Price)
 		if err != nil {
 			return nil, err
 		}
@@ -795,15 +807,6 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 		totalFee = 0
 		feeAsset = currency.EMPTYCODE
 	}
-	var breakdown strings.Builder
-	for i, f := range fills {
-		if i > 0 {
-			breakdown.WriteByte(' ')
-		}
-		fmt.Fprintf(&breakdown, "%v/%q", f.Commission.Float64(), f.CommissionAsset)
-	}
-	log.Debugf(log.ExchangeSys, "%s: order %s myTrades fills=%d totalFee=%v feeAsset=%q uniform=%v [%s]",
-		e.Name, orderID, len(fills), totalFee, feeAsset.String(), uniformFee, breakdown.String())
 	return trades, totalFee, feeAsset
 }
 

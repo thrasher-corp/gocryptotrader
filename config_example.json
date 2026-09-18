@@ -2896,6 +2896,11 @@
    "features": {
     "supports": {
      "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": false,
+      "autoPairUpdates": true,
+      "fundingRateFetching": false
+     },
      "websocketAPI": true
     },
     "enabled": {

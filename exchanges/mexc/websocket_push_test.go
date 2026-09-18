@@ -460,3 +460,25 @@ func TestWsBookTickerFeedsTickerNotOrderbook(t *testing.T) {
 		}
 	}
 }
+
+// TestWsHandleAggreDealsHonorsTradeSettings asserts public trades are gated on the trade settings read
+// per frame: nothing is relayed when both are off, and a feed switched on takes effect straight away.
+func TestWsHandleAggreDealsHonorsTradeSettings(t *testing.T) {
+	saveWas, feedWas := e.IsSaveTradeDataEnabled(), e.IsTradeFeedEnabled()
+	t.Cleanup(func() { e.SetSaveTradeDataStatus(saveWas); e.SetTradeFeedStatus(feedWas) })
+	frame := wsPushFrame(t, "spot@"+channelAggreDealsV3+"@100ms@BTCUSDT", 1736409765052,
+		&mexc_proto_types.PublicAggreDealsV3Api{Deals: []*mexc_proto_types.PublicAggreDealsV3ApiItem{
+			{Price: "1", Quantity: "1", TradeType: 1, Time: 1736409765051},
+		}})
+
+	e.SetSaveTradeDataStatus(false)
+	e.SetTradeFeedStatus(false)
+	drainData(t)
+	require.NoError(t, e.WsHandleData(t.Context(), nil, frame), "WsHandleData must not error")
+	assert.Empty(t, drainData(t), "no trades should be relayed when both trade settings are off")
+
+	e.SetTradeFeedStatus(true)
+	drainData(t)
+	require.NoError(t, e.WsHandleData(t.Context(), nil, frame), "WsHandleData must not error")
+	assert.Len(t, drainData(t), 1, "the trade feed should relay trades once enabled")
+}

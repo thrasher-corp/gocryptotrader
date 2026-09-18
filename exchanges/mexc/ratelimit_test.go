@@ -74,7 +74,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"affiliateReferralData":          affiliateReferralDataEPL,
 		"subAffiliateData":               subAffiliateDataEPL,
 	}
-	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimit()))
+	rl, err := request.New("rateLimitTest2", &http.Client{}, request.WithLimiter(GetRateLimit()))
 	require.NoError(t, err)
 	for name, tt := range testTable {
 		t.Run(name, func(t *testing.T) {
