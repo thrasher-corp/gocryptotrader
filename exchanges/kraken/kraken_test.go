@@ -3,9 +3,11 @@ package kraken
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -192,6 +194,34 @@ func TestFuturesEditOrder(t *testing.T) {
 	assert.NoError(t, err, "FuturesEditOrder should not error")
 }
 
+// TestFuturesEditOrderSendsClientOrderID pins cliOrdId, a misspelling of which is not rejected by
+// the endpoint but simply identifies no order
+func TestFuturesEditOrderSendsClientOrderID(t *testing.T) {
+	t.Parallel()
+
+	query := make(chan url.Values, 1)
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query <- r.URL.Query()
+		_, err := fmt.Fprint(w, `{"result":"success"}`)
+		assert.NoError(t, err, "writing the edit response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "dGVzdC1zZWNyZXQ="})
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+
+	_, err := ex.FuturesEditOrder(t.Context(), "", "client-edit-42", 5.2, 1, 0)
+	require.NoError(t, err, "FuturesEditOrder must not error")
+
+	got := <-query
+	assert.Equal(t, "client-edit-42", got.Get("cliOrdId"), "the client order ID should be sent as cliOrdId")
+	assert.Empty(t, got.Get("cliOrderId"), "no parameter Kraken does not document should be sent")
+}
+
 func TestFuturesSendOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -246,6 +276,338 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 
 	_, err := e.FuturesCancelAllOrders(t.Context(), futuresTestPair)
 	assert.NoError(t, err, "FuturesCancelAllOrders should not error")
+}
+
+func TestCancelAllOrdersDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	// shaped after Kraken's documented cancelallorders response: each orderEvents element carries
+	// its own type and order object
+	const inp = `
+{
+  "result": "success",
+  "cancelStatus": {
+    "receivedTime": "2019-08-01T15:57:37.518Z",
+    "cancelOnly": "PI_XBTUSD",
+    "status": "cancelled",
+    "cancelledOrders": [
+      {
+        "order_id": "89e3edbe-d739-4c52-b866-6f5a8407ff6e",
+        "cliOrdId": "client-cancel-17"
+      }
+    ],
+    "orderEvents": [
+      {
+        "type": "CANCEL",
+        "uid": "89e3edbe-d739-4c52-b866-6f5a8407ff6e",
+        "order": {
+          "orderId": "89e3edbe-d739-4c52-b866-6f5a8407ff6e",
+          "cliOrdId": "client-cancel-17",
+          "type": "post",
+          "symbol": "PI_XBTUSD",
+          "side": "buy",
+          "quantity": 890,
+          "filled": 0,
+          "limitPrice": 9400,
+          "reduceOnly": false,
+          "timestamp": "2019-08-01T15:57:37.518Z"
+        }
+      }
+    ]
+  },
+  "serverTime": "2019-08-01T15:57:37.520Z"
+}
+`
+
+	var x CancelAllOrdersData
+	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
+	exp := CancelAllOrdersData{
+		CancelStatus: CancelAllOrdersStatus{
+			ReceivedTime: time.Date(2019, 8, 1, 15, 57, 37, 518000000, time.UTC),
+			CancelOnly:   "PI_XBTUSD",
+			Status:       "cancelled",
+			CancelledOrders: []CancelledOrder{
+				{
+					OrderID:       "89e3edbe-d739-4c52-b866-6f5a8407ff6e",
+					ClientOrderID: "client-cancel-17",
+				},
+			},
+			OrderEvents: []FuturesOrderEvent{
+				{
+					UID: "89e3edbe-d739-4c52-b866-6f5a8407ff6e",
+					Order: FuturesOrderData{
+						OrderID:       "89e3edbe-d739-4c52-b866-6f5a8407ff6e",
+						ClientOrderID: "client-cancel-17",
+						OrderType:     "post",
+						Symbol:        "PI_XBTUSD",
+						Side:          "buy",
+						Quantity:      890,
+						LimitPrice:    9400,
+						Timestamp:     time.Date(2019, 8, 1, 15, 57, 37, 518000000, time.UTC),
+					},
+					DataType: "CANCEL",
+				},
+			},
+		},
+		ServerTime: time.Date(2019, 8, 1, 15, 57, 37, 520000000, time.UTC),
+	}
+	assert.Equal(t, exp, x, "CancelAllOrdersData should unmarshal correctly")
+}
+
+// TestBatchOrderDataUnmarshal pins the batch response against Kraken's published example
+func TestBatchOrderDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	// Trimmed from POST /derivatives/api/v3/batchorder
+	const inp = `
+{
+  "result": "success",
+  "batchStatus": [
+    {
+      "status": "placed",
+      "order_tag": "1",
+      "order_id": "022774bc-2c4a-4f26-9317-436c8d85746d",
+      "dateTimeReceived": "2019-09-05T16:41:35.173Z",
+      "cliOrdId": "client-batch-1",
+      "orderEvents": [
+        {
+          "type": "PLACE",
+          "uid": "0cb1e7c0-0a1d-41f3-8b1e-9f1a2c3d4e5f",
+          "order": {
+            "orderId": "022774bc-2c4a-4f26-9317-436c8d85746d",
+            "cliOrdId": "client-batch-1",
+            "type": "lmt",
+            "symbol": "PI_XBTUSD",
+            "side": "buy",
+            "quantity": 1000,
+            "filled": 0,
+            "limitPrice": 9400,
+            "reduceOnly": false,
+            "timestamp": "2019-09-05T16:41:35.173Z"
+          },
+          "reducedQuantity": 12
+        }
+      ]
+    },
+    {
+      "status": "edited",
+      "order_id": "9c2cbcc8-14f6-42fe-a020-6e395babafd1",
+      "orderEvents": [
+        {
+          "type": "EDIT",
+          "old": {
+            "orderId": "9c2cbcc8-14f6-42fe-a020-6e395babafd1",
+            "cliOrdId": "client-batch-2",
+            "type": "lmt",
+            "symbol": "PI_XBTUSD",
+            "quantity": 102,
+            "limitPrice": 8500
+          },
+          "new": {
+            "orderId": "9c2cbcc8-14f6-42fe-a020-6e395babafd1",
+            "cliOrdId": "client-batch-2",
+            "type": "lmt",
+            "symbol": "PI_XBTUSD",
+            "quantity": 1000,
+            "limitPrice": 9400
+          }
+        }
+      ]
+    }
+  ]
+}
+`
+
+	var x BatchOrderData
+	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
+	exp := BatchOrderData{
+		Result: "success",
+		BatchStatus: []BatchInstructionData{
+			{
+				Status:           "placed",
+				OrderTag:         "1",
+				OrderID:          "022774bc-2c4a-4f26-9317-436c8d85746d",
+				ClientOrderID:    "client-batch-1",
+				DateTimeReceived: time.Date(2019, 9, 5, 16, 41, 35, 173000000, time.UTC),
+				OrderEvents: []FuturesOrderEvent{
+					{
+						DataType: "PLACE",
+						UID:      "0cb1e7c0-0a1d-41f3-8b1e-9f1a2c3d4e5f",
+						Order: FuturesOrderData{
+							OrderID:       "022774bc-2c4a-4f26-9317-436c8d85746d",
+							ClientOrderID: "client-batch-1",
+							OrderType:     "lmt",
+							Symbol:        "PI_XBTUSD",
+							Side:          "buy",
+							Quantity:      1000,
+							LimitPrice:    9400,
+							Timestamp:     time.Date(2019, 9, 5, 16, 41, 35, 173000000, time.UTC),
+						},
+						ReducedQuantity: 12,
+					},
+				},
+			},
+			{
+				Status:  "edited",
+				OrderID: "9c2cbcc8-14f6-42fe-a020-6e395babafd1",
+				OrderEvents: []FuturesOrderEvent{
+					{
+						DataType: "EDIT",
+						OldEditedOrder: FuturesOrderData{
+							OrderID:       "9c2cbcc8-14f6-42fe-a020-6e395babafd1",
+							ClientOrderID: "client-batch-2",
+							OrderType:     "lmt",
+							Symbol:        "PI_XBTUSD",
+							Quantity:      102,
+							LimitPrice:    8500,
+						},
+						NewEditedOrder: FuturesOrderData{
+							OrderID:       "9c2cbcc8-14f6-42fe-a020-6e395babafd1",
+							ClientOrderID: "client-batch-2",
+							OrderType:     "lmt",
+							Symbol:        "PI_XBTUSD",
+							Quantity:      1000,
+							LimitPrice:    9400,
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, exp, x, "BatchOrderData should unmarshal correctly")
+}
+
+// TestFuturesSendOrderDataUnmarshal pins Kraken's published rejected order example for
+// POST /derivatives/api/v3/sendorder, whose events are the objects every order response carries
+func TestFuturesSendOrderDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	const inp = `
+{
+  "result": "success",
+  "sendStatus": {
+    "order_id": "614a5298-0071-450f-83c6-0617ce8c6bc4",
+    "status": "iocWouldNotExecute",
+    "receivedTime": "2019-09-05T16:32:54.076Z",
+    "orderEvents": [
+      {
+        "type": "REJECT",
+        "uid": "614a5298-0071-450f-83c6-0617ce8c6bc4",
+        "reason": "IOC_WOULD_NOT_EXECUTE",
+        "order": {
+          "orderId": "614a5298-0071-450f-83c6-0617ce8c6bc4",
+          "cliOrdId": null,
+          "type": "lmt",
+          "symbol": "PI_XBTUSD",
+          "side": "buy",
+          "quantity": 10000,
+          "filled": 0,
+          "limitPrice": 9400,
+          "reduceOnly": true,
+          "timestamp": "2019-09-05T16:32:54.076Z",
+          "lastUpdateTimestamp": "2019-09-05T16:32:54.076Z"
+        }
+      }
+    ]
+  },
+  "serverTime": "2019-09-05T16:32:54.077Z"
+}
+`
+
+	var x FuturesSendOrderData
+	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
+	rejectedAt := time.Date(2019, 9, 5, 16, 32, 54, 76000000, time.UTC)
+	exp := FuturesSendOrderData{
+		SendStatus: FuturesSendOrderStatus{
+			OrderID:      "614a5298-0071-450f-83c6-0617ce8c6bc4",
+			Status:       "iocWouldNotExecute",
+			ReceivedTime: rejectedAt,
+			OrderEvents: []FuturesOrderEvent{
+				{
+					DataType: "REJECT",
+					UID:      "614a5298-0071-450f-83c6-0617ce8c6bc4",
+					Reason:   "IOC_WOULD_NOT_EXECUTE",
+					Order: FuturesOrderData{
+						OrderID:             "614a5298-0071-450f-83c6-0617ce8c6bc4",
+						OrderType:           "lmt",
+						Symbol:              "PI_XBTUSD",
+						Side:                "buy",
+						Quantity:            10000,
+						LimitPrice:          9400,
+						ReduceOnly:          true,
+						Timestamp:           rejectedAt,
+						LastUpdateTimestamp: rejectedAt,
+					},
+				},
+			},
+		},
+		ServerTime: time.Date(2019, 9, 5, 16, 32, 54, 77000000, time.UTC),
+	}
+	assert.Equal(t, exp, x, "FuturesSendOrderData should unmarshal correctly")
+}
+
+// TestFuturesCancelOrderDataUnmarshal pins Kraken's published example for
+// POST /derivatives/api/v3/cancelorder
+func TestFuturesCancelOrderDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	const inp = `
+{
+  "result": "success",
+  "cancelStatus": {
+    "status": "cancelled",
+    "order_id": "cb4e34f6-4eb3-4d4b-9724-4c3035b99d47",
+    "receivedTime": "2020-07-22T13:26:20.806Z",
+    "orderEvents": [
+      {
+        "type": "CANCEL",
+        "uid": "cb4e34f6-4eb3-4d4b-9724-4c3035b99d47",
+        "order": {
+          "orderId": "cb4e34f6-4eb3-4d4b-9724-4c3035b99d47",
+          "cliOrdId": "1234568",
+          "type": "lmt",
+          "symbol": "PI_XBTUSD",
+          "side": "buy",
+          "quantity": 5500,
+          "filled": 0,
+          "limitPrice": 8000,
+          "reduceOnly": false,
+          "timestamp": "2020-07-22T13:25:56.366Z",
+          "lastUpdateTimestamp": "2020-07-22T13:25:56.366Z"
+        }
+      }
+    ]
+  },
+  "serverTime": "2020-07-22T13:26:20.806Z"
+}
+`
+
+	var x FuturesCancelOrderData
+	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
+	placedAt := time.Date(2020, 7, 22, 13, 25, 56, 366000000, time.UTC)
+	cancelledAt := time.Date(2020, 7, 22, 13, 26, 20, 806000000, time.UTC)
+	exp := FuturesCancelOrderData{
+		CancelStatus: FuturesCancelOrderStatus{
+			Status:       "cancelled",
+			OrderID:      "cb4e34f6-4eb3-4d4b-9724-4c3035b99d47",
+			ReceivedTime: cancelledAt,
+			OrderEvents: []FuturesOrderEvent{
+				{
+					DataType: "CANCEL",
+					UID:      "cb4e34f6-4eb3-4d4b-9724-4c3035b99d47",
+					Order: FuturesOrderData{
+						OrderID:             "cb4e34f6-4eb3-4d4b-9724-4c3035b99d47",
+						ClientOrderID:       "1234568",
+						OrderType:           "lmt",
+						Symbol:              "PI_XBTUSD",
+						Side:                "buy",
+						Quantity:            5500,
+						LimitPrice:          8000,
+						Timestamp:           placedAt,
+						LastUpdateTimestamp: placedAt,
+					},
+				},
+			},
+		},
+		ServerTime: cancelledAt,
+	}
+	assert.Equal(t, exp, x, "FuturesCancelOrderData should unmarshal correctly")
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
@@ -381,6 +743,60 @@ func TestGetOHLC(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
 	assert.NoError(t, err, "GetOHLC should not error")
+}
+
+func TestGetOHLCMapsCandleTuples(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		candles  string
+		errIs    error
+		expected []OpenHighLowClose
+	}{
+		{
+			name:    "short tuple",
+			candles: `[[1,2,3,4,5,6,7]]`,
+			errIs:   errUnexpectedCandleLength,
+		},
+		{
+			name:    "every position mapped",
+			candles: `[[1748822400,1,2,3,4,5,6,7]]`,
+			expected: []OpenHighLowClose{{
+				Time:                       time.Unix(1748822400, 0),
+				Open:                       1,
+				High:                       2,
+				Low:                        3,
+				Close:                      4,
+				VolumeWeightedAveragePrice: 5,
+				Volume:                     6,
+				Count:                      7,
+			}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/0/public/OHLC", r.URL.Path, "request path should target the OHLC endpoint")
+				_, err := fmt.Fprintf(w, `{"error":[],"result":{"XXBTZUSD":%s}}`, tc.candles)
+				assert.NoError(t, err, "writing the candle response should not error")
+			}))
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+			ohlc, err := ex.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
+			if tc.errIs != nil {
+				assert.ErrorIs(t, err, tc.errIs, "GetOHLC should error on a short candle tuple")
+				return
+			}
+			require.NoError(t, err, "GetOHLC must not error")
+			assert.Equal(t, tc.expected, ohlc, "GetOHLC should map every tuple position")
+		})
+	}
 }
 
 func TestGetDepth(t *testing.T) {
@@ -1172,6 +1588,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	pairs, err := ex.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
 	require.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
+	//nolint:prealloc // fixed test fixture, not a hot path
 	exp := subscription.List{
 		{Channel: subscription.TickerChannel},
 		{Channel: subscription.AllTradesChannel},
@@ -1555,7 +1972,7 @@ func TestGetFuturesTrades(t *testing.T) {
 			t.Parallel()
 
 			requestC := make(chan requestData, 1)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				select {
 				case requestC <- requestData{path: r.URL.Path, rawQuery: r.URL.RawQuery, requestURI: r.RequestURI}:
 				default:
@@ -1564,10 +1981,10 @@ func TestGetFuturesTrades(t *testing.T) {
 				_, err := w.Write([]byte(tc.response))
 				assert.NoError(t, err, "ResponseWriter.Write should not error")
 			}))
-			t.Cleanup(server.Close)
 
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFuturesSupplementary.String(), server.URL+"/"), "SetRunningURL must not error")
 
 			resp, err := ex.GetFuturesTrades(t.Context(), futuresTestPair, tc.since, tc.before)
@@ -1940,13 +2357,13 @@ func TestGetFuturesErr(t *testing.T) {
 
 	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid char", "Bad JSON should error correctly")
 	assert.NoError(t, getFuturesErr(json.RawMessage(`{"candles":[]}`)), "JSON with no Result should not error")
-	assert.NoError(t, getFuturesErr(json.RawMessage(`{"Result":"4 goats"}`)), "JSON with non-error Result should not error")
-	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"Result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
-	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"Result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
-	err := getFuturesErr(json.RawMessage(`{"Result":"error", "errors": ["2 goats", "3 goats"]}`))
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"result":"4 goats"}`)), "JSON with non-error Result should not error")
+	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
+	err := getFuturesErr(json.RawMessage(`{"result":"error", "errors": ["2 goats", "3 goats"]}`))
 	assert.ErrorContains(t, err, "2 goat", "JSON with errors should error correctly")
 	assert.ErrorContains(t, err, "3 goat", "JSON with errors should error correctly")
-	err = getFuturesErr(json.RawMessage(`{"Result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
+	err = getFuturesErr(json.RawMessage(`{"result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
 	assert.ErrorContains(t, err, "2 goat", "JSON with both error and errors should error correctly")
 	assert.ErrorContains(t, err, "3 goat", "JSON with both error and errors should error correctly")
 	assert.ErrorContains(t, err, "too many goat", "JSON both error and with errors should error correctly")
@@ -1998,4 +2415,88 @@ func TestSetWebsocketAuthToken(t *testing.T) {
 	e := new(Exchange)
 	e.setWebsocketAuthToken("69420")
 	assert.Equal(t, "69420", e.websocketAuthToken())
+}
+
+func TestInverseFuturesContract(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		symbol string
+		exp    bool
+	}{
+		{symbol: "PI_XBTUSD", exp: true},
+		{symbol: "FI_XBTUSD_260327", exp: true},
+		{symbol: "PF_XBTUSD"},
+		{symbol: "FF_XBTUSD_260327"},
+		{symbol: "XBTUSD"},
+	} {
+		t.Run(tc.symbol, func(t *testing.T) {
+			t.Parallel()
+			p, err := currency.NewPairFromString(tc.symbol)
+			require.NoError(t, err, "NewPairFromString must not error")
+			assert.Equal(t, tc.exp, inverseFuturesContract(p), "inverseFuturesContract should classify the symbol by its prefix")
+		})
+	}
+}
+
+// TestFuturesTickerVolumeUnits pins which currency each volume field carries. Kraken publishes no
+// base volume for an inverse contract, reporting vol24h identically to volumeQuote, so recording
+// vol24h as a base volume states a quote total in the base currency
+func TestFuturesTickerVolumeUnits(t *testing.T) {
+	t.Parallel()
+	// trimmed from GET /derivatives/api/v3/tickers
+	const resp = `{"tickers":[
+		{"symbol":"PI_XBTUSD","last":78830.5,"vol24h":474950,"volumeQuote":474950,"markPrice":78772.81},
+		{"symbol":"PF_XBTUSD","last":78796,"vol24h":5549.4529,"volumeQuote":435684124.1957,"markPrice":78799.09}
+	]}`
+
+	var ft FuturesTickersData
+	require.NoError(t, json.Unmarshal([]byte(resp), &ft), "Unmarshal must not error")
+	require.Len(t, ft.Tickers, 2, "both tickers must decode")
+
+	inverse, flexible := ft.Tickers[0], ft.Tickers[1]
+	require.True(t, inverseFuturesContract(inverse.Symbol), "the first ticker must be the inverse contract")
+	// The payload above is Kraken's, which reports the two identically for an inverse contract, so
+	// vol24h carries no base figure of its own for futuresTickerVolumes to record
+	assert.Equal(t, 474950.0, inverse.Volume24Hour, "vol24h should decode from the payload")
+	assert.Equal(t, inverse.Volume24Hour, inverse.VolumeQuote, "the payload's two volumes should decode identically")
+
+	baseVolume, quoteVolume := futuresTickerVolumes(&inverse)
+	assert.Zero(t, baseVolume, "an inverse contract publishes no base volume, so none should be recorded")
+	assert.Equal(t, 474950.0, quoteVolume, "an inverse contract's volumeQuote should be recorded as the quote volume")
+
+	baseVolume, quoteVolume = futuresTickerVolumes(&flexible)
+	assert.Equal(t, 5549.4529, baseVolume, "a flexible contract's vol24h should be recorded as the base volume")
+	assert.Equal(t, 435684124.1957, quoteVolume, "a flexible contract's volumeQuote should be recorded as the quote volume")
+}
+
+// TestUpdateTickersFuturesVolumes runs the futures ticker path end to end, so a mapping that
+// reaches the store wrongly is caught even where futuresTickerVolumes itself stays correct
+func TestUpdateTickersFuturesVolumes(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// trimmed from GET /derivatives/api/v3/tickers
+		_, err := fmt.Fprint(w, `{"result":"success","tickers":[
+			{"symbol":"PI_XBTUSD","last":78830.5,"vol24h":474950,"volumeQuote":474950,"markPrice":78772.81,"open24h":79131},
+			{"symbol":"PF_XBTUSD","last":78796,"vol24h":5549.4529,"volumeQuote":435684124.1957,"markPrice":78799.09,"open24h":79180}
+		]}`)
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Futures), "UpdateTickers must not error")
+
+	inverse, err := ticker.GetTicker(ex.Name, currency.NewPairWithDelimiter("PI", "XBTUSD", "_"), asset.Futures)
+	require.NoError(t, err, "GetTicker must not error for the inverse contract")
+	assert.Zero(t, inverse.BaseVolume, "an inverse contract publishes no base volume, so none should reach the store")
+	assert.Equal(t, 474950.0, inverse.QuoteVolume, "the inverse contract's volumeQuote should reach the store as quote volume")
+
+	flexible, err := ticker.GetTicker(ex.Name, currency.NewPairWithDelimiter("PF", "XBTUSD", "_"), asset.Futures)
+	require.NoError(t, err, "GetTicker must not error for the flexible contract")
+	assert.Equal(t, 5549.4529, flexible.BaseVolume, "the flexible contract's vol24h should reach the store as base volume")
+	assert.Equal(t, 435684124.1957, flexible.QuoteVolume, "the flexible contract's volumeQuote should reach the store as quote volume")
 }

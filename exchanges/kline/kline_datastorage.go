@@ -8,8 +8,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
@@ -32,14 +32,14 @@ func LoadFromDatabase(exch string, pair currency.Pair, a asset.Item, interval In
 	}
 
 	for x := range retCandle.Candles {
-		if ret.SourceJobID == uuid.Nil && retCandle.Candles[x].SourceJobID != "" {
-			ret.SourceJobID, err = uuid.FromString(retCandle.Candles[x].SourceJobID)
+		if ret.SourceJobID == uuid.Nil() && retCandle.Candles[x].SourceJobID != "" {
+			ret.SourceJobID, err = uuid.Parse(retCandle.Candles[x].SourceJobID)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if ret.ValidationJobID == uuid.Nil && retCandle.Candles[x].ValidationJobID != "" {
-			ret.ValidationJobID, err = uuid.FromString(retCandle.Candles[x].ValidationJobID)
+		if ret.ValidationJobID == uuid.Nil() && retCandle.Candles[x].ValidationJobID != "" {
+			ret.ValidationJobID, err = uuid.Parse(retCandle.Candles[x].ValidationJobID)
 			if err != nil {
 				return nil, err
 			}
@@ -94,11 +94,11 @@ func StoreInDatabase(in *Item, force bool) (uint64, error) {
 			Close:     in.Candles[x].Close,
 			Volume:    in.Candles[x].Volume,
 		}
-		if in.ValidationJobID != uuid.Nil {
+		if in.ValidationJobID != uuid.Nil() {
 			can.ValidationJobID = in.ValidationJobID.String()
 			can.ValidationIssues = in.Candles[x].ValidationIssues
 		}
-		if in.SourceJobID != uuid.Nil {
+		if in.SourceJobID != uuid.Nil() {
 			can.SourceJobID = in.SourceJobID.String()
 		}
 

@@ -3,8 +3,8 @@ package bybit
 import (
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -183,50 +183,50 @@ type TickerWebsocket struct {
 
 // TickerCommon common ticker fields
 type TickerCommon struct {
-	Symbol                 string       `json:"symbol"`
-	TickDirection          string       `json:"tickDirection"`
-	LastPrice              types.Number `json:"lastPrice"`
-	IndexPrice             types.Number `json:"indexPrice"`
-	MarkPrice              types.Number `json:"markPrice"`
-	PrevPrice24H           types.Number `json:"prevPrice24h"`
-	Price24HPcnt           types.Number `json:"price24hPcnt"`
-	HighPrice24H           types.Number `json:"highPrice24h"`
-	LowPrice24H            types.Number `json:"lowPrice24h"`
-	PrevPrice1H            types.Number `json:"prevPrice1h"`
-	OpenInterest           types.Number `json:"openInterest"`
-	OpenInterestValue      types.Number `json:"openInterestValue"`
-	Turnover24H            types.Number `json:"turnover24h"`
-	Volume24H              types.Number `json:"volume24h"`
-	FundingRate            types.Number `json:"fundingRate"`
-	NextFundingTime        types.Time   `json:"nextFundingTime"`
-	PredictedDeliveryPrice types.Number `json:"predictedDeliveryPrice"`
-	BasisRate              types.Number `json:"basisRate"`
-	DeliveryFeeRate        types.Number `json:"deliveryFeeRate"`
-	DeliveryTime           types.Time   `json:"deliveryTime"`
-	Ask1Size               types.Number `json:"ask1Size"`
-	Bid1Price              types.Number `json:"bid1Price"`
-	Ask1Price              types.Number `json:"ask1Price"`
-	Bid1Size               types.Number `json:"bid1Size"`
-	Basis                  types.Number `json:"basis"`
-	Bid1Iv                 types.Number `json:"bid1Iv"`
-	Ask1Iv                 types.Number `json:"ask1Iv"`
-	MarkIv                 types.Number `json:"markIv"`
-	MarkPriceIv            types.Number `json:"markPriceIv"`
-	UnderlyingPrice        types.Number `json:"underlyingPrice"`
-	TotalVolume            types.Number `json:"totalVolume"`
-	TotalTurnover          types.Number `json:"totalTurnover"`
-	Delta                  types.Number `json:"delta"`
-	Gamma                  types.Number `json:"gamma"`
-	Vega                   types.Number `json:"vega"`
-	Theta                  types.Number `json:"theta"`
-	Change24Hour           types.Number `json:"change24h"`
-	UsdIndexPrice          types.Number `json:"usdIndexPrice"`
-	BidPrice               types.Number `json:"bidPrice"`
-	BidSize                types.Number `json:"bidSize"`
-	BidIv                  types.Number `json:"bidIv"`
-	AskPrice               types.Number `json:"askPrice"`
-	AskSize                types.Number `json:"askSize"`
-	AskIv                  types.Number `json:"askIv"`
+	Symbol                     string       `json:"symbol"`
+	TickDirection              string       `json:"tickDirection"`
+	LastPrice                  types.Number `json:"lastPrice"`
+	IndexPrice                 types.Number `json:"indexPrice"`
+	MarkPrice                  types.Number `json:"markPrice"`
+	PreviousPrice24Hour        types.Number `json:"prevPrice24h"`
+	Price24HourPercent         types.Number `json:"price24hPcnt"`
+	HighPrice24Hour            types.Number `json:"highPrice24h"`
+	LowPrice24Hour             types.Number `json:"lowPrice24h"`
+	PreviousPrice1Hour         types.Number `json:"prevPrice1h"`
+	OpenInterest               types.Number `json:"openInterest"`
+	OpenInterestValue          types.Number `json:"openInterestValue"`
+	Turnover24Hour             types.Number `json:"turnover24h"`
+	Volume24Hour               types.Number `json:"volume24h"`
+	FundingRate                types.Number `json:"fundingRate"`
+	NextFundingTime            types.Time   `json:"nextFundingTime"`
+	PredictedDeliveryPrice     types.Number `json:"predictedDeliveryPrice"`
+	BasisRate                  types.Number `json:"basisRate"`
+	DeliveryFeeRate            types.Number `json:"deliveryFeeRate"`
+	DeliveryTime               types.Time   `json:"deliveryTime"`
+	Ask1Size                   types.Number `json:"ask1Size"`
+	Bid1Price                  types.Number `json:"bid1Price"`
+	Ask1Price                  types.Number `json:"ask1Price"`
+	Bid1Size                   types.Number `json:"bid1Size"`
+	Basis                      types.Number `json:"basis"`
+	Bid1ImpliedVolatility      types.Number `json:"bid1Iv"`
+	Ask1ImpliedVolatility      types.Number `json:"ask1Iv"`
+	MarkImpliedVolatility      types.Number `json:"markIv"`
+	MarkPriceImpliedVolatility types.Number `json:"markPriceIv"`
+	UnderlyingPrice            types.Number `json:"underlyingPrice"`
+	TotalVolume                types.Number `json:"totalVolume"`
+	TotalTurnover              types.Number `json:"totalTurnover"`
+	Delta                      types.Number `json:"delta"`
+	Gamma                      types.Number `json:"gamma"`
+	Vega                       types.Number `json:"vega"`
+	Theta                      types.Number `json:"theta"`
+	Change24Hour               types.Number `json:"change24h"`
+	USDIndexPrice              types.Number `json:"usdIndexPrice"`
+	BidPrice                   types.Number `json:"bidPrice"`
+	BidSize                    types.Number `json:"bidSize"`
+	BidImpliedVolatility       types.Number `json:"bidIv"`
+	AskPrice                   types.Number `json:"askPrice"`
+	AskSize                    types.Number `json:"askSize"`
+	AskImpliedVolatility       types.Number `json:"askIv"`
 }
 
 // FundingRateHistory represents a funding rate history for a category.
@@ -1293,11 +1293,11 @@ type SubUIDAPIKeyParam struct {
 
 	ReadOnly int64 `json:"readOnly"`
 
-	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
-	// don't pass ips or pass with ["*"] means no bind
+	// Set the IP bind, as a comma separated list. example: "192.168.0.1,192.168.0.2"
+	// don't pass ips or pass with "*" means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
-	IPs []string `json:"ips"`
+	IPAddressesCommaSeparated string `json:"ips,omitempty"`
 
 	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
 	Permissions map[string][]string `json:"permissions,omitempty"`
@@ -1305,14 +1305,14 @@ type SubUIDAPIKeyParam struct {
 
 // SubUIDAPIResponse represents sub UID API key response.
 type SubUIDAPIResponse struct {
-	ID          string              `json:"id"`
-	Note        string              `json:"note"`
-	APIKey      string              `json:"apiKey"`
-	ReadOnly    int64               `json:"readOnly"`
-	Secret      string              `json:"secret"`
-	Permissions map[string][]string `json:"permissions"`
+	ID          string            `json:"id"`
+	Note        string            `json:"note"`
+	APIKey      string            `json:"apiKey"`
+	ReadOnly    int64             `json:"readOnly"`
+	Secret      string            `json:"secret"`
+	Permissions APIKeyPermissions `json:"permissions"`
 
-	IPS                   []string  `json:"ips"`
+	IPAddresses           []string  `json:"ips"`
 	Type                  int64     `json:"type"`
 	DeadlineDay           int64     `json:"deadlineDay"`
 	ExpiredAt             time.Time `json:"expiredAt"`
@@ -1321,46 +1321,62 @@ type SubUIDAPIResponse struct {
 	IsUnifiedTradeAccount uint8     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
 	UserID                int64     `json:"userID"`
 	InviterID             int64     `json:"inviterID"`
-	VipLevel              string    `json:"vipLevel"`
+	VIPLevel              string    `json:"vipLevel"`
 	MktMakerLevel         string    `json:"mktMakerLevel"`
 	AffiliateID           int64     `json:"affiliateID"`
-	RsaPublicKey          string    `json:"rsaPublicKey"`
+	RSAPublicKey          string    `json:"rsaPublicKey"`
 	IsMaster              bool      `json:"isMaster"`
 
 	// Personal account kyc level. LEVEL_DEFAULT, LEVEL_1， LEVEL_2
-	KycLevel  string `json:"kycLevel"`
-	KycRegion string `json:"kycRegion"`
+	KYCLevel  string `json:"kycLevel"`
+	KYCRegion string `json:"kycRegion"`
 }
 
 // SubAccountAPIKeys holds list of sub-account API Keys
 type SubAccountAPIKeys struct {
-	Result []struct {
-		ID          string    `json:"id"`
-		Ips         []string  `json:"ips"`
-		APIKey      string    `json:"apiKey"`
-		Note        string    `json:"note"`
-		Status      int64     `json:"status"`
-		ExpiredAt   time.Time `json:"expiredAt"`
-		CreatedAt   time.Time `json:"createdAt"`
-		Type        int64     `json:"type"`
-		Permissions struct {
-			ContractTrade []string `json:"ContractTrade"`
-			Spot          []string `json:"Spot"`
-			Wallet        []string `json:"Wallet"`
-			Options       []string `json:"Options"`
-			Derivatives   []string `json:"Derivatives"`
-			CopyTrading   []string `json:"CopyTrading"`
-			BlockTrade    []string `json:"BlockTrade"`
-			Exchange      []string `json:"Exchange"`
-			Nft           []string `json:"NFT"`
-			Affiliate     []string `json:"Affiliate"`
-		} `json:"permissions"`
-		Secret      string `json:"secret"`
-		ReadOnly    bool   `json:"readOnly"`
-		DeadlineDay int64  `json:"deadlineDay"`
-		Flag        string `json:"flag"`
-	} `json:"result"`
-	NextPageCursor string `json:"nextPageCursor"`
+	Result         []SubAccountAPIKey `json:"result"`
+	NextPageCursor string             `json:"nextPageCursor"`
+}
+
+// SubAccountAPIKey is a single sub-account API key
+type SubAccountAPIKey struct {
+	ID          string            `json:"id"`
+	IPAddresses []string          `json:"ips"`
+	APIKey      string            `json:"apiKey"`
+	Note        string            `json:"note"`
+	Status      int64             `json:"status"`
+	ExpiredAt   time.Time         `json:"expiredAt"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	Type        int64             `json:"type"`
+	Permissions APIKeyPermissions `json:"permissions"`
+	Secret      string            `json:"secret"`
+	ReadOnly    bool              `json:"readOnly"`
+	DeadlineDay int64             `json:"deadlineDay"`
+	Flag        string            `json:"flag"`
+}
+
+// APIKeyPermissions holds the permissions an API key has been granted. Affiliate, BlockTrade, NFT
+// and CopyTrading are always empty for sub-accounts, and the fiat and card permissions are only
+// returned for master keys, but all are retained because Bybit still sends them. FiatGlobalPay is
+// undocumented in Bybit's parameter table and appears only in its example response.
+type APIKeyPermissions struct {
+	ContractTrade     []string `json:"ContractTrade"`
+	Spot              []string `json:"Spot"`
+	Wallet            []string `json:"Wallet"`
+	Options           []string `json:"Options"`
+	Derivatives       []string `json:"Derivatives"`
+	Exchange          []string `json:"Exchange"`
+	Earn              []string `json:"Earn"`
+	Affiliate         []string `json:"Affiliate"`
+	BlockTrade        []string `json:"BlockTrade"`
+	NFT               []string `json:"NFT"`
+	CopyTrading       []string `json:"CopyTrading"`
+	FiatP2P           []string `json:"FiatP2P"`
+	FiatConvertBroker []string `json:"FiatConvertBroker"`
+	FiatGlobalPay     []string `json:"FiatGlobalPay"`
+	FiatBitPay        []string `json:"FiatBitPay"`
+	BitCard           []string `json:"BitCard"`
+	ByXPost           []string `json:"ByXPost"`
 }
 
 // WalletType represents available wallet types for the master account or sub account
@@ -1373,28 +1389,32 @@ type WalletType struct {
 
 // SubUIDAPIKeyUpdateParam represents a sub-user ID API key update parameter.
 type SubUIDAPIKeyUpdateParam struct {
-	APIKey   string `json:"apikey"`
+	// Pass only when a master account manages a sub account key; Bybit errors if it is sent
+	// when calling with the sub account's own key
+	APIKey   string `json:"apikey,omitempty"`
 	ReadOnly int64  `json:"readOnly,omitempty"`
-	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
-	// don't pass ips or pass with ["*"] means no bind
+	// Set the IP bind, as a comma separated list. example: "192.168.0.1,192.168.0.2"
+	// don't pass ips or pass with "*" means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
-	IPs string `json:"ips"`
-
-	// You can provide the IP addresses as a list of strings.
-	IPAddresses []string `json:"-"`
+	IPAddressesCommaSeparated string `json:"ips,omitempty"`
 
 	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
 	Permissions PermissionsList `json:"permissions"`
 }
 
-// PermissionsList represents list of sub api permissions.
+// PermissionsList represents the API key permissions a request can set. Bybit documents
+// ContractTrade, Spot, Wallet, Options, Derivatives, Exchange and Earn as settable; CopyTrading,
+// BlockTrade and NFT are deprecated or not applicable and are retained only for callers that
+// still send them.
 type PermissionsList struct {
 	ContractTrade []string `json:"ContractTrade,omitempty"`
 	Spot          []string `json:"Spot,omitempty"`
 	Wallet        []string `json:"Wallet,omitempty"`
 	Options       []string `json:"Options,omitempty"`
+	Derivatives   []string `json:"Derivatives,omitempty"`
 	Exchange      []string `json:"Exchange,omitempty"`
+	Earn          []string `json:"Earn,omitempty"`
 	CopyTrading   []string `json:"CopyTrading,omitempty"`
 	BlockTrade    []string `json:"BlockTrade,omitempty"`
 	NFT           []string `json:"NFT,omitempty"`
@@ -1723,7 +1743,7 @@ type C2CLendingCoinInfo struct {
 type C2CLendingFundsParams struct {
 	Coin         currency.Code `json:"coin"`
 	Quantity     float64       `json:"quantity,string"`
-	SerialNumber string        `json:"serialNO"`
+	SerialNumber string        `json:"serialNo"`
 }
 
 // C2CLendingFundResponse represents contract-to-contract deposit funds item.

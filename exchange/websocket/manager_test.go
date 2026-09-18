@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -384,14 +385,13 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 	})
 
 	t.Run("multi connection", func(t *testing.T) {
-		mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 		}))
-		t.Cleanup(mock.Close)
 
 		mockURL := "ws" + mock.URL[len("http"):] + "/ws"
 		dial := func(ctx context.Context, conn Connection) error {
-			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+			return conn.Dial(ctx, dialer, nil, nil)
 		}
 		noopHandler := func(context.Context, Connection, []byte) error { return nil }
 		testSubs := subscription.List{{Channel: "test"}}
@@ -700,15 +700,14 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when not connected after a potential failed ws.setup.Connector call")
 	assert.ErrorIs(t, err, ErrNotConnected, "should signal connection not established")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
-	t.Cleanup(server.Close)
 
 	ws.setup.URL = "ws" + server.URL[len("http"):] + "/ws"
 	ws.setup.Handler = func(context.Context, Connection, []byte) error { return nil }
 	ws.setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+		return conn.Dial(ctx, dialer, nil, nil)
 	}
 	ws.setup.Authenticate = func(context.Context, Connection) error { return errConnectionFault }
 	mgr.SetCanUseAuthenticatedEndpoints(true)
@@ -1032,8 +1031,7 @@ func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
 func TestDial(t *testing.T) {
 	t.Parallel()
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 
 	testCases := []testStruct{
 		{
@@ -1070,7 +1068,7 @@ func TestDial(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
+		err := testCases[i].WC.Dial(t.Context(), dialer, http.Header{}, nil)
 		if err != nil {
 			if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
 				return
@@ -1084,8 +1082,7 @@ func TestDial(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	t.Parallel()
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 
 	testCases := []testStruct{
 		{
@@ -1122,7 +1119,7 @@ func TestSendMessage(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
+		err := testCases[x].WC.Dial(t.Context(), dialer, http.Header{}, nil)
 		if err != nil {
 			if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
 				return
@@ -1139,8 +1136,7 @@ func TestSendMessage(t *testing.T) {
 func TestSendMessageReturnResponse(t *testing.T) {
 	t.Parallel()
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 
 	wc := &connection{
 		Verbose:          true,
@@ -1152,7 +1148,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
+	err := wc.Dial(t.Context(), dialer, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1263,48 +1259,61 @@ func readMessages(t *testing.T, wc *connection) {
 func TestSetupPingHandler(t *testing.T) {
 	t.Parallel()
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	synctest.Test(t, func(t *testing.T) {
+		var pings atomic.Int64
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
+				assert.Equal(t, Ping, string(msg), "mock server should only receive the configured ping message")
+				pings.Add(1)
+				return nil
+			})
+		}))
 
-	wc := &connection{
-		URL:              "ws" + mock.URL[len("http"):] + "/ws",
-		ResponseMaxLimit: time.Second * 5,
-		Match:            NewMatch(),
-		Wg:               &sync.WaitGroup{},
-	}
+		wc := &connection{
+			URL:              "ws" + mock.URL[len("http"):] + "/ws",
+			ResponseMaxLimit: time.Second * 5,
+			Match:            NewMatch(),
+			Wg:               &sync.WaitGroup{},
+		}
 
-	if wc.ProxyURL != "" && !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
-	}
-	wc.shutdown = make(chan struct{})
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if wc.ProxyURL != "" && !useProxyTests {
+			t.Skip("Proxy testing not enabled, skipping")
+		}
+		wc.shutdown = make(chan struct{})
+		require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
+		first := wc.Connection
+		// the bubble waits for every goroutine, including the mock server's handler, which only returns once the connection closes
+		t.Cleanup(func() {
+			close(wc.shutdown)
+			wc.Wg.Wait()
+			// the test closes the first connection itself, which is still current only if the second dial failed
+			if wc.Connection != first {
+				assert.NoError(t, wc.Connection.Close(), "Close should not error")
+			}
+		})
 
-	wc.SetupPingHandler(request.Unset, PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       gws.PingMessage,
-		Delay:             100,
+		wc.SetupPingHandler(request.Unset, PingHandler{
+			UseGorillaHandler: true,
+			MessageType:       gws.PingMessage,
+			Delay:             100 * time.Millisecond,
+		})
+		require.NoError(t, wc.Connection.Close(), "Close must not error")
+
+		require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
+		wc.SetupPingHandler(request.Unset, PingHandler{
+			MessageType: gws.TextMessage,
+			Message:     []byte(Ping),
+			Delay:       200 * time.Millisecond,
+		})
+
+		// the ping handler wakes at the same instant, and Sleep also waits for its ping to reach the server
+		for sent := range int64(3) {
+			synctest.Sleep(200*time.Millisecond - time.Nanosecond)
+			assert.Equal(t, sent, pings.Load(), "ping handler should not send before its delay elapses")
+			synctest.Sleep(time.Nanosecond)
+			assert.Equal(t, sent+1, pings.Load(), "ping handler should send one ping each time its delay elapses")
+		}
 	})
-
-	err = wc.Connection.Close()
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wc.SetupPingHandler(request.Unset, PingHandler{
-		MessageType: gws.TextMessage,
-		Message:     []byte(Ping),
-		Delay:       200,
-	})
-	time.Sleep(time.Millisecond * 201)
-	close(wc.shutdown)
-	wc.Wg.Wait()
 }
 
 // TestParseBinaryResponse logic test
@@ -1362,10 +1371,9 @@ func TestParseBinaryResponse(t *testing.T) {
 // TestReadMessageBinary ensures binary frames reach the caller as the exchange handler expects
 func TestReadMessageBinary(t *testing.T) {
 	// Subtests share the one connection and write then read in order, so neither this test nor its subtests call t.Parallel.
-	mock := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(_ testing.TB, p []byte, c *gws.Conn) error {
+	mock, dialer := mockws.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, p []byte, c *gws.Conn) error {
 		return c.WriteMessage(gws.BinaryMessage, p)
 	}))
-	defer mock.Close()
 
 	wc := &connection{
 		ExchangeName:     "test",
@@ -1373,7 +1381,7 @@ func TestReadMessageBinary(t *testing.T) {
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 	}
-	require.NoError(t, wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil), "Dial must not error")
+	require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
 	defer func() { assert.NoError(t, wc.Connection.Close(), "Close should not error") }()
 
 	var gzipBuffer bytes.Buffer
@@ -1641,12 +1649,11 @@ func TestConnectionShutdown(t *testing.T) {
 	err = wc.Dial(t.Context(), &gws.Dialer{}, nil, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 
 	wc.URL = "ws" + mock.URL[len("http"):] + "/ws"
 
-	err = wc.Dial(t.Context(), &gws.Dialer{}, nil, nil)
+	err = wc.Dial(t.Context(), dialer, nil, nil)
 	require.NoError(t, err, "Dial must not error")
 
 	err = wc.Shutdown()
@@ -1657,8 +1664,7 @@ func TestConnectionShutdown(t *testing.T) {
 func TestLatency(t *testing.T) {
 	t.Parallel()
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 
 	r := &reporter{}
 	exch := "Kraken"
@@ -1674,7 +1680,7 @@ func TestLatency(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
+	err := wc.Dial(t.Context(), dialer, http.Header{}, nil)
 	require.NoError(t, err)
 
 	go readMessages(t, wc)
@@ -1952,11 +1958,10 @@ func TestShutdown(t *testing.T) {
 	m.AuthConn = &struct{ *connection }{&connection{}}
 	require.ErrorIs(t, m.Shutdown(), common.ErrTypeAssertFailure, "Shutdown must error with unhandled connection type")
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 
 	wsURL := "ws" + mock.URL[len("http"):] + "/ws"
-	conn, resp, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	conn, resp, err := dialer.DialContext(t.Context(), wsURL, nil)
 	require.NoError(t, err, "DialContext must not error")
 	defer resp.Body.Close()
 
@@ -1969,11 +1974,11 @@ func TestShutdown(t *testing.T) {
 	m.setState(connectedState)
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")
 
-	gwsConnAuth, respAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	gwsConnAuth, respAuth, err := dialer.DialContext(t.Context(), wsURL, nil)
 	require.NoError(t, err, "DialContext must not error")
 	defer respAuth.Body.Close()
 
-	gwsConnUnAuth, respUnAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	gwsConnUnAuth, respUnAuth, err := dialer.DialContext(t.Context(), wsURL, nil)
 	require.NoError(t, err, "DialContext must not error")
 	defer respUnAuth.Body.Close()
 

@@ -9,7 +9,7 @@ import (
 
 var (
 	// IsTestExecution if test is executed under test conditions
-	IsTestExecution atomic.Value
+	IsTestExecution atomic.Bool
 
 	exchError = &objects.String{
 		Value: "",
