@@ -836,7 +836,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				Status:               orderStatus,
 				Pair:                 orderDeref.Pairs[x],
 			}
-			tempOrder.InferCostsAndTimes()
+			tempOrder.InferExecutionAndTimes()
 			resp = append(resp, tempOrder)
 		}
 	}

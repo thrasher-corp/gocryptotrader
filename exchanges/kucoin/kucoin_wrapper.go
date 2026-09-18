@@ -1493,7 +1493,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				Type:            oType,
 				Pair:            pair,
 			})
-			orders[i].InferCostsAndTimes()
+			orders[i].InferExecutionAndTimes()
 		}
 	case asset.Spot, asset.Margin:
 		var singlePair currency.Pair
@@ -1622,19 +1622,20 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 				}
 				orders[i] = order.Detail{
-					Price:           responseOrders.Items[i].Price.Float64(),
-					Amount:          responseOrders.Items[i].Size.Float64(),
-					ExecutedAmount:  responseOrders.Items[i].DealSize.Float64(),
-					RemainingAmount: responseOrders.Items[i].Size.Float64() - responseOrders.Items[i].DealSize.Float64(),
-					Date:            responseOrders.Items[i].CreatedAt.Time(),
-					Exchange:        e.Name,
-					OrderID:         responseOrders.Items[i].ID,
-					Side:            orderSide,
-					Status:          orderStatus,
-					Type:            oType,
-					Pair:            pair,
+					Price:               responseOrders.Items[i].Price.Float64(),
+					Amount:              responseOrders.Items[i].Size.Float64(),
+					ExecutedAmount:      responseOrders.Items[i].DealSize.Float64(),
+					ExecutedQuoteAmount: responseOrders.Items[i].DealFunds.Float64(),
+					RemainingAmount:     responseOrders.Items[i].Size.Float64() - responseOrders.Items[i].DealSize.Float64(),
+					Date:                responseOrders.Items[i].CreatedAt.Time(),
+					Exchange:            e.Name,
+					OrderID:             responseOrders.Items[i].ID,
+					Side:                orderSide,
+					Status:              orderStatus,
+					Type:                oType,
+					Pair:                pair,
 				}
-				orders[i].InferCostsAndTimes()
+				orders[i].InferExecutionAndTimes()
 			}
 		}
 	}
@@ -2249,7 +2250,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 				ContractAmount:  positionOrders.Items[y].Size,
 				ExecutedAmount:  positionOrders.Items[y].FilledSize,
 				RemainingAmount: positionOrders.Items[y].Size - positionOrders.Items[y].FilledSize,
-				CostAsset:       currency.NewCode(positionOrders.Items[y].SettleCurrency),
 				Exchange:        e.Name,
 				OrderID:         positionOrders.Items[y].ID,
 				ClientOrderID:   positionOrders.Items[y].ClientOid,
