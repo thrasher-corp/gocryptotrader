@@ -1281,6 +1281,16 @@ func TestSetupPingHandler(t *testing.T) {
 		}
 		wc.shutdown = make(chan struct{})
 		require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
+		first := wc.Connection
+		// the bubble waits for every goroutine, including the mock server's handler, which only returns once the connection closes
+		t.Cleanup(func() {
+			close(wc.shutdown)
+			wc.Wg.Wait()
+			// the test closes the first connection itself, which is still current only if the second dial failed
+			if wc.Connection != first {
+				assert.NoError(t, wc.Connection.Close(), "Close should not error")
+			}
+		})
 
 		wc.SetupPingHandler(request.Unset, PingHandler{
 			UseGorillaHandler: true,
@@ -1294,12 +1304,6 @@ func TestSetupPingHandler(t *testing.T) {
 			MessageType: gws.TextMessage,
 			Message:     []byte(Ping),
 			Delay:       200 * time.Millisecond,
-		})
-		// the bubble waits for every goroutine, including the mock server's handler, which only returns once the connection closes
-		t.Cleanup(func() {
-			close(wc.shutdown)
-			wc.Wg.Wait()
-			assert.NoError(t, wc.Connection.Close(), "Close should not error")
 		})
 
 		// the ping handler wakes at the same instant, and Sleep also waits for its ping to reach the server

@@ -1546,6 +1546,7 @@ func TestProcessTicker(t *testing.T) {
 	require.Len(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for a pair enabled on spot alone")
 	exp := &ticker.Price{
 		Last:         76330.1,
+		LastSize:     0.00002628,
 		Bid:          76330.1,
 		BidSize:      0.00480864,
 		Ask:          76330.2,
@@ -1555,7 +1556,7 @@ func TestProcessTicker(t *testing.T) {
 		AssetType:    asset.Spot,
 		LastUpdated:  time.UnixMilli(1789624664495),
 	}
-	assert.Equal(t, exp, (<-ku.Websocket.DataHandler.C).Data, "processTicker should map the ticker without taking a volume from the fill size")
+	assert.Equal(t, exp, (<-ku.Websocket.DataHandler.C).Data, "processTicker should map the latest fill's size to LastSize rather than a volume")
 }
 
 func TestProcessFuturesTickerV2(t *testing.T) {
@@ -1587,6 +1588,7 @@ func TestProcessFuturesTickerV2(t *testing.T) {
 			message: `{"topic":"/contractMarket/tickerV2:SOLUSDTM","type":"message","subject":"tickerV2","sn":1780003326821,"data":{"symbol":"SOLUSDTM","sequence":1780003326821,"side":"sell","size":309,"price":"99.892","bestBidSize":67,"bestBidPrice":"99.891","bestAskPrice":"99.9","tradeId":"1780003326821","bestAskSize":46,"ts":1789627577408000000}}`,
 			exp: &ticker.Price{
 				Last:         99.892,
+				LastSize:     309,
 				Bid:          99.891,
 				BidSize:      67,
 				Ask:          99.9,
@@ -1600,7 +1602,7 @@ func TestProcessFuturesTickerV2(t *testing.T) {
 	} {
 		require.NoErrorf(t, ku.wsHandleData(t.Context(), nil, []byte(tc.message)), "wsHandleData must not error for %s", tc.name)
 		require.Lenf(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for %s", tc.name)
-		assert.Equalf(t, tc.exp, (<-ku.Websocket.DataHandler.C).Data, "processFuturesTickerV2 should map %s without taking a volume from a fill size", tc.name)
+		assert.Equalf(t, tc.exp, (<-ku.Websocket.DataHandler.C).Data, "processFuturesTickerV2 should map %s with any fill size in LastSize rather than a volume", tc.name)
 	}
 }
 

@@ -143,6 +143,7 @@ func TestGetFuturesTickersMappingMocked(t *testing.T) {
 	require.NoError(t, err, "GetFuturesTickers must not error")
 	exp := []*ticker.Price{{
 		Last:         76285.9,
+		LastSize:     1,
 		Bid:          76276.5,
 		Ask:          76276.6,
 		BidSize:      14,
@@ -152,7 +153,7 @@ func TestGetFuturesTickersMappingMocked(t *testing.T) {
 		ExchangeName: t.Name(),
 		AssetType:    asset.Futures,
 	}}
-	assert.Equal(t, exp, tickers, "GetFuturesTickers should map the ticker without taking a volume from the fill size")
+	assert.Equal(t, exp, tickers, "GetFuturesTickers should map the latest fill's size to LastSize rather than a volume")
 }
 
 func TestGet24hrStats(t *testing.T) {
@@ -4329,4 +4330,47 @@ func TestUpdateTickersFuturesVolumes(t *testing.T) {
 	require.NoError(t, err, "GetTicker must not error for the linear contract")
 	assert.Equal(t, 4837.85, got.BaseVolume, "the linear contract's volumeOf24h should reach the store as base volume")
 	assert.Equal(t, 379665862.5284, got.QuoteVolume, "the linear contract's turnoverOf24h should reach the store as quote volume")
+}
+
+func TestUpdateTickersSpotMocked(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Trimmed from GET /api/v1/market/allTickers, where lastSize is the size of the latest fill
+		_, err := fmt.Fprint(w, `{"code":"200000","data":{"time":1789707017483,"ticker":[{"symbol":"BTC-USDT","symbolName":"BTC-USDT","buy":"77347.2","bestBidSize":"0.11234016","sell":"77347.3","bestAskSize":"0.61137198","changeRate":"0.0114","changePrice":"873.7","high":"77584","low":"76034","vol":"4773.4480010794209596","volValue":"365845394.62508216365134468","last":"77347.3","lastSize":"0.0000521","averagePrice":"76207.94947664","takerFeeRate":"0.001","makerFeeRate":"0.001","takerCoefficient":"1","makerCoefficient":"1"}]}}`)
+		assert.NoError(t, err, "writing the tickers response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, false), "StorePairs must not error for %s available pairs", a)
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, true), "StorePairs must not error for %s enabled pairs", a)
+		require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
+
+		got, err := ticker.GetTicker(ex.Name, pair, a)
+		require.NoErrorf(t, err, "GetTicker must not error for %s", a)
+		exp := &ticker.Price{
+			Last:         77347.3,
+			LastSize:     0.0000521,
+			High:         77584,
+			Low:          76034,
+			Bid:          77347.2,
+			BidSize:      0.11234016,
+			Ask:          77347.3,
+			AskSize:      0.61137198,
+			BaseVolume:   4773.4480010794209596,
+			QuoteVolume:  365845394.62508216365134468,
+			Pair:         pair,
+			ExchangeName: t.Name(),
+			AssetType:    a,
+			LastUpdated:  time.UnixMilli(1789707017483),
+		}
+		assert.Equalf(t, exp, got, "UpdateTickers should store the %s ticker's prices, volumes and sizes", a)
+	}
 }

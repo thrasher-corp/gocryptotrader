@@ -532,10 +532,10 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	if err != nil {
 		return err
 	}
-	// FilledSize is the quantity of the latest fill, and neither ticker channel carries a 24 hour volume
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		AssetType:    asset.Futures,
 		Last:         resp.FilledPrice.Float64(),
+		LastSize:     resp.FilledSize.Float64(),
 		LastUpdated:  resp.FilledTime.Time(),
 		ExchangeName: e.Name,
 		Pair:         pair,
@@ -753,10 +753,10 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		// Size is the quantity of the latest fill, and this message carries no 24 hour volume
 		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			AssetType:    assets[x],
 			Last:         response.Price,
+			LastSize:     response.Size,
 			LastUpdated:  response.Timestamp.Time(),
 			ExchangeName: e.Name,
 			Pair:         pair,

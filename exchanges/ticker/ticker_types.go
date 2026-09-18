@@ -34,6 +34,7 @@ type Service struct {
 // Price struct stores the currency pair and pricing information
 type Price struct {
 	Last         float64       `json:"Last"`
+	LastSize     float64       `json:"LastSize"`
 	High         float64       `json:"High"`
 	Low          float64       `json:"Low"`
 	Bid          float64       `json:"Bid"`

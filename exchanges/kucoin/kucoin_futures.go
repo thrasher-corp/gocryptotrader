@@ -75,9 +75,9 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 			if tick, err2 := e.GetFuturesTicker(ctx, p.String()); err2 != nil {
 				errC <- err2
 			} else {
-				// Size is the quantity of the latest fill, and this endpoint carries no 24 hour volume
 				tickersC <- &ticker.Price{
 					Last:         tick.Price.Float64(),
+					LastSize:     tick.Size,
 					Bid:          tick.BestBidPrice.Float64(),
 					Ask:          tick.BestAskPrice.Float64(),
 					BidSize:      tick.BestBidSize,

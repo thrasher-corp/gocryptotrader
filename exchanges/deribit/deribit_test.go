@@ -53,7 +53,7 @@ var apiCredentials = &accounts.Credentials{
 var (
 	e                                                                     *Exchange
 	optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
-	spotTradablePair                                                      = currency.NewPairWithDelimiter(currencyBTC, "USDC", "_")
+	spotTradablePair                                                      = currency.NewPairWithDelimiter(currencyETH, currencyBTC, "_")
 	futuresTradablePair                                                   = currency.NewPairWithDelimiter(currencyBTC, perpString, "-")
 	assetTypeToPairsMap                                                   map[asset.Item]currency.Pair
 )
@@ -649,7 +649,7 @@ func TestGetLastTradesByCurrencyAndTime(t *testing.T) {
 	_, err := e.GetLastTradesByCurrencyAndTime(t.Context(), currency.EMPTYCODE, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	result, err := e.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "future", "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	result, err = e.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "option", "asc", 25, time.Now().Add(-8*time.Hour), time.Now())
@@ -662,7 +662,7 @@ func TestWSRetrieveLastTradesByCurrencyAndTime(t *testing.T) {
 	_, err := e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.EMPTYCODE, "", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
+	result, err := e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "future", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	result, err = e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "option", "asc", 25, false, time.Now().Add(-8*time.Hour), time.Now())

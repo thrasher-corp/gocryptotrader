@@ -132,23 +132,24 @@ type Ticker struct {
 
 // TickerInfoBase represents base price ticker details
 type TickerInfoBase struct {
-	Symbol           string  `json:"symbol"`
-	Buy              float64 `json:"buy,string"`
-	Sell             float64 `json:"sell,string"`
-	ChangeRate       float64 `json:"changeRate,string"`
-	ChangePrice      float64 `json:"changePrice,string"`
-	High             float64 `json:"high,string"`
-	Low              float64 `json:"low,string"`
-	Volume           float64 `json:"vol,string"`
-	VolumeValue      float64 `json:"volValue,string"`
-	Last             float64 `json:"last,string"`
-	AveragePrice     float64 `json:"averagePrice,string"`
-	TakerFeeRate     float64 `json:"takerFeeRate,string"`
-	MakerFeeRate     float64 `json:"makerFeeRate,string"`
-	TakerCoefficient float64 `json:"takerCoefficient,string"`
-	MakerCoefficient float64 `json:"makerCoefficient,string"`
-	BestBidSize      float64 `json:"bestBidSize,string"`
-	BestAskSize      float64 `json:"bestAskSize,string"`
+	Symbol           string       `json:"symbol"`
+	Buy              types.Number `json:"buy"`
+	Sell             types.Number `json:"sell"`
+	ChangeRate       types.Number `json:"changeRate"`
+	ChangePrice      types.Number `json:"changePrice"`
+	High             types.Number `json:"high"`
+	Low              types.Number `json:"low"`
+	Volume           types.Number `json:"vol"`
+	VolumeValue      types.Number `json:"volValue"`
+	Last             types.Number `json:"last"`
+	LastSize         types.Number `json:"lastSize"`
+	AveragePrice     types.Number `json:"averagePrice"`
+	TakerFeeRate     types.Number `json:"takerFeeRate"`
+	MakerFeeRate     types.Number `json:"makerFeeRate"`
+	TakerCoefficient types.Number `json:"takerCoefficient"`
+	MakerCoefficient types.Number `json:"makerCoefficient"`
+	BestBidSize      types.Number `json:"bestBidSize"`
+	BestAskSize      types.Number `json:"bestAskSize"`
 }
 
 // TickerInfo stores ticker information

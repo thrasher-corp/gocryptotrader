@@ -374,13 +374,21 @@ func TestLoadExchangeConcurrently(t *testing.T) {
 	cancel()
 	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{}, runtimeCtx: ctx}
 	for _, name := range exchange.Exchanges {
-		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{Name: name})
+		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
+			Name:                          name,
+			WebsocketResponseCheckTimeout: config.DefaultWebsocketResponseCheckTimeout,
+			WebsocketResponseMaxLimit:     config.DefaultWebsocketResponseMaxLimit,
+			WebsocketTrafficTimeout:       config.DefaultWebsocketTrafficTimeout,
+		})
 	}
 	var wg sync.WaitGroup
 	for _, name := range exchange.Exchanges {
 		// Each load looks its config up among names the other loads are standardising; the cancelled context stops
 		// Bootstrap before it sends a request
-		wg.Go(func() { _ = e.LoadExchange(name) })
+		wg.Go(func() {
+			err := e.LoadExchange(name)
+			assert.Truef(t, onlyCancelled(err), "LoadExchange should fail only on Bootstrap's cancelled context for %s, got: %v", name, err)
+		})
 	}
 	wg.Wait()
 	for i, name := range exchange.Exchanges {
@@ -389,6 +397,26 @@ func TestLoadExchangeConcurrently(t *testing.T) {
 		exch.SetDefaults()
 		assert.Equal(t, exch.GetName(), e.Config.Exchanges[i].Name, "LoadExchange should standardise the exchange config's name")
 	}
+}
+
+// onlyCancelled reports whether err consists solely of context cancellations, however they are wrapped or joined
+func onlyCancelled(err error) bool {
+	switch e := err.(type) {
+	case interface{ Unwrap() []error }:
+		if errs := e.Unwrap(); len(errs) > 0 {
+			for _, err := range errs {
+				if !onlyCancelled(err) {
+					return false
+				}
+			}
+			return true
+		}
+	case interface{ Unwrap() error }:
+		if inner := e.Unwrap(); inner != nil {
+			return onlyCancelled(inner)
+		}
+	}
+	return errors.Is(err, context.Canceled)
 }
 
 func TestUnloadExchange(t *testing.T) {

@@ -351,12 +351,16 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         ticks.Tickers[t].Last,
-				High:         ticks.Tickers[t].High,
-				Low:          ticks.Tickers[t].Low,
-				BaseVolume:   ticks.Tickers[t].Volume,
-				Ask:          ticks.Tickers[t].Sell,
-				Bid:          ticks.Tickers[t].Buy,
+				Last:         ticks.Tickers[t].Last.Float64(),
+				LastSize:     ticks.Tickers[t].LastSize.Float64(),
+				High:         ticks.Tickers[t].High.Float64(),
+				Low:          ticks.Tickers[t].Low.Float64(),
+				BaseVolume:   ticks.Tickers[t].Volume.Float64(),
+				QuoteVolume:  ticks.Tickers[t].VolumeValue.Float64(),
+				Ask:          ticks.Tickers[t].Sell.Float64(),
+				AskSize:      ticks.Tickers[t].BestAskSize.Float64(),
+				Bid:          ticks.Tickers[t].Buy.Float64(),
+				BidSize:      ticks.Tickers[t].BestBidSize.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
