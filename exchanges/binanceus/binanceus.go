@@ -152,9 +152,9 @@ func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 }
 
 // GetSystemStatus endpoint to fetch whether the system status is normal or under maintenance.
-func (e *Exchange) GetSystemStatus(ctx context.Context) (int, error) {
+func (e *Exchange) GetSystemStatus(ctx context.Context) (uint64, error) {
 	resp := struct {
-		Status int `json:"status"`
+		Status uint64 `json:"status"`
 	}{}
 	return resp.Status, e.SendAuthHTTPRequest(
 		ctx, exchange.RestSpotSupplementary,
@@ -212,7 +212,7 @@ func (e *Exchange) GetAggregateTrades(ctx context.Context, agg *AggregatedTradeR
 	needBatch := true // Need to batch unless user has specified a limit
 	if agg.Limit > 0 && agg.Limit <= 1000 {
 		needBatch = false
-		params.Set("limit", strconv.Itoa(agg.Limit))
+		params.Set("limit", strconv.FormatUint(agg.Limit, 10))
 	}
 	if agg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(agg.FromID, 10))
@@ -286,7 +286,7 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, args *AggregatedTra
 	params.Del("startTime")
 	params.Del("endTime")
 outer:
-	for ; args.Limit == 0 || len(resp) < args.Limit; fromID = resp[len(resp)-1].ATradeID {
+	for ; args.Limit == 0 || uint64(len(resp)) < args.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 		path := aggregatedTrades + "?" + params.Encode()
@@ -311,7 +311,7 @@ outer:
 		}
 		resp = append(resp, additionalTrades...)
 	}
-	if args.Limit > 0 && len(resp) > args.Limit {
+	if args.Limit > 0 && uint64(len(resp)) > args.Limit {
 		resp = resp[:args.Limit]
 	}
 	return resp, nil
@@ -390,10 +390,10 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) (
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() && arg.StartTime.Unix() != 0 {
-		params.Set("startTime", strconv.FormatInt((arg.StartTime).UnixMilli(), 10))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() && arg.EndTime.Unix() != 0 {
-		params.Set("endTime", strconv.FormatInt((arg.EndTime).UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	path := common.EncodeURLValues(candleStick, params)
 	var resp []CandleStick
@@ -686,7 +686,7 @@ func (e *Exchange) QuickEnableCryptoWithdrawal(ctx context.Context) error {
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodPost,
-		accountEnableCryptoWithdrawalEndpoint, params, spotDefaultRate, &(response.Data))
+		accountEnableCryptoWithdrawalEndpoint, params, spotDefaultRate, &response.Data)
 }
 
 // QuickDisableCryptoWithdrawal use this endpoint to disable crypto withdrawals.
@@ -772,10 +772,10 @@ func (e *Exchange) GetSubaccountTransferHistory(ctx context.Context, email strin
 	endTimeT := time.UnixMilli(endTime)
 
 	hundredDayBefore := time.Now().Add(-time.Hour * 24 * 100).Truncate(time.Hour)
-	if !(startTimeT.Before(hundredDayBefore)) || startTimeT.Before(time.Now()) {
+	if !startTimeT.Before(hundredDayBefore) || startTimeT.Before(time.Now()) {
 		params.Set("startTime", strconv.FormatInt(startTime, 10))
 	}
-	if !(endTimeT.Before(hundredDayBefore)) || endTimeT.Before(time.Now()) {
+	if !endTimeT.Before(hundredDayBefore) || endTimeT.Before(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(endTime, 10))
 	}
 
@@ -835,17 +835,17 @@ func (e *Exchange) GetSubaccountAssets(ctx context.Context, email string) (*SubA
 }
 
 // GetMasterAccountTotalUSDValue this endpoint to get the total value of assets in the master account in USD.
-func (e *Exchange) GetMasterAccountTotalUSDValue(ctx context.Context, email string, page, size int) (*SpotUSDMasterAccounts, error) {
+func (e *Exchange) GetMasterAccountTotalUSDValue(ctx context.Context, email string, page, size uint64) (*SpotUSDMasterAccounts, error) {
 	var response SpotUSDMasterAccounts
 	params := url.Values{}
 	if email != "" {
 		params.Set("email", email)
 	}
 	if page > 0 {
-		params.Set("page", strconv.Itoa(page))
+		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if size > 0 {
-		params.Set("size", strconv.Itoa(size))
+		params.Set("size", strconv.FormatUint(size, 10))
 	}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return &response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
@@ -1276,10 +1276,10 @@ func (e *Exchange) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrderR
 	if arg.FromCoin != "" {
 		params.Set("fromCoin", arg.FromCoin)
 	}
-	if !(arg.StartTime.IsZero()) {
+	if !arg.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
-	if !(arg.EndTime.IsZero()) {
+	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if arg.ToCoin != "" {
@@ -1370,7 +1370,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (s
 
 // WithdrawalHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (e *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
+func (e *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit uint64) ([]WithdrawStatusResponse, error) {
 	params := url.Values{}
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
@@ -1394,10 +1394,10 @@ func (e *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, statu
 		params.Set("endTime", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if offset != 0 {
-		params.Set("offset", strconv.Itoa(offset))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit != 0 {
-		params.Set("limit", strconv.Itoa(limit))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var withdrawStatus []WithdrawStatusResponse
 	if err := e.SendAuthHTTPRequest(ctx,
@@ -1417,10 +1417,10 @@ func (e *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, statu
 func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	var response FiatAssetsHistory
 	params := url.Values{}
-	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
-	if !arg.StartTime.IsZero() && !(arg.StartTime.After(time.Now())) {
+	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if arg.FiatCurrency != "" {
@@ -1499,7 +1499,7 @@ func (e *Exchange) GetDepositAddressForCurrency(ctx context.Context, coin, chain
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
+func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, status uint8, startTime, endTime time.Time, offset, limit uint64) ([]DepositHistory, error) {
 	var response []DepositHistory
 	params := url.Values{}
 	if !coin.IsEmpty() {
@@ -1523,11 +1523,11 @@ func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, statu
 	}
 
 	if offset != 0 {
-		params.Set("offset", strconv.Itoa(offset))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 
 	if limit != 0 {
-		params.Set("limit", strconv.Itoa(limit))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 
 	if err := e.SendAuthHTTPRequest(ctx,
@@ -1546,10 +1546,10 @@ func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, statu
 // FiatDepositHistory fetch your fiat (USD) deposit history as Fiat Assets History
 func (e *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	params := url.Values{}
-	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
-	if !(arg.StartTime.IsZero()) && !(arg.StartTime.After(time.Now())) {
+	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if arg.FiatCurrency != "" {
@@ -1586,8 +1586,9 @@ func (e *Exchange) GetSubAccountDepositAddress(ctx context.Context, arg SubAccou
 		subAccountDepositAddress, params, spotDefaultRate, &response)
 }
 
-// GetSubAccountDepositHistory retrieves sub-account deposit history.
-func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code, status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
+// GetSubAccountDepositHistory retrieves sub-account deposit history. status is signed because 0 is
+// Pending: a status other than 0, 1 or 6, such as -1, sends no status filter
+func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code, status int64, startTime, endTime time.Time, limit, offset uint64) ([]SubAccountDepositItem, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errMissingSubAccountEmail
@@ -1597,7 +1598,7 @@ func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string
 		params.Set("coin", coin.String())
 	}
 	if status == 0 || status == 6 || status == 1 {
-		params.Set("status", strconv.Itoa(status))
+		params.Set("status", strconv.FormatInt(status, 10))
 	}
 	if !startTime.IsZero() && startTime.Unix() != 0 && startTime.Before(time.Now()) {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1606,10 +1607,10 @@ func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.Itoa(limit))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
-		params.Set("offset", strconv.Itoa(offset))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	var response []SubAccountDepositItem
 	return response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
@@ -1619,19 +1620,19 @@ func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string
 // Referral Endpoints
 
 // GetReferralRewardHistory retrieves the user’s referral reward history.
-func (e *Exchange) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
+func (e *Exchange) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows uint64) (*ReferralRewardHistoryResponse, error) {
 	params := url.Values{}
 	switch {
 	case userBusinessType != 0 && userBusinessType != 1:
 		return nil, errInvalidUserBusinessType
 	case page == 0:
 		return nil, errMissingPageNumber
-	case rows < 1 || rows > 200:
+	case rows == 0 || rows > 200:
 		return nil, errInvalidRowNumber
 	}
-	params.Set("userBizType", strconv.Itoa(userBusinessType))
-	params.Set("page", strconv.Itoa(page))
-	params.Set("rows", strconv.Itoa(rows))
+	params.Set("userBizType", strconv.FormatUint(userBusinessType, 10))
+	params.Set("page", strconv.FormatUint(page, 10))
+	params.Set("rows", strconv.FormatUint(rows, 10))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response ReferralRewardHistoryResponse
 	return &response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, referralRewardHistory, params, spotDefaultRate, &response)

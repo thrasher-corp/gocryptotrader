@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -19,8 +19,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
@@ -138,10 +137,7 @@ func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (collatera
 }
 
 func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	resp := make([]futures.PositionResponse, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
@@ -312,7 +308,7 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 		Low:          1337,
 		Bid:          1337,
 		Ask:          1337,
-		Volume:       1337,
+		BaseVolume:   1337,
 		QuoteVolume:  1337,
 		PriceATH:     1337,
 		Open:         1337,
@@ -444,12 +440,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 	t.Helper()
 	var err error
 	dbConf := database.Config{
-		Enabled: true,
-		Driver:  database.DBSQLite3,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test123.db",
-		},
+		Enabled:  true,
+		Driver:   database.DBSQLite3,
+		Host:     "localhost",
+		Database: "test123.db",
 	}
 	engerino := new(Engine)
 	dbm, err := SetupDatabaseConnectionManager(&dbConf)
@@ -524,14 +518,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
 	}
-	uuider, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
-	uuider2, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
+	uuider := uuid.NewV4()
+	uuider2 := uuid.NewV4()
 	err = dbexchange.InsertMany([]dbexchange.Details{{Name: testExchange, UUID: uuider}, {Name: "Binance", UUID: uuider2}})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
@@ -3725,7 +3713,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		t.FailNow()
 	}
 
-	gRPCPort := rand.Intn(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
+	gRPCPort := rand.IntN(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
 	gRPCProxyPort := gRPCPort + 1
 
 	e := &Engine{
@@ -3780,9 +3768,13 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
 			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
+			// the server measures uptime while handling the request, so it must fall within this window; bounding it
+			// here keeps slow response decoding, such as a JSON backend compiling its decoder, out of the measurement
+			sentAfter := time.Since(fakeTime)
 			resp, err := client.Do(req)
 			require.NoError(t, err, "Do must not error")
 			defer resp.Body.Close()
+			receivedBy := time.Since(fakeTime)
 
 			if creds.username == "bobmarley" && creds.password == "Sup3rdup3rS3cr3t" {
 				var info gctrpc.GetInfoResponse
@@ -3791,7 +3783,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 
 				uptimeDuration, err := time.ParseDuration(info.Uptime)
 				require.NoError(t, err, "ParseDuration must not error")
-				assert.InDelta(t, time.Since(fakeTime).Seconds(), uptimeDuration.Seconds(), 1.0, "Uptime should be within 1 second of the expected duration")
+				assert.GreaterOrEqual(t, uptimeDuration, sentAfter, "Uptime should be measured after the request was sent")
+				assert.LessOrEqual(t, uptimeDuration, receivedBy, "Uptime should be measured before the response arrived")
 			} else {
 				respBody, err := io.ReadAll(resp.Body)
 				require.NoError(t, err, "ReadAll must not error")

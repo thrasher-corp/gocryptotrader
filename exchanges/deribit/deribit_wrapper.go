@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -242,6 +242,16 @@ func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
+// quoteVolume returns the 24 hour volume in the instrument's quote currency. Deribit serves
+// volume_notional in that currency wherever it applies, while volume_usd is the USD premium
+// turnover, which a BTC or ETH quoted option must not report as its own
+func quoteVolume(volumeUSD, volumeNotional float64, a asset.Item) float64 {
+	if volumeNotional != 0 || a == asset.Options || a == asset.OptionCombo {
+		return volumeNotional
+	}
+	return volumeUSD
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !e.SupportsAsset(assetType) {
@@ -272,11 +282,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		High:         tickerData.Stats.High,
 		Low:          tickerData.Stats.Low,
 		Last:         tickerData.LastPrice,
-		Volume:       tickerData.Stats.Volume,
+		BaseVolume:   tickerData.Stats.Volume,
 		Close:        tickerData.LastPrice,
 		IndexPrice:   tickerData.IndexPrice,
 		MarkPrice:    tickerData.MarkPrice,
-		QuoteVolume:  tickerData.Stats.VolumeUSD,
+		OpenInterest: tickerData.OpenInterest,
+		LastUpdated:  tickerData.Timestamp.Time(),
+		QuoteVolume:  quoteVolume(tickerData.Stats.VolumeUSD, tickerData.Stats.VolumeNotional, assetType),
 	}
 	err = ticker.ProcessTicker(&resp)
 	if err != nil {
@@ -661,6 +673,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if ord == nil {
+		return order.ErrCancelOrderIsNil
+	}
 	if !e.SupportsAsset(ord.AssetType) {
 		return fmt.Errorf("%s: %w - %s", e.Name, asset.ErrNotSupported, ord.AssetType)
 	}
@@ -1373,10 +1388,9 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	case asset.Options:
 		baseString := cp.Base.Upper().String()
 		quoteString := cp.Quote.Upper().String()
-		quoteSplit := strings.Split(quoteString, currency.DashDelimiter)
-		if len(quoteSplit) > 1 &&
-			(quoteSplit[len(quoteSplit)-1] == "C" || quoteSplit[len(quoteSplit)-1] == "P") {
-			return tradeBaseURL + tradeOptions + baseString + "/" + baseString + currency.DashDelimiter + quoteSplit[0], nil
+		if _, optionType, found := strings.CutLast(quoteString, currency.DashDelimiter); found && (optionType == "C" || optionType == "P") {
+			expiry, _, _ := strings.Cut(quoteString, currency.DashDelimiter)
+			return tradeBaseURL + tradeOptions + baseString + "/" + baseString + currency.DashDelimiter + expiry, nil
 		}
 		return tradeBaseURL + tradeOptions + baseString, nil
 	case asset.FutureCombo:
@@ -1442,7 +1456,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:        r.Pair,
 			LatestRate: fundingrate.Rate{
 				Time: fri[i].Timestamp.Time(),
-				Rate: decimal.MustFromFloat(fri[i].Interest8H),
+				Rate: decimal.MustFromFloat(fri[i].Interest8Hour),
 			},
 		}
 		latestTime = fri[i].Timestamp.Time()
@@ -1506,7 +1520,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				continue
 			}
 			fundingRates = append(fundingRates, fundingrate.Rate{
-				Rate: decimal.MustFromFloat(records[i].Interest1H),
+				Rate: decimal.MustFromFloat(records[i].Interest1Hour),
 				Time: rt,
 			})
 			mfr[rt.UnixMilli()] = struct{}{}
@@ -1516,9 +1530,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if len(fundingRates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
-	sort.Slice(fundingRates, func(i, j int) bool {
-		return fundingRates[i].Time.Before(fundingRates[j].Time)
-	})
+	slices.SortFunc(fundingRates, func(a, b fundingrate.Rate) int { return a.Time.Compare(b.Time) })
 	return &fundingrate.HistoricalRates{
 		Exchange:        e.Name,
 		Asset:           r.Asset,

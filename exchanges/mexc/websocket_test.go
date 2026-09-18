@@ -187,7 +187,7 @@ func TestWsSpotTickerFromMiniTicker(t *testing.T) {
 	assert.Equal(t, 93390.11, got.Last, "Last should be correct")
 	assert.Equal(t, 94000.5, got.High, "High should be correct")
 	assert.Equal(t, 92000.25, got.Low, "Low should be correct")
-	assert.Equal(t, 12058672.07, got.Volume, "Volume should be the base asset volume (miniTicker quantity)")
+	assert.Equal(t, 12058672.07, got.BaseVolume, "BaseVolume should be the base asset volume (miniTicker quantity)")
 	assert.Equal(t, 323169.867864, got.QuoteVolume, "QuoteVolume should be the quote volume (miniTicker volume)")
 	assert.Equal(t, 93387.28, got.Bid, "Bid from the bookTicker channel should survive a miniTicker update")
 	assert.Equal(t, 93387.29, got.Ask, "Ask from the bookTicker channel should survive a miniTicker update")

@@ -493,7 +493,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			setIfNonZero(&t.Last, last)
 			setIfNonZero(&t.High, high)
 			setIfNonZero(&t.Low, low)
-			setIfNonZero(&t.Volume, baseVolume)
+			setIfNonZero(&t.BaseVolume, baseVolume)
 			setIfNonZero(&t.QuoteVolume, quoteVolume)
 		})
 	case channelAggregateDepthV3:

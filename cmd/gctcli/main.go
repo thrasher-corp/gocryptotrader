@@ -35,6 +35,30 @@ var (
 
 const defaultTimeout = time.Second * 30
 
+// Flag names shared across command definitions and their lookups
+const (
+	exchangeFlag = "exchange"
+	assetFlag    = "asset"
+	pairFlag     = "pair"
+	startFlag    = "start"
+	endFlag      = "end"
+	amountFlag   = "amount"
+	sideFlag     = "side"
+	enableFlag   = "enable"
+)
+
+// Usage strings shared across command definitions
+const (
+	commandArgsUsage     = "<command> <args>"
+	exchangeArgsUsage    = "<exchange>"
+	exchangeUsage        = "the exchange to act on"
+	pairUsage            = "the currency pair"
+	assetUsage           = "the asset type of the currency pair"
+	assetFlagUsage       = "asset"
+	futuresAssetUsage    = "the asset type of the currency pair, must be a futures type"
+	futuresExchangeUsage = "the exchange to retrieve futures positions from"
+)
+
 func jsonOutput(in any) {
 	j, err := json.MarshalIndent(in, "", " ")
 	if err != nil {

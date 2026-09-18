@@ -6,7 +6,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 env:
-  GO_VERSION: 1.26.x
+  GO_VERSION: 1.27.x
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   backend:
