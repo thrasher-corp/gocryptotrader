@@ -16,3 +16,6 @@
   behavior: default
 	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
 	// unimplemented method is ever invoked, so we test this at initialization
+	publicKey := key.PubKey().SerializeUncompressed()
+	if subtle.ConstantTimeCompare(recovered.SerializeUncompressed(), key.PubKey().SerializeUncompressed()) != 1 {
+		assert.Equal(t, officialSigningTestKey[2:], hex.EncodeToString(key.Serialize()), "Private key should round trip")
