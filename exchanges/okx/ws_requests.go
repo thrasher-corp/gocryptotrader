@@ -29,8 +29,8 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 		return nil, err
 	}
 
-	if arg.InstIdCode == 0 {
-		return nil, errMissingInstIDCode
+	if arg.InstrumentIDCode == 0 {
+		return nil, errMissingInstrumentIDCode
 	}
 
 	var resp []*OrderData
@@ -50,8 +50,8 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 		if err := args[i].Validate(); err != nil {
 			return nil, err
 		}
-		if args[i].InstIdCode == 0 {
-			return nil, errMissingInstIDCode
+		if args[i].InstrumentIDCode == 0 {
+			return nil, errMissingInstrumentIDCode
 		}
 	}
 
