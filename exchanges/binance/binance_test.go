@@ -2075,7 +2075,22 @@ func TestWsKlineUpdate(t *testing.T) {
 			require.IsType(t, kline.Item{}, res.Data, "Relay payload must be a kline.Item")
 			k, _ := res.Data.(kline.Item)
 			require.Len(t, k.Candles, 1, "kline.Item must carry a single candle")
-			assert.Equal(t, tt.expectedIssues, k.Candles[0].ValidationIssues, "ValidationIssues should reflect whether the candle has closed")
+			exp := kline.Item{
+				Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+				Asset:    asset.Spot,
+				Exchange: e.Name,
+				Interval: kline.OneMin,
+				Candles: []kline.Candle{{
+					Time:             time.Unix(1234000001, 0),
+					Open:             0.001,
+					Close:            0.002,
+					High:             0.0025,
+					Low:              0.0015,
+					Volume:           1000,
+					ValidationIssues: tt.expectedIssues,
+				}},
+			}
+			assert.Equal(t, exp, res.Data, "Relayed kline should match")
 		})
 	}
 }
