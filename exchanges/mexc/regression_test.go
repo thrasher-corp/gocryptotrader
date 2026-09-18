@@ -786,7 +786,7 @@ func TestSubmitOrderMapsSideToVenueEnum(t *testing.T) {
 		Exchange: e.Name, Pair: kas, AssetType: asset.Spot, Side: order.Bid, Type: order.Limit, Amount: 100, Price: 0.03,
 	})
 	require.NoError(t, err, "SubmitOrder must not error")
-	assert.Equal(t, "BUY", sentSide, "a long side must reach MEXC as BUY, not BID")
+	assert.Equal(t, "BUY", sentSide, "a long side should reach MEXC as BUY, not BID")
 
 	_, err = e.SubmitOrder(t.Context(), &order.Submit{
 		Exchange: e.Name, Pair: kas, AssetType: asset.Spot, Side: order.UnknownSide, Type: order.Limit, Amount: 100, Price: 0.03,
@@ -827,7 +827,7 @@ func TestGetOrderHistoryReportsTriggerPrice(t *testing.T) {
 		AssetType: asset.Spot, Pairs: currency.Pairs{kas}, Side: order.AnySide, Type: order.AnyType,
 	})
 	require.NoError(t, err, "GetOrderHistory must not error")
-	require.Len(t, orders, 1, "the order should be returned")
+	require.Len(t, orders, 1, "the order must be returned")
 	assert.Equal(t, 0.03, orders[0].TriggerPrice, "the REST listing mapper should report stopPrice as the trigger price")
 }
 
@@ -898,5 +898,5 @@ func TestGenerateSubscriptionsExpandsConfiguredList(t *testing.T) {
 	ex.Features.Subscriptions = subscription.List{}
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	assert.Empty(t, subs, "an empty configured list must expand to no subscriptions, not the hardcoded defaults")
+	assert.Empty(t, subs, "an empty configured list should expand to no subscriptions, not the hardcoded defaults")
 }
