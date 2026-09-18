@@ -1,7 +1,10 @@
 package btse
 
 import (
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -72,6 +75,28 @@ func TestUpdateTradablePairs(t *testing.T) {
 func TestFetchFundingHistory(t *testing.T) {
 	_, err := e.FetchFundingHistory(t.Context(), "")
 	assert.NoError(t, err, "FetchFundingHistory should not error")
+}
+
+func TestFetchFundingHistoryWithSymbol(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test exchange Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "FetchFundingHistory should use GET")
+		assert.Equal(t, "/futures/api/v2.1/funding_history", r.URL.Path, "funding history request path should be correct")
+		assert.Equal(t, "symbol=BTC", r.URL.RawQuery, "funding history request should use the symbol query parameter")
+		_, err := io.WriteString(w, `{}`)
+		assert.NoError(t, err, "writing mock response should not error")
+	}))
+	defer server.Close()
+
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+
+	_, err := ex.FetchFundingHistory(t.Context(), "BTC")
+	require.NoError(t, err, "FetchFundingHistory must not error for a symbol")
 }
 
 func TestGetMarketsSummary(t *testing.T) {
