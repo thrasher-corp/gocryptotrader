@@ -191,7 +191,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	e.checkSubscriptions()
+	if err := e.checkSubscriptions(); err != nil {
+		return err
+	}
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,

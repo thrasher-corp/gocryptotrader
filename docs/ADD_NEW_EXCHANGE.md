@@ -1,6 +1,6 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
+<img src="../docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -90,30 +90,30 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 ```go
     fmt1 := currency.PairStore{
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "_"},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
-	}
+        AssetEnabled:  true,
+        RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+        ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+    }
 
-	fmt2 := currency.PairStore{
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
-	}
+    fmt2 := currency.PairStore{
+        AssetEnabled:  true,
+        RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
+        ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+    }
 
-	if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
-	}
-	if err := e.SetAssetPairStore(asset.Futures, fmt2); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Futures, err)
-	}
+    if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+        log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
+    }
+    if err := e.SetAssetPairStore(asset.Futures, fmt2); err != nil {
+        log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Futures, err)
+    }
 ```
 
 ### Document the addition of the new exchange (Binance exchange is used as an example below)
 
 **Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported by the exchange
 
-#### Add exchange to the [root README template](/cmd/documentation/root_templates/root_readme.tmpl) file
+#### Add exchange to the [root README template](../cmd/documentation/root_templates/root_readme.tmpl) file
 
 ```go
 | Exchange | REST API | Websocket API | FIX API |
@@ -122,7 +122,6 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
-| BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
@@ -151,7 +150,6 @@ var Exchanges = []string{
     "bitfinex",
     "bitflyer",
     "bithumb",
-    "bitmex",
     "bitstamp",
     "btc markets",
     "btse",
@@ -183,7 +181,7 @@ var Exchanges = []string{
 {{template "header" .}}
 ## Okx Exchange
 
-#### Current Features
+### Current Features
 
 + REST Support // if websocket or fix are supported, add that in too
 ```
@@ -225,7 +223,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ### Code Consistency Guidelines
 
-Please refer to our [coding guidelines](/docs/CODING_GUIDELINES.md).
+Please refer to our [coding guidelines](../docs/CODING_GUIDELINES.md).
 
 ### Create functions supported by the exchange
 
@@ -343,9 +341,9 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 
 #### Message IDs
 
-* e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
-* e.MessageSequence() to get a simple integer ID if uniqueness is not critical
-* Otherwise override MessageID with a suitable alternative
+- e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
+- e.MessageSequence() to get a simple integer ID if uniqueness is not critical
+- Otherwise override MessageID with a suitable alternative
 
 #### Authenticated functions
 

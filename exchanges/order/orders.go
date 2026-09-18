@@ -1292,7 +1292,7 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 }
 
 // Validate checks internal struct requirements and returns filter requirement
-// options for wrapper standardization procedures.
+// options for wrapper standardisation procedures.
 func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {
 		return ErrGetOrdersRequestIsNil
