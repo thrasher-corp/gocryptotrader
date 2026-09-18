@@ -274,7 +274,9 @@ func TestGetOrderHistoryMultiPair(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		symbol := r.URL.Query().Get("symbol")
-		_, _ = w.Write([]byte(`[{"symbol":"` + symbol + `","orderId":"` + symbol + `-1","price":"1","origQty":"1","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","time":1704067200000}]`))
+		// The mock reflects the requested symbol so the order id identifies which pair was queried;
+		// it is a test double, not a live response.
+		_, _ = w.Write([]byte(`[{"symbol":"` + symbol + `","orderId":"` + symbol + `-1","price":"1","origQty":"1","executedQty":"0","type":"LIMIT","side":"BUY","status":"NEW","time":1704067200000}]`)) //nolint:gosec // test mock reflecting the request
 	}))
 	btc := currency.NewBTCUSDT()
 	eth := currency.NewPair(currency.ETH, currency.USDT)
