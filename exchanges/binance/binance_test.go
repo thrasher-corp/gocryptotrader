@@ -2135,7 +2135,7 @@ func TestSubscribeBadResp(t *testing.T) {
 
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"ETHBTC","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
+	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"BTCUSDT","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
 	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -2144,33 +2144,66 @@ func TestWsTickerUpdate(t *testing.T) {
 
 func TestWsKlineUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
-	  "e": "kline",
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
-	  "k": {
-		"t": 1234000001, 
-		"T": 1234600001, 
-		"s": "BTCUSDT",  
-		"i": "1m",      
-		"f": 100,       
-		"L": 200,       
-		"o": "0.0010",  
-		"c": "0.0020",  
-		"h": "0.0025",  
-		"l": "0.0015",  
-		"v": "1000",    
-		"n": 100,       
-		"x": false,     
-		"q": "1.0000",  
-		"V": "500",     
-		"Q": "0.500",   
-		"B": "123456"   
-	  }
-	}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	tests := []struct {
+		name           string
+		klineClosed    string
+		expectedIssues string
+	}{
+		{name: "StillForming", klineClosed: "false", expectedIssues: kline.PartialCandle},
+		{name: "Closed", klineClosed: "true", expectedIssues: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			pressXToJSON := fmt.Appendf(nil, `{"stream":"btcusdt@kline_1m","data":{
+			  "e": "kline",
+			  "E": 1234567891,
+			  "s": "BTCUSDT",
+			  "k": {
+				"t": 1234000001,
+				"T": 1234600001,
+				"s": "BTCUSDT",
+				"i": "1m",
+				"f": 100,
+				"L": 200,
+				"o": "0.0010",
+				"c": "0.0020",
+				"h": "0.0025",
+				"l": "0.0015",
+				"v": "1000",
+				"n": 100,
+				"x": %s,
+				"q": "1.0000",
+				"V": "500",
+				"Q": "0.500",
+				"B": "123456"
+			  }
+			}}`, tt.klineClosed)
+			require.NoError(t, e.wsHandleData(t.Context(), pressXToJSON), "wsHandleData must not error")
+			require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must relay one payload")
+			res := <-e.Websocket.DataHandler.C
+			require.IsType(t, kline.Item{}, res.Data, "Relay payload must be a kline.Item")
+			k, _ := res.Data.(kline.Item)
+			require.Len(t, k.Candles, 1, "kline.Item must carry a single candle")
+			exp := kline.Item{
+				Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+				Asset:    asset.Spot,
+				Exchange: e.Name,
+				Interval: kline.OneMin,
+				Candles: []kline.Candle{{
+					Time:             time.Unix(1234000001, 0),
+					Open:             0.001,
+					Close:            0.002,
+					High:             0.0025,
+					Low:              0.0015,
+					Volume:           1000,
+					ValidationIssues: tt.expectedIssues,
+				}},
+			}
+			assert.Equal(t, exp, res.Data, "Relayed kline should match")
+		})
 	}
 }
 
@@ -2178,9 +2211,9 @@ func TestWsTradeUpdate(t *testing.T) {
 	t.Parallel()
 	e.SetSaveTradeDataStatus(true)
 	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
-	  "e": "trade",     
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
+	  "e": "trade",
+	  "E": 1234567891,
+	  "s": "BTCUSDT",
 	  "t": 12345,       
 	  "p": "0.001",     
 	  "q": "100",       
@@ -2637,15 +2670,6 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Date:                 time.UnixMilli(1616627567900),
 		LastUpdated:          time.UnixMilli(1616627567900),
 		Pair:                 currency.NewBTCUSDT(),
-	}
-	// empty the channel. otherwise mock_test will fail
-drain:
-	for {
-		select {
-		case <-e.Websocket.DataHandler.C:
-		default:
-			break drain
-		}
 	}
 
 	err := e.wsHandleData(t.Context(), payload)
