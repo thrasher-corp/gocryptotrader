@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -43,6 +44,13 @@ var (
 	e        *Exchange
 	testPair = currency.NewBTCUSDT().Format(currency.PairFormat{Delimiter: "_"})
 )
+
+func TestErrorCapture(t *testing.T) {
+	t.Parallel()
+	for _, code := range []int64{10005, 99999999} {
+		assert.ErrorIsf(t, ErrorCapture(code), request.ErrAuthRequestFailed, "ErrorCapture should wrap request.ErrAuthRequestFailed for code %d", code)
+	}
+}
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
@@ -462,10 +470,11 @@ func TestGetStatus(t *testing.T) {
 		resp   order.Status
 	}{
 		{status: -1, resp: order.Cancelled},
-		{status: 0, resp: order.Active},
+		{status: 0, resp: order.New},
 		{status: 1, resp: order.PartiallyFilled},
 		{status: 2, resp: order.Filled},
-		{status: 4, resp: order.Cancelling},
+		{status: 3, resp: order.PartiallyCancelled},
+		{status: 4, resp: order.PendingCancel},
 		{status: 5, resp: order.UnknownStatus},
 	} {
 		t.Run(tt.resp.String(), func(t *testing.T) {
