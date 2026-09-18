@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -20,8 +19,6 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/file"
-	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/common/timeperiods"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -46,7 +43,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -888,7 +884,8 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	cp := currency.NewPairWithDelimiter(
 		r.Pair.Base,
 		r.Pair.Quote,
-		r.Pair.Delimiter)
+		r.Pair.Delimiter,
+	)
 
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -1003,7 +1000,8 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 	cp := currency.NewPairWithDelimiter(
 		r.Pair.Base,
 		r.Pair.Quote,
-		r.Pair.Delimiter)
+		r.Pair.Delimiter,
+	)
 
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -1581,7 +1579,8 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
-	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
+	addr, err := s.GetExchangeCryptocurrencyDepositAddress(
+		ctx,
 		r.Exchange,
 		"",
 		r.Chain,
@@ -2484,7 +2483,8 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		response.Candles = append(response.Candles, tradeCandles.Candles...)
 
 		for i := range response.Candles {
-			log.Infof(log.GRPCSys,
+			log.Infof(
+				log.GRPCSys,
 				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
 				klineItem.Exchange,
 				klineItem.Pair.String(),
@@ -2495,316 +2495,6 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 	}
 
 	return &response, nil
-}
-
-// GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
-func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	if gctscript.VMSCount.Len() < 1 {
-		return &gctrpc.GCTScriptStatusResponse{Status: "no scripts running"}, nil
-	}
-
-	resp := &gctrpc.GCTScriptStatusResponse{
-		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), s.gctScriptManager.GetMaxVirtualMachines()),
-	}
-
-	gctscript.AllVMSync.Range(func(_, v any) bool {
-		vm, ok := v.(*gctscript.VM)
-		if !ok {
-			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))
-			return false
-		}
-		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
-			Uuid:    vm.ID.String(),
-			Name:    vm.ShortName(),
-			NextRun: vm.NextRun.String(),
-		})
-
-		return true
-	})
-
-	return resp, nil
-}
-
-// GCTScriptQuery queries a running script and returns script running information
-func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	UUID, err := uuid.FromString(r.Script.Uuid)
-	if err != nil {
-		//nolint:nilerr // error is returned in the GCTScriptQueryResponse
-		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
-	}
-
-	v, f := gctscript.AllVMSync.Load(UUID)
-	if !f {
-		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
-	}
-
-	vm, ok := v.(*gctscript.VM)
-	if !ok {
-		return nil, common.GetTypeAssertError("*gctscript.VM", v)
-	}
-	resp := &gctrpc.GCTScriptQueryResponse{
-		Status: MsgStatusOK,
-		Script: &gctrpc.GCTScript{
-			Name:    vm.ShortName(),
-			Uuid:    vm.ID.String(),
-			Path:    vm.Path,
-			NextRun: vm.NextRun.String(),
-		},
-	}
-	data, err := vm.Read()
-	if err != nil {
-		return nil, err
-	}
-	resp.Data = string(data)
-	return resp, nil
-}
-
-// GCTScriptExecute execute a script
-func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	if r.Script.Path == "" {
-		r.Script.Path = gctscript.ScriptPath
-	}
-
-	gctVM := s.gctScriptManager.New()
-	if gctVM == nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "unable to create VM instance"}, nil
-	}
-
-	script := filepath.Join(r.Script.Path, r.Script.Name)
-	if err := gctVM.Load(script); err != nil {
-		return &gctrpc.GenericResponse{ //nolint:nilerr // error is returned in the generic response
-			Status: MsgStatusError,
-			Data:   err.Error(),
-		}, nil
-	}
-
-	go gctVM.CompileAndRun()
-
-	return &gctrpc.GenericResponse{
-		Status: MsgStatusOK,
-		Data:   gctVM.ShortName() + " (" + gctVM.ID.String() + ") executed",
-	}, nil
-}
-
-// GCTScriptStop terminate a running script
-func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	UUID, err := uuid.FromString(r.Script.Uuid)
-	if err != nil {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
-	}
-
-	v, f := gctscript.AllVMSync.Load(UUID)
-	if !f {
-		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
-	}
-
-	vm, ok := v.(*gctscript.VM)
-	if !ok {
-		return nil, common.GetTypeAssertError("*gctscript.VM", v)
-	}
-	err = vm.Shutdown()
-	status := " terminated"
-	if err != nil {
-		status = " " + err.Error()
-	}
-	return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: vm.ID.String() + status}, nil
-}
-
-// GCTScriptUpload upload a new script to ScriptPath
-func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	fPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
-	fPathExits := fPath
-	if filepath.Ext(fPath) == ".zip" {
-		fPathExits = fPathExits[0 : len(fPathExits)-4]
-	}
-
-	if s, err := os.Stat(fPathExits); !os.IsNotExist(err) {
-		if !r.Overwrite {
-			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
-		}
-		f := filepath.Join(gctscript.ScriptPath, "version_history")
-		err = os.MkdirAll(f, file.DefaultPermissionOctal)
-		if err != nil {
-			return nil, err
-		}
-		timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
-		renamedFile := filepath.Join(f, timeString+"-"+filepath.Base(fPathExits))
-		if s.IsDir() {
-			err = archive.Zip(fPathExits, renamedFile+".zip")
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			err = file.Move(fPathExits, renamedFile)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	newFile, err := os.Create(fPath)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = newFile.Write(r.Data)
-	if err != nil {
-		return nil, err
-	}
-	err = newFile.Close()
-	if err != nil {
-		log.Errorln(log.Global, "Failed to close file handle, archive removal may fail")
-	}
-
-	if r.Archived {
-		files, errExtract := archive.UnZip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
-		if errExtract != nil {
-			log.Errorf(log.Global, "Failed to archive zip file %v", errExtract)
-			return &gctrpc.GenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
-		}
-		var failedFiles []string
-		for x := range files {
-			err = s.gctScriptManager.Validate(files[x])
-			if err != nil {
-				failedFiles = append(failedFiles, files[x])
-			}
-		}
-		err = os.Remove(fPath)
-		if err != nil {
-			return nil, err
-		}
-		if len(failedFiles) > 0 {
-			err = os.RemoveAll(filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
-			if err != nil {
-				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v (%v), manual deletion required", filepath.Base(fPath), err)
-			}
-			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
-		}
-	} else {
-		err = s.gctScriptManager.Validate(fPath)
-		if err != nil {
-			errRemove := os.Remove(fPath)
-			if errRemove != nil {
-				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required: %v", filepath.Base(fPath), errRemove)
-			}
-			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: err.Error()}, nil
-		}
-	}
-
-	return &gctrpc.GenericResponse{
-		Status: MsgStatusOK,
-		Data:   fmt.Sprintf("script %s written", newFile.Name()),
-	}, nil
-}
-
-// GCTScriptReadScript read a script and return contents
-func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	filename := filepath.Join(gctscript.ScriptPath, r.Script.Name)
-	if !strings.HasPrefix(filename, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
-		return nil, fmt.Errorf("%s: invalid file path", filename)
-	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	return &gctrpc.GCTScriptQueryResponse{
-		Status: MsgStatusOK,
-		Script: &gctrpc.GCTScript{
-			Name: filepath.Base(filename),
-			Path: filepath.Dir(filename),
-		},
-		Data: string(data),
-	}, nil
-}
-
-// GCTScriptListAll lists all scripts inside the default script path
-func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	resp := &gctrpc.GCTScriptStatusResponse{}
-	err := filepath.Walk(gctscript.ScriptPath,
-		func(path string, _ os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if filepath.Ext(path) == common.GctExt {
-				resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
-					Name: path,
-				})
-			}
-			return nil
-		})
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
-// GCTScriptStopAll stops all running scripts
-func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	err := s.gctScriptManager.ShutdownAll()
-	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
-	}
-
-	return &gctrpc.GenericResponse{
-		Status: MsgStatusOK,
-		Data:   "all running scripts have been stopped",
-	}, nil
-}
-
-// GCTScriptAutoLoadToggle adds or removes an entry to the autoload list
-func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GenericResponse, error) {
-	if !s.gctScriptManager.IsRunning() {
-		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
-	}
-
-	if r.Status {
-		err := s.gctScriptManager.Autoload(r.Script, true)
-		if err != nil {
-			//nolint:nilerr // error is returned in the generic response
-			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
-		}
-		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
-	}
-
-	err := s.gctScriptManager.Autoload(r.Script, false)
-	if err != nil {
-		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
-	}
-	return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
 }
 
 // SetExchangeAsset enables or disables an exchanges asset type
@@ -3301,7 +2991,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	}
 
 	if len(resp.MissingPeriods) == 0 {
-		resp.Status = fmt.Sprintf("no missing candles found between %v and %v",
+		resp.Status = fmt.Sprintf(
+			"no missing candles found between %v and %v",
 			r.Start,
 			r.End,
 		)
@@ -3400,7 +3091,8 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	}
 
 	if len(resp.MissingPeriods) == 0 {
-		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
+		resp.Status = fmt.Sprintf(
+			"no missing periods found between %v and %v",
 			r.Start,
 			r.End,
 		)

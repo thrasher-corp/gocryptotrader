@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -114,7 +113,8 @@ func (c *Config) CheckClientBankAccounts() {
 	defer m.Unlock()
 
 	if len(c.BankAccounts) == 0 {
-		c.BankAccounts = append(c.BankAccounts,
+		c.BankAccounts = append(
+			c.BankAccounts,
 			banking.Account{
 				ID:                  "test-bank-01",
 				BankName:            "Test Bank",
@@ -1186,35 +1186,6 @@ func (c *Config) CheckLoggerConfig() error {
 	return log.SetLogPath(logPath)
 }
 
-func (c *Config) checkGCTScriptConfig() error {
-	m.Lock()
-	defer m.Unlock()
-
-	if c.GCTScript.ScriptTimeout <= 0 {
-		c.GCTScript.ScriptTimeout = gctscript.DefaultTimeoutValue
-	}
-
-	if c.GCTScript.MaxVirtualMachines == 0 {
-		c.GCTScript.MaxVirtualMachines = gctscript.DefaultMaxVirtualMachines
-	}
-
-	scriptPath := c.GetDataPath("scripts")
-	err := common.CreateDir(scriptPath)
-	if err != nil {
-		return err
-	}
-
-	outputPath := filepath.Join(scriptPath, "output")
-	err = common.CreateDir(outputPath)
-	if err != nil {
-		return err
-	}
-
-	gctscript.ScriptPath = scriptPath
-
-	return nil
-}
-
 func (c *Config) checkDatabaseConfig() error {
 	m.Lock()
 	defer m.Unlock()
@@ -1634,10 +1605,6 @@ func (c *Config) CheckConfig() error {
 
 	if err := c.CheckExchangeConfigValues(); err != nil {
 		return fmt.Errorf("%w: %w", errCheckingConfigValues, err)
-	}
-
-	if err := c.checkGCTScriptConfig(); err != nil {
-		log.Errorf(log.ConfigMgr, "Failed to configure gctscript, feature has been disabled: %s\n", err)
 	}
 
 	c.CheckConnectionMonitorConfig()

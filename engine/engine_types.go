@@ -22,7 +22,6 @@ type Settings struct {
 	ExchangeSyncerSettings
 	ForexSettings
 	ExchangeTuningSettings
-	GCTScriptSettings
 	WithdrawSettings
 
 	// Main shutdown channel
@@ -48,7 +47,6 @@ type CoreSettings struct {
 	EnableOrderManager          bool
 	EnableConnectivityMonitor   bool
 	EnableDatabaseManager       bool
-	EnableGCTScriptManager      bool
 	EnableNTPClient             bool
 	EnableWebsocketRoutine      bool
 	EnableCurrencyStateManager  bool
@@ -101,11 +99,6 @@ type ExchangeTuningSettings struct {
 	GlobalHTTPTimeout                   time.Duration
 	GlobalHTTPUserAgent                 string
 	GlobalHTTPProxy                     string
-}
-
-// GCTScriptSettings defines settings related to the GCTScript virtual machine
-type GCTScriptSettings struct {
-	MaxVirtualMachines uint64
 }
 
 // WithdrawSettings defines settings related to Withdrawing cryptocurrency

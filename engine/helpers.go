@@ -54,7 +54,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -84,7 +83,6 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 		SyncManagerName:               bot.Settings.EnableExchangeSyncManager,
 		grpcName:                      bot.Settings.EnableGRPC,
 		grpcProxyName:                 bot.Settings.EnableGRPCProxy,
-		vm.Name:                       bot.gctScriptManager.IsRunning(),
 		dispatch.Name:                 dispatch.IsRunning(),
 		dataHistoryManagerName:        bot.dataHistoryManager.IsRunning(),
 		CurrencyStateManagementName:   bot.currencyStateManager.IsRunning(),
@@ -185,7 +183,8 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			if bot.ntpManager == nil {
 				bot.ntpManager, err = setupNTPManager(
 					&bot.Config.NTPClient,
-					*bot.Config.Logging.Enabled)
+					*bot.Config.Logging.Enabled,
+				)
 				if err != nil {
 					return err
 				}
@@ -230,7 +229,8 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					&cfg,
 					bot.ExchangeManager,
 					&bot.Config.RemoteControl,
-					bot.Settings.EnableWebsocketRoutine)
+					bot.Settings.EnableWebsocketRoutine,
+				)
 				if err != nil {
 					return err
 				}
@@ -256,23 +256,13 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.dataHistoryManager.Start(runtimeCtx)
 		}
 		return bot.dataHistoryManager.Stop()
-	case vm.Name:
-		if enable {
-			if bot.gctScriptManager == nil {
-				bot.gctScriptManager, err = vm.NewManager(&bot.Config.GCTScript)
-				if err != nil {
-					return err
-				}
-			}
-			return bot.gctScriptManager.Start(&bot.ServicesWG)
-		}
-		return bot.gctScriptManager.Stop()
 	case strings.ToLower(CurrencyStateManagementName):
 		if enable {
 			if bot.currencyStateManager == nil {
 				bot.currencyStateManager, err = SetupCurrencyStateManager(
 					bot.Config.CurrencyStateManager.Delay,
-					bot.ExchangeManager)
+					bot.ExchangeManager,
+				)
 				if err != nil {
 					return err
 				}

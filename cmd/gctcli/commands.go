@@ -3,10 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"math"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +34,8 @@ func getInfo(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetInfo(c.Context,
+	result, err := client.GetInfo(
+		c.Context,
 		&gctrpc.GetInfoRequest{},
 	)
 	if err != nil {
@@ -62,7 +60,8 @@ func getSubsystems(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetSubsystems(c.Context,
+	result, err := client.GetSubsystems(
+		c.Context,
 		&gctrpc.GetSubsystemsRequest{},
 	)
 	if err != nil {
@@ -109,7 +108,8 @@ func enableSubsystem(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.EnableSubsystem(c.Context,
+	result, err := client.EnableSubsystem(
+		c.Context,
 		&gctrpc.GenericSubsystemRequest{
 			Subsystem: subsystemName,
 		},
@@ -158,7 +158,8 @@ func disableSubsystem(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.DisableSubsystem(c.Context,
+	result, err := client.DisableSubsystem(
+		c.Context,
 		&gctrpc.GenericSubsystemRequest{
 			Subsystem: subsystemName,
 		},
@@ -185,7 +186,8 @@ func getRPCEndpoints(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetRPCEndpoints(c.Context,
+	result, err := client.GetRPCEndpoints(
+		c.Context,
 		&gctrpc.GetRPCEndpointsRequest{},
 	)
 	if err != nil {
@@ -210,7 +212,8 @@ func getCommunicationRelayers(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetCommunicationRelayers(c.Context,
+	result, err := client.GetCommunicationRelayers(
+		c.Context,
 		&gctrpc.GetCommunicationRelayersRequest{},
 	)
 	if err != nil {
@@ -247,7 +250,8 @@ func getExchanges(c *cli.Context) error {
 	}
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetExchanges(c.Context,
+	result, err := client.GetExchanges(
+		c.Context,
 		&gctrpc.GetExchangesRequest{
 			Enabled: enabledOnly,
 		},
@@ -292,7 +296,8 @@ func enableExchange(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.EnableExchange(c.Context,
+	result, err := client.EnableExchange(
+		c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -337,7 +342,8 @@ func disableExchange(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.DisableExchange(c.Context,
+	result, err := client.DisableExchange(
+		c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -382,7 +388,8 @@ func getExchangeOTPCode(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetExchangeOTPCode(c.Context,
+	result, err := client.GetExchangeOTPCode(
+		c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -451,7 +458,8 @@ func getExchangeInfo(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetExchangeInfo(c.Context,
+	result, err := client.GetExchangeInfo(
+		c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -533,7 +541,8 @@ func getTicker(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetTicker(c.Context,
+	result, err := client.GetTicker(
+		c.Context,
 		&gctrpc.GetTickerRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -623,7 +632,8 @@ func getAccountBalances(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAccountBalances(c.Context,
+	result, err := client.GetAccountBalances(
+		c.Context,
 		&gctrpc.GetAccountBalancesRequest{
 			Exchange:  exchange,
 			AssetType: assetType,
@@ -755,7 +765,8 @@ func updateAccountBalances(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.UpdateAccountBalances(c.Context,
+	result, err := client.UpdateAccountBalances(
+		c.Context,
 		&gctrpc.GetAccountBalancesRequest{
 			Exchange:  exchange,
 			AssetType: assetType,
@@ -932,7 +943,8 @@ func addPortfolioAddress(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.AddPortfolioAddress(c.Context,
+	result, err := client.AddPortfolioAddress(
+		c.Context,
 		&gctrpc.AddPortfolioAddressRequest{
 			Address:            address,
 			CoinType:           coinType,
@@ -1005,7 +1017,8 @@ func removePortfolioAddress(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.RemovePortfolioAddress(c.Context,
+	result, err := client.RemovePortfolioAddress(
+		c.Context,
 		&gctrpc.RemovePortfolioAddressRequest{
 			Address:     address,
 			CoinType:    coinType,
@@ -2433,7 +2446,8 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetCryptocurrencyDepositAddress(c.Context,
+	result, err := client.GetCryptocurrencyDepositAddress(
+		c.Context,
 		&gctrpc.GetCryptocurrencyDepositAddressRequest{
 			Exchange:       exchangeName,
 			Cryptocurrency: cryptocurrency,
@@ -2497,7 +2511,8 @@ func getAvailableTransferChains(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAvailableTransferChains(c.Context,
+	result, err := client.GetAvailableTransferChains(
+		c.Context,
 		&gctrpc.GetAvailableTransferChainsRequest{
 			Exchange:       exchangeName,
 			Cryptocurrency: cryptocurrency,
@@ -2622,7 +2637,8 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 
-	result, err := client.WithdrawCryptocurrencyFunds(c.Context,
+	result, err := client.WithdrawCryptocurrencyFunds(
+		c.Context,
 		&gctrpc.WithdrawCryptoRequest{
 			Exchange:    exchange,
 			Currency:    cur,
@@ -2718,7 +2734,8 @@ func withdrawFiatFunds(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.WithdrawFiatFunds(c.Context,
+	result, err := client.WithdrawFiatFunds(
+		c.Context,
 		&gctrpc.WithdrawFiatRequest{
 			Exchange:      exchange,
 			Currency:      cur,
@@ -2846,7 +2863,8 @@ func withdrawalRequestByID(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 
-	result, err := client.WithdrawalEventByID(c.Context,
+	result, err := client.WithdrawalEventByID(
+		c.Context,
 		&gctrpc.WithdrawalEventByIDRequest{
 			Id: ID,
 		},
@@ -2919,7 +2937,8 @@ func withdrawalRequestByExchangeID(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 
-	result, err := client.WithdrawalEventsByExchange(c.Context,
+	result, err := client.WithdrawalEventsByExchange(
+		c.Context,
 		&gctrpc.WithdrawalEventsByExchangeRequest{
 			Exchange:  exchange,
 			Id:        ID,
@@ -2994,7 +3013,8 @@ func withdrawalRequestByDate(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.WithdrawalEventsByDate(c.Context,
+	result, err := client.WithdrawalEventsByDate(
+		c.Context,
 		&gctrpc.WithdrawalEventsByDateRequest{
 			Exchange: exchange,
 			Start:    s.Format(common.SimpleTimeFormatWithTimezone),
@@ -3046,7 +3066,8 @@ func getLoggerDetails(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 
-	result, err := client.GetLoggerDetails(c.Context,
+	result, err := client.GetLoggerDetails(
+		c.Context,
 		&gctrpc.GetLoggerDetailsRequest{
 			Logger: logger,
 		},
@@ -3111,7 +3132,8 @@ func setLoggerDetails(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 
-	result, err := client.SetLoggerDetails(c.Context,
+	result, err := client.SetLoggerDetails(
+		c.Context,
 		&gctrpc.SetLoggerDetailsRequest{
 			Logger: logger,
 			Level:  level,
@@ -3194,7 +3216,8 @@ func getTickerStream(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetTickerStream(c.Context,
+	result, err := client.GetTickerStream(
+		c.Context,
 		&gctrpc.GetTickerStreamRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -3398,425 +3421,6 @@ func getAuditEvent(c *cli.Context) error {
 	}
 
 	jsonOutput(result)
-	return nil
-}
-
-var (
-	uuid, filename, path string
-	gctScriptCommand     = &cli.Command{
-		Name:      "script",
-		Usage:     "execute scripting management command",
-		ArgsUsage: "<command> <args>",
-		Subcommands: []*cli.Command{
-			{
-				Name:      "execute",
-				Usage:     "execute script filename",
-				ArgsUsage: "<filename> <path>",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "filename",
-						Usage:       "the script filename",
-						Destination: &filename,
-					},
-					&cli.StringFlag{
-						Name:        "path",
-						Usage:       "the directory of the script file",
-						Destination: &path,
-					},
-				},
-				Action: gctScriptExecute,
-			},
-			{
-				Name:  "query",
-				Usage: "query running virtual machine",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "uuid",
-						Usage:       "the unique id of the script in memory",
-						Destination: &uuid,
-					},
-				},
-				Action: gctScriptQuery,
-			},
-			{
-				Name:  "read",
-				Usage: "read script",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "name",
-						Usage:       "the script name",
-						Destination: &uuid,
-					},
-				},
-				Action: gctScriptRead,
-			},
-			{
-				Name:   "status",
-				Usage:  "get status of running scripts",
-				Action: gctScriptStatus,
-			},
-			{
-				Name:   "list",
-				Usage:  "lists all scripts in default scriptpath",
-				Action: gctScriptList,
-			},
-			{
-				Name:  "stop",
-				Usage: "terminate running script",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "uuid",
-						Usage:       "the unique id of the script in memory",
-						Destination: &uuid,
-					},
-				},
-				Action: gctScriptStop,
-			},
-			{
-				Name:   "stopall",
-				Usage:  "terminate running script",
-				Action: gctScriptStopAll,
-			},
-			{
-				Name:  "upload",
-				Usage: "upload a new script/archive",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "path",
-						Usage:       "<path> to single script or zip collection",
-						Destination: &filename,
-					},
-					&cli.BoolFlag{
-						Name:  "overwrite",
-						Usage: "<true/false>",
-					},
-					&cli.BoolFlag{
-						Name:  "archived",
-						Usage: "<true/false>",
-					},
-				},
-				Action: gctScriptUpload,
-			},
-			{
-				Name:  "autoload",
-				Usage: "add or remove script from autoload list",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:  "command",
-						Usage: "<add/remove>",
-					},
-					&cli.StringFlag{
-						Name:  "script",
-						Usage: "<script name>",
-					},
-				},
-				Action: gctScriptAutoload,
-			},
-		},
-	}
-)
-
-func gctScriptAutoload(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	var command, script string
-	var status bool
-	if !c.IsSet("command") {
-		if c.Args().Get(0) != "" {
-			command = c.Args().Get(0)
-		}
-	}
-
-	if !c.IsSet("script") {
-		if c.Args().Get(1) != "" {
-			script = c.Args().Get(1)
-		}
-	}
-
-	switch command {
-	case "add":
-		status = false
-	case "remove":
-		status = true
-	default:
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptAutoLoadToggle(c.Context,
-		&gctrpc.GCTScriptAutoLoadRequest{
-			Script: script,
-			Status: status,
-		})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-	return nil
-}
-
-func gctScriptExecute(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	if !c.IsSet("filename") {
-		if c.Args().Get(0) != "" {
-			filename = c.Args().Get(0)
-		}
-	}
-
-	if !c.IsSet("path") {
-		if c.Args().Get(1) != "" {
-			path = c.Args().Get(1)
-		}
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptExecute(c.Context,
-		&gctrpc.GCTScriptExecuteRequest{
-			Script: &gctrpc.GCTScript{
-				Name: filename,
-				Path: path,
-			},
-		})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-
-	return nil
-}
-
-func gctScriptStatus(c *cli.Context) error {
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptStatus(c.Context,
-		&gctrpc.GCTScriptStatusRequest{})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-	return nil
-}
-
-func gctScriptList(c *cli.Context) error {
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptListAll(c.Context,
-		&gctrpc.GCTScriptListAllRequest{})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-	return nil
-}
-
-func gctScriptStop(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	if !c.IsSet("uuid") {
-		if c.Args().Get(0) != "" {
-			uuid = c.Args().Get(0)
-		}
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptStop(c.Context,
-		&gctrpc.GCTScriptStopRequest{
-			Script: &gctrpc.GCTScript{Uuid: uuid},
-		})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-	return nil
-}
-
-func gctScriptStopAll(c *cli.Context) error {
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptStopAll(c.Context,
-		&gctrpc.GCTScriptStopAllRequest{})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-	return nil
-}
-
-func gctScriptRead(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	if !c.IsSet("name") {
-		if c.Args().Get(0) != "" {
-			uuid = c.Args().Get(0)
-		}
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptReadScript(c.Context,
-		&gctrpc.GCTScriptReadScriptRequest{
-			Script: &gctrpc.GCTScript{
-				Name: uuid,
-			},
-		})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-	return nil
-}
-
-func gctScriptQuery(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	if !c.IsSet("uuid") {
-		if c.Args().Get(0) != "" {
-			uuid = c.Args().Get(0)
-		}
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	executeCommand, err := client.GCTScriptQuery(c.Context,
-		&gctrpc.GCTScriptQueryRequest{
-			Script: &gctrpc.GCTScript{
-				Uuid: uuid,
-			},
-		})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(executeCommand)
-
-	return nil
-}
-
-func gctScriptUpload(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	var overwrite bool
-	var archived bool
-	if !c.IsSet("path") {
-		if c.Args().Get(0) != "" {
-			filename = c.Args().Get(0)
-		}
-	}
-
-	if c.IsSet("overwrite") {
-		overwrite = c.Bool("overwrite")
-	} else {
-		ow, err := strconv.ParseBool(c.Args().Get(1))
-		if err == nil {
-			overwrite = ow
-		}
-	}
-
-	if c.IsSet("archived") {
-		archived = c.Bool("archived")
-	} else {
-		ow, err := strconv.ParseBool(c.Args().Get(1))
-		if err == nil {
-			archived = ow
-		}
-	}
-
-	if filepath.Ext(filename) != common.GctExt && filepath.Ext(filename) != ".zip" {
-		return errors.New("file type must be gct or zip")
-	}
-
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	uploadCommand, err := client.GCTScriptUpload(c.Context,
-		&gctrpc.GCTScriptUploadRequest{
-			ScriptName: filepath.Base(file.Name()),
-			Data:       data,
-			Archived:   archived,
-			Overwrite:  overwrite,
-		})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(uploadCommand)
 	return nil
 }
 
