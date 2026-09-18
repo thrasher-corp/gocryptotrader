@@ -83,6 +83,7 @@ var (
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
+	errMissingInstrumentIDCode              = errors.New("missing instrument ID Code")
 	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
@@ -374,6 +375,7 @@ type InstrumentsFetchParams struct {
 type Instrument struct {
 	InstrumentType                  string        `json:"instType"`
 	InstrumentID                    currency.Pair `json:"instId"`
+	InstrumentIDCode                uint64        `json:"instIdCode"`
 	InstrumentFamily                string        `json:"instFamily"`
 	Underlying                      string        `json:"uly"`
 	Category                        string        `json:"category"`
@@ -769,17 +771,18 @@ func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
 
 // PlaceOrderRequestParam requesting parameter for placing an order
 type PlaceOrderRequestParam struct {
-	AssetType     asset.Item `json:"-"`
-	InstrumentID  string     `json:"instId"`
-	TradeMode     string     `json:"tdMode"` // cash isolated
-	ClientOrderID string     `json:"clOrdId,omitempty"`
-	Currency      string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
-	OrderTag      string     `json:"tag,omitempty"`
-	Side          string     `json:"side"`
-	PositionSide  string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
-	OrderType     string     `json:"ordType"`           // Time in force for the order
-	Amount        float64    `json:"sz,string"`
-	Price         float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
+	AssetType        asset.Item `json:"-"`
+	InstrumentID     string     `json:"instId"`
+	InstrumentIDCode uint64     `json:"instIdCode,omitempty"` // Instrument ID code, required for WS order placement
+	TradeMode        string     `json:"tdMode"`               // cash isolated
+	ClientOrderID    string     `json:"clOrdId,omitempty"`
+	Currency         string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
+	OrderTag         string     `json:"tag,omitempty"`
+	Side             string     `json:"side"`
+	PositionSide     string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
+	OrderType        string     `json:"ordType"`           // Time in force for the order
+	Amount           float64    `json:"sz,string"`
+	Price            float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
 	// Options orders
 	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"` // Place options orders in USD
 	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"` // Place options orders based on implied volatility, where 1 represents 100%
@@ -855,9 +858,10 @@ func (r *ResponseResult) Error() error {
 
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
-	InstrumentID  string `json:"instId"`
-	OrderID       string `json:"ordId"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
+	InstrumentID     string `json:"instId"`
+	InstrumentIDCode uint64 `json:"instIdCode"`
+	OrderID          string `json:"ordId"`
+	ClientOrderID    string `json:"clOrdId,omitempty"`
 }
 
 // CancelMassReqParam holds MMP batch cancel request parameters
@@ -868,13 +872,14 @@ type CancelMassReqParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
-	InstrumentID    string  `json:"instId"`
-	CancelOnFail    bool    `json:"cxlOnFail,omitempty"`
-	OrderID         string  `json:"ordId,omitempty"`
-	ClientOrderID   string  `json:"clOrdId,omitempty"`
-	ClientRequestID string  `json:"reqId,omitempty"`
-	NewQuantity     float64 `json:"newSz,omitempty,string"`
-	NewPrice        float64 `json:"newPx,omitempty,string"`
+	InstrumentID     string  `json:"instId"`
+	InstrumentIDCode uint64  `json:"instIdCode,string,omitempty"`
+	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
+	OrderID          string  `json:"ordId,omitempty"`
+	ClientOrderID    string  `json:"clOrdId,omitempty"`
+	ClientRequestID  string  `json:"reqId,omitempty"`
+	NewQuantity      float64 `json:"newSz,omitempty,string"`
+	NewPrice         float64 `json:"newPx,omitempty,string"`
 
 	// Modify options orders using USD prices
 	// Only applicable to options.

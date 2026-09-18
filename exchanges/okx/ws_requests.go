@@ -29,6 +29,10 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 		return nil, err
 	}
 
+	if arg.InstrumentIDCode == 0 {
+		return nil, errMissingInstrumentIDCode
+	}
+
 	var resp []*OrderData
 	if err := e.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
 		return nil, err
@@ -45,6 +49,9 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	for i := range args {
 		if err := args[i].Validate(); err != nil {
 			return nil, err
+		}
+		if args[i].InstrumentIDCode == 0 {
+			return nil, errMissingInstrumentIDCode
 		}
 	}
 

@@ -919,6 +919,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	pairString := pairFormat.Format(s.Pair)
+	instIdCode := e.getInstrumentIDCode(s.AssetType, pairString)
 	tradeMode := e.marginTypeToString(s.MarginType)
 	if s.AssetType.IsFutures() && s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
@@ -972,16 +973,17 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	switch orderTypeString {
 	case orderLimit, orderMarket, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only":
 		orderRequest := &PlaceOrderRequestParam{
-			InstrumentID:   pairString,
-			TradeMode:      tradeMode,
-			Side:           sideType,
-			PositionSide:   positionSide,
-			OrderType:      orderTypeString,
-			Amount:         amount,
-			ClientOrderID:  s.ClientOrderID,
-			Price:          s.Price,
-			TargetCurrency: targetCurrency,
-			AssetType:      s.AssetType,
+			InstrumentID:     pairString,
+			InstrumentIDCode: instIdCode,
+			TradeMode:        tradeMode,
+			Side:             sideType,
+			PositionSide:     positionSide,
+			OrderType:        orderTypeString,
+			Amount:           amount,
+			ClientOrderID:    s.ClientOrderID,
+			Price:            s.Price,
+			TargetCurrency:   targetCurrency,
+			AssetType:        s.AssetType,
 		}
 		switch s.Type.Lower() {
 		case orderLimit, orderPostOnly, orderFOK, orderIOC:
@@ -1192,13 +1194,16 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if action.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	instrumentID := pairFormat.Format(action.Pair)
+	instIdCode := e.getInstrumentIDCode(action.AssetType, instrumentID)
 	switch action.Type {
 	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
-			InstrumentID:  pairFormat.Format(action.Pair),
-			NewQuantity:   action.Amount,
-			OrderID:       action.OrderID,
-			ClientOrderID: action.ClientOrderID,
+			InstrumentID:     instrumentID,
+			InstrumentIDCode: instIdCode,
+			NewQuantity:      action.Amount,
+			OrderID:          action.OrderID,
+			ClientOrderID:    action.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
@@ -1226,7 +1231,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			}
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
-			InstrumentID:              pairFormat.Format(action.Pair),
+			InstrumentID:              instrumentID,
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
 			NewSize:                   action.Amount,
@@ -1251,7 +1256,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", limits.ErrPriceBelowMin)
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
-			InstrumentID:              pairFormat.Format(action.Pair),
+			InstrumentID:              instrumentID,
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
 			NewSize:                   action.Amount,
@@ -1299,12 +1304,14 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return currency.ErrCurrencyPairEmpty
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
+	instIdCode := e.getInstrumentIDCode(ord.AssetType, instrumentID)
 	switch ord.Type {
 	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		req := CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
-			OrderID:       ord.OrderID,
-			ClientOrderID: ord.ClientOrderID,
+			InstrumentID:     instrumentID,
+			InstrumentIDCode: instIdCode,
+			OrderID:          ord.OrderID,
+			ClientOrderID:    ord.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			_, err = e.WSCancelOrder(ctx, &req)
@@ -1349,6 +1356,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if err != nil {
 			return nil, err
 		}
+		instIdCode := e.getInstrumentIDCode(ord.AssetType, pairFormat.Format(ord.Pair))
 		if !ord.Pair.IsPopulated() {
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
@@ -1358,9 +1366,10 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
 			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
-				InstrumentID:  pairFormat.Format(ord.Pair),
-				OrderID:       ord.OrderID,
-				ClientOrderID: ord.ClientOrderID,
+				InstrumentID:     pairFormat.Format(ord.Pair),
+				InstrumentIDCode: instIdCode,
+				OrderID:          ord.OrderID,
+				ClientOrderID:    ord.ClientOrderID,
 			})
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
@@ -3097,4 +3106,32 @@ func (e *Exchange) MessageID() string {
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])
+}
+
+// getInstrumentIDCode returns the instrumentIDCode for a given asset type and instrument ID add by dazi
+func (e *Exchange) getInstrumentIDCode(a asset.Item, instID string) uint64 {
+	var instType string
+	switch a {
+	case asset.Spot:
+		instType = instTypeSpot
+	case asset.Futures:
+		instType = instTypeFutures
+	case asset.PerpetualSwap:
+		instType = instTypeSwap
+	case asset.Margin:
+		instType = instTypeMargin
+	case asset.Options:
+		instType = instTypeOption
+	default:
+		return 0
+	}
+	e.instrumentsInfoMapLock.Lock()
+	instruments := e.instrumentsInfoMap[instType]
+	e.instrumentsInfoMapLock.Unlock()
+	for i := range instruments {
+		if instruments[i].InstrumentID.String() == instID {
+			return instruments[i].InstrumentIDCode
+		}
+	}
+	return 0
 }
