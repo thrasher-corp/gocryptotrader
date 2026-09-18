@@ -2070,6 +2070,7 @@ func TestWsKlineUpdate(t *testing.T) {
 			  }
 			}}`, tt.klineClosed)
 			require.NoError(t, e.wsHandleData(t.Context(), pressXToJSON), "wsHandleData must not error")
+			require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must relay one payload")
 			res := <-e.Websocket.DataHandler.C
 			require.IsType(t, kline.Item{}, res.Data, "Relay payload must be a kline.Item")
 			k, _ := res.Data.(kline.Item)
