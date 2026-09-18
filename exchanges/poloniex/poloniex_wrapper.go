@@ -1284,6 +1284,9 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	if req == nil {
+		return nil, order.ErrGetOrdersRequestIsNil
+	}
 	var samplePair currency.Pair
 	if len(req.Pairs) == 1 {
 		samplePair = req.Pairs[0]
@@ -1904,6 +1907,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 
 // WebsocketCancelOrder cancels an order via the websocket connection
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) error {
+	if req == nil {
+		return order.ErrCancelOrderIsNil
+	}
 	if req.OrderID == "" && req.ClientOrderID == "" {
 		return order.ErrOrderIDNotSet
 	}

@@ -3670,6 +3670,9 @@ func TestWsTicker(t *testing.T) {
 
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetFeeByType(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType should error for a nil fee builder")
+
 	feeBuilder := &exchange.FeeBuilder{
 		Amount:              1,
 		FeeType:             exchange.CryptocurrencyTradeFee,
@@ -3678,7 +3681,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
-	_, err := e.GetFeeByType(t.Context(), feeBuilder)
+	_, err = e.GetFeeByType(t.Context(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
 	}

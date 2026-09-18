@@ -157,6 +157,8 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 			iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
 			sleep:            time.Minute,
 		}
+		// a failed require would otherwise leave the monitor blocked on its timer, which panics the bubble and aborts the package
+		t.Cleanup(func() { _ = man.Stop() })
 		for range 3 {
 			require.NoError(t, man.Start(t.Context()), "Start must not error")
 			// the first sync fires on a zero timer, so this lets it finish before the manager is inspected

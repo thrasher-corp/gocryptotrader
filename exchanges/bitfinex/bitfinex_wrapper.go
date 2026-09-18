@@ -275,6 +275,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		queryAsset = asset.Spot
 	case asset.Futures:
 		queryAsset = asset.Futures
+	case asset.MarginFunding:
+		// Bootstrap skips this error for every enabled asset, where asset.ErrNotSupported fails the load
+		return common.ErrNotYetImplemented
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}

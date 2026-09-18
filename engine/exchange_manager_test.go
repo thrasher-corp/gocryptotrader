@@ -234,8 +234,8 @@ func TestExchangeManagerShutdownTimeoutKeepsUnfinishedExchange(t *testing.T) {
 		slow := &delayedShutdownExchange{name: "slowex", delay: 500 * time.Millisecond}
 		slow.SetDefaults()
 		require.NoError(t, m.Add(slow), "Add must not error")
-		// time stops once the bubble's test goroutine returns, so let the abandoned shutdown finish first
-		defer synctest.Sleep(500 * time.Millisecond)
+		// time stops once the bubble's test goroutine returns, so let the abandoned shutdown, or a slower one a regression abandons, finish first
+		defer synctest.Sleep(time.Minute)
 
 		start := time.Now()
 		require.NoError(t, m.Shutdown(50*time.Millisecond), "Shutdown must not error")
@@ -250,6 +250,8 @@ func TestExchangeManagerShutdownRemovesSuccessfulExchangeAndKeepsFailures(t *tes
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := NewExchangeManager()
+		// time stops once the bubble's test goroutine returns, so let any shutdown a failed assertion abandons finish first
+		defer synctest.Sleep(time.Minute)
 
 		success := &delayedShutdownExchange{name: "successex", delay: time.Millisecond}
 		success.SetDefaults()

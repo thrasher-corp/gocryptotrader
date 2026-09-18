@@ -3670,6 +3670,9 @@ func TestSubmitOrder(t *testing.T) {
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	require.NoError(t, err)
 
+	_, err = e.SubmitOrder(contextGenerate(), nil)
+	assert.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder should error for a nil submission")
+
 	arg := &order.Submit{
 		Exchange:  e.Name,
 		Side:      order.Buy,
@@ -3805,6 +3808,8 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	assert.ErrorIs(t, e.CancelOrder(contextGenerate(), nil), order.ErrCancelOrderIsNil, "CancelOrder should error for a nil cancellation")
+
 	arg := &order.Cancel{
 		AccountID: "1",
 		AssetType: asset.Binary,

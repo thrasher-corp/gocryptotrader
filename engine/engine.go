@@ -875,7 +875,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	}
 
 	// NOTE: This will standardise name to default and apply it to the config.
-	exchCfg.Name = exch.GetName()
+	exchCfg.SetName(exch.GetName())
 
 	exchCfg.Enabled = true
 	if err := exch.Setup(exchCfg); err != nil {

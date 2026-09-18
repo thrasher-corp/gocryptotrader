@@ -1303,8 +1303,12 @@ func TestSetupPingHandler(t *testing.T) {
 		})
 
 		// the ping handler wakes at the same instant, and Sleep also waits for its ping to reach the server
-		synctest.Sleep(200 * time.Millisecond)
-		assert.Equal(t, int64(1), pings.Load(), "ping handler should send one ping once its delay elapses")
+		for sent := range int64(3) {
+			synctest.Sleep(200*time.Millisecond - time.Nanosecond)
+			assert.Equal(t, sent, pings.Load(), "ping handler should not send before its delay elapses")
+			synctest.Sleep(time.Nanosecond)
+			assert.Equal(t, sent+1, pings.Load(), "ping handler should send one ping each time its delay elapses")
+		}
 	})
 }
 

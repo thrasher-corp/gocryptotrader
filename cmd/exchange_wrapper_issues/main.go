@@ -73,7 +73,7 @@ func main() {
 		}
 		if shouldLoadExchange(name) {
 			wg.Go(func() {
-				if err = bot.LoadExchange(name); err != nil {
+				if err := bot.LoadExchange(name); err != nil {
 					log.Printf("Failed to load exchange %s. Err: %s", name, err)
 				}
 			})
@@ -97,6 +97,7 @@ func main() {
 
 	log.Println("Testing exchange wrappers..")
 	var exchangeResponses []ExchangeResponses
+	var mtx sync.Mutex
 
 	exchs := bot.GetExchanges()
 	for x := range exchs {
@@ -122,7 +123,9 @@ func main() {
 			for i := range wrapperResult.AssetPairResponses {
 				wrapperResult.ErrorCount += wrapperResult.AssetPairResponses[i].ErrorCount
 			}
+			mtx.Lock()
 			exchangeResponses = append(exchangeResponses, wrapperResult)
+			mtx.Unlock()
 		})
 	}
 	wg.Wait()

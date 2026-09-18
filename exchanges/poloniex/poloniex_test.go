@@ -170,7 +170,10 @@ func TestGetFee(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide})
+	_, err := e.GetActiveOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetActiveOrders should error for a nil request")
+
+	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if !mockTests {
@@ -480,6 +483,8 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	assert.ErrorIs(t, e.WebsocketCancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "WebsocketCancelOrder should error for a nil cancellation")
 
 	err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)

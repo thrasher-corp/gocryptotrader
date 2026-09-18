@@ -108,6 +108,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		// Ticker messages aggregate over the subscribed tick type, 30 minutes by default, so these figures differ from the
+		// REST ticker's, whose volume covers 24 hours
 		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,

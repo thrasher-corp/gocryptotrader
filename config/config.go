@@ -817,6 +817,14 @@ func (c *Config) GetExchangeConfig(name string) (*Exchange, error) {
 	return nil, fmt.Errorf("%s %w", name, ErrExchangeNotFound)
 }
 
+// SetName renames the exchange config. It holds the lock GetExchangeConfig compares every exchange's name under, so an
+// exchange can be renamed while exchanges are looked up concurrently
+func (c *Exchange) SetName(name string) {
+	m.Lock()
+	defer m.Unlock()
+	c.Name = name
+}
+
 // UpdateExchangeConfig updates exchange configurations
 func (c *Config) UpdateExchangeConfig(e *Exchange) error {
 	m.Lock()

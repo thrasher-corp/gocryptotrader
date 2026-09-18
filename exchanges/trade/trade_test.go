@@ -204,7 +204,19 @@ func TestShutdown(t *testing.T) {
 		p.mutex.Unlock()
 		var wg sync.WaitGroup
 		wg.Add(1)
-		go p.Run(&wg)
+		stopped := make(chan struct{})
+		go func() {
+			defer close(stopped)
+			p.Run(&wg)
+		}()
+		// a failed assertion would otherwise leave Run working, which panics the bubble and aborts the package; the
+		// bound stops a processor that never returns from hanging the test until it times out
+		defer func() {
+			select {
+			case <-stopped:
+			case <-time.After(time.Minute):
+			}
+		}()
 		wg.Wait()
 		assert.True(t, p.started.Load(), "Run should report the processor started")
 		// returns once the processor has drained an empty buffer and stopped its ticker

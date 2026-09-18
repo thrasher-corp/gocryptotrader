@@ -109,10 +109,20 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 				inputs[y] = reflect.ValueOf(cancelled)
 				continue
 			}
+			if input.Kind() == reflect.Pointer && input.Elem().Kind() == reflect.Struct {
+				// An empty request reaches the wrapper's own validation, as a caller's would, where nil stops at a nil check
+				inputs[y] = reflect.New(input.Elem())
+				continue
+			}
 			inputs[y] = reflect.Zero(input)
 		}
 
-		outputs := method.Call(inputs)
+		var outputs []reflect.Value
+		if method.Type().IsVariadic() {
+			outputs = method.CallSlice(inputs)
+		} else {
+			outputs = method.Call(inputs)
+		}
 		if method.Type().NumIn() == 0 {
 			// Some empty functions will reset the exchange struct to defaults,
 			// so turn off verbosity.

@@ -122,6 +122,39 @@ func TestGetFuturesTickers(t *testing.T) {
 	}
 }
 
+func TestGetFuturesTickersMappingMocked(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "XBTUSDTM", r.URL.Query().Get("symbol"), "symbol should be the enabled pair")
+		// size is the quantity of the latest fill, tradeId 1943814402699, rather than a 24 hour volume
+		_, err := fmt.Fprint(w, `{"code":"200000","data":{"sequence":1747665631207,"symbol":"XBTUSDTM","side":"sell","size":1,"tradeId":"1943814402699","price":"76285.9","bestBidPrice":"76276.5","bestBidSize":14,"bestAskPrice":"76276.6","bestAskSize":465,"ts":1789624667589000000}}`)
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+	pair := currency.NewPairWithDelimiter("XBT", "USDTM", "_")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{pair}, false), "StorePairs must not error for available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{pair}, true), "StorePairs must not error for enabled pairs")
+
+	tickers, err := ex.GetFuturesTickers(t.Context())
+	require.NoError(t, err, "GetFuturesTickers must not error")
+	exp := []*ticker.Price{{
+		Last:         76285.9,
+		Bid:          76276.5,
+		Ask:          76276.6,
+		BidSize:      14,
+		AskSize:      465,
+		Pair:         currency.NewPairWithDelimiter("XBT", "USDTM", ""),
+		LastUpdated:  time.Unix(0, 1789624667589000000),
+		ExchangeName: t.Name(),
+		AssetType:    asset.Futures,
+	}}
+	assert.Equal(t, exp, tickers, "GetFuturesTickers should map the ticker without taking a volume from the fill size")
+}
+
 func TestGet24hrStats(t *testing.T) {
 	t.Parallel()
 	_, err := e.Get24hrStats(t.Context(), "")
@@ -2499,6 +2532,9 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.SubmitOrder(t.Context(), nil)
+	assert.ErrorIs(t, err, order.ErrSubmissionIsNil, "SubmitOrder should error for a nil submission")
+
 	orderSubmission := &order.Submit{
 		Pair:          futuresTradablePair,
 		Exchange:      e.Name,
@@ -2509,7 +2545,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientOrderID: "myOrder",
 		AssetType:     asset.Options,
 	}
-	_, err := e.SubmitOrder(t.Context(), orderSubmission)
+	_, err = e.SubmitOrder(t.Context(), orderSubmission)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

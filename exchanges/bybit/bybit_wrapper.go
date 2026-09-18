@@ -1414,6 +1414,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if feeBuilder.Pair.IsEmpty() {
 		return 0, currency.ErrCurrencyPairEmpty
 	}

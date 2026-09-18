@@ -2526,7 +2526,9 @@ func TestParallelChanOp(t *testing.T) {
 		errC := make(chan error, 1)
 		start := time.Now()
 		var elapsed time.Duration
+		stopped := make(chan struct{})
 		go func() {
+			defer close(stopped)
 			err := b.ParallelChanOp(t.Context(), c, func(_ context.Context, c subscription.List) error {
 				time.Sleep(300 * time.Millisecond)
 				run <- struct{}{}
@@ -2538,6 +2540,14 @@ func TestParallelChanOp(t *testing.T) {
 			}, 1)
 			elapsed = time.Since(start)
 			errC <- err
+		}()
+		// a failed require would otherwise leave ParallelChanOp running, which panics the bubble and aborts the package; the
+		// bound stops an operation that never returns from hanging the test until it times out
+		defer func() {
+			select {
+			case <-stopped:
+			case <-time.After(time.Minute):
+			}
 		}()
 		// advance well past either outcome, so the elapsed figure below decides which happened
 		synctest.Sleep(2 * time.Second)

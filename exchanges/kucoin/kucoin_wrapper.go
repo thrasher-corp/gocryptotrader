@@ -614,6 +614,9 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 // For OCO (One Cancels the Other) orders, the StopLoss parameters under the order submission argument field RiskManagementModes are treated as stop values,
 // and the TakeProfit parameters are treated as limit order.
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s == nil {
+		return nil, order.ErrSubmissionIsNil
+	}
 	sideString, err := e.OrderSideString(s.Side)
 	if err != nil {
 		return nil, err

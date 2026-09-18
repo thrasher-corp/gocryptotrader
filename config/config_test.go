@@ -10,7 +10,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1161,6 +1163,26 @@ func TestGetExchangeConfig(t *testing.T) {
 	}
 	_, err = cfg.GetExchangeConfig("Testy")
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
+}
+
+func TestExchangeSetName(t *testing.T) {
+	t.Parallel()
+	cfg := &Config{}
+	for i := range 64 {
+		cfg.Exchanges = append(cfg.Exchanges, Exchange{Name: "exchange" + strconv.Itoa(i)})
+	}
+	var wg sync.WaitGroup
+	for i := range cfg.Exchanges {
+		wg.Go(func() { cfg.Exchanges[i].SetName("Exchange" + strconv.Itoa(i)) })
+		wg.Go(func() {
+			_, err := cfg.GetExchangeConfig("EXCHANGE" + strconv.Itoa(i))
+			assert.NoError(t, err, "GetExchangeConfig should find the exchange config before and after its rename")
+		})
+	}
+	wg.Wait()
+	for i := range cfg.Exchanges {
+		assert.Equal(t, "Exchange"+strconv.Itoa(i), cfg.Exchanges[i].Name, "SetName should rename the exchange config")
+	}
 }
 
 func TestGetForexProviders(t *testing.T) {

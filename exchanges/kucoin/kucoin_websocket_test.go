@@ -1537,6 +1537,73 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 	})
 }
 
+func TestProcessTicker(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	// size is the quantity of the latest fill rather than a 24 hour volume
+	msg := []byte(`{"topic":"/market/ticker:BTC-USDT","type":"message","subject":"trade.ticker","data":{"bestAsk":"76330.2","bestAskSize":"1.06213577","bestBid":"76330.1","bestBidSize":"0.00480864","price":"76330.1","sequence":"37257610995","size":"0.00002628","time":1789624664495}}`)
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for a pair enabled on spot alone")
+	exp := &ticker.Price{
+		Last:         76330.1,
+		Bid:          76330.1,
+		BidSize:      0.00480864,
+		Ask:          76330.2,
+		AskSize:      1.06213577,
+		Pair:         currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+		ExchangeName: ku.Name,
+		AssetType:    asset.Spot,
+		LastUpdated:  time.UnixMilli(1789624664495),
+	}
+	assert.Equal(t, exp, (<-ku.Websocket.DataHandler.C).Data, "processTicker should map the ticker without taking a volume from the fill size")
+}
+
+func TestProcessFuturesTickerV2(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	pair := currency.NewPairWithDelimiter("SOL", "USDTM", "_")
+	for _, tc := range []struct {
+		name    string
+		message string
+		exp     *ticker.Price
+	}{
+		{
+			name:    "tickerV2",
+			message: `{"topic":"/contractMarket/tickerV2:SOLUSDTM","type":"message","subject":"tickerV2","sn":1739524604832,"data":{"symbol":"SOLUSDTM","sequence":1739524604832,"bestBidSize":24,"bestBidPrice":"99.903","bestAskPrice":"99.904","bestAskSize":54,"ts":1789627572494000000}}`,
+			exp: &ticker.Price{
+				Bid:          99.903,
+				BidSize:      24,
+				Ask:          99.904,
+				AskSize:      54,
+				Pair:         pair,
+				ExchangeName: ku.Name,
+				AssetType:    asset.Futures,
+				LastUpdated:  time.Unix(0, 1789627572494000000),
+			},
+		},
+		{
+			// WsFuturesTicker also decodes the fields of the ticker channel, where size is the quantity of the latest fill
+			name:    "ticker fields",
+			message: `{"topic":"/contractMarket/tickerV2:SOLUSDTM","type":"message","subject":"tickerV2","sn":1780003326821,"data":{"symbol":"SOLUSDTM","sequence":1780003326821,"side":"sell","size":309,"price":"99.892","bestBidSize":67,"bestBidPrice":"99.891","bestAskPrice":"99.9","tradeId":"1780003326821","bestAskSize":46,"ts":1789627577408000000}}`,
+			exp: &ticker.Price{
+				Last:         99.892,
+				Bid:          99.891,
+				BidSize:      67,
+				Ask:          99.9,
+				AskSize:      46,
+				Pair:         pair,
+				ExchangeName: ku.Name,
+				AssetType:    asset.Futures,
+				LastUpdated:  time.Unix(0, 1789627577408000000),
+			},
+		},
+	} {
+		require.NoErrorf(t, ku.wsHandleData(t.Context(), nil, []byte(tc.message)), "wsHandleData must not error for %s", tc.name)
+		require.Lenf(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for %s", tc.name)
+		assert.Equalf(t, tc.exp, (<-ku.Websocket.DataHandler.C).Data, "processFuturesTickerV2 should map %s without taking a volume from a fill size", tc.name)
+	}
+}
+
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)

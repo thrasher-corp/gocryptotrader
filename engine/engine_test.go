@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -365,6 +366,29 @@ func TestGetExchangeByName(t *testing.T) {
 
 	_, err = e.GetExchangeByName("Asdasd")
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
+}
+
+func TestLoadExchangeConcurrently(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{}, runtimeCtx: ctx}
+	for _, name := range exchange.Exchanges {
+		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{Name: name})
+	}
+	var wg sync.WaitGroup
+	for _, name := range exchange.Exchanges {
+		// Each load looks its config up among names the other loads are standardising; the cancelled context stops
+		// Bootstrap before it sends a request
+		wg.Go(func() { _ = e.LoadExchange(name) })
+	}
+	wg.Wait()
+	for i, name := range exchange.Exchanges {
+		exch, err := NewExchangeManager().NewExchangeByName(name)
+		require.NoError(t, err, "NewExchangeByName must not error")
+		exch.SetDefaults()
+		assert.Equal(t, exch.GetName(), e.Config.Exchanges[i].Name, "LoadExchange should standardise the exchange config's name")
+	}
 }
 
 func TestUnloadExchange(t *testing.T) {

@@ -160,7 +160,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 				}
 			case asset.MarginFunding:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+				// asset.ErrNotSupported would fail Bootstrap, and so LoadExchange, for the funding asset enabled by default
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented, "UpdateOrderExecutionLimits must report margin funding limits as not yet implemented")
 			default:
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			}
