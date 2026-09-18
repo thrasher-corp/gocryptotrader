@@ -968,6 +968,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			Amount:        resp[x].Amount,
 			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
 			Fee:           resp[x].Fee,
+			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
 		}
@@ -1057,6 +1058,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			Amount:        resp[x].Amount,
 			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
 			Fee:           resp[x].Fee,
+			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
 		}
@@ -1145,6 +1147,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		Amount:        result.Amount,
 		OpenVolume:    result.RemainingAmount,
 		Fee:           result.Fee,
+		FeeCurrency:   result.FeeAsset.String(),
 		Trades:        trades,
 		Cost:          result.Cost,
 		UpdateTime:    updateTime,

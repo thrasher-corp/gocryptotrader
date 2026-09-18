@@ -306,6 +306,7 @@ message OrderDetails {
   double cost = 16;
   repeated TradeHistory trades = 17;
   double contract_amount = 18;
+  string fee_currency = 19;
 }
 
 message TradeHistory {

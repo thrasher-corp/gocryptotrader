@@ -6927,6 +6927,9 @@
         "contractAmount": {
           "type": "number",
           "format": "double"
+        },
+        "feeCurrency": {
+          "type": "string"
         }
       }
     },

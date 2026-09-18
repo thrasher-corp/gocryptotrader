@@ -3059,6 +3059,7 @@ type OrderDetails struct {
 	Cost           float64                `protobuf:"fixed64,16,opt,name=cost,proto3" json:"cost,omitempty"`
 	Trades         []*TradeHistory        `protobuf:"bytes,17,rep,name=trades,proto3" json:"trades,omitempty"`
 	ContractAmount float64                `protobuf:"fixed64,18,opt,name=contract_amount,json=contractAmount,proto3" json:"contract_amount,omitempty"`
+	FeeCurrency    string                 `protobuf:"bytes,19,opt,name=fee_currency,json=feeCurrency,proto3" json:"fee_currency,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -3217,6 +3218,13 @@ func (x *OrderDetails) GetContractAmount() float64 {
 		return x.ContractAmount
 	}
 	return 0
+}
+
+func (x *OrderDetails) GetFeeCurrency() string {
+	if x != nil {
+		return x.FeeCurrency
+	}
+	return ""
 }
 
 type TradeHistory struct {
@@ -15335,7 +15343,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\finverse_rate\x18\x04 \x01(\x01R\vinverseRate\"V\n" +
 	"\x15GetForexRatesResponse\x12=\n" +
 	"\vforex_rates\x18\x01 \x03(\v2\x1c.gctrpc.ForexRatesConversionR\n" +
-	"forexRates\"\xb5\x04\n" +
+	"forexRates\"\xd8\x04\n" +
 	"\fOrderDetails\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12&\n" +
@@ -15360,7 +15368,8 @@ const file_rpc_proto_rawDesc = "" +
 	"\x03fee\x18\x0f \x01(\x01R\x03fee\x12\x12\n" +
 	"\x04cost\x18\x10 \x01(\x01R\x04cost\x12,\n" +
 	"\x06trades\x18\x11 \x03(\v2\x14.gctrpc.TradeHistoryR\x06trades\x12'\n" +
-	"\x0fcontract_amount\x18\x12 \x01(\x01R\x0econtractAmount\"\xf3\x01\n" +
+	"\x0fcontract_amount\x18\x12 \x01(\x01R\x0econtractAmount\x12!\n" +
+	"\ffee_currency\x18\x13 \x01(\tR\vfeeCurrency\"\xf3\x01\n" +
 	"\fTradeHistory\x12#\n" +
 	"\rcreation_time\x18\x01 \x01(\x03R\fcreationTime\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
