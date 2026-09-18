@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -16,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // drainData returns everything relayed to the data handler so far, whatever its concrete type.
@@ -481,4 +484,30 @@ func TestWsHandleAggreDealsHonorsTradeSettings(t *testing.T) {
 	drainData(t)
 	require.NoError(t, e.WsHandleData(t.Context(), nil, frame), "WsHandleData must not error")
 	assert.Len(t, drainData(t), 1, "the trade feed should relay trades once enabled")
+}
+
+// TestWsSpotTickerMergesAreSerialised merges into one cached ticker from several goroutines at once, as
+// bookTicker and miniTicker do from different connections. Each merge reads the cached ticker and writes
+// it back, so a merge is lost whenever two of them overlap unless the read-merge-write is serialised.
+func TestWsSpotTickerMergesAreSerialised(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	cp := currency.NewBTCUSDT()
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{Pair: cp, ExchangeName: ex.Name, AssetType: asset.Spot}), "seeding the ticker must not error")
+	const writers, merges = 8, 250
+	ex.Websocket.DataHandler = stream.NewRelay(writers * merges)
+	var wg sync.WaitGroup
+	for range writers {
+		wg.Go(func() {
+			for range merges {
+				assert.NoError(t, ex.wsUpdateSpotTicker(t.Context(), cp, time.Now(), func(p *ticker.Price) { p.Last++ }), "wsUpdateSpotTicker should not error")
+			}
+		})
+	}
+	wg.Wait()
+	got, err := ticker.GetTicker(ex.Name, cp, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, float64(writers*merges), got.Last, "every merge should be kept")
 }

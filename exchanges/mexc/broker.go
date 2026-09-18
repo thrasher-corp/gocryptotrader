@@ -18,10 +18,10 @@ import (
 // GetBrokerUniversalTransferHistory retrieves universal transfer history for broker users
 func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType asset.Item, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) (*BrokerUniversalTransferHistory, error) {
 	if !fromAccountType.IsValid() {
-		return nil, fmt.Errorf("%w: FronAccountType is required", errAddressRequired)
+		return nil, fmt.Errorf("%w, fromAccountType is required", asset.ErrInvalidAsset)
 	}
 	if !toAccountType.IsValid() {
-		return nil, fmt.Errorf("%w: ToAccountType is required", errAddressRequired)
+		return nil, fmt.Errorf("%w, toAccountType is required", asset.ErrInvalidAsset)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)

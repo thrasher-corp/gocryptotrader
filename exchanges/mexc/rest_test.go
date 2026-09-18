@@ -337,11 +337,13 @@ func TestGetSubAccountAPIKey(t *testing.T) {
 
 func TestDeleteAPIKeySubAccount(t *testing.T) {
 	t.Parallel()
-	_, err := e.DeleteAPIKeySubAccount(t.Context(), "")
+	_, err := e.DeleteAPIKeySubAccount(t.Context(), "", "key")
 	require.ErrorIs(t, err, errInvalidSubAccountName)
+	_, err = e.DeleteAPIKeySubAccount(t.Context(), "SubAcc1", "")
+	require.ErrorIs(t, err, errAPIKeyMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.DeleteAPIKeySubAccount(t.Context(), "SubAcc1")
+	result, err := e.DeleteAPIKeySubAccount(t.Context(), "SubAcc1", "apikey")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1020,13 +1022,13 @@ func TestGetSubAffiliateData(t *testing.T) {
 func TestGetBrokerUniversalTransferHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetBrokerUniversalTransferHistory(t.Context(), asset.Empty, asset.Empty, "test1@thrasher.io", "test2@thrasher.io", time.Time{}, time.Time{}, 0, 10)
-	require.ErrorIs(t, err, errAddressRequired)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 	_, err = e.GetBrokerUniversalTransferHistory(t.Context(), asset.Empty, asset.Empty, "test1@thrasher.io", "test2@thrasher.io", time.Time{}, time.Time{}, 0, 10)
-	require.ErrorIs(t, err, errAddressRequired)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
 	startTime, endTime := recentWindow()
 	_, err = e.GetBrokerUniversalTransferHistory(t.Context(), asset.Futures, asset.Empty, "test1@thrasher.io", "test2@thrasher.io", startTime, endTime, 0, 10)
-	require.ErrorIs(t, err, errAddressRequired)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 	_, err = e.GetBrokerUniversalTransferHistory(t.Context(), asset.Futures, asset.Spot, "test1@thrasher.io", "test2@thrasher.io", endTime, startTime, 1, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 

@@ -356,12 +356,16 @@ func (e *Exchange) GetSubAccountAPIKey(ctx context.Context, subAccountName strin
 }
 
 // DeleteAPIKeySubAccount delete the API Key of a sub-account
-func (e *Exchange) DeleteAPIKeySubAccount(ctx context.Context, subAccountName string) (string, error) {
+func (e *Exchange) DeleteAPIKeySubAccount(ctx context.Context, subAccountName, apiKey string) (string, error) {
 	if subAccountName == "" {
 		return "", errInvalidSubAccountName
 	}
+	if apiKey == "" {
+		return "", errAPIKeyMissing
+	}
 	params := url.Values{}
 	params.Set("subAccount", subAccountName)
+	params.Set("apiKey", apiKey)
 	var resp struct {
 		SubAccount string `json:"subAccount"`
 	}
@@ -381,7 +385,7 @@ func (e *Exchange) SubAccountUniversalTransfer(ctx context.Context, fromAccount,
 		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}
 	if !e.SupportsAsset(toAccountType) {
-		return nil, fmt.Errorf("%w toAccountType %v", asset.ErrNotSupported, fromAccountType)
+		return nil, fmt.Errorf("%w toAccountType %v", asset.ErrNotSupported, toAccountType)
 	}
 	if ccy.IsEmpty() {
 		return nil, fmt.Errorf("%w, asset %v", currency.ErrCurrencyCodeEmpty, ccy)
@@ -410,7 +414,7 @@ func (e *Exchange) GetSubAccountUniversalTransferHistory(ctx context.Context, fr
 		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}
 	if !e.SupportsAsset(toAccountType) {
-		return nil, fmt.Errorf("%w toAccountType %v", asset.ErrNotSupported, fromAccountType)
+		return nil, fmt.Errorf("%w toAccountType %v", asset.ErrNotSupported, toAccountType)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
