@@ -191,7 +191,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 // caller should retry. Any response body is closed before this method returns.
 func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Request, attempt int, verbose bool) (bool, error) {
 	if verbose {
-		log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
+		log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, pathForLog(p.Path))
 		for k, d := range req.Header {
 			log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, headerValuesForLog(k, d))
 		}
@@ -207,6 +207,9 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 			}
 			if bodyErr != nil {
 				return false, bodyErr
+			}
+			if mediaType, _, _ := strings.Cut(req.Header.Get("Content-Type"), ";"); strings.EqualFold(strings.TrimSpace(mediaType), "application/x-www-form-urlencoded") {
+				payload = []byte(redactEncodedValues(string(payload)))
 			}
 			log.Debugf(log.RequestSys, "%s request body: %s", r.name, payload)
 		}
@@ -279,22 +282,60 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 }
 
 func headerValuesForLog(name string, values []string) []string {
-	lowerName := strings.ToLower(name)
-	switch {
-	case lowerName == "key",
-		lowerName == "sign",
-		strings.Contains(lowerName, "authorization"),
-		strings.Contains(lowerName, "api-key"),
-		strings.Contains(lowerName, "apikey"),
-		strings.Contains(lowerName, "signature"),
-		strings.Contains(lowerName, "secret"),
-		strings.Contains(lowerName, "token"),
-		strings.Contains(lowerName, "passphrase"),
-		strings.Contains(lowerName, "cookie"):
+	if isSensitiveLogKey(name) {
 		return []string{"[REDACTED]"}
-	default:
-		return values
 	}
+	return values
+}
+
+// isSensitiveLogKey matches name suffixes rather than substrings, so OK-ACCESS-KEY, X-BAPI-SIGN and listenKey are
+// caught while KC-API-KEY-VERSION, SignatureMethod and signTimestamp stay readable. BTSE sends its API key as btse-api.
+func isSensitiveLogKey(name string) bool {
+	name = strings.ToLower(name)
+	if i := strings.LastIndexAny(name, "-_"); i >= 0 && name[i+1:] == "api" {
+		return true
+	}
+	for _, suffix := range sensitiveLogKeySuffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+var sensitiveLogKeySuffixes = []string{"key", "keyid", "sign", "signature", "authent", "authorization", "passphrase", "password", "secret", "token", "cookie", "tfa", "user"}
+
+// redactEncodedValues keeps field order and non-sensitive values so a redacted query or form body still reads like the request that was sent.
+func redactEncodedValues(encoded string) string {
+	fields := strings.Split(encoded, "&")
+	for i, field := range fields {
+		name, _, ok := strings.Cut(field, "=")
+		if !ok {
+			continue
+		}
+		if unescaped, err := url.QueryUnescape(name); err == nil && isSensitiveLogKey(unescaped) {
+			fields[i] = name + "=[REDACTED]"
+		}
+	}
+	return strings.Join(fields, "&")
+}
+
+func pathForLog(path string) string {
+	base, query, ok := strings.Cut(path, "?")
+	if !ok {
+		return path
+	}
+	return base + "?" + redactEncodedValues(query)
+}
+
+// urlErrorForLog redacts the request URL that http.Client.Do embeds in its errors, copying rather than mutating so the
+// error handed back to the caller is untouched.
+func urlErrorForLog(err error) error {
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) || urlErr == nil {
+		return err
+	}
+	return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: urlErr.Err}
 }
 
 // evaluateRetry checks whether a request should be retried based on the retry
@@ -343,7 +384,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 
 	if verbose {
 		if incomingErr != nil {
-			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, cause: %s", r.name, delay, attempt, incomingErr)
+			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, cause: %s", r.name, delay, attempt, urlErrorForLog(incomingErr))
 		} else {
 			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, status: %q", r.name, delay, attempt, resp.Status)
 		}

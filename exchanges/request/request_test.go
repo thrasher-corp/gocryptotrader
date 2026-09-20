@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"testing/iotest"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const unexpected = "unexpected values"
@@ -31,42 +33,42 @@ const unexpected = "unexpected values"
 var (
 	testURL     string
 	serverLimit *RateLimiterWithWeight
+
+	sensitiveLogKeys = []string{
+		"Authorization",
+		"Cookie",
+		"Key",
+		"OK-ACCESS-KEY",
+		"OK-ACCESS-PASSPHRASE",
+		"X-BAPI-SIGN",
+		"Btse-Api",
+		"Btse-Sign",
+		"Kc-Api-Sign",
+		"Api-Sign",
+		"Authent",
+		"listenKey",
+		"tfa",
+		"X-USER",
+	}
 )
 
 func TestHeaderValuesForLog(t *testing.T) {
 	t.Parallel()
 
 	values := []string{"sensitive-value"}
-	for _, header := range []string{
-		"Authorization",
-		"Cookie",
-		"Key",
-		"OK-ACCESS-PASSPHRASE",
-		"Sign",
-		"X-API-Key",
-		"X-Auth-Token",
-		"X-Signature",
-	} {
-		require.Equal(t, []string{"[REDACTED]"}, headerValuesForLog(header, values), header+" must be redacted")
+	for _, header := range sensitiveLogKeys {
+		assert.Equalf(t, []string{"[REDACTED]"}, headerValuesForLog(header, values), "%s should be redacted", header)
 	}
-	require.Equal(t, values, headerValuesForLog("Content-Type", values), "non-sensitive header values must remain available for diagnostics")
+	for _, header := range []string{"Content-Type", "KC-API-KEY-VERSION", "SignatureMethod", "signTimestamp"} {
+		assert.Equalf(t, values, headerValuesForLog(header, values), "%s should remain available for diagnostics", header)
+	}
 }
 
 func BenchmarkHeaderValuesForLog(b *testing.B) {
 	values := []string{"sensitive-value"}
-	for _, header := range []string{
-		"Authorization",
-		"Cookie",
-		"Key",
-		"OK-ACCESS-PASSPHRASE",
-		"Sign",
-		"X-API-Key",
-		"X-Auth-Token",
-		"X-Signature",
-		"Content-Type",
-	} {
+	for _, header := range append(sensitiveLogKeys, "Content-Type") {
 		b.Run(header, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_ = headerValuesForLog(header, values)
 			}
 		})
@@ -77,6 +79,82 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (r roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return r(req)
+}
+
+func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
+	// Not parallel: the log hook and log config are process-wide, and cleanup returns both to the package defaults.
+	var mu sync.Mutex
+	var logged strings.Builder
+	require.NoError(t, gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings()), "SetGlobalLogConfig must not error")
+	gctlog.SetCustomLogHook(func(_, _ string, a ...any) bool {
+		mu.Lock()
+		fmt.Fprintln(&logged, a...)
+		mu.Unlock()
+		return true
+	})
+	t.Cleanup(func() {
+		gctlog.SetCustomLogHook(nil)
+		assert.NoError(t, gctlog.SetGlobalLogConfig(&gctlog.Config{}), "SetGlobalLogConfig should not error")
+	})
+
+	var calls int
+	var sent *http.Request
+	var sentBody []byte
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		if calls == 1 {
+			return nil, errors.New("transport failure")
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		sent, sentBody = req, body
+		return &http.Response{
+			Status:     "200 OK",
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Set-Cookie": []string{"session=secret-cookie"}},
+			Body:       io.NopCloser(strings.NewReader(`{}`)),
+			Request:    req,
+		}, nil
+	})}
+	r, err := New("test", httpClient,
+		WithBackoff(func(int) time.Duration { return 0 }),
+		WithRetryPolicy(func(_ *http.Response, err error) (bool, error) { return err != nil, nil }),
+	)
+	require.NoError(t, err, "New must not error")
+
+	const path = "https://example.com/api?timestamp=1&signature=secret-signature"
+	for attempt := 1; attempt <= 2; attempt++ {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader("key=secret-key&nonce=1"))
+		require.NoError(t, err, "NewRequestWithContext must not error")
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+		req.Header.Set("OK-ACCESS-KEY", "secret-header")
+		retry, err := r.executeRequest(t.Context(), &Item{Method: http.MethodPost, Path: path}, req, attempt, true)
+		require.NoError(t, err, "executeRequest must not error")
+		require.Equal(t, attempt == 1, retry, "executeRequest must retry only the failed attempt")
+	}
+
+	require.NotNil(t, sent, "transport must receive the retried request")
+	assert.Equal(t, path, sent.URL.String(), "redaction should not change the URL sent")
+	assert.Equal(t, "secret-header", sent.Header.Get("OK-ACCESS-KEY"), "redaction should not change the headers sent")
+	assert.Equal(t, "key=secret-key&nonce=1", string(sentBody), "redaction should not change the body sent")
+
+	mu.Lock()
+	out := logged.String()
+	mu.Unlock()
+	for _, line := range []string{
+		`test attempt 1 request path: https://example.com/api?timestamp=1&signature=[REDACTED]`,
+		`test request header [Ok-Access-Key]: [[REDACTED]]`,
+		`test request body: key=[REDACTED]&nonce=1`,
+		`cause: Post "https://example.com/api?timestamp=1&signature=[REDACTED]": transport failure`,
+		`test response header [Set-Cookie]: [[REDACTED]]`,
+	} {
+		assert.Containsf(t, out, line, "verbose log should contain %s", line)
+	}
+	for _, secret := range []string{"secret-signature", "secret-key", "secret-header", "secret-cookie"} {
+		assert.NotContainsf(t, out, secret, "verbose log should not contain %s", secret)
+	}
 }
 
 type trackedReadCloser struct {
