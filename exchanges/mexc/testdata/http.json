@@ -2617,6 +2617,16 @@
     {
      "data": [
       [
+       1767204000000,
+       "87621.27",
+       "87683.93",
+       "87570",
+       "87667.2",
+       "26.68976225",
+       1767204300000,
+       "2339029.48"
+      ],
+      [
        1767204300000,
        "87667.2",
        "87904.15",
@@ -2627,7 +2637,7 @@
        "6339710.08"
       ]
      ],
-     "queryString": "endTime=1767204403384&interval=5m&startTime=1767204283384&symbol=BTCUSDT",
+     "queryString": "endTime=1767204600000&interval=5m&startTime=1767204000000&symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [

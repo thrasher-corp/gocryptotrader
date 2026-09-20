@@ -583,8 +583,8 @@ func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if s == nil {
-		return nil, order.ErrSubmissionIsNil
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
+		return nil, err
 	}
 	var err error
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
@@ -1127,7 +1127,10 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	}
 	switch a {
 	case asset.Spot:
-		result, err := e.GetCandlestick(ctx, pair, intervalString, start, end, 0)
+		// Pass the request's aligned window: MEXC's klines endpoint drops a partially elapsed candle,
+		// so a start that is not on an interval boundary loses the first candle and ProcessResponse
+		// pads the gap with an all-zero candle indistinguishable from real data.
+		result, err := e.GetCandlestick(ctx, pair, intervalString, req.Start, req.End, 0)
 		if err != nil {
 			return nil, err
 		}

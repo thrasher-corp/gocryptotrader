@@ -1444,20 +1444,26 @@ func TestSubmitOrder(t *testing.T) {
 	_, err := e.SubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = e.SubmitOrder(t.Context(), &order.Submit{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name})
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	arg := &order.Submit{
+		Exchange:  e.Name,
 		Pair:      spotTradablePair,
 		AssetType: asset.Options,
 		Type:      order.Liquidation,
 		Side:      order.Long,
+		Amount:    1,
+		Price:     1,
 	}
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrAssetNotFound)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	// SubmitOrder assigns the formatted pair back onto the submission, so a failed format leaves it
+	// empty for the next call.
 	arg.Pair = spotTradablePair
+	arg.AssetType = asset.Futures
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -1467,16 +1473,25 @@ func TestSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	// Spot orders test
+	// A submission the shared validator refuses must not reach the venue.
 	arg.Type = order.Limit
 	arg.Side = order.Sell
+	arg.Amount = -1
+	arg.QuoteAmount = 100
 	_, err = e.SubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	// Spot orders test: a zero amount and a missing limit price now surface through the shared
+	// validator, ahead of the venue's own limits errors.
+	arg.Amount = 0
+	arg.QuoteAmount = 0
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	arg.Amount = .1
 	_, err = e.SubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
 	arg.Price = 1234567
 	result, err := e.SubmitOrder(t.Context(), arg)
