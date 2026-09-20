@@ -99,7 +99,7 @@ func CreateTestBot(tb testing.TB) *Engine {
 }
 
 func TestGetSubsystemsStatus(t *testing.T) {
-	assert.Len(t, (&Engine{}).GetSubsystemsStatus(), 13, "GetSubsystemStatus should return the correct number of subsystems")
+	assert.Len(t, (&Engine{}).GetSubsystemsStatus(), 12, "GetSubsystemStatus should return the correct number of subsystems")
 }
 
 func TestGetRPCEndpoints(t *testing.T) {
