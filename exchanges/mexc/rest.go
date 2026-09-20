@@ -29,13 +29,6 @@ import (
 // Exchange is the overarching type across this package
 type Exchange struct {
 	exchange.Base
-	// orderbookSnapshotLoadedPairs records, per symbol, whether a full orderbook snapshot has already
-	// been loaded for the current websocket connection of THIS instance; syncOrderbookPairsLock guards
-	// every access to it. The state is per instance: a package-level map let a second Exchange find
-	// every symbol already claimed and never load its own book, and a reconnect on one instance would
-	// clear the marks of all.
-	orderbookSnapshotLoadedPairs map[string]bool
-	syncOrderbookPairsLock       sync.Mutex
 	// wsTickerMu serialises the read-merge-write of the cached spot ticker: bookTicker and miniTicker
 	// for one pair can arrive on different connections once subscriptions span more than one.
 	wsTickerMu sync.Mutex

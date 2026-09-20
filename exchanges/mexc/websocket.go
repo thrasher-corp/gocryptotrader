@@ -50,49 +50,11 @@ const (
 	wsPongMessage = "PONG"
 )
 
-// claimOrderbookSnapshot reports whether the caller should load the snapshot for symbol, atomically
-// marking it loaded so a concurrent frame for the same symbol does not load it twice. All access to
-// the per-instance map goes through the lock, so the depth handlers are free of the data race the
-// earlier unlocked read introduced (concurrent map read/write is a fatal error under the race
-// detector). The map is lazily created on first claim so a freshly constructed Exchange is usable.
-func (e *Exchange) claimOrderbookSnapshot(symbol string) bool {
-	e.syncOrderbookPairsLock.Lock()
-	defer e.syncOrderbookPairsLock.Unlock()
-	if e.orderbookSnapshotLoadedPairs[symbol] {
-		return false
-	}
-	if e.orderbookSnapshotLoadedPairs == nil {
-		e.orderbookSnapshotLoadedPairs = map[string]bool{}
-	}
-	e.orderbookSnapshotLoadedPairs[symbol] = true
-	return true
-}
-
-// releaseOrderbookSnapshot clears the loaded mark for symbol so the snapshot is retried, used when the
-// load that claimed it failed.
-func (e *Exchange) releaseOrderbookSnapshot(symbol string) {
-	e.syncOrderbookPairsLock.Lock()
-	defer e.syncOrderbookPairsLock.Unlock()
-	delete(e.orderbookSnapshotLoadedPairs, symbol)
-}
-
-// resetOrderbookSnapshots forgets every loaded mark for this instance; called on connect so a
-// reconnect reloads snapshots without disturbing any other Exchange instance.
-func (e *Exchange) resetOrderbookSnapshots() {
-	e.syncOrderbookPairsLock.Lock()
-	defer e.syncOrderbookPairsLock.Unlock()
-	clear(e.orderbookSnapshotLoadedPairs)
-}
-
 // WsConnect initiates a websocket connection
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	// A reconnect restarts the depth stream from a fresh snapshot; drop the per-connection loaded
-	// marks so every subscribed symbol reloads its snapshot instead of applying increments onto a
-	// book kept from the previous connection.
-	e.resetOrderbookSnapshots()
 	var listenKey string
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error

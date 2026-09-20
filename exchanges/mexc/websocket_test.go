@@ -41,37 +41,6 @@ func TestChannelName(t *testing.T) {
 		"an unsupported asset should fall through to the raw channel name")
 }
 
-// TestOrderbookSnapshotClaim asserts the snapshot-loaded bookkeeping is atomic and that a reconnect
-// reset makes a symbol reload its snapshot. This is the state that the previous unlocked map read
-// raced on and that a reconnect never cleared, leaving increments applied to a stale book.
-func TestOrderbookSnapshotClaim(t *testing.T) {
-	t.Parallel()
-	const symbol = "PROBEUSDT"
-	ex := new(Exchange)
-	assert.True(t, ex.claimOrderbookSnapshot(symbol), "the first claim should win and load the snapshot")
-	assert.False(t, ex.claimOrderbookSnapshot(symbol), "a second claim for the same symbol should be denied")
-	ex.releaseOrderbookSnapshot(symbol)
-	assert.True(t, ex.claimOrderbookSnapshot(symbol), "after a failed load released the mark, the claim should win again")
-	ex.resetOrderbookSnapshots()
-	assert.True(t, ex.claimOrderbookSnapshot(symbol), "after a reconnect reset the snapshot should reload")
-}
-
-// TestOrderbookSnapshotPerInstance asserts the snapshot-loaded bookkeeping belongs to each Exchange
-// instance, not the whole process: a second instance must load its own snapshot for a symbol the
-// first has claimed, and resetting one instance must not clear the other's marks. A package-level map
-// let a second instance find every symbol already claimed and never load its book.
-func TestOrderbookSnapshotPerInstance(t *testing.T) {
-	t.Parallel()
-	const symbol = "PERINSTUSDT"
-	eA := new(Exchange)
-	eB := new(Exchange)
-	assert.True(t, eA.claimOrderbookSnapshot(symbol), "instance A should claim and load its snapshot")
-	assert.False(t, eA.claimOrderbookSnapshot(symbol), "A's second claim for the same symbol should be denied")
-	assert.True(t, eB.claimOrderbookSnapshot(symbol), "instance B should load its own snapshot, not be blocked by A's claim")
-	eA.resetOrderbookSnapshots()
-	assert.False(t, eB.claimOrderbookSnapshot(symbol), "resetting A should not clear B's marks")
-}
-
 // wsTestSymbol is the only pair the mock exchange enables, so every test frame carries it.
 const wsTestSymbol = "BTCUSDT"
 
