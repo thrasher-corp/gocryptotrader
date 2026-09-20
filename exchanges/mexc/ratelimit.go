@@ -10,6 +10,7 @@ const (
 	tenSecondsInterval  = time.Second * 10
 	fiveSecondsInterval = time.Second * 5
 	twoSecondsInterval  = time.Second * 2
+	oneSecondInterval   = time.Second
 )
 
 const (
@@ -80,25 +81,29 @@ const (
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
 func GetRateLimit() request.RateLimitDefinitions {
-	ipModeRate := request.NewRateLimit(tenSecondsInterval, 500)
-	uidModeRate := request.NewRateLimit(tenSecondsInterval, 500)
+	// IP-weighted endpoints share 300 weight per 10 seconds; the order-placement and cancel
+	// endpoints are documented as a shared 12-requests-per-second budget, which is the binding
+	// constraint on them (12/s is well inside the UID pool they also sit in), so they draw from one
+	// per-second limiter rather than a weighted pool.
+	ipModeRate := request.NewRateLimit(tenSecondsInterval, 300)
+	orderRate := request.NewRateLimit(oneSecondInterval, 12)
 
 	return request.RateLimitDefinitions{
 		systemTimeEPL:          request.GetRateLimiterWithWeight(ipModeRate, 1),
 		defaultSymbolsEPL:      request.GetRateLimiterWithWeight(ipModeRate, 1),
-		getSymbolsEPL:          request.GetRateLimiterWithWeight(ipModeRate, 10),
-		orderbooksEPL:          request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getSymbolsEPL:          request.GetRateLimiterWithWeight(ipModeRate, 25),
+		orderbooksEPL:          request.GetRateLimiterWithWeight(ipModeRate, 3),
 		recentTradesListEPL:    request.GetRateLimiterWithWeight(ipModeRate, 5),
 		aggregatedTradesEPL:    request.GetRateLimiterWithWeight(ipModeRate, 1),
 		candlestickEPL:         request.GetRateLimiterWithWeight(ipModeRate, 1),
 		currentAveragePriceEPL: request.GetRateLimiterWithWeight(ipModeRate, 1),
 
-		symbolTickerPriceChangeStatEPL:  request.GetRateLimiterWithWeight(ipModeRate, 1),
+		symbolTickerPriceChangeStatEPL:  request.GetRateLimiterWithWeight(ipModeRate, 25),
 		symbolsTickerPriceChangeStatEPL: request.GetRateLimiterWithWeight(ipModeRate, 40),
 
-		symbolPriceTickerEPL:              request.GetRateLimiterWithWeight(ipModeRate, 1),
-		symbolsPriceTickerEPL:             request.GetRateLimiterWithWeight(ipModeRate, 2),
-		symbolOrderbookTickerEPL:          request.GetRateLimiterWithWeight(ipModeRate, 1),
+		symbolPriceTickerEPL:              request.GetRateLimiterWithWeight(ipModeRate, 10),
+		symbolsPriceTickerEPL:             request.GetRateLimiterWithWeight(ipModeRate, 10),
+		symbolOrderbookTickerEPL:          request.GetRateLimiterWithWeight(ipModeRate, 10),
 		createSubAccountEPL:               request.GetRateLimiterWithWeight(ipModeRate, 1),
 		subAccountListEPL:                 request.GetRateLimiterWithWeight(ipModeRate, 1),
 		createAPIKeyForSubAccountEPL:      request.GetRateLimiterWithWeight(ipModeRate, 1),
@@ -109,9 +114,9 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getSubAccountAssetEPL:             request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getKYCStatusEPL:                   request.GetRateLimiterWithWeight(ipModeRate, 1),
 		selfSymbolsEPL:                    request.GetRateLimiterWithWeight(ipModeRate, 1),
-		newOrderEPL:                       request.GetRateLimiterWithWeight(uidModeRate, 1), //
-		createBatchOrdersEPL:              request.GetRateLimiterWithWeight(uidModeRate, 1), //
-		cancelTradeOrderEPL:               request.GetRateLimiterWithWeight(ipModeRate, 1),
+		newOrderEPL:                       request.GetRateLimiterWithWeight(orderRate, 1),
+		createBatchOrdersEPL:              request.GetRateLimiterWithWeight(orderRate, 1),
+		cancelTradeOrderEPL:               request.GetRateLimiterWithWeight(orderRate, 1),
 		cancelAllOpenOrdersBySymbolEPL:    request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getOrderByIDEPL:                   request.GetRateLimiterWithWeight(ipModeRate, 2),
 		getOpenOrdersEPL:                  request.GetRateLimiterWithWeight(ipModeRate, 3),

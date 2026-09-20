@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -83,5 +84,34 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
+	}
+}
+
+// TestRateLimitWeightsMatchDocumentation pins the endpoint weights re-derived from MEXC's current
+// spot v3 documentation, so a regression to the retired 500-per-10-second table (every weight of
+// which matched that page exactly) is caught. The IP pool and the shared order-endpoint budget are
+// applied through the same limiter, and only the weight is exposed for inspection here.
+func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
+	t.Parallel()
+	rl := GetRateLimit()
+	for _, tc := range []struct {
+		name   string
+		epl    request.EndpointLimit
+		weight request.Weight
+	}{
+		{"getSymbols", getSymbolsEPL, 25},
+		{"orderbooks", orderbooksEPL, 3},
+		{"symbolTickerPriceChangeStat", symbolTickerPriceChangeStatEPL, 25},
+		{"symbolsTickerPriceChangeStat", symbolsTickerPriceChangeStatEPL, 40},
+		{"symbolPriceTicker", symbolPriceTickerEPL, 10},
+		{"symbolsPriceTicker", symbolsPriceTickerEPL, 10},
+		{"symbolOrderbookTicker", symbolOrderbookTickerEPL, 10},
+		{"newOrder", newOrderEPL, 1},
+		{"createBatchOrders", createBatchOrdersEPL, 1},
+		{"cancelTradeOrder", cancelTradeOrderEPL, 1},
+	} {
+		limiter, ok := rl[tc.epl]
+		require.Truef(t, ok, "%s must have a rate limiter", tc.name)
+		assert.Equalf(t, tc.weight, limiter.Weight(), "%s weight should match the documentation", tc.name)
 	}
 }
