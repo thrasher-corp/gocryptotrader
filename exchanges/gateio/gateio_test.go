@@ -4477,6 +4477,12 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 		TimeInForce:          order.ImmediateOrCancel,
 		ReduceOnly:           true,
 	}, got)
+
+	// Pairing a USDT contract with a coin-margined caller proves the asset comes from the caller, not the contract.
+	got, err = e.deriveFuturesWebsocketOrderResponse(resp, asset.CoinMarginedFutures)
+	require.NoError(t, err, "deriveFuturesWebsocketOrderResponse must not error")
+	require.NotNil(t, got, "response must not be nil")
+	assert.Equal(t, asset.CoinMarginedFutures, got.AssetType, "AssetType should follow the caller")
 }
 
 func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
