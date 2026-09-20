@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -227,36 +228,47 @@ func TestExchangeManagerShutdown(t *testing.T) {
 }
 
 func TestExchangeManagerShutdownTimeoutKeepsUnfinishedExchange(t *testing.T) {
-	m := NewExchangeManager()
-	slow := &delayedShutdownExchange{name: "slowex", delay: 500 * time.Millisecond}
-	slow.SetDefaults()
-	require.NoError(t, m.Add(slow))
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := NewExchangeManager()
+		slow := &delayedShutdownExchange{name: "slowex", delay: 500 * time.Millisecond}
+		slow.SetDefaults()
+		require.NoError(t, m.Add(slow), "Add must not error")
+		// time stops once the bubble's test goroutine returns, so let the abandoned shutdown, or a slower one a regression abandons, finish first
+		defer synctest.Sleep(time.Minute)
 
-	start := time.Now()
-	require.NoError(t, m.Shutdown(50*time.Millisecond))
-	assert.Less(t, time.Since(start), 400*time.Millisecond)
+		start := time.Now()
+		require.NoError(t, m.Shutdown(50*time.Millisecond), "Shutdown must not error")
+		assert.Equal(t, 50*time.Millisecond, time.Since(start), "Shutdown should give up at its timeout")
 
-	_, err := m.GetExchangeByName("slowex")
-	require.NoError(t, err)
+		_, err := m.GetExchangeByName("slowex")
+		require.NoError(t, err, "an exchange still shutting down must stay loaded")
+	})
 }
 
 func TestExchangeManagerShutdownRemovesSuccessfulExchangeAndKeepsFailures(t *testing.T) {
 	t.Parallel()
-	m := NewExchangeManager()
+	synctest.Test(t, func(t *testing.T) {
+		m := NewExchangeManager()
+		// time stops once the bubble's test goroutine returns, so let any shutdown a failed assertion abandons finish first
+		defer synctest.Sleep(time.Minute)
 
-	success := &delayedShutdownExchange{name: "successex", delay: time.Millisecond}
-	success.SetDefaults()
-	require.NoError(t, m.Add(success))
+		success := &delayedShutdownExchange{name: "successex", delay: time.Millisecond}
+		success.SetDefaults()
+		require.NoError(t, m.Add(success), "Add must not error")
 
-	failed := &delayedShutdownExchange{name: "errorex", delay: time.Millisecond, shutdownErr: errExpectedTestError}
-	failed.SetDefaults()
-	require.NoError(t, m.Add(failed))
+		failed := &delayedShutdownExchange{name: "errorex", delay: time.Millisecond, shutdownErr: errExpectedTestError}
+		failed.SetDefaults()
+		require.NoError(t, m.Add(failed), "Add must not error")
 
-	require.NoError(t, m.Shutdown(time.Second))
+		start := time.Now()
+		require.NoError(t, m.Shutdown(time.Second), "Shutdown must not error")
+		assert.Equal(t, time.Millisecond, time.Since(start), "Shutdown should shut exchanges down concurrently")
 
-	_, err := m.GetExchangeByName("successex")
-	require.ErrorIs(t, err, ErrExchangeNotFound)
+		_, err := m.GetExchangeByName("successex")
+		require.ErrorIs(t, err, ErrExchangeNotFound, "an exchange that shut down must be removed")
 
-	_, err = m.GetExchangeByName("errorex")
-	require.NoError(t, err)
+		_, err = m.GetExchangeByName("errorex")
+		require.NoError(t, err, "an exchange that failed to shut down must stay loaded")
+	})
 }

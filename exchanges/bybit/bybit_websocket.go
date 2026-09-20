@@ -536,8 +536,8 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 	}
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Last:         result.LastPrice.Float64(),
-		High:         result.HighPrice24H.Float64(),
-		Low:          result.LowPrice24H.Float64(),
+		High:         result.HighPrice24Hour.Float64(),
+		Low:          result.LowPrice24Hour.Float64(),
 		Pair:         cp,
 		ExchangeName: e.Name,
 		AssetType:    assetType,
@@ -651,14 +651,20 @@ func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
 	if resp.LastPrice.Float64() != 0 {
 		tick.Last = resp.LastPrice.Float64()
 	}
-	if resp.HighPrice24H.Float64() != 0 {
-		tick.High = resp.HighPrice24H.Float64()
+	if resp.HighPrice24Hour.Float64() != 0 {
+		tick.High = resp.HighPrice24Hour.Float64()
 	}
-	if resp.LowPrice24H.Float64() != 0 {
-		tick.Low = resp.LowPrice24H.Float64()
+	if resp.LowPrice24Hour.Float64() != 0 {
+		tick.Low = resp.LowPrice24Hour.Float64()
 	}
-	if resp.Volume24H.Float64() != 0 {
-		tick.Volume = resp.Volume24H.Float64()
+	// volume24h counts the quote currency on the inverse category and turnover24h the base, the
+	// reverse of everywhere else, so the two are mapped together rather than one field at a time
+	baseVolume, quoteVolume := tickerVolumes(&resp.TickerCommon, tick.AssetType)
+	if baseVolume != 0 {
+		tick.BaseVolume = baseVolume
+	}
+	if quoteVolume != 0 {
+		tick.QuoteVolume = quoteVolume
 	}
 
 	if tick.AssetType == asset.Spot {

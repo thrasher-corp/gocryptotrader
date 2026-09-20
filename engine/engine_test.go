@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			name: "test file",
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
-				CoreSettings: CoreSettings{EnableDryRun: true},
+				EnableDryRun: true,
 			},
 			want:    &empty,
 			wantErr: false,
@@ -64,7 +65,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			settings: &Settings{
 				ConfigFile:   config.TestFile,
 				DataDir:      somePath,
-				CoreSettings: CoreSettings{EnableDryRun: true},
+				EnableDryRun: true,
 			},
 			want:    &somePath,
 			wantErr: false,
@@ -99,7 +100,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	tempDir := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -296,7 +297,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	tempDir2 := t.TempDir()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
@@ -309,7 +310,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
-		CoreSettings: CoreSettings{EnableDryRun: true},
+		EnableDryRun: true,
 		DataDir:      tempDir2,
 	}, nil)
 	if err != nil {
@@ -365,6 +366,57 @@ func TestGetExchangeByName(t *testing.T) {
 
 	_, err = e.GetExchangeByName("Asdasd")
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
+}
+
+func TestLoadExchangeConcurrently(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{}, runtimeCtx: ctx}
+	for _, name := range exchange.Exchanges {
+		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
+			Name:                          name,
+			WebsocketResponseCheckTimeout: config.DefaultWebsocketResponseCheckTimeout,
+			WebsocketResponseMaxLimit:     config.DefaultWebsocketResponseMaxLimit,
+			WebsocketTrafficTimeout:       config.DefaultWebsocketTrafficTimeout,
+		})
+	}
+	var wg sync.WaitGroup
+	for _, name := range exchange.Exchanges {
+		// Each load looks its config up among names the other loads are standardising; the cancelled context stops
+		// Bootstrap before it sends a request
+		wg.Go(func() {
+			err := e.LoadExchange(name)
+			assert.Truef(t, onlyCancelled(err), "LoadExchange should fail only on Bootstrap's cancelled context for %s, got: %v", name, err)
+		})
+	}
+	wg.Wait()
+	for i, name := range exchange.Exchanges {
+		exch, err := NewExchangeManager().NewExchangeByName(name)
+		require.NoError(t, err, "NewExchangeByName must not error")
+		exch.SetDefaults()
+		assert.Equal(t, exch.GetName(), e.Config.Exchanges[i].Name, "LoadExchange should standardise the exchange config's name")
+	}
+}
+
+// onlyCancelled reports whether err consists solely of context cancellations, however they are wrapped or joined
+func onlyCancelled(err error) bool {
+	switch e := err.(type) {
+	case interface{ Unwrap() []error }:
+		if errs := e.Unwrap(); len(errs) > 0 {
+			for _, err := range errs {
+				if !onlyCancelled(err) {
+					return false
+				}
+			}
+			return true
+		}
+	case interface{ Unwrap() error }:
+		if inner := e.Unwrap(); inner != nil {
+			return onlyCancelled(inner)
+		}
+	}
+	return errors.Is(err, context.Canceled)
 }
 
 func TestUnloadExchange(t *testing.T) {

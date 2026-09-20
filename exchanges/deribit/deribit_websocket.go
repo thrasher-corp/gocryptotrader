@@ -542,26 +542,67 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 		return err
 	}
 	var response wsResponse
-	incrementalTicker := &WsIncrementalTicker{}
-	response.Params.Data = incrementalTicker
+	update := &WsIncrementalTicker{}
+	response.Params.Data = update
 	err = json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
-		ExchangeName: e.Name,
+
+	// A snapshot starts the instrument's state afresh. A change carries only the fields that moved,
+	// and the store overwrites a pair wholesale, so it is decoded onto the state so far: each field
+	// it leaves out keeps its value, and each it sends as null is cleared
+	e.incrementalTickersMtx.Lock()
+	state, ok := e.incrementalTickers[channels[1]]
+	switch {
+	case update.Type != "change":
+		state = update
+	case !ok:
+		e.incrementalTickersMtx.Unlock()
+		return fmt.Errorf("%w: %s", errNoTickerSnapshot, channels[1])
+	default:
+		response.Params.Data = state
+		if err := json.Unmarshal(respRaw, &response); err != nil {
+			e.incrementalTickersMtx.Unlock()
+			return err
+		}
+	}
+	if e.incrementalTickers == nil {
+		e.incrementalTickers = make(map[string]*WsIncrementalTicker)
+	}
+	e.incrementalTickers[channels[1]] = state
+	tick := state.tickerPrice(e.Name, cp, a)
+	e.incrementalTickersMtx.Unlock()
+	return e.Websocket.DataHandler.Send(ctx, tick)
+}
+
+// tickerPrice maps an instrument's merged state as processTicker maps a full ticker
+func (t *WsIncrementalTicker) tickerPrice(exchangeName string, cp currency.Pair, a asset.Item) *ticker.Price {
+	value := func(v *float64) float64 {
+		if v == nil {
+			return 0
+		}
+		return *v
+	}
+	return &ticker.Price{
+		ExchangeName: exchangeName,
 		Pair:         cp,
 		AssetType:    a,
-		LastUpdated:  incrementalTicker.Timestamp.Time(),
-		BidSize:      incrementalTicker.BestBidAmount,
-		AskSize:      incrementalTicker.BestAskAmount,
-		High:         incrementalTicker.MaxPrice,
-		Low:          incrementalTicker.MinPrice,
-		Volume:       incrementalTicker.Stats.Volume,
-		QuoteVolume:  incrementalTicker.Stats.VolumeUsd,
-		Ask:          incrementalTicker.ImpliedAsk,
-		Bid:          incrementalTicker.ImpliedBid,
-	})
+		LastUpdated:  t.Timestamp.Time(),
+		Bid:          value(t.BestBidPrice),
+		BidSize:      value(t.BestBidAmount),
+		Ask:          value(t.BestAskPrice),
+		AskSize:      value(t.BestAskAmount),
+		Last:         value(t.LastPrice),
+		Close:        value(t.LastPrice),
+		High:         value(t.Stats.High),
+		Low:          value(t.Stats.Low),
+		BaseVolume:   value(t.Stats.Volume),
+		QuoteVolume:  quoteVolume(value(t.Stats.VolumeUSD), value(t.Stats.VolumeNotional), a),
+		MarkPrice:    value(t.MarkPrice),
+		IndexPrice:   value(t.IndexPrice),
+		OpenInterest: value(t.OpenInterest),
+	}
 }
 
 func (e *Exchange) processInstrumentTicker(ctx context.Context, respRaw []byte, channels []string) error {
@@ -571,6 +612,10 @@ func (e *Exchange) processInstrumentTicker(ctx context.Context, respRaw []byte, 
 	return e.processTicker(ctx, respRaw, channels)
 }
 
+// processTicker maps every instrument kind as UpdateTicker does. min_price and max_price bound the
+// price an order may carry rather than the day's range, and implied_bid and implied_ask are served
+// only for combos, priced off the legs while best_bid_amount and best_ask_amount size the combo's
+// own resting orders
 func (e *Exchange) processTicker(ctx context.Context, respRaw []byte, channels []string) error {
 	a, cp, err := getAssetPairByInstrument(channels[1])
 	if err != nil {
@@ -583,7 +628,7 @@ func (e *Exchange) processTicker(ctx context.Context, respRaw []byte, channels [
 	if err != nil {
 		return err
 	}
-	tickerPrice := &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -593,18 +638,15 @@ func (e *Exchange) processTicker(ctx context.Context, respRaw []byte, channels [
 		BidSize:      tickerPriceResponse.BestBidAmount,
 		AskSize:      tickerPriceResponse.BestAskAmount,
 		Last:         tickerPriceResponse.LastPrice,
+		Close:        tickerPriceResponse.LastPrice,
 		High:         tickerPriceResponse.Stats.High,
 		Low:          tickerPriceResponse.Stats.Low,
-		Volume:       tickerPriceResponse.Stats.Volume,
-	}
-	if a != asset.Futures {
-		tickerPrice.Low = tickerPriceResponse.MinPrice
-		tickerPrice.High = tickerPriceResponse.MaxPrice
-		tickerPrice.Last = tickerPriceResponse.MarkPrice
-		tickerPrice.Ask = tickerPriceResponse.ImpliedAsk
-		tickerPrice.Bid = tickerPriceResponse.ImpliedBid
-	}
-	return e.Websocket.DataHandler.Send(ctx, tickerPrice)
+		BaseVolume:   tickerPriceResponse.Stats.Volume,
+		QuoteVolume:  quoteVolume(tickerPriceResponse.Stats.VolumeUSD, tickerPriceResponse.Stats.VolumeNotional, a),
+		MarkPrice:    tickerPriceResponse.MarkPrice,
+		IndexPrice:   tickerPriceResponse.IndexPrice,
+		OpenInterest: tickerPriceResponse.OpenInterest,
+	})
 }
 
 func (e *Exchange) processData(ctx context.Context, respRaw []byte, result any) error {

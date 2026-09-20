@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
@@ -20,7 +20,6 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -114,10 +113,7 @@ func StartRPCServer(ctx context.Context, server *GRPCServer) error {
 		_ = lis.Close()
 	}
 
-	go func() {
-		<-ctx.Done()
-		shutdownGRPCServer()
-	}()
+	context.AfterFunc(ctx, shutdownGRPCServer)
 
 	go func() {
 		if serveErr := s.Serve(lis); serveErr != nil && !errors.Is(serveErr, net.ErrClosed) && !errors.Is(serveErr, grpc.ErrServerStopped) {
@@ -172,14 +168,14 @@ func (s *GRPCServer) startRPCRESTProxy(ctx context.Context) error {
 		Handler:           mux,
 	}
 
-	go func() {
-		<-ctx.Done()
+	context.AfterFunc(ctx, func() {
+		// Shutdown must outlive ctx, which has just been cancelled
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil && !errors.Is(shutdownErr, http.ErrServerClosed) {
 			log.Errorf(log.GRPCSys, "GRPC proxy server shutdown failed: %s", shutdownErr)
 		}
-	}()
+	})
 
 	go func() {
 		if serveErr := server.Serve(proxyListener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
@@ -574,17 +570,15 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			return nil, fmt.Errorf("%w '%v' cannot exceed '%v'", errBadPort, request.Config.DataSettings.DatabaseData.Config.Config.Port, math.MaxUint16)
 		}
 		cfg := database.Config{
-			Enabled: request.Config.DataSettings.DatabaseData.Config.Enabled,
-			Verbose: request.Config.DataSettings.DatabaseData.Config.Verbose,
-			Driver:  request.Config.DataSettings.DatabaseData.Config.Driver,
-			ConnectionDetails: drivers.ConnectionDetails{
-				Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
-				Port:     request.Config.DataSettings.DatabaseData.Config.Config.Port,
-				Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
-				Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
-				Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,
-				SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
-			},
+			Enabled:  request.Config.DataSettings.DatabaseData.Config.Enabled,
+			Verbose:  request.Config.DataSettings.DatabaseData.Config.Verbose,
+			Driver:   request.Config.DataSettings.DatabaseData.Config.Driver,
+			Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
+			Port:     request.Config.DataSettings.DatabaseData.Config.Config.Port,
+			Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
+			Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
+			Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,
+			SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
 		}
 		dbData = &config.DatabaseData{
 			StartDate:        request.Config.DataSettings.DatabaseData.StartDate.AsTime(),
@@ -730,7 +724,7 @@ func (s *GRPCServer) StopTask(_ context.Context, req *btrpc.StopTaskRequest) (*b
 	if req == nil {
 		return nil, fmt.Errorf("%w StopTaskRequest", gctcommon.ErrNilPointer)
 	}
-	id, err := uuid.FromString(req.Id)
+	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +768,7 @@ func (s *GRPCServer) StartTask(_ context.Context, req *btrpc.StartTaskRequest) (
 	if req == nil {
 		return nil, fmt.Errorf("%w StartTaskRequest", gctcommon.ErrNilPointer)
 	}
-	id, err := uuid.FromString(req.Id)
+	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -814,7 +808,7 @@ func (s *GRPCServer) ClearTask(_ context.Context, req *btrpc.ClearTaskRequest) (
 	if req == nil {
 		return nil, fmt.Errorf("%w ClearTaskRequest", gctcommon.ErrNilPointer)
 	}
-	id, err := uuid.FromString(req.Id)
+	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, err
 	}

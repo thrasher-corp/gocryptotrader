@@ -21,7 +21,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -148,7 +147,7 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		},
 		{
 			Subsystem:    NTPManagerName,
-			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: convert.BoolPtr(false)}}},
+			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: new(false)}}},
 			EnableError:  errNilNTPConfigValues,
 			DisableError: ErrNilSubsystem,
 		},
