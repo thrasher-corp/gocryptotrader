@@ -194,6 +194,8 @@ func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pa
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
+	// the tick carries no time of its own on this endpoint, only the envelope does
+	result.Tick.Timestamp = result.Timestamp
 	return result.Tick, err
 }
 
@@ -421,7 +423,7 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestPar
 	}
 
 	data := struct {
-		AccountID int    `json:"account-id,string"`
+		AccountID uint64 `json:"account-id,string"`
 		Amount    string `json:"amount"`
 		Price     string `json:"price"`
 		Source    string `json:"source"`
@@ -590,7 +592,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, acco
 		return nil, err
 	}
 	vals.Set("symbol", symbolValue)
-	vals.Set("accountID", accountID)
+	vals.Set("account-id", accountID)
 	if side != "" {
 		vals.Set("side", side)
 	}

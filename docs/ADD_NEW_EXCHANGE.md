@@ -21,7 +21,7 @@ This document is from a perspective of adding a new exchange called Binance to t
 
 #### Linux/macOS
 
-GoCryptoTrader is built using [Go Modules](https://go.dev/wiki/Modules) and requires Go 1.11 or above
+GoCryptoTrader is built using [Go Modules](https://go.dev/wiki/Modules) and requires Go 1.27 or above
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```console
