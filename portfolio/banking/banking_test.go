@@ -1,7 +1,6 @@
 package banking
 
 import (
-	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -41,10 +40,6 @@ var (
 		SupportedExchanges:  "",
 	}
 )
-
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
 
 func TestGetBankAccountByID(t *testing.T) {
 	t.Parallel()

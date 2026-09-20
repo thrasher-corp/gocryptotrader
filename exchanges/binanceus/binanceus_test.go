@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to test authenticated endpoints
@@ -1513,6 +1514,62 @@ func TestWebsocketAggTrade(t *testing.T) {
 	if err := e.wsHandleData(t.Context(), aggTradejson); err != nil {
 		t.Error("Binanceus Aggregated Trade Order Json() error", err)
 	}
+}
+
+func TestWsOrderUpdateDataUnmarshal(t *testing.T) {
+	t.Parallel()
+	// Binance.US's documented executionReport. An order resting on the book carries its working time
+	// as "W", which untagged matched IsOnOrderBook's "w" case-insensitively and, being a number,
+	// failed the whole update
+	const data = `{"e":"executionReport","E":1499405658658,"s":"ETHBTC","c":"mUvoqJxFIILMdfAW5iGSOW","S":"BUY","o":"LIMIT","f":"GTC","q":"1.00000000","p":"0.10264410","P":"0.00000000","d":4,"F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":4293153,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1499405658657,"t":-1,"I":8641984,"w":true,"m":false,"M":false,"O":1499405658657,"Z":"0.00000000","Y":"0.00000000","pl":"0.00000000","pL":"0.00000000","pY":"0.00000000","Q":"0.00000000","V":"NONE","D":1499405658657,"W":1499405658657,"u":12332,"v":122}`
+	var update WsOrderUpdateData
+	require.NoError(t, json.Unmarshal([]byte(data), &update), "Unmarshal must not error")
+	exp := WsOrderUpdateData{
+		EventType:            "executionReport",
+		EventTime:            types.Time(time.UnixMilli(1499405658658)),
+		Symbol:               "ETHBTC",
+		ClientOrderID:        "mUvoqJxFIILMdfAW5iGSOW",
+		Side:                 "BUY",
+		OrderType:            "LIMIT",
+		TimeInForce:          "GTC",
+		Quantity:             1,
+		Price:                0.1026441,
+		OrderListID:          -1,
+		CurrentExecutionType: "NEW",
+		OrderStatus:          "NEW",
+		RejectionReason:      "NONE",
+		OrderID:              4293153,
+		TransactionTime:      types.Time(time.UnixMilli(1499405658657)),
+		TradeID:              -1,
+		Ignored:              8641984,
+		IsOnOrderBook:        true,
+		OrderCreationTime:    types.Time(time.UnixMilli(1499405658657)),
+		WorkingTime:          types.Time(time.UnixMilli(1499405658657)),
+	}
+	assert.Equal(t, exp, update, "WsOrderUpdateData should unmarshal correctly")
+}
+
+func TestWebsocketAggregateTradeStreamUnmarshal(t *testing.T) {
+	t.Parallel()
+	// A live btcusdt@aggTrade message. Binance sends "M" as true on every trade, and untagged it
+	// decoded into IsMaker case-insensitively after "m", reporting every buyer as the maker. The
+	// websocket handler escaped only by re-marshalling through a map, which sorts "M" first
+	const data = `{"e":"aggTrade","E":1789126771861,"s":"BTCUSDT","a":30119095,"p":"76844.21000000","q":"0.00065000","f":31752023,"l":31752023,"T":1789126771861,"m":false,"M":true}`
+	var agg WebsocketAggregateTradeStream
+	require.NoError(t, json.Unmarshal([]byte(data), &agg), "Unmarshal must not error")
+	exp := WebsocketAggregateTradeStream{
+		EventType:        "aggTrade",
+		EventTime:        types.Time(time.UnixMilli(1789126771861)),
+		Symbol:           "BTCUSDT",
+		AggregateTradeID: 30119095,
+		Price:            76844.21,
+		Quantity:         0.00065,
+		FirstTradeID:     31752023,
+		LastTradeID:      31752023,
+		TradeTime:        types.Time(time.UnixMilli(1789126771861)),
+		BestMatchPrice:   true,
+	}
+	assert.Equal(t, exp, agg, "WebsocketAggregateTradeStream should unmarshal correctly")
 }
 
 var balanceUpdateInputJSON = `

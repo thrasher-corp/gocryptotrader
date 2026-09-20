@@ -356,8 +356,7 @@ func (bot *Engine) Start() error {
 	gctlog.Debugf(gctlog.Global, "Bot %q started.\n", bot.Config.Name)
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
 	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
-		gctlog.Debugf(
-			gctlog.Global,
+		gctlog.Debugf(gctlog.Global,
 			"Using log file: %s\n",
 			filepath.Join(gctlog.GetLogPath(),
 				bot.Config.Logging.LoggerFileConfig.FileName),
@@ -639,7 +638,7 @@ func (bot *Engine) EnsureRuntimeContext() context.Context {
 		return context.Background()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is retained as bot.runtimeCancel and invoked on shutdown
 	bot.runtimeCtx = ctx
 	bot.runtimeCancel = cancel
 	return ctx
@@ -849,7 +848,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	}
 
 	// NOTE: This will standardise name to default and apply it to the config.
-	exchCfg.Name = exch.GetName()
+	exchCfg.SetName(exch.GetName())
 
 	exchCfg.Enabled = true
 	if err := exch.Setup(exchCfg); err != nil {
@@ -1005,21 +1004,19 @@ func (bot *Engine) SetupExchanges() error {
 			continue
 		}
 
-		wg.Add(1)
-		go func(c config.Exchange) {
-			defer wg.Done()
+		c := configs[x]
+		wg.Go(func() {
 			if err := bot.LoadExchange(c.Name); err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 			} else {
-				gctlog.Debugf(
-					gctlog.ExchangeSys,
+				gctlog.Debugf(gctlog.ExchangeSys,
 					"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
 					c.Name,
 					common.IsEnabled(c.API.AuthenticatedSupport),
 					common.IsEnabled(c.Verbose),
 				)
 			}
-		}(configs[x])
+		})
 	}
 	wg.Wait()
 	if len(bot.GetExchanges()) == 0 {

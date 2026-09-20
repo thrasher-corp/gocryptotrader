@@ -8,12 +8,12 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
@@ -157,9 +157,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 	server := grpc.NewServer(opts...)
 	gctrpc.RegisterGoCryptoTraderServiceServer(server, &s)
 
-	go func() {
-		<-ctx.Done()
-
+	context.AfterFunc(ctx, func() {
 		done := make(chan struct{})
 		go func() {
 			server.GracefulStop()
@@ -174,7 +172,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 		}
 
 		_ = lis.Close()
-	}()
+	})
 
 	go func() {
 		if err := server.Serve(lis); err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, grpc.ErrServerStopped) {
@@ -223,7 +221,7 @@ func (s *RPCServer) startRPCRESTProxy(ctx context.Context) {
 		Handler:           s.authClient(mux),
 	}
 
-	go func() {
+	go func() { //nolint:gosec // Shutdown must outlive ctx, which has just been cancelled
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -456,7 +454,7 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		Low:         t.Low,
 		Bid:         t.Bid,
 		Ask:         t.Ask,
-		Volume:      t.Volume,
+		Volume:      t.BaseVolume,
 		PriceAth:    t.PriceATH,
 	}
 
@@ -483,7 +481,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 				Low:         val.Low,
 				Bid:         val.Bid,
 				Ask:         val.Ask,
-				Volume:      val.Volume,
+				Volume:      val.BaseVolume,
 				PriceAth:    val.PriceATH,
 			}
 		}
@@ -1579,8 +1577,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
-	addr, err := s.GetExchangeCryptocurrencyDepositAddress(
-		ctx,
+	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
 		r.Exchange,
 		"",
 		r.Chain,
@@ -2234,7 +2231,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			Low:         t.Low,
 			Bid:         t.Bid,
 			Ask:         t.Ask,
-			Volume:      t.Volume,
+			Volume:      t.BaseVolume,
 			PriceAth:    t.PriceATH,
 		})
 		if err != nil {
@@ -2288,7 +2285,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			Low:         t.Low,
 			Bid:         t.Bid,
 			Ask:         t.Ask,
-			Volume:      t.Volume,
+			Volume:      t.BaseVolume,
 			PriceAth:    t.PriceATH,
 		})
 		if err != nil {
@@ -2483,8 +2480,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		response.Candles = append(response.Candles, tradeCandles.Candles...)
 
 		for i := range response.Candles {
-			log.Infof(
-				log.GRPCSys,
+			log.Infof(log.GRPCSys,
 				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
 				klineItem.Exchange,
 				klineItem.Pair.String(),
@@ -2991,8 +2987,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	}
 
 	if len(resp.MissingPeriods) == 0 {
-		resp.Status = fmt.Sprintf(
-			"no missing candles found between %v and %v",
+		resp.Status = fmt.Sprintf("no missing candles found between %v and %v",
 			r.Start,
 			r.End,
 		)
@@ -3091,8 +3086,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	}
 
 	if len(resp.MissingPeriods) == 0 {
-		resp.Status = fmt.Sprintf(
-			"no missing periods found between %v and %v",
+		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
 			r.Start,
 			r.End,
 		)
@@ -3518,7 +3512,7 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 
 	if r.Id != "" {
 		var id uuid.UUID
-		id, err = uuid.FromString(r.Id)
+		id, err = uuid.Parse(r.Id)
 		if err != nil {
 			return nil, fmt.Errorf("%s %w", r.Id, err)
 		}
@@ -3974,9 +3968,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(positions, func(i, j int) bool {
-		return positions[i].OpeningDate.Before(positions[j].OpeningDate)
-	})
+	slices.SortFunc(positions, func(a, b futures.Position) int { return a.OpeningDate.Compare(b.OpeningDate) })
 	response := make([]*gctrpc.FuturePosition, len(positions))
 	for i := range positions {
 		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate)

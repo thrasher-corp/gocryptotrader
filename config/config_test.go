@@ -10,14 +10,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
@@ -511,8 +512,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Error("err should have been thrown on a non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -549,8 +549,7 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		t.Error("Expected error for non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -596,8 +595,7 @@ func TestSetPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -633,8 +631,7 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 		t.Error("Expected error with non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -686,8 +683,7 @@ func TestCheckPairConfigFormats(t *testing.T) {
 		t.Error("non-existent exchange should throw an error")
 	}
 	// Test nil pair store
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -761,8 +757,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	assert.ErrorIs(t, c.CheckPairConsistency("asdf"), ErrExchangeNotFound)
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -874,8 +869,7 @@ func TestGetPairFormat(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -973,8 +967,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
@@ -1017,8 +1010,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
@@ -1172,6 +1164,26 @@ func TestGetExchangeConfig(t *testing.T) {
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
+func TestExchangeSetName(t *testing.T) {
+	t.Parallel()
+	cfg := &Config{}
+	for i := range 64 {
+		cfg.Exchanges = append(cfg.Exchanges, Exchange{Name: "exchange" + strconv.Itoa(i)})
+	}
+	var wg sync.WaitGroup
+	for i := range cfg.Exchanges {
+		wg.Go(func() { cfg.Exchanges[i].SetName("Exchange" + strconv.Itoa(i)) })
+		wg.Go(func() {
+			_, err := cfg.GetExchangeConfig("EXCHANGE" + strconv.Itoa(i))
+			assert.NoError(t, err, "GetExchangeConfig should find the exchange config before and after its rename")
+		})
+	}
+	wg.Wait()
+	for i := range cfg.Exchanges {
+		assert.Equal(t, "Exchange"+strconv.Itoa(i), cfg.Exchanges[i].Name, "SetName should rename the exchange config")
+	}
+}
+
 func TestGetForexProviders(t *testing.T) {
 	t.Parallel()
 	fxr := "Fixer"
@@ -1270,9 +1282,9 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].APISecret = sptr("meowSecret")
 	cfg.Exchanges[0].ClientID = sptr("clientIDerino")
 	cfg.Exchanges[0].APIAuthPEMKey = sptr("-----BEGIN EC PRIVATE KEY-----\nASDF\n-----END EC PRIVATE KEY-----\n")
-	cfg.Exchanges[0].APIAuthPEMKeySupport = convert.BoolPtr(true)
-	cfg.Exchanges[0].AuthenticatedAPISupport = convert.BoolPtr(true)
-	cfg.Exchanges[0].AuthenticatedWebsocketAPISupport = convert.BoolPtr(true)
+	cfg.Exchanges[0].APIAuthPEMKeySupport = new(true)
+	cfg.Exchanges[0].AuthenticatedAPISupport = new(true)
+	cfg.Exchanges[0].AuthenticatedWebsocketAPISupport = new(true)
 	cfg.Exchanges[0].WebsocketURL = sptr("wss://1337")
 	cfg.Exchanges[0].APIURL = sptr(APIURLNonDefaultMessage)
 	cfg.Exchanges[0].APIURLSecondary = sptr(APIURLNonDefaultMessage)
@@ -1307,8 +1319,8 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 
 	// Test feature and endpoint migrations
 	cfg.Exchanges[0].Features = nil
-	cfg.Exchanges[0].SupportsAutoPairUpdates = convert.BoolPtr(true)
-	cfg.Exchanges[0].Websocket = convert.BoolPtr(true)
+	cfg.Exchanges[0].SupportsAutoPairUpdates = new(true)
+	cfg.Exchanges[0].Websocket = new(true)
 
 	err = cfg.CheckExchangeConfigValues()
 	if err != nil {

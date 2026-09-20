@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -12,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -206,9 +206,7 @@ func main() {
 			},
 		}...)
 
-		sort.Slice(contributors, func(i, j int) bool {
-			return contributors[i].Contributions > contributors[j].Contributions
-		})
+		slices.SortFunc(contributors, func(a, b Contributor) int { return cmp.Compare(b.Contributions, a.Contributions) })
 
 		if verbose {
 			fmt.Println("Contributor List Fetched")

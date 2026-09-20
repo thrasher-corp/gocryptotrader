@@ -535,7 +535,7 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		AssetType:    asset.Futures,
 		Last:         resp.FilledPrice.Float64(),
-		Volume:       resp.FilledSize.Float64(),
+		LastSize:     resp.FilledSize.Float64(),
 		LastUpdated:  resp.FilledTime.Time(),
 		ExchangeName: e.Name,
 		Pair:         pair,
@@ -756,6 +756,7 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			AssetType:    assets[x],
 			Last:         response.Price,
+			LastSize:     response.Size,
 			LastUpdated:  response.Timestamp.Time(),
 			ExchangeName: e.Name,
 			Pair:         pair,
@@ -763,7 +764,6 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 			Bid:          response.BestBid,
 			AskSize:      response.BestAskSize,
 			BidSize:      response.BestBidSize,
-			Volume:       response.Size,
 		}); err != nil {
 			return err
 		}
@@ -935,7 +935,7 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 			Low:          response.Data.Low,
 			High:         response.Data.High,
 			QuoteVolume:  response.Data.VolValue,
-			Volume:       response.Data.Vol,
+			BaseVolume:   response.Data.Vol,
 			Open:         response.Data.Open,
 			Close:        response.Data.Close,
 			LastUpdated:  response.Data.Datetime.Time(),
@@ -975,7 +975,7 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 
 		intermediary := struct {
 			Type string `json:"type"`
-			Code int    `json:"code"`
+			Code uint64 `json:"code"`
 			Data any    `json:"data"`
 		}{}
 		if err := json.Unmarshal(respRaw, &intermediary); err != nil {
@@ -1519,7 +1519,7 @@ func sameSharedFeed(a, b *subscription.Subscription) bool {
 // Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
 	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
-	p := currency.Pairs{}
+	p := make(currency.Pairs, 0, len(cs))
 	for _, c := range cs {
 		p = append(p, currency.Pair{Base: c})
 	}

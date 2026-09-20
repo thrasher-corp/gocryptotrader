@@ -3,6 +3,7 @@ package subscription
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -136,11 +137,7 @@ func (s *Store) List() List {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	subs := make(List, 0, len(s.m))
-	for _, sub := range s.m {
-		subs = append(subs, sub)
-	}
-	return subs
+	return slices.AppendSeq(make(List, 0, len(s.m)), maps.Values(s.m))
 }
 
 // Clear empties the subscription store
@@ -190,11 +187,7 @@ func (s *Store) Diff(compare List) (added, removed List) {
 		}
 	}
 
-	for _, c := range removedMap {
-		removed = append(removed, c)
-	}
-
-	return added, removed
+	return added, slices.AppendSeq(removed, maps.Values(removedMap))
 }
 
 // Len returns the number of subscriptions
