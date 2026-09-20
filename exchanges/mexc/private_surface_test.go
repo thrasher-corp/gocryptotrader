@@ -254,6 +254,28 @@ func TestOrderTypeStringMarketTimeInForce(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "a market FOK order has no MEXC equivalent and must be rejected")
 }
 
+// TestOrderTypeStringHonoursCombinedTimeInForce keeps a post-only flag carried with GTC, and rejects a
+// constraint MEXC cannot express instead of sending a plain LIMIT, LIMIT_MAKER or MARKET without it.
+func TestOrderTypeStringHonoursCombinedTimeInForce(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		typ  order.Type
+		tif  order.TimeInForce
+		want string
+		err  error
+	}{
+		{order.Limit, order.GoodTillCancel | order.PostOnly, typeLimitMaker, nil},
+		{order.Limit, order.GoodTillDay, "", order.ErrUnsupportedTimeInForce},
+		{order.Limit, order.GoodTillCrossing, "", order.ErrUnsupportedTimeInForce},
+		{order.Limit, order.GoodTillDay | order.PostOnly, "", order.ErrUnsupportedTimeInForce},
+		{order.Market, order.PostOnly, "", order.ErrUnsupportedTimeInForce},
+	} {
+		got, err := e.OrderTypeStringFromOrderTypeAndTimeInForce(tc.typ, tc.tif)
+		require.ErrorIsf(t, err, tc.err, "%s with %s must map as expected", tc.typ, tc.tif)
+		assert.Equalf(t, tc.want, got, "%s with %s should map to %q", tc.typ, tc.tif, tc.want)
+	}
+}
+
 // TestGetOrderInfoTriggerPrice asserts a stop order's trigger price (stopPrice) is reported on the
 // domain order.
 func TestGetOrderInfoTriggerPrice(t *testing.T) {

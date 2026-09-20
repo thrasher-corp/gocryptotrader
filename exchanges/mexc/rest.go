@@ -899,7 +899,12 @@ func (e *Exchange) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, 
 	// sent as IMMEDIATE_OR_CANCEL/FILL_OR_KILL or the constraint is silently dropped to a plain LIMIT.
 	switch oType {
 	case order.Limit:
-		switch tif {
+		// Time-in-force is a bit set, and a limit order already rests until cancelled, so only a GTC bit
+		// can be set alongside the one constraint MEXC carries in the order type; any other bit would be
+		// dropped on the wire.
+		switch tif &^ order.GoodTillCancel {
+		case order.UnknownTIF:
+			return typeLimit, nil
 		case order.PostOnly:
 			return typeLimitMaker, nil
 		case order.ImmediateOrCancel:
@@ -907,15 +912,16 @@ func (e *Exchange) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, 
 		case order.FillOrKill:
 			return typeFillOrKill, nil
 		}
-		return typeLimit, nil
+		return "", fmt.Errorf("%w %q for a limit order", order.ErrUnsupportedTimeInForce, tif)
 	case order.Market:
-		if tif == order.FillOrKill {
-			// A market order cannot be all-or-nothing: MEXC has no market equivalent of FILL_OR_KILL.
-			return "", order.ErrUnsupportedTimeInForce
+		switch tif {
+		case order.UnknownTIF, order.GoodTillCancel, order.ImmediateOrCancel:
+			// A market order never rests, so an IOC market order (and the default) is a plain MARKET; the
+			// IMMEDIATE_OR_CANCEL/FILL_OR_KILL types are limit-only on MEXC and require a price.
+			return typeMarket, nil
 		}
-		// A market order never rests, so an IOC market order (and the default) is a plain MARKET; the
-		// IMMEDIATE_OR_CANCEL/FILL_OR_KILL types are limit-only on MEXC and require a price.
-		return typeMarket, nil
+		// A market order can be neither all-or-nothing nor maker-only: MEXC has no market equivalent.
+		return "", fmt.Errorf("%w %q for a market order", order.ErrUnsupportedTimeInForce, tif)
 	case order.StopLimit:
 		return typeStopLimit, nil
 	case order.UnknownType:
