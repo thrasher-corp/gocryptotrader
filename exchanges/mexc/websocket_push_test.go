@@ -86,12 +86,13 @@ func TestWsHandleKline(t *testing.T) {
 		})
 	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 
-	item := requireOneOf[*kline.Item](t)
+	item := requireOneOf[kline.Item](t)
 	assert.Equal(t, kline.FifteenMin, item.Interval, "Interval should be decoded from the exchange string")
 	assert.Equal(t, asset.Spot, item.Asset, "Asset should be correct")
 	assert.Equal(t, e.Name, item.Exchange, "Exchange should be correct")
 	require.Len(t, item.Candles, 1, "exactly one candle must be relayed")
 	c := item.Candles[0]
+	assert.Equal(t, kline.PartialCandle, c.ValidationIssues, "a websocket candle is still forming and should be marked partial")
 	assert.Equal(t, 92925.0, c.Open, "Open should be correct")
 	assert.Equal(t, 93158.47, c.Close, "Close should be correct")
 	assert.Equal(t, 93158.47, c.High, "High should be correct")
@@ -150,40 +151,6 @@ func TestWsHandleLimitDepthUsesExchangeTime(t *testing.T) {
 	book, err := orderbook.Get(e.Name, spotTradablePair, asset.Spot)
 	require.NoError(t, err, "the snapshot must be retrievable")
 	assert.Equal(t, time.UnixMilli(sendTime), book.LastUpdated, "the book should be stamped with the exchange send time, not time.Now()")
-}
-
-// TestWsHandleAggreDepth asserts the aggregated depth channel is accepted and reaches the book.
-func TestWsHandleAggreDepth(t *testing.T) {
-	drainData(t)
-	raw := wsPushFrame(t, "spot@"+channelAggregateDepthV3+"@100ms@BTCUSDT", 1736411507002,
-		&mexc_proto_types.PublicAggreDepthsV3Api{
-			Asks: []*mexc_proto_types.PublicAggreDepthV3ApiItem{{Price: "92878.10", Quantity: "1.25"}},
-			Bids: []*mexc_proto_types.PublicAggreDepthV3ApiItem{{Price: "92877.58", Quantity: "3.5"}},
-		})
-	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
-}
-
-// TestWsHandleAggreDepthBadPrice asserts an unparsable level is reported rather than stored as zero.
-func TestWsHandleAggreDepthBadPrice(t *testing.T) {
-	drainData(t)
-	raw := wsPushFrame(t, "spot@"+channelAggregateDepthV3+"@100ms@BTCUSDT", 1736411507002,
-		&mexc_proto_types.PublicAggreDepthsV3Api{
-			Bids: []*mexc_proto_types.PublicAggreDepthV3ApiItem{{Price: "not-a-price", Quantity: "3.5"}},
-		})
-	assert.Error(t, e.WsHandleData(t.Context(), nil, raw), "an unparsable price should be reported")
-}
-
-// TestWsHandleIncreaseDepthBatch asserts every book in a batched depth frame is applied.
-func TestWsHandleIncreaseDepthBatch(t *testing.T) {
-	drainData(t)
-	raw := wsPushFrame(t, "spot@"+channelIncreaseDepthBatchV3+"@BTCUSDT", 1739502064578,
-		&mexc_proto_types.PublicIncreaseDepthsBatchV3Api{
-			Items: []*mexc_proto_types.PublicIncreaseDepthsV3Api{
-				{Bids: []*mexc_proto_types.PublicIncreaseDepthV3ApiItem{{Price: "96578.48", Quantity: "0.00000000"}}, Version: "39003145507"},
-				{Asks: []*mexc_proto_types.PublicIncreaseDepthV3ApiItem{{Price: "96579.31", Quantity: "4.88725694"}}, Version: "39003145509"},
-			},
-		})
-	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 }
 
 // TestWsHandleBookTickerBatch asserts a batched book ticker frame relays one ticker per item.

@@ -142,7 +142,7 @@ func TestLiveSpotKlineTimestamp(t *testing.T) {
 		case <-deadline:
 			t.Fatal("no candle arrived within the window")
 		case p := <-e.Websocket.DataHandler.C:
-			item, ok := p.Data.(*kline.Item)
+			item, ok := p.Data.(kline.Item)
 			if !ok || len(item.Candles) == 0 {
 				continue
 			}

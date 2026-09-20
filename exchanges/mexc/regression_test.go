@@ -13,12 +13,14 @@ import (
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -878,8 +880,8 @@ func TestKeepListenKeyAliveRenewsEachConnectionsOwnKey(t *testing.T) {
 	}))
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
-	go ex.keepListenKeyAlive(ctx, "KEY_A")
-	go ex.keepListenKeyAlive(ctx, "KEY_B")
+	go ex.keepListenKeyAlive(ctx, nil, "KEY_A")
+	go ex.keepListenKeyAlive(ctx, nil, "KEY_B")
 	require.Eventually(t, func() bool {
 		mu.Lock()
 		defer mu.Unlock()
@@ -887,6 +889,58 @@ func TestKeepListenKeyAliveRenewsEachConnectionsOwnKey(t *testing.T) {
 	}, 2*time.Second, 5*time.Millisecond, "each connection's own listen key must be renewed")
 	cancel()
 	ex.Websocket.Wg.Wait()
+}
+
+// listenKeyTestConn stands in for a manager connection: WsConnect dials it, and its renewer asks whether
+// it is still connected.
+type listenKeyTestConn struct {
+	websocket.Connection
+	url    string
+	closed atomic.Bool
+}
+
+func (c *listenKeyTestConn) SetURL(u string) { c.url = u }
+func (c *listenKeyTestConn) GetURL() string  { return c.url }
+func (c *listenKeyTestConn) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	return nil
+}
+func (c *listenKeyTestConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
+func (c *listenKeyTestConn) IsConnected() bool                                             { return !c.closed.Load() }
+
+// TestKeepListenKeyAliveStopsWithItsConnection stops renewing a key once its own connection is closed. When
+// a later connection fails, the manager rolls back the ones already made without closing ShutdownC, so a
+// renewer watching only ShutdownC keeps the dead key alive until the next full shutdown.
+func TestKeepListenKeyAliveStopsWithItsConnection(t *testing.T) {
+	prev := listenKeyKeepAliveInterval
+	listenKeyKeepAliveInterval = 5 * time.Millisecond
+	t.Cleanup(func() { listenKeyKeepAliveInterval = prev })
+
+	var renewed atomic.Int64
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			_, _ = w.Write([]byte(`{"listenKey":"key-1"}`))
+			return
+		}
+		renewed.Add(1)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	conn := &listenKeyTestConn{url: "wss://one"}
+	require.NoError(t, ex.WsConnect(t.Context(), conn), "WsConnect must not error")
+	assert.Equal(t, "wss://one?listenKey=key-1", conn.url, "the connection should dial with its listen key")
+	require.Eventually(t, func() bool { return renewed.Load() > 0 }, time.Second, 5*time.Millisecond, "the key must be renewed while its connection is open")
+
+	conn.closed.Store(true)
+	stopped := make(chan struct{})
+	go func() {
+		ex.Websocket.Wg.Wait()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		assert.Fail(t, "the renewer should stop once its connection is closed")
+	}
 }
 
 // TestGenerateSubscriptionsExpandsConfiguredList asserts generateSubscriptions expands the configured

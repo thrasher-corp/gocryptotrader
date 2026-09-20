@@ -32,17 +32,15 @@ import (
 const (
 	spotWebsocketURL = "wss://wbs-api.mexc.com/ws"
 
-	channelBookTiker            = "public.aggre.bookTicker.v3.api.pb"
-	channelMiniTickerV3         = "public.miniTicker.v3.api.pb"
-	channelAggregateDepthV3     = "public.aggre.depth.v3.api.pb"
-	channelAggreDealsV3         = "public.aggre.deals.v3.api.pb"
-	channelKlineV3              = "public.kline.v3.api.pb"
-	channelLimitDepthV3         = "public.limit.depth.v3.api.pb"
-	channelBookTickerBatch      = "public.bookTicker.batch.v3.api.pb"
-	channelAccountV3            = "private.account.v3.api.pb"
-	channelPrivateDealsV3       = "private.deals.v3.api.pb"
-	channelPrivateOrdersAPI     = "private.orders.v3.api.pb"
-	channelIncreaseDepthBatchV3 = "public.increase.depth.batch.v3.api.pb"
+	channelBookTiker        = "public.aggre.bookTicker.v3.api.pb"
+	channelMiniTickerV3     = "public.miniTicker.v3.api.pb"
+	channelAggreDealsV3     = "public.aggre.deals.v3.api.pb"
+	channelKlineV3          = "public.kline.v3.api.pb"
+	channelLimitDepthV3     = "public.limit.depth.v3.api.pb"
+	channelBookTickerBatch  = "public.bookTicker.batch.v3.api.pb"
+	channelAccountV3        = "private.account.v3.api.pb"
+	channelPrivateDealsV3   = "private.deals.v3.api.pb"
+	channelPrivateOrdersAPI = "private.orders.v3.api.pb"
 
 	// miniTickerTimezone is a mandatory suffix of the spot miniTicker channel: MEXC rejects the
 	// subscription without it ("Not Subscribed successfully! ... Reason: Blocked!" — measured live).
@@ -119,7 +117,7 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		// The stream closes 60 minutes after creation unless a keepalive is sent; renew this
 		// connection's own key on a timer, but only once the connection is up so a failed dial does
 		// not leak the renewer.
-		go e.keepListenKeyAlive(ctx, listenKey)
+		go e.keepListenKeyAlive(ctx, conn, listenKey)
 	}
 	return nil
 }
@@ -134,7 +132,7 @@ var listenKeyKeepAliveInterval = 30 * time.Minute
 // the last key minted and leave every other stream to expire after an hour, silently stopping the
 // private updates on it. The stream closes 60 minutes after creation unless a keepalive PUT is sent;
 // the PING handler keeps the socket open but does not touch the key.
-func (e *Exchange) keepListenKeyAlive(ctx context.Context, listenKey string) {
+func (e *Exchange) keepListenKeyAlive(ctx context.Context, conn websocket.Connection, listenKey string) {
 	e.Websocket.Wg.Add(1)
 	defer e.Websocket.Wg.Done()
 	renew := time.NewTicker(listenKeyKeepAliveInterval)
@@ -146,6 +144,12 @@ func (e *Exchange) keepListenKeyAlive(ctx context.Context, listenKey string) {
 		case <-e.Websocket.ShutdownC:
 			return
 		case <-renew.C:
+			// The manager can close one connection without closing ShutdownC: it rolls back the
+			// connections already made when a later one fails. Stop renewing a key whose socket is gone,
+			// so a rolled-back connection does not go on burning one of the account's listen keys.
+			if c, ok := conn.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
+				return
+			}
 			if err := e.ExtendListenKey(ctx, listenKey); err != nil {
 				_ = e.Websocket.DataHandler.Send(ctx, err)
 			}
@@ -496,62 +500,6 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			setIfNonZero(&t.BaseVolume, baseVolume)
 			setIfNonZero(&t.QuoteVolume, quoteVolume)
 		})
-	case channelAggregateDepthV3:
-		depths := result.GetPublicAggreDepths()
-		if depths == nil {
-			return e.wsUnhandled(ctx, respRaw)
-		}
-		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
-		if err != nil {
-			return err
-		}
-		format, err := e.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			return err
-		}
-		asks := make(orderbook.Levels, len(depths.Asks))
-		for a := range depths.Asks {
-			asks[a].Price, err = strconv.ParseFloat(depths.Asks[a].Price, 64)
-			if err != nil {
-				return err
-			}
-			asks[a].Amount, err = strconv.ParseFloat(depths.Asks[a].Quantity, 64)
-			if err != nil {
-				return err
-			}
-		}
-		bids := make(orderbook.Levels, len(depths.Bids))
-		for b := range depths.Bids {
-			bids[b].Price, err = strconv.ParseFloat(depths.Bids[b].Price, 64)
-			if err != nil {
-				return err
-			}
-			bids[b].Amount, err = strconv.ParseFloat(depths.Bids[b].Quantity, 64)
-			if err != nil {
-				return err
-			}
-		}
-
-		if e.claimOrderbookSnapshot(result.GetSymbol()) {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:    e.Name,
-				Asset:       asset.Spot,
-				Asks:        asks,
-				Bids:        bids,
-				Pair:        cp.Format(format),
-				LastUpdated: wsSendTime(result),
-			}); err != nil {
-				e.releaseOrderbookSnapshot(result.GetSymbol())
-				return err
-			}
-		}
-		return e.Websocket.Orderbook.Update(&orderbook.Update{
-			Asset:      asset.Spot,
-			Asks:       asks,
-			Bids:       bids,
-			Pair:       cp.Format(format),
-			UpdateTime: wsSendTime(result),
-		})
 	case channelAggreDealsV3:
 		// Read both trade settings per frame so a feed switched on after setup takes effect straight
 		// away; skip the work entirely when neither wants the trades. The private deals channel is
@@ -645,68 +593,16 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, &kline.Item{
+		// MEXC pushes a window repeatedly while it is open and never sends a closing frame, so every
+		// candle relayed here is still forming. The routine manager matches kline.Item by value.
+		klineData.ValidationIssues = kline.PartialCandle
+		return e.Websocket.DataHandler.Send(ctx, kline.Item{
 			Pair:     cp,
 			Exchange: e.Name,
 			Asset:    asset.Spot,
 			Interval: interval,
 			Candles:  []kline.Candle{klineData},
 		})
-	case channelIncreaseDepthBatchV3:
-		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, true)
-		if err != nil {
-			return err
-		}
-		body := result.GetPublicIncreaseDepthsBatch()
-		if body == nil {
-			return e.wsUnhandled(ctx, respRaw)
-		}
-		for ob := range body.Items {
-			asks := make(orderbook.Levels, len(body.Items[ob].Asks))
-			for a := range body.Items[ob].Asks {
-				asks[a].Price, err = strconv.ParseFloat(body.Items[ob].Asks[a].Price, 64)
-				if err != nil {
-					return err
-				}
-				asks[a].Amount, err = strconv.ParseFloat(body.Items[ob].Asks[a].Quantity, 64)
-				if err != nil {
-					return err
-				}
-			}
-			bids := make(orderbook.Levels, len(body.Items[ob].Bids))
-			for b := range body.Items[ob].Bids {
-				bids[b].Price, err = strconv.ParseFloat(body.Items[ob].Bids[b].Price, 64)
-				if err != nil {
-					return err
-				}
-				bids[b].Amount, err = strconv.ParseFloat(body.Items[ob].Bids[b].Quantity, 64)
-				if err != nil {
-					return err
-				}
-			}
-			if e.claimOrderbookSnapshot(result.GetSymbol()) {
-				if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-					Exchange:    e.Name,
-					Pair:        cp,
-					Asks:        asks,
-					Bids:        bids,
-					Asset:       asset.Spot,
-					LastUpdated: wsSendTime(result),
-				}); err != nil {
-					e.releaseOrderbookSnapshot(result.GetSymbol())
-					return err
-				}
-			}
-			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-				Pair:       cp,
-				Asks:       asks,
-				Bids:       bids,
-				UpdateTime: wsSendTime(result),
-				Asset:      asset.Spot,
-			}); err != nil {
-				return err
-			}
-		}
 	case channelLimitDepthV3:
 		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
@@ -934,7 +830,6 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 	default:
 		return e.wsUnhandled(ctx, respRaw)
 	}
-	return nil
 }
 
 const subTplText = `
