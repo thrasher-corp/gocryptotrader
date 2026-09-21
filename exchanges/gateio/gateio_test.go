@@ -2460,12 +2460,18 @@ func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
 			assert.Equal(t, 9.95, got.ExecutedQuoteAmount)
 
 			got.RemainingAmount = 0.05
+			submittedAmount := 10.0
+			submittedQuoteAmount := 0.0
+			if tc.assetType == asset.Spot {
+				submittedAmount = 0.0002
+				submittedQuoteAmount = 10
+			}
 			applySpotSubmitRequest(got, &order.Submit{
 				AssetType:   tc.assetType,
 				Side:        order.Buy,
 				Type:        order.Market,
-				Amount:      0.0002,
-				QuoteAmount: 10,
+				Amount:      submittedAmount,
+				QuoteAmount: submittedQuoteAmount,
 			})
 			assert.Zero(t, got.Amount)
 			assert.Equal(t, 10.0, got.QuoteAmount)
@@ -2497,17 +2503,23 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 
 	for _, a := range assetTypes {
 		t.Run(a.String(), func(t *testing.T) {
+			amount := 10.0
+			quoteAmount := 0.0
+			if a == asset.Spot {
+				amount = 0.001
+				quoteAmount = 10
+			}
 			response, err := ex.SubmitOrder(t.Context(), &order.Submit{
 				Exchange:    ex.Name,
 				Pair:        currency.NewBTCUSDT(),
 				Side:        order.Buy,
 				Type:        order.Market,
-				Amount:      0.001,
-				QuoteAmount: 10,
+				Amount:      amount,
+				QuoteAmount: quoteAmount,
 				AssetType:   a,
 				TimeInForce: order.ImmediateOrCancel,
 			})
-			require.NoError(t, err)
+			require.NoError(t, err, "SubmitOrder must not error")
 			assert.Zero(t, response.Amount)
 			assert.Equal(t, 10.0, response.QuoteAmount)
 			assert.Equal(t, 0.000199, response.ExecutedAmount)
@@ -2518,7 +2530,7 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 			assert.Equal(t, currency.BTC, response.FeeAsset)
 
 			detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), a)
-			require.NoError(t, err)
+			require.NoError(t, err, "GetOrderInfo must not error")
 			assert.Zero(t, detail.Amount)
 			assert.Equal(t, 10.0, detail.QuoteAmount)
 			assert.Equal(t, 0.000199, detail.ExecutedAmount)
@@ -2886,7 +2898,7 @@ func TestWsPushSpotMarketBuyOrder(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-			payload := []byte(fmt.Sprintf(`{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`, tc.account))
+			payload := fmt.Appendf(nil, `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`, tc.account)
 			require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload))
 
 			select {

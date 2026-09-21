@@ -1007,6 +1007,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if isQuoteDenominatedMarketBuy(s.AssetType, s.Side, s.Type) {
 			// Gate reports market-buy amount and left in quote units. The
 			// generic RemainingAmount is base-denominated, so leave it unset.
+			response.QuoteAmount = sOrder.Amount.Float64()
 			response.Amount = 0
 			response.RemainingAmount = 0
 		} else {
@@ -3131,15 +3132,16 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 }
 
 func applySpotSubmitRequest(response *order.SubmitResponse, submitted *order.Submit) {
-	response.Amount = submitted.Amount
-	response.QuoteAmount = submitted.QuoteAmount
 	if isQuoteDenominatedMarketBuy(submitted.AssetType, submitted.Side, submitted.Type) {
 		// Gate transports spot-style market-buy amount and left in quote units.
 		// RemainingAmount is base-denominated in the generic response, so
 		// no lossless mapping is available for this request form.
 		response.Amount = 0
 		response.RemainingAmount = 0
+		return
 	}
+	response.Amount = submitted.Amount
+	response.QuoteAmount = submitted.QuoteAmount
 }
 
 // MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs
