@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -123,8 +124,12 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	}
 
 	if i.HTTPDebugging {
-		// Err not evaluated due to validation check above
-		dump, _ := httputil.DumpRequestOut(req, true)
+		// Item headers are deliberately applied after this dump so authentication
+		// headers cannot be exposed if request logging changes.
+		dump, err := dumpRequestForLog(req)
+		if err != nil {
+			return nil, err
+		}
 		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
 	}
 
@@ -208,7 +213,9 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 			if bodyErr != nil {
 				return false, bodyErr
 			}
-			if mediaType, _, _ := strings.Cut(req.Header.Get("Content-Type"), ";"); strings.EqualFold(strings.TrimSpace(mediaType), "application/x-www-form-urlencoded") {
+			mediaType, _, _ := strings.Cut(req.Header.Get("Content-Type"), ";")
+			mediaType = strings.TrimSpace(mediaType)
+			if mediaType == "" || strings.EqualFold(mediaType, "application/x-www-form-urlencoded") {
 				payload = []byte(redactEncodedValues(string(payload)))
 			}
 			log.Debugf(log.RequestSys, "%s request body: %s", r.name, payload)
@@ -264,9 +271,9 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 		if dumpErr != nil {
 			log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", dumpErr)
 		} else {
-			log.Debugf(log.RequestSys, "DumpResponse (%v):\n%s", p.Path, dump)
+			log.Debugf(log.RequestSys, "DumpResponse (%v):\n%s", pathForLog(p.Path), dump)
 		}
-		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
+		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", pathForLog(p.Path), string(contents))
 	}
 
 	if verbose {
@@ -328,6 +335,36 @@ func pathForLog(path string) string {
 	return base + "?" + redactEncodedValues(query)
 }
 
+func dumpRequestForLog(req *http.Request) ([]byte, error) {
+	clone := req.Clone(req.Context())
+	if req.URL != nil {
+		requestURL := *req.URL
+		requestURL.RawQuery = redactEncodedValues(requestURL.RawQuery)
+		clone.URL = &requestURL
+	}
+	if req.GetBody != nil {
+		body, err := req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		payload, err := io.ReadAll(body)
+		if closeErr := body.Close(); err == nil {
+			err = closeErr
+		}
+		if err != nil {
+			return nil, err
+		}
+		mediaType, _, _ := strings.Cut(req.Header.Get("Content-Type"), ";")
+		mediaType = strings.TrimSpace(mediaType)
+		if mediaType == "" || strings.EqualFold(mediaType, "application/x-www-form-urlencoded") {
+			payload = []byte(redactEncodedValues(string(payload)))
+		}
+		clone.Body = io.NopCloser(bytes.NewReader(payload))
+		clone.ContentLength = int64(len(payload))
+	}
+	return httputil.DumpRequestOut(clone, true)
+}
+
 // urlErrorForLog redacts the request URL that http.Client.Do embeds in its errors, copying rather than mutating so the
 // error handed back to the caller is untouched.
 func urlErrorForLog(err error) error {
@@ -335,7 +372,7 @@ func urlErrorForLog(err error) error {
 	if !errors.As(err, &urlErr) || urlErr == nil {
 		return err
 	}
-	return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: urlErr.Err}
+	return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: urlErrorForLog(urlErr.Err)}
 }
 
 // evaluateRetry checks whether a request should be retried based on the retry

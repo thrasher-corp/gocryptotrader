@@ -49,6 +49,8 @@ var (
 		"listenKey",
 		"tfa",
 		"X-USER",
+		"AccessKeyId",
+		"refresh_token",
 	}
 )
 
@@ -73,6 +75,40 @@ func BenchmarkHeaderValuesForLog(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestDumpRequestForLog(t *testing.T) {
+	t.Parallel()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api?AccessKeyId=secret-key&timestamp=1", strings.NewReader("key=secret-body&nonce=1"))
+	require.NoError(t, err, "NewRequestWithContext must not error")
+
+	dump, err := dumpRequestForLog(req)
+	require.NoError(t, err, "dumpRequestForLog must not error")
+	assert.Contains(t, string(dump), "AccessKeyId=[REDACTED]&timestamp=1", "request dump should redact query credentials")
+	assert.Contains(t, string(dump), "key=[REDACTED]&nonce=1", "request dump should treat a body without a content type as form-encoded")
+	assert.NotContains(t, string(dump), "secret-key", "request dump should not contain the query credential")
+	assert.NotContains(t, string(dump), "secret-body", "request dump should not contain the body credential")
+	assert.Equal(t, "AccessKeyId=secret-key&timestamp=1", req.URL.RawQuery, "request dump redaction should not mutate the request URL")
+}
+
+func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
+	t.Parallel()
+	err := &url.Error{
+		Op:  http.MethodGet,
+		URL: "https://example.com/api?signature=outer-secret",
+		Err: &url.Error{
+			Op:  http.MethodGet,
+			URL: "https://example.com/api?signature=inner-secret",
+			Err: errors.New("transport failure"),
+		},
+	}
+
+	redacted := urlErrorForLog(err)
+	assert.NotContains(t, redacted.Error(), "outer-secret", "redacted error should not contain the outer URL credential")
+	assert.NotContains(t, redacted.Error(), "inner-secret", "redacted error should not contain the nested URL credential")
+	assert.Contains(t, redacted.Error(), "signature=[REDACTED]", "redacted error should retain diagnostic query structure")
+	assert.Contains(t, err.Error(), "outer-secret", "redaction should not mutate the original outer error")
+	assert.Contains(t, err.Error(), "inner-secret", "redaction should not mutate the original nested error")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
