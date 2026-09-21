@@ -133,6 +133,9 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 				break
 			}
 		}
+		if override := headersFromContext(ctx).Get("Content-Type"); override != "" {
+			contentType = override
+		}
 		if dump, err := dumpRequestForLog(req, contentType); err != nil {
 			log.Errorf(log.RequestSys, "%s DumpRequest invalid request: %v", r.name, err)
 		} else {
@@ -351,6 +354,14 @@ func isFormEncoded(contentType string) bool {
 	return mediaType == "" || strings.EqualFold(mediaType, "application/x-www-form-urlencoded")
 }
 
+type errorReader struct {
+	err error
+}
+
+func (e errorReader) Read([]byte) (int, error) {
+	return 0, e.err
+}
+
 func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
 	clone := req.Clone(req.Context())
 	if req.URL != nil {
@@ -358,7 +369,7 @@ func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
 		requestURL.RawQuery = redactEncodedValues(requestURL.RawQuery)
 		clone.URL = &requestURL
 	}
-	if req.Body != nil {
+	if req.Body != nil && req.Body != http.NoBody {
 		body := req.Body
 		if req.GetBody != nil {
 			var err error
@@ -372,8 +383,13 @@ func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
 			err = closeErr
 		}
 		if req.GetBody == nil {
-			// The reader is not replayable, so restore what the debug dump consumed.
-			req.Body = io.NopCloser(bytes.NewReader(payload))
+			// The reader is not replayable, so restore what the debug dump consumed,
+			// including any read failure that should prevent sending a partial body.
+			var restored io.Reader = bytes.NewReader(payload)
+			if err != nil {
+				restored = io.MultiReader(restored, errorReader{err: err})
+			}
+			req.Body = io.NopCloser(restored)
 		}
 		if err != nil {
 			return nil, err
@@ -396,10 +412,15 @@ func urlErrorForLog(err error) error {
 // maxURLErrorLogDepth prevents a cyclic error chain from exhausting the stack.
 const maxURLErrorLogDepth = 8
 
+var errTruncatedErrorChain = errors.New("error chain truncated for logging")
+
 func urlErrorForLogDepth(err error, depth int) error {
 	var urlErr *url.Error
-	if depth == 0 || !errors.As(err, &urlErr) || urlErr == nil {
+	if !errors.As(err, &urlErr) || urlErr == nil {
 		return err
+	}
+	if depth == 0 {
+		return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: errTruncatedErrorChain}
 	}
 	return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: urlErrorForLogDepth(urlErr.Err, depth-1)}
 }

@@ -77,6 +77,20 @@ func BenchmarkHeaderValuesForLog(b *testing.B) {
 	}
 }
 
+type partialErrorReader struct {
+	payload []byte
+	err     error
+	read    bool
+}
+
+func (p *partialErrorReader) Read(b []byte) (int, error) {
+	if p.read {
+		return 0, p.err
+	}
+	p.read = true
+	return copy(b, p.payload), nil
+}
+
 func TestDumpRequestForLog(t *testing.T) {
 	t.Parallel()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api?AccessKeyId=secret-key&timestamp=1", strings.NewReader("key=secret-body&nonce=1"))
@@ -106,6 +120,24 @@ func TestDumpRequestForLog(t *testing.T) {
 	dump, err = dumpRequestForLog(req, "application/json")
 	require.NoError(t, err, "dumpRequestForLog must not error for a JSON body")
 	assert.Contains(t, string(dump), `{"note":"a&key=b","passphrase":"secret"}`, "request dump should not treat a JSON body as form-encoded")
+
+	readErr := errors.New("body read failure")
+	partialBody := &partialErrorReader{payload: []byte("partial-body"), err: readErr}
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", partialBody)
+	require.NoError(t, err, "NewRequestWithContext must not error for a partially readable body")
+	_, err = dumpRequestForLog(req, "application/json")
+	require.ErrorIs(t, err, readErr, "dumpRequestForLog must return the body read error")
+	restoredBody, err = io.ReadAll(req.Body)
+	require.ErrorIs(t, err, readErr, "the restored body must retain its read error")
+	assert.Equal(t, "partial-body", string(restoredBody), "the restored body should retain bytes read before the error")
+
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error for http.NoBody")
+	dump, err = dumpRequestForLog(req, "")
+	require.NoError(t, err, "dumpRequestForLog must not error for http.NoBody")
+	assert.Equal(t, http.NoBody, req.Body, "dumpRequestForLog should preserve an explicit http.NoBody")
+	assert.Zero(t, req.ContentLength, "dumpRequestForLog should preserve the zero content length")
+	assert.NotContains(t, string(dump), "Transfer-Encoding: chunked", "dumpRequestForLog should not change framing for http.NoBody")
 }
 
 type cyclicError struct {
@@ -144,6 +176,17 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	cycle.next = cyclicURL
 	redacted = urlErrorForLog(cyclicURL)
 	assert.Error(t, redacted, "urlErrorForLog should return an error for a cyclic error chain")
+	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "cyclic URL errors should be truncated with a safe sentinel")
+	assert.NotContains(t, redacted.Error(), "cyclic-secret", "truncating a cyclic error should not expose URL credentials")
+
+	var deep error
+	deep = errors.New("transport failure")
+	for depth := 0; depth <= maxURLErrorLogDepth; depth++ {
+		deep = &url.Error{Op: http.MethodGet, URL: fmt.Sprintf("https://example.com/api?signature=deep-secret-%d", depth), Err: deep}
+	}
+	redacted = urlErrorForLog(deep)
+	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "deep URL errors should be truncated with a safe sentinel")
+	assert.NotContains(t, redacted.Error(), "deep-secret", "truncating a deep error should not expose URL credentials")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -213,6 +256,14 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 	assert.Equal(t, "secret-header", sent.Header.Get("OK-ACCESS-KEY"), "redaction should not change the headers sent")
 	assert.Equal(t, "key=secret-key&nonce=1", string(sentBody), "redaction should not change the body sent")
 
+	const jsonBody = `{"note":"a&key=b","nonce":1}`
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", strings.NewReader(jsonBody))
+	require.NoError(t, err, "NewRequestWithContext must not error for a JSON request")
+	req.Header.Set("Content-Type", "application/json")
+	retry, err := r.executeRequest(t.Context(), &Item{Method: http.MethodPost, Path: "https://example.com/api"}, req, 1, true)
+	require.NoError(t, err, "executeRequest must not error for a JSON request")
+	assert.False(t, retry, "successful JSON request should not retry")
+
 	mu.Lock()
 	out := logged.String()
 	mu.Unlock()
@@ -222,6 +273,7 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 		`test request body: key=[REDACTED]&nonce=1`,
 		`cause: Post "https://example.com/api?timestamp=1&signature=[REDACTED]": transport failure`,
 		`test response header [Set-Cookie]: [[REDACTED]]`,
+		jsonBody,
 	} {
 		assert.Containsf(t, out, line, "verbose log should contain %s", line)
 	}
@@ -276,6 +328,31 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 	require.NoError(t, err, "SendPayload must not error")
 	assert.Equal(t, "key=secret-key&nonce=1", string(sentBody), "dumping the request should not change the body sent")
 
+	const itemHeaderJSON = `{"note":"a&key=b","nonce":1}`
+	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
+		return &Item{
+			Method:        http.MethodPost,
+			Path:          "https://example.com/api",
+			Body:          strings.NewReader(itemHeaderJSON),
+			Headers:       map[string]string{"Content-Type": "application/json"},
+			HTTPDebugging: true,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error with an Item content type")
+
+	const contextHeaderJSON = `{"note":"context&key=b","nonce":2}`
+	ctx := WithHeaders(t.Context(), http.Header{"Content-Type": []string{"application/json"}})
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) {
+		return &Item{
+			Method:        http.MethodPost,
+			Path:          "https://example.com/api",
+			Body:          strings.NewReader(contextHeaderJSON),
+			Headers:       map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+			HTTPDebugging: true,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error with a context content type override")
+
 	mu.Lock()
 	out := logged.String()
 	mu.Unlock()
@@ -285,6 +362,8 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		`DumpResponse (https://example.com/api?timestamp=1&signature=[REDACTED])`,
 		`DumpResponse Body (https://example.com/api?timestamp=1&signature=[REDACTED])`,
 		`Set-Cookie: [REDACTED]`,
+		itemHeaderJSON,
+		contextHeaderJSON,
 	} {
 		assert.Containsf(t, out, line, "HTTPDebugging log should contain %s", line)
 	}
