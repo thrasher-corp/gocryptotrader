@@ -133,8 +133,16 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 				break
 			}
 		}
-		if override := headersFromContext(ctx).Get("Content-Type"); override != "" {
-			contentType = override
+		// Context headers replace rather than append, so an entry present under any spelling
+		// wins outright, matching how they are applied below.
+		for name, values := range headersFromContext(ctx) {
+			if strings.EqualFold(name, "Content-Type") {
+				contentType = ""
+				if len(values) > 0 {
+					contentType = values[0]
+				}
+				break
+			}
 		}
 		if dump, err := dumpRequestForLog(req, contentType); err != nil {
 			log.Errorf(log.RequestSys, "%s DumpRequest invalid request: %v", r.name, err)
@@ -384,7 +392,8 @@ func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
 		}
 		if req.GetBody == nil {
 			// The reader is not replayable, so restore what the debug dump consumed,
-			// including any read failure that should prevent sending a partial body.
+			// including any read or close failure. This preserves the failure that
+			// net/http would encounter without debug logging enabled.
 			var restored io.Reader = bytes.NewReader(payload)
 			if err != nil {
 				restored = io.MultiReader(restored, errorReader{err: err})
@@ -415,12 +424,14 @@ const maxURLErrorLogDepth = 8
 var errTruncatedErrorChain = errors.New("error chain truncated for logging")
 
 func urlErrorForLogDepth(err error, depth int) error {
+	// Check before unwrapping: errors.As walks the chain itself, so a cyclic
+	// remainder at the cap would not terminate.
+	if depth == 0 {
+		return errTruncatedErrorChain
+	}
 	var urlErr *url.Error
 	if !errors.As(err, &urlErr) || urlErr == nil {
 		return err
-	}
-	if depth == 0 {
-		return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: errTruncatedErrorChain}
 	}
 	return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: urlErrorForLogDepth(urlErr.Err, depth-1)}
 }

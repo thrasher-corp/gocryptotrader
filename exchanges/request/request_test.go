@@ -187,6 +187,17 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	redacted = urlErrorForLog(deep)
 	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "deep URL errors should be truncated with a safe sentinel")
 	assert.NotContains(t, redacted.Error(), "deep-secret", "truncating a deep error should not expose URL credentials")
+
+	cyclicRemainder := new(cyclicError)
+	cyclicRemainder.next = cyclicRemainder
+	var bounded error
+	bounded = cyclicRemainder
+	for depth := range maxURLErrorLogDepth {
+		bounded = &url.Error{Op: http.MethodGet, URL: fmt.Sprintf("https://example.com/api?signature=bounded-secret-%d", depth), Err: bounded}
+	}
+	redacted = urlErrorForLog(bounded)
+	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "the depth cap should truncate before traversing a cyclic remainder")
+	assert.NotContains(t, redacted.Error(), "bounded-secret", "bounded cyclic errors should not expose URL credentials")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -299,7 +310,9 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 	})
 
 	var sentBody []byte
+	var sentContentTypes []string
 	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		sentContentTypes = append(sentContentTypes, req.Header.Get("Content-Type"))
 		var err error
 		sentBody, err = io.ReadAll(req.Body)
 		if err != nil {
@@ -353,6 +366,53 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 	}, UnauthenticatedRequest)
 	require.NoError(t, err, "SendPayload must not error with a context content type override")
 
+	const lowerCaseJSON = `{"note":"lowercase&key=b","nonce":3}`
+	ctx = WithHeaders(t.Context(), http.Header{"content-type": []string{"application/json"}})
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) {
+		return &Item{
+			Method:        http.MethodPost,
+			Path:          "https://example.com/api",
+			Body:          strings.NewReader(lowerCaseJSON),
+			Headers:       map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+			HTTPDebugging: true,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error with a lowercase context content type override")
+
+	const lowerCaseForm = "key=LOWERCASEFORMSECRET&nonce=4"
+	ctx = WithHeaders(t.Context(), http.Header{"content-type": []string{"application/x-www-form-urlencoded"}})
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) {
+		return &Item{
+			Method:        http.MethodPost,
+			Path:          "https://example.com/api",
+			Body:          strings.NewReader(lowerCaseForm),
+			Headers:       map[string]string{"Content-Type": "application/json"},
+			HTTPDebugging: true,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error with a lowercase form content type override")
+
+	const emptyOverrideForm = "key=EMPTYOVERRIDESECRET&nonce=5"
+	ctx = WithHeaders(t.Context(), http.Header{"Content-Type": []string{""}})
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) {
+		return &Item{
+			Method:        http.MethodPost,
+			Path:          "https://example.com/api",
+			Body:          strings.NewReader(emptyOverrideForm),
+			Headers:       map[string]string{"Content-Type": "application/json"},
+			HTTPDebugging: true,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error with an empty context content type override")
+	require.Equal(t, []string{
+		"",
+		"application/json",
+		"application/json",
+		"application/json",
+		"application/x-www-form-urlencoded",
+		"",
+	}, sentContentTypes, "the transport should receive each effective content type")
+
 	mu.Lock()
 	out := logged.String()
 	mu.Unlock()
@@ -364,10 +424,13 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		`Set-Cookie: [REDACTED]`,
 		itemHeaderJSON,
 		contextHeaderJSON,
+		lowerCaseJSON,
+		"key=[REDACTED]&nonce=4",
+		"key=[REDACTED]&nonce=5",
 	} {
 		assert.Containsf(t, out, line, "HTTPDebugging log should contain %s", line)
 	}
-	for _, secret := range []string{"secret-signature", "secret-key", "secret-cookie"} {
+	for _, secret := range []string{"secret-signature", "secret-key", "secret-cookie", "LOWERCASEFORMSECRET", "EMPTYOVERRIDESECRET"} {
 		assert.NotContainsf(t, out, secret, "HTTPDebugging log should not contain %s", secret)
 	}
 }
