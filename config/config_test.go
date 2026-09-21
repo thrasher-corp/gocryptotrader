@@ -1579,17 +1579,19 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
 
-func TestReadVersion15ConfigRemovesGCTScriptSubLogger(t *testing.T) {
+func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "config.json")
-	data := []byte(`{"name":"test","version":15,"encryptConfig":-1,"logging":{"subloggers":[{"name":"GCTSCRIPT"}]}}`)
+	data := []byte(`{"name":"test","version":15,"encryptConfig":-1,"logging":{"subloggers":[{"name":"GCTSCRIPT","output":"console"}]}}`)
 	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 15 config")
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
 	assert.Equal(t, 16, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
-	assert.Empty(t, migrated.Logging.SubLoggers, "ReadConfigFromFile should remove the obsolete GCTScript sublogger")
+	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
+	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
+	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")
 }
 
 func TestReadConfigFromReader(t *testing.T) {

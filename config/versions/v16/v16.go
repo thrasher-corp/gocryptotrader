@@ -3,9 +3,6 @@ package v16
 
 import (
 	"context"
-	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
-	"errors"
-	"strings"
 
 	"github.com/buger/jsonparser"
 )
@@ -15,52 +12,10 @@ var legacyGCTScriptConfig = []byte(`{"enabled":false,"timeout":30000000000,"max_
 // Version implements ConfigVersion to remove decommissioned GCTScript configuration.
 type Version struct{}
 
-// UpgradeConfig removes the GCTScript configuration and any obsolete GCTSCRIPT sublogger.
+// UpgradeConfig removes the GCTScript configuration. Obsolete sublogger entries
+// are retained because rewriting duplicate subloggers keys can alter their merged decoding.
 func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	original := config
-	config = jsonparser.Delete(config, "gctscript")
-
-	subloggersJSON, valueType, _, err := jsonparser.Get(config, "logging", "subloggers")
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return config, nil
-	}
-	if err != nil {
-		return original, err
-	}
-	if valueType != jsonparser.Array {
-		return config, nil
-	}
-
-	var subloggers []json.RawMessage
-	if err := json.Unmarshal(subloggersJSON, &subloggers); err != nil {
-		return original, err
-	}
-
-	filtered := subloggers[:0]
-	for i := range subloggers {
-		var sublogger struct {
-			Name string `json:"name"`
-		}
-		if err := json.Unmarshal(subloggers[i], &sublogger); err != nil {
-			return original, err
-		}
-		if !strings.EqualFold(sublogger.Name, "GCTSCRIPT") {
-			filtered = append(filtered, subloggers[i])
-		}
-	}
-	if len(filtered) == len(subloggers) {
-		return config, nil
-	}
-
-	subloggersJSON, err = json.Marshal(filtered)
-	if err != nil {
-		return original, err
-	}
-	updated, err := jsonparser.Set(config, subloggersJSON, "logging", "subloggers")
-	if err != nil {
-		return original, err
-	}
-	return updated, nil
+	return jsonparser.Delete(config, "gctscript"), nil
 }
 
 // DowngradeConfig restores the legacy GCTScript defaults expected by older releases.
