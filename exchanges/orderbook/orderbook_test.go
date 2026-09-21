@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"slices"
 	"sort"
@@ -320,8 +320,6 @@ func TestProcessOrderbook(t *testing.T) {
 
 	var testArray []quick
 
-	_ = rand.NewSource(time.Now().Unix())
-
 	var wg sync.WaitGroup
 	var m sync.Mutex
 
@@ -335,9 +333,9 @@ func TestProcessOrderbook(t *testing.T) {
 		}
 		m.Unlock()
 		wg.Go(func() {
-			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) //nolint:gosec // no need to import crypto/rand for testing
-			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
-				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypto/rand for testing
+			newName := "Exchange" + strconv.FormatInt(rand.Int64(), 10) //nolint:gosec // no need to import crypto/rand for testing
+			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int64(), 10)),
+				currency.NewCode("USD"+strconv.FormatInt(rand.Int64(), 10))) //nolint:gosec // no need to import crypto/rand for testing
 
 			asks := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypto/rand for testing
 			bids := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypto/rand for testing
@@ -391,7 +389,7 @@ func TestProcessOrderbook(t *testing.T) {
 func levelsFixtureRandom() Levels {
 	lvls := make([]Level, 1000)
 	for x := range 1000 {
-		lvls[x] = Level{Amount: 1, Price: rand.Float64(), ID: rand.Int63()} //nolint:gosec // Not needed in tests
+		lvls[x] = Level{Amount: 1, Price: rand.Float64(), ID: rand.Int64()} //nolint:gosec // Not needed in tests
 	}
 	return lvls
 }
@@ -432,10 +430,10 @@ func TestSortAsks(t *testing.T) {
 		{
 			name: "long scattered duplicates",
 			levels: func() Levels {
-				rng := rand.New(rand.NewSource(1)) //nolint:gosec // Deterministic test fixture.
+				rng := rand.New(rand.NewPCG(1, 1)) //nolint:gosec // Deterministic test fixture.
 				levels := make(Levels, 100)
 				for i := range levels {
-					levels[i] = Level{Price: float64(rng.Intn(16) + 1), ID: int64(i + 1)}
+					levels[i] = Level{Price: float64(rng.IntN(16) + 1), ID: int64(i + 1)}
 				}
 				return levels
 			}(),
@@ -509,10 +507,10 @@ func TestSortBids(t *testing.T) {
 		{
 			name: "long scattered duplicates",
 			levels: func() Levels {
-				rng := rand.New(rand.NewSource(2)) //nolint:gosec // Deterministic test fixture.
+				rng := rand.New(rand.NewPCG(2, 2)) //nolint:gosec // Deterministic test fixture.
 				levels := make(Levels, 100)
 				for i := range levels {
-					levels[i] = Level{Price: float64(rng.Intn(16) + 1), ID: int64(i + 1)}
+					levels[i] = Level{Price: float64(rng.IntN(16) + 1), ID: int64(i + 1)}
 				}
 				return levels
 			}(),
@@ -574,7 +572,7 @@ func TestSortBids(t *testing.T) {
 func levelsFixture() Levels {
 	lvls := make(Levels, 1000)
 	for i := range 1000 {
-		lvls[i] = Level{Amount: 1, Price: float64(i + 1), ID: rand.Int63()} //nolint:gosec // Not needed in tests
+		lvls[i] = Level{Amount: 1, Price: float64(i + 1), ID: rand.Int64()} //nolint:gosec // Not needed in tests
 	}
 	return lvls
 }

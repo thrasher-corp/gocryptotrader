@@ -2,13 +2,14 @@ package bitfinex
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -787,7 +788,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[6].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[7].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[7].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[8].(float64); !ok {
@@ -821,7 +822,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[10].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[10].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[11].(float64); !ok {
@@ -2083,9 +2084,7 @@ subSort:
 				// Append root element
 				subset = append(subset, depth[x])
 				// Sort IDs by ascending
-				sort.Slice(subset, func(i, j int) bool {
-					return subset[i].ID < subset[j].ID
-				})
+				slices.SortFunc(subset, func(a, b orderbook.Level) int { return cmp.Compare(a.ID, b.ID) })
 				// Re-align elements with sorted ID subset
 				for z := range subset {
 					depth[x+z] = subset[z]

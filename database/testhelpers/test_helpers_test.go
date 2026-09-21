@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var err error
 	PostgresTestDatabase = GetConnectionDetails()
@@ -42,8 +42,8 @@ func TestDatabaseConnect(t *testing.T) {
 		{
 			"SQLite",
 			&database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb.db"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb.db",
 			},
 			CloseDatabase,
 			nil,
@@ -52,9 +52,7 @@ func TestDatabaseConnect(t *testing.T) {
 			"SQliteNoDatabase",
 			&database.Config{
 				Driver: database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{
-					Host: "localhost",
-				},
+				Host:   "localhost",
 			},
 			nil,
 			database.ErrNoDatabaseProvided,

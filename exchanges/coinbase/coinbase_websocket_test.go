@@ -349,16 +349,14 @@ func TestManageSubs(t *testing.T) {
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "matches"},
-					},
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{
+				Subscriptions: subscription.List{
+					{Enabled: true, Channel: "matches"},
 				},
 			},
-			Features: exchange.Features{},
 		},
+		Features: exchange.Features{},
 	}
 	e.checkSubscriptions()
 	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), e.Features.Subscriptions)

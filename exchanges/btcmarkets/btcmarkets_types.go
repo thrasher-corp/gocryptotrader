@@ -24,15 +24,15 @@ type Market struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	MarketID  currency.Pair `json:"marketId"`
-	BestBID   float64       `json:"bestBid,string"`
-	BestAsk   float64       `json:"bestAsk,string"`
-	LastPrice float64       `json:"lastPrice,string"`
-	Volume    float64       `json:"volume24h,string"`
-	Change24h float64       `json:"price24h,string"`
-	Low24h    float64       `json:"low24h,string"`
-	High24h   float64       `json:"high24h,string"`
-	Timestamp time.Time     `json:"timestamp"`
+	MarketID     currency.Pair `json:"marketId"`
+	BestBID      float64       `json:"bestBid,string"`
+	BestAsk      float64       `json:"bestAsk,string"`
+	LastPrice    float64       `json:"lastPrice,string"`
+	Volume       float64       `json:"volume24h,string"`
+	Change24Hour float64       `json:"price24h,string"`
+	Low24Hour    float64       `json:"low24h,string"`
+	High24Hour   float64       `json:"high24h,string"`
+	Timestamp    time.Time     `json:"timestamp"`
 }
 
 // Trade holds trade information
@@ -130,7 +130,7 @@ type TransferData struct {
 type DepositAddress struct {
 	Address   string `json:"address"`
 	AssetName string `json:"assetName"`
-	Tag       string // custom field we populate
+	Tag       string `json:"-"` // custom field we populate
 }
 
 // WithdrawalFeeData stores data for fees
@@ -288,8 +288,8 @@ type WsTick struct {
 	Ask         float64       `json:"bestAsk,string"`
 	Last        float64       `json:"lastPrice,string"`
 	Volume      float64       `json:"volume24h,string"`
-	Price24h    float64       `json:"price24h,string"`
-	Low24h      float64       `json:"low24h,string"`
+	Price24Hour float64       `json:"price24h,string"`
+	Low24Hour   float64       `json:"low24h,string"`
 	High24      float64       `json:"high24h,string"`
 	MessageType string        `json:"messageType"`
 }

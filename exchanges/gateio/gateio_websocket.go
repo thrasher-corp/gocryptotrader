@@ -62,10 +62,10 @@ const (
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
-	{Enabled: false, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
+	{Enabled: true, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -263,10 +263,10 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			out = append(out, ticker.Price{
 				ExchangeName: e.Name,
-				Volume:       data.BaseVolume.Float64(),
+				BaseVolume:   data.BaseVolume.Float64(),
 				QuoteVolume:  data.QuoteVolume.Float64(),
-				High:         data.High24H.Float64(),
-				Low:          data.Low24H.Float64(),
+				High:         data.High24Hour.Float64(),
+				Low:          data.Low24Hour.Float64(),
 				Last:         data.Last.Float64(),
 				Bid:          data.HighestBid.Float64(),
 				Ask:          data.LowestAsk.Float64(),
@@ -429,20 +429,19 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 	}
 
 	if data.Full {
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Exchange:     e.Name,
-			Pair:         pair,
-			Asset:        a,
-			LastUpdated:  data.UpdateTime.Time(),
-			LastPushed:   lastPushed,
-			LastUpdateID: data.LastUpdateID,
-			Bids:         data.Bids.Levels(),
-			Asks:         data.Asks.Levels(),
-		}); err != nil {
-			return err
-		}
-		e.wsOBResubMgr.CompletedResubscribe(pair, a)
-		return nil
+		err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:          e.Name,
+			Pair:              pair,
+			Asset:             a,
+			LastUpdated:       data.UpdateTime.Time(),
+			LastPushed:        lastPushed,
+			LastUpdateID:      data.LastUpdateID,
+			Bids:              data.Bids.Levels(),
+			Asks:              data.Asks.Levels(),
+			ValidateOrderbook: e.ValidateOrderbook,
+		})
+		e.wsOBResubMgr.CompletedResubscribe(pair, a) // Clear even when loading fails, otherwise later updates are dropped and nothing resubscribes
+		return err
 	}
 
 	if e.wsOBResubMgr.IsResubscribing(pair, a) {

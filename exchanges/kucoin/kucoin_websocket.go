@@ -89,8 +89,6 @@ var subscriptionNames = map[asset.Item]map[string]string{
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-	{Enabled: false, Asset: asset.Spot, Channel: marketOrderbookChannel},     // Full orderbook depth requires REST snapshot which is an authenticated request.
-	{Enabled: false, Asset: asset.Futures, Channel: futuresOrderbookChannel}, // Full orderbook depth requires REST snapshot which is an authenticated request.
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Margin, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
@@ -145,7 +143,7 @@ func (e *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, 
 		Data WSInstanceServers `json:"data"`
 		Error
 	}{}
-	return &(response.Data), e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return &response.Data, e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		endpointPath, err := e.API.Endpoints.GetURL(exchange.RestSpot)
 		if err != nil {
 			return nil, err
@@ -535,7 +533,7 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		AssetType:    asset.Futures,
 		Last:         resp.FilledPrice.Float64(),
-		Volume:       resp.FilledSize.Float64(),
+		LastSize:     resp.FilledSize.Float64(),
 		LastUpdated:  resp.FilledTime.Time(),
 		ExchangeName: e.Name,
 		Pair:         pair,
@@ -756,6 +754,7 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			AssetType:    assets[x],
 			Last:         response.Price,
+			LastSize:     response.Size,
 			LastUpdated:  response.Timestamp.Time(),
 			ExchangeName: e.Name,
 			Pair:         pair,
@@ -763,7 +762,6 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 			Bid:          response.BestBid,
 			AskSize:      response.BestAskSize,
 			BidSize:      response.BestBidSize,
-			Volume:       response.Size,
 		}); err != nil {
 			return err
 		}
@@ -844,15 +842,29 @@ func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData [
 		}
 	}
 
-	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Result.SequenceStart, &orderbook.Update{
-		UpdateID:   resp.Result.SequenceEnd,
-		UpdateTime: resp.Result.TimeMS.Time(),
-		LastPushed: resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
-		Asset:      asset.Spot,
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       pair,
-	})
+	assets, err := e.CalculateAssets(marketOrderbookChannel, pair)
+	if err != nil {
+		return err
+	}
+	if len(assets) == 0 {
+		// A subscribed pair outside the enabled lists has always been booked as spot.
+		assets = []asset.Item{asset.Spot}
+	}
+	// Each asset gets its own level slices to prevent sharing mutable state.
+	for _, a := range assets {
+		if err := e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Result.SequenceStart, &orderbook.Update{
+			UpdateID:   resp.Result.SequenceEnd,
+			UpdateTime: resp.Result.TimeMS.Time(),
+			LastPushed: resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
+			Asset:      a,
+			Bids:       slices.Clone(bids),
+			Asks:       slices.Clone(asks),
+			Pair:       pair,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // processOrderbook processes orderbook data for a specific symbol.
@@ -921,7 +933,7 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 			Low:          response.Data.Low,
 			High:         response.Data.High,
 			QuoteVolume:  response.Data.VolValue,
-			Volume:       response.Data.Vol,
+			BaseVolume:   response.Data.Vol,
 			Open:         response.Data.Open,
 			Close:        response.Data.Close,
 			LastUpdated:  response.Data.Datetime.Time(),
@@ -961,7 +973,7 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 
 		intermediary := struct {
 			Type string `json:"type"`
-			Code int    `json:"code"`
+			Code uint64 `json:"code"`
 			Data any    `json:"data"`
 		}{}
 		if err := json.Unmarshal(respRaw, &intermediary); err != nil {
@@ -1031,7 +1043,85 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	if err != nil {
+		return subs, err
+	}
+	// Depth channels reload the whole book on every push, which would clobber a realtime book for the same pair, so
+	// the realtime upgrade leaves pairs an explicit depth channel already feeds to that channel. Symbols are matched as
+	// the depth topic spells them, so a topic KuCoin will not serve, such as a config-format pair or a candle suffix,
+	// keeps its realtime feed. Level 1 is left out: its best bid and ask never decode as a book.
+	depthFed := make(map[bool]map[string]struct{}, 2)
+	depthTopics := make(map[string]struct{})
+	for _, s := range subs {
+		switch s.Channel {
+		case marketOrderbookDepth5Channel, marketOrderbookDepth50Channel, futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
+			isFutures := s.Channel == futuresOrderbookDepth5Channel || s.Channel == futuresOrderbookDepth50Channel
+			if depthFed[isFutures] == nil {
+				depthFed[isFutures] = make(map[string]struct{})
+			}
+			channel, symbols, _ := strings.Cut(s.QualifiedChannel, ":")
+			for symbol := range strings.SplitSeq(symbols, ",") {
+				depthFed[isFutures][symbol] = struct{}{}
+				depthTopics[channel+":"+symbol] = struct{}{}
+			}
+		}
+	}
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		// KuCoin keeps one subscription per topic, so a generic orderbook on an explicit depth channel's topic would
+		// silence it when the realtime upgrade unsubscribes the generic; the explicit channel carries that topic alone.
+		return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
+			_, shared := depthTopics[s.QualifiedChannel]
+			return shared && s.Channel == subscription.OrderbookChannel
+		}), nil
+	}
+	// Resolve authenticated orderbooks after expansion so the realtime feed is reflected in
+	// subscription reconciliation keys and does not retain the public depth feed interval.
+	configured := subscription.NewStore()
+	seen := subscription.NewStore()
+	resolved := make(subscription.List, 0, len(subs))
+	for _, s := range subs {
+		if s.Channel != subscription.OrderbookChannel {
+			resolved = append(resolved, s)
+			continue
+		}
+		if err := configured.Add(s.Clone()); err != nil {
+			return nil, err
+		}
+		s = s.Clone()
+		channel := marketOrderbookChannel
+		formatAsset := s.Asset
+		if s.Asset == asset.Futures {
+			channel = futuresOrderbookChannel
+		} else if formatAsset == asset.All || formatAsset == asset.Empty {
+			formatAsset = asset.Spot
+		}
+		format, err := e.GetPairFormat(formatAsset, true)
+		if err != nil {
+			return nil, err
+		}
+		if fed := depthFed[s.Asset == asset.Futures]; len(fed) != 0 && len(s.Pairs) != 0 {
+			s.Pairs = slices.DeleteFunc(s.Pairs, func(pair currency.Pair) bool {
+				_, ok := fed[pair.Format(format).String()]
+				return ok
+			})
+			if len(s.Pairs) == 0 {
+				continue
+			}
+		}
+		s.Channel = channel
+		s.QualifiedChannel = channel + ":" + s.Pairs.Format(format).Join()
+		s.Interval = 0
+		s.Levels = 0
+		if err := seen.Add(s); err != nil {
+			if errors.Is(err, subscription.ErrDuplicate) {
+				continue
+			}
+			return nil, err
+		}
+		resolved = append(resolved, s)
+	}
+	return resolved, nil
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -1039,6 +1129,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
 			"channelName":           channelName,
+			"formatOrderbookPairs":  e.formatOrderbookPairs,
 			"mergeMarginPairs":      e.mergeMarginPairs,
 			"isCurrencyChannel":     isCurrencyChannel,
 			"isSymbolChannel":       isSymbolChannel,
@@ -1091,7 +1182,7 @@ func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item
 
 // checkSubscriptions looks for any backwards incompatibilities with missing assets
 // This should be unnecessary and removable by 2025
-func (e *Exchange) checkSubscriptions() {
+func (e *Exchange) checkSubscriptions() error {
 	upgraded := false
 	for _, s := range e.Config.Features.Subscriptions {
 		if s.Asset != asset.Empty {
@@ -1114,8 +1205,24 @@ func (e *Exchange) checkSubscriptions() {
 			s.Asset = asset.Margin
 		}
 	}
+	before := len(e.Config.Features.Subscriptions)
+	var replacements subscription.List
 	e.Config.Features.Subscriptions = slices.DeleteFunc(e.Config.Features.Subscriptions, func(s *subscription.Subscription) bool {
 		switch s.Channel {
+		case marketOrderbookChannel, futuresOrderbookChannel:
+			if s.Enabled {
+				assets := asset.Items{s.Asset}
+				if s.Asset == asset.All || s.Asset == asset.Empty {
+					assets = e.GetAssetTypes(true)
+				}
+				for _, assetType := range assets {
+					replacements = append(replacements, &subscription.Subscription{
+						Enabled: true, Channel: subscription.OrderbookChannel, Asset: assetType,
+						Pairs: slices.Clone(s.Pairs), Interval: kline.HundredMilliseconds,
+					})
+				}
+			}
+			return true
 		case "/contractMarket/level2Depth50", // Replaced by subsctiption.Orderbook for asset.All
 			"/contractMarket/tickerV2", // Replaced by subscription.Ticker for asset.All
 			"/margin/fundingBook":      // Deprecated and removed
@@ -1125,9 +1232,82 @@ func (e *Exchange) checkSubscriptions() {
 		}
 		return false
 	})
+	upgraded = upgraded || before != len(e.Config.Features.Subscriptions)
+	for _, replacement := range replacements {
+		var coveredPairs currency.Pairs
+		covered := false
+		for i, sub := range e.Config.Features.Subscriptions {
+			if !sub.Enabled || sub.Channel != subscription.OrderbookChannel || (sub.Asset != asset.All && sub.Asset != replacement.Asset) {
+				continue
+			}
+			// A generic with a candle interval keeps the suffix on its public topics, where KuCoin sends nothing. It only
+			// covers the legacy feed under websocket authentication, which can change after this migration is saved.
+			if _, err := IntervalToString(sub.Interval); err == nil {
+				continue
+			}
+			if sub.Authenticated && !e.API.AuthenticatedWebsocketSupport {
+				if len(sub.Pairs) == 0 && sub.Asset == replacement.Asset {
+					sub = sub.Clone()
+					sub.Authenticated = false
+					e.Config.Features.Subscriptions[i] = sub
+					covered = true
+					break
+				}
+				continue
+			}
+			if len(sub.Pairs) == 0 {
+				covered = true
+				break
+			}
+			coveredPairs = coveredPairs.Add(sub.Pairs...)
+		}
+		if covered {
+			continue
+		}
+		if len(replacement.Pairs) != 0 && len(coveredPairs) != 0 {
+			format, err := e.GetPairFormat(replacement.Asset, true)
+			if err != nil {
+				return fmt.Errorf("cannot migrate %s orderbook pair coverage: %w", replacement.Asset, err)
+			}
+			coveredSymbols := make(map[string]struct{}, len(coveredPairs))
+			for _, pair := range coveredPairs.Format(format) {
+				coveredSymbols[pair.String()] = struct{}{}
+			}
+			replacement.Pairs = slices.DeleteFunc(replacement.Pairs, func(pair currency.Pair) bool {
+				_, ok := coveredSymbols[pair.Format(format).String()]
+				return ok
+			})
+			if len(replacement.Pairs) == 0 {
+				continue
+			}
+		}
+		e.Config.Features.Subscriptions = append(e.Config.Features.Subscriptions, replacement)
+	}
 	if upgraded {
 		e.Features.Subscriptions = e.Config.Features.Subscriptions.Enabled()
 	}
+	return nil
+}
+
+func (e *Exchange) formatOrderbookPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) (string, error) {
+	// Other channels retain their existing request spelling; formatting assetless private channels would fail pair lookup.
+	if s.Channel != subscription.OrderbookChannel {
+		return "", nil
+	}
+	if pairs, ok := ap[asset.Futures]; ok && (s.Asset == asset.All || s.Asset == asset.Futures) {
+		ap[asset.Futures] = e.filterAssetFeedPairs(s, asset.Futures, pairs)
+	}
+	for assetType, pairs := range ap {
+		if assetType == asset.Empty {
+			continue
+		}
+		format, err := e.GetPairFormat(assetType, true)
+		if err != nil {
+			return "", err
+		}
+		ap[assetType] = pairs.Format(format)
+	}
+	return "", nil
 }
 
 // channelName returns the correct channel name for the asset
@@ -1145,47 +1325,152 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 	return s.Channel
 }
 
-// mergeMarginPairs merges margin pairs into spot pairs for shared subs (ticker, orderbook, etc) if Spot asset and sub are enabled,
-// because Kucoin errors on duplicate pairs in separate subs, and doesn't have separate subs for spot and margin
+// mergeMarginPairs assigns each pair to one subscription on KuCoin's shared spot and margin feeds.
 func (e *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
 	if strings.HasPrefix(s.Channel, "/margin") {
 		return ""
 	}
-	wantKey := &subscription.IgnoringAssetKey{Subscription: s}
 	switch s.Asset {
 	case asset.All:
-		_, marginEnabled := ap[asset.Margin]
-		_, spotEnabled := ap[asset.Spot]
-		if marginEnabled && spotEnabled {
-			marginPairs, _ := e.GetEnabledPairs(asset.Margin)
-			ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
-			ap[asset.Margin] = currency.Pairs{}
+		spotPairs, spotEnabled := ap[asset.Spot]
+		marginPairs, marginEnabled := ap[asset.Margin]
+		if spotEnabled {
+			if marginEnabled {
+				spotPairs = spotPairs.Add(marginPairs...)
+				ap[asset.Margin] = currency.Pairs{}
+			}
+			ap[asset.Spot] = e.filterSharedFeedPairs(s, spotPairs)
+		} else if marginEnabled {
+			ap[asset.Margin] = e.filterSharedFeedPairs(s, marginPairs)
 		}
 	case asset.Spot:
-		// If there's a margin sub then we should merge the pairs into spot
-		hasMarginSub := slices.ContainsFunc(e.Features.Subscriptions, func(sB *subscription.Subscription) bool {
-			if sB.Asset != asset.Margin && sB.Asset != asset.All {
-				return false
+		pairs := ap[asset.Spot]
+		if len(s.Pairs) == 0 {
+			for _, other := range e.Features.Subscriptions {
+				if other.Asset == asset.Margin && e.sharedFeedCandidate(other, s) {
+					pairs = pairs.Add(e.sharedFeedPairs(other)...)
+				}
 			}
-			return wantKey.Match(&subscription.IgnoringAssetKey{Subscription: sB})
-		})
-		if hasMarginSub {
-			marginPairs, _ := e.GetEnabledPairs(asset.Margin)
-			ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
 		}
+		ap[asset.Spot] = e.filterSharedFeedPairs(s, pairs)
 	case asset.Margin:
-		// If there's a spot sub, all margin pairs are already merged, so empty the margin pairs
-		hasSpotSub := slices.ContainsFunc(e.Features.Subscriptions, func(sB *subscription.Subscription) bool {
-			if sB.Asset != asset.Spot && sB.Asset != asset.All {
-				return false
-			}
-			return wantKey.Match(&subscription.IgnoringAssetKey{Subscription: sB})
-		})
-		if hasSpotSub {
-			ap[asset.Margin] = currency.Pairs{}
-		}
+		ap[asset.Margin] = e.filterSharedFeedPairs(s, ap[asset.Margin])
 	}
 	return ""
+}
+
+func (e *Exchange) filterAssetFeedPairs(s *subscription.Subscription, assetType asset.Item, pairs currency.Pairs) currency.Pairs {
+	score := e.sharedFeedPriority(s)
+	claimed := make(map[[2]*currency.Item]struct{})
+	for _, other := range e.Features.Subscriptions {
+		if other == s || other.QualifiedChannel != "" || other.Authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() ||
+			(other.Asset != asset.All && other.Asset != assetType) || !sameSharedFeed(other, s) {
+			continue
+		}
+		if otherScore := e.sharedFeedPriority(other); otherScore > score || otherScore == score && other.Asset != s.Asset && other.Asset == assetType {
+			for _, pair := range e.subscriptionPairsForAsset(other, assetType) {
+				claimed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}] = struct{}{}
+			}
+		}
+	}
+	return slices.DeleteFunc(common.SortStrings(slices.Clone(pairs)), func(pair currency.Pair) bool {
+		_, ok := claimed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}]
+		return ok
+	})
+}
+
+func (e *Exchange) subscriptionPairsForAsset(s *subscription.Subscription, assetType asset.Item) currency.Pairs {
+	if len(s.Pairs) != 0 {
+		return s.Pairs
+	}
+	pairs, err := e.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil
+	}
+	return pairs
+}
+
+func (e *Exchange) filterSharedFeedPairs(s *subscription.Subscription, pairs currency.Pairs) currency.Pairs {
+	score := e.sharedFeedPriority(s)
+	claimed := make(map[[2]*currency.Item]struct{})
+	for _, other := range e.Features.Subscriptions {
+		if other == s || !e.sharedFeedCandidate(other, s) {
+			continue
+		}
+		if otherScore := e.sharedFeedPriority(other); otherScore > score || otherScore == score && other.Asset != s.Asset && sharedAssetPriority(other.Asset) > sharedAssetPriority(s.Asset) {
+			for _, pair := range e.sharedFeedPairs(other) {
+				claimed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}] = struct{}{}
+			}
+		}
+	}
+	return slices.DeleteFunc(common.SortStrings(slices.Clone(pairs)), func(pair currency.Pair) bool {
+		_, ok := claimed[[2]*currency.Item{pair.Base.Item, pair.Quote.Item}]
+		return ok
+	})
+}
+
+func (e *Exchange) sharedFeedCandidate(candidate, reference *subscription.Subscription) bool {
+	if candidate.QualifiedChannel != "" || candidate.Authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() ||
+		(candidate.Asset != asset.All && candidate.Asset != asset.Spot && candidate.Asset != asset.Margin) || !sameSharedFeed(candidate, reference) {
+		return false
+	}
+	if candidate.Asset == asset.All {
+		return e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || e.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil
+	}
+	return e.CurrencyPairs.IsAssetEnabled(candidate.Asset) == nil
+}
+
+func (e *Exchange) sharedFeedPairs(s *subscription.Subscription) currency.Pairs {
+	if len(s.Pairs) != 0 {
+		return s.Pairs
+	}
+	var pairs currency.Pairs
+	for _, assetType := range []asset.Item{asset.Spot, asset.Margin} {
+		if s.Asset != asset.All && s.Asset != assetType {
+			continue
+		}
+		enabled, err := e.GetEnabledPairs(assetType)
+		if err == nil {
+			pairs = pairs.Add(enabled...)
+		}
+	}
+	if s.Asset == asset.Spot {
+		for _, other := range e.Features.Subscriptions {
+			if other.Asset == asset.Margin && e.sharedFeedCandidate(other, s) {
+				pairs = pairs.Add(e.sharedFeedPairs(other)...)
+			}
+		}
+	}
+	return pairs
+}
+
+func (e *Exchange) sharedFeedPriority(s *subscription.Subscription) int {
+	priority := 0
+	if len(s.Pairs) != 0 {
+		priority += 2
+	}
+	if s.Asset != asset.All {
+		priority++
+	}
+	// A public orderbook topic keeps any candle suffix, where KuCoin sends nothing, so that entry ranks below every entry
+	// with a served topic and yields the pairs they share; the realtime rewrite drops the suffix, so auth leaves ranks alone.
+	if s.Channel == subscription.OrderbookChannel && !e.Websocket.CanUseAuthenticatedEndpoints() {
+		if _, err := IntervalToString(s.Interval); err == nil {
+			priority -= 4
+		}
+	}
+	return priority
+}
+
+func sharedAssetPriority(a asset.Item) int {
+	switch a {
+	case asset.Spot:
+		return 2
+	case asset.Margin:
+		return 1
+	default:
+		return 0
+	}
 }
 
 // isSymbolChannel returns if the channel expects receive a symbol
@@ -1213,11 +1498,26 @@ func channelInterval(s *subscription.Subscription) string {
 	return ""
 }
 
+func sameSharedFeed(a, b *subscription.Subscription) bool {
+	if a.Channel != b.Channel {
+		return false
+	}
+	if a.Channel == subscription.OrderbookChannel {
+		return true
+	}
+	if a.Levels != b.Levels {
+		return false
+	}
+	aInterval, _ := IntervalToString(a.Interval)
+	bInterval, _ := IntervalToString(b.Interval)
+	return aInterval == bInterval
+}
+
 // assetCurrencies returns the currencies from all pairs in an asset
 // Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
 	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
-	p := currency.Pairs{}
+	p := make(currency.Pairs, 0, len(cs))
 	for _, c := range cs {
 		p = append(p, currency.Pair{Base: c})
 	}
@@ -1241,6 +1541,7 @@ func joinPairsWithInterval(b currency.Pairs, s *subscription.Subscription) strin
 
 const subTplText = `
 {{- mergeMarginPairs $.S $.AssetPairs }}
+{{- formatOrderbookPairs $.S $.AssetPairs }}
 {{- if isCurrencyChannel $.S }}
 	{{- channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join }}
 {{- else if isSymbolChannel $.S }}

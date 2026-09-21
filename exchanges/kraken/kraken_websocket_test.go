@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -85,21 +86,20 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.AllTradesChannel},
 		{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 		{Channel: subscription.OrderbookChannel, Levels: 1000},
+		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
+		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
 	}
-	for _, s := range exp {
+	for _, s := range exp[:4] {
 		s.QualifiedChannel = channelName(s)
 		s.Asset = asset.Spot
 		s.Pairs = pairs
 	}
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp[:4], subs)
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	exp = append(exp, subscription.List{
-		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
-		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
-	}...)
+
 	subs, err = ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
@@ -724,4 +724,41 @@ func mockWsTokenHandler(tb testing.TB, w http.ResponseWriter, r *http.Request) b
 	_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
 	assert.NoError(tb, err, "Write should not error")
 	return true
+}
+
+// TestWsProcessTickers covers the v1 ticker's [today, last 24 hours] arrays. UpdateTickers records
+// the 24 hour volume and range for the same pair, so reading today's wrote a different window into
+// the same store entry
+func TestWsProcessTickers(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	// The payload of a live wss://ws.kraken.com ticker message for XBT/USD
+	data := json.RawMessage(`{"a":["78165.70000",0,"0.34373236"],"b":["78165.60000",0,"0.63986310"],"c":["78165.60000","0.00028359"],"v":["439.88105355","2394.31405834"],"p":["78299.32832","78599.42339"],"t":[23720,101224],"l":["77932.40000","77754.90000"],"h":["78500.00000","79739.10000"],"o":["78288.60000","79224.50000"]}`)
+	pair := currency.NewPairWithDelimiter("XBT", "USD", "/")
+	require.NoError(t, ex.wsProcessTickers(t.Context(), data, pair), "wsProcessTickers must not error")
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.(*ticker.Price)
+		require.True(t, ok, "wsProcessTickers must send a ticker price")
+		assert.Equal(t, &ticker.Price{
+			ExchangeName: ex.Name,
+			Pair:         pair,
+			AssetType:    asset.Spot,
+			Ask:          78165.7,
+			AskSize:      0.34373236,
+			Bid:          78165.6,
+			BidSize:      0.6398631,
+			Last:         78165.6,
+			Close:        78165.6,
+			BaseVolume:   2394.31405834,
+			Low:          77754.9,
+			High:         79739.1,
+			Open:         78288.6,
+		}, got, "the ticker should record what UpdateTickers records for the same pair")
+	default:
+		require.Fail(t, "no ticker price sent", "wsProcessTickers must send a ticker price")
+	}
 }

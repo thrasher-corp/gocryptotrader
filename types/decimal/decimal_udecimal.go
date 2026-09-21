@@ -159,6 +159,13 @@ func (d Decimal) IsNegative() bool {
 	return d.value.IsNeg()
 }
 
+// IsInteger reports whether d has no fractional component.
+func (d Decimal) IsInteger() bool {
+	// Zero precision guarantees an integer and avoids truncation; nonzero
+	// precision may still represent one when the fractional digits are zero.
+	return d.value.Prec() == 0 || d.Equal(d.Truncate(0))
+}
+
 // Round rounds d half away from zero to places fractional digits. Negative
 // places round digits in the integer component.
 func (d Decimal) Round(places int32) Decimal {

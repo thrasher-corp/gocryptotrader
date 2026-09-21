@@ -8,13 +8,16 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -51,6 +54,30 @@ func TestWsFuturesConnect(t *testing.T) {
 				t.Cleanup(func() { require.NoError(t, conn.Shutdown(), "mock connection must shut down") })
 			}
 		})
+	}
+}
+
+func TestProcessFuturesTickers(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	payload := []byte(`{"time":1541659086,"channel":"futures.tickers","event":"update","result":[{"contract":"BTC_USDT","last":"118.4","mark_price":"118.35","index_price":"118.36","volume_24h_quote":"1665006","volume_24h_base":"5526","low_24h":"99.2","high_24h":"132.5"}]}`)
+	require.NoError(t, ex.processFuturesTickers(t.Context(), payload, asset.USDTMarginedFutures), "futures ticker processing must succeed")
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]ticker.Price)
+		require.True(t, ok, "message must contain futures ticker prices")
+		require.Len(t, got, 1, "message must contain one futures ticker")
+		assert.Equal(t, 118.35, got[0].MarkPrice, "mark price should match the response")
+		assert.Equal(t, 118.36, got[0].IndexPrice, "index price should match the response")
+		assert.Equal(t, asset.USDTMarginedFutures, got[0].AssetType, "asset should be USDT margined futures")
+		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), got[0].Pair, "ticker pair should match the response")
+		assert.Equal(t, time.Unix(1541659086, 0), got[0].LastUpdated, "ticker timestamp should match the response")
+	default:
+		require.Fail(t, "WebSocket futures ticker payload must be emitted")
 	}
 }
 
@@ -232,5 +259,52 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		sig, err := ex.generateWsSignature("secret", subscribeEvent, futuresBalancesChannel, got[0].Time)
 		require.NoError(t, err)
 		require.Equal(t, sig, got[0].Auth.Sign)
+	})
+
+	t.Run("authenticated positions all contracts", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Name = "generateFuturesPayloadAllPositionsTest"
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
+			&subscription.Subscription{
+				Channel: futuresPositionsChannel,
+				Pairs:   currency.Pairs{BTCUSDT},
+				Params: map[string]any{
+					contractPayloadOverrideParam: allFuturesContracts,
+					requiresUserPlaceholderParam: true,
+				},
+			},
+		})
+		require.NoError(t, err, "generateFuturesPayload must not error")
+		require.Len(t, got, 1, "all-contract positions must generate one payload")
+		require.Equal(t, []string{"", "!all"}, got[0].Payload,
+			"all-contract positions payload must use the documented selector")
+		require.NotNil(t, got[0].Auth, "all-contract positions payload must be authenticated")
+	})
+
+	t.Run("authenticated position closes require user ID", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Name = "generateFuturesPayloadPositionClosesTest"
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+		_, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
+			&subscription.Subscription{
+				Channel: futuresAutoPositionCloseChannel,
+				Pairs:   currency.Pairs{BTCUSDT},
+			},
+		})
+		require.ErrorIs(t, err, common.ErrParameterRequired,
+			"position closes payload without a user ID must error")
 	})
 }

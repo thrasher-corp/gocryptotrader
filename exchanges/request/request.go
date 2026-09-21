@@ -160,6 +160,8 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			if err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
+		} else if err := WaitForRateLimitBarrier(ctx); err != nil {
+			return fmt.Errorf("failed to coordinate HTTP request: %w", err)
 		}
 
 		p, err := newRequest()

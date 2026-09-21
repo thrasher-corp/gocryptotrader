@@ -263,11 +263,11 @@ func getExchanges(c *cli.Context) error {
 var enableExchangeCommand = &cli.Command{
 	Name:      "enableexchange",
 	Usage:     "enables an exchange",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: exchangeArgsUsage,
 	Action:    enableExchange,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to enable",
 		},
 	},
@@ -279,8 +279,8 @@ func enableExchange(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -308,11 +308,11 @@ func enableExchange(c *cli.Context) error {
 var disableExchangeCommand = &cli.Command{
 	Name:      "disableexchange",
 	Usage:     "disables an exchange",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: exchangeArgsUsage,
 	Action:    disableExchange,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to disable",
 		},
 	},
@@ -324,8 +324,8 @@ func disableExchange(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -353,11 +353,11 @@ func disableExchange(c *cli.Context) error {
 var getExchangeOTPCommand = &cli.Command{
 	Name:      "getexchangeotp",
 	Usage:     "gets a specific exchange OTP code",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: exchangeArgsUsage,
 	Action:    getExchangeOTPCode,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the OTP code for",
 		},
 	},
@@ -369,8 +369,8 @@ func getExchangeOTPCode(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -422,11 +422,11 @@ func getExchangeOTPCodes(c *cli.Context) error {
 var getExchangeInfoCommand = &cli.Command{
 	Name:      "getexchangeinfo",
 	Usage:     "gets a specific exchanges info",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: exchangeArgsUsage,
 	Action:    getExchangeInfo,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the info for",
 		},
 	},
@@ -438,8 +438,8 @@ func getExchangeInfo(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -471,15 +471,15 @@ var getTickerCommand = &cli.Command{
 	Action:    getTicker,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the ticker for",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "the currency pair to get the ticker for",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type of the currency pair to get the ticker for",
 		},
 	},
@@ -494,14 +494,14 @@ func getTicker(c *cli.Context) error {
 	var currencyPair string
 	var assetType string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(1)
 	}
@@ -510,8 +510,8 @@ func getTicker(c *cli.Context) error {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(2)
 	}
@@ -582,12 +582,12 @@ var getAccountBalancesCommand = &cli.Command{
 	Action:    getAccountBalances,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:     "exchange",
+			Name:     exchangeFlag,
 			Usage:    "the exchange to get the account balances for",
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:     "asset",
+			Name:     assetFlag,
 			Usage:    "the asset type to get the account balances for",
 			Required: true,
 		},
@@ -600,14 +600,14 @@ func getAccountBalances(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -644,11 +644,11 @@ var getAccountBalancesStreamCommand = &cli.Command{
 	Action:    getAccountBalancesStream,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the account balances stream from",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type to get the account balances stream for",
 		},
 	},
@@ -661,15 +661,15 @@ func getAccountBalancesStream(c *cli.Context) error {
 
 	var exchangeName string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -715,11 +715,11 @@ var updateAccountBalancesCommand = &cli.Command{
 	Action:    updateAccountBalances,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the account balances for",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type to get the account balances for",
 		},
 	},
@@ -731,15 +731,15 @@ func updateAccountBalances(c *cli.Context) error {
 	}
 
 	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -1073,25 +1073,25 @@ var getOrdersCommand = &cli.Command{
 	Action:    getOrders,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get orders for",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type to get orders for",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "the currency pair to get orders for",
 		},
 		&cli.StringFlag{
-			Name:        "start",
+			Name:        startFlag,
 			Usage:       "start date, optional. Will filter any results before this date",
 			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
-			Name:        "end",
+			Name:        endFlag,
 			Usage:       "end date, optional. Will filter any results after this date",
 			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
@@ -1108,14 +1108,14 @@ func getOrders(c *cli.Context) error {
 	var assetType string
 	var currencyPair string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -1125,8 +1125,8 @@ func getOrders(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(2)
 	}
@@ -1140,13 +1140,13 @@ func getOrders(c *cli.Context) error {
 		return err
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(3) != "" {
 			startTime = c.Args().Get(3)
 		}
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(4) != "" {
 			endTime = c.Args().Get(4)
 		}
@@ -1198,15 +1198,15 @@ var getManagedOrdersCommand = &cli.Command{
 	Action:    getManagedOrders,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get orders for",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type to get orders for",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "the currency pair to get orders for",
 		},
 	},
@@ -1221,14 +1221,14 @@ func getManagedOrders(c *cli.Context) error {
 	var assetType string
 	var currencyPair string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -1238,8 +1238,8 @@ func getManagedOrders(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(2)
 	}
@@ -1284,15 +1284,15 @@ var getOrderCommand = &cli.Command{
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the order for",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "required asset type",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "the pair to retrieve",
 		},
 		&cli.StringFlag{
@@ -1312,13 +1312,13 @@ func getOrder(c *cli.Context) error {
 	var currencyPair string
 	var assetType string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -1327,8 +1327,8 @@ func getOrder(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(2)
 	}
@@ -1379,15 +1379,15 @@ var submitOrderCommand = &cli.Command{
 	Action:    submitOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to submit the order for",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
+			Name:  pairFlag,
+			Usage: pairUsage,
 		},
 		&cli.StringFlag{
-			Name:  "side",
+			Name:  sideFlag,
 			Usage: "the order side to use (BUY OR SELL)",
 		},
 		&cli.StringFlag{
@@ -1395,7 +1395,7 @@ var submitOrderCommand = &cli.Command{
 			Usage: "the order type (MARKET OR LIMIT)",
 		},
 		&cli.Float64Flag{
-			Name:  "amount",
+			Name:  amountFlag,
 			Usage: "the amount for the order",
 		},
 		&cli.Float64Flag{
@@ -1407,7 +1407,7 @@ var submitOrderCommand = &cli.Command{
 			Usage: "the optional client order ID",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "required asset type",
 		},
 		&cli.StringFlag{
@@ -1433,14 +1433,14 @@ func submitOrder(c *cli.Context) error {
 	var assetType string
 	var marginType string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(1)
 	}
@@ -1449,8 +1449,8 @@ func submitOrder(c *cli.Context) error {
 		return errInvalidPair
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
+	if c.IsSet(sideFlag) {
+		orderSide = c.String(sideFlag)
 	} else {
 		orderSide = c.Args().Get(2)
 	}
@@ -1469,8 +1469,8 @@ func submitOrder(c *cli.Context) error {
 		return errors.New("order type must be set")
 	}
 
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
+	if c.IsSet(amountFlag) {
+		amount = c.Float64(amountFlag)
 	} else if c.Args().Get(4) != "" {
 		var err error
 		amount, err = strconv.ParseFloat(c.Args().Get(4), 64)
@@ -1500,8 +1500,8 @@ func submitOrder(c *cli.Context) error {
 		clientID = c.Args().Get(6)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(7)
 	}
@@ -1563,19 +1563,19 @@ var simulateOrderCommand = &cli.Command{
 	Action:    simulateOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to simulate the order for",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
+			Name:  pairFlag,
+			Usage: pairUsage,
 		},
 		&cli.StringFlag{
-			Name:  "side",
+			Name:  sideFlag,
 			Usage: "the order side to use (BUY OR SELL)",
 		},
 		&cli.Float64Flag{
-			Name:  "amount",
+			Name:  amountFlag,
 			Usage: "the amount for the order",
 		},
 	},
@@ -1591,14 +1591,14 @@ func simulateOrder(c *cli.Context) error {
 	var orderSide string
 	var amount float64
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(1)
 	}
@@ -1607,8 +1607,8 @@ func simulateOrder(c *cli.Context) error {
 		return errInvalidPair
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
+	if c.IsSet(sideFlag) {
+		orderSide = c.String(sideFlag)
 	} else {
 		orderSide = c.Args().Get(2)
 	}
@@ -1617,8 +1617,8 @@ func simulateOrder(c *cli.Context) error {
 		return errors.New("side must be set")
 	}
 
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
+	if c.IsSet(amountFlag) {
+		amount = c.Float64(amountFlag)
 	} else if c.Args().Get(3) != "" {
 		var err error
 		amount, err = strconv.ParseFloat(c.Args().Get(3), 64)
@@ -1668,7 +1668,7 @@ var cancelOrderCommand = &cli.Command{
 	Action:    cancelOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to cancel the order for",
 		},
 		&cli.StringFlag{
@@ -1680,15 +1680,15 @@ var cancelOrderCommand = &cli.Command{
 			Usage: "the order id",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "the currency pair to cancel the order for",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type",
 		},
 		&cli.StringFlag{
-			Name:  "side",
+			Name:  sideFlag,
 			Usage: "the order side",
 		},
 	},
@@ -1706,8 +1706,8 @@ func cancelOrder(c *cli.Context) error {
 	var assetType string
 	var orderSide string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -1728,14 +1728,14 @@ func cancelOrder(c *cli.Context) error {
 		return errors.New("an order ID must be set")
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(3)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(4)
 	}
@@ -1745,8 +1745,8 @@ func cancelOrder(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
+	if c.IsSet(sideFlag) {
+		orderSide = c.String(sideFlag)
 	} else {
 		orderSide = c.Args().Get(5)
 	}
@@ -1798,7 +1798,7 @@ var cancelBatchOrdersCommand = &cli.Command{
 	Action:    cancelBatchOrders,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to cancel the order for",
 		},
 		&cli.StringFlag{
@@ -1810,15 +1810,15 @@ var cancelBatchOrdersCommand = &cli.Command{
 			Usage: "the comma separated orders id-s",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "the currency pair to cancel the order for",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type",
 		},
 		&cli.StringFlag{
-			Name:  "side",
+			Name:  sideFlag,
 			Usage: "the order side",
 		},
 	},
@@ -1836,8 +1836,8 @@ func cancelBatchOrders(c *cli.Context) error {
 	var assetType string
 	var orderSide string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -1858,14 +1858,14 @@ func cancelBatchOrders(c *cli.Context) error {
 		return errors.New("an order ID must be set")
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(3)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(4)
 	}
@@ -1875,8 +1875,8 @@ func cancelBatchOrders(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
+	if c.IsSet(sideFlag) {
+		orderSide = c.String(sideFlag)
 	} else {
 		orderSide = c.Args().Get(5)
 	}
@@ -1924,11 +1924,11 @@ func cancelBatchOrders(c *cli.Context) error {
 var cancelAllOrdersCommand = &cli.Command{
 	Name:      "cancelallorders",
 	Usage:     "cancels all orders (all or by exchange name)",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: exchangeArgsUsage,
 	Action:    cancelAllOrders,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to cancel all orders on",
 		},
 	},
@@ -1941,15 +1941,15 @@ var modifyOrderCommand = &cli.Command{
 	Action:    modifyOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "exchange this order is submitted to",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "required asset type",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "required trading pair",
 		},
 		&cli.StringFlag{
@@ -1961,7 +1961,7 @@ var modifyOrderCommand = &cli.Command{
 			Usage: "new order price",
 		},
 		&cli.Float64Flag{
-			Name:  "amount",
+			Name:  amountFlag,
 			Usage: "new order amount",
 		},
 	},
@@ -1969,8 +1969,8 @@ var modifyOrderCommand = &cli.Command{
 
 func cancelAllOrders(c *cli.Context) error {
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -2004,14 +2004,14 @@ func modifyOrder(c *cli.Context) error {
 	var currencyPair string
 	var assetType string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -2020,8 +2020,8 @@ func modifyOrder(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(2)
 	}
@@ -2047,8 +2047,8 @@ func modifyOrder(c *cli.Context) error {
 	if c.IsSet("price") {
 		price = c.Float64("price")
 	}
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
+	if c.IsSet(amountFlag) {
+		amount = c.Float64(amountFlag)
 	}
 	if price == 0 && amount == 0 {
 		return errors.New("either --price or --amount should be present")
@@ -2112,7 +2112,7 @@ var addEventCommand = &cli.Command{
 	Action:    addEvent,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to add an event for",
 		},
 		&cli.StringFlag{
@@ -2140,11 +2140,11 @@ var addEventCommand = &cli.Command{
 			Usage: "the orderbook amount to trigger the event",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
+			Name:  pairFlag,
+			Usage: pairUsage,
 		},
 		&cli.StringFlag{
-			Name:  "asset",
+			Name:  assetFlag,
 			Usage: "the asset type",
 		},
 		&cli.StringFlag{
@@ -2170,8 +2170,8 @@ func addEvent(c *cli.Context) error {
 	var assetType string
 	var action string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		return errors.New("exchange name is required")
 	}
@@ -2204,8 +2204,8 @@ func addEvent(c *cli.Context) error {
 		orderbookAmount = c.Float64("orderbook_amount")
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		return errors.New("currency pair is required")
 	}
@@ -2214,8 +2214,8 @@ func addEvent(c *cli.Context) error {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -2320,11 +2320,11 @@ func removeEvent(c *cli.Context) error {
 var getCryptocurrencyDepositAddressesCommand = &cli.Command{
 	Name:      "getcryptocurrencydepositaddresses",
 	Usage:     "gets the cryptocurrency deposit addresses for an exchange",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: exchangeArgsUsage,
 	Action:    getCryptocurrencyDepositAddresses,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the cryptocurrency deposit addresses for",
 		},
 	},
@@ -2336,8 +2336,8 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -2366,7 +2366,7 @@ var getCryptocurrencyDepositAddressCommand = &cli.Command{
 	Action:    getCryptocurrencyDepositAddress,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the cryptocurrency deposit address for",
 		},
 		&cli.StringFlag{
@@ -2392,8 +2392,8 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	var exchangeName string
 	var cryptocurrency string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -2456,7 +2456,7 @@ var getAvailableTransferChainsCommand = &cli.Command{
 	Action:    getAvailableTransferChains,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the available transfer chains",
 		},
 		&cli.StringFlag{
@@ -2474,8 +2474,8 @@ func getAvailableTransferChains(c *cli.Context) error {
 	var exchangeName string
 	var cryptocurrency string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -2518,7 +2518,7 @@ var withdrawCryptocurrencyFundsCommand = &cli.Command{
 	Action:    withdrawCryptocurrencyFunds,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to withdraw from",
 		},
 		&cli.StringFlag{
@@ -2534,7 +2534,7 @@ var withdrawCryptocurrencyFundsCommand = &cli.Command{
 			Usage: "address tag/memo",
 		},
 		&cli.Float64Flag{
-			Name:  "amount",
+			Name:  amountFlag,
 			Usage: "amount of funds to withdraw",
 		},
 		&cli.Float64Flag{
@@ -2560,8 +2560,8 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	var exchange, cur, address, addressTag, chain, description string
 	var amount, fee float64
 
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else if c.Args().Get(0) != "" {
 		exchange = c.Args().Get(0)
 	}
@@ -2572,8 +2572,8 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		cur = c.Args().Get(1)
 	}
 
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
+	if c.IsSet(amountFlag) {
+		amount = c.Float64(amountFlag)
 	} else if c.Args().Get(2) != "" {
 		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
 		if err == nil {
@@ -2648,7 +2648,7 @@ var withdrawFiatFundsCommand = &cli.Command{
 	Action:    withdrawFiatFunds,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to withdraw from",
 		},
 		&cli.StringFlag{
@@ -2656,7 +2656,7 @@ var withdrawFiatFundsCommand = &cli.Command{
 			Usage: "the fiat currency to withdraw funds from",
 		},
 		&cli.Float64Flag{
-			Name:  "amount",
+			Name:  amountFlag,
 			Usage: "amount of funds to withdraw",
 		},
 		&cli.StringFlag{
@@ -2678,8 +2678,8 @@ func withdrawFiatFunds(c *cli.Context) error {
 	var exchange, cur, description, bankAccountID string
 	var amount float64
 
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else if c.Args().Get(0) != "" {
 		exchange = c.Args().Get(0)
 	}
@@ -2690,8 +2690,8 @@ func withdrawFiatFunds(c *cli.Context) error {
 		cur = c.Args().Get(1)
 	}
 
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
+	if c.IsSet(amountFlag) {
+		amount = c.Float64(amountFlag)
 	} else if c.Args().Get(2) != "" {
 		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
 		if err == nil {
@@ -2757,7 +2757,7 @@ var withdrawalRequestCommand = &cli.Command{
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
+					Name:  exchangeFlag,
 					Usage: "exchange name",
 				},
 				&cli.StringFlag{
@@ -2773,7 +2773,7 @@ var withdrawalRequestCommand = &cli.Command{
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
+					Name:  exchangeFlag,
 					Usage: "exchange name",
 				},
 				&cli.Int64Flag{
@@ -2785,8 +2785,8 @@ var withdrawalRequestCommand = &cli.Command{
 					Usage: "<currency>",
 				},
 				&cli.StringFlag{
-					Name:  "asset",
-					Usage: "the asset type of the currency pair",
+					Name:  assetFlag,
+					Usage: assetUsage,
 				},
 			},
 			Action: withdrawalRequestByExchangeID,
@@ -2797,17 +2797,17 @@ var withdrawalRequestCommand = &cli.Command{
 			ArgsUsage: "<exchange> <start> <end> <limit>",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "exchange",
+					Name:  exchangeFlag,
 					Usage: "the currency used in to withdraw",
 				},
 				&cli.StringFlag{
-					Name:        "start",
+					Name:        startFlag,
 					Usage:       "the start date to get withdrawals from. Any withdrawal before this date will be filtered",
 					Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
-					Name:        "end",
+					Name:        endFlag,
 					Usage:       "the end date to get withdrawals from. Any withdrawal after this date will be filtered",
 					Value:       time.Now().Format(time.DateTime),
 					Destination: &endTime,
@@ -2864,8 +2864,8 @@ func withdrawalRequestByExchangeID(c *cli.Context) error {
 	}
 
 	var exchange, ccy, assetType string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
@@ -2901,8 +2901,8 @@ func withdrawalRequestByExchangeID(c *cli.Context) error {
 			ccy = c.String("currency")
 		}
 
-		if c.IsSet("asset") {
-			assetType = c.String("asset")
+		if c.IsSet(assetFlag) {
+			assetType = c.String(assetFlag)
 		}
 
 		assetType = strings.ToLower(assetType)
@@ -2943,19 +2943,19 @@ func withdrawalRequestByDate(c *cli.Context) error {
 	var exchange string
 	var limit, limitStr int64
 	var err error
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchange = c.String(exchangeFlag)
 	} else {
 		exchange = c.Args().First()
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(1) != "" {
 			startTime = c.Args().Get(1)
 		}
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(2) != "" {
 			endTime = c.Args().Get(2)
 		}
@@ -3131,16 +3131,16 @@ var getTickerStreamCommand = &cli.Command{
 	Action:    getTickerStream,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the ticker from",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
+			Name:  pairFlag,
 			Usage: "currency pair",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair",
+			Name:  assetFlag,
+			Usage: assetUsage,
 		},
 	},
 }
@@ -3154,14 +3154,14 @@ func getTickerStream(c *cli.Context) error {
 	var pair string
 	var assetType string
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("pair") {
-		pair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		pair = c.String(pairFlag)
 	} else {
 		pair = c.Args().Get(1)
 	}
@@ -3170,8 +3170,8 @@ func getTickerStream(c *cli.Context) error {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(2)
 	}
@@ -3239,11 +3239,11 @@ func getTickerStream(c *cli.Context) error {
 var getExchangeTickerStreamCommand = &cli.Command{
 	Name:      "getexchangetickerstream",
 	Usage:     "gets a stream for all tickers associated with an exchange",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: exchangeArgsUsage,
 	Action:    getExchangeTickerStream,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
+			Name:  exchangeFlag,
 			Usage: "the exchange to get the ticker from",
 		},
 	},
@@ -3255,8 +3255,8 @@ func getExchangeTickerStream(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
@@ -3305,14 +3305,14 @@ var getAuditEventCommand = &cli.Command{
 	Action:    getAuditEvent,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:        "start",
+			Name:        startFlag,
 			Aliases:     []string{"s"},
 			Usage:       "start date to search",
 			Value:       time.Now().Add(-time.Hour).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
-			Name:        "end",
+			Name:        endFlag,
 			Aliases:     []string{"e"},
 			Usage:       "end time to search",
 			Value:       time.Now().Format(time.DateTime),
@@ -3336,13 +3336,13 @@ var getAuditEventCommand = &cli.Command{
 }
 
 func getAuditEvent(c *cli.Context) error {
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(0) != "" {
 			startTime = c.Args().Get(0)
 		}
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(1) != "" {
 			endTime = c.Args().Get(1)
 		}
@@ -3406,7 +3406,7 @@ var (
 	gctScriptCommand     = &cli.Command{
 		Name:      "script",
 		Usage:     "execute scripting management command",
-		ArgsUsage: "<command> <args>",
+		ArgsUsage: commandArgsUsage,
 		Subcommands: []*cli.Command{
 			{
 				Name:      "execute",
@@ -3833,17 +3833,17 @@ var (
 		Action:    getHistoricCandles,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "exchange",
+				Name:    exchangeFlag,
 				Aliases: []string{"e"},
 				Usage:   "the exchange to get the candles from",
 			},
 			&cli.StringFlag{
-				Name:  "pair",
+				Name:  pairFlag,
 				Usage: "the currency pair to get the candles for",
 			},
 			&cli.StringFlag{
-				Name:  "asset",
-				Usage: "the asset type of the currency pair",
+				Name:  assetFlag,
+				Usage: assetUsage,
 			},
 			&cli.Int64Flag{
 				Name:        "rangesize",
@@ -3873,14 +3873,14 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(1)
 	}
@@ -3893,8 +3893,8 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(2)
 	}
@@ -3969,19 +3969,19 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 	Action:    getHistoricCandlesExtended,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:    "exchange",
+			Name:    exchangeFlag,
 			Aliases: []string{"e"},
 			Usage:   "the exchange to get the candles from",
 		},
 		&cli.StringFlag{
-			Name:    "pair",
+			Name:    pairFlag,
 			Aliases: []string{"p"},
 			Usage:   "the currency pair to get the candles for",
 		},
 		&cli.StringFlag{
-			Name:    "asset",
+			Name:    assetFlag,
 			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
+			Usage:   assetUsage,
 		},
 		&cli.Int64Flag{
 			Name:        "interval",
@@ -3991,13 +3991,13 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 			Destination: &candleGranularity,
 		},
 		&cli.StringFlag{
-			Name:        "start",
+			Name:        startFlag,
 			Usage:       "the date to begin retrieving candles. Any candles before this date will be filtered",
 			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
-			Name:        "end",
+			Name:        endFlag,
 			Usage:       "the date to end retrieving candles. Any candles after this date will be filtered",
 			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
@@ -4028,14 +4028,14 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(1)
 	}
@@ -4049,8 +4049,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(2)
 	}
@@ -4068,13 +4068,13 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		}
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(4) != "" {
 			startTime = c.Args().Get(4)
 		}
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(5) != "" {
 			endTime = c.Args().Get(5)
 		}
@@ -4161,19 +4161,19 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 	Action:    findMissingSavedCandleIntervals,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:    "exchange",
+			Name:    exchangeFlag,
 			Aliases: []string{"e"},
 			Usage:   "the exchange to find the missing candles",
 		},
 		&cli.StringFlag{
-			Name:    "pair",
+			Name:    pairFlag,
 			Aliases: []string{"p"},
-			Usage:   "the currency pair",
+			Usage:   pairUsage,
 		},
 		&cli.StringFlag{
-			Name:    "asset",
+			Name:    assetFlag,
 			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
+			Usage:   assetUsage,
 		},
 		&cli.Int64Flag{
 			Name:        "interval",
@@ -4183,13 +4183,13 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 			Destination: &candleGranularity,
 		},
 		&cli.StringFlag{
-			Name:        "start",
+			Name:        startFlag,
 			Usage:       "<start> rounded down to the nearest hour",
 			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
-			Name:        "end",
+			Name:        endFlag,
 			Usage:       "<end> rounded down to the nearest hour",
 			Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
 			Destination: &endTime,
@@ -4203,14 +4203,14 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	} else {
 		currencyPair = c.Args().Get(1)
 	}
@@ -4224,8 +4224,8 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(2)
 	}
@@ -4243,13 +4243,13 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 		}
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(4) != "" {
 			startTime = c.Args().Get(4)
 		}
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(5) != "" {
 			endTime = c.Args().Get(5)
 		}
@@ -4328,14 +4328,14 @@ var getMarginRatesHistoryCommand = &cli.Command{
 	Action:    getMarginRatesHistory,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:    "exchange",
+			Name:    exchangeFlag,
 			Aliases: []string{"e"},
 			Usage:   "the exchange to retrieve margin rates from",
 		},
 		&cli.StringFlag{
-			Name:    "asset",
+			Name:    assetFlag,
 			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
+			Usage:   assetUsage,
 		},
 		&cli.StringFlag{
 			Name:    "currency",
@@ -4343,14 +4343,14 @@ var getMarginRatesHistoryCommand = &cli.Command{
 			Usage:   "must be an enabled currency",
 		},
 		&cli.StringFlag{
-			Name:        "start",
+			Name:        startFlag,
 			Aliases:     []string{"sd"},
 			Usage:       "<start>",
 			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
-			Name:        "end",
+			Name:        endFlag,
 			Aliases:     []string{"ed"},
 			Usage:       "<end>",
 			Value:       time.Now().Format(time.DateTime),
@@ -4390,15 +4390,15 @@ func getMarginRatesHistory(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -4414,13 +4414,13 @@ func getMarginRatesHistory(c *cli.Context) error {
 		curr = c.Args().Get(2)
 	}
 
-	if !c.IsSet("start") {
+	if !c.IsSet(startFlag) {
 		if c.Args().Get(3) != "" {
 			startTime = c.Args().Get(3)
 		}
 	}
 
-	if !c.IsSet("end") {
+	if !c.IsSet(endFlag) {
 		if c.Args().Get(4) != "" {
 			endTime = c.Args().Get(4)
 		}
@@ -4527,19 +4527,19 @@ var getCurrencyTradeURLCommand = &cli.Command{
 	Action:    getCurrencyTradeURL,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:    "exchange",
+			Name:    exchangeFlag,
 			Aliases: []string{"e"},
 			Usage:   "the exchange to retrieve margin rates from",
 		},
 		&cli.StringFlag{
-			Name:    "asset",
+			Name:    assetFlag,
 			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
+			Usage:   assetUsage,
 		},
 		&cli.StringFlag{
-			Name:    "pair",
+			Name:    pairFlag,
 			Aliases: []string{"p"},
-			Usage:   "the currency pair",
+			Usage:   pairUsage,
 		},
 	},
 }
@@ -4550,15 +4550,15 @@ func getCurrencyTradeURL(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	} else {
 		exchangeName = c.Args().First()
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -4568,8 +4568,8 @@ func getCurrencyTradeURL(c *cli.Context) error {
 	}
 
 	var cp string
-	if c.IsSet("pair") {
-		cp = c.String("pair")
+	if c.IsSet(pairFlag) {
+		cp = c.String(pairFlag)
 	} else {
 		cp = c.Args().Get(2)
 	}
