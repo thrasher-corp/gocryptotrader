@@ -1260,7 +1260,10 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	result, err := e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NotEmpty(t, result.Candles, "candles must be returned")
+	for i := range result.Candles {
+		assert.NotZerof(t, result.Candles[i].Open, "candle %d should carry real data, not zero padding over a dropped interval", i)
+	}
 
 	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Futures, kline.FiveMin, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1454,7 +1457,6 @@ func TestSubmitOrder(t *testing.T) {
 		Type:      order.Liquidation,
 		Side:      order.Long,
 		Amount:    1,
-		Price:     1,
 	}
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrAssetNotFound)

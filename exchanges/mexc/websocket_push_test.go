@@ -153,9 +153,17 @@ func TestWsHandleLimitDepthUsesExchangeTime(t *testing.T) {
 	assert.Equal(t, time.UnixMilli(sendTime), book.LastUpdated, "the book should be stamped with the exchange send time, not time.Now()")
 }
 
-// TestWsHandleBookTickerBatch asserts a batched book ticker frame relays one ticker per item.
+// TestWsHandleBookTickerBatch asserts a batched book ticker frame merges each item onto the cached
+// ticker rather than replacing it, so it does not blank the fields the miniTicker channel maintains.
 func TestWsHandleBookTickerBatch(t *testing.T) {
-	drainData(t)
+	drainTickers(t)
+	miniRaw := wsPushFrame(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, 1739503249000,
+		&mexc_proto_types.PublicMiniTickerV3Api{
+			Symbol: "BTCUSDT", Price: "96500.5", High: "97000", Low: "96000",
+			Volume: "965000", Quantity: "10",
+		})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, miniRaw), "the miniTicker frame must not error")
+
 	raw := wsPushFrame(t, "spot@"+channelBookTickerBatch+"@BTCUSDT", 1739503249114,
 		&mexc_proto_types.PublicBookTickerBatchV3Api{
 			Items: []*mexc_proto_types.PublicBookTickerV3Api{
@@ -164,14 +172,17 @@ func TestWsHandleBookTickerBatch(t *testing.T) {
 		})
 	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 
-	tickers := requireOneOf[[]ticker.Price](t)
-	require.Len(t, tickers, 1, "one ticker per item must be relayed")
-	assert.Equal(t, 96567.37, tickers[0].Bid, "Bid should be correct")
-	assert.Equal(t, 3.362925, tickers[0].BidSize, "BidSize should be correct")
-	assert.Equal(t, 96567.38, tickers[0].Ask, "Ask should be correct")
-	assert.Equal(t, 1.545255, tickers[0].AskSize, "AskSize should be correct")
-	assert.Equal(t, asset.Spot, tickers[0].AssetType, "AssetType should be correct")
-	assert.Equal(t, e.Name, tickers[0].ExchangeName, "ExchangeName should be correct")
+	ticks := drainTickers(t)
+	require.Len(t, ticks, 2, "both channels must publish a ticker")
+	got := ticks[1]
+	assert.Equal(t, 96567.37, got.Bid, "the batch frame should update Bid")
+	assert.Equal(t, 3.362925, got.BidSize, "the batch frame should update BidSize")
+	assert.Equal(t, 96567.38, got.Ask, "the batch frame should update Ask")
+	assert.Equal(t, 1.545255, got.AskSize, "the batch frame should update AskSize")
+	assert.Equal(t, 96500.5, got.Last, "the miniTicker's last price should survive the batch update, not be blanked")
+	assert.Equal(t, 97000.0, got.High, "the miniTicker's high should survive the batch update")
+	assert.Equal(t, 96000.0, got.Low, "the miniTicker's low should survive the batch update")
+	assert.Equal(t, int64(1739503249114), got.LastUpdated.UnixMilli(), "LastUpdated should come from the batch frame's send time")
 }
 
 // TestWsHandleUnknownChannel asserts an unrecognised channel is surfaced instead of dropped.

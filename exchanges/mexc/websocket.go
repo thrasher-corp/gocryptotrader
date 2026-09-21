@@ -613,31 +613,34 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if body == nil {
 			return e.wsUnhandled(ctx, respRaw)
 		}
-		tickersDetail := make([]ticker.Price, len(body.Items))
+		// Merge each item onto the cached ticker through the shared helper rather than sending fresh
+		// ticker.Price values: the batch frame carries only the best bid/offer, so replacing the ticker
+		// would blank the last/high/low/volume fields the miniTicker channel maintains.
 		for a := range body.Items {
-			tickersDetail[a] = ticker.Price{
-				Pair:         cp,
-				ExchangeName: e.Name,
-				AssetType:    asset.Spot,
-			}
-			tickersDetail[a].Bid, err = strconv.ParseFloat(body.Items[a].BidPrice, 64)
+			bid, err := strconv.ParseFloat(body.Items[a].BidPrice, 64)
 			if err != nil {
 				return err
 			}
-			tickersDetail[a].Ask, err = strconv.ParseFloat(body.Items[a].AskPrice, 64)
+			ask, err := strconv.ParseFloat(body.Items[a].AskPrice, 64)
 			if err != nil {
 				return err
 			}
-			tickersDetail[a].BidSize, err = strconv.ParseFloat(body.Items[a].BidQuantity, 64)
+			bidSize, err := strconv.ParseFloat(body.Items[a].BidQuantity, 64)
 			if err != nil {
 				return err
 			}
-			tickersDetail[a].AskSize, err = strconv.ParseFloat(body.Items[a].AskQuantity, 64)
+			askSize, err := strconv.ParseFloat(body.Items[a].AskQuantity, 64)
 			if err != nil {
+				return err
+			}
+			if err := e.wsUpdateSpotTicker(ctx, cp, wsSendTime(result), func(t *ticker.Price) {
+				t.Bid, t.BidSize = bid, bidSize
+				t.Ask, t.AskSize = ask, askSize
+			}); err != nil {
 				return err
 			}
 		}
-		return e.Websocket.DataHandler.Send(ctx, tickersDetail)
+		return nil
 	case channelAccountV3:
 		body := result.GetPrivateAccount()
 		if body == nil {

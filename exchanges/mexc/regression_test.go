@@ -954,3 +954,18 @@ func TestGenerateSubscriptionsExpandsConfiguredList(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	assert.Empty(t, subs, "an empty configured list should expand to no subscriptions, not the hardcoded defaults")
 }
+
+// TestDeleteAPIKeySubAccountSendsAPIKey pins the apiKey parameter: without it the request deletes by
+// sub-account name alone, which is not what the caller asked for.
+func TestDeleteAPIKeySubAccountSendsAPIKey(t *testing.T) {
+	t.Parallel()
+	var got url.Values
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+		_, _ = w.Write([]byte(`{"subAccount":"SubAcc1"}`))
+	}))
+	_, err := ex.DeleteAPIKeySubAccount(t.Context(), "SubAcc1", "the-key")
+	require.NoError(t, err, "DeleteAPIKeySubAccount must not error")
+	assert.Equal(t, "the-key", got.Get("apiKey"), "the request should carry the apiKey being deleted")
+	assert.Equal(t, "SubAcc1", got.Get("subAccount"), "the request should carry the sub-account name")
+}

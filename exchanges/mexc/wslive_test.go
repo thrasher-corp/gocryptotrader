@@ -55,8 +55,8 @@ func TestLiveSpotTickerFlow(t *testing.T) {
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err, "GetConnection must not error")
 
-	all, err := e.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
+	all, err := defaultSubscriptions.Clone().ExpandTemplates(e)
+	require.NoError(t, err, "ExpandTemplates must not error")
 	var subs subscription.List
 	for _, s := range all {
 		if s.Asset == asset.Spot && !s.Authenticated {
@@ -225,8 +225,8 @@ func TestLiveSpotPrivateSubscriptions(t *testing.T) {
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err, "GetConnection must not error")
 
-	all, err := e.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
+	all, err := defaultSubscriptions.Clone().ExpandTemplates(e)
+	require.NoError(t, err, "ExpandTemplates must not error")
 	var subs subscription.List
 	for _, s := range all {
 		if s.Asset == asset.Spot && s.Authenticated {

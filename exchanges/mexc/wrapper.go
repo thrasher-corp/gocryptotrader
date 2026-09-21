@@ -1076,7 +1076,11 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		}
 		return 0.0005 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
 	case exchange.CryptocurrencyTradeFee:
-		result, err := e.GetSymbolTradingFee(ctx, feeBuilder.Pair)
+		pair, err := e.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
+		if err != nil {
+			return 0, err
+		}
+		result, err := e.GetSymbolTradingFee(ctx, pair)
 		if err != nil {
 			return 0, err
 		}
