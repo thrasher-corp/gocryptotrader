@@ -823,8 +823,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			tempResp.Amount = tempData.Orders[c].Amount
 			tempResp.ExecutedAmount = tempData.Orders[c].Amount - tempData.Orders[c].OpenAmount
 			tempResp.RemainingAmount = tempData.Orders[c].OpenAmount
-			// The response does not identify whether Price is a limit or execution
-			// price, so leave AverageExecutedPrice and ExecutedQuoteAmount unset.
+			// BTC Markets returns the order price, not an execution price, so leave
+			// AverageExecutedPrice and ExecutedQuoteAmount unset.
 			tempResp.InferExecutionAndTimes()
 			resp = append(resp, tempResp)
 		}
