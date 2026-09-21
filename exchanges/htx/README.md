@@ -39,9 +39,9 @@ The implementation follows HTX's official [spot](https://huobiapi.github.io/docs
 
 ### How to enable
 
-+ [Enable via configuration](../../config/README.md#enable-exchange-via-config-example)
+- [Enable via configuration](../../config/README.md#enable-exchange-via-config-example)
 
-+ Individual package example below:
+- Individual package example below:
 
 ```go
     // Exchanges will be abstracted out in further updates and examples will be
@@ -50,7 +50,7 @@ The implementation follows HTX's official [spot](https://huobiapi.github.io/docs
 
 ### How to do REST public/private calls
 
-+ If enabled via "configuration".json file the exchange will be added to the
+- If enabled via "configuration".json file the exchange will be added to the
 IBotExchange array in the ```go var bot Bot``` and you will only be able to use
 the wrapper interface functions for accessing exchange data. View routines.go
 for an example of integration usage with GoCryptoTrader. Rudimentary example
@@ -91,7 +91,7 @@ if err != nil {
 }
 ```
 
-+ If enabled via individually importing package, rudimentary example below:
+- If enabled via individually importing package, rudimentary example below:
 
 ```go
 // Public calls
