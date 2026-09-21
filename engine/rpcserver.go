@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
@@ -161,9 +161,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 	server := grpc.NewServer(opts...)
 	gctrpc.RegisterGoCryptoTraderServiceServer(server, &s)
 
-	go func() {
-		<-ctx.Done()
-
+	context.AfterFunc(ctx, func() {
 		done := make(chan struct{})
 		go func() {
 			server.GracefulStop()
@@ -178,7 +176,7 @@ func StartRPCServer(ctx context.Context, engine *Engine) {
 		}
 
 		_ = lis.Close()
-	}()
+	})
 
 	go func() {
 		if err := server.Serve(lis); err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, grpc.ErrServerStopped) {
@@ -227,7 +225,7 @@ func (s *RPCServer) startRPCRESTProxy(ctx context.Context) {
 		Handler:           s.authClient(mux),
 	}
 
-	go func() {
+	go func() { //nolint:gosec // Shutdown must outlive ctx, which has just been cancelled
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -460,7 +458,7 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		Low:         t.Low,
 		Bid:         t.Bid,
 		Ask:         t.Ask,
-		Volume:      t.Volume,
+		Volume:      t.BaseVolume,
 		PriceAth:    t.PriceATH,
 	}
 
@@ -487,7 +485,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 				Low:         val.Low,
 				Bid:         val.Bid,
 				Ask:         val.Ask,
-				Volume:      val.Volume,
+				Volume:      val.BaseVolume,
 				PriceAth:    val.PriceATH,
 			}
 		}
@@ -2235,7 +2233,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			Low:         t.Low,
 			Bid:         t.Bid,
 			Ask:         t.Ask,
-			Volume:      t.Volume,
+			Volume:      t.BaseVolume,
 			PriceAth:    t.PriceATH,
 		})
 		if err != nil {
@@ -2289,7 +2287,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			Low:         t.Low,
 			Bid:         t.Bid,
 			Ask:         t.Ask,
-			Volume:      t.Volume,
+			Volume:      t.BaseVolume,
 			PriceAth:    t.PriceATH,
 		})
 		if err != nil {
@@ -2535,7 +2533,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	UUID, err := uuid.FromString(r.Script.Uuid)
+	UUID, err := uuid.Parse(r.Script.Uuid)
 	if err != nil {
 		//nolint:nilerr // error is returned in the GCTScriptQueryResponse
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
@@ -2604,7 +2602,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	UUID, err := uuid.FromString(r.Script.Uuid)
+	UUID, err := uuid.Parse(r.Script.Uuid)
 	if err != nil {
 		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil //nolint:nilerr // error is returned in the generic response
 	}
@@ -3826,7 +3824,7 @@ func (s *RPCServer) GetDataHistoryJobDetails(_ context.Context, r *gctrpc.GetDat
 
 	if r.Id != "" {
 		var id uuid.UUID
-		id, err = uuid.FromString(r.Id)
+		id, err = uuid.Parse(r.Id)
 		if err != nil {
 			return nil, fmt.Errorf("%s %w", r.Id, err)
 		}
@@ -4282,9 +4280,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(positions, func(i, j int) bool {
-		return positions[i].OpeningDate.Before(positions[j].OpeningDate)
-	})
+	slices.SortFunc(positions, func(a, b futures.Position) int { return a.OpeningDate.Compare(b.OpeningDate) })
 	response := make([]*gctrpc.FuturePosition, len(positions))
 	for i := range positions {
 		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate)

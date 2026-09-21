@@ -3,8 +3,8 @@ package sharedtestvalues
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -113,14 +113,19 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 
 	r := regexp.MustCompile(pattern)
 
-	root := "." // Specify the root directory to start walking from
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	// Rooted so reads stay confined to the working directory
+	root, err := os.OpenRoot(".")
+	if err != nil {
+		return fmt.Errorf("failed to open root: %w", err)
+	}
+	defer root.Close()
+	err = fs.WalkDir(root.FS(), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if !info.IsDir() && strings.HasSuffix(path, ".go") {
-			fileContents, err := os.ReadFile(path)
+		if !d.IsDir() && strings.HasSuffix(path, ".go") {
+			fileContents, err := root.ReadFile(path)
 			if err != nil {
 				t.Fatalf("Failed to read file: %v", err)
 			}

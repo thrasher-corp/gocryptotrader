@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -777,14 +777,11 @@ func (bt *BackTest) SetupMetaData() error {
 	}
 	bt.m.Lock()
 	defer bt.m.Unlock()
-	if !bt.MetaData.ID.IsNil() && !bt.MetaData.DateLoaded.IsZero() {
+	if bt.MetaData.ID != uuid.Nil() && !bt.MetaData.DateLoaded.IsZero() {
 		// already setup
 		return nil
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
+	id := uuid.NewV4()
 	bt.MetaData.ID = id
 	bt.MetaData.DateLoaded = time.Now()
 	return nil
@@ -831,12 +828,12 @@ func (bt *BackTest) MatchesID(id uuid.UUID) bool {
 	if bt == nil {
 		return false
 	}
-	if id.IsNil() {
+	if id == uuid.Nil() {
 		return false
 	}
 	bt.m.Lock()
 	defer bt.m.Unlock()
-	if bt.MetaData.ID.IsNil() {
+	if bt.MetaData.ID == uuid.Nil() {
 		return false
 	}
 	return bt.MetaData.ID == id

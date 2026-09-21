@@ -39,7 +39,18 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 			instrumentID = mainPair.String()
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instId":"` + instrumentID + `","instIdCode":"42"}]}`))
+		response := struct {
+			Code string `json:"code"`
+			Data []struct {
+				InstrumentID     string `json:"instId"`
+				InstrumentIDCode string `json:"instIdCode"`
+			} `json:"data"`
+		}{Code: "0"}
+		response.Data = append(response.Data, struct {
+			InstrumentID     string `json:"instId"`
+			InstrumentIDCode string `json:"instIdCode"`
+		}{InstrumentID: instrumentID, InstrumentIDCode: "42"})
+		assert.NoError(t, json.NewEncoder(w).Encode(response), "instrument response should encode")
 	}))
 	t.Cleanup(instrumentServer.Close)
 	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", instrumentServer.URL+"/"))

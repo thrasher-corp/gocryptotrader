@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -397,6 +396,23 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 	return limits.Load(l)
 }
 
+// tickerVolumes maps a ticker's two volume figures onto base and quote. For spot and margin
+// vol24h is the base currency and volCcy24h the quote; the two swap over on the derivative
+// instrument types, where volCcy24h is the base currency and vol24h counts contracts. A contract
+// is neither currency, being worth ctVal of ctValCcy and the ticker carrying neither, so a
+// derivative reports no quote volume rather than a count the field name would misdescribe. Some
+// futures instruments serve volCcy24h badly and report no base volume either. An asset type the
+// exchange does not price this way reports neither, so a new one must be added here to carry volume
+func tickerVolumes(tick *TickerResponse, a asset.Item) (baseVolume, quoteVolume float64) {
+	switch a {
+	case asset.Spot, asset.Margin:
+		return tick.TradingVolume24HourInContract.Float64(), tick.TradingVolume24HourInCurrency.Float64()
+	case asset.PerpetualSwap, asset.Futures, asset.Options:
+		return tick.TradingVolume24HourInCurrency.Float64(), 0
+	}
+	return 0, 0
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if !e.SupportsAsset(a) {
@@ -420,14 +436,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         spreadTicker[0].Last.Float64(),
-			High:         spreadTicker[0].High24Hour.Float64(),
-			Low:          spreadTicker[0].Low24Hour.Float64(),
+			High:         spreadTicker[0].HighestPrice24Hour.Float64(),
+			Low:          spreadTicker[0].LowestPrice24Hour.Float64(),
 			Bid:          spreadTicker[0].BidPrice.Float64(),
 			BidSize:      spreadTicker[0].BidSize.Float64(),
 			Ask:          spreadTicker[0].AskPrice.Float64(),
 			AskSize:      spreadTicker[0].AskSize.Float64(),
-			Volume:       spreadTicker[0].Volume24Hour.Float64(),
-			Open:         spreadTicker[0].Open24Hour.Float64(),
+			Open:         spreadTicker[0].OpenPrice24Hour.Float64(),
 			LastUpdated:  spreadTicker[0].Timestamp.Time(),
 			Pair:         p,
 			AssetType:    a,
@@ -440,26 +455,19 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-		var baseVolume, quoteVolume float64
-		switch a {
-		case asset.Spot, asset.Margin:
-			baseVolume = mdata.Vol24H.Float64()
-			quoteVolume = mdata.VolCcy24H.Float64()
-		case asset.PerpetualSwap, asset.Futures, asset.Options:
-			baseVolume = mdata.VolCcy24H.Float64()
-			quoteVolume = mdata.Vol24H.Float64()
-		}
+		baseVolume, quoteVolume := tickerVolumes(mdata, a)
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         mdata.LastTradePrice.Float64(),
-			High:         mdata.High24H.Float64(),
-			Low:          mdata.Low24H.Float64(),
+			High:         mdata.HighestPrice24Hour.Float64(),
+			Low:          mdata.LowestPrice24Hour.Float64(),
 			Bid:          mdata.BestBidPrice.Float64(),
 			BidSize:      mdata.BestBidSize.Float64(),
 			Ask:          mdata.BestAskPrice.Float64(),
 			AskSize:      mdata.BestAskSize.Float64(),
-			Volume:       baseVolume,
+			BaseVolume:   baseVolume,
 			QuoteVolume:  quoteVolume,
-			Open:         mdata.Open24H.Float64(),
+			Open:         mdata.OpenPrice24Hour.Float64(),
+			LastUpdated:  mdata.TickerDataGenerationTime.Time(),
 			Pair:         p,
 			ExchangeName: e.Name,
 			AssetType:    a,
@@ -494,12 +502,20 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				if err != nil {
 					return err
 				}
+				// the store overwrites wholesale, so every field UpdateTicker sets must be set
+				// here too; sprd/ticker sends no 24h figures today but market/sprd-ticker does.
+				// vol24h is deliberately not mapped: OKX reports it in USD on an inverse spread,
+				// so it is not a base volume, and SpreadTicker carries no sprdType to separate them
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         spreadTickers[x].Last.Float64(),
 					Bid:          spreadTickers[x].BidPrice.Float64(),
 					BidSize:      spreadTickers[x].BidSize.Float64(),
 					Ask:          spreadTickers[x].AskPrice.Float64(),
 					AskSize:      spreadTickers[x].AskSize.Float64(),
+					High:         spreadTickers[x].HighestPrice24Hour.Float64(),
+					Low:          spreadTickers[x].LowestPrice24Hour.Float64(),
+					Open:         spreadTickers[x].OpenPrice24Hour.Float64(),
+					LastUpdated:  spreadTickers[x].Timestamp.Time(),
 					Pair:         pair,
 					ExchangeName: e.Name,
 					AssetType:    assetType,
@@ -537,17 +553,19 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				if !pair.Equal(pairFmt) {
 					continue
 				}
+				baseVolume, quoteVolume := tickerVolumes(&ticks[y], assetType)
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         ticks[y].LastTradePrice.Float64(),
-					High:         ticks[y].High24H.Float64(),
-					Low:          ticks[y].Low24H.Float64(),
+					High:         ticks[y].HighestPrice24Hour.Float64(),
+					Low:          ticks[y].LowestPrice24Hour.Float64(),
 					Bid:          ticks[y].BestBidPrice.Float64(),
 					BidSize:      ticks[y].BestBidSize.Float64(),
 					Ask:          ticks[y].BestAskPrice.Float64(),
 					AskSize:      ticks[y].BestAskSize.Float64(),
-					Volume:       ticks[y].Vol24H.Float64(),
-					QuoteVolume:  ticks[y].VolCcy24H.Float64(),
-					Open:         ticks[y].Open24H.Float64(),
+					BaseVolume:   baseVolume,
+					QuoteVolume:  quoteVolume,
+					Open:         ticks[y].OpenPrice24Hour.Float64(),
+					LastUpdated:  ticks[y].TickerDataGenerationTime.Time(),
 					Pair:         pairFmt,
 					ExchangeName: e.Name,
 					AssetType:    assetType,
@@ -589,6 +607,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 				Pair:              pair,
 				Asset:             assetType,
 				ValidateOrderbook: e.ValidateOrderbook,
+				LastUpdated:       spreadOrderbook[y].Timestamp.Time(),
 			}
 			book.Bids = make(orderbook.Levels, 0, len(spreadOrderbook[y].Bids))
 			for b := range spreadOrderbook[y].Bids {
@@ -659,6 +678,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 				Price:  orderBookD.Asks[x].DepthPrice.Float64(),
 			}
 		}
+		book.LastUpdated = orderBookD.GenerationTimestamp.Time()
 		err = book.Process()
 		if err != nil {
 			return book, err
@@ -822,7 +842,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			return nil, err
 		}
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -882,12 +902,15 @@ allTrades:
 			return nil, err
 		}
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s == nil {
+		return nil, order.ErrSubmissionIsNil
+	}
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
@@ -916,10 +939,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	amount := s.Amount
 	var targetCurrency string
 	if s.AssetType == asset.Spot && s.Type == order.Market {
-		targetCurrency = "base_ccy" // Default to base currency
+		targetCurrency = targetCurrencyBase // Default to base currency
 		if s.QuoteAmount > 0 {
 			amount = s.QuoteAmount
-			targetCurrency = "quote_ccy"
+			targetCurrency = targetCurrencyQuote
 		}
 	}
 	// If asset type is spread
@@ -1313,6 +1336,9 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if ord == nil {
+		return order.ErrCancelOrderIsNil
+	}
 	if !e.SupportsAsset(ord.AssetType) {
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 	}
@@ -1398,10 +1424,10 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	amount := s.Amount
 	var targetCurrency string
 	if isSpotMarketOrder(s) {
-		targetCurrency = "base_ccy"
+		targetCurrency = targetCurrencyBase
 		if s.QuoteAmount > 0 {
 			amount = s.QuoteAmount
-			targetCurrency = "quote_ccy"
+			targetCurrency = targetCurrencyQuote
 		}
 	}
 	orderTypeString, err := orderTypeString(s.Type, s.TimeInForce)
@@ -2276,10 +2302,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 allOrders:
 	for {
 		orderList, err := e.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
-			OrderListRequestParams: OrderListRequestParams{
-				InstrumentType: instrumentType,
-				End:            endTime,
-			},
+			InstrumentType: instrumentType,
+			End:            endTime,
 		})
 		if err != nil {
 			return nil, err
@@ -2314,7 +2338,7 @@ allOrders:
 					return nil, err
 				}
 				orderAmount := orderList[i].Size
-				if orderList[i].QuantityType == "quote_ccy" {
+				if orderList[i].QuantityType == targetCurrencyQuote {
 					// Size is quote amount.
 					orderAmount /= orderList[i].AveragePrice
 				}
@@ -3028,12 +3052,10 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 
 		var positions []OrderDetail
 		historyRequest := &OrderHistoryRequestParams{
-			OrderListRequestParams: OrderListRequestParams{
-				InstrumentType: instrumentType,
-				InstrumentID:   fPair.String(),
-				Start:          req.StartDate,
-				End:            req.EndDate,
-			},
+			InstrumentType: instrumentType,
+			InstrumentID:   fPair.String(),
+			Start:          req.StartDate,
+			End:            req.EndDate,
 		}
 		if time.Since(req.StartDate) <= time.Hour*24*7 {
 			positions, err = e.Get7DayOrderHistory(ctx, historyRequest)
@@ -3056,7 +3078,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				return nil, err
 			}
 			orderAmount := positions[j].Size
-			if positions[j].QuantityType == "quote_ccy" {
+			if positions[j].QuantityType == targetCurrencyQuote {
 				// Size is quote amount.
 				orderAmount /= positions[j].AveragePrice
 			}
@@ -3451,7 +3473,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 
 // MessageID returns a universally unique ID using UUID V7, with hyphens removed to fit the maximum 32-character field for okx
 func (e *Exchange) MessageID() string {
-	u := uuid.Must(uuid.NewV7())
+	u := uuid.NewV7()
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])

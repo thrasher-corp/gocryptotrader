@@ -77,6 +77,7 @@ var (
 	errAuthenticatedWebsocketNotEnabled    = errors.New("authenticated websocket API support not enabled")
 	errSubscriptionNotAcknowledged         = errors.New("subscription was not acknowledged")
 	errUnexpectedSubscriptionChannel       = errors.New("unexpected subscription channel")
+	errNoTickerSnapshot                    = errors.New("incremental ticker change received before its snapshot")
 
 	websocketRequestTimeout = time.Second * 30
 
@@ -95,7 +96,7 @@ type UnmarshalError struct {
 	Message string `json:"message"`
 	Data    struct {
 		Reason string `json:"reason"`
-	}
+	} `json:"data"`
 	Code int64 `json:"code"`
 }
 
@@ -118,7 +119,7 @@ type BookSummaryData struct {
 	CreationTimestamp      types.Time `json:"creation_timestamp"`
 	BidPrice               float64    `json:"bid_price"`
 	BaseCurrency           string     `json:"base_currency"`
-	Funding8H              float64    `json:"funding_8h,omitempty"`
+	Funding8Hour           float64    `json:"funding_8h,omitempty"`
 	CurrentFunding         float64    `json:"current_funding,omitempty"`
 	UnderlyingIndex        string     `json:"underlying_index"`
 	UnderlyingPrice        float64    `json:"underlying_price"`
@@ -160,21 +161,21 @@ type DeliveryPriceData struct {
 // FundingChartData stores futures funding chart data
 type FundingChartData struct {
 	CurrentInterest float64 `json:"current_interest"`
-	Interest8H      float64 `json:"interest_8h"`
+	Interest8Hour   float64 `json:"interest_8h"`
 	Data            []struct {
-		IndexPrice float64    `json:"index_price"`
-		Interest8H float64    `json:"interest_8h"`
-		Timestamp  types.Time `json:"timestamp"`
+		IndexPrice    float64    `json:"index_price"`
+		Interest8Hour float64    `json:"interest_8h"`
+		Timestamp     types.Time `json:"timestamp"`
 	} `json:"data"`
 }
 
 // FundingRateHistory represents a funding rate history item
 type FundingRateHistory struct {
-	Timestamp      types.Time `json:"timestamp"`
-	IndexPrice     float64    `json:"index_price"`      // Index price in base currency
-	PrevIndexPrice float64    `json:"prev_index_price"` // Previous index price in base currency
-	Interest8H     float64    `json:"interest_8h"`      // 8hour interest rate
-	Interest1H     float64    `json:"interest_1h"`      // 1hour interest rate
+	Timestamp          types.Time `json:"timestamp"`
+	IndexPrice         float64    `json:"index_price"`      // Index price in base currency
+	PreviousIndexPrice float64    `json:"prev_index_price"` // Previous index price in base currency
+	Interest8Hour      float64    `json:"interest_8h"`      // 8hour interest rate
+	Interest1Hour      float64    `json:"interest_1h"`      // 1hour interest rate
 }
 
 // HistoricalVolatilityData stores volatility data for requested symbols
@@ -311,7 +312,7 @@ type Orderbook struct {
 		Theta float64 `json:"theta"`
 		Vega  float64 `json:"vega"`
 	} `json:"greeks"`
-	Funding8H      float64     `json:"funding_8h"`
+	Funding8Hour   float64     `json:"funding_8h"`
 	CurrentFunding float64     `json:"current_funding"`
 	ChangeID       int64       `json:"change_id"`
 	Bids           [][]float64 `json:"bids"`
@@ -325,16 +326,16 @@ type Orderbook struct {
 
 // TradeVolumesData stores data for trade volumes
 type TradeVolumesData struct {
-	PutsVolume       float64 `json:"puts_volume"`
-	PutsVolume7D     float64 `json:"puts_volume_7d"`
-	PutsVolume30D    float64 `json:"puts_volume_30d"`
-	FuturesVolume7D  float64 `json:"futures_volume_7d"`
-	FuturesVolume30D float64 `json:"futures_volume_30d"`
-	FuturesVolume    float64 `json:"futures_volume"`
-	CurrencyPair     string  `json:"currency_pair"`
-	CallsVolume7D    float64 `json:"calls_volume_7d"`
-	CallsVolume30D   float64 `json:"calls_volume_30d"`
-	CallsVolume      float64 `json:"calls_volume"`
+	PutsVolume         float64 `json:"puts_volume"`
+	PutsVolume7Day     float64 `json:"puts_volume_7d"`
+	PutsVolume30Day    float64 `json:"puts_volume_30d"`
+	FuturesVolume7Day  float64 `json:"futures_volume_7d"`
+	FuturesVolume30Day float64 `json:"futures_volume_30d"`
+	FuturesVolume      float64 `json:"futures_volume"`
+	CurrencyPair       string  `json:"currency_pair"`
+	CallsVolume7Day    float64 `json:"calls_volume_7d"`
+	CallsVolume30Day   float64 `json:"calls_volume_30d"`
+	CallsVolume        float64 `json:"calls_volume"`
 }
 
 // TVChartData stores trading view chart data
@@ -363,6 +364,16 @@ type VolatilityIndexData struct {
 	Close       float64   `json:"close"`
 }
 
+// TickerStats holds a ticker's 24 hour aggregates
+type TickerStats struct {
+	VolumeNotional float64 `json:"volume_notional"`
+	VolumeUSD      float64 `json:"volume_usd"`
+	Volume         float64 `json:"volume"`
+	PriceChange    float64 `json:"price_change"`
+	Low            float64 `json:"low"`
+	High           float64 `json:"high"`
+}
+
 // TickerData stores data for ticker
 type TickerData struct {
 	AskIV          float64 `json:"ask_iv"`
@@ -373,7 +384,7 @@ type TickerData struct {
 	BidIV          float64 `json:"bid_iv"`
 	CurrentFunding float64 `json:"current_funding"`
 	DeliveryPrice  float64 `json:"delivery_price"`
-	Funding8H      float64 `json:"funding_8h"`
+	Funding8Hour   float64 `json:"funding_8h"`
 	GreeksData     struct {
 		Delta float64 `json:"delta"`
 		Gamma float64 `json:"gamma"`
@@ -381,29 +392,22 @@ type TickerData struct {
 		Theta float64 `json:"theta"`
 		Vega  float64 `json:"vega"`
 	} `json:"greeks"`
-	IndexPrice      float64 `json:"index_price"`
-	InstrumentName  string  `json:"instrument_name"`
-	LastPrice       float64 `json:"last_price"`
-	MarkIV          float64 `json:"mark_iv"`
-	MarkPrice       float64 `json:"mark_price"`
-	MaxPrice        float64 `json:"max_price"`
-	MinPrice        float64 `json:"min_price"`
-	OpenInterest    float64 `json:"open_interest"`
-	SettlementPrice float64 `json:"settlement_price"`
-	State           string  `json:"state"`
-	Stats           struct {
-		VolumeNotional float64 `json:"volume_notional"`
-		VolumeUSD      float64 `json:"volume_usd"`
-		Volume         float64 `json:"volume"`
-		PriceChange    float64 `json:"price_change"`
-		Low            float64 `json:"low"`
-		High           float64 `json:"high"`
-	} `json:"stats"`
-	Timestamp              types.Time `json:"timestamp"`
-	UnderlyingIndex        string     `json:"underlying_index"`
-	UnderlyingPrice        float64    `json:"underlying_price"`
-	EstimatedDeliveryPrice float64    `json:"estimated_delivery_price"`
-	InterestValue          float64    `json:"interest_value"`
+	IndexPrice             float64     `json:"index_price"`
+	InstrumentName         string      `json:"instrument_name"`
+	LastPrice              float64     `json:"last_price"`
+	MarkIV                 float64     `json:"mark_iv"`
+	MarkPrice              float64     `json:"mark_price"`
+	MaxPrice               float64     `json:"max_price"`
+	MinPrice               float64     `json:"min_price"`
+	OpenInterest           float64     `json:"open_interest"`
+	SettlementPrice        float64     `json:"settlement_price"`
+	State                  string      `json:"state"`
+	Stats                  TickerStats `json:"stats"`
+	Timestamp              types.Time  `json:"timestamp"`
+	UnderlyingIndex        string      `json:"underlying_index"`
+	UnderlyingPrice        float64     `json:"underlying_price"`
+	EstimatedDeliveryPrice float64     `json:"estimated_delivery_price"`
+	InterestValue          float64     `json:"interest_value"`
 }
 
 // CancelWithdrawalData stores cancel request data for a withdrawal
@@ -1484,11 +1488,11 @@ type wsRankingPrices []wsRankingPrice
 
 // wsPriceStatistics represents basic statistics about Deribit Index
 type wsPriceStatistics struct {
-	Low24H         float64 `json:"low24h"`
+	Low24Hour      float64 `json:"low24h"`
 	IndexName      string  `json:"index_name"`
 	HighVolatility bool    `json:"high_volatility"`
-	High24H        float64 `json:"high24h"`
-	Change24H      float64 `json:"change24h"`
+	High24Hour     float64 `json:"high24h"`
+	Change24Hour   float64 `json:"change24h"`
 }
 
 // wsVolatilityIndex represents volatility index push data
@@ -1508,76 +1512,86 @@ type wsEstimatedExpirationPrice struct {
 
 // wsTicker represents changes in ticker (key information about the instrument).
 type wsTicker struct {
-	Timestamp types.Time `json:"timestamp"`
-	Stats     struct {
-		VolumeUsd   float64 `json:"volume_usd"`
-		Volume      float64 `json:"volume"`
-		PriceChange float64 `json:"price_change"`
-		Low         float64 `json:"low"`
-		High        float64 `json:"high"`
-	} `json:"stats"`
-	State                  string  `json:"state"`
-	SettlementPrice        float64 `json:"settlement_price"`
-	OpenInterest           float64 `json:"open_interest"`
-	MinPrice               float64 `json:"min_price"`
-	MaxPrice               float64 `json:"max_price"`
-	MarkPrice              float64 `json:"mark_price"`
-	LastPrice              float64 `json:"last_price"`
-	InstrumentName         string  `json:"instrument_name"`
-	IndexPrice             float64 `json:"index_price"`
-	ImpliedBid             float64 `json:"implied_bid"`
-	ImpliedAsk             float64 `json:"implied_ask"`
-	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
-	ComboState             string  `json:"combo_state"`
-	BestBidPrice           float64 `json:"best_bid_price"`
-	BestBidAmount          float64 `json:"best_bid_amount"`
-	BestAskPrice           float64 `json:"best_ask_price"`
-	BestAskAmount          float64 `json:"best_ask_amount"`
+	Timestamp              types.Time  `json:"timestamp"`
+	Stats                  TickerStats `json:"stats"`
+	State                  string      `json:"state"`
+	SettlementPrice        float64     `json:"settlement_price"`
+	OpenInterest           float64     `json:"open_interest"`
+	MinPrice               float64     `json:"min_price"`
+	MaxPrice               float64     `json:"max_price"`
+	MarkPrice              float64     `json:"mark_price"`
+	LastPrice              float64     `json:"last_price"`
+	InstrumentName         string      `json:"instrument_name"`
+	IndexPrice             float64     `json:"index_price"`
+	ImpliedBid             float64     `json:"implied_bid"`
+	ImpliedAsk             float64     `json:"implied_ask"`
+	EstimatedDeliveryPrice float64     `json:"estimated_delivery_price"`
+	ComboState             string      `json:"combo_state"`
+	BestBidPrice           float64     `json:"best_bid_price"`
+	BestBidAmount          float64     `json:"best_bid_amount"`
+	BestAskPrice           float64     `json:"best_ask_price"`
+	BestAskAmount          float64     `json:"best_ask_amount"`
 }
 
-// WsIncrementalTicker represents a ticker information for incremental ticker subscriptions.
+// WsIncrementalTicker holds an incremental_ticker message. The first message for an instrument is a
+// snapshot carrying the whole ticker, and each change after it carries only the fields that moved.
+// A change clears the day's range by sending it as null, which would leave a plain float64 as it
+// was, so every field a change can leave out is a pointer, nil where a message leaves it out or
+// sends null
 type WsIncrementalTicker struct {
-	Type      string     `json:"type"`
-	Timestamp types.Time `json:"timestamp"`
-	Stats     struct {
-		VolumeUsd   float64 `json:"volume_usd"`
-		Volume      float64 `json:"volume"`
-		PriceChange float64 `json:"price_change"`
-	} `json:"stats"`
-	MinPrice               float64 `json:"min_price"`
-	MaxPrice               float64 `json:"max_price"`
-	MarkPrice              float64 `json:"mark_price"`
-	InstrumentName         string  `json:"instrument_name"`
-	IndexPrice             float64 `json:"index_price"`
-	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
-	BestBidAmount          float64 `json:"best_bid_amount"`
-	BestAskAmount          float64 `json:"best_ask_amount"`
+	Type                   string                    `json:"type"`
+	Timestamp              types.Time                `json:"timestamp"`
+	InstrumentName         string                    `json:"instrument_name"`
+	Stats                  WsIncrementalTickerStats  `json:"stats"`
+	Greeks                 WsIncrementalTickerGreeks `json:"greeks"`
+	State                  *string                   `json:"state"`
+	ComboState             *string                   `json:"combo_state"`
+	UnderlyingIndex        *string                   `json:"underlying_index"`
+	BestBidPrice           *float64                  `json:"best_bid_price"`
+	BestBidAmount          *float64                  `json:"best_bid_amount"`
+	BestAskPrice           *float64                  `json:"best_ask_price"`
+	BestAskAmount          *float64                  `json:"best_ask_amount"`
+	LastPrice              *float64                  `json:"last_price"`
+	MarkPrice              *float64                  `json:"mark_price"`
+	IndexPrice             *float64                  `json:"index_price"`
+	MinPrice               *float64                  `json:"min_price"`
+	MaxPrice               *float64                  `json:"max_price"`
+	EstimatedDeliveryPrice *float64                  `json:"estimated_delivery_price"`
+	DeliveryPrice          *float64                  `json:"delivery_price"`
+	SettlementPrice        *float64                  `json:"settlement_price"`
+	UnderlyingPrice        *float64                  `json:"underlying_price"`
+	OpenInterest           *float64                  `json:"open_interest"`
+	// ImpliedBid and ImpliedAsk are served only for combos, priced off the legs
+	ImpliedBid     *float64 `json:"implied_bid"`
+	ImpliedAsk     *float64 `json:"implied_ask"`
+	BidIV          *float64 `json:"bid_iv"`
+	AskIV          *float64 `json:"ask_iv"`
+	MarkIV         *float64 `json:"mark_iv"`
+	InterestRate   *float64 `json:"interest_rate"`
+	InterestValue  *float64 `json:"interest_value"`
+	CurrentFunding *float64 `json:"current_funding"`
+	Funding8Hour   *float64 `json:"funding_8h"`
+}
 
-	// For future_combo instruments
-	ImpliedAsk float64 `json:"implied_ask"`
-	ImpliedBid float64 `json:"implied_bid"`
+// WsIncrementalTickerStats holds the 24 hour aggregates an incremental_ticker message carries, each
+// nil where the message leaves it out or sends null
+type WsIncrementalTickerStats struct {
+	High           *float64 `json:"high"`
+	Low            *float64 `json:"low"`
+	PriceChange    *float64 `json:"price_change"`
+	Volume         *float64 `json:"volume"`
+	VolumeUSD      *float64 `json:"volume_usd"`
+	VolumeNotional *float64 `json:"volume_notional"`
+}
 
-	UnderlyingPrice float64 `json:"underlying_price"`
-	UnderlyingIndex string  `json:"underlying_index"`
-	State           string  `json:"state"`
-	SettlementPrice float64 `json:"settlement_price"`
-	OpenInterest    float64 `json:"open_interest"`
-
-	MarkIv       float64 `json:"mark_iv"`
-	LastPrice    float64 `json:"last_price"`
-	InterestRate float64 `json:"interest_rate"`
-	Greeks       struct {
-		Vega  float64 `json:"vega"`
-		Theta float64 `json:"theta"`
-		Rho   float64 `json:"rho"`
-		Gamma float64 `json:"gamma"`
-		Delta float64 `json:"delta"`
-	} `json:"greeks"`
-	ComboState   string  `json:"combo_state"`
-	BidIv        float64 `json:"bid_iv"`
-	BestBidPrice float64 `json:"best_bid_price"`
-	BestAskPrice float64 `json:"best_ask_price"`
-	AskIv        float64 `json:"ask_iv"`
+// WsIncrementalTickerGreeks holds the option greeks an incremental_ticker message carries, each nil
+// where the message leaves it out or sends null
+type WsIncrementalTickerGreeks struct {
+	Delta *float64 `json:"delta"`
+	Gamma *float64 `json:"gamma"`
+	Rho   *float64 `json:"rho"`
+	Theta *float64 `json:"theta"`
+	Vega  *float64 `json:"vega"`
 }
 
 // wsInstrumentState represents notifications about new or terminated instruments of given kind in given currency.

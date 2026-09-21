@@ -1,7 +1,7 @@
 package buffer
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"strconv"
 	"sync"
 	"testing"
@@ -89,7 +89,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		Asset:      asset.Spot,
 	}
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
+		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -116,7 +116,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		Asset:      asset.Spot,
 	}
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
+		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -143,7 +143,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	}
 
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
+		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -171,7 +171,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	}
 
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
+		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, obl.Update(update))

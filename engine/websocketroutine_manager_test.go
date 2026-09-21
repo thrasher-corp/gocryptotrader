@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -180,6 +182,19 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	assert.ErrorIs(t, err, errUseAPointer)
 
 	err = m.websocketDataHandler(exchName, kline.Item{})
+	require.NoError(t, err)
+	err = m.websocketDataHandler(exchName, []futures.Position{{
+		Exchange: exchName,
+		Asset:    asset.USDTMarginedFutures,
+		Pair:     currency.NewBTCUSDT(),
+	}})
+	require.NoError(t, err)
+	err = m.websocketDataHandler(exchName, accounts.SubAccounts{{
+		AssetType: asset.USDTMarginedFutures,
+		Balances: accounts.CurrencyBalances{
+			currency.USDT: {Total: 42},
+		},
+	}})
 	require.NoError(t, err)
 	origOrder := &order.Detail{
 		Exchange: exchName,

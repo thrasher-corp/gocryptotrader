@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -27,7 +27,7 @@ func (e *Exchange) WSCreateOrder(ctx context.Context, r *PlaceOrderRequest) (*We
 		return nil, err
 	}
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
+		r.OrderLinkID = uuid.NewV7().String()
 	}
 	return e.sendWebsocketTradeRequest(ctx, "order.create", r.OrderLinkID, r, epl)
 }
@@ -42,7 +42,7 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, r *AmendOrderRequest) (*Web
 		return nil, err
 	}
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
+		r.OrderLinkID = uuid.NewV7().String()
 	}
 	return e.sendWebsocketTradeRequest(ctx, "order.amend", r.OrderLinkID, r, epl)
 }
@@ -57,7 +57,7 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*W
 		return nil, err
 	}
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
+		r.OrderLinkID = uuid.NewV7().String()
 	}
 	return e.sendWebsocketTradeRequest(ctx, "order.cancel", r.OrderLinkID, r, epl)
 }
