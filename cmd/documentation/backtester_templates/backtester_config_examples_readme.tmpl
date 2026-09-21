@@ -1,5 +1,6 @@
 {{define "backtester config strategyexamples" -}}
 {{template "backtester-header" .}}
+
 ## {{.CapitalName}} package overview
 
 ### Current Config Examples
@@ -20,7 +21,8 @@
 | binance-live-cash-and-carry.strat | Executes a cash and carry trade on Binance using realtime 15 second candles, buying BTC-USD while shorting the long dated futures contract. Is not currently implemented |
 
 ### Want to make your own configs?
-Use the provided config builder under `/backtester/config/configbuilder` or modify tests under `/backtester/config/config_test.go` to generates strategy files quickly
+
+Use the provided config builder under `/backtester/config/strategyconfigbuilder` or modify tests under `/backtester/config/strategyconfig_test.go` to generate strategy files quickly
 
 {{template "donations" .}}
 {{end}}

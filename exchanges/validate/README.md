@@ -1,13 +1,11 @@
 # GoCryptoTrader package Validate
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/validate)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This validate package is part of the GoCryptoTrader codebase.
 
@@ -20,79 +18,79 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Current Features for validate
 
 + This package allows for validation options to occur exchange side e.g.
-	- Checking for ID in an order cancellation struct.
-	- Determining the correct withdrawal bank details for a specific exchange.
+  + Checking for ID in an order cancellation struct.
+  + Determining the correct withdrawal bank details for a specific exchange.
 
 + Example Usage below:
 
-```go 
+```go
 // import package
 "github.com/thrasher-corp/exchanges/validate"
 
 // define your data structure across potential exchanges
 type Critical struct {
-	ID string
-	Person string
-	Banks string
-	MoneysUSD float64
+    ID string
+    Person string
+    Banks string
+    MoneysUSD float64
 }
 
 // define validation and add a variadic param
 func (superCriticalInfo *Critical) Validate(opt ...validate.Checker) error {
-	// define base level validation
-	if superCriticalInfo != nil {
-			// oh no this is nil, could panic program!
-	}
+    // define base level validation
+    if superCriticalInfo != nil {
+            // oh no this is nil, could panic program!
+    }
 
-	// range over potential checks coming from individual packages
-	var errs common.Errors
-	for _, o := range opt {
-		err := o.Check()
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
+    // range over potential checks coming from individual packages
+    var errs common.Errors
+    for _, o := range opt {
+        err := o.Check()
+        if err != nil {
+            errs = append(errs, err)
+        }
+    }
 
-	if errs != nil {
-		return errs
-	}
-	return nil
+    if errs != nil {
+        return errs
+    }
+    return nil
 }
 
-// define an exchange or package level check that returns a validate.Checker 
+// define an exchange or package level check that returns a validate.Checker
 // interface
 func (superCriticalInfo *Critical) PleaseDontSendMoneyToParents() validate.Checker {
-	return validate.Check(func() error {
-		if superCriticalInfo.Person == "Mother Dearest" ||
-			superCriticalInfo.Person == "Father Dearest" {
-			return errors.New("nope")
-		}
-	return nil
-	})
+    return validate.Check(func() error {
+        if superCriticalInfo.Person == "Mother Dearest" ||
+            superCriticalInfo.Person == "Father Dearest" {
+            return errors.New("nope")
+        }
+    return nil
+    })
 }
 
 
 // Now in the package all you have to do is add in your options or not...
 d := Critical{Person: "Mother Dearest", MoneysUSD: 1337.30}
 
-// This should not error 
+// This should not error
 err := d.Validate()
 if err != nil {
-	return err
+    return err
 }
 
-// This should error 
+// This should error
 err := d.Validate(d.PleaseDontSendMoneyToParents())
 if err != nil {
-	return err
+    return err
 }
 
 ```
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

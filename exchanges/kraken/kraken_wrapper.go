@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets current default settings
@@ -345,10 +346,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return pairs, err
 		}
-		pairs = make(currency.Pairs, 0, len(pairInfo))
-		for pair := range pairInfo {
-			pairs = append(pairs, pair)
-		}
+		pairs = slices.AppendSeq(make(currency.Pairs, 0, len(pairInfo)), maps.Keys(pairInfo))
 	case asset.Futures:
 		symbols, err := e.GetInstruments(ctx)
 		if err != nil {
@@ -416,7 +414,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				BidSize:      t.BidSize,
 				Ask:          t.Ask,
 				AskSize:      t.AskSize,
-				Volume:       t.Volume,
+				BaseVolume:   t.Volume,
 				Open:         t.Open,
 				Pair:         cp,
 				ExchangeName: e.Name,
@@ -432,22 +430,23 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for x := range t.Tickers {
-			err = ticker.ProcessTicker(&ticker.Price{
+			baseVolume, quoteVolume := futuresTickerVolumes(&t.Tickers[x])
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         t.Tickers[x].Last,
 				Bid:          t.Tickers[x].Bid,
 				BidSize:      t.Tickers[x].BidSize,
 				Ask:          t.Tickers[x].Ask,
 				AskSize:      t.Tickers[x].AskSize,
-				Volume:       t.Tickers[x].Vol24h,
-				Open:         t.Tickers[x].Open24H,
+				BaseVolume:   baseVolume,
+				QuoteVolume:  quoteVolume,
+				Open:         t.Tickers[x].Open24Hour,
 				OpenInterest: t.Tickers[x].OpenInterest,
 				MarkPrice:    t.Tickers[x].MarkPrice,
 				IndexPrice:   t.Tickers[x].IndexPrice,
 				Pair:         t.Tickers[x].Symbol,
 				ExchangeName: e.Name,
 				AssetType:    a,
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
@@ -455,6 +454,29 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return nil
+}
+
+// futuresTickerVolumes maps a futures ticker's two volume figures onto base and quote. volumeQuote
+// is the quote currency on every contract, while vol24h is the base currency only on a flexible
+// one: an inverse contract is worth one unit of its quote currency, so Kraken reports vol24h
+// identically to volumeQuote and publishes no base figure at all
+func futuresTickerVolumes(t *FuturesTicker) (baseVolume, quoteVolume float64) {
+	if inverseFuturesContract(t.Symbol) {
+		return 0, t.VolumeQuote
+	}
+	return t.Volume24Hour, t.VolumeQuote
+}
+
+// inverseFuturesContract reports whether a futures symbol names an inverse contract. Kraken encodes
+// the contract type in the symbol's first segment, PI and FI being inverse against PF and FF, and
+// the ticker payload carries no type of its own; every symbol /instruments reports as
+// futures_inverse takes one of those two prefixes
+func inverseFuturesContract(symbol currency.Pair) bool {
+	switch symbol.Base.Upper().String() {
+	case "PI", "FI":
+		return true
+	}
+	return false
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -664,7 +686,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -1645,13 +1667,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Asset:    r.Asset,
 			Pair:     t.Tickers[i].Symbol,
 			LatestRate: fundingrate.Rate{
-				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
+				Rate: decimal.MustFromFloat(t.Tickers[i].FundingRate),
 			},
 			TimeChecked: time.Now(),
 		}
 		if r.IncludePredictedRate {
 			rate.PredictedUpcomingRate = fundingrate.Rate{
-				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRatePrediction),
+				Rate: decimal.MustFromFloat(t.Tickers[i].FundingRatePrediction),
 			}
 		}
 		resp = append(resp, rate)

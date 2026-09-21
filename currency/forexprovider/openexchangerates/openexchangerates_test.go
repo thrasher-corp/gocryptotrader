@@ -5,7 +5,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // please set apikey for due diligence testing NOTE testing uses your allocated
@@ -91,4 +94,101 @@ func TestGetUsageStats(t *testing.T) {
 	if _, err := o.GetUsageStats(false); err == nil {
 		t.Error("GetUsageStats() Expected error")
 	}
+}
+
+func TestUsageUnmarshal(t *testing.T) {
+	t.Parallel()
+	const inp = `
+{
+  "status": 200,
+  "data": {
+    "app_id": "abc123",
+    "status": "active",
+    "plan": {
+      "name": "Enterprise",
+      "quota": "100,000 requests/month",
+      "update_frequency": "30m",
+      "features": {
+        "base": true,
+        "symbols": true,
+        "experimental": true,
+        "time-series": true,
+        "convert": false
+      }
+    },
+    "usage": {
+      "requests": 54524,
+      "requests_quota": 100000,
+      "requests_remaining": 45476,
+      "days_elapsed": 16,
+      "days_remaining": 14,
+      "daily_average": 3407
+    }
+  },
+  "error": false,
+  "message": "",
+  "description": ""
+}
+`
+
+	var x Usage
+	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
+	exp := Usage{
+		Status: 200,
+		Data: UsageData{
+			AppID:  "abc123",
+			Status: "active",
+			Plan: UsagePlan{
+				Name:            "Enterprise",
+				Quota:           "100,000 requests/month",
+				UpdateFrequency: "30m",
+				Features: UsagePlanFeature{
+					Base:         true,
+					Symbols:      true,
+					Experimental: true,
+					Timeseries:   true,
+				},
+			},
+			Usages: UsageStatistics{
+				Requests:          54524,
+				RequestQuota:      100000,
+				RequestsRemaining: 45476,
+				DaysElapsed:       16,
+				DaysRemaining:     14,
+				DailyAverage:      3407,
+			},
+		},
+	}
+	assert.Equal(t, exp, x, "Usage should unmarshal correctly")
+
+	const optional = `
+{
+  "data": {
+    "plan": {
+      "features": {
+        "convert": true
+      }
+    }
+  },
+  "error": true,
+  "message": "not_allowed",
+  "description": "Access denied"
+}
+`
+
+	x = Usage{}
+	require.NoError(t, json.Unmarshal([]byte(optional), &x), "Unmarshal must decode non-zero optional fields")
+	exp = Usage{
+		Data: UsageData{
+			Plan: UsagePlan{
+				Features: UsagePlanFeature{
+					Convert: true,
+				},
+			},
+		},
+		Error:       true,
+		Message:     "not_allowed",
+		Description: "Access denied",
+	}
+	assert.Equal(t, exp, x, "Usage should decode every optional field")
 }

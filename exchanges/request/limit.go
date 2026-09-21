@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -17,7 +18,8 @@ var (
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
 	ErrDelayNotAllowed            = errors.New("delay not allowed")
 
-	errInvalidWeight = errors.New("weight must be equal-or-greater than 1")
+	errInvalidWeight       = errors.New("weight must be equal-or-greater than 1")
+	rateLimitReservationMu sync.Mutex
 )
 
 // RateLimitNotRequired is a no-op rate limiter.
@@ -99,6 +101,31 @@ func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateL
 	return RateLimitDefinitions{Unset: rl, Auth: rl, UnAuth: rl}
 }
 
+// InitiateRateLimit sleeps for designated end point rate limits.
+func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if r.disableRateLimiter.Load() {
+		return WaitForRateLimitBarrier(ctx)
+	}
+	if err := common.NilGuard(r.limiter); err != nil {
+		return err
+	}
+	if err := r.limiter[e].RateLimit(ctx); err != nil {
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+	}
+	return nil
+}
+
+// GetRateLimiterDefinitions returns the rate limiter definitions for the requester.
+func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
+	if r == nil {
+		return nil
+	}
+	return r.limiter
+}
+
 // RateLimit throttles a request based on weight, delaying the request.
 // Errors if no delay is permitted via the context and a delay is required.
 func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
@@ -107,34 +134,51 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 	additionalRateLimits := additionalRateLimitsFromContext(ctx)
 	if len(additionalRateLimits) > 0 {
+		if participant := rateLimitBarrierParticipantFromContext(ctx); participant != nil {
+			AbortRateLimitBarrier(ctx)
+			return ErrRateLimitBarrierRejected
+		}
 		return r.applyMultipleRateLimits(ctx, endpointRateLimitWeightFromContext(ctx), additionalRateLimits)
 	}
 
+	if r.weight == 0 {
+		AbortRateLimitBarrier(ctx)
+		return errInvalidWeight
+	}
+
+	if participant := rateLimitBarrierParticipantFromContext(ctx); participant != nil {
+		admitted, err := participant.wait(ctx, r)
+		if err != nil || admitted {
+			return err
+		}
+	}
+
+	rateLimitReservationMu.Lock()
 	r.m.Lock()
 	tn := time.Now()
-	reservations, finalDelay, err := r.reserve(tn, 0)
-	if err != nil {
-		r.m.Unlock()
-		return err
-	}
+	reservations, finalDelay := r.reserveLocked(tn)
 
 	if finalDelay == 0 {
 		r.m.Unlock()
+		rateLimitReservationMu.Unlock()
 		return nil
 	}
 
 	if hasDelayNotAllowed(ctx) {
 		cancelAll(reservations, tn)
 		r.m.Unlock()
+		rateLimitReservationMu.Unlock()
 		return ErrDelayNotAllowed
 	}
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
 		cancelAll(reservations, tn)
 		r.m.Unlock()
+		rateLimitReservationMu.Unlock()
 		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
 	}
 	r.m.Unlock()
+	rateLimitReservationMu.Unlock()
 
 	select {
 	case <-ctx.Done():
@@ -165,9 +209,79 @@ func (r *RateLimiterWithWeight) reserve(tn time.Time, weightOverride Weight) ([]
 	return reservations, reservations[len(reservations)-1].DelayFrom(tn), nil
 }
 
-// cancelAll reimburses reservations in reverse order while its caller holds the limiter mutex.
-func cancelAll(reservations []*rate.Reservation, at time.Time) {
-	for i := len(reservations) - 1; i >= 0; i-- {
-		reservations[i].CancelAt(at)
+func (r *RateLimiterWithWeight) reserveLocked(at time.Time) ([]*rate.Reservation, time.Duration) {
+	reserved, delay, _ := r.reserve(at, 0)
+	return reserved, delay
+}
+
+// admitLocked reserves every participant's capacity as one transaction. The barrier lock must be held by the caller.
+func (b *rateLimitBarrier) admitLocked() error {
+	rateLimitReservationMu.Lock()
+	defer rateLimitReservationMu.Unlock()
+
+	at := time.Now()
+	reservations := make([]*rate.Reservation, 0, len(b.participants))
+	for _, participant := range b.participants {
+		if contextDone(participant.done) {
+			cancelAll(reservations, at)
+			return ErrRateLimitBarrierRejected
+		}
+		if participant.limiter == nil {
+			continue
+		}
+		participant.limiter.m.Lock()
+		reserved, delay := participant.limiter.reserveLocked(at)
+		participant.limiter.m.Unlock()
+		reservations = append(reservations, reserved...)
+		if delay != 0 {
+			cancelAll(reservations, at)
+			return ErrDelayNotAllowed
+		}
 	}
+	for _, participant := range b.participants {
+		if contextDone(participant.done) {
+			cancelAll(reservations, at)
+			return ErrRateLimitBarrierRejected
+		}
+	}
+	return nil
+}
+
+func contextDone(done <-chan struct{}) bool {
+	select {
+	case <-done:
+		return true
+	default:
+		return false
+	}
+}
+
+// cancelAll cancels all reservations at a specific time.
+// Does not provide locking protection, so callers can maintain a single lock throughout.
+func cancelAll(reservations []*rate.Reservation, at time.Time) {
+	for _, reservation := range slices.Backward(reservations) {
+		reservation.CancelAt(at)
+	}
+}
+
+// DisableRateLimiter disables the rate limiting system for the exchange.
+func (r *Requester) DisableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if !r.disableRateLimiter.CompareAndSwap(false, true) {
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
+	}
+	return nil
+}
+
+// EnableRateLimiter enables the rate limiting system for the exchange.
+func (r *Requester) EnableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if !r.disableRateLimiter.CompareAndSwap(true, false) {
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
+	}
+	return nil
 }

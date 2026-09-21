@@ -30,14 +30,15 @@ const (
 
 // vars related to events package
 var (
-	EventSleepDelay        = defaultSleepDelay
-	errInvalidItem         = errors.New("invalid item")
-	errInvalidCondition    = errors.New("invalid conditional option")
-	errInvalidAction       = errors.New("invalid action")
-	errExchangeDisabled    = errors.New("desired exchange is disabled")
-	errNilEvent            = errors.New("nil event received")
-	errNilComManager       = errors.New("nil communications manager received")
-	errTickerLastPriceZero = errors.New("ticker last price is 0")
+	EventSleepDelay         = defaultSleepDelay
+	errInvalidItem          = errors.New("invalid item")
+	errInvalidCondition     = errors.New("invalid conditional option")
+	errInvalidAction        = errors.New("invalid action")
+	errExchangeDisabled     = errors.New("desired exchange is disabled")
+	errNilEvent             = errors.New("nil event received")
+	errNilComManager        = errors.New("nil communications manager received")
+	errTickerLastPriceZero  = errors.New("ticker last price is 0")
+	errEventConditionNotMet = errors.New("event condition not met")
 )
 
 // EventConditionParams holds the event condition variables
@@ -71,5 +72,6 @@ type eventManager struct {
 	sleepDelay      time.Duration
 	exchangeManager iExchangeManager
 	shutdown        chan struct{}
+	wg              sync.WaitGroup
 	m               sync.Mutex
 }

@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -33,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 type assetPairFmt struct {
@@ -507,6 +506,16 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	return e.EnsureOnePairEnabled()
 }
 
+// tickerVolumes maps a ticker's two volume figures onto base and quote. Bybit reports volume24h in
+// the base currency and turnover24h in the quote, except on the inverse category, where a contract
+// is worth one unit of the quote currency and the two swap over
+func tickerVolumes(t *TickerCommon, a asset.Item) (baseVolume, quoteVolume float64) {
+	if a == asset.CoinMarginedFutures {
+		return t.Turnover24Hour.Float64(), t.Volume24Hour.Float64()
+	}
+	return t.Volume24Hour.Float64(), t.Turnover24Hour.Float64()
+}
+
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	enabled, err := e.GetEnabledPairs(assetType)
@@ -535,15 +544,17 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if !enabled.Contains(pair, true) {
 				continue
 			}
+			baseVolume, quoteVolume := tickerVolumes(&ticks.List[x].TickerCommon, assetType)
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.List[x].LastPrice.Float64(),
-				High:         ticks.List[x].HighPrice24H.Float64(),
-				Low:          ticks.List[x].LowPrice24H.Float64(),
+				High:         ticks.List[x].HighPrice24Hour.Float64(),
+				Low:          ticks.List[x].LowPrice24Hour.Float64(),
 				Bid:          ticks.List[x].Bid1Price.Float64(),
 				BidSize:      ticks.List[x].Bid1Size.Float64(),
 				Ask:          ticks.List[x].Ask1Price.Float64(),
 				AskSize:      ticks.List[x].Ask1Size.Float64(),
-				Volume:       ticks.List[x].Volume24H.Float64(),
+				BaseVolume:   baseVolume,
+				QuoteVolume:  quoteVolume,
 				Pair:         pair.Format(format),
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -567,15 +578,17 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				if !enabled.Contains(pair, true) {
 					continue
 				}
+				baseVolume, quoteVolume := tickerVolumes(&ticks.List[x].TickerCommon, assetType)
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         ticks.List[x].LastPrice.Float64(),
-					High:         ticks.List[x].HighPrice24H.Float64(),
-					Low:          ticks.List[x].LowPrice24H.Float64(),
+					High:         ticks.List[x].HighPrice24Hour.Float64(),
+					Low:          ticks.List[x].LowPrice24Hour.Float64(),
 					Bid:          ticks.List[x].Bid1Price.Float64(),
 					BidSize:      ticks.List[x].Bid1Size.Float64(),
 					Ask:          ticks.List[x].Ask1Price.Float64(),
 					AskSize:      ticks.List[x].Ask1Size.Float64(),
-					Volume:       ticks.List[x].Volume24H.Float64(),
+					BaseVolume:   baseVolume,
+					QuoteVolume:  quoteVolume,
 					Pair:         pair.Format(format),
 					ExchangeName: e.Name,
 					AssetType:    assetType,
@@ -793,7 +806,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		}
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -1401,6 +1414,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if feeBuilder.Pair.IsEmpty() {
 		return 0, currency.ErrCurrencyPairEmpty
 	}
@@ -2071,7 +2087,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: lrt,
-					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
+					Rate: decimal.MustFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
 			})

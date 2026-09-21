@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -13,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var (
@@ -133,7 +133,7 @@ type AggregatedTradeRequestParams struct {
 	StartTime time.Time
 	EndTime   time.Time
 	// Default 500; max 1000.
-	Limit int
+	Limit uint64
 }
 
 // AggregatedTrade holds aggregated trade information
@@ -173,7 +173,7 @@ type OrderBookData struct {
 type OrderBook struct {
 	Symbol       string
 	LastUpdateID int64
-	Code         int
+	Code         int64 // Signed because Binance error codes are negative
 	Msg          string
 	Bids         []orderbook.Level
 	Asks         []orderbook.Level
@@ -894,6 +894,7 @@ type WsOrderUpdateData struct {
 	IsMaker                           bool       `json:"m"`
 	Ignored2                          bool       `json:"M"` // See the comment for "I".
 	OrderCreationTime                 types.Time `json:"O"`
+	WorkingTime                       types.Time `json:"W"`
 	CumulativeQuoteTransactedQuantity float64    `json:"Z,string"`
 	LastQuoteAssetTransactedQuantity  float64    `json:"Y,string"`
 	QuoteOrderQuantity                float64    `json:"Q,string"`
@@ -996,27 +997,28 @@ type TickerStream struct {
 
 // OrderBookTickerStream  contains websocket orderbook data
 type OrderBookTickerStream struct {
-	LastUpdateID int64  `json:"u"`
-	S            string `json:"s"`
-	Symbol       currency.Pair
-	BestBidPrice float64 `json:"b,string"`
-	BestBidQty   float64 `json:"B,string"`
-	BestAskPrice float64 `json:"a,string"`
-	BestAskQty   float64 `json:"A,string"`
+	LastUpdateID int64         `json:"u"`
+	S            string        `json:"s"`
+	Symbol       currency.Pair `json:"-"`
+	BestBidPrice float64       `json:"b,string"`
+	BestBidQty   float64       `json:"B,string"`
+	BestAskPrice float64       `json:"a,string"`
+	BestAskQty   float64       `json:"A,string"`
 }
 
 // WebsocketAggregateTradeStream aggregate trade streams push data
 type WebsocketAggregateTradeStream struct {
-	EventType        string     `json:"e"`
-	EventTime        types.Time `json:"E"`
-	Symbol           string     `json:"s"`
-	AggregateTradeID int64      `json:"a"`
-	Price            float64    `json:"p,string"`
-	Quantity         float64    `json:"q,string"`
-	FirstTradeID     int64      `json:"f"`
-	LastTradeID      int64      `json:"l"`
-	TradeTime        types.Time `json:"T"`
-	IsMaker          bool       `json:"m"`
+	EventType        string       `json:"e"`
+	EventTime        types.Time   `json:"E"`
+	Symbol           string       `json:"s"`
+	AggregateTradeID uint64       `json:"a"`
+	Price            types.Number `json:"p"`
+	Quantity         types.Number `json:"q"`
+	FirstTradeID     uint64       `json:"f"`
+	LastTradeID      uint64       `json:"l"`
+	TradeTime        types.Time   `json:"T"`
+	IsMaker          bool         `json:"m"`
+	BestMatchPrice   bool         `json:"M"` // Tagged explicitly, otherwise case-insensitive matching decodes "M" into IsMaker
 }
 
 // OCBSOrderRequestParams holds parameters to retrieve OCBS orders.

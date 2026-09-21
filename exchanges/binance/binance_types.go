@@ -4,12 +4,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // withdrawals status codes description
@@ -40,23 +40,23 @@ const (
 
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
-	Code       int        `json:"code"`
+	Code       int64      `json:"code"` // Signed because Binance error codes are negative
 	Msg        string     `json:"msg"`
 	Timezone   string     `json:"timezone"`
 	ServerTime types.Time `json:"serverTime"`
 	RateLimits []*struct {
 		RateLimitType string `json:"rateLimitType"`
 		Interval      string `json:"interval"`
-		Limit         int    `json:"limit"`
+		Limit         uint64 `json:"limit"`
 	} `json:"rateLimits"`
 	ExchangeFilters any `json:"exchangeFilters"`
 	Symbols         []*struct {
 		Symbol                     string        `json:"symbol"`
 		Status                     string        `json:"status"`
 		BaseAsset                  string        `json:"baseAsset"`
-		BaseAssetPrecision         int           `json:"baseAssetPrecision"`
+		BaseAssetPrecision         uint64        `json:"baseAssetPrecision"`
 		QuoteAsset                 string        `json:"quoteAsset"`
-		QuotePrecision             int           `json:"quotePrecision"`
+		QuotePrecision             uint64        `json:"quotePrecision"`
 		OrderTypes                 []string      `json:"orderTypes"`
 		IcebergAllowed             bool          `json:"icebergAllowed"`
 		OCOAllowed                 bool          `json:"ocoAllowed"`
@@ -148,7 +148,7 @@ type WebsocketDepthStream struct {
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
-	Limit  int           `json:"limit"`  // Default 500; max 500.
+	Limit  uint64        `json:"limit"`  // Default 500; max 500.
 }
 
 // RecentTrade holds recent trade data
@@ -251,7 +251,7 @@ type AggregatedTradeRequestParams struct {
 	StartTime time.Time
 	EndTime   time.Time
 	// Default 500; max 1000.
-	Limit int
+	Limit uint64
 }
 
 // AggregatedTrade holds aggregated trade information
@@ -316,29 +316,34 @@ type AveragePrice struct {
 	Price float64 `json:"price,string"`
 }
 
-// PriceChangeStats contains statistics for the last 24 hours trade
+// PriceChangeStats contains statistics for the last 24 hours trade, for spot and coin margined
+// futures. Coin margined futures alone sends BaseVolume and Pair, and counts Volume in contracts
+// rather than base asset; spot alone sends QuoteVolume, PreviousClosePrice, BidPrice, BidQuantity,
+// AskPrice and AskQuantity
 type PriceChangeStats struct {
-	Symbol             string       `json:"symbol"`
-	PriceChange        types.Number `json:"priceChange"`
-	PriceChangePercent types.Number `json:"priceChangePercent"`
-	WeightedAvgPrice   types.Number `json:"weightedAvgPrice"`
-	PrevClosePrice     types.Number `json:"prevClosePrice"`
-	LastPrice          types.Number `json:"lastPrice"`
-	LastQty            types.Number `json:"lastQty"`
-	BidPrice           types.Number `json:"bidPrice"`
-	AskPrice           types.Number `json:"askPrice"`
-	BidQuantity        types.Number `json:"bidQty"`
-	AskQuantity        types.Number `json:"askQty"`
-	OpenPrice          types.Number `json:"openPrice"`
-	HighPrice          types.Number `json:"highPrice"`
-	LowPrice           types.Number `json:"lowPrice"`
-	Volume             types.Number `json:"volume"`
-	QuoteVolume        types.Number `json:"quoteVolume"`
-	OpenTime           types.Time   `json:"openTime"`
-	CloseTime          types.Time   `json:"closeTime"`
-	FirstID            int64        `json:"firstId"`
-	LastID             int64        `json:"lastId"`
-	Count              int64        `json:"count"`
+	Symbol               string       `json:"symbol"`
+	Pair                 string       `json:"pair"`
+	PriceChange          types.Number `json:"priceChange"`
+	PriceChangePercent   types.Number `json:"priceChangePercent"`
+	WeightedAveragePrice types.Number `json:"weightedAvgPrice"`
+	PreviousClosePrice   types.Number `json:"prevClosePrice"`
+	LastPrice            types.Number `json:"lastPrice"`
+	LastQuantity         types.Number `json:"lastQty"`
+	BidPrice             types.Number `json:"bidPrice"`
+	AskPrice             types.Number `json:"askPrice"`
+	BidQuantity          types.Number `json:"bidQty"`
+	AskQuantity          types.Number `json:"askQty"`
+	OpenPrice            types.Number `json:"openPrice"`
+	HighPrice            types.Number `json:"highPrice"`
+	LowPrice             types.Number `json:"lowPrice"`
+	Volume               types.Number `json:"volume"`
+	BaseVolume           types.Number `json:"baseVolume"`
+	QuoteVolume          types.Number `json:"quoteVolume"`
+	OpenTime             types.Time   `json:"openTime"`
+	CloseTime            types.Time   `json:"closeTime"`
+	FirstID              int64        `json:"firstId"`
+	LastID               int64        `json:"lastId"`
+	Count                int64        `json:"count"`
 }
 
 // SymbolPrice holds basic symbol price
@@ -380,7 +385,7 @@ type NewOrderRequest struct {
 
 // NewOrderResponse is the return structured response from the exchange
 type NewOrderResponse struct {
-	Code            int        `json:"code"`
+	Code            int64      `json:"code"` // Signed because Binance error codes are negative
 	Msg             string     `json:"msg"`
 	Symbol          string     `json:"symbol"`
 	OrderID         int64      `json:"orderId"`
@@ -413,7 +418,7 @@ type CancelOrderResponse struct {
 
 // QueryOrderData holds query order data
 type QueryOrderData struct {
-	Code               int        `json:"code"`
+	Code               int64      `json:"code"` // Signed because Binance error codes are negative
 	Msg                string     `json:"msg"`
 	Symbol             string     `json:"symbol"`
 	OrderID            int64      `json:"orderId"`
@@ -442,12 +447,13 @@ type Balance struct {
 	Locked decimal.Decimal `json:"locked"`
 }
 
-// Account holds the account data
+// Account holds the account data. The commissions are in basis points and signed, since a
+// liquidity provider's maker rebate is reported as a negative commission
 type Account struct {
-	MakerCommission  int        `json:"makerCommission"`
-	TakerCommission  int        `json:"takerCommission"`
-	BuyerCommission  int        `json:"buyerCommission"`
-	SellerCommission int        `json:"sellerCommission"`
+	MakerCommission  int64      `json:"makerCommission"`
+	TakerCommission  int64      `json:"takerCommission"`
+	BuyerCommission  int64      `json:"buyerCommission"`
+	SellerCommission int64      `json:"sellerCommission"`
 	CanTrade         bool       `json:"canTrade"`
 	CanWithdraw      bool       `json:"canWithdraw"`
 	CanDeposit       bool       `json:"canDeposit"`

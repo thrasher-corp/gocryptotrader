@@ -180,7 +180,7 @@ type OrderResponse struct {
 
 // GenericResponse is the common response from HitBTC
 type GenericResponse struct {
-	Success int    `json:"success"`
+	Success int64  `json:"success"` // Signed because HitBTC does not document its range
 	Error   string `json:"error"`
 }
 
@@ -205,7 +205,7 @@ type capture struct {
 
 // ResponseError contains error codes from JSON responses
 type ResponseError struct {
-	Code    int    `json:"code"`
+	Code    int64  `json:"code"` // Signed because JSON-RPC 2.0 reserves negative error codes
 	Message string `json:"message"`
 }
 
@@ -221,7 +221,7 @@ type WsRequest struct {
 type WsParams struct {
 	Symbol  string   `json:"symbol,omitempty"`
 	Period  string   `json:"period,omitempty"`
-	Limit   int      `json:"limit,omitempty"`
+	Limit   int      `json:"limit,omitempty"` // int to take subscription.Levels without a narrowing conversion
 	Symbols []string `json:"symbols,omitempty"`
 }
 

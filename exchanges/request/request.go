@@ -159,6 +159,8 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			if err := r.InitiateRateLimit(ctx, endpoint); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
+		} else if err := WaitForRateLimitBarrier(ctx); err != nil {
+			return fmt.Errorf("failed to coordinate HTTP request: %w", err)
 		}
 
 		p, err := newRequest()
@@ -407,51 +409,4 @@ func (r *Requester) Shutdown() error {
 		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.release()
-}
-
-// InitiateRateLimit sleeps for designated endpoint rate limits.
-func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if r.disableRateLimiter.Load() {
-		return nil
-	}
-	if err := common.NilGuard(r.limiter); err != nil {
-		return err
-	}
-	if err := r.limiter[e].RateLimit(ctx); err != nil {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
-	}
-	return nil
-}
-
-// GetRateLimiterDefinitions returns the rate limiter definitions for the requester.
-func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
-	if r == nil {
-		return nil
-	}
-	return r.limiter
-}
-
-// DisableRateLimiter disables the rate limiting system for the exchange.
-func (r *Requester) DisableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if !r.disableRateLimiter.CompareAndSwap(false, true) {
-		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
-	}
-	return nil
-}
-
-// EnableRateLimiter enables the rate limiting system for the exchange.
-func (r *Requester) EnableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if !r.disableRateLimiter.CompareAndSwap(true, false) {
-		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
-	}
-	return nil
 }

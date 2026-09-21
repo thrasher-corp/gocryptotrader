@@ -197,7 +197,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Asset:            asset.Spot,
 			Pairs:            []currency.Pair{pair},
 			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
 		}
 		marginSub := &subscription.Subscription{
 			Asset:            asset.Margin,
@@ -246,7 +246,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Asset:            asset.Margin,
 			Pairs:            []currency.Pair{currency.NewBTCUSDT()},
 			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
 		})
 		require.NoError(t, err)
 		_, err = tracked.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Margin)
@@ -259,7 +259,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		pair := currency.NewBTCUSDT()
 		marginSub := &subscription.Subscription{Asset: asset.Margin, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
 		spotSub := &subscription.Subscription{Asset: asset.Spot, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
-		marginSub.QualifiedChannel = `{"channel":"tickers","instID":"BTC-USDT"}`
+		marginSub.QualifiedChannel = `{"channel":"tickers","instId":"BTC-USDT"}`
 		spotSub.QualifiedChannel = marginSub.QualifiedChannel
 		return marginSub, spotSub
 	}
@@ -313,7 +313,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 			Asset:            asset.Spot,
 			Pairs:            []currency.Pair{pair},
 			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
 		}
 		marginSub := &subscription.Subscription{
 			Asset:            asset.Margin,
@@ -440,4 +440,28 @@ func TestChunkRequestsDeduplicatesArguments(t *testing.T) {
 	require.NoError(t, err, "Marshal first argument must not error")
 	expectedArg := []byte(`{"channel":"books","instId":"BTC-USDT"}`)
 	require.JSONEq(t, string(expectedArg), string(firstArg), "chunkRequests must retain expected outbound request payload")
+}
+
+// Casing drift between the template and the tag drops the instrument silently.
+func TestChunkRequestsCarriesInstrumentID(t *testing.T) {
+	t.Parallel()
+	subs, err := e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+
+	var checked int
+	for _, sub := range subs {
+		if len(sub.Pairs) == 0 {
+			continue // channel is not pair specific, so it carries no instrument
+		}
+		reqs, err := e.chunkRequests(subscription.List{sub}, "subscribe")
+		require.NoError(t, err, "chunkRequests must not error")
+		for _, req := range reqs {
+			for _, arg := range req.Arguments {
+				require.Falsef(t, arg.InstrumentID.IsEmpty(),
+					"%s must keep its instrument through the template round-trip; got %q", sub.Channel, sub.QualifiedChannel)
+				checked++
+			}
+		}
+	}
+	require.Positive(t, checked, "must exercise at least one pair specific subscription")
 }

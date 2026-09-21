@@ -4,20 +4,22 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestCancelAllOrders(t *testing.T) {
@@ -81,30 +83,161 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 }
 
-func TestOpenInterestFromStats(t *testing.T) {
+// TestContractOpenInterest pins the open interest each contract kind reports, in its quote
+// currency. Figures are a live BTC_USD and BTC_USDT response, so a regression restates a real
+// contract rather than an invented one
+func TestContractOpenInterest(t *testing.T) {
 	t.Parallel()
 
-	_, err := openInterestFromStats(nil)
-	require.ErrorIs(t, err, errNoValidResponseFromServer)
-
-	openInterest, err := openInterestFromStats([]ContractStat{
-		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
-		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
-		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 4.0, openInterest)
+	for _, tc := range []struct {
+		name     string
+		contract openInterestContract
+		exp      float64
+	}{
+		{
+			// Gate reports quanto_multiplier "0" here, so multiplying by the index price gave
+			// $515bn against the $13m the contract stats report for the same contract
+			name:     "inverse futures contract is one unit of its quote currency",
+			contract: &FuturesContract{Type: "inverse", PositionSize: 6542499, IndexPrice: 78827.15},
+			exp:      6542499,
+		},
+		{
+			name:     "direct futures contract is scaled by its multiplier and index price",
+			contract: &FuturesContract{Type: "direct", PositionSize: 1000, QuantoMultiplier: 0.0001, IndexPrice: 50000},
+			exp:      5000,
+		},
+		{
+			// nothing to size the position with, rather than a figure invented from the index price
+			name:     "direct futures contract reporting no multiplier sizes no position",
+			contract: &FuturesContract{Type: "direct", PositionSize: 1000, IndexPrice: 50000},
+			exp:      0,
+		},
+		{
+			name:     "delivery contract is scaled by its multiplier and index price",
+			contract: &DeliveryContract{QuantoMultiplier: 1, PositionSize: 45, IndexPrice: 6.7608},
+			exp:      304.236,
+		},
+		{
+			// Gate lists no inverse delivery contract today, so this pins the shape rather than a
+			// live response
+			name:     "inverse delivery contract is one unit of its quote currency",
+			contract: &DeliveryContract{Type: "inverse", PositionSize: 6542499, IndexPrice: 78827.15},
+			exp:      6542499,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.InDelta(t, tc.exp, tc.contract.openInterest(), 1e-6, "openInterest should return the position sized in the quote currency")
+		})
+	}
 }
 
-func TestUseOpenInterestStats(t *testing.T) {
+// TestFuturesContractOpenInterestFromResponse pins contractTypeInverse and the type tag against a
+// real Gate response, which the table above cannot do while it builds the contract in Go
+func TestFuturesContractOpenInterestFromResponse(t *testing.T) {
 	t.Parallel()
 
-	assert.False(t, useOpenInterestStats(nil, asset.USDTMarginedFutures))
-	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}, {Asset: asset.CoinMarginedFutures}}, asset.CoinMarginedFutures))
-	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}}, asset.USDTMarginedFutures))
-	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.DeliveryFutures}}, asset.DeliveryFutures))
-	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}}, asset.CoinMarginedFutures))
-	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.USDTMarginedFutures}}, asset.USDTMarginedFutures))
+	// trimmed from GET /api/v4/futures/btc/contracts/BTC_USD
+	const resp = `{"name":"BTC_USD","type":"inverse","quanto_multiplier":"0","index_price":"78827.15","position_size":6542499}`
+
+	var c FuturesContract
+	require.NoError(t, json.Unmarshal([]byte(resp), &c), "Unmarshal must not error")
+	require.Equal(t, contractTypeInverse, c.Type, "the contract must decode as the inverse type the constant names")
+	assert.Equal(t, 6542499.0, c.openInterest(), "openInterest should report the position size for an inverse contract")
+}
+
+// TestGetOpenInterestIndependentOfRequestShape pins a contract reporting the same open interest
+// however many pairs are asked for, contract_stats having summed both sides of the book
+func TestGetOpenInterestIndependentOfRequestShape(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	// Trimmed from GET /api/v4/futures/usdt/contracts, which serves one object for a named contract
+	// and an array for all of them
+	const btcContract = `{"name":"BTC_USDT","type":"direct","quanto_multiplier":"0.0001","index_price":"50000","position_size":1000}`
+	const ethContract = `{"name":"ETH_USDT","type":"direct","quanto_multiplier":"0.01","index_price":"2000","position_size":500}`
+
+	var requests atomic.Int64
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		assert.NotContains(t, r.URL.Path, "contract_stats", "open interest should not reach the contract stats endpoint")
+		body := "[" + btcContract + "," + ethContract + "]"
+		if strings.HasSuffix(r.URL.Path, "/BTC_USDT") {
+			body = btcContract
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the contracts response should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+	btcPair := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	ethPair := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+	pairs := currency.Pairs{btcPair, ethPair}
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, pairs, false), "StorePairs must not error for available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, pairs, true), "StorePairs must not error for enabled pairs")
+
+	btc := key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
+	eth := key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
+
+	single, err := ex.GetOpenInterest(t.Context(), btc)
+	require.NoError(t, err, "GetOpenInterest must not error for a single pair")
+	require.Len(t, single, 1, "GetOpenInterest must report the one pair asked for")
+	singleRequests := requests.Load()
+
+	multi, err := ex.GetOpenInterest(t.Context(), btc, eth)
+	require.NoError(t, err, "GetOpenInterest must not error for several pairs")
+	require.Len(t, multi, 2, "GetOpenInterest must report both pairs asked for")
+
+	assert.Equal(t, 5000.0, single[0].OpenInterest, "a single pair should report the position sized in its quote currency")
+	for _, oi := range multi {
+		if oi.Key.Base == currency.BTC.Item {
+			assert.Equal(t, single[0].OpenInterest, oi.OpenInterest, "the same contract should report the same open interest however many pairs are asked for")
+		}
+	}
+	assert.Equal(t, int64(1), singleRequests, "a single pair should cost one request rather than a second for contract stats")
+}
+
+func TestContractStatUnmarshalLastFundingRate(t *testing.T) {
+	t.Parallel()
+
+	var stats []ContractStat
+	require.NoError(t, json.Unmarshal([]byte(`[{"last_funding_rate":"0.00125"}]`), &stats))
+	require.Len(t, stats, 1)
+	assert.Equal(t, 0.00125, stats[0].LastFundingRate.Float64())
+}
+
+func TestGetSupportedFlashSwapCurrencyPairsResponse(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+		assert.Equal(t, "/api/v4/flash_swap/currency_pairs", r.URL.Path, "request path should be flash swap currency pairs")
+		assert.Equal(t, "BTC", r.URL.Query().Get("currency"), "currency query should match")
+		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit query should match")
+		assert.Equal(t, "2", r.URL.Query().Get("page"), "page query should match")
+		_, err := fmt.Fprint(w, `[{"currency_pair":"BTC_USDT","sell_currency":"BTC","buy_currency":"USDT","sell_min_amount":"0.001","sell_max_amount":"1","buy_min_amount":"1","buy_max_amount":"100000"}]`)
+		assert.NoError(t, err, "writing flash swap currency pairs should not error")
+	}))
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+	pairs, err := ex.GetSupportedFlashSwapCurrencyPairs(t.Context(), currency.BTC, 10, 2)
+	require.NoError(t, err, "GetSupportedFlashSwapCurrencyPairs must not error")
+	require.Len(t, pairs, 1, "GetSupportedFlashSwapCurrencyPairs must return the mock pair")
+	assert.Equal(t, "BTC_USDT", pairs[0].CurrencyPair, "GetSupportedFlashSwapCurrencyPairs should decode the pair")
+	assert.Equal(t, "BTC", pairs[0].SellCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the sell currency")
+	assert.Equal(t, "USDT", pairs[0].BuyCurrency, "GetSupportedFlashSwapCurrencyPairs should decode the buy currency")
+	assert.Equal(t, 0.001, pairs[0].SellMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum sell amount")
+	assert.Equal(t, 1.0, pairs[0].SellMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum sell amount")
+	assert.Equal(t, 1.0, pairs[0].BuyMinAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the minimum buy amount")
+	assert.Equal(t, 100000.0, pairs[0].BuyMaxAmount.Float64(), "GetSupportedFlashSwapCurrencyPairs should decode the maximum buy amount")
 }
 
 func TestGetCrossMarginMinimums(t *testing.T) {
@@ -126,7 +259,7 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = "GateIOProductBorrowMinimums"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
 		switch r.URL.Path {
 		case "/api/v4/spot/currency_pairs":
@@ -142,7 +275,6 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
@@ -168,7 +300,7 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = "GateIOTradableMarginPairs"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
 		switch r.URL.Path {
 		case "/api/v4/spot/currency_pairs":
@@ -184,7 +316,6 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
@@ -231,9 +362,9 @@ func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := e.MessageID()
 	require.Len(t, id, 32, "message ID must be 32 characters long for usage as a request ID")
-	got, err := uuid.FromString(id)
+	got, err := uuid.Parse(id)
 	require.NoError(t, err, "ID string must convert back to a UUID")
-	require.Equal(t, uuid.V7, got.Version(), "message ID must be a UUID v7")
+	require.Equal(t, byte(7), got[6]>>4, "message ID must be a UUID v7") // RFC 9562 version nibble
 	require.Len(t, got.String(), 36, "UUID v7 string representation must be 36 characters long")
 }
 
@@ -408,6 +539,9 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.Equal(t, tc.a, got.Asset, "Asset should be correct")
 			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
 			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
+			if tc.a == asset.Options && len(got.Asks) == 0 && len(got.Bids) == 0 {
+				t.Skip("GateIO may return an empty options order book without timestamp metadata")
+			}
 			assert.NotZero(t, got.LastUpdated, "Last updated timestamp should be set")
 			assert.NotZero(t, got.LastUpdateID, "Last update ID should be set")
 			assert.NotZero(t, got.LastPushed, "Last pushed timestamp should be set")

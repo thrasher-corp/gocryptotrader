@@ -173,7 +173,7 @@ func (l rateLimiterLockSet) lock() {
 }
 
 func (l rateLimiterLockSet) unlock() {
-	for i := len(l) - 1; i >= 0; i-- {
-		l[i].m.Unlock()
+	for _, limiter := range slices.Backward(l) {
+		limiter.m.Unlock()
 	}
 }

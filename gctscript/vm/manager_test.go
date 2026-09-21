@@ -60,23 +60,22 @@ func TestGctScriptManagerStartStopNominal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mgr.started != 1 {
-		t.Errorf("Manager should be started (%v)", mgr.started)
+	if !mgr.started.Load() {
+		t.Errorf("Manager should be started (%v)", mgr.started.Load())
 	}
 	err = mgr.Stop()
 	if err != nil {
 		t.Fatal(err)
 	}
 	wg.Wait()
-	if mgr.started != 0 {
-		t.Errorf("Manager should be stopped, expected=%v, got %v", 0, mgr.started)
+	if mgr.started.Load() {
+		t.Errorf("Manager should be stopped, expected=%v, got %v", false, mgr.started.Load())
 	}
 }
 
 func TestGctScriptManagerGetMaxVirtualMachines(t *testing.T) {
 	type fields struct {
 		config             *Config
-		started            int32
 		shutdown           chan struct{}
 		MaxVirtualMachines *uint64
 	}
@@ -110,7 +109,6 @@ func TestGctScriptManagerGetMaxVirtualMachines(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &GctScriptManager{
 				config:             tt.fields.config,
-				started:            tt.fields.started,
 				shutdown:           tt.fields.shutdown,
 				MaxVirtualMachines: tt.fields.MaxVirtualMachines,
 			}

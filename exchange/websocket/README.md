@@ -1,13 +1,11 @@
 # GoCryptoTrader package Websocket
 
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchange/websocket)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This websocket package is part of the GoCryptoTrader codebase.
 
@@ -43,114 +41,118 @@ Example setup for the `websocket` package connection:
 package main
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+    "github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+    exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+    "github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 type Exchange struct {
-	exchange.Base
+    exchange.Base
 }
 
 // In the exchange wrapper this will set up the initial pointer field provided by exchange.Base
 func (e *Exchange) SetDefault() {
-	e.Websocket = websocket.NewManager()
-	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+    e.Websocket = websocket.NewManager()
+    e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+    e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+    e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // In the exchange wrapper this is the original setup pattern for the websocket services
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	// This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:                         exch,
-		DefaultURL:                             connectionURLString,
-		RunningURL:                             connectionURLString,
-		Connector:                              e.WsConnect,
-		Subscriber:                             e.Subscribe,
-		Unsubscriber:                           e.Unsubscribe,
-		GenerateSubscriptions:                  e.GenerateDefaultSubscriptions,
-		Features:                               &e.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{ Checksum: e.CalculateUpdateOrderbookChecksum },
-	}); err != nil {
-		return err
-	}
+    // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
+    if err := e.Websocket.Setup(&websocket.ManagerSetup{
+        ExchangeConfig:                         exch,
+        DefaultURL:                             connectionURLString,
+        RunningURL:                             connectionURLString,
+        Connector:                              e.WsConnect,
+        Subscriber:                             e.Subscribe,
+        Unsubscriber:                           e.Unsubscribe,
+        GenerateSubscriptions:                  e.GenerateDefaultSubscriptions,
+        Features:                               &e.Features.Supports.WebsocketCapabilities,
+        MaxWebsocketSubscriptionsPerConnection: 240,
+        OrderbookBufferConfig: buffer.Config{ Checksum: e.CalculateUpdateOrderbookChecksum },
+    }); err != nil {
+        return err
+    }
 
-	// This is a public websocket connection
-	if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  connectionURLString,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-	}); err != nil {
-		return err
-	}
+    // This is a public websocket connection
+    if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+        URL:                  connectionURLString,
+        ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+        ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
+        RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+    }); err != nil {
+        return err
+    }
 
-	// This is a private websocket connection
-	return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  privateConnectionURLString,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-	})
+    // This is a private websocket connection
+    return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+        URL:                  privateConnectionURLString,
+        ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+        ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
+        Authenticated:        true,
+        RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+    })
 }
 ```
 
 ### Multiple websocket connections
+
  The example below provides the now optional multi connection management system which allows for more connections
  to be maintained and established based off URL, connections types, asset types etc.
+
 ```go
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	// This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:               exch,
-		Features:                     &e.Features.Supports.WebsocketCapabilities,
-		FillsFeed:                    e.Features.Enabled.FillsFeed,
-		TradeFeed:                    e.Features.Enabled.TradeFeed,
-		UseMultiConnectionManagement: true,
-	}); err != nil {
-		return err
-	}
-	// Spot connection
-	if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      connectionURLStringForSpot,
-		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		// Custom handlers for the specific connection:
-		Handler:                  e.WsHandleSpotData,
-		Subscriber:               e.SpotSubscribe,
-		Unsubscriber:             e.SpotUnsubscribe,
-		GenerateSubscriptions:    e.GenerateDefaultSubscriptionsSpot,
-		Connector:                e.WsConnectSpot,
-	}); err != nil {
-		return err
-	}
-	// Futures connection - USDT margined
-	if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  connectionURLStringForSpotForFutures,
-		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		// Custom handlers for the specific connection:
-		Handler: func(ctx context.Context, incoming []byte) error {	return e.WsHandleFuturesData(ctx, incoming, asset.Futures)	},
-		Subscriber:               e.FuturesSubscribe,
-		Unsubscriber:             e.FuturesUnsubscribe,
-		GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(currency.USDT) },
-		Connector:                e.WsFuturesConnect,
-	}); err != nil {
-		return err
-	}
+    // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
+    if err := e.Websocket.Setup(&websocket.ManagerSetup{
+        ExchangeConfig:               exch,
+        Features:                     &e.Features.Supports.WebsocketCapabilities,
+        FillsFeed:                    e.Features.Enabled.FillsFeed,
+        TradeFeed:                    e.Features.Enabled.TradeFeed,
+        UseMultiConnectionManagement: true,
+    }); err != nil {
+        return err
+    }
+    // Spot connection
+    if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+        URL:                      connectionURLStringForSpot,
+        RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
+        ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+        ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+        // Custom handlers for the specific connection:
+        Handler:                  e.WsHandleSpotData,
+        Subscriber:               e.SpotSubscribe,
+        Unsubscriber:             e.SpotUnsubscribe,
+        GenerateSubscriptions:    e.GenerateDefaultSubscriptionsSpot,
+        Connector:                e.WsConnectSpot,
+    }); err != nil {
+        return err
+    }
+    // Futures connection - USDT margined
+    if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+        URL:                  connectionURLStringForSpotForFutures,
+        RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
+        ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+        ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+        // Custom handlers for the specific connection:
+        Handler: func(ctx context.Context, incoming []byte) error {
+            return e.WsHandleFuturesData(ctx, incoming, asset.Futures)
+        },
+        Subscriber:               e.FuturesSubscribe,
+        Unsubscriber:             e.FuturesUnsubscribe,
+        GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(currency.USDT) },
+        Connector:                e.WsFuturesConnect,
+    }); err != nil {
+        return err
+    }
 }
 ```
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

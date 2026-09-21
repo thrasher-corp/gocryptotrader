@@ -1,4 +1,4 @@
-<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="./common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -22,7 +22,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | Yes       | NA  |
-| BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
@@ -41,7 +40,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
 
-We are aiming to support the top 30 exchanges sorted by average liquidity as [ranked by CoinMarketCap](https://coinmarketcap.com/rankings/exchanges/). 
+We are aiming to support the top 30 exchanges sorted by average liquidity as [ranked by CoinMarketCap](https://coinmarketcap.com/rankings/exchanges/).
 However, we welcome pull requests for any exchange which does not match this criterion. If you need help with this, please join us on [Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g).
 
 ** NA means not applicable as the exchange does not support the feature.
@@ -58,21 +57,21 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Unified API for exchange usage.
 + Customisation of HTTP client features including setting a proxy, user agent and adjusting transport settings.
 + NTP client package.
-+ Database support (Postgres and SQLite3). See [database](/database/README.md).
-+ OTP generation tool. See [gen otp](/cmd/gen_otp).
++ Database support (Postgres and SQLite3). See [database](./database/README.md).
++ OTP generation tool. See [gen otp](./cmd/gen_otp).
 + Connection monitor package.
-+ gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
-+ gRPC client. See [gctcli](/cmd/gctcli/README.md).
++ gRPC service and JSON RPC proxy. See [gRPC service](./gctrpc/README.md).
++ gRPC client. See [gctcli](./cmd/gctcli/README.md).
 + Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Exchange Rates, Fixer.io, OpenExchangeRates, Exchange Rate Host).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
-+ OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
-+ Scripting support. See [gctscript](/gctscript/README.md).
-+ Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
-+ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
-+ Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
-+ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
++ OHLCV/Candle retrieval support. See [OHLCV](./docs/OHLCV.md).
++ Scripting support. See [gctscript](./gctscript/README.md).
++ Recent and historic trade processing. See [trades](./exchanges/trade/README.md).
++ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](./backtester/README.md).
++ Exchange HTTP mock testing. See [mock](./exchanges/mock/README.md).
++ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](./docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
 ## Development Tracking
 
@@ -89,7 +88,7 @@ Follow our progress as we continuously improve GoCryptoTrader.
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
 
-When submitting a PR, please abide by our [coding guidelines](/docs/CODING_GUIDELINES.md).
+When submitting a PR, please abide by our [coding guidelines](./docs/CODING_GUIDELINES.md).
 
 ## Compiling and Running instructions
 
@@ -129,13 +128,41 @@ To enable sonic, build with the sonic_on tag:
 go build -tags=sonic_on
 ```
 
+### Decimal handling
+
+GoCryptoTrader uses shopspring/decimal by default through the shared `types/decimal` package. Build with `udecimal_on` to use udecimal instead:
+
+```bash
+go build -tags=udecimal_on
+```
+
+The tag changes both the implementation and some decimal behaviour. Before enabling it, note these differences:
+
++ **Precision:** udecimal retains up to 19 fractional digits. Arithmetic and float conversion truncate anything beyond that without returning an error, so a non-zero result with a magnitude below `1e-19` becomes zero. Parsing does not truncate: `NewFromString` rejects inputs requiring more than 19 fractional digits.
++ **Division:** The udecimal build truncates division results to 19 fractional digits. The default shopspring build rounds division results to 16 fractional digits, so the final digits can differ between builds.
++ **Large values:** Plain decimal values round-trip through text, JSON and SQL codecs even when they exceed udecimal's native 200-character parser limit. Scientific notation is rejected when expanding it would produce more than 200 digits.
++ **API behaviour:** Fractional `Pow` exponents are rejected.
++ **Representation:** A udecimal-backed `Decimal` occupies 32 bytes instead of 16 bytes. Its binary encoding is not compatible with shopspring's and rejects values whose native encoding would exceed its one-byte length field.
+
+Without the tag, `Decimal` remains an alias of shopspring's type.
+
+Run the same benchmark suite against both implementations with:
+
+```bash
+make decimal_bench
+```
+
+The suite defaults to five 500 ms samples per operation. Override these with `DECIMAL_BENCH_COUNT` and `DECIMAL_BENCH_TIME` when collecting longer benchmark runs.
+
+`BenchmarkDecimalInexactFloat64` measures conversion to a plain `float64`; `BenchmarkDecimalFloat64` separately measures conversion with the exactness flag required by `Float64()`.
+
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="./docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`
 
 ## Binaries
 
@@ -143,105 +170,125 @@ Binaries will be published once the codebase reaches a stable condition.
 
 ## Contributor List
 
-### A very special thank you to all who have contributed to this program:
+### A very special thank you to all who have contributed to this program
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 737 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 415 |
-| [shazbert](https://github.com/shazbert) | 389 |
-| [gloriousCode](https://github.com/gloriousCode) | 240 |
-| [gbjk](https://github.com/gbjk) | 143 |
+| [thrasher-](https://github.com/thrasher-) | 788 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 488 |
+| [shazbert](https://github.com/shazbert) | 419 |
+| [gloriousCode](https://github.com/gloriousCode) | 247 |
+| [gbjk](https://github.com/gbjk) | 145 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Beadko](https://github.com/Beadko) | 24 |
-| [samuael](https://github.com/samuael) | 16 |
-| [vazha](https://github.com/vazha) | 15 |
+| [samuael](https://github.com/samuael) | 18 |
 | [ydm](https://github.com/ydm) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
 | [Rots](https://github.com/Rots) | 15 |
+| [Copilot](https://github.com/apps/copilot-swe-agent) | 14 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [Copilot](https://github.com/apps/copilot-swe-agent) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [junnplus](https://github.com/junnplus) | 9 |
+| [cranktakular](https://github.com/cranktakular) | 9 |
 | [geseq](https://github.com/geseq) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
-| [cranktakular](https://github.com/cranktakular) | 7 |
+| [romanornr](https://github.com/romanornr) | 6 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
-| [romanornr](https://github.com/romanornr) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
-| [azhang](https://github.com/azhang) | 2 |
-| [if1live](https://github.com/if1live) | 2 |
+| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
+| [goyusia](https://github.com/goyusia) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [Asalei](https://github.com/Asalei) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
+| [valli0x](https://github.com/valli0x) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
-| [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
+| [andreygrehov](https://github.com/andreygrehov) | 2 |
+| [azhang](https://github.com/azhang) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
-| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
-| [cornelk](https://github.com/cornelk) | 2 |
-| [gam-phon](https://github.com/gam-phon) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
+| [cornelk](https://github.com/cornelk) | 2 |
+| [alaningtrump](https://github.com/alaningtrump) | 2 |
+| [gam-phon](https://github.com/gam-phon) | 2 |
 | [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
-| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
-| [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
-| [tonywangcn](https://github.com/tonywangcn) | 1 |
-| [varunbhat](https://github.com/varunbhat) | 1 |
-| [idealhack](https://github.com/idealhack) | 1 |
-| [hannut91](https://github.com/hannut91) | 1 |
-| [vyloy](https://github.com/vyloy) | 1 |
-| [arttobe](https://github.com/arttobe) | 1 |
-| [shoman4eg](https://github.com/shoman4eg) | 1 |
-| [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
-| [dazi005](https://github.com/dazi005) | 1 |
-| [gcmutator](https://github.com/gcmutator) | 1 |
-| [gopherorg](https://github.com/gopherorg) | 1 |
+| [roberttidball](https://github.com/roberttidball) | 2 |
 | [whilei](https://github.com/whilei) | 1 |
-| [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
-| [keeghcet](https://github.com/keeghcet) | 1 |
-| [mickychang9](https://github.com/mickychang9) | 1 |
-| [phieudu241](https://github.com/phieudu241) | 1 |
-| [quantpoet](https://github.com/quantpoet) | 1 |
-| [snipesjr](https://github.com/snipesjr) | 1 |
-| [snussik](https://github.com/snussik) | 1 |
-| [taewdy](https://github.com/taewdy) | 1 |
-| [threehonor](https://github.com/threehonor) | 1 |
-| [xiiiew](https://github.com/xiiiew) | 1 |
-| [youzichuan](https://github.com/youzichuan) | 1 |
-| [antonzhukov](https://github.com/antonzhukov) | 1 |
-| [blombard](https://github.com/blombard) | 1 |
-| [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
-| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
-| [Daanikus](https://github.com/Daanikus) | 1 |
-| [daniel-cohen-deltatre](https://github.com/daniel-cohen-deltatre) | 1 |
-| [merkeld](https://github.com/merkeld) | 1 |
-| [shanhuhai5739](https://github.com/shanhuhai5739) | 1 |
-| [DirectX](https://github.com/DirectX) | 1 |
-| [dnldd](https://github.com/dnldd) | 1 |
-| [Juneezee](https://github.com/Juneezee) | 1 |
-| [fclairamb](https://github.com/fclairamb) | 1 |
-| [frankzougc](https://github.com/frankzougc) | 1 |
-| [gemscng](https://github.com/gemscng) | 1 |
-| [Jdpurohit](https://github.com/Jdpurohit) | 1 |
-| [jimexist](https://github.com/jimexist) | 1 |
+| [gopherorg](https://github.com/gopherorg) | 1 |
+| [ginavalent](https://github.com/ginavalent) | 1 |
+| [gcmutator](https://github.com/gcmutator) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
-| [zeldrinn](https://github.com/zeldrinn) | 1 |
-| [roskee](https://github.com/roskee) | 1 |
-| [mattkanwisher](https://github.com/mattkanwisher) | 1 |
-| [mgravitt](https://github.com/mgravitt) | 1 |
-| [mKurrels](https://github.com/mKurrels) | 1 |
-| [m1kola](https://github.com/m1kola) | 1 |
-| [mortensorensen](https://github.com/mortensorensen) | 1 |
-| [Polizo96](https://github.com/Polizo96) | 1 |
+| [fmterrors](https://github.com/fmterrors) | 1 |
+| [findfluctuate](https://github.com/findfluctuate) | 1 |
+| [evgmalkov](https://github.com/evgmalkov) | 1 |
+| [elonfliter](https://github.com/elonfliter) | 1 |
+| [dazi005](https://github.com/dazi005) | 1 |
+| [cuoguojida](https://github.com/cuoguojida) | 1 |
+| [criciss](https://github.com/criciss) | 1 |
+| [chuanshanjida](https://github.com/chuanshanjida) | 1 |
+| [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
+| [box4wangjing](https://github.com/box4wangjing) | 1 |
+| [shoman4eg](https://github.com/shoman4eg) | 1 |
+| [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
+| [youzichuan](https://github.com/youzichuan) | 1 |
+| [xiiiew](https://github.com/xiiiew) | 1 |
+| [xiaolinny](https://github.com/xiaolinny) | 1 |
+| [threehonor](https://github.com/threehonor) | 1 |
+| [taewdy](https://github.com/taewdy) | 1 |
+| [suranmiao](https://github.com/suranmiao) | 1 |
+| [stringscut](https://github.com/stringscut) | 1 |
+| [solunolab](https://github.com/solunolab) | 1 |
+| [snussik](https://github.com/snussik) | 1 |
+| [snipesjr](https://github.com/snipesjr) | 1 |
+| [slightsharp](https://github.com/slightsharp) | 1 |
+| [quantpoet](https://github.com/quantpoet) | 1 |
+| [phieudu241](https://github.com/phieudu241) | 1 |
+| [PARMESHWARPANWAR](https://github.com/PARMESHWARPANWAR) | 1 |
+| [nuxtreact](https://github.com/nuxtreact) | 1 |
+| [mickychang9](https://github.com/mickychang9) | 1 |
+| [keeghcet](https://github.com/keeghcet) | 1 |
+| [jimexist](https://github.com/jimexist) | 1 |
+| [Jdpurohit](https://github.com/Jdpurohit) | 1 |
+| [gemscng](https://github.com/gemscng) | 1 |
+| [frankzougc](https://github.com/frankzougc) | 1 |
+| [fclairamb](https://github.com/fclairamb) | 1 |
+| [Juneezee](https://github.com/Juneezee) | 1 |
+| [dnldd](https://github.com/dnldd) | 1 |
+| [DirectX](https://github.com/DirectX) | 1 |
+| [shanhuhai5739](https://github.com/shanhuhai5739) | 1 |
+| [merkeld](https://github.com/merkeld) | 1 |
+| [daniel-cohen-deltatre](https://github.com/daniel-cohen-deltatre) | 1 |
+| [Daanikus](https://github.com/Daanikus) | 1 |
+| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
+| [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
+| [blombard](https://github.com/blombard) | 1 |
+| [antonzhukov](https://github.com/antonzhukov) | 1 |
+| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
+| [arttobe](https://github.com/arttobe) | 1 |
+| [vyloy](https://github.com/vyloy) | 1 |
+| [hannut91](https://github.com/hannut91) | 1 |
+| [idealhack](https://github.com/idealhack) | 1 |
+| [varunbhat](https://github.com/varunbhat) | 1 |
+| [tonywangcn](https://github.com/tonywangcn) | 1 |
+| [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
+| [nolight132](https://github.com/nolight132) | 1 |
+| [Polizo96](https://github.com/Polizo96) | 1 |
+| [mortensorensen](https://github.com/mortensorensen) | 1 |
+| [Tyagiquamar](https://github.com/Tyagiquamar) | 1 |
+| [m1kola](https://github.com/m1kola) | 1 |
+| [mKurrels](https://github.com/mKurrels) | 1 |
+| [mgravitt](https://github.com/mgravitt) | 1 |
+| [mattkanwisher](https://github.com/mattkanwisher) | 1 |
+| [roskee](https://github.com/roskee) | 1 |
+| [zeldrinn](https://github.com/zeldrinn) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
 | [starit](https://github.com/starit) | 1 |

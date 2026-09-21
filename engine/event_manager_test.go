@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,14 @@ type testCommsManager struct {
 
 func (t *testCommsManager) PushEvent(evt base.Event) {
 	t.events = append(t.events, evt)
+}
+
+type eventChannelCommsManager struct {
+	events chan base.Event
+}
+
+func (e *eventChannelCommsManager) PushEvent(evt base.Event) {
+	e.events <- evt
 }
 
 type testExchangeManager struct {
@@ -48,14 +57,19 @@ func setupTestEventManager(t *testing.T, exchangeManager iExchangeManager) *even
 func startTestEventManager(t *testing.T, m *eventManager) {
 	t.Helper()
 	require.NoError(t, m.Start(), "Start must not error")
+	t.Cleanup(func() {
+		if m.IsRunning() {
+			require.NoError(t, m.Stop(), "Stop must not error")
+		}
+	})
 }
 
-func seedTicker(t *testing.T, exchangeName string, pair currency.Pair, a asset.Item, last, bid, ask float64) {
+func seedTicker(t *testing.T, exchangeName string, pair currency.Pair, last, bid, ask float64) {
 	t.Helper()
 	err := ticker.ProcessTicker(&ticker.Price{
 		ExchangeName: exchangeName,
 		Pair:         pair,
-		AssetType:    a,
+		AssetType:    asset.Spot,
 		Last:         last,
 		Bid:          bid,
 		Ask:          ask,
@@ -109,6 +123,10 @@ func TestEventManagerStart(t *testing.T) {
 
 	err := m.Start()
 	assert.NoError(t, err, "Start should not error")
+	startedManager := m
+	t.Cleanup(func() {
+		require.NoError(t, startedManager.Stop(), "Stop must not error")
+	})
 
 	err = m.Start()
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted, "Start should return already started error")
@@ -124,7 +142,7 @@ func TestEventManagerIsRunning(t *testing.T) {
 	startTestEventManager(t, m)
 
 	assert.True(t, m.IsRunning(), "IsRunning should return true when started")
-	m.started.Store(false)
+	require.NoError(t, m.Stop(), "Stop must not error")
 	assert.False(t, m.IsRunning(), "IsRunning should return false when stopped")
 	m = nil
 	assert.False(t, m.IsRunning(), "IsRunning should return false for nil manager")
@@ -144,6 +162,42 @@ func TestEventManagerStop(t *testing.T) {
 	m = nil
 	err = m.Stop()
 	assert.ErrorIs(t, err, ErrNilSubsystem, "Stop should return nil subsystem error")
+}
+
+func TestEventManagerRunChecksEventsUntilStopped(t *testing.T) {
+	t.Parallel()
+
+	const (
+		sleepDelay = 10 * time.Millisecond
+		threshold  = 200
+	)
+	exchangeName := newUniqueFakeExchangeName()
+	eventCh := make(chan base.Event, 1)
+	m, err := setupEventManager(&eventChannelCommsManager{events: eventCh}, &testExchangeManager{validExchange: exchangeName}, sleepDelay, false)
+	require.NoError(t, err, "setupEventManager must not error")
+	// Each tick checks the pending event before the event that triggers at the initial price.
+	m.events = []Event{
+		newPriceEvent(exchangeName, threshold),
+		newPriceEvent(exchangeName, 50),
+	}
+
+	seedTicker(t, exchangeName, currency.NewBTCUSD(), 100, 99, 101)
+	startTestEventManager(t, m)
+	select {
+	case <-eventCh:
+	case <-time.After(time.Second):
+		require.FailNow(t, "first tick must trigger the event below the initial ticker price")
+	}
+
+	seedTicker(t, exchangeName, currency.NewBTCUSD(), 300, 299, 301)
+	require.Eventually(t, func() bool {
+		select {
+		case <-eventCh:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, sleepDelay/2, "event manager must continue checking events after the first tick")
 }
 
 func TestEventManagerAdd(t *testing.T) {
@@ -241,7 +295,7 @@ func TestCheckEventCondition(t *testing.T) {
 	err = m.checkEventCondition(&event)
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "checkEventCondition should return ticker not found error")
 
-	seedTicker(t, exchangeName, currency.NewBTCUSD(), asset.Spot, 1500, 1499, 1501)
+	seedTicker(t, exchangeName, currency.NewBTCUSD(), 1500, 1499, 1501)
 
 	err = m.checkEventCondition(&event)
 	require.NoError(t, err, "checkEventCondition must not error")
@@ -355,7 +409,7 @@ func TestShouldProcessEvent(t *testing.T) {
 			}
 			err := e.shouldProcessEvent(tc.actual, tc.threshold)
 			if tc.wantErr {
-				assert.Error(t, err, "shouldProcessEvent should return an error when conditions are not met")
+				assert.ErrorIs(t, err, errEventConditionNotMet, "shouldProcessEvent should return the condition-not-met error")
 			} else {
 				assert.NoError(t, err, "shouldProcessEvent should not error when conditions are met")
 			}
@@ -406,7 +460,7 @@ func TestProcessTicker(t *testing.T) {
 	exchangeName := newUniqueFakeExchangeName()
 	e := newPriceEvent(exchangeName, 10)
 
-	seedTicker(t, exchangeName, currency.NewBTCUSD(), asset.Spot, 0, 0, 0)
+	seedTicker(t, exchangeName, currency.NewBTCUSD(), 0, 0, 0)
 
 	err := e.processTicker()
 	assert.ErrorIs(t, err, errTickerLastPriceZero, "processTicker should return error when last price is zero")
@@ -494,7 +548,7 @@ func TestExecuteEventVerbose(t *testing.T) {
 			t.Parallel()
 
 			exchangeName := newUniqueFakeExchangeName()
-			seedTicker(t, exchangeName, currency.NewBTCUSD(), asset.Spot, 1500, 1499, 1501)
+			seedTicker(t, exchangeName, currency.NewBTCUSD(), 1500, 1499, 1501)
 
 			comms := &testCommsManager{}
 			m := &eventManager{

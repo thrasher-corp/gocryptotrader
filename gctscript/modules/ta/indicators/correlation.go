@@ -13,7 +13,7 @@ import (
 
 // CorrelationCoefficientModule indicator commands
 var CorrelationCoefficientModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: correlationCoefficient},
+	calculate: &objects.UserFunction{Name: calculate, Value: correlationCoefficient},
 }
 
 // CorrelationCoefficient is the string constant
@@ -36,7 +36,7 @@ func correlationCoefficient(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(Correlation)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 
