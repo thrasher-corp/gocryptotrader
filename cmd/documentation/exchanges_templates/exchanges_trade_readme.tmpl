@@ -1,5 +1,6 @@
 {{define "exchanges trade" -}}
 {{template "header" .}}
+
 ## Current Features for {{.Name}}
 
 + The trade package contains a processor for both REST and websocket trade history processing
@@ -7,14 +8,17 @@
   + If you do not have database enabled, then trades will not be processed
 
 ### Requirements to save a trade to the database
+
 + Database has to be enabled
 + Under `config.json`, under your selected exchange, enable the field `saveTradeData`
   + This will enable trade processing to occur for that specific exchange
   + This can also be done via gRPC under the `SetExchangeTradeProcessing` command
 
 ### Usage
+
 + To send trade data to be processed, use the following example:
-```
+
+```go
 err := trade.AddTradesToBuffer(b.Name, trade.Data{
     Exchange:     b.Name,
     TID:          strconv.FormatInt(tradeData[i].TID, 10),
@@ -26,9 +30,11 @@ err := trade.AddTradesToBuffer(b.Name, trade.Data{
     Timestamp:    tradeTS,
 })
 ```
+
 _b in this context is an `IBotExchange` implemented struct_
 
 ### Rules
+
 + If the trade processor has not started, it will automatically start upon being sent trade data.
 + The processor will add all received trades to a buffer
 + After 15 seconds, the trade processor will parse and save all trades on the buffer to the trade table
@@ -36,12 +42,11 @@ _b in this context is an `IBotExchange` implemented struct_
 + If the processor has not received any trades in that 15 second timeframe, it will shut down.
   + Sending trade data to it later will automatically start it up again
 
-
 ## Exchange Support Table
 
 | Exchange | Recent Trades via REST | Live trade updates via Websocket | Trade history via REST |
 |----------|------|-----------|-----|
-| Binance.US | Yes  | Yes        | NA  | 
+| Binance.US | Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | Yes  |
 | Bitfinex | Yes  | Yes        | Yes  |
 | Bitflyer | Yes  | No      | No  |

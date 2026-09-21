@@ -30,25 +30,23 @@ func TestWsHandleData(t *testing.T) {
 
 	dummy := Exchange{
 		location: time.Local,
-		Base: exchange.Base{
-			Name: "dummy",
-			Features: exchange.Features{
-				Enabled: exchange.FeaturesEnabled{SaveTradeData: true},
-			},
-			CurrencyPairs: currency.PairsManager{
-				Pairs: map[asset.Item]*currency.PairStore{
-					asset.Spot: {
-						Available: pairs,
-						Enabled:   pairs,
-						ConfigFormat: &currency.PairFormat{
-							Uppercase: true,
-							Delimiter: currency.DashDelimiter,
-						},
+		Name:     "dummy",
+		Features: exchange.Features{
+			Enabled: exchange.FeaturesEnabled{SaveTradeData: true},
+		},
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					Available: pairs,
+					Enabled:   pairs,
+					ConfigFormat: &currency.PairFormat{
+						Uppercase: true,
+						Delimiter: currency.DashDelimiter,
 					},
 				},
 			},
-			Websocket: websocket.NewManager(),
 		},
+		Websocket: websocket.NewManager(),
 	}
 
 	dummy.setupOrderbookManager(t.Context())
@@ -56,20 +54,22 @@ func TestWsHandleData(t *testing.T) {
 
 	welcomeMsg := []byte(`{"status":"0000","resmsg":"Connected Successfully"}`)
 	err := dummy.wsHandleData(t.Context(), welcomeMsg)
-	require.NoError(t, err)
+	require.NoError(t, err, "wsHandleData must not error for the welcome message")
 
 	err = dummy.wsHandleData(t.Context(), []byte(`{"status":"1336","resmsg":"Failed"}`))
-	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure)
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "wsHandleData must return a subscription failure for a failed status")
 
 	err = dummy.wsHandleData(t.Context(), wsTransResp)
-	require.NoError(t, err)
+	require.NoError(t, err, "wsHandleData must not error for a transaction")
 
 	err = dummy.wsHandleData(t.Context(), wsOrderbookResp)
-	require.NoError(t, err)
+	require.NoError(t, err, "wsHandleData must not error for an orderbook")
 
 	err = dummy.wsHandleData(t.Context(), wsTickerResp)
-	require.NoError(t, err)
-	assert.IsType(t, new(ticker.Price), (<-dummy.Websocket.DataHandler.C).Data, "ticker should send a price to the DataHandler")
+	require.NoError(t, err, "wsHandleData must not error for a ticker")
+	tick, ok := (<-dummy.Websocket.DataHandler.C).Data.(*ticker.Price)
+	require.True(t, ok, "ticker must send a price to the DataHandler")
+	assert.Equal(t, 34010.0, tick.Last, "Last should be the latest close rather than the previous day's")
 }
 
 func TestSubToReq(t *testing.T) {

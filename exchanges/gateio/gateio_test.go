@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"log"
@@ -385,9 +386,9 @@ func TestUpdateTicker(t *testing.T) {
 				t.Parallel()
 				got, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
 				require.NoError(t, err, "UpdateTicker must not error")
+				require.NotNil(t, got, "live ticker must not be nil")
 				switch a {
 				case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures, asset.Options:
-					require.NotNil(t, got, "live ticker must not be nil")
 					if a == asset.Options {
 						// Out-of-the-money options can have a zero mark price near expiry.
 						assert.GreaterOrEqual(t, got.MarkPrice, 0.0, "live options mark price should be non-negative")
@@ -411,7 +412,7 @@ func TestUpdateTicker(t *testing.T) {
 				require.NoError(t, ex.UpdatePairs(currency.Pairs{tc.pair}, tc.asset, true), "mocked options pair must be enabled")
 			}
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, http.MethodGet, r.Method, "ticker request method should be GET")
 				assert.Equal(t, tc.expectedPath, r.URL.Path, "ticker request path should match the asset endpoint")
 				if tc.asset == asset.Options {
@@ -424,7 +425,6 @@ func TestUpdateTicker(t *testing.T) {
 				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h_base":"5526","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
 				assert.NoError(t, err, "mocked ticker response should be written")
 			}))
-			t.Cleanup(server.Close)
 
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
@@ -437,6 +437,82 @@ func TestUpdateTicker(t *testing.T) {
 			} else {
 				assert.Equal(t, 118.36, got.IndexPrice, "ticker index price should match the mocked response")
 			}
+		})
+	}
+
+	// presence alone cannot tell base from quote, so compare against the source fields. Both are
+	// picked by volume rather than positionally, since InEpsilon errors outright on a zero
+	// expected value and an untraded pair would decide the test on liquidity, not on the mapping
+	spotTicks, err := e.GetTickers(t.Context(), currency.EMPTYPAIR.String(), "")
+	require.NoError(t, err, "GetTickers must not error")
+	require.NotEmpty(t, spotTicks, "GetTickers must return tickers")
+	// a pair quoting near parity reports both volumes alike and cannot tell a correct mapping from
+	// a swapped one, so those are filtered out before picking rather than asserted against
+	spotTicks = slices.DeleteFunc(spotTicks, func(tk Ticker) bool {
+		return tk.BaseVolume.Float64() == 0 || tk.BaseVolume.Float64() == tk.QuoteVolume.Float64()
+	})
+	require.NotEmpty(t, spotTicks, "at least one spot pair must report base and quote volumes that differ")
+	busiestSpot := slices.MaxFunc(spotTicks, func(a, b Ticker) int {
+		return cmp.Compare(a.QuoteVolume.Float64(), b.QuoteVolume.Float64())
+	})
+	p, err := currency.NewPairFromString(busiestSpot.CurrencyPair)
+	require.NoError(t, err, "NewPairFromString must not error")
+	tick, err := e.UpdateTicker(t.Context(), p, asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.InEpsilonf(t, busiestSpot.BaseVolume.Float64(), tick.BaseVolume, 0.05, "UpdateTicker should take the spot base volume for %s from base_volume", p)
+	assert.InEpsilonf(t, busiestSpot.QuoteVolume.Float64(), tick.QuoteVolume, 0.05, "UpdateTicker should take the spot quote volume for %s from quote_volume", p)
+
+	futuresTicks, err := e.GetFuturesTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(t, err, "GetFuturesTickers must not error")
+	require.NotEmpty(t, futuresTicks, "GetFuturesTickers must return tickers")
+	// a multiplier of 1 reports the contract count and the base volume identically, so those
+	// contracts are filtered out before picking the busiest rather than asserted against
+	futuresTicks = slices.DeleteFunc(futuresTicks, func(tk FuturesTicker) bool {
+		return tk.Volume24HourBase.Float64() == 0 || tk.Volume24HourBase.Float64() == tk.Volume24Hour.Float64()
+	})
+	require.NotEmpty(t, futuresTicks, "at least one futures contract must report a base volume that differs from its contract count")
+	busiestFutures := slices.MaxFunc(futuresTicks, func(a, b FuturesTicker) int {
+		return cmp.Compare(a.Volume24HourQuote.Float64(), b.Volume24HourQuote.Float64())
+	})
+	fp, err := currency.NewPairFromString(busiestFutures.Contract)
+	require.NoError(t, err, "NewPairFromString must not error")
+	futuresTick, err := e.UpdateTicker(t.Context(), fp, asset.USDTMarginedFutures)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.InEpsilonf(t, busiestFutures.Volume24HourBase.Float64(), futuresTick.BaseVolume, 0.05,
+		"UpdateTicker should report a base volume for %s of the right order, not the contract count in volume_24h", fp)
+	assert.InEpsilonf(t, busiestFutures.Volume24HourQuote.Float64(), futuresTick.QuoteVolume, 0.05,
+		"UpdateTicker should take the quote volume for %s from volume_24h_quote", fp)
+}
+
+// TestFuturesTickerUnmarshal pins the tags futuresBaseVolume reads: constructing the fields
+// directly cannot catch one of them being renamed on the wire
+func TestFuturesTickerUnmarshal(t *testing.T) {
+	t.Parallel()
+	var tk FuturesTicker
+	require.NoError(t, json.Unmarshal([]byte(`{"contract":"UB_USDT","volume_24h":"8819","volume_24h_base":"8819700","volume_24h_quote":"1234","quanto_multiplier":"1000"}`), &tk), "Unmarshal must not error")
+	assert.Equal(t, "UB_USDT", tk.Contract, "Contract should unmarshal")
+	assert.Equal(t, 8819.0, tk.Volume24Hour.Float64(), "volume_24h should unmarshal")
+	assert.Equal(t, 8819700.0, tk.Volume24HourBase.Float64(), "volume_24h_base should unmarshal")
+	assert.Equal(t, 1000.0, tk.QuantoMultiplier.Float64(), "quanto_multiplier should unmarshal")
+	assert.Equal(t, 8819700.0, futuresBaseVolume(&tk), "futuresBaseVolume should keep the explicit base volume when volume_24h dropped a part contract")
+}
+
+func TestFuturesBaseVolume(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		tick FuturesTicker
+		exp  float64
+	}{
+		{"base truncated a whole unit off the product", FuturesTicker{Volume24HourBase: 52438, Volume24Hour: 524387795, QuantoMultiplier: 0.0001}, 52438.7795},
+		{"base truncated the contract away entirely", FuturesTicker{Volume24Hour: 5128, QuantoMultiplier: 0.0001}, 0.5128},
+		{"decimal lots: volume_24h dropped a part contract, so base is the better bound", FuturesTicker{Volume24HourBase: 8819700, Volume24Hour: 8819, QuantoMultiplier: 1000}, 8819700},
+		{"no contract size, as coin margined and delivery report it", FuturesTicker{Volume24HourBase: 30, Volume24Hour: 2352026}, 30},
+		{"nothing traded", FuturesTicker{}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.InDelta(t, tc.exp, futuresBaseVolume(&tc.tick), 1e-9, "futuresBaseVolume should return the 24h volume in the base currency")
 		})
 	}
 }
@@ -2242,7 +2318,7 @@ func TestUpdateTickers(t *testing.T) {
 				require.NoError(t, ex.UpdatePairs(currency.Pairs{tc.pair}, tc.asset, true), "mocked options pair must be enabled")
 			}
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, http.MethodGet, r.Method, "ticker request method should be GET")
 				assert.Equal(t, tc.expectedPath, r.URL.Path, "ticker request path should match the asset endpoint")
 				if tc.asset == asset.Options {
@@ -2255,7 +2331,6 @@ func TestUpdateTickers(t *testing.T) {
 				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h":"745487577","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
 				assert.NoError(t, err, "mocked ticker response should be written")
 			}))
-			t.Cleanup(server.Close)
 
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
@@ -2271,6 +2346,37 @@ func TestUpdateTickers(t *testing.T) {
 			}
 		})
 	}
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.USDTMarginedFutures), "UpdateTickers must not error")
+
+	// a multiplier of 1 reports both fields identically, and truncation to a whole number can
+	// cost a full unit, so pick a contract that differs and carries enough base
+	tickers, err := ex.GetFuturesTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(t, err, "GetFuturesTickers must not error")
+	require.NotEmpty(t, tickers, "GetFuturesTickers must return tickers")
+	var checked bool
+	for i := range tickers {
+		tk := tickers[i]
+		if tk.Volume24HourBase.Float64() < 1000 || tk.Volume24HourBase.Float64() == tk.Volume24Hour.Float64() {
+			continue
+		}
+		p, err := currency.NewPairFromString(tk.Contract)
+		if err != nil {
+			continue
+		}
+		stored, err := ticker.GetTicker(ex.Name, p, asset.USDTMarginedFutures)
+		if err != nil {
+			continue
+		}
+		assert.InEpsilonf(t, tk.Volume24HourBase.Float64(), stored.BaseVolume, 0.05,
+			"UpdateTickers should report the base volume for %s, not the contract count in volume_24h", p)
+		checked = true
+		break
+	}
+	require.True(t, checked, "must find a futures contract whose base volume and contract count differ")
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -2990,14 +3096,14 @@ func TestFuturesDataHandler(t *testing.T) {
 		if positions, ok := resp.Data.([]futures.Position); ok {
 			require.Len(t, positions, 1, "position update must contain one position")
 			assert.Equal(t, asset.CoinMarginedFutures, positions[0].Asset, "asset should match the websocket")
-			assert.Equal(t, "BTC_USD", positions[0].Pair.String(), "pair should be normalized")
-			assert.Equal(t, currency.BTC, positions[0].Underlying, "underlying should be normalized")
-			assert.Equal(t, currency.BTC, positions[0].CollateralCurrency, "collateral currency should be normalized")
-			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction should be normalized")
+			assert.Equal(t, "BTC_USD", positions[0].Pair.String(), "pair should be normalised")
+			assert.Equal(t, currency.BTC, positions[0].Underlying, "underlying should be normalised")
+			assert.Equal(t, currency.BTC, positions[0].CollateralCurrency, "collateral currency should be normalised")
+			assert.Equal(t, order.Long, positions[0].LatestDirection, "direction should be normalised")
 			if positions[0].CloseDate.IsZero() {
 				sawPosition = true
 				assert.Equal(t, order.Open, positions[0].Status, "position status should be open")
-				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalized")
+				assert.Equal(t, "3", positions[0].LatestSize.String(), "size should be normalised")
 				assert.Equal(t, "5", positions[0].Leverage.String(), "replacement cross-margin leverage should take precedence")
 				assert.True(t, positions[0].PositionMargin.Equal(decimal.MustFromFloat(49.999890611186)), "position margin should be populated")
 				assert.True(t, positions[0].MaintenanceMarginFraction.Equal(decimal.MustFromFloat(0.005)), "maintenance margin rate should be populated")
@@ -3010,8 +3116,8 @@ func TestFuturesDataHandler(t *testing.T) {
 			}
 		}
 	}
-	require.True(t, sawPosition, "futures fixture must emit a normalized position")
-	require.True(t, sawPositionClose, "futures fixture must emit a normalized position close")
+	require.True(t, sawPosition, "futures fixture must emit a normalised position")
+	require.True(t, sawPositionClose, "futures fixture must emit a normalised position close")
 }
 
 func TestFuturesPositionCapturedPayload(t *testing.T) {
@@ -3038,7 +3144,7 @@ func TestFuturesPositionCapturedPayload(t *testing.T) {
 	require.True(t, ok, "captured payload must emit canonical futures positions")
 	require.Len(t, positions, 1, "captured payload must emit one position")
 	position := positions[0]
-	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalized")
+	assert.Equal(t, "GPS_USDT", position.Pair.String(), "position pair should be normalised")
 	assert.Equal(t, order.Open, position.Status, "position status should be open")
 	assert.Equal(t, order.Short, position.LatestDirection, "position direction should be short")
 	assert.Equal(t, "55", position.LatestSize.String(), "position size should be absolute")
@@ -3543,13 +3649,12 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
 	var accountRequests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		if _, err := w.Write([]byte(`{"user":20011}`)); err != nil {
 			t.Errorf("Mock futures account response should be written: %v", err)
 		}
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range e.API.Endpoints.GetURLMap() {
 		require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
@@ -3653,11 +3758,10 @@ func TestPrepareFuturesUserIDsLookupFailure(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	var accountRequests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
@@ -3682,7 +3786,7 @@ func TestPreConnectWiring(t *testing.T) {
 
 	var accountRequests atomic.Int64
 	var healthy atomic.Bool
-	rest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	rest := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		if !healthy.Load() {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -3691,17 +3795,16 @@ func TestPreConnectWiring(t *testing.T) {
 		_, err := w.Write([]byte(`{"user":20011}`))
 		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
-	t.Cleanup(rest.Close)
 	require.NoError(t, ex.SetHTTPClient(rest.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, rest.URL+"/"), "SetRunningURL must not error")
 	}
 
 	// Refuses the upgrade, so Connect fails locally after preparation has run.
-	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ws := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
-	t.Cleanup(ws.Close)
+	ws.Start()
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(ws.URL, "http")), "SetAllConnectionURLs must not error")
 
 	ex.API.AuthenticatedSupport = true
@@ -3755,12 +3858,11 @@ func TestGenerateFuturesDefaultSubscriptionsColdCache(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	var accountRequests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		accountRequests.Add(1)
 		_, err := w.Write([]byte(`{"user":20011}`))
 		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
@@ -3805,11 +3907,10 @@ func TestGenerateFuturesDefaultSubscriptionsAccountIDCache(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`{"user":20011}`))
 		assert.NoError(t, err, "Mock futures account response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for endpoint := range ex.API.Endpoints.GetURLMap() {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")

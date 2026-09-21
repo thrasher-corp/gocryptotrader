@@ -132,23 +132,24 @@ type Ticker struct {
 
 // TickerInfoBase represents base price ticker details
 type TickerInfoBase struct {
-	Symbol           string  `json:"symbol"`
-	Buy              float64 `json:"buy,string"`
-	Sell             float64 `json:"sell,string"`
-	ChangeRate       float64 `json:"changeRate,string"`
-	ChangePrice      float64 `json:"changePrice,string"`
-	High             float64 `json:"high,string"`
-	Low              float64 `json:"low,string"`
-	Volume           float64 `json:"vol,string"`
-	VolumeValue      float64 `json:"volValue,string"`
-	Last             float64 `json:"last,string"`
-	AveragePrice     float64 `json:"averagePrice,string"`
-	TakerFeeRate     float64 `json:"takerFeeRate,string"`
-	MakerFeeRate     float64 `json:"makerFeeRate,string"`
-	TakerCoefficient float64 `json:"takerCoefficient,string"`
-	MakerCoefficient float64 `json:"makerCoefficient,string"`
-	BestBidSize      float64 `json:"bestBidSize,string"`
-	BestAskSize      float64 `json:"bestAskSize,string"`
+	Symbol           string       `json:"symbol"`
+	Buy              types.Number `json:"buy"`
+	Sell             types.Number `json:"sell"`
+	ChangeRate       types.Number `json:"changeRate"`
+	ChangePrice      types.Number `json:"changePrice"`
+	High             types.Number `json:"high"`
+	Low              types.Number `json:"low"`
+	Volume           types.Number `json:"vol"`
+	VolumeValue      types.Number `json:"volValue"`
+	Last             types.Number `json:"last"`
+	LastSize         types.Number `json:"lastSize"`
+	AveragePrice     types.Number `json:"averagePrice"`
+	TakerFeeRate     types.Number `json:"takerFeeRate"`
+	MakerFeeRate     types.Number `json:"makerFeeRate"`
+	TakerCoefficient types.Number `json:"takerCoefficient"`
+	MakerCoefficient types.Number `json:"makerCoefficient"`
+	BestBidSize      types.Number `json:"bestBidSize"`
+	BestAskSize      types.Number `json:"bestAskSize"`
 }
 
 // TickerInfo stores ticker information
@@ -322,7 +323,7 @@ type IsolatedMarginRiskLimitCurrencyConfig struct {
 type MarginBorrowParam struct {
 	Currency    currency.Code `json:"currency"`
 	Size        float64       `json:"size"`
-	IsIsolated  bool          `json:"isisolated"`
+	IsIsolated  bool          `json:"isIsolated"`
 	Symbol      currency.Pair `json:"symbol"`
 	TimeInForce string        `json:"timeInForce"`
 }
@@ -331,7 +332,7 @@ type MarginBorrowParam struct {
 type RepayParam struct {
 	Currency   currency.Code `json:"currency"`
 	Size       float64       `json:"size"`
-	IsIsolated bool          `json:"isisolated"`
+	IsIsolated bool          `json:"isIsolated"`
 	Symbol     currency.Pair `json:"symbol"`
 }
 
@@ -434,9 +435,6 @@ type PlaceHFParam struct {
 	TimeInForce string  `json:"timeInForce"`
 	CancelAfter int64   `json:"cancelAfter"`
 	PostOnly    bool    `json:"postOnly"`
-	Hidden      bool    `json:"hidden"`
-	Iceberg     bool    `json:"iceberg"`
-	VisibleSize float64 `json:"visibleSize"`
 
 	// Additional 'market' parameters
 	Funds string `json:"funds"`
@@ -549,18 +547,20 @@ type OrderRequest struct {
 	TimeInForce         string  `json:"timeInForce,omitempty"` // optional
 	CancelAfter         int64   `json:"cancelAfter,omitempty"` // optional
 	PostOnly            bool    `json:"postOnly,omitempty"`    // optional
-	Hidden              bool    `json:"hidden,omitempty"`      // optional
-	Iceberg             bool    `json:"iceberg,omitempty"`     // optional
-	VisibleSize         string  `json:"visibleSize,omitempty"` // optional
 }
 
 // PostBulkOrderResp response data for submitting a bulk order
 type PostBulkOrderResp struct {
 	OrderRequest
-	ID      string `json:"id"`
-	Channel string `json:"channel"`
-	Status  string `json:"status"`
-	FailMsg string `json:"failMsg"`
+	// response only: /v1/orders/multi echoes these back even though order placement no longer
+	// accepts them, with visibleSize null
+	Hidden      bool         `json:"hidden"`
+	Iceberg     bool         `json:"iceberg"`
+	VisibleSize types.Number `json:"visibleSize"`
+	ID          string       `json:"id"`
+	Channel     string       `json:"channel"`
+	Status      string       `json:"status"`
+	FailMsg     string       `json:"failMsg"`
 }
 
 // OrdersListResponse represents an order list response
@@ -662,6 +662,12 @@ type StopOrderListResponse struct {
 // StopOrder holds a stop order detail
 type StopOrder struct {
 	OrderRequest
+	// response only: KuCoin stopped accepting these on order placement in August 2026 but still
+	// returns them here, with visibleSize null
+	Hidden      bool         `json:"hidden"`
+	Iceberg     bool         `json:"iceberg"`
+	VisibleSize types.Number `json:"visibleSize"`
+
 	ID              string     `json:"id"`
 	UserID          string     `json:"userId"`
 	Status          string     `json:"status"`
@@ -1466,12 +1472,12 @@ type WsFuturesFundingBegin struct {
 
 // WsFuturesTransactionStatisticsTimeEvent represents transaction statistics data
 type WsFuturesTransactionStatisticsTimeEvent struct {
-	Symbol                   string     `json:"symbol"`
-	Volume24H                float64    `json:"volume"`
-	Turnover24H              float64    `json:"turnover"`
-	LastPrice                int64      `json:"lastPrice"`
-	PriceChangePercentage24H float64    `json:"priceChgPct"`
-	SnapshotTime             types.Time `json:"ts"`
+	Symbol                      string     `json:"symbol"`
+	Volume24Hour                float64    `json:"volume"`
+	Turnover24Hour              float64    `json:"turnover"`
+	LastPrice                   int64      `json:"lastPrice"`
+	PriceChangePercentage24Hour float64    `json:"priceChgPct"`
+	SnapshotTime                types.Time `json:"ts"`
 }
 
 // WsFuturesTradeOrder represents trade order information according to the market
@@ -1492,7 +1498,7 @@ type WsFuturesTradeOrder struct {
 	TradeID          string     `json:"tradeId"`             // Trade ID (when the type is "match")
 	ClientOid        string     `json:"clientOid"`           // Client supplied order id
 	OrderTime        types.Time `json:"orderTime"`
-	OldSize          string     `json:"oldSize "`  // Size Before Update (when the type is "update")
+	OldSize          string     `json:"oldSize"`   // Size Before Update (when the type is "update")
 	TradingDirection string     `json:"liquidity"` // Liquidity, Trading direction, buy or sell in taker
 	Timestamp        types.Time `json:"ts"`
 }
@@ -1715,7 +1721,7 @@ type FuturesInterestRateResponse struct {
 
 // TransactionVolume represents a 24 hour transaction volume
 type TransactionVolume struct {
-	TurnoverOf24Hr float64 `json:"turnoverOf24h"`
+	TurnoverOf24Hour float64 `json:"turnoverOf24h"`
 }
 
 // FuturesTransactionHistoryResponse represents a futures transaction history response
@@ -1750,10 +1756,7 @@ type FuturesOrderParam struct {
 	ForceHold           bool    `json:"forceHold,omitempty"`
 	SelfTradePrevention string  `json:"stp,omitempty"` // self trade prevention, CN, CO, CB. Not supported DC at the moment
 	TimeInForce         string  `json:"timeInForce,omitempty"`
-	VisibleSize         float64 `json:"visibleSize,omitempty,string"` // The maximum visible size of an iceberg order
 	PostOnly            bool    `json:"postOnly,omitempty"`
-	Hidden              bool    `json:"hidden,omitempty"`
-	Iceberg             bool    `json:"iceberg,omitempty"`
 }
 
 // FuturesOrderRespItem represents a single futures order placing response in placing multiple orders
@@ -1776,13 +1779,10 @@ type SpotOrderParam struct {
 	SelfTradePrevention string        `json:"stp,omitempty"`         // [Optional] self trade prevention , CN, CO, CB or DC. `CN` for Cancel newest, `DC` for Decrease and Cancel, `CO` for cancel oldest, and `CB` for Cancel both
 	TimeInForce         string        `json:"timeInForce,omitempty"` // [Optional] GTC, GTT, IOC, or FOK (default is GTC)
 	PostOnly            bool          `json:"postOnly,omitempty"`
-	Hidden              bool          `json:"hidden,omitempty"`
-	Iceberg             bool          `json:"iceberg,omitempty"`
 	ReduceOnly          bool          `json:"reduceOnly,omitempty"`
 	CancelAfter         int64         `json:"cancelAfter,omitempty"`
 	Size                float64       `json:"size,omitempty,string"`
 	Price               float64       `json:"price,string,omitempty"`
-	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
 }
 
@@ -1802,9 +1802,6 @@ type MarginOrderParam struct {
 	TimeInForce         string        `json:"timeInForce,omitempty"` // [Optional] GTC, GTT, IOC, or FOK (default is GTC)
 	CancelAfter         int64         `json:"cancelAfter,omitempty"` // [Optional] cancel after n seconds, requires timeInForce to be GTT
 	PostOnly            bool          `json:"postOnly,omitempty"`
-	Hidden              bool          `json:"hidden,omitempty"`
-	Iceberg             bool          `json:"iceberg,omitempty"`
-	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
 }
 
@@ -1891,12 +1888,9 @@ type PlaceMarginHFOrderParam struct {
 	AutoRepay           bool          `json:"autoRepay,omitempty"`
 	Price               float64       `json:"price,string"`
 	Size                float64       `json:"size,string"`
-	TimeInForce         string        `json:"timeInForce,omitempty,string"`
-	CancelAfter         int64         `json:"cancelAfter,omitempty,string"`
-	PostOnly            bool          `json:"postOnly,omitempty,string"`
-	Hidden              bool          `json:"hidden,omitempty,string"`
-	Iceberg             bool          `json:"iceberg,omitempty,string"`
-	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
+	TimeInForce         string        `json:"timeInForce,omitempty"`
+	CancelAfter         int64         `json:"cancelAfter,omitempty"`
+	PostOnly            bool          `json:"postOnly,omitempty"`
 	Funds               string        `json:"funds,omitempty"`
 }
 

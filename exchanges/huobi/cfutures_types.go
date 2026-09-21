@@ -220,7 +220,7 @@ type HistoricalFundingRateData struct {
 		CurrentPage int64                `json:"current_page"`
 		TotalSize   int64                `json:"total_size"`
 		Data        []HistoricalRateData `json:"data"`
-	}
+	} `json:"data"`
 }
 
 // HistoricalRateData stores historical rates data
@@ -565,7 +565,7 @@ type LightningCloseOrderData struct {
 		OrderID       int64  `json:"order_id"`
 		OrderIDString string `json:"order_id_str"`
 		ClientOrderID int64  `json:"client_order_id"`
-	}
+	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
 
@@ -595,7 +595,7 @@ type SwapOrderInfo struct {
 		Status          int64   `json:"status"`
 		FeeAsset        float64 `json:"fee_asset"`
 		LiquidationType int64   `json:"liquidation_type"`
-	}
+	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
 

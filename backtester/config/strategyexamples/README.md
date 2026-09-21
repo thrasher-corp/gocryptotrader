@@ -1,13 +1,11 @@
 # GoCryptoTrader Backtester: Strategyexamples package
 
-<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/config/strategyexamples)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This strategyexamples package is part of the GoCryptoTrader codebase.
 
@@ -37,12 +35,13 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | binance-live-cash-and-carry.strat | Executes a cash and carry trade on Binance using realtime 15 second candles, buying BTC-USD while shorting the long dated futures contract. Is not currently implemented |
 
 ### Want to make your own configs?
-Use the provided config builder under `/backtester/config/configbuilder` or modify tests under `/backtester/config/config_test.go` to generates strategy files quickly
+
+Use the provided config builder under `/backtester/config/strategyconfigbuilder` or modify tests under `/backtester/config/strategyconfig_test.go` to generate strategy files quickly
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

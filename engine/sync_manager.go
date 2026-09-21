@@ -723,7 +723,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 	}
 
 	// ignoring error as not all tickers have volume populated and error is not actionable
-	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.BaseVolume)
 	if !m.config.LogSyncUpdateEvents {
 		return
 	}
@@ -743,7 +743,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 			printConvertCurrencyFormat(result.Bid, origCurrency, m.fiatDisplayCurrency),
 			printConvertCurrencyFormat(result.High, origCurrency, m.fiatDisplayCurrency),
 			printConvertCurrencyFormat(result.Low, origCurrency, m.fiatDisplayCurrency),
-			result.Volume)
+			result.BaseVolume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
@@ -758,7 +758,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				printCurrencyFormat(result.Bid, m.fiatDisplayCurrency),
 				printCurrencyFormat(result.High, m.fiatDisplayCurrency),
 				printCurrencyFormat(result.Low, m.fiatDisplayCurrency),
-				result.Volume)
+				result.BaseVolume)
 		} else {
 			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
 				result.ExchangeName,
@@ -770,7 +770,7 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				result.Bid,
 				result.High,
 				result.Low,
-				result.Volume)
+				result.BaseVolume)
 		}
 	}
 }

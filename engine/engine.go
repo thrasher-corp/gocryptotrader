@@ -203,8 +203,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	}
 
 	if flagSet["maxvirtualmachines"] {
-		maxMachines := b.Settings.MaxVirtualMachines
-		b.gctScriptManager.MaxVirtualMachines = &maxMachines
+		b.gctScriptManager.MaxVirtualMachines = new(b.Settings.MaxVirtualMachines)
 	}
 
 	if flagSet["withdrawcachesize"] {
@@ -661,7 +660,7 @@ func (bot *Engine) EnsureRuntimeContext() context.Context {
 		return context.Background()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is retained as bot.runtimeCancel and invoked on shutdown
 	bot.runtimeCtx = ctx
 	bot.runtimeCancel = cancel
 	return ctx
@@ -875,8 +874,8 @@ func (bot *Engine) LoadExchange(name string) error {
 		}
 	}
 
-	// NOTE: This will standardize name to default and apply it to the config.
-	exchCfg.Name = exch.GetName()
+	// NOTE: This will standardise name to default and apply it to the config.
+	exchCfg.SetName(exch.GetName())
 
 	exchCfg.Enabled = true
 	if err := exch.Setup(exchCfg); err != nil {
@@ -1032,9 +1031,8 @@ func (bot *Engine) SetupExchanges() error {
 			continue
 		}
 
-		wg.Add(1)
-		go func(c config.Exchange) {
-			defer wg.Done()
+		c := configs[x]
+		wg.Go(func() {
 			if err := bot.LoadExchange(c.Name); err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
 			} else {
@@ -1045,7 +1043,7 @@ func (bot *Engine) SetupExchanges() error {
 					common.IsEnabled(c.Verbose),
 				)
 			}
-		}(configs[x])
+		})
 	}
 	wg.Wait()
 	if len(bot.GetExchanges()) == 0 {

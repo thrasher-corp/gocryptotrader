@@ -69,8 +69,7 @@ func (b *Base) GetDefaultCredentials() *accounts.Credentials {
 	if b.API.credentials == (accounts.Credentials{}) {
 		return nil
 	}
-	creds := b.API.credentials
-	return &creds
+	return new(b.API.credentials)
 }
 
 // GetCredentials checks and validates current credentials, context credentials

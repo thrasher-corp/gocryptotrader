@@ -1,11 +1,11 @@
 package poloniex
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -331,18 +331,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for _, tick := range ticks {
-			if err := ticker.ProcessTicker(&ticker.Price{
-				ExchangeName: e.Name,
-				AssetType:    assetType,
-				Pair:         tick.Symbol,
-				Last:         tick.MarkPrice.Float64(),
-				Low:          tick.Low.Float64(),
-				Ask:          tick.Ask.Float64(),
-				Bid:          tick.Bid.Float64(),
-				High:         tick.High.Float64(),
-				QuoteVolume:  tick.QuoteAmount.Float64(),
-				Volume:       tick.BaseAmount.Float64(),
-			}); err != nil {
+			if err := ticker.ProcessTicker(e.spotTicker(tick)); err != nil {
 				return err
 			}
 		}
@@ -352,18 +341,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for _, tick := range ticks {
-			if err := ticker.ProcessTicker(&ticker.Price{
-				ExchangeName: e.Name,
-				AssetType:    assetType,
-				Pair:         tick.Symbol,
-				LastUpdated:  tick.EndTime.Time(),
-				Volume:       tick.BaseAmount.Float64(),
-				QuoteVolume:  tick.QuoteAmount.Float64(),
-				BidSize:      tick.BestBidSize.Float64(),
-				Bid:          tick.BestBidPrice.Float64(),
-				AskSize:      tick.BestAskSize.Float64(),
-				Ask:          tick.BestAskPrice.Float64(),
-			}); err != nil {
+			if err := ticker.ProcessTicker(e.futuresTicker(tick)); err != nil {
 				return err
 			}
 		}
@@ -373,8 +351,57 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 	return nil
 }
 
+// spotTicker builds the ticker a spot response describes. The store overwrites a pair wholesale,
+// so the single pair and bulk paths share this to record the same fields either way
+func (e *Exchange) spotTicker(t *TickerData) *ticker.Price {
+	return &ticker.Price{
+		ExchangeName: e.Name,
+		AssetType:    asset.Spot,
+		Pair:         t.Symbol,
+		Last:         t.Close.Float64(),
+		High:         t.High.Float64(),
+		Low:          t.Low.Float64(),
+		Bid:          t.Bid.Float64(),
+		BidSize:      t.BidQuantity.Float64(),
+		Ask:          t.Ask.Float64(),
+		AskSize:      t.AskQuantity.Float64(),
+		BaseVolume:   t.BaseAmount.Float64(),
+		QuoteVolume:  t.QuoteAmount.Float64(),
+		Open:         t.Open.Float64(),
+		Close:        t.Close.Float64(),
+		MarkPrice:    t.MarkPrice.Float64(),
+		LastUpdated:  t.Timestamp.Time(),
+	}
+}
+
+// futuresTicker builds the ticker a futures response describes, shared by the single pair and bulk
+// paths for the same reason. No base volume is recorded: qty counts contracts, and the response
+// carries neither the contract size nor a base figure to convert it with
+func (e *Exchange) futuresTicker(t *FuturesTickerDetails) *ticker.Price {
+	return &ticker.Price{
+		ExchangeName: e.Name,
+		AssetType:    asset.Futures,
+		Pair:         t.Symbol,
+		Last:         t.ClosingPrice.Float64(),
+		High:         t.HighPrice.Float64(),
+		Low:          t.LowPrice.Float64(),
+		Bid:          t.BestBidPrice.Float64(),
+		BidSize:      t.BestBidSize.Float64(),
+		Ask:          t.BestAskPrice.Float64(),
+		AskSize:      t.BestAskSize.Float64(),
+		QuoteVolume:  t.QuoteAmount.Float64(),
+		Open:         t.OpeningPrice.Float64(),
+		Close:        t.ClosingPrice.Float64(),
+		MarkPrice:    t.MarkPrice.Float64(),
+		IndexPrice:   t.IndexPrice.Float64(),
+		// The tickers endpoint serves only the candle close time, the websocket only ts
+		LastUpdated: cmp.Or(t.Timestamp.Time(), t.EndTime.Time()),
+	}
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	var tick *ticker.Price
 	switch assetType {
 	case asset.Spot:
 		formattedPair, err := e.FormatExchangeCurrency(pair, assetType)
@@ -385,26 +412,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 		if err != nil {
 			return nil, err
 		}
-		if err := ticker.ProcessTicker(&ticker.Price{
-			High:         tickerResult.High.Float64(),
-			Low:          tickerResult.Low.Float64(),
-			Bid:          tickerResult.Bid.Float64(),
-			BidSize:      tickerResult.BidQuantity.Float64(),
-			Ask:          tickerResult.Ask.Float64(),
-			AskSize:      tickerResult.AskQuantity.Float64(),
-			QuoteVolume:  tickerResult.QuoteAmount.Float64(),
-			Volume:       tickerResult.BaseAmount.Float64(),
-			Open:         tickerResult.Open.Float64(),
-			Close:        tickerResult.Close.Float64(),
-			MarkPrice:    tickerResult.MarkPrice.Float64(),
-			Pair:         pair,
-			ExchangeName: e.Name,
-			AssetType:    asset.Spot,
-			LastUpdated:  tickerResult.Timestamp.Time(),
-		}); err != nil {
-			return nil, err
-		}
-		return ticker.GetTicker(e.Name, pair, assetType)
+		tick = e.spotTicker(tickerResult)
 	case asset.Futures:
 		formattedPair, err := e.FormatExchangeCurrency(pair, assetType)
 		if err != nil {
@@ -417,29 +425,17 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 		if len(tickerResult) != 1 {
 			return nil, common.ErrInvalidResponse
 		}
-		if err := ticker.ProcessTicker(&ticker.Price{
-			High:         tickerResult[0].HighPrice.Float64(),
-			Low:          tickerResult[0].LowPrice.Float64(),
-			Bid:          tickerResult[0].BestBidPrice.Float64(),
-			BidSize:      tickerResult[0].BestBidSize.Float64(),
-			Ask:          tickerResult[0].BestAskPrice.Float64(),
-			AskSize:      tickerResult[0].BestAskSize.Float64(),
-			Volume:       tickerResult[0].BaseAmount.Float64(),
-			QuoteVolume:  tickerResult[0].QuoteAmount.Float64(),
-			Open:         tickerResult[0].OpeningPrice.Float64(),
-			Close:        tickerResult[0].ClosingPrice.Float64(),
-			MarkPrice:    tickerResult[0].MarkPrice.Float64(),
-			Pair:         pair,
-			ExchangeName: e.Name,
-			AssetType:    asset.Futures,
-			LastUpdated:  tickerResult[0].Timestamp.Time(),
-		}); err != nil {
-			return nil, err
-		}
-		return ticker.GetTicker(e.Name, pair, assetType)
+		tick = e.futuresTicker(tickerResult[0])
 	default:
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
+	// The store keys base and quote separately, and the response's symbol can split differently
+	// from the requested pair, so the ticker is stored under the pair it is looked up by
+	tick.Pair = pair
+	if err := ticker.ProcessTicker(tick); err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(e.Name, pair, assetType)
 }
 
 func orderbookLevelFromSlice(data []types.Number) orderbook.Levels {
@@ -662,7 +658,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 	if err := e.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -1145,8 +1141,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Price:                orderDetail.Price.Float64(),
 			Amount:               orderDetail.Size.Float64(),
 			AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
-			QuoteAmount:          orderDetail.AveragePrice.Float64() * orderDetail.ExecutedQuantity.Float64(),
 			ExecutedAmount:       orderDetail.ExecutedQuantity.Float64(),
+			ExecutedQuoteAmount:  orderDetail.ExecutedAmount.Float64(),
 			RemainingAmount:      orderDetail.Size.Float64() - orderDetail.ExecutedQuantity.Float64(),
 			OrderID:              orderDetail.OrderID,
 			Exchange:             e.Name,
@@ -1288,6 +1284,9 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	if req == nil {
+		return nil, order.ErrGetOrdersRequestIsNil
+	}
 	var samplePair currency.Pair
 	if len(req.Pairs) == 1 {
 		samplePair = req.Pairs[0]
@@ -1542,25 +1541,25 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		detail := order.Detail{
-			Side:            fOrder.Side,
-			Amount:          fOrder.Size.Float64(),
-			ExecutedAmount:  fOrder.ExecutedAmount.Float64(),
-			Price:           fOrder.Price.Float64(),
-			Pair:            fOrder.Symbol,
-			Type:            oType,
-			Exchange:        e.Name,
-			RemainingAmount: fOrder.Size.Float64() - fOrder.ExecutedAmount.Float64(),
-			OrderID:         fOrder.OrderID,
-			ClientOrderID:   fOrder.ClientOrderID,
-			Status:          orderStateFromString(fOrder.State),
-			AssetType:       asset.Futures,
-			Date:            fOrder.CreationTime.Time(),
-			LastUpdated:     fOrder.UpdateTime.Time(),
-			TimeInForce:     fOrder.TimeInForce,
-		}
-		detail.InferExecutionAndTimes()
-		orders = append(orders, detail)
+		orders = append(orders, order.Detail{
+			Side:                 fOrder.Side,
+			Amount:               fOrder.Size.Float64(),
+			ExecutedAmount:       fOrder.ExecutedQuantity.Float64(),
+			ExecutedQuoteAmount:  fOrder.ExecutedAmount.Float64(),
+			AverageExecutedPrice: fOrder.AveragePrice.Float64(),
+			Price:                fOrder.Price.Float64(),
+			Pair:                 fOrder.Symbol,
+			Type:                 oType,
+			Exchange:             e.Name,
+			RemainingAmount:      fOrder.Size.Float64() - fOrder.ExecutedQuantity.Float64(),
+			OrderID:              fOrder.OrderID,
+			ClientOrderID:        fOrder.ClientOrderID,
+			Status:               orderStateFromString(fOrder.State),
+			AssetType:            asset.Futures,
+			Date:                 fOrder.CreationTime.Time(),
+			LastUpdated:          fOrder.UpdateTime.Time(),
+			TimeInForce:          fOrder.TimeInForce,
+		})
 	}
 	return req.Filter(e.Name, orders), nil
 }
@@ -1779,10 +1778,10 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			},
 			TimeOfNextRate: fFundingRate.NextFundingTime.Time(),
 			TimeChecked:    timeChecked,
-		}
-		rate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fFundingRate.NextFundingTime.Time(),
-			Rate: decimal.MustFromFloat(fFundingRate.NextPredictedFundingRate.Float64()),
+			PredictedUpcomingRate: fundingrate.Rate{
+				Time: fFundingRate.NextFundingTime.Time(),
+				Rate: decimal.MustFromFloat(fFundingRate.NextPredictedFundingRate.Float64()),
+			},
 		}
 		resp = append(resp, rate)
 	}
@@ -1909,6 +1908,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 
 // WebsocketCancelOrder cancels an order via the websocket connection
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) error {
+	if req == nil {
+		return order.ErrCancelOrderIsNil
+	}
 	if req.OrderID == "" && req.ClientOrderID == "" {
 		return order.ErrOrderIDNotSet
 	}

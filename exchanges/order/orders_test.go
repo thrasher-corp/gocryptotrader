@@ -1,14 +1,15 @@
 package order
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -271,11 +272,10 @@ func TestSubmit_DeriveSubmitResponse(t *testing.T) {
 func TestSubmitResponse_DeriveDetail(t *testing.T) {
 	t.Parallel()
 	var s *SubmitResponse
-	_, err := s.DeriveDetail(uuid.Nil)
+	_, err := s.DeriveDetail(uuid.Nil())
 	require.ErrorIs(t, err, errOrderSubmitResponseIsNil)
 
-	id, err := uuid.NewV4()
-	require.NoError(t, err)
+	id := uuid.NewV4()
 
 	s = &SubmitResponse{
 		AverageExecutedPrice: 2,
@@ -521,7 +521,8 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 	t.Parallel()
 
 	orders := make([]Detail, 0, 4)
-	orders = append(orders,
+	orders = append(
+		orders,
 		Detail{
 			Date: time.Unix(100, 0),
 		},
@@ -1009,8 +1010,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err := od.UpdateOrderFromDetail(nil)
 	require.ErrorIs(t, err, ErrOrderDetailIsNil)
 
-	id, err := uuid.NewV4()
-	require.NoError(t, err)
+	id := uuid.NewV4()
 	const leet = "1337"
 	updated := time.Now()
 
@@ -1141,8 +1141,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, nextCloseTime, od.CloseTime)
 	assert.Equal(t, lastUpdatedWithoutIncoming, od.LastUpdated)
 
-	id, err = uuid.NewV4()
-	require.NoError(t, err)
+	id = uuid.NewV4()
 
 	om = &Detail{
 		InternalOrderID: id,
@@ -1330,7 +1329,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 func TestMatchFilter(t *testing.T) {
 	t.Parallel()
-	id := uuid.Must(uuid.NewV4())
+	id := uuid.NewV4()
 
 	assert.True(t, new(Detail).MatchFilter(&Filter{}), "an empty filter should match an empty order")
 	assert.True(t, (&Detail{Exchange: "E", OrderID: "A", Side: Sell, Pair: currency.NewBTCUSD()}).MatchFilter(&Filter{}), "an empty filter should match any order")
@@ -1345,7 +1344,7 @@ func TestMatchFilter(t *testing.T) {
 		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
 		{"Exchange Empty", Filter{Exchange: "A"}, Detail{}, false},
 		{"InternalOrderID ✓", Filter{InternalOrderID: id}, Detail{InternalOrderID: id}, true},
-		{"InternalOrderID 𐄂", Filter{InternalOrderID: id}, Detail{InternalOrderID: uuid.Must(uuid.NewV4())}, false},
+		{"InternalOrderID 𐄂", Filter{InternalOrderID: id}, Detail{InternalOrderID: uuid.NewV4()}, false},
 		{"InternalOrderID Empty", Filter{InternalOrderID: id}, Detail{}, false},
 		{"OrderID ✓", Filter{OrderID: "A"}, Detail{OrderID: "A"}, true},
 		{"OrderID 𐄂", Filter{OrderID: "A"}, Detail{OrderID: "B"}, false},
@@ -1545,8 +1544,7 @@ func TestIsOrderPlaced(t *testing.T) {
 }
 
 func TestGenerateInternalOrderID(t *testing.T) {
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	id := uuid.NewV4()
 	od := Detail{
 		InternalOrderID: id,
 	}
@@ -1555,7 +1553,7 @@ func TestGenerateInternalOrderID(t *testing.T) {
 
 	od = Detail{}
 	od.GenerateInternalOrderID()
-	assert.False(t, od.InternalOrderID.IsNil(), "unable to generate internal order ID")
+	assert.NotEqual(t, uuid.Nil(), od.InternalOrderID, "unable to generate internal order ID")
 }
 
 func TestDetail_Copy(t *testing.T) {
@@ -1829,8 +1827,7 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.NoError(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
 	assert.Equal(t, Sell, s, "Correctly set order Side")
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
-	var jErr *json.UnmarshalTypeError
-	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`14`)), ErrSideIsInvalid, "non-string valid json is rejected")
 }
 
 func TestSideMarshalJSON(t *testing.T) {
@@ -1904,7 +1901,7 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"AutoRepay":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"AutoRepay":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
 	assert.Equal(t, exp, j)
 }
 
@@ -1933,4 +1930,44 @@ func TestPosition(t *testing.T) {
 			assert.ErrorIs(t, err, a.err)
 		}
 	}
+}
+
+func TestSortOrders(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		reverse bool
+		want    []float64
+	}{
+		{
+			name: "ascending",
+			want: []float64{1, 2, 2, 3},
+		},
+		{
+			name:    "descending",
+			reverse: true,
+			want:    []float64{3, 2, 2, 1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			orders := []Detail{
+				{Price: 2},
+				{Price: 3},
+				{Price: 1},
+				{Price: 2},
+			}
+			sortOrders(&orders, tc.reverse, func(a, b Detail) int { return cmp.Compare(a.Price, b.Price) })
+
+			got := make([]float64, len(orders))
+			for i := range orders {
+				got[i] = orders[i].Price
+			}
+			assert.Equal(t, tc.want, got, "sortOrders should order the prices")
+		})
+	}
+
+	var empty []Detail
+	assert.NotPanics(t, func() { sortOrders(&empty, false, func(a, b Detail) int { return cmp.Compare(a.Price, b.Price) }) },
+		"sortOrders should accept an empty slice")
 }
