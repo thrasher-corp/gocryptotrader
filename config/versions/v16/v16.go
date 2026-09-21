@@ -17,6 +17,7 @@ type Version struct{}
 
 // UpgradeConfig removes the GCTScript configuration and any obsolete GCTSCRIPT sublogger.
 func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	original := config
 	config = jsonparser.Delete(config, "gctscript")
 
 	subloggersJSON, valueType, _, err := jsonparser.Get(config, "logging", "subloggers")
@@ -24,7 +25,7 @@ func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) 
 		return config, nil
 	}
 	if err != nil {
-		return config, err
+		return original, err
 	}
 	if valueType != jsonparser.Array {
 		return config, nil
@@ -32,7 +33,7 @@ func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) 
 
 	var subloggers []json.RawMessage
 	if err := json.Unmarshal(subloggersJSON, &subloggers); err != nil {
-		return config, err
+		return original, err
 	}
 
 	filtered := subloggers[:0]
@@ -41,7 +42,7 @@ func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) 
 			Name string `json:"name"`
 		}
 		if err := json.Unmarshal(subloggers[i], &sublogger); err != nil {
-			return config, err
+			return original, err
 		}
 		if !strings.EqualFold(sublogger.Name, "GCTSCRIPT") {
 			filtered = append(filtered, subloggers[i])
@@ -53,9 +54,13 @@ func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) 
 
 	subloggersJSON, err = json.Marshal(filtered)
 	if err != nil {
-		return config, err
+		return original, err
 	}
-	return jsonparser.Set(config, subloggersJSON, "logging", "subloggers")
+	updated, err := jsonparser.Set(config, subloggersJSON, "logging", "subloggers")
+	if err != nil {
+		return original, err
+	}
+	return updated, nil
 }
 
 // DowngradeConfig restores the legacy GCTScript defaults expected by older releases.

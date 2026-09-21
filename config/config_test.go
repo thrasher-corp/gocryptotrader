@@ -1579,6 +1579,19 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
 
+func TestReadVersion15ConfigRemovesGCTScriptSubLogger(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.json")
+	data := []byte(`{"name":"test","version":15,"encryptConfig":-1,"logging":{"subloggers":[{"name":"GCTSCRIPT"}]}}`)
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 15 config")
+
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
+	assert.Equal(t, 16, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
+	assert.Empty(t, migrated.Logging.SubLoggers, "ReadConfigFromFile should remove the obsolete GCTScript sublogger")
+}
+
 func TestReadConfigFromReader(t *testing.T) {
 	t.Parallel()
 	c := &Config{}

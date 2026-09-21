@@ -110,6 +110,12 @@ func TestSetGlobalLogConfig(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSetupSubLoggersIgnoresRemovedGCTScript(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, SetupSubLoggers([]SubLoggerConfig{{Name: "gctscript"}}), "SetupSubLoggers must ignore the removed GCTScript sublogger")
+	require.Error(t, SetupSubLoggers([]SubLoggerConfig{{Name: "unknown"}}), "SetupSubLoggers must reject other unknown subloggers")
+}
+
 func TestSetLogPath(t *testing.T) {
 	t.Parallel()
 	err := SetLogPath("")

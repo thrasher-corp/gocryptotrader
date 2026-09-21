@@ -131,11 +131,16 @@ func SetupSubLoggers(s []SubLoggerConfig) error {
 	mu.Lock()
 	defer mu.Unlock()
 	for x := range s {
+		name := strings.ToUpper(s[x].Name)
+		if _, found := SubLoggers[name]; !found && name == "GCTSCRIPT" {
+			// GCTScript has been removed, but older saved configurations may still list its sublogger.
+			continue
+		}
 		output, err := getWriters(&s[x])
 		if err != nil {
 			return err
 		}
-		err = configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
+		err = configureSubLogger(name, s[x].Level, output)
 		if err != nil {
 			return err
 		}
