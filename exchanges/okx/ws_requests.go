@@ -29,6 +29,10 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 		return nil, err
 	}
 
+	if arg.InstrumentIDCode == 0 {
+		return nil, errMissingInstrumentIDCode
+	}
+
 	var resp []*OrderData
 	if err := e.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
 		return nil, err
@@ -46,6 +50,9 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 		if err := args[i].Validate(); err != nil {
 			return nil, err
 		}
+		if args[i].InstrumentIDCode == 0 {
+			return nil, errMissingInstrumentIDCode
+		}
 	}
 
 	var resp []*OrderData
@@ -62,6 +69,9 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
+	}
+	if arg.InstrumentIDCode == 0 {
+		return nil, errMissingInstrumentIDCode
 	}
 
 	var resp []*OrderData
@@ -85,6 +95,9 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 		if args[i].OrderID == "" && args[i].ClientOrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
+		if args[i].InstrumentIDCode == 0 {
+			return nil, errMissingInstrumentIDCode
+		}
 	}
 
 	var resp []*OrderData
@@ -104,6 +117,9 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	}
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
+	}
+	if arg.InstrumentIDCode == 0 {
+		return nil, errMissingInstrumentIDCode
 	}
 
 	var resp []*OrderData
@@ -128,6 +144,9 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 		}
 		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
+		}
+		if args[x].InstrumentIDCode == 0 {
+			return nil, errMissingInstrumentIDCode
 		}
 	}
 

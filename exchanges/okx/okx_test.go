@@ -3873,6 +3873,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	spreadCancel := order.Cancel{
+		AssetType: asset.Spread,
+		Pair:      spreadPair,
+	}
+	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{spreadCancel})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellationParams := []order.Cancel{
 		{

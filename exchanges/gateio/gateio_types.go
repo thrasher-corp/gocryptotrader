@@ -1885,7 +1885,7 @@ type DeliveryOrderCreateParams struct {
 // FuturesOrder represents future order response
 type FuturesOrder struct {
 	ID                        int64         `json:"id"`
-	User                      string        `json:"user"`
+	User                      types.Number  `json:"user"`
 	Contract                  currency.Pair `json:"contract"`
 	CreateTime                types.Time    `json:"create_time"`
 	Size                      types.Number  `json:"size"`

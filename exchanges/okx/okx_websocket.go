@@ -466,7 +466,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelInstruments:
 		var response WSInstrumentResponse
-		return e.wsProcessPushData(ctx, respRaw, &response)
+		if err := e.wsProcessPushData(ctx, respRaw, &response); err != nil {
+			return err
+		}
+		e.cacheInstrumentIDCodes(response.Data)
+		return nil
 	case channelOpenInterest:
 		var response WSOpenInterestResponse
 		return e.wsProcessPushData(ctx, respRaw, &response)
