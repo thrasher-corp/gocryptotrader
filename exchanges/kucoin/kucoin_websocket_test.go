@@ -141,7 +141,18 @@ func TestPushData(t *testing.T) {
 		return e.wsHandleData(ctx, nil, r)
 	})
 
-	require.Eventually(t, func() bool { return len(e.Websocket.DataHandler.C) == 31 }, time.Second, time.Millisecond*10, "must receive 31 messages")
+	messageCount := 0
+	require.Eventually(t, func() bool {
+		for len(e.Websocket.DataHandler.C) > 0 {
+			response := <-e.Websocket.DataHandler.C
+			if prices, ok := response.Data.([]ticker.Price); ok {
+				messageCount += len(prices)
+				continue
+			}
+			messageCount++
+		}
+		return messageCount == 31
+	}, time.Second, time.Millisecond*10, "must receive 31 messages")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
