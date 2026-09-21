@@ -31,6 +31,7 @@ const (
 var (
 	errCandleDataUnmarshal      = fmt.Errorf("coinbase websocket candle data: %w", common.ErrMalformedData)
 	errMarketTradeDataUnmarshal = fmt.Errorf("coinbase websocket market trade data: %w", common.ErrMalformedData)
+	errWebsocketResponse        = errors.New("coinbase websocket response error")
 )
 
 var subscriptionNames = map[string]string{
@@ -280,7 +281,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	sequenceErr := e.checkWSSequence(conn, resp.Sequence)
 	defer func() { retErr = common.AppendError(retErr, sequenceErr) }()
 	if resp.Error != "" {
-		return errors.New(resp.Error)
+		return fmt.Errorf("%w: %s", errWebsocketResponse, resp.Error)
 	}
 	switch resp.Channel {
 	case "subscriptions", "heartbeats":

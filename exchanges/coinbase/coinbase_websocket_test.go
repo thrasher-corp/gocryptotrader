@@ -85,7 +85,8 @@ func TestWsHandleData(t *testing.T) {
 		t.Parallel()
 		mockJSON := []byte(`{"type": "error"}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.EqualError(t, err, "error", "wsHandleData should return the websocket error type")
+		assert.EqualError(t, err, "coinbase websocket response error: error", "wsHandleData should return the websocket error type")
+		assert.ErrorIs(t, err, errWebsocketResponse, "wsHandleData should wrap the websocket response sentinel")
 	})
 
 	t.Run("subscriptions channel", func(t *testing.T) {
