@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -39,6 +40,10 @@ func TestGetSwapKlineData(t *testing.T) {
 	r, err := e.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotEmpty(t, r.Data, "GetSwapKlineData should return some data")
+	_, err = e.GetSwapKlineData(t.Context(), btcusdPair, "invalid", 5, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetSwapKlineData must reject an invalid period")
+	_, err = e.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now(), time.Time{})
+	require.ErrorIs(t, err, common.ErrDateUnset, "GetSwapKlineData must reject a half-open time range")
 }
 
 func TestGetSwapMarketOverview(t *testing.T) {
@@ -70,6 +75,12 @@ func TestGetOpenInterestInfo(t *testing.T) {
 	updatePairsOnce(t, e)
 	_, err := e.GetOpenInterestInfo(t.Context(), btcusdPair, "5min", "cryptocurrency", 50)
 	require.NoError(t, err)
+	_, err = e.GetOpenInterestInfo(t.Context(), btcusdPair, "invalid", "cryptocurrency", 50)
+	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetOpenInterestInfo must reject an invalid period")
+	_, err = e.GetOpenInterestInfo(t.Context(), btcusdPair, "5min", "cryptocurrency", 0)
+	require.ErrorIs(t, err, errInvalidSize, "GetOpenInterestInfo must reject an invalid size")
+	_, err = e.GetOpenInterestInfo(t.Context(), btcusdPair, "5min", "invalid", 50)
+	require.ErrorIs(t, err, errInvalidAmountType, "GetOpenInterestInfo must reject an invalid amount type")
 }
 
 func TestGetTraderSentimentIndexAccount(t *testing.T) {
@@ -88,12 +99,18 @@ func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLiquidationOrders(t.Context(), btcusdPair, "closed", time.Now().AddDate(0, 0, -2), time.Now(), "", 0)
 	assert.NoError(t, err, "GetLiquidationOrders should not error")
+	_, err = e.GetLiquidationOrders(t.Context(), btcusdPair, "invalid", time.Time{}, time.Time{}, "", 0)
+	require.ErrorIs(t, err, errInvalidTradeType, "GetLiquidationOrders must reject an invalid trade type")
 }
 
 func TestGetPremiumIndexKlineData(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetPremiumIndexKlineData(t.Context(), btcusdPair, "5min", 15)
 	require.NoError(t, err)
+	_, err = e.GetPremiumIndexKlineData(t.Context(), btcusdPair, "invalid", 15)
+	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetPremiumIndexKlineData must reject an invalid period")
+	_, err = e.GetPremiumIndexKlineData(t.Context(), btcusdPair, "5min", 0)
+	require.ErrorIs(t, err, errInvalidSize, "GetPremiumIndexKlineData must reject an invalid size")
 }
 
 func TestGetEstimatedFundingRates(t *testing.T) {
@@ -102,13 +119,21 @@ func TestGetEstimatedFundingRates(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = e.GetEstimatedFundingRates(t.Context(), btcusdPair, "invalid", 15)
-	require.Error(t, err, "GetEstimatedFundingRates must reject invalid period")
+	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetEstimatedFundingRates must reject invalid period")
+	_, err = e.GetEstimatedFundingRates(t.Context(), btcusdPair, "5min", 0)
+	require.ErrorIs(t, err, errInvalidSize, "GetEstimatedFundingRates must reject an invalid size")
 }
 
 func TestGetBasisData(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetBasisData(t.Context(), btcusdPair, "5min", "close", 5)
 	require.NoError(t, err)
+	_, err = e.GetBasisData(t.Context(), btcusdPair, "invalid", "close", 5)
+	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetBasisData must reject an invalid period")
+	_, err = e.GetBasisData(t.Context(), btcusdPair, "5min", "close", 0)
+	require.ErrorIs(t, err, errInvalidSize, "GetBasisData must reject an invalid size")
+	_, err = e.GetBasisData(t.Context(), btcusdPair, "5min", "invalid", 5)
+	require.ErrorIs(t, err, errInvalidBasisPriceType, "GetBasisData must reject an invalid basis price type")
 }
 
 func TestGetSystemStatusInfo(t *testing.T) {
@@ -176,6 +201,8 @@ func TestGetAccountFinancialRecords(t *testing.T) {
 	})
 	_, err := h.GetAccountFinancialRecords(t.Context(), ethusdPair, "3,4", 2, 1, 20)
 	require.NoError(t, err, "GetAccountFinancialRecords must not error")
+	_, err = h.GetAccountFinancialRecords(t.Context(), ethusdPair, "3,4", 3, 1, 20)
+	require.ErrorIs(t, err, errInvalidLookbackDays, "GetAccountFinancialRecords must reject lookbacks over two days")
 }
 
 func TestGetSwapSettlementRecords(t *testing.T) {
@@ -184,6 +211,8 @@ func TestGetSwapSettlementRecords(t *testing.T) {
 	start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 	_, err := h.GetSwapSettlementRecords(t.Context(), ethusdPair, start, start.Add(time.Hour), 1, 20)
 	require.NoError(t, err, "GetSwapSettlementRecords must not error")
+	_, err = h.GetSwapSettlementRecords(t.Context(), ethusdPair, start, time.Time{}, 1, 20)
+	require.ErrorIs(t, err, common.ErrDateUnset, "GetSwapSettlementRecords must reject a half-open interval")
 }
 
 func TestGetAvailableLeverage(t *testing.T) {
@@ -226,6 +255,8 @@ func TestAccountTransferData(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer", emptySuccessResponse, nil)
 	_, err := h.AccountTransferData(t.Context(), ethusdPair, "123", "master_to_sub", 15)
 	require.NoError(t, err, "AccountTransferData must not error")
+	_, err = h.AccountTransferData(t.Context(), ethusdPair, "123", "invalid", 15)
+	require.ErrorIs(t, err, errInvalidTransferType, "AccountTransferData must reject an invalid transfer type")
 }
 
 func TestAccountTransferRecords(t *testing.T) {
@@ -233,6 +264,10 @@ func TestAccountTransferRecords(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_master_sub_transfer_record", emptySuccessResponse, nil)
 	_, err := h.AccountTransferRecords(t.Context(), ethusdPair, "master_to_sub", 12, 1, 20)
 	require.NoError(t, err, "AccountTransferRecords must not error")
+	_, err = h.AccountTransferRecords(t.Context(), ethusdPair, "invalid", 12, 1, 20)
+	require.ErrorIs(t, err, errInvalidTransferType, "AccountTransferRecords must reject an invalid transfer type")
+	_, err = h.AccountTransferRecords(t.Context(), ethusdPair, "master_to_sub", 91, 1, 20)
+	require.ErrorIs(t, err, errInvalidCreateDate, "AccountTransferRecords must reject a lookback over 90 days")
 }
 
 func TestPlaceSwapOrders(t *testing.T) {
@@ -240,6 +275,8 @@ func TestPlaceSwapOrders(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order", emptySuccessResponse, nil)
 	_, err := h.PlaceSwapOrders(t.Context(), ethusdPair, "", "buy", "open", "limit", 0.01, 1, 1)
 	require.NoError(t, err, "PlaceSwapOrders must not error")
+	_, err = h.PlaceSwapOrders(t.Context(), ethusdPair, "", "buy", "open", "invalid", 0.01, 1, 1)
+	require.ErrorIs(t, err, errInvalidOrderType, "PlaceSwapOrders must reject an invalid order type")
 }
 
 func TestPlaceSwapBatchOrders(t *testing.T) {
@@ -256,6 +293,10 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 	}}}
 	_, err := h.PlaceSwapBatchOrders(t.Context(), req)
 	require.NoError(t, err, "PlaceSwapBatchOrders must not error")
+	_, err = h.PlaceSwapBatchOrders(t.Context(), BatchOrderRequestType{})
+	require.ErrorIs(t, err, errBatchOrderLimitExceeded, "PlaceSwapBatchOrders must reject an empty batch")
+	_, err = h.PlaceSwapBatchOrders(t.Context(), BatchOrderRequestType{Data: make([]batchOrderData, 11)})
+	require.ErrorIs(t, err, errBatchOrderLimitExceeded, "PlaceSwapBatchOrders must reject more than ten orders")
 }
 
 func TestCancelSwapOrder(t *testing.T) {
@@ -277,6 +318,8 @@ func TestPlaceLightningCloseOrder(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_lightning_close_position", emptySuccessResponse, nil)
 	_, err := h.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", "lightning", 5, 1)
 	require.NoError(t, err, "PlaceLightningCloseOrder must not error")
+	_, err = h.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", "invalid", 5, 1)
+	require.ErrorIs(t, err, errInvalidOrderPriceType, "PlaceLightningCloseOrder must reject an invalid order price type")
 }
 
 func TestGetSwapOrderInfo(t *testing.T) {
@@ -291,6 +334,8 @@ func TestGetSwapOrderDetails(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_order_detail", emptySuccessResponse, nil)
 	_, err := h.GetSwapOrderDetails(t.Context(), ethusdPair, "123", "10", "cancelledOrder", 1, 20)
 	require.NoError(t, err, "GetSwapOrderDetails must not error")
+	_, err = h.GetSwapOrderDetails(t.Context(), ethusdPair, "123", "10", "invalid", 1, 20)
+	require.ErrorIs(t, err, errInvalidOrderType, "GetSwapOrderDetails must reject an invalid order type")
 }
 
 func TestGetSwapOpenOrders(t *testing.T) {
@@ -303,7 +348,9 @@ func TestGetSwapOpenOrders(t *testing.T) {
 func TestGetSwapOrderHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSwapOrderHistory(t.Context(), ethusdPair, "all", "all", []order.Status{order.PartiallyCancelled, order.Active}, 25, 0, 0)
-	require.ErrorIs(t, err, errInvalidCreateDate, "GetSwapOrderHistory must reject lookbacks over two days")
+	require.ErrorIs(t, err, errInvalidLookbackDays, "GetSwapOrderHistory must reject lookbacks over two days")
+	_, err = e.GetSwapOrderHistory(t.Context(), ethusdPair, "all", "all", nil, -1, 0, 0)
+	require.ErrorIs(t, err, errInvalidLookbackDays, "GetSwapOrderHistory must reject negative lookbacks")
 }
 
 func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
@@ -330,7 +377,20 @@ func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
 	assert.Equal(t, float64(50), requestBody["limit"], "limit should be preserved")
 
 	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, endTime, startTime, 0, 50)
-	require.ErrorIs(t, err, errStartTimeAfterEndTime, "GetSwapOrderHistoryByTimeRange must reject reversed intervals")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetSwapOrderHistoryByTimeRange must reject reversed intervals")
+	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "invalid", "all", nil, startTime, endTime, 0, 50)
+	require.ErrorIs(t, err, errInvalidTradeType, "GetSwapOrderHistoryByTimeRange must reject an invalid trade type")
+	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "invalid", nil, startTime, endTime, 0, 50)
+	require.ErrorIs(t, err, errInvalidRequestType, "GetSwapOrderHistoryByTimeRange must reject an invalid request type")
+	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", []order.Status{order.Rejected}, startTime, endTime, 0, 50)
+	require.ErrorIs(t, err, errInvalidOrderStatus, "GetSwapOrderHistoryByTimeRange must reject an invalid status")
+	assert.Contains(t, err.Error(), order.Rejected.String(), "status error should include the invalid status")
+	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, startTime, time.Time{}, 0, 50)
+	require.ErrorIs(t, err, errInvalidCreateDate, "GetSwapOrderHistoryByTimeRange must reject a half-open interval")
+	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, startTime, startTime, 0, 50)
+	require.ErrorIs(t, err, common.ErrStartEqualsEnd, "GetSwapOrderHistoryByTimeRange must reject an empty interval")
+	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, startTime, endTime.Add(time.Millisecond), 0, 50)
+	require.ErrorIs(t, err, errHistoryTimeRangeExceeded, "GetSwapOrderHistoryByTimeRange must reject intervals over 48 hours")
 }
 
 func TestGetSwapTradeHistory(t *testing.T) {
@@ -344,6 +404,10 @@ func TestGetSwapTradeHistory(t *testing.T) {
 	})
 	_, err := h.GetSwapTradeHistory(t.Context(), ethusdPair, "liquidateShort", 2, 1, 20)
 	require.NoError(t, err, "GetSwapTradeHistory must not error")
+	_, err = h.GetSwapTradeHistory(t.Context(), ethusdPair, "invalid", 2, 1, 20)
+	require.ErrorIs(t, err, errInvalidTradeType, "GetSwapTradeHistory must reject an invalid trade type")
+	_, err = h.GetSwapTradeHistory(t.Context(), ethusdPair, "liquidateShort", 3, 1, 20)
+	require.ErrorIs(t, err, errInvalidLookbackDays, "GetSwapTradeHistory must reject lookbacks over two days")
 }
 
 func TestPlaceSwapTriggerOrder(t *testing.T) {
@@ -351,6 +415,10 @@ func TestPlaceSwapTriggerOrder(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_order", emptySuccessResponse, nil)
 	_, err := h.PlaceSwapTriggerOrder(t.Context(), ethusdPair, "greaterOrEqual", "buy", "open", "optimal_5", 5, 3, 1, 1)
 	require.NoError(t, err, "PlaceSwapTriggerOrder must not error")
+	_, err = h.PlaceSwapTriggerOrder(t.Context(), ethusdPair, "invalid", "buy", "open", "optimal_5", 5, 3, 1, 1)
+	require.ErrorIs(t, err, errInvalidTriggerType, "PlaceSwapTriggerOrder must reject an invalid trigger type")
+	_, err = h.PlaceSwapTriggerOrder(t.Context(), ethusdPair, "greaterOrEqual", "buy", "open", "invalid", 5, 3, 1, 1)
+	require.ErrorIs(t, err, errInvalidOrderPriceType, "PlaceSwapTriggerOrder must reject an invalid order price type")
 }
 
 func TestCancelSwapTriggerOrder(t *testing.T) {
@@ -382,6 +450,10 @@ func TestGetSwapTriggerOrderHistory(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_hisorders", emptySuccessResponse, nil)
 	_, err := h.GetSwapTriggerOrderHistory(t.Context(), ethusdPair, "open", "all", 15, 1, 20)
 	require.NoError(t, err, "GetSwapTriggerOrderHistory must not error")
+	_, err = h.GetSwapTriggerOrderHistory(t.Context(), ethusdPair, "open", "invalid", 15, 1, 20)
+	require.ErrorIs(t, err, errInvalidTradeType, "GetSwapTriggerOrderHistory must reject an invalid trade type")
+	_, err = h.GetSwapTriggerOrderHistory(t.Context(), ethusdPair, "open", "all", 91, 1, 20)
+	require.ErrorIs(t, err, errInvalidCreateDate, "GetSwapTriggerOrderHistory must reject a lookback over 90 days")
 }
 
 func TestGetSwapMarkets(t *testing.T) {

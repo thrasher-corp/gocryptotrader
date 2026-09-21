@@ -89,7 +89,7 @@ func (e *Exchange) GetLinearSwapKlineData(ctx context.Context, code currency.Pai
 		return resp, err
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errInvalidPeriod
+		return resp, common.ErrInvalidPeriod
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -97,9 +97,9 @@ func (e *Exchange) GetLinearSwapKlineData(ctx context.Context, code currency.Pai
 	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errStartTimeAfterEndTime
+	if !startTime.IsZero() || !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return resp, err
 		}
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))

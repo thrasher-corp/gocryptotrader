@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -132,7 +133,34 @@ func TestAddV3HistoryTimeRange(t *testing.T) {
 	emptyReq := make(map[string]any)
 	require.NoError(t, addV3HistoryTimeRange(emptyReq, 0), "addV3HistoryTimeRange must accept a zero lookback")
 	assert.Empty(t, emptyReq, "zero lookback should not set a time range")
-	require.ErrorIs(t, addV3HistoryTimeRange(make(map[string]any), 3), errInvalidCreateDate, "addV3HistoryTimeRange must reject lookbacks over two days")
+	require.ErrorIs(t, addV3HistoryTimeRange(make(map[string]any), 3), errInvalidLookbackDays, "addV3HistoryTimeRange must reject lookbacks over two days")
+}
+
+func TestFormatFuturesOrderStatuses(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		statuses    []order.Status
+		expected    string
+		expectedErr error
+	}{
+		{name: "empty", expected: "0"},
+		{name: "single", statuses: []order.Status{order.Active}, expected: "3"},
+		{name: "multiple", statuses: []order.Status{order.PartiallyCancelled, order.Active}, expected: "5,3"},
+		{name: "invalid", statuses: []order.Status{order.Rejected}, expectedErr: errInvalidOrderStatus},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			actual, err := formatFuturesOrderStatuses(tc.statuses)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "formatFuturesOrderStatuses must return the expected error")
+				assert.Contains(t, err.Error(), tc.statuses[0].String(), "error should include the invalid status")
+				return
+			}
+			require.NoError(t, err, "formatFuturesOrderStatuses must not error")
+			assert.Equal(t, tc.expected, actual, "formatted statuses should match")
+		})
+	}
 }
 
 func TestFGetContractInfo(t *testing.T) {
@@ -176,6 +204,10 @@ func TestFGetKlineData(t *testing.T) {
 	t.Parallel()
 	_, err := e.FGetKlineData(t.Context(), btccwPair, "5min", 5, time.Now().Add(-time.Minute*5), time.Now())
 	require.NoError(t, err)
+	_, err = e.FGetKlineData(t.Context(), btccwPair, "invalid", 5, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, common.ErrInvalidPeriod, "FGetKlineData must reject an invalid period")
+	_, err = e.FGetKlineData(t.Context(), btccwPair, "5min", 5, time.Now(), time.Time{})
+	require.ErrorIs(t, err, common.ErrDateUnset, "FGetKlineData must reject a half-open interval")
 }
 
 func TestFGetMarketOverviewData(t *testing.T) {
@@ -293,6 +325,8 @@ func TestFGetFinancialRecords(t *testing.T) {
 	})
 	_, err := h.FGetFinancialRecords(t.Context(), "BTC", "closeLong", 2, 1, 20)
 	require.NoError(t, err, "FGetFinancialRecords must not error")
+	_, err = h.FGetFinancialRecords(t.Context(), "BTC", "closeLong", 3, 1, 20)
+	require.ErrorIs(t, err, errInvalidLookbackDays, "FGetFinancialRecords must reject lookbacks over two days")
 }
 
 func TestFGetSettlementRecords(t *testing.T) {
@@ -301,6 +335,8 @@ func TestFGetSettlementRecords(t *testing.T) {
 	start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 	_, err := h.FGetSettlementRecords(t.Context(), currency.BTC, 1, 20, start, start.Add(time.Hour))
 	require.NoError(t, err, "FGetSettlementRecords must not error")
+	_, err = h.FGetSettlementRecords(t.Context(), currency.BTC, 1, 20, start, time.Time{})
+	require.ErrorIs(t, err, common.ErrDateUnset, "FGetSettlementRecords must reject a half-open interval")
 }
 
 func TestFGetOrderLimits(t *testing.T) {
@@ -441,7 +477,7 @@ func TestFGetOrderHistory(t *testing.T) {
 		"all", "all", "limit",
 		[]order.Status{},
 		3, 0, 0)
-	require.ErrorIs(t, err, errInvalidCreateDate, "FGetOrderHistory must reject lookbacks over two days")
+	require.ErrorIs(t, err, errInvalidLookbackDays, "FGetOrderHistory must reject lookbacks over two days")
 }
 
 func TestFGetOrderHistoryByTimeRange(t *testing.T) {
@@ -469,6 +505,8 @@ func TestFGetOrderHistoryByTimeRange(t *testing.T) {
 
 	_, err = h.FGetOrderHistoryByTimeRange(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", "limit", nil, startTime, endTime.Add(time.Millisecond), 0, 50)
 	require.ErrorIs(t, err, errHistoryTimeRangeExceeded, "FGetOrderHistoryByTimeRange must reject intervals over 48 hours")
+	_, err = h.FGetOrderHistoryByTimeRange(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", "limit", nil, endTime, startTime, 0, 50)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "FGetOrderHistoryByTimeRange must reject reversed intervals")
 }
 
 func TestFTradeHistory(t *testing.T) {

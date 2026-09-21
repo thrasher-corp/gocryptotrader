@@ -424,7 +424,7 @@ func TestGetV3HistoryWindows(t *testing.T) {
 	assert.True(t, windows[0].end.IsZero(), "unspecified end should remain zero")
 
 	_, err = getV3HistoryWindows(endTime, startTime)
-	require.ErrorIs(t, err, errStartTimeAfterEndTime, "getV3HistoryWindows must reject reversed intervals")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "getV3HistoryWindows must reject reversed intervals")
 	_, err = getV3HistoryWindows(startTime, startTime.Add(91*24*time.Hour))
 	require.ErrorIs(t, err, errInvalidCreateDate, "getV3HistoryWindows must reject intervals over 90 days")
 }

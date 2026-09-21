@@ -241,15 +241,15 @@ func (e *Exchange) FGetKlineData(ctx context.Context, symbol currency.Pair, peri
 	}
 	params.Set("symbol", symbolValue)
 	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
-		return resp, errInvalidPeriod
+		return resp, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errStartTimeAfterEndTime
+	if !startTime.IsZero() || !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return resp, err
 		}
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
@@ -343,7 +343,7 @@ func (e *Exchange) FQueryHisOpenInterest(ctx context.Context, symbol, contractTy
 	}
 	params.Set("contract_type", contractType)
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errInvalidPeriod
+		return resp, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if size > 0 || size <= 200 {
@@ -387,7 +387,7 @@ func (e *Exchange) FQueryTopAccountsRatio(ctx context.Context, symbol, period st
 		params.Set("symbol", symbol)
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errInvalidPeriod
+		return resp, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	path := common.EncodeURLValues(fTopAccountsSentiment, params)
@@ -405,7 +405,7 @@ func (e *Exchange) FQueryTopPositionsRatio(ctx context.Context, symbol, period s
 		params.Set("symbol", symbol)
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errInvalidPeriod
+		return resp, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	path := common.EncodeURLValues(fTopPositionsSentiment, params)
@@ -455,7 +455,7 @@ func (e *Exchange) FIndexKline(ctx context.Context, symbol currency.Pair, period
 	}
 	params.Set("symbol", symbolValue)
 	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
-		return resp, errInvalidPeriod
+		return resp, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if size <= 0 || size > 2000 {
@@ -479,7 +479,7 @@ func (e *Exchange) FGetBasisData(ctx context.Context, symbol currency.Pair, peri
 	}
 	params.Set("symbol", symbolValue)
 	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
-		return resp, errInvalidPeriod
+		return resp, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if basisPriceType != "" {
@@ -577,7 +577,7 @@ func (e *Exchange) FGetSingleSubPositions(ctx context.Context, symbol, subUID st
 }
 
 // FGetFinancialRecords gets financial records for futures
-func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType string, createDate, pageIndex, pageSize int64) (FFinancialRecords, error) {
+func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType string, lookbackDays, fromID, limit int64) (FFinancialRecords, error) {
 	var resp FFinancialRecords
 	req := make(map[string]any)
 	if symbol != "" {
@@ -590,14 +590,14 @@ func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType 
 		}
 		req["type"] = rType
 	}
-	if err := addV3HistoryTimeRange(req, createDate); err != nil {
+	if err := addV3HistoryTimeRange(req, lookbackDays); err != nil {
 		return resp, err
 	}
-	if pageIndex != 0 {
-		req["from_id"] = pageIndex
+	if fromID != 0 {
+		req["from_id"] = fromID
 	}
-	if pageSize != 0 {
-		req[orderPriceTypeLimit] = pageSize
+	if limit != 0 {
+		req[orderPriceTypeLimit] = limit
 	}
 	req["direct"] = v3HistoryDirectionNext
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fFinancialRecords, nil, req, &resp); err != nil {
@@ -617,9 +617,9 @@ func (e *Exchange) FGetSettlementRecords(ctx context.Context, symbol currency.Co
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errStartTimeAfterEndTime
+	if !startTime.IsZero() || !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return resp, err
 		}
 		req["start_time"] = strconv.FormatInt(startTime.Unix()*1000, 10)
 		req["end_time"] = strconv.FormatInt(endTime.Unix()*1000, 10)
@@ -1008,20 +1008,20 @@ func (e *Exchange) FGetOpenOrders(ctx context.Context, symbol currency.Code, pag
 }
 
 // FGetOrderHistory gets order history for futures using a lookback of at most two days.
-func (e *Exchange) FGetOrderHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType, reqType, orderType string, status []order.Status, lookbackDays, pageIndex, pageSize int64) (FOrderHistoryData, error) {
+func (e *Exchange) FGetOrderHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType, reqType, orderType string, status []order.Status, lookbackDays, fromID, limit int64) (FOrderHistoryData, error) {
 	if lookbackDays < 0 || lookbackDays > 2 {
-		return FOrderHistoryData{}, errInvalidCreateDate
+		return FOrderHistoryData{}, errInvalidLookbackDays
 	}
 	var startTime, endTime time.Time
 	if lookbackDays != 0 {
 		endTime = time.Now().UTC()
 		startTime = endTime.AddDate(0, 0, -int(lookbackDays))
 	}
-	return e.FGetOrderHistoryByTimeRange(ctx, contractCode, symbol, tradeType, reqType, orderType, status, startTime, endTime, pageIndex, pageSize)
+	return e.FGetOrderHistoryByTimeRange(ctx, contractCode, symbol, tradeType, reqType, orderType, status, startTime, endTime, fromID, limit)
 }
 
 // FGetOrderHistoryByTimeRange gets futures order history for an explicit interval.
-func (e *Exchange) FGetOrderHistoryByTimeRange(ctx context.Context, contractCode currency.Pair, symbol, tradeType, reqType, orderType string, status []order.Status, startTime, endTime time.Time, pageIndex, pageSize int64) (FOrderHistoryData, error) {
+func (e *Exchange) FGetOrderHistoryByTimeRange(ctx context.Context, contractCode currency.Pair, symbol, tradeType, reqType, orderType string, status []order.Status, startTime, endTime time.Time, fromID, limit int64) (FOrderHistoryData, error) {
 	var resp FOrderHistoryData
 	req := make(map[string]any)
 	req["symbol"] = symbol
@@ -1035,29 +1035,17 @@ func (e *Exchange) FGetOrderHistoryByTimeRange(ctx context.Context, contractCode
 		return resp, errInvalidRequestType
 	}
 	req["type"] = rType
-	reqStatus := "0"
-	if len(status) > 0 {
-		firstTime := true
-		for x := range status {
-			sType, ok := validOrderStatus[status[x]]
-			if !ok {
-				return resp, errInvalidOrderStatus
-			}
-			if firstTime {
-				firstTime = false
-				reqStatus = strconv.FormatInt(sType, 10)
-				continue
-			}
-			reqStatus = reqStatus + "," + strconv.FormatInt(sType, 10)
-		}
+	reqStatus, err := formatFuturesOrderStatuses(status)
+	if err != nil {
+		return resp, err
 	}
 	req["status"] = reqStatus
 	if startTime.IsZero() != endTime.IsZero() {
 		return resp, errInvalidCreateDate
 	}
 	if !startTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errStartTimeAfterEndTime
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return resp, err
 		}
 		if endTime.Sub(startTime) > 48*time.Hour {
 			return resp, errHistoryTimeRangeExceeded
@@ -1080,11 +1068,11 @@ func (e *Exchange) FGetOrderHistoryByTimeRange(ctx context.Context, contractCode
 		}
 		req["order_type"] = oType
 	}
-	if pageIndex != 0 {
-		req["from_id"] = pageIndex
+	if fromID != 0 {
+		req["from_id"] = fromID
 	}
-	if pageSize != 0 {
-		req[orderPriceTypeLimit] = pageSize
+	if limit != 0 {
+		req[orderPriceTypeLimit] = limit
 	}
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fOrderHistory, nil, req, &resp); err != nil {
 		return resp, err
@@ -1093,7 +1081,7 @@ func (e *Exchange) FGetOrderHistoryByTimeRange(ctx context.Context, contractCode
 }
 
 // FTradeHistory gets trade history data for futures
-func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, lookbackDays, pageIndex, pageSize int64) (FTradeHistoryData, error) {
+func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, lookbackDays, fromID, limit int64) (FTradeHistoryData, error) {
 	var resp FTradeHistoryData
 	req := make(map[string]any)
 	req["symbol"] = symbol
@@ -1110,17 +1098,17 @@ func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair
 		req["contract"] = codeValue
 	}
 	if lookbackDays <= 0 {
-		return resp, errInvalidCreateDate
+		return resp, errInvalidLookbackDays
 	}
 	if err := addV3HistoryTimeRange(req, lookbackDays); err != nil {
 		return resp, err
 	}
 	req["direct"] = v3HistoryDirectionNext
-	if pageIndex != 0 {
-		req["from_id"] = pageIndex
+	if fromID != 0 {
+		req["from_id"] = fromID
 	}
-	if pageSize != 0 {
-		req[orderPriceTypeLimit] = pageSize
+	if limit != 0 {
+		req[orderPriceTypeLimit] = limit
 	}
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fMatchResult, nil, req, &resp); err != nil {
 		return resp, err
@@ -1130,7 +1118,7 @@ func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair
 
 func addV3HistoryTimeRange(req map[string]any, lookbackDays int64) error {
 	if lookbackDays < 0 || lookbackDays > 2 {
-		return errInvalidCreateDate
+		return errInvalidLookbackDays
 	}
 	if lookbackDays == 0 {
 		return nil
@@ -1139,6 +1127,21 @@ func addV3HistoryTimeRange(req map[string]any, lookbackDays int64) error {
 	req["start_time"] = endTime.AddDate(0, 0, -int(lookbackDays)).UnixMilli()
 	req["end_time"] = endTime.UnixMilli()
 	return nil
+}
+
+func formatFuturesOrderStatuses(statuses []order.Status) (string, error) {
+	if len(statuses) == 0 {
+		return "0", nil
+	}
+	formatted := make([]string, len(statuses))
+	for i := range statuses {
+		status, ok := validOrderStatus[statuses[i]]
+		if !ok {
+			return "", fmt.Errorf("%w: %s", errInvalidOrderStatus, statuses[i])
+		}
+		formatted[i] = strconv.FormatInt(status, 10)
+	}
+	return strings.Join(formatted, ","), nil
 }
 
 // FPlaceTriggerOrder places a trigger order for futures

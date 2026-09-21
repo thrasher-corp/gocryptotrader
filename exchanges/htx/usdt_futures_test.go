@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
@@ -42,6 +43,10 @@ func TestGetLinearSwapKlineData(t *testing.T) {
 	require.NoError(t, err, "GetLinearSwapKlineData must not error")
 	require.Len(t, resp.Data, 1, "decoded candles must be returned")
 	assert.Equal(t, float64(1), resp.Data[0].Close, "close price should decode")
+	_, err = h.GetLinearSwapKlineData(t.Context(), btcusdtPair, "invalid", 10, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetLinearSwapKlineData must reject an invalid period")
+	_, err = h.GetLinearSwapKlineData(t.Context(), btcusdtPair, "1min", 10, time.Now(), time.Time{})
+	require.ErrorIs(t, err, common.ErrDateUnset, "GetLinearSwapKlineData must reject a half-open interval")
 }
 
 func TestGetLinearSwapBatchTrades(t *testing.T) {

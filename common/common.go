@@ -68,6 +68,7 @@ var (
 	ErrNilPointer                = errors.New("nil pointer")
 	ErrEmptyParams               = errors.New("empty parameters")
 	ErrParameterRequired         = errors.New("parameter is required")
+	ErrInvalidPeriod             = errors.New("invalid period")
 	ErrCannotCalculateOffline    = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse                = errors.New("no response")
 	ErrInvalidResponse           = errors.New("invalid response")

@@ -2444,7 +2444,7 @@ func getV3HistoryWindows(startTime, endTime time.Time) ([]v3HistoryWindow, error
 		return nil, errInvalidCreateDate
 	}
 	if startTime.After(endTime) {
-		return nil, errStartTimeAfterEndTime
+		return nil, common.ErrStartAfterEnd
 	}
 	if endTime.Sub(startTime) > 90*24*time.Hour {
 		return nil, errInvalidCreateDate
@@ -3168,9 +3168,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		} else {
 			pairs = currency.Pairs{r.Pair}
 		}
-		for start := 0; start < len(pairs); start += 10 {
-			end := min(start+10, len(pairs))
-			rateResp, err := e.GetV5FundingRates(ctx, &V5FundingRatesRequest{ContractCodes: pairs[start:end]})
+		for _, batch := range common.Batch(pairs, 10) {
+			rateResp, err := e.GetV5FundingRates(ctx, &V5FundingRatesRequest{ContractCodes: batch})
 			if err != nil {
 				return nil, err
 			}

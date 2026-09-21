@@ -328,6 +328,8 @@ func TestWSHandleFuturesPing(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrParsingWSField, "wsHandleFuturesPing must require a timestamp")
 	err = h.wsHandleFuturesPing(t.Context(), conn, []byte(`{`))
 	require.Error(t, err, "wsHandleFuturesPing must reject malformed messages")
+	err = h.wsHandleFuturesPing(t.Context(), conn, []byte(`{"op":"ping","ts":1}`))
+	require.Error(t, err, "wsHandleFuturesPing must reject a numeric timestamp")
 	err = h.wsHandleFuturesPing(t.Context(), nil, []byte(`{"op":"ping","ts":1}`))
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsHandleFuturesPing must reject nil connections")
 }

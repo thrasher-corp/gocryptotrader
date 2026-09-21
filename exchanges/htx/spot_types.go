@@ -173,10 +173,6 @@ type WsSubTradeDetail struct {
 	} `json:"tick"`
 }
 
-//
-
-// Futures
-
 // FWsRequestKline stores requested kline data for futures websocket
 type FWsRequestKline struct {
 	Rep  string `json:"rep"`

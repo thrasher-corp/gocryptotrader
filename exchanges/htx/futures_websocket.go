@@ -271,7 +271,7 @@ func (e *Exchange) wsHandleFuturesPing(ctx context.Context, conn websocket.Conne
 	if err := json.Unmarshal(raw, &ping); err != nil {
 		return err
 	}
-	if len(ping.Timestamp) == 0 {
+	if ping.Timestamp == "" {
 		return fmt.Errorf("%w: missing futures websocket timestamp", common.ErrParsingWSField)
 	}
 	ping.Operation = "pong"

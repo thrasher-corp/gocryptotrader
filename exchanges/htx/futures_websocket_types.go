@@ -2,7 +2,6 @@ package htx
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -29,8 +28,8 @@ type wsV5FuturesSubscriptionRequest struct {
 }
 
 type wsFuturesPong struct {
-	Operation string          `json:"op"`
-	Timestamp json.RawMessage `json:"ts"`
+	Operation string `json:"op"`
+	Timestamp string `json:"ts"`
 }
 
 // WsFundingRate contains a public derivative funding-rate update.
