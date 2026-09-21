@@ -34,6 +34,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
+var errOrderCancellationFailed = errors.New("order cancellation failed")
+
 // SetDefaults sets default values for the exchange
 func (e *Exchange) SetDefaults() {
 	e.Name = "Huobi"
@@ -1146,19 +1148,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if orderCancellation.Pair.IsEmpty() {
 			return nil, order.ErrPairRequiredForCancelAllFanout
 		}
-		resp, err := e.CancelOpenOrdersBatch(ctx,
+		_, err := e.CancelOpenOrdersBatch(ctx,
 			orderCancellation.AccountID,
 			orderCancellation.Pair)
 		if err != nil {
 			return nil, err
-		}
-		if resp.Data.FailedCount > 0 {
-			return nil,
-				fmt.Errorf("%v orders failed to cancel",
-					resp.Data.FailedCount)
-		}
-		if resp.Status == "error" {
-			return nil, errors.New(resp.ErrorMessage)
 		}
 	case asset.CoinMarginedFutures:
 		if orderCancellation.Pair.IsEmpty() {
