@@ -82,13 +82,42 @@ func TestDumpRequestForLog(t *testing.T) {
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api?AccessKeyId=secret-key&timestamp=1", strings.NewReader("key=secret-body&nonce=1"))
 	require.NoError(t, err, "NewRequestWithContext must not error")
 
-	dump, err := dumpRequestForLog(req)
+	dump, err := dumpRequestForLog(req, "")
 	require.NoError(t, err, "dumpRequestForLog must not error")
 	assert.Contains(t, string(dump), "AccessKeyId=[REDACTED]&timestamp=1", "request dump should redact query credentials")
 	assert.Contains(t, string(dump), "key=[REDACTED]&nonce=1", "request dump should treat a body without a content type as form-encoded")
 	assert.NotContains(t, string(dump), "secret-key", "request dump should not contain the query credential")
 	assert.NotContains(t, string(dump), "secret-body", "request dump should not contain the body credential")
 	assert.Equal(t, "AccessKeyId=secret-key&timestamp=1", req.URL.RawQuery, "request dump redaction should not mutate the request URL")
+
+	streamingBody := struct{ io.Reader }{strings.NewReader("key=streaming-secret&nonce=2")}
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", streamingBody)
+	require.NoError(t, err, "NewRequestWithContext must not error for a streaming body")
+	require.Nil(t, req.GetBody, "streaming request must not have a replayable body")
+	dump, err = dumpRequestForLog(req, "")
+	require.NoError(t, err, "dumpRequestForLog must not error for a streaming body")
+	assert.Contains(t, string(dump), "key=[REDACTED]&nonce=2", "request dump should redact a streaming form body")
+	restoredBody, err := io.ReadAll(req.Body)
+	require.NoError(t, err, "ReadAll must read the restored streaming body")
+	assert.Equal(t, "key=streaming-secret&nonce=2", string(restoredBody), "request dump should restore a non-replayable body")
+
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", strings.NewReader(`{"note":"a&key=b","passphrase":"secret"}`))
+	require.NoError(t, err, "NewRequestWithContext must not error for a JSON body")
+	dump, err = dumpRequestForLog(req, "application/json")
+	require.NoError(t, err, "dumpRequestForLog must not error for a JSON body")
+	assert.Contains(t, string(dump), `{"note":"a&key=b","passphrase":"secret"}`, "request dump should not treat a JSON body as form-encoded")
+}
+
+type cyclicError struct {
+	next error
+}
+
+func (*cyclicError) Error() string {
+	return "cyclic"
+}
+
+func (c *cyclicError) Unwrap() error {
+	return c.next
 }
 
 func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
@@ -109,6 +138,12 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	assert.Contains(t, redacted.Error(), "signature=[REDACTED]", "redacted error should retain diagnostic query structure")
 	assert.Contains(t, err.Error(), "outer-secret", "redaction should not mutate the original outer error")
 	assert.Contains(t, err.Error(), "inner-secret", "redaction should not mutate the original nested error")
+
+	cycle := new(cyclicError)
+	cyclicURL := &url.Error{Op: http.MethodGet, URL: "https://example.com/api?signature=cyclic-secret", Err: cycle}
+	cycle.next = cyclicURL
+	redacted = urlErrorForLog(cyclicURL)
+	assert.Error(t, redacted, "urlErrorForLog should return an error for a cyclic error chain")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -164,7 +199,9 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 	for attempt := 1; attempt <= 2; attempt++ {
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader("key=secret-key&nonce=1"))
 		require.NoError(t, err, "NewRequestWithContext must not error")
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+		if attempt == 1 {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+		}
 		req.Header.Set("OK-ACCESS-KEY", "secret-header")
 		retry, err := r.executeRequest(t.Context(), &Item{Method: http.MethodPost, Path: path}, req, attempt, true)
 		require.NoError(t, err, "executeRequest must not error")
@@ -191,6 +228,93 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 	for _, secret := range []string{"secret-signature", "secret-key", "secret-header", "secret-cookie"} {
 		assert.NotContainsf(t, out, secret, "verbose log should not contain %s", secret)
 	}
+}
+
+func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
+	// Not parallel: the log hook and log config are process-wide, and cleanup returns both to the package defaults.
+	var mu sync.Mutex
+	var logged strings.Builder
+	require.NoError(t, gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings()), "SetGlobalLogConfig must not error")
+	gctlog.SetCustomLogHook(func(_, _ string, a ...any) bool {
+		mu.Lock()
+		fmt.Fprintln(&logged, a...)
+		mu.Unlock()
+		return true
+	})
+	t.Cleanup(func() {
+		gctlog.SetCustomLogHook(nil)
+		assert.NoError(t, gctlog.SetGlobalLogConfig(&gctlog.Config{}), "SetGlobalLogConfig should not error")
+	})
+
+	var sentBody []byte
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		var err error
+		sentBody, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			Status:     "200 OK",
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Set-Cookie": []string{"session=secret-cookie"}},
+			Body:       io.NopCloser(strings.NewReader(`{}`)),
+			Request:    req,
+		}, nil
+	})}
+	r, err := New("test", httpClient)
+	require.NoError(t, err, "New must not error")
+
+	const path = "https://example.com/api?timestamp=1&signature=secret-signature"
+	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
+		return &Item{
+			Method:        http.MethodPost,
+			Path:          path,
+			Body:          struct{ io.Reader }{strings.NewReader("key=secret-key&nonce=1")},
+			HTTPDebugging: true,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error")
+	assert.Equal(t, "key=secret-key&nonce=1", string(sentBody), "dumping the request should not change the body sent")
+
+	mu.Lock()
+	out := logged.String()
+	mu.Unlock()
+	for _, line := range []string{
+		`POST /api?timestamp=1&signature=[REDACTED] HTTP/1.1`,
+		`key=[REDACTED]&nonce=1`,
+		`DumpResponse (https://example.com/api?timestamp=1&signature=[REDACTED])`,
+		`DumpResponse Body (https://example.com/api?timestamp=1&signature=[REDACTED])`,
+		`Set-Cookie: [REDACTED]`,
+	} {
+		assert.Containsf(t, out, line, "HTTPDebugging log should contain %s", line)
+	}
+	for _, secret := range []string{"secret-signature", "secret-key", "secret-cookie"} {
+		assert.NotContainsf(t, out, secret, "HTTPDebugging log should not contain %s", secret)
+	}
+}
+
+func TestHTTPDebuggingDumpFailureDoesNotAbortRequest(t *testing.T) {
+	t.Parallel()
+
+	var called bool
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		called = true
+		return &http.Response{
+			Status:     "200 OK",
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       http.NoBody,
+			Request:    req,
+		}, nil
+	})}
+	r, err := New("test", httpClient)
+	require.NoError(t, err, "New must not error")
+
+	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
+		return &Item{Method: http.MethodGet, Path: "custom://example.com/api", HTTPDebugging: true}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not fail when only the debug dump fails")
+	assert.True(t, called, "SendPayload should execute the request when the debug dump fails")
 }
 
 type trackedReadCloser struct {
