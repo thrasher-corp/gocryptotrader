@@ -1,8 +1,10 @@
 package mexc
 
 import (
+	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -113,5 +115,35 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 		limiter, ok := rl[tc.epl]
 		require.Truef(t, ok, "%s must have a rate limiter", tc.name)
 		assert.Equalf(t, tc.weight, limiter.Weight(), "%s weight should match the documentation", tc.name)
+	}
+}
+
+// TestRateLimitPoolBudgets pins the shared budgets themselves, which the weight table cannot express:
+// a weight-1 IP endpoint must admit no more than 300/10s and an order endpoint no more than 12/s.
+// Only the upper bound is asserted, so a slow runner cannot fail it.
+func TestRateLimitPoolBudgets(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		epl  request.EndpointLimit
+		max  int
+	}{
+		{"IP pool at weight 1", systemTimeEPL, 30},
+		{"shared order budget", newOrderEPL, 12},
+	} {
+		rl, err := request.New("pool-"+tc.name, &http.Client{}, request.WithLimiter(GetRateLimit()))
+		require.NoError(t, err)
+		n := 0
+		deadline := time.Now().Add(time.Second)
+		for time.Now().Before(deadline) {
+			ctx, cancel := context.WithDeadline(t.Context(), deadline)
+			err := rl.InitiateRateLimit(ctx, tc.epl)
+			cancel()
+			if err != nil {
+				break
+			}
+			n++
+		}
+		assert.LessOrEqualf(t, n, tc.max, "%s should admit no more than %d requests per second, got %d", tc.name, tc.max, n)
 	}
 }
