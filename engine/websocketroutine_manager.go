@@ -232,30 +232,26 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				d)
 		}
 	case *ticker.Price:
-		if !m.syncer.IsRunning() {
-			return nil
-		}
-		err := m.syncer.WebsocketUpdate(exchName,
-			d.Pair,
-			d.AssetType,
-			SyncItemTicker,
-			nil)
-		if err != nil {
-			return err
+		if m.syncer.IsRunning() {
+			if err := m.syncer.WebsocketUpdate(exchName,
+				d.Pair,
+				d.AssetType,
+				SyncItemTicker,
+				nil); err != nil {
+				return err
+			}
 		}
 		m.syncer.PrintTickerSummary(d, "websocket", nil)
 	case []ticker.Price:
-		if !m.syncer.IsRunning() {
-			return nil
-		}
 		for x := range d {
-			err := m.syncer.WebsocketUpdate(exchName,
-				d[x].Pair,
-				d[x].AssetType,
-				SyncItemTicker,
-				nil)
-			if err != nil {
-				return err
+			if m.syncer.IsRunning() {
+				if err := m.syncer.WebsocketUpdate(exchName,
+					d[x].Pair,
+					d[x].AssetType,
+					SyncItemTicker,
+					nil); err != nil {
+					return err
+				}
 			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", nil)
 		}
