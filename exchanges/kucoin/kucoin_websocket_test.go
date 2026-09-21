@@ -1604,6 +1604,11 @@ func TestProcessFuturesTickerV2(t *testing.T) {
 		require.Lenf(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for %s", tc.name)
 		assert.Equalf(t, tc.exp, (<-ku.Websocket.DataHandler.C).Data, "processFuturesTickerV2 should map %s with any fill size in LastSize rather than a volume", tc.name)
 	}
+
+	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "futures asset must disable")
+	err := ku.processFuturesTickerV2(t.Context(), []byte(`{"symbol":"SOLUSDTM"}`))
+	require.ErrorIs(t, err, asset.ErrNotEnabled, "disabled futures asset must reject ticker data")
+	assert.Empty(t, ku.Websocket.DataHandler.C, "disabled futures asset should not emit ticker data")
 }
 
 func TestProcessMarketSnapshot(t *testing.T) {

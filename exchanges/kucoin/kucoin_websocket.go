@@ -329,6 +329,9 @@ func (e *Exchange) processFuturesStopOrderLifecycleEvent(ctx context.Context, re
 	if err != nil {
 		return err
 	}
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+		return err
+	}
 	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
@@ -360,6 +363,9 @@ func (e *Exchange) processFuturesStopOrderLifecycleEvent(ctx context.Context, re
 func (e *Exchange) processFuturesPrivateTradeOrders(ctx context.Context, respData []byte) error {
 	resp := WsFuturesTradeOrder{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
 		return err
 	}
 	oType, err := order.StringToOrderType(resp.OrderType)
@@ -441,6 +447,9 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+		return err
+	}
 	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
@@ -462,6 +471,9 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 
 // processFuturesOrderbookLevel2 processes a V2 futures account orderbook data
 func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData []byte, instrument string) error {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+		return err
+	}
 	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
@@ -511,6 +523,9 @@ func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData [
 func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) error {
 	resp := WsFuturesTicker{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
 		return err
 	}
 	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
