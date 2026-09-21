@@ -280,6 +280,9 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 			})
 		}
 	}
+	if err := ticker.ProcessBatch(out); err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, out)
 }
 

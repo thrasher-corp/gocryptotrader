@@ -103,8 +103,10 @@ func TestWsProcessTickers(t *testing.T) {
 	case msg := <-ex.Websocket.DataHandler.C:
 		got, ok := msg.Data.(*ticker.Price)
 		require.True(t, ok, "wsProcessTickers must send a ticker price")
+		assert.False(t, got.LastUpdated.IsZero(), "cached ticker should have a receipt timestamp")
 		assert.Equal(t, &ticker.Price{
 			ExchangeName: ex.Name,
+			LastUpdated:  got.LastUpdated,
 			Pair:         pair,
 			AssetType:    asset.Spot,
 			Ask:          78165.7,

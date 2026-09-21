@@ -131,6 +131,10 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 					continue
 				} else if isEnabled {
 					t.Pair = symbolAliases[k]
+					if err := ticker.ProcessTicker(&t); err != nil {
+						errs = common.AppendError(errs, err)
+						continue
+					}
 					allTickers = append(allTickers, t)
 				}
 			}

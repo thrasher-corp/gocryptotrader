@@ -334,6 +334,9 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 			ExchangeName: e.Name,
 			LastUpdated:  r.Timestamp.Time(),
 		}
+		if err := ticker.ProcessTicker(&tickerData[x]); err != nil {
+			return err
+		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickerData)
 }

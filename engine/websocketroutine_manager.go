@@ -232,38 +232,32 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				d)
 		}
 	case *ticker.Price:
-		if m.syncer.IsRunning() {
+		if !m.syncer.IsRunning() {
+			return nil
+		}
+		err := m.syncer.WebsocketUpdate(exchName,
+			d.Pair,
+			d.AssetType,
+			SyncItemTicker,
+			nil)
+		if err != nil {
+			return err
+		}
+		m.syncer.PrintTickerSummary(d, "websocket", nil)
+	case []ticker.Price:
+		if !m.syncer.IsRunning() {
+			return nil
+		}
+		for x := range d {
 			err := m.syncer.WebsocketUpdate(exchName,
-				d.Pair,
-				d.AssetType,
+				d[x].Pair,
+				d[x].AssetType,
 				SyncItemTicker,
 				nil)
 			if err != nil {
 				return err
 			}
-		}
-		err := ticker.ProcessTicker(d)
-		if err != nil {
-			return err
-		}
-		m.syncer.PrintTickerSummary(d, "websocket", err)
-	case []ticker.Price:
-		for x := range d {
-			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdate(exchName,
-					d[x].Pair,
-					d[x].AssetType,
-					SyncItemTicker,
-					nil)
-				if err != nil {
-					return err
-				}
-			}
-			err := ticker.ProcessTicker(&d[x])
-			if err != nil {
-				return err
-			}
-			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
+			m.syncer.PrintTickerSummary(&d[x], "websocket", nil)
 		}
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
