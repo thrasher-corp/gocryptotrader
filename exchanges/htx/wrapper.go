@@ -238,6 +238,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, private: true},
 		{endpoint: exchange.WebsocketTrade, asset: asset.USDTMarginedFutures, private: true, trade: true},
 	} {
+		if ws.trade && !e.Websocket.CanUseAuthenticatedEndpoints() {
+			continue
+		}
 		runningURL, err := e.API.Endpoints.GetURL(ws.endpoint)
 		if err != nil {
 			return err
@@ -269,9 +272,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		}
 		if ws.private {
 			setup.Authenticate = e.wsAuthenticateConnection
-		}
-		if ws.trade {
-			setup.ConnectionEnabled = e.Websocket.CanUseAuthenticatedEndpoints
 		}
 		if err := e.Websocket.SetupNewConnection(setup); err != nil {
 			return err

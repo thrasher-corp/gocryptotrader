@@ -136,7 +136,7 @@ func TestSetup(t *testing.T) {
 		MessageFilter:            exchange.WebsocketTrade,
 		SubscriptionsNotRequired: true,
 	}
-	require.Error(t, h.Websocket.SetupNewConnection(tradeSetup), "trade websocket must be configured for runtime authentication gating")
+	require.NoError(t, h.Websocket.SetupNewConnection(tradeSetup), "trade websocket must be omitted when authenticated websocket support is disabled")
 
 	authenticated := new(Exchange)
 	authenticated.SetDefaults()
