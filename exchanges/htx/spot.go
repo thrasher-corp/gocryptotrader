@@ -133,7 +133,7 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketHistoryKline, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, htxError(result.ErrorMessage)
+		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Data, err
 }
@@ -201,7 +201,7 @@ func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pa
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetailMerged, vals), &result)
 	if result.ErrorMessage != "" {
-		return result.Tick, htxError(result.ErrorMessage)
+		return result.Tick, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	// the tick carries no time of its own on this endpoint, only the envelope does
 	result.Tick.Timestamp = result.Timestamp
@@ -229,7 +229,7 @@ func (e *Exchange) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams
 	var result response
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDepth, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, htxError(result.ErrorMessage)
+		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return &result.Depth, err
 }
@@ -254,7 +254,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTrade, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, htxError(result.ErrorMessage)
+		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Tick.Data, err
 }
@@ -296,7 +296,7 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, si
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTradeHistory, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, htxError(result.ErrorMessage)
+		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.TradeHistory, err
 }
@@ -319,7 +319,7 @@ func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (D
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetail, vals), &result)
 	if result.ErrorMessage != "" {
-		return result.Tick, htxError(result.ErrorMessage)
+		return result.Tick, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Tick, err
 }
@@ -335,7 +335,7 @@ func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxSymbols, &result)
 	if result.ErrorMessage != "" {
-		return nil, htxError(result.ErrorMessage)
+		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Symbols, err
 }
@@ -351,7 +351,7 @@ func (e *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
 
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxCurrencies, &result)
 	if result.ErrorMessage != "" {
-		return nil, htxError(result.ErrorMessage)
+		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Currencies, err
 }
@@ -382,7 +382,7 @@ func (e *Exchange) GetCurrentServerTime(ctx context.Context) (time.Time, error) 
 	}
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+htxAPIVersion+"/"+htxTimestamp, &result)
 	if result.ErrorMessage != "" {
-		return time.Time{}, htxError(result.ErrorMessage)
+		return time.Time{}, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Timestamp.Time(), err
 }
@@ -515,12 +515,20 @@ func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, 
 		Symbol:    symbolValue,
 	}
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxBatchCancelOpenOrders, url.Values{}, data, &result, false)
-	if result.Data.FailedCount > 0 {
-		return result, fmt.Errorf("there were %v failed order cancellations", result.Data.FailedCount)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxBatchCancelOpenOrders, url.Values{}, data, &result, false); err != nil {
+		return result, err
 	}
+	return result, validateCancelOpenOrdersBatchResponse(result)
+}
 
-	return result, err
+func validateCancelOpenOrdersBatchResponse(result CancelOpenOrdersBatch) error {
+	if result.Data.FailedCount > 0 {
+		return fmt.Errorf("%w: %d orders failed to cancel", errOrderCancellationFailed, result.Data.FailedCount)
+	}
+	if result.Status == htxStatusError {
+		return fmt.Errorf("%w: %w: %w", errOrderCancellationFailed, errAPIResponse, htxError(result.ErrorMessage))
+	}
+	return nil
 }
 
 // GetOrder returns order information for the specified order
@@ -914,18 +922,16 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	var errCap errorCapture
 	if err := json.Unmarshal(tempResp, &errCap); err == nil {
 		if errCap.ErrMsgType1 != "" {
-			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType1,
-				htxError(errCap.ErrMsgType1))
+			return fmt.Errorf("error code %v: %w: %w", errCap.CodeType1, errAPIResponse, htxError(errCap.ErrMsgType1))
 		}
 		if errCap.ErrMsgType2 != "" {
-			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType2,
-				htxError(errCap.ErrMsgType2))
+			return fmt.Errorf("error code %v: %w: %w", errCap.CodeType2, errAPIResponse, htxError(errCap.ErrMsgType2))
 		}
 	}
 	if strings.HasPrefix(path, "/v5/") {
 		var resp V5Response
 		if err := json.Unmarshal(tempResp, &resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
-			return fmt.Errorf("error code: %v error message: %s", resp.Code, resp.Message)
+			return fmt.Errorf("error code %v: %w: %w", resp.Code, errAPIResponse, htxError(resp.Message))
 		}
 	}
 	return unmarshalResponse(tempResp, result)

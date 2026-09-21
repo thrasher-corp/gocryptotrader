@@ -55,4 +55,6 @@ const (
 	errCurrencyNotSupplied           htxError = "currency must be supplied"
 	errNoTransferChains              htxError = "no chains returned from currencies API"
 	errUnhandledMockWebsocketMessage htxError = "unhandled mock websocket message"
+	errAPIResponse                   htxError = "HTX API response error"
+	errOrderCancellationFailed       htxError = "order cancellation failed"
 )

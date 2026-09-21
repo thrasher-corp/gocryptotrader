@@ -469,6 +469,20 @@ func TestCancelAllOrders(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("spot fanout combines errors and attempts every pair", func(t *testing.T) {
+		t.Parallel()
+		var calls atomic.Int32
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/batchCancelOpenOrders", `{"status":"ok","data":{"success-count":0,"failed-count":1}}`, func(*http.Request) {
+			calls.Add(1)
+		})
+		pairs := currency.Pairs{btcusdtPair, currency.NewPair(currency.ETH, currency.USDT)}
+		require.NoError(t, h.SetPairs(pairs, asset.Spot, false), "available spot pairs must be set")
+		require.NoError(t, h.SetPairs(pairs, asset.Spot, true), "enabled spot pairs must be set")
+		_, err := h.CancelAllOrders(t.Context(), &order.Cancel{AccountID: "1", AssetType: asset.Spot})
+		require.ErrorIs(t, err, errOrderCancellationFailed, "CancelAllOrders must retain cancellation failures")
+		assert.Equal(t, int32(2), calls.Load(), "CancelAllOrders should attempt every enabled pair")
+	})
 }
 
 func TestGetHistoricCandles(t *testing.T) {
@@ -1576,8 +1590,9 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 			assert.Equal(t, expected.clientOrderID, responses[i].ClientOrderID, "client order IDs should retain batch order")
 			assert.Equal(t, h.Name, responses[i].Exchange, "each response should identify the exchange")
 			if i == 1 {
+				assert.ErrorIs(t, responses[i].SubmissionError, errAPIResponse, "rejection should identify an HTX API response error")
 				assert.ErrorIs(t, responses[i].SubmissionError, htxError("insufficient margin"), "rejection should preserve the exchange error")
-				assert.EqualError(t, responses[i].SubmissionError, "400 insufficient margin", "rejection should include its code and reason")
+				assert.EqualError(t, responses[i].SubmissionError, "400: HTX API response error: insufficient margin", "rejection should include its code and reason")
 				assert.NotEqual(t, order.New, responses[i].Status, "rejected order should not be marked as accepted")
 				continue
 			}

@@ -12,10 +12,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -33,22 +35,44 @@ func newV5TradeWebsocketTestExchange(t *testing.T, handler mockws.WsMockFunc) *E
 		}
 		return handler(tb, message, conn)
 	}))
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.NoError(t, h.Websocket.Shutdown(), "existing websocket connections must shut down")
+	setupV5TradeWebsocketTestConnection(t, h)
 	require.NoError(t, h.Websocket.Connect(t.Context()), "websocket connections must reconnect with the trade endpoint")
 	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
 	require.NoError(t, err, "trade connection must be available")
 	return h
 }
 
-func TestV5TradeConnectionRuntimeGate(t *testing.T) {
+func setupV5TradeWebsocketTestConnection(t *testing.T, h *Exchange) {
+	t.Helper()
+	conn, err := h.Websocket.GetConnection(exchange.WebsocketUSDTMargined)
+	require.NoError(t, err, "public USDT margined connection must be available")
+	mockURL := conn.GetURL()
+	require.NoError(t, h.Websocket.Shutdown(), "existing websocket connections must shut down before trade setup")
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.NoError(t, h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                      wsUSDTMarginedTradeURL,
+		RateLimit:                request.NewWeightedRateLimitByDuration(3 * time.Second / 24),
+		ResponseCheckTimeout:     h.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         h.WebsocketResponseMaxLimit,
+		Connector:                h.wsConnect,
+		Handler:                  h.wsHandleData,
+		Authenticate:             h.wsAuthenticateConnection,
+		MessageFilter:            exchange.WebsocketTrade,
+		SubscriptionsNotRequired: true,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return nil, nil
+		},
+	}), "trade connection setup must not error")
+	require.NoError(t, h.Websocket.SetAllConnectionURLs(mockURL), "mock websocket URLs must update")
+}
+
+func TestSetupV5TradeWebsocketTestConnection(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
 	require.Error(t, err, "trade connection must be skipped while authenticated endpoints are disabled")
 
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.NoError(t, h.Websocket.Shutdown(), "existing websocket connections must shut down")
+	setupV5TradeWebsocketTestConnection(t, h)
 	require.NoError(t, h.Websocket.Connect(t.Context()), "websocket connections must reconnect after authentication is enabled")
 	_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
 	require.NoError(t, err, "trade connection must become available after authentication is enabled")

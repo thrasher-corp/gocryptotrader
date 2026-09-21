@@ -1528,7 +1528,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 			responses[i] = &order.SubmitResponse{
 				Exchange:        e.Name,
 				ClientOrderID:   orderResp.Data[i].ClientOrderID,
-				SubmissionError: fmt.Errorf("%d %w", orderResp.Data[i].Code, htxError(orderResp.Data[i].Message)),
+				SubmissionError: fmt.Errorf("%d: %w: %w", orderResp.Data[i].Code, errAPIResponse, htxError(orderResp.Data[i].Message)),
 			}
 			continue
 		}
@@ -1572,7 +1572,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 		return errEmptyResult
 	}
 	if resp.Data.Code != 0 && resp.Data.Code != 200 {
-		return fmt.Errorf("%d %w", resp.Data.Code, htxError(resp.Data.Message))
+		return fmt.Errorf("%d: %w: %w", resp.Data.Code, errAPIResponse, htxError(resp.Data.Message))
 	}
 	return nil
 }
@@ -1602,7 +1602,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			}
 			for i := range cancelledOrders.Failed {
 				if cancelledOrders.Failed[i].ClientOrderID == o.ClientOrderID {
-					return fmt.Errorf("failed to cancel client order %s: %w", o.ClientOrderID, htxError(cancelledOrders.Failed[i].ErrorMessage))
+					return fmt.Errorf("failed to cancel client order %s: %w: %w", o.ClientOrderID, errAPIResponse, htxError(cancelledOrders.Failed[i].ErrorMessage))
 				}
 			}
 			if !slices.Contains(cancelledOrders.Success, o.ClientOrderID) {
@@ -1751,6 +1751,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = make(map[string]string)
+	var errs error
 	switch orderCancellation.AssetType {
 	case asset.Spot:
 		pairs := currency.Pairs{orderCancellation.Pair}
@@ -1762,19 +1763,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			}
 		}
 		for i := range pairs {
-			resp, err := e.CancelOpenOrdersBatch(ctx,
+			_, err := e.CancelOpenOrdersBatch(ctx,
 				orderCancellation.AccountID,
 				pairs[i])
 			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			if resp.Data.FailedCount > 0 {
-				return cancelAllOrdersResponse,
-					fmt.Errorf("%v orders failed to cancel",
-						resp.Data.FailedCount)
-			}
-			if resp.Status == "error" {
-				return cancelAllOrdersResponse, htxError(resp.ErrorMessage)
+				errs = common.AppendError(errs, err)
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -1786,7 +1779,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			for i := range enabledPairs {
 				a, err := e.CancelAllSwapOrders(ctx, enabledPairs[i])
 				if err != nil {
-					return cancelAllOrdersResponse, err
+					errs = common.AppendError(errs, err)
+					continue
 				}
 				split := strings.Split(a.Data.Successes, ",")
 				for x := range split {
@@ -1822,10 +1816,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			for i := range enabledPairs {
 				a, err := e.CancelAllV5Orders(ctx, enabledPairs[i], "", "")
 				if err != nil {
-					return cancelAllOrdersResponse, err
+					errs = common.AppendError(errs, err)
+					continue
 				}
 				if a == nil {
-					return cancelAllOrdersResponse, errEmptyResult
+					errs = common.AppendError(errs, errEmptyResult)
+					continue
 				}
 				for j := range a.Data {
 					id := a.Data[j].OrderID
@@ -1874,7 +1870,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			for i := range enabledPairs {
 				a, err := e.FCancelAllOrders(ctx, enabledPairs[i], "", "")
 				if err != nil {
-					return cancelAllOrdersResponse, err
+					errs = common.AppendError(errs, err)
+					continue
 				}
 				split := strings.Split(a.Data.Successes, ",")
 				for x := range split {
@@ -1904,7 +1901,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	default:
 		return cancelAllOrdersResponse, fmt.Errorf("%w %v", asset.ErrNotSupported, orderCancellation.AssetType)
 	}
-	return cancelAllOrdersResponse, nil
+	return cancelAllOrdersResponse, errs
 }
 
 // formatV5OrderDetail converts V5 REST and websocket responses into the canonical order type.

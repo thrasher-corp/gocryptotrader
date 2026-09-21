@@ -627,6 +627,37 @@ func TestCancelOpenOrdersBatch(t *testing.T) {
 	require.NoError(t, err, "CancelOpenOrdersBatch must not error")
 }
 
+func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		failedCount uint64
+		status      string
+		errorMsg    string
+		want        error
+	}{
+		{name: "success"},
+		{name: "failed orders", failedCount: 2, want: errOrderCancellationFailed},
+		{name: "API error", status: htxStatusError, errorMsg: "rejected", want: errAPIResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := CancelOpenOrdersBatch{Status: tc.status, ErrorMessage: tc.errorMsg}
+			result.Data.FailedCount = tc.failedCount
+			err := validateCancelOpenOrdersBatchResponse(result)
+			if tc.want == nil {
+				assert.NoError(t, err, "successful response should not error")
+				return
+			}
+			assert.ErrorIs(t, err, errOrderCancellationFailed, "failed response should return the cancellation error")
+			assert.ErrorIs(t, err, tc.want, "failed response should retain its underlying error")
+			if tc.errorMsg != "" {
+				assert.ErrorIs(t, err, htxError(tc.errorMsg), "failed response should retain the exchange error")
+			}
+		})
+	}
+}
+
 func TestGetBatchLinearSwapContracts(t *testing.T) {
 	t.Parallel()
 	resp, err := e.GetBatchLinearSwapContracts(t.Context())

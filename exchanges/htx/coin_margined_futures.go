@@ -2,6 +2,7 @@ package htx
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1085,7 +1086,7 @@ func (e *Exchange) GetSwapMarkets(ctx context.Context, contract currency.Pair) (
 	var result response
 	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_contract_info"+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
-		return nil, htxError(result.ErrorMessage)
+		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Data, err
 }
@@ -1105,7 +1106,7 @@ func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pai
 	var result response
 	err = e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_funding_rate"+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
-		return FundingRatesData{}, htxError(result.ErrorMessage)
+		return FundingRatesData{}, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
 	}
 	return result.Data, err
 }
