@@ -445,15 +445,31 @@ func TestProcessBatch(t *testing.T) {
 	_, err = GetTicker(exchName, pairTwo, asset.Spot)
 	require.NoError(t, err, "GetTicker must not error after ProcessBatch stores the second ticker")
 
+	pairThree := currency.NewPair(currency.LTC, currency.USD)
 	err = ProcessBatch([]Price{
 		{
+			Pair:      pairOne,
+			AssetType: asset.Spot,
+			Last:      1,
+		},
+		{
 			ExchangeName: exchName,
-			Pair:         currency.EMPTYPAIR,
+			Pair:         pairTwo,
 			AssetType:    asset.Spot,
-			Last:         1,
+			Bid:          2,
+			Ask:          1,
+		},
+		{
+			ExchangeName: exchName,
+			Pair:         pairThree,
+			AssetType:    asset.Spot,
+			Last:         300,
 		},
 	})
-	assert.Error(t, err, "ProcessBatch should return an error when a batch entry is invalid")
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "ProcessBatch should retain the first batch error")
+	assert.ErrorIs(t, err, errBidGreaterThanAsk, "ProcessBatch should combine subsequent batch errors")
+	_, err = GetTicker(exchName, pairThree, asset.Spot)
+	require.NoError(t, err, "ProcessBatch must continue processing valid entries after errors")
 }
 
 func TestGetAssociation(t *testing.T) {

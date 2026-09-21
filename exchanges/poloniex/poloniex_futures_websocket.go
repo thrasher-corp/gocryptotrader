@@ -439,9 +439,9 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 	tickerPrices := make([]ticker.Price, len(resp))
 	for i, r := range resp {
 		tickerPrices[i] = *e.futuresTicker(r)
-		if err := ticker.ProcessTicker(&tickerPrices[i]); err != nil {
-			return err
-		}
+	}
+	if err := ticker.ProcessBatch(tickerPrices); err != nil {
+		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
 }
