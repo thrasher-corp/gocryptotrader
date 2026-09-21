@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -82,8 +82,7 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 		return nil, fmt.Errorf("%w %s %s %s", ErrTickerNotFound, exchange, p, a)
 	}
 
-	cpy := tick.Price // Don't let external functions have access to underlying
-	return &cpy, nil
+	return new(tick.Price), nil // Don't let external functions have access to underlying
 }
 
 // GetExchangeTickers returns all tickers for a given exchange
@@ -107,8 +106,7 @@ func (s *Service) getExchangeTickers(exchange string) ([]*Price, error) {
 		if k.Exchange != exchange {
 			continue
 		}
-		cpy := v.Price // Don't let external functions have access to underlying
-		tickers = append(tickers, &cpy)
+		tickers = append(tickers, new(v.Price)) // Don't let external functions have access to underlying
 	}
 	return tickers, nil
 }

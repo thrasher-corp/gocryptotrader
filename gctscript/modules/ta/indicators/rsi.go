@@ -13,7 +13,7 @@ import (
 
 // RsiModule relative strength index indicator commands
 var RsiModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: rsi},
+	calculate: &objects.UserFunction{Name: calculate, Value: rsi},
 }
 
 // RelativeStrengthIndex is the string constant
@@ -36,7 +36,7 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(RSI)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 

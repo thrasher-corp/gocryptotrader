@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"testing"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -203,23 +206,44 @@ func TestUFuturesOrderbook(t *testing.T) {
 
 func TestURecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.URecentTrades(t.Context(), currency.NewBTCUSDT(), "", 1000)
-	if err != nil {
-		t.Error(err)
+	r, err := e.URecentTrades(t.Context(), currency.NewBTCUSDT(), "", 1000)
+	require.NoError(t, err, "URecentTrades must not error")
+	if mockTests {
+		require.NotEmpty(t, r, "URecentTrades must return trades")
+		exp := UPublicTradesData{
+			ID:            8027604905,
+			Price:         79563.80,
+			Quantity:      0.008,
+			QuoteQuantity: 636.51,
+			Time:          types.Time(time.UnixMilli(1787893895323)),
+			IsBuyerMaker:  true,
+			IsRPITrade:    false,
+		}
+		assert.Equal(t, exp, r[0], "URecentTrades should unmarshal correctly")
 	}
 }
 
 func TestUCompressedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.UCompressedTrades(t.Context(), currency.NewBTCUSDT(), "", 5, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	r, err := e.UCompressedTrades(t.Context(), currency.NewBTCUSDT(), "", 5, time.Time{}, time.Time{})
+	require.NoError(t, err, "UCompressedTrades must not error")
+	if mockTests {
+		require.NotEmpty(t, r, "UCompressedTrades must return trades")
+		exp := UCompressedTradeData{
+			AggregateTradeID: 3431028568,
+			Price:            79563.80,
+			Quantity:         0.003,
+			NormalQuantity:   0.003,
+			FirstTradeID:     8027604904,
+			LastTradeID:      8027604904,
+			Timestamp:        types.Time(time.UnixMilli(1787893895110)),
+			IsBuyerMaker:     true,
+		}
+		assert.Equal(t, exp, r[0], "UCompressedTrades should unmarshal correctly")
 	}
 	start, end := getTime()
 	_, err = e.UCompressedTrades(t.Context(), currency.NewPair(currency.LTC, currency.USDT), "", 0, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UCompressedTrades should not error for a time range")
 }
 
 func TestUKlineData(t *testing.T) {
@@ -237,39 +261,71 @@ func TestUKlineData(t *testing.T) {
 
 func TestUGetMarkPrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetMarkPrice(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error(err)
+	r, err := e.UGetMarkPrice(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "UGetMarkPrice must not error")
+	if mockTests {
+		exp := []UMarkPrice{{
+			Symbol:               "BTCUSDT",
+			MarkPrice:            26780.82240476,
+			IndexPrice:           26798.25197802,
+			LastFundingRate:      0.00001226,
+			EstimatedSettlePrice: 26808.13173098,
+			InterestRate:         0.00010000,
+			NextFundingTime:      types.Time(time.UnixMilli(1687248000000)),
+			Time:                 types.Time(time.UnixMilli(1687244112000)),
+		}}
+		assert.Equal(t, exp, r, "UGetMarkPrice should unmarshal correctly")
 	}
 	_, err = e.UGetMarkPrice(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UGetMarkPrice should not error without a pair")
 }
 
 func TestUGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetFundingHistory(t.Context(), currency.NewBTCUSDT(), 1, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	r, err := e.UGetFundingHistory(t.Context(), currency.NewBTCUSDT(), 1, time.Time{}, time.Time{})
+	require.NoError(t, err, "UGetFundingHistory must not error")
+	if mockTests {
+		exp := []FundingRateHistory{{
+			Symbol:      "BTCUSDT",
+			FundingRate: 0.00006578,
+			FundingTime: types.Time(time.UnixMilli(1787875200026)),
+			MarkPrice:   80209.56009420,
+			RateType:    "Regular",
+		}}
+		assert.Equal(t, exp, r, "UGetFundingHistory should unmarshal correctly")
 	}
 	start, end := getTime()
 	_, err = e.UGetFundingHistory(t.Context(), currency.NewPair(currency.LTC, currency.USDT), 1, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UGetFundingHistory should not error for a time range")
 }
 
 func TestU24HTickerPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := e.U24HTickerPriceChangeStats(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error(err)
+	r, err := e.U24HTickerPriceChangeStats(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "U24HTickerPriceChangeStats must not error")
+	if mockTests {
+		exp := []U24HrPriceChangeStats{{
+			Symbol:               "BTCUSDT",
+			PriceChange:          -155.63,
+			PriceChangePercent:   -0.330,
+			WeightedAveragePrice: 46998.82,
+			LastPrice:            47028.59,
+			LastQuantity:         0.023,
+			OpenPrice:            47184.22,
+			HighPrice:            47688.88,
+			LowPrice:             46280.00,
+			Volume:               471823.103,
+			QuoteVolume:          22175129357.20,
+			OpenTime:             types.Time(time.UnixMilli(1629955980000)),
+			CloseTime:            types.Time(time.UnixMilli(1630042423017)),
+			FirstID:              1373117969,
+			LastID:               1377202095,
+			Count:                4084092,
+		}}
+		assert.Equal(t, exp, r, "U24HTickerPriceChangeStats should unmarshal correctly")
 	}
 	_, err = e.U24HTickerPriceChangeStats(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "U24HTickerPriceChangeStats should not error without a pair")
 }
 
 func TestUSymbolPriceTicker(t *testing.T) {
@@ -286,14 +342,22 @@ func TestUSymbolPriceTicker(t *testing.T) {
 
 func TestUSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.USymbolOrderbookTicker(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error(err)
+	r, err := e.USymbolOrderbookTicker(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USymbolOrderbookTicker must not error")
+	if mockTests {
+		exp := []USymbolOrderbookTicker{{
+			Symbol:       "BTCUSDT",
+			BidPrice:     79563.80,
+			BidQuantity:  3.008,
+			AskPrice:     79563.90,
+			AskQuantity:  3.944,
+			Time:         types.Time(time.UnixMilli(1787893895465)),
+			LastUpdateID: 11410877132050,
+		}}
+		assert.Equal(t, exp, r, "USymbolOrderbookTicker should unmarshal correctly")
 	}
 	_, err = e.USymbolOrderbookTicker(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "USymbolOrderbookTicker should not error without a pair")
 }
 
 func TestUOpenInterest(t *testing.T) {
@@ -306,15 +370,22 @@ func TestUOpenInterest(t *testing.T) {
 
 func TestUOpenInterestStats(t *testing.T) {
 	t.Parallel()
-	_, err := e.UOpenInterestStats(t.Context(), currency.NewBTCUSDT(), "5m", 1, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	r, err := e.UOpenInterestStats(t.Context(), currency.NewBTCUSDT(), "5m", 1, time.Time{}, time.Time{})
+	require.NoError(t, err, "UOpenInterestStats must not error")
+	if mockTests {
+		exp := []UOpenInterestStats{{
+			Symbol:               "BTCUSDT",
+			SumOpenInterest:      109899.054,
+			SumOpenInterestValue: 8768142164.7144,
+			CMCCirculatingSupply: 20076125,
+			Timestamp:            types.Time(time.UnixMilli(1787895600000)),
+		}}
+		assert.Equal(t, exp, r, "UOpenInterestStats should unmarshal correctly")
 	}
+
 	start, end := getTime()
 	_, err = e.UOpenInterestStats(t.Context(), currency.NewPair(currency.LTC, currency.USDT), "1d", 10, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "UOpenInterestStats should not error for a time range")
 }
 
 func TestUTopAcccountsLongShortRatio(t *testing.T) {
@@ -716,18 +787,34 @@ func TestGetIndexPriceKlines(t *testing.T) {
 
 func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
-	if err != nil {
-		t.Error(err)
+	r, err := e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	require.NoError(t, err, "GetFuturesSwapTickerChangeStats must not error")
+	if mockTests {
+		exp := []PriceChangeStats{{
+			Symbol:               "BTCUSD_PERP",
+			Pair:                 "BTCUSD",
+			PriceChange:          -125.4,
+			PriceChangePercent:   -0.266,
+			WeightedAveragePrice: 46967.17141153,
+			LastPrice:            47010.2,
+			LastQuantity:         6,
+			OpenPrice:            47135.6,
+			HighPrice:            47662,
+			LowPrice:             46250,
+			Volume:               71996462,
+			BaseVolume:           153291.03251537,
+			OpenTime:             types.Time(time.UnixMilli(1629955980000)),
+			CloseTime:            types.Time(time.UnixMilli(1630042418232)),
+			FirstID:              225537386,
+			LastID:               226404146,
+			Count:                866761,
+		}}
+		assert.Equal(t, exp, r, "GetFuturesSwapTickerChangeStats should unmarshal correctly")
+		assert.Zero(t, r[0].QuoteVolume, "QuoteVolume should be zero as coin margined futures does not send it")
 	}
-	_, err = e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
-	if err != nil {
-		t.Error(err)
-	}
+
 	_, err = e.GetFuturesSwapTickerChangeStats(t.Context(), currency.EMPTYPAIR, "")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetFuturesSwapTickerChangeStats should not error without a pair")
 }
 
 func TestFuturesGetFundingHistory(t *testing.T) {
@@ -1192,10 +1279,35 @@ func TestGetAveragePrice(t *testing.T) {
 
 func TestGetPriceChangeStats(t *testing.T) {
 	t.Parallel()
-
-	_, err := e.GetPriceChangeStats(t.Context(), currency.NewBTCUSDT())
-	if err != nil {
-		t.Error("Binance GetPriceChangeStats() error", err)
+	r, err := e.GetPriceChangeStats(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "GetPriceChangeStats must not error")
+	require.NotNil(t, r, "GetPriceChangeStats must not return nil")
+	if mockTests {
+		exp := &PriceChangeStats{
+			Symbol:               "BTCUSDT",
+			PriceChange:          -166.82,
+			PriceChangePercent:   -2.427,
+			WeightedAveragePrice: 6786.67321489,
+			PreviousClosePrice:   6872.37,
+			LastPrice:            6705.82,
+			LastQuantity:         0.01,
+			BidPrice:             6705.88,
+			BidQuantity:          0.184011,
+			AskPrice:             6706.21,
+			AskQuantity:          0.195188,
+			OpenPrice:            6872.64,
+			HighPrice:            6933,
+			LowPrice:             6680.10,
+			Volume:               57857.494857,
+			QuoteVolume:          392659910.6266075,
+			OpenTime:             types.Time(time.UnixMilli(1586904878494)),
+			CloseTime:            types.Time(time.UnixMilli(1586991278494)),
+			FirstID:              294247387,
+			LastID:               294801814,
+			Count:                554428,
+		}
+		assert.Equal(t, exp, r, "GetPriceChangeStats should unmarshal correctly")
+		assert.Zero(t, r.BaseVolume, "BaseVolume should be zero as spot does not send it")
 	}
 }
 
@@ -2028,7 +2140,7 @@ func TestSubscribeBadResp(t *testing.T) {
 
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"ETHBTC","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
+	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"BTCUSDT","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
 	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -2037,33 +2149,66 @@ func TestWsTickerUpdate(t *testing.T) {
 
 func TestWsKlineUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
-	  "e": "kline",
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
-	  "k": {
-		"t": 1234000001, 
-		"T": 1234600001, 
-		"s": "BTCUSDT",  
-		"i": "1m",      
-		"f": 100,       
-		"L": 200,       
-		"o": "0.0010",  
-		"c": "0.0020",  
-		"h": "0.0025",  
-		"l": "0.0015",  
-		"v": "1000",    
-		"n": 100,       
-		"x": false,     
-		"q": "1.0000",  
-		"V": "500",     
-		"Q": "0.500",   
-		"B": "123456"   
-	  }
-	}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	tests := []struct {
+		name           string
+		klineClosed    string
+		expectedIssues string
+	}{
+		{name: "StillForming", klineClosed: "false", expectedIssues: kline.PartialCandle},
+		{name: "Closed", klineClosed: "true", expectedIssues: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			pressXToJSON := fmt.Appendf(nil, `{"stream":"btcusdt@kline_1m","data":{
+			  "e": "kline",
+			  "E": 1234567891,
+			  "s": "BTCUSDT",
+			  "k": {
+				"t": 1234000001,
+				"T": 1234600001,
+				"s": "BTCUSDT",
+				"i": "1m",
+				"f": 100,
+				"L": 200,
+				"o": "0.0010",
+				"c": "0.0020",
+				"h": "0.0025",
+				"l": "0.0015",
+				"v": "1000",
+				"n": 100,
+				"x": %s,
+				"q": "1.0000",
+				"V": "500",
+				"Q": "0.500",
+				"B": "123456"
+			  }
+			}}`, tt.klineClosed)
+			require.NoError(t, e.wsHandleData(t.Context(), pressXToJSON), "wsHandleData must not error")
+			require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must relay one payload")
+			res := <-e.Websocket.DataHandler.C
+			require.IsType(t, kline.Item{}, res.Data, "Relay payload must be a kline.Item")
+			k, _ := res.Data.(kline.Item)
+			require.Len(t, k.Candles, 1, "kline.Item must carry a single candle")
+			exp := kline.Item{
+				Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+				Asset:    asset.Spot,
+				Exchange: e.Name,
+				Interval: kline.OneMin,
+				Candles: []kline.Candle{{
+					Time:             time.Unix(1234000001, 0),
+					Open:             0.001,
+					Close:            0.002,
+					High:             0.0025,
+					Low:              0.0015,
+					Volume:           1000,
+					ValidationIssues: tt.expectedIssues,
+				}},
+			}
+			assert.Equal(t, exp, res.Data, "Relayed kline should match")
+		})
 	}
 }
 
@@ -2071,9 +2216,9 @@ func TestWsTradeUpdate(t *testing.T) {
 	t.Parallel()
 	e.SetSaveTradeDataStatus(true)
 	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
-	  "e": "trade",     
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
+	  "e": "trade",
+	  "E": 1234567891,
+	  "s": "BTCUSDT",
 	  "t": 12345,       
 	  "p": "0.001",     
 	  "q": "100",       
@@ -2415,7 +2560,6 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
 	wsFmt := currency.PairFormat{Uppercase: false, Delimiter: ""}
@@ -2425,6 +2569,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.TickerChannel, QualifiedChannel: "ticker", Asset: asset.Spot},
 		{Channel: subscription.AllTradesChannel, QualifiedChannel: "trade", Asset: asset.Spot},
 	}
+	exp := make(subscription.List, 0, len(baseExp)*len(pairs))
 	for _, p := range pairs {
 		for _, baseSub := range baseExp {
 			sub := baseSub.Clone()
@@ -2530,15 +2675,6 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Date:                 time.UnixMilli(1616627567900),
 		LastUpdated:          time.UnixMilli(1616627567900),
 		Pair:                 currency.NewBTCUSDT(),
-	}
-	// empty the channel. otherwise mock_test will fail
-drain:
-	for {
-		select {
-		case <-e.Websocket.DataHandler.C:
-		default:
-			break drain
-		}
 	}
 
 	err := e.wsHandleData(t.Context(), payload)
@@ -3326,8 +3462,20 @@ func TestGetFundingRateInfo(t *testing.T) {
 
 func TestUGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetFundingRateInfo(t.Context())
-	assert.NoError(t, err)
+	r, err := e.UGetFundingRateInfo(t.Context())
+	require.NoError(t, err, "UGetFundingRateInfo must not error")
+	if mockTests {
+		require.NotEmpty(t, r, "UGetFundingRateInfo must return rates")
+		exp := FundingRateInfoResponse{
+			Symbol:                   "GTCUSDT",
+			AdjustedFundingRateCap:   0.03,
+			AdjustedFundingRateFloor: -0.03,
+			FundingIntervalHours:     8,
+			Disclaimer:               false,
+			UpdateTime:               types.Time(time.UnixMilli(1696841346067)),
+		}
+		assert.Equal(t, exp, r[0], "UGetFundingRateInfo should unmarshal correctly")
+	}
 }
 
 func TestGetOpenInterest(t *testing.T) {
@@ -3367,4 +3515,189 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestUpdateAccountBalancesMocked(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		asset asset.Item
+		path  string
+		input string
+		alias string
+		want  accounts.Balance
+	}{
+		{
+			asset: asset.Spot,
+			path:  accountInfo,
+			input: `{
+  "balances": [
+    {
+      "asset": "USDT",
+      "free": "3.5",
+      "locked": "1.25"
+    }
+  ]
+}`,
+			want: accounts.Balance{
+				Currency: currency.USDT,
+				Total:    4.75,
+				Hold:     1.25,
+				Free:     3.5,
+			},
+		},
+		{
+			asset: asset.CoinMarginedFutures,
+			path:  cfuturesAccountInfo,
+			input: `{
+  "assets": [
+    {
+      "asset": "BTC",
+      "walletBalance": "5.5",
+      "availableBalance": "4.25"
+    }
+  ]
+}`,
+			want: accounts.Balance{
+				Currency: currency.BTC,
+				Total:    5.5,
+				Hold:     1.25,
+				Free:     4.25,
+			},
+		},
+		{
+			asset: asset.USDTMarginedFutures,
+			path:  ufuturesAccountBalance,
+			input: `[
+  {
+    "accountAlias": "test-account",
+    "asset": "USDT",
+    "balance": 125.5,
+    "availableBalance": 115.75
+  }
+]`,
+			alias: "test-account",
+			want: accounts.Balance{
+				Currency: currency.USDT,
+				Total:    125.5,
+				Hold:     9.75,
+				Free:     115.75,
+			},
+		},
+		{
+			asset: asset.Margin,
+			path:  marginAccountInfo,
+			input: `{
+  "userAssets": [
+    {
+      "asset": "USDT",
+      "free": "5.5",
+      "locked": "1.25",
+      "borrowed": "2.25"
+    }
+  ]
+}`,
+			want: accounts.Balance{
+				Currency:               currency.USDT,
+				Total:                  6.75,
+				Hold:                   1.25,
+				Free:                   5.5,
+				AvailableWithoutBorrow: 3.25,
+				Borrowed:               2.25,
+			},
+		},
+	} {
+		for _, mode := range []string{"balances", "empty", "error"} {
+			t.Run(tc.asset.String()+"/"+mode, func(t *testing.T) {
+				t.Parallel()
+				e := new(Exchange)
+				require.NoError(t, testexch.Setup(e), "Setup must not error")
+				e.SkipAuthCheck = true
+				e.SetCredentials(&accounts.Credentials{
+					Key:    "test-key",
+					Secret: "test-secret",
+				})
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodGet, r.Method, "balances should use GET")
+					assert.Equal(t, tc.path, r.URL.Path, "balances should use the asset endpoint")
+					body := tc.input
+					switch mode {
+					case "error":
+						body = `{
+  "code": -1,
+  "msg": "balance rejected"
+}`
+					case "empty":
+						body = `{}`
+						if tc.asset == asset.USDTMarginedFutures {
+							body = `[]`
+						}
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "the mock response should be written")
+				}))
+				require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				for endpoint := range e.API.Endpoints.GetURLMap() {
+					require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL), "SetRunningURL must not error")
+				}
+				started := time.Now()
+				got, err := e.UpdateAccountBalances(t.Context(), tc.asset)
+				if mode == "error" {
+					assert.ErrorContains(t, err, "balance rejected", "UpdateAccountBalances should propagate the API error")
+					assert.Nil(t, got, "a failed request should return no balances")
+					return
+				}
+				require.NoError(t, err, "UpdateAccountBalances must not error")
+				if mode == "empty" {
+					exp := accounts.SubAccounts{accounts.NewSubAccount(tc.asset, tc.alias)}
+					if tc.asset == asset.USDTMarginedFutures {
+						exp = accounts.SubAccounts{}
+					}
+					assert.Equal(t, exp, got, "UpdateAccountBalances should accept empty balances")
+					return
+				}
+				require.Len(t, got, 1, "UpdateAccountBalances must return one account")
+				want := tc.want
+				want.UpdatedAt = got[0].Balances[want.Currency].UpdatedAt
+				assert.WithinRange(t, want.UpdatedAt, started, time.Now(), "the balance timestamp should reflect this update")
+				exp := accounts.SubAccounts{{
+					ID:        tc.alias,
+					AssetType: tc.asset,
+					Balances:  accounts.CurrencyBalances{want.Currency: want},
+				}}
+				assert.Equal(t, exp, got, "UpdateAccountBalances should preserve the decoded balances")
+				if tc.asset == asset.USDTMarginedFutures {
+					e.Accounts = nil
+					_, err = e.UpdateAccountBalances(t.Context(), tc.asset)
+					assert.ErrorIs(t, err, common.ErrNilPointer, "UpdateAccountBalances should propagate a save failure")
+				}
+			})
+		}
+	}
+
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Setup must not error")
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			assert.Fail(t, "validation should not make HTTP requests")
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		for endpoint := range e.API.Endpoints.GetURLMap() {
+			require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL), "SetRunningURL must not error")
+		}
+		e.LoadedByConfig = false
+		e.SetCredentials(&accounts.Credentials{})
+		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should reject missing credentials")
+		e.SkipAuthCheck = true
+		e.SetCredentials(&accounts.Credentials{
+			Key:        "test-key",
+			SubAccount: "test-subaccount",
+		})
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, common.ErrNotYetImplemented, "UpdateAccountBalances should reject spot subaccounts")
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Options)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances should reject unsupported assets")
+	})
 }

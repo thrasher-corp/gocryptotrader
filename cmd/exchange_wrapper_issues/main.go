@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"text/template"
@@ -49,11 +49,9 @@ func main() {
 	bot.ExchangeManager = engine.NewExchangeManager()
 
 	bot.Settings = engine.Settings{
-		CoreSettings: engine.CoreSettings{Verbose: verboseOverride},
-		ExchangeTuningSettings: engine.ExchangeTuningSettings{
-			DisableExchangeAutoPairUpdates: true,
-			EnableExchangeHTTPRateLimiter:  true,
-		},
+		Verbose:                        verboseOverride,
+		DisableExchangeAutoPairUpdates: true,
+		EnableExchangeHTTPRateLimiter:  true,
 	}
 
 	log.Println("Loading config...")
@@ -75,7 +73,7 @@ func main() {
 		}
 		if shouldLoadExchange(name) {
 			wg.Go(func() {
-				if err = bot.LoadExchange(name); err != nil {
+				if err := bot.LoadExchange(name); err != nil {
 					log.Printf("Failed to load exchange %s. Err: %s", name, err)
 				}
 			})
@@ -99,6 +97,7 @@ func main() {
 
 	log.Println("Testing exchange wrappers..")
 	var exchangeResponses []ExchangeResponses
+	var mtx sync.Mutex
 
 	exchs := bot.GetExchanges()
 	for x := range exchs {
@@ -112,32 +111,29 @@ func main() {
 		base.Verbose = verboseOverride
 		base.HTTPDebugging = false
 		base.Config.HTTPDebugging = false
-		wg.Add(1)
-
-		go func(num int) {
-			name := exchs[num].GetName()
+		wg.Go(func() {
+			name := exchs[x].GetName()
 			authenticated := setExchangeAPIKeys(name, wrapperConfig.Exchanges, base)
 			wrapperResult := ExchangeResponses{
-				ID:                 fmt.Sprintf("Exchange%v", num),
+				ID:                 fmt.Sprintf("Exchange%v", x),
 				ExchangeName:       name,
 				APIKeysSet:         authenticated,
-				AssetPairResponses: testWrappers(exchs[num], base, &wrapperConfig),
+				AssetPairResponses: testWrappers(exchs[x], base, &wrapperConfig),
 			}
 			for i := range wrapperResult.AssetPairResponses {
 				wrapperResult.ErrorCount += wrapperResult.AssetPairResponses[i].ErrorCount
 			}
+			mtx.Lock()
 			exchangeResponses = append(exchangeResponses, wrapperResult)
-			wg.Done()
-		}(x)
+			mtx.Unlock()
+		})
 	}
 	wg.Wait()
 
 	log.Println("Done.")
 	log.Println()
 
-	sort.Slice(exchangeResponses, func(i, j int) bool {
-		return exchangeResponses[i].ExchangeName < exchangeResponses[j].ExchangeName
-	})
+	slices.SortFunc(exchangeResponses, func(a, b ExchangeResponses) int { return strings.Compare(a.ExchangeName, b.ExchangeName) })
 
 	if strings.EqualFold(outputOverride, "Console") {
 		outputToConsole(exchangeResponses)

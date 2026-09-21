@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"time"
 
@@ -138,28 +137,36 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
+// Returned tickers are cached before reporting any omitted pairs with ticker.ErrTickerNotFound.
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
+	_, err := e.updateTickers(ctx, a)
+	return err
+}
+
+func (e *Exchange) updateTickers(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	enabledPairs, err := e.GetEnabledPairs(a)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, a)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	result, err := e.GetTicker(ctx, pairsCollated)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	var missingPairs currency.Pairs
 	for i := range enabledPairs {
 		fPair, err := e.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		curr := fPair.Lower().String()
 		if _, ok := result[curr]; !ok {
+			missingPairs = append(missingPairs, enabledPairs[i])
 			continue
 		}
 
@@ -169,17 +176,22 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Last:         resultCurr.Last,
 			Ask:          resultCurr.Sell,
 			Bid:          resultCurr.Buy,
+			High:         resultCurr.High,
 			Low:          resultCurr.Low,
-			QuoteVolume:  resultCurr.VolumeCurrent,
-			Volume:       resultCurr.Vol,
+			BaseVolume:   resultCurr.BaseVolume,
+			QuoteVolume:  resultCurr.QuoteVolume,
 			ExchangeName: e.Name,
 			AssetType:    a,
+			LastUpdated:  resultCurr.Updated.Time(),
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	if len(missingPairs) != 0 {
+		return missingPairs, fmt.Errorf("%w: %s %s omitted pairs %s", ticker.ErrTickerNotFound, e.Name, a, missingPairs)
+	}
+	return nil, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -210,9 +222,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Last:         resultCurr.Last,
 		Ask:          resultCurr.Sell,
 		Bid:          resultCurr.Buy,
+		High:         resultCurr.High,
+		LastUpdated:  resultCurr.Updated.Time(),
 		Low:          resultCurr.Low,
-		QuoteVolume:  resultCurr.VolumeCurrent,
-		Volume:       resultCurr.Vol,
+		QuoteVolume:  resultCurr.QuoteVolume,
+		BaseVolume:   resultCurr.BaseVolume,
 		ExchangeName: e.Name,
 		AssetType:    a,
 	})
@@ -339,7 +353,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

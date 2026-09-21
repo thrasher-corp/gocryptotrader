@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -40,7 +39,10 @@ const (
 	privateRedeemCoupon           = "RedeemYobicode"
 )
 
-var errTickerDataNotFound = errors.New("ticker data not found in response")
+var (
+	errTickerDataNotFound  = errors.New("ticker data not found in response")
+	errTickerRequestFailed = errors.New("ticker request failed")
+)
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Yobit
 type Exchange struct {
@@ -55,30 +57,50 @@ func (e *Exchange) GetInfo(ctx context.Context) (Info, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
-// GetTicker returns a ticker for a specific currency
+// GetTicker returns tickers for the requested symbols, omitting invalid pairs.
+// An explicit API failure returns an error even if ticker entries are present.
+// Empty or entirely zero-valued ticker entries are rejected.
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
-	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
-	raw := make(map[string]json.RawMessage)
+	var raw map[string]json.RawMessage
+	// ignore_invalid=1 omits unknown or delisted pairs instead of rejecting the whole batch.
+	path := "/" + apiPublicVersion + "/" + publicTicker + "/" + symbol + "?ignore_invalid=1"
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &raw); err != nil {
 		return nil, err
 	}
+
 	result := make(map[string]Ticker, len(raw))
-	for k, v := range raw {
-		var t Ticker
-		if err := json.Unmarshal(v, &t); err != nil {
-			// API can return non-object values for invalid/unknown pairs in batch responses.
+	var apiError string
+	var failed bool
+	for pair, entry := range raw {
+		switch pair {
+		// these cases only appear when there is an error, standard responses do not contain these fields
+		case "success":
+			var success uint8
+			if err := json.Unmarshal(entry, &success); err != nil {
+				return nil, fmt.Errorf("error decoding ticker success field: %w", err)
+			}
+			failed = success == 0
+			continue
+		case "error":
+			if err := json.Unmarshal(entry, &apiError); err != nil {
+				return nil, fmt.Errorf("error decoding ticker error field: %w", err)
+			}
 			continue
 		}
-		result[k] = t
+		var ticker Ticker
+		if err := json.Unmarshal(entry, &ticker); err != nil {
+			return nil, fmt.Errorf("%w: error decoding ticker for %s: %w", errTickerDataNotFound, pair, err)
+		}
+		if ticker == (Ticker{}) {
+			return nil, fmt.Errorf("%w: empty ticker for %s", errTickerRequestFailed, pair)
+		}
+		result[pair] = ticker
 	}
-	if len(raw) > 0 && len(result) == 0 {
-		format, err := e.GetPairFormat(asset.Spot, true)
-		if err != nil {
-			return nil, err
+	if failed || len(result) == 0 && apiError != "" {
+		if apiError == "" {
+			return nil, errTickerRequestFailed
 		}
-		if !strings.Contains(symbol, format.Separator) {
-			return nil, fmt.Errorf("%w for symbol request %q", errTickerDataNotFound, symbol)
-		}
+		return nil, fmt.Errorf("%w: %s", errTickerRequestFailed, apiError)
 	}
 	return result, nil
 }

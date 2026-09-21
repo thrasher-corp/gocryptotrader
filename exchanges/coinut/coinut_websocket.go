@@ -225,7 +225,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
-			Volume:       wsTicker.Volume24,
+			BaseVolume:   wsTicker.Volume24,
 			QuoteVolume:  wsTicker.Volume24Quote,
 			Bid:          wsTicker.HighestBuy,
 			Ask:          wsTicker.LowestSell,
@@ -716,7 +716,7 @@ func (e *Exchange) wsSubmitOrders(ctx context.Context, orders []WsSubmitOrderPar
 				Price:         orders[i].Price,
 				Side:          orders[i].Side.String(),
 				InstrumentID:  e.instrumentMap.LookupID(curr.String()),
-				ClientOrderID: i + 1,
+				ClientOrderID: uint64(i) + 1,
 			})
 	}
 

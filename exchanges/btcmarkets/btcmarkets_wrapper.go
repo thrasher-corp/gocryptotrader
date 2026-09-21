@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -222,11 +221,11 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Pair:         tickers[x].MarketID,
 			Last:         tickers[x].LastPrice,
-			High:         tickers[x].High24h,
-			Low:          tickers[x].Low24h,
+			High:         tickers[x].High24Hour,
+			Low:          tickers[x].Low24Hour,
 			Bid:          tickers[x].BestBID,
 			Ask:          tickers[x].BestAsk,
-			Volume:       tickers[x].Volume,
+			BaseVolume:   tickers[x].Volume,
 			LastUpdated:  time.Now(),
 			ExchangeName: e.Name,
 			AssetType:    a,
@@ -253,11 +252,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	if err := ticker.ProcessTicker(&ticker.Price{
 		Pair:         p,
 		Last:         tick.LastPrice,
-		High:         tick.High24h,
-		Low:          tick.Low24h,
+		High:         tick.High24Hour,
+		Low:          tick.Low24Hour,
 		Bid:          tick.BestBID,
 		Ask:          tick.BestAsk,
-		Volume:       tick.Volume,
+		BaseVolume:   tick.Volume,
 		LastUpdated:  time.Now(),
 		ExchangeName: e.Name,
 		AssetType:    a,
@@ -390,7 +389,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

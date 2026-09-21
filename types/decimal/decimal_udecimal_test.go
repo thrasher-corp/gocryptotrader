@@ -218,6 +218,36 @@ func TestDecimalIsNegative(t *testing.T) {
 	assert.False(t, Zero.IsNegative(), "IsNegative should reject zero")
 }
 
+func TestDecimalIsIntegerScaledValues(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		value    Decimal
+		expected bool
+	}{
+		{name: "stored scale integer", value: Decimal{value: udecimal.MustParse("-42.000")}, expected: true},
+		{name: "computed integer", value: MustFromString("0.5").Add(MustFromString("0.5")), expected: true},
+		{name: "computed integer at max scale", value: MustFromString("3").Div(MustFromString("1.5")), expected: true},
+		{
+			name:     "integer beyond u128",
+			value:    Decimal{value: udecimal.MustParse(strings.Repeat("9", 40) + "." + strings.Repeat("0", maxPrecision))},
+			expected: true,
+		},
+		{
+			name:     "fraction beyond u128",
+			value:    Decimal{value: udecimal.MustParse(strings.Repeat("9", 40) + ".5")},
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.NotZero(t, tc.value.value.Prec(), "test value should retain a fractional scale")
+			assert.Equal(t, tc.expected, tc.value.IsInteger(),
+				"IsInteger should identify values without a fractional component")
+		})
+	}
+}
+
 func TestDecimalRound(t *testing.T) {
 	t.Parallel()
 	largeHalf := "5" + strings.Repeat("0", maxStringDigits)

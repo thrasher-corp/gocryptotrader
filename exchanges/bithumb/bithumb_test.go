@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -68,10 +69,10 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, tick.UnitsTraded, "UnitsTraded should be positive")
 	assert.Positive(t, tick.AccumulatedTradeValue, "AccumulatedTradeValue should be positive")
 	assert.Positive(t, tick.PreviousClosingPrice, "PreviousClosingPrice should be positive")
-	assert.Positive(t, tick.UnitsTraded24Hr, "UnitsTraded24Hr should be positive")
-	assert.Positive(t, tick.AccumulatedTradeValue24hr, "AccumulatedTradeValue24hr should be positive")
-	assert.NotEmpty(t, tick.Fluctuate24Hr, "Fluctuate24Hr should not be empty")
-	assert.NotEmpty(t, tick.FluctuateRate24hr, "FluctuateRate24hr should not be empty")
+	assert.Positive(t, tick.UnitsTraded24Hour, "UnitsTraded24Hour should be positive")
+	assert.Positive(t, tick.AccumulatedTradeValue24Hour, "AccumulatedTradeValue24Hour should be positive")
+	assert.NotEmpty(t, tick.Fluctuate24Hour, "Fluctuate24Hour should not be empty")
+	assert.NotEmpty(t, tick.FluctuateRate24Hour, "FluctuateRate24Hour should not be empty")
 	assert.Positive(t, tick.Date, "Date should be positive")
 }
 
@@ -134,6 +135,51 @@ func TestGetAccountBalance(t *testing.T) {
 
 	_, err := e.GetAccountBalance(t.Context(), testPair.Base.String())
 	require.NoError(t, err, "GetAccountBalance must not error")
+}
+
+func TestGetAccountBalanceTags(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		data string
+		exp  FullBalance
+		err  error
+	}{
+		{
+			name: "each balance kind",
+			data: `{"available_btc":"1","in_use_btc":"0.5","total_btc":"1.5","total_krw":"1000","misu_btc":"0.25","xcoin_last_btc":"123"}`,
+			exp: FullBalance{
+				InUse:     map[string]float64{"btc": 0.5},
+				Misu:      map[string]float64{"btc": 0.25},
+				Total:     map[string]float64{"btc": 1.5, "krw": 1000},
+				Xcoin:     map[string]float64{"btc": 123},
+				Available: map[string]float64{"btc": 1},
+			},
+		},
+		{name: "no currency", data: `{"total":"1"}`, err: errUnhandledBalanceTag},
+		{name: "unknown kind", data: `{"frozen_btc":"1"}`, err: errUnhandledBalanceTag},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, privateAccBalance, r.URL.Path, "request path should be the balance endpoint")
+				_, err := fmt.Fprintf(w, `{"status":"0000","data":%s}`, tc.data)
+				assert.NoError(t, err, "writing the balance response should not error")
+			}))
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+			got, err := ex.GetAccountBalance(t.Context(), "")
+			require.ErrorIs(t, err, tc.err, "GetAccountBalance must return the expected error")
+			if tc.err == nil {
+				assert.Equal(t, tc.exp, got, "GetAccountBalance should file each tag under its balance kind and currency")
+			}
+		})
+	}
 }
 
 func TestGetWalletAddress(t *testing.T) {
@@ -243,7 +289,9 @@ func TestUpdateTicker(t *testing.T) {
 	assert.Positive(t, tick.High, "High should be positive")
 	assert.Positive(t, tick.Low, "Low should be positive")
 	assert.Positive(t, tick.Open, "Open should be positive")
-	assert.Positive(t, tick.Volume, "Volume should be positive")
+	assert.Positive(t, tick.Last, "Last should be positive")
+	assert.Equal(t, tick.Close, tick.Last, "Last should carry the latest price, as Close does")
+	assert.Positive(t, tick.BaseVolume, "BaseVolume should be positive")
 	assert.NotEmpty(t, tick.Pair, "Pair should not be empty")
 	assert.NotEmpty(t, tick.ExchangeName, "ExchangeName should not be empty")
 	assert.NotEmpty(t, tick.LastUpdated, "LastUpdated should not be empty")

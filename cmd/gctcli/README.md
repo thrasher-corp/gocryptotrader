@@ -1,6 +1,6 @@
 # GoCryptoTrader gRPC client
 
-<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70">
+<img src="../../docs/assets/page-logo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -30,7 +30,7 @@ go build or go run .
 ```
 
 For a full list of commands, you can run `gctcli --help`. Alternatively, you can also
-visit our [GoCryptoTrader API reference.](https://api.gocryptotrader.app/)
+visit our [GoCryptoTrader API reference](https://api.gocryptotrader.app/).
 
 Supply command parameters either entirely as positional arguments or entirely as
 named flags. Mixing the two forms is rejected, including flags placed after
@@ -65,4 +65,4 @@ Inspect those results before retrying the request.
 
 ## Autocomplete
 
-Bash/ZSH autocomplete entries can be found [here](/contrib).
+Bash/ZSH autocomplete entries are available in the [contrib directory](../../contrib).

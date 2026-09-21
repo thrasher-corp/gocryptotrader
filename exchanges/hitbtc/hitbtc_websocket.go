@@ -172,7 +172,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
 			Open:         wsTicker.Params.Open,
-			Volume:       wsTicker.Params.Volume,
+			BaseVolume:   wsTicker.Params.Volume,
 			QuoteVolume:  wsTicker.Params.VolumeQuote,
 			High:         wsTicker.Params.High,
 			Low:          wsTicker.Params.Low,

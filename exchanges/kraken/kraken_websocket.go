@@ -370,14 +370,20 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 		return fmt.Errorf("error unmarshalling ticker data: %w", err)
 	}
 
+	// v, l, h and o are each [today, last 24 hours]. The store overwrites a pair wholesale, so this
+	// records what UpdateTickers does for the same pair: the 24 hour volume and range beside today's
+	// open, the only open the REST ticker serves
 	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Ask:          t.Ask[0].Float64(),
+		AskSize:      t.Ask[2].Float64(),
 		Bid:          t.Bid[0].Float64(),
+		BidSize:      t.Bid[2].Float64(),
+		Last:         t.Last[0].Float64(),
 		Close:        t.Last[0].Float64(),
-		Volume:       t.Volume[0].Float64(),
-		Low:          t.Low[0].Float64(),
-		High:         t.High[0].Float64(),
+		BaseVolume:   t.Volume[1].Float64(),
+		Low:          t.Low[1].Float64(),
+		High:         t.High[1].Float64(),
 		Open:         t.Open[0].Float64(),
 		AssetType:    asset.Spot,
 		Pair:         pair,
@@ -770,7 +776,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 
 	if s.Interval != 0 {
 		// TODO: Can Interval type be a kraken specific type with a MarshalText so we don't have to duplicate this
-		r.Subscription.Interval = int(time.Duration(s.Interval).Minutes())
+		r.Subscription.Interval = uint64(time.Duration(s.Interval).Minutes())
 	}
 
 	conn := e.Websocket.Conn

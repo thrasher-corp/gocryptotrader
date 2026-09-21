@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -277,6 +276,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	case asset.Futures:
 		queryAsset = asset.Futures
 	case asset.MarginFunding:
+		// Bootstrap skips this error for every enabled asset, where asset.ErrNotSupported fails the load
 		return common.ErrNotYetImplemented
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
@@ -316,7 +316,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          v.Low,
 			Bid:          v.Bid,
 			Ask:          v.Ask,
-			Volume:       v.Volume,
+			BaseVolume:   v.Volume,
 			Pair:         pair,
 			LastUpdated:  v.Timestamp.Time(),
 			AssetType:    a,
@@ -527,7 +527,7 @@ allTrades:
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 

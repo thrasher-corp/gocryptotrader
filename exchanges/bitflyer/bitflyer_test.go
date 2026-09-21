@@ -2,6 +2,8 @@ package bitflyer
 
 import (
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -130,6 +133,36 @@ func TestGetTicker(t *testing.T) {
 	if err != nil {
 		t.Error("Bitflyer - GetTicker() error:", err)
 	}
+}
+
+func TestUpdateTickerMocked(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "BTC_JPY", r.URL.Query().Get("product_code"), "product_code should be the requested pair")
+		// BTC_JPY's volume counts every BTC product, FX_BTC_JPY's 1314.72645136 included
+		_, err := w.Write([]byte(`{"product_code":"BTC_JPY","state":"RUNNING","timestamp":"2026-09-17T05:53:16.77","tick_id":405559,"best_bid":11907656.0,"best_ask":11910855.0,"best_bid_size":0.1032,"best_ask_size":0.01,"total_bid_depth":111.53187895,"total_ask_depth":130.68945887,"market_bid_size":0.0,"market_ask_size":0.0,"ltp":11905672.0,"volume":1511.32732944,"volume_by_product":196.60087808}`))
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	pair := currency.NewPairWithDelimiter("BTC", "JPY", "_")
+	got, err := ex.UpdateTicker(t.Context(), pair, asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+	exp := &ticker.Price{
+		Pair:         pair,
+		Ask:          11910855,
+		Bid:          11907656,
+		Last:         11905672,
+		BaseVolume:   196.60087808,
+		ExchangeName: t.Name(),
+		AssetType:    asset.Spot,
+		LastUpdated:  got.LastUpdated,
+	}
+	assert.Equal(t, exp, got, "UpdateTicker should record the product's own volume rather than every BTC product's combined")
 }
 
 func TestGetExecutionHistory(t *testing.T) {

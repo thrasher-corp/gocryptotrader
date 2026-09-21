@@ -1,12 +1,13 @@
 {{define "exchanges ticker" -}}
 {{template "header" .}}
+
 ## Current Features for {{.Name}}
 
 + This services the exchanges package by ticker functions.
 
 + This package facilitates ticker generation.
 + Attaches methods to an ticker
-	- Returns a string of a value
+  + Returns a string of a value
 
 + Gets a loaded ticker by exchange, asset type and currency pair.
 
@@ -19,7 +20,7 @@ Examples below:
 ```go
 tick, err := yobitExchange.UpdateTicker(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Converts ticker value to string
@@ -32,7 +33,7 @@ the package itself.
 ```go
 tick, err := ticker.GetTicker(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 ```
 

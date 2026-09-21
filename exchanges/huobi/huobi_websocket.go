@@ -125,7 +125,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	}
 
 	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		return e.wsHandleV1ping(ctx, int(pingValue))
+		return e.wsHandleV1ping(ctx, pingValue)
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
@@ -155,8 +155,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
-func (e *Exchange) wsHandleV1ping(ctx context.Context, pingValue int) error {
-	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
+func (e *Exchange) wsHandleV1ping(ctx context.Context, pingValue int64) error {
+	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.FormatInt(pingValue, 10)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
@@ -279,14 +279,19 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Open:         wsTicker.Tick.Open,
+		Last:         wsTicker.Tick.Close,
 		Close:        wsTicker.Tick.Close,
-		Volume:       wsTicker.Tick.Amount,
-		QuoteVolume:  wsTicker.Tick.Volume,
+		BaseVolume:   wsTicker.Tick.Amount,
 		High:         wsTicker.Tick.High,
 		Low:          wsTicker.Tick.Low,
 		LastUpdated:  wsTicker.Timestamp.Time(),
 		AssetType:    s.Asset,
 		Pair:         s.Pairs[0],
+	}
+	// vol is the quote currency on spot but counts contracts on the derivative channels, where the
+	// quote figure is served as trade_turnover and this message carries none
+	if s.Asset == asset.Spot {
+		tickPrice.QuoteVolume = wsTicker.Tick.Volume
 	}
 	if err := ticker.ProcessTicker(tickPrice); err != nil {
 		return err
@@ -624,7 +629,7 @@ func stringToOrderSide(side string) (order.Side, error) {
 
 func stringToOrderType(oType string) (order.Type, error) {
 	switch {
-	case strings.Contains(oType, "limit"):
+	case strings.Contains(oType, orderPriceTypeLimit):
 		return order.Limit, nil
 	case strings.Contains(oType, "market"):
 		return order.Market, nil

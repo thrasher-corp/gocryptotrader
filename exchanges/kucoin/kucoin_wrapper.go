@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -191,7 +190,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	e.checkSubscriptions()
+	if err := e.checkSubscriptions(); err != nil {
+		return err
+	}
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
@@ -290,6 +291,16 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 	return ticker.GetTicker(e.Name, p, assetType)
 }
 
+// contractVolumes maps a futures contract's two volume figures onto base and quote. KuCoin reports
+// volumeOf24h in the base currency and turnoverOf24h in the quote, except on an inverse contract,
+// which is worth one unit of its quote currency, where the two swap over
+func contractVolumes(c *Contract) (baseVolume, quoteVolume float64) {
+	if c.IsInverse {
+		return c.TurnoverOf24Hour, c.VolumeOf24Hour
+	}
+	return c.VolumeOf24Hour, c.TurnoverOf24Hour
+}
+
 // UpdateTickers updates all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	var errs error
@@ -309,11 +320,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if !pairs.Contains(pair, true) {
 				continue
 			}
+			baseVolume, quoteVolume := contractVolumes(&ticks[x])
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[x].LastTradePrice,
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
-				Volume:       ticks[x].VolumeOf24h,
+				BaseVolume:   baseVolume,
+				QuoteVolume:  quoteVolume,
 				OpenInterest: ticks[x].OpenInterest.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,
@@ -338,12 +351,16 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         ticks.Tickers[t].Last,
-				High:         ticks.Tickers[t].High,
-				Low:          ticks.Tickers[t].Low,
-				Volume:       ticks.Tickers[t].Volume,
-				Ask:          ticks.Tickers[t].Sell,
-				Bid:          ticks.Tickers[t].Buy,
+				Last:         ticks.Tickers[t].Last.Float64(),
+				LastSize:     ticks.Tickers[t].LastSize.Float64(),
+				High:         ticks.Tickers[t].High.Float64(),
+				Low:          ticks.Tickers[t].Low.Float64(),
+				BaseVolume:   ticks.Tickers[t].Volume.Float64(),
+				QuoteVolume:  ticks.Tickers[t].VolumeValue.Float64(),
+				Ask:          ticks.Tickers[t].Sell.Float64(),
+				AskSize:      ticks.Tickers[t].BestAskSize.Float64(),
+				Bid:          ticks.Tickers[t].Buy.Float64(),
+				BidSize:      ticks.Tickers[t].BestBidSize.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -587,7 +604,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			return nil, err
 		}
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -600,6 +617,9 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 // For OCO (One Cancels the Other) orders, the StopLoss parameters under the order submission argument field RiskManagementModes are treated as stop values,
 // and the TakeProfit parameters are treated as limit order.
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s == nil {
+		return nil, order.ErrSubmissionIsNil
+	}
 	sideString, err := e.OrderSideString(s.Side)
 	if err != nil {
 		return nil, err
@@ -660,14 +680,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          s.Amount,
 			Price:         s.Price,
 			Leverage:      s.Leverage,
-			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),
-			Hidden:        s.Hidden,
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
 			StopPriceType: stopOrderType,
-			Iceberg:       s.Iceberg,
 		})
 		if err != nil {
 			return nil, err
@@ -712,7 +729,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					s.Pair.String(),
 					oType.Lower(), "", stopType, "", SpotTradeType,
 					timeInForce, s.Amount, s.Price, stopPrice, 0,
-					0, 0, s.TimeInForce.Is(order.PostOnly), s.Hidden, s.Iceberg)
+					0, s.TimeInForce.Is(order.PostOnly))
 				if err != nil {
 					return nil, err
 				}
@@ -726,9 +743,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				Size:          s.Amount,
 				Price:         s.Price,
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
-				Hidden:        s.Hidden,
 				TimeInForce:   timeInForce,
-				Iceberg:       s.Iceberg,
 				TradeType:     SpotTradeType,
 				ReduceOnly:    s.ReduceOnly,
 			})
@@ -784,12 +799,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				MarginModel:   MarginModeToString(s.MarginType),
 				Price:         s.Price,
 				Size:          s.Amount,
-				VisibleSize:   s.Amount,
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
-				Hidden:        s.Hidden,
 				AutoBorrow:    s.AutoBorrow,
 				AutoRepay:     s.AutoBorrow,
-				Iceberg:       s.Iceberg,
 			})
 		if err != nil {
 			return nil, err

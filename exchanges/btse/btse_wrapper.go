@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -242,10 +241,11 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         pair,
 				Ask:          tickers[x].LowestAsk,
 				Bid:          tickers[x].HighestBid,
-				Low:          tickers[x].Low24Hr,
+				Low:          tickers[x].Low24Hour,
 				Last:         tickers[x].Last,
-				Volume:       tickers[x].Volume,
-				High:         tickers[x].High24Hr,
+				BaseVolume:   tickers[x].BaseVolume24Hour, // zero for futures: that summary omits size and reports turnover in the quote currency only
+				QuoteVolume:  tickers[x].QuoteVolume24Hour,
+				High:         tickers[x].High24Hour,
 				OpenInterest: tickers[x].OpenInterest,
 				ExchangeName: e.Name,
 				AssetType:    a,
@@ -282,10 +282,12 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Pair:         p,
 		Ask:          ticks[0].LowestAsk,
 		Bid:          ticks[0].HighestBid,
-		Low:          ticks[0].Low24Hr,
+		Low:          ticks[0].Low24Hour,
 		Last:         ticks[0].Last,
-		Volume:       ticks[0].Volume,
-		High:         ticks[0].High24Hr,
+		BaseVolume:   ticks[0].BaseVolume24Hour, // zero for futures: that summary omits size and reports turnover in the quote currency only
+		QuoteVolume:  ticks[0].QuoteVolume24Hour,
+		High:         ticks[0].High24Hour,
+		OpenInterest: ticks[0].OpenInterest,
 		ExchangeName: e.Name,
 		AssetType:    a,
 	})
@@ -419,7 +421,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -520,7 +522,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	return &resp, nil
 }
 
-func orderIntToType(i int) order.Type {
+func orderIntToType(i uint64) order.Type {
 	switch i {
 	case 77:
 		return order.Market
@@ -775,7 +777,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-func matchType(input int, required order.Type) bool {
+func matchType(input uint64, required order.Type) bool {
 	if (required == order.AnyType) || (input == 76 && required == order.Limit) || input == 77 && required == order.Market {
 		return true
 	}
@@ -823,7 +825,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			}
 			tempOrder := order.Detail{
 				OrderID:              currentOrder[y].OrderID,
-				ClientID:             currentOrder[y].ClOrderID,
+				ClientID:             currentOrder[y].ClientOrderID,
 				Exchange:             e.Name,
 				Price:                currentOrder[y].Price,
 				AverageExecutedPrice: currentOrder[y].AverageFillPrice,
@@ -877,7 +879,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		return nil, err
 	}
 
-	intervalInt, err := strconv.Atoi(e.FormatExchangeKlineInterval(req.ExchangeInterval))
+	intervalInt, err := strconv.ParseUint(e.FormatExchangeKlineInterval(req.ExchangeInterval), 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -918,7 +920,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		return nil, err
 	}
 
-	intervalInt, err := strconv.Atoi(e.FormatExchangeKlineInterval(req.ExchangeInterval))
+	intervalInt, err := strconv.ParseUint(e.FormatExchangeKlineInterval(req.ExchangeInterval), 10, 64)
 	if err != nil {
 		return nil, err
 	}

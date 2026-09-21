@@ -347,7 +347,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			ExchangeName: e.Name,
 			Open:         t.OpenPrice.Float64(),
 			Close:        t.ClosePrice.Float64(),
-			Volume:       t.TotalTradedVolume.Float64(),
+			BaseVolume:   t.TotalTradedVolume.Float64(),
 			QuoteVolume:  t.TotalTradedQuoteVolume.Float64(),
 			High:         t.HighPrice.Float64(),
 			Low:          t.LowPrice.Float64(),
@@ -375,18 +375,23 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		var validationIssues string
+		if !ks.Kline.KlineClosed {
+			validationIssues = kline.PartialCandle
+		}
 		return e.Websocket.DataHandler.Send(ctx, kline.Item{
 			Pair:     pair,
 			Asset:    asset.Spot,
 			Exchange: e.Name,
 			Interval: interval,
 			Candles: []kline.Candle{{
-				Time:   ks.Kline.StartTime.Time(),
-				Open:   ks.Kline.OpenPrice.Float64(),
-				Close:  ks.Kline.ClosePrice.Float64(),
-				High:   ks.Kline.HighPrice.Float64(),
-				Low:    ks.Kline.LowPrice.Float64(),
-				Volume: ks.Kline.Volume.Float64(),
+				Time:             ks.Kline.StartTime.Time(),
+				Open:             ks.Kline.OpenPrice.Float64(),
+				Close:            ks.Kline.ClosePrice.Float64(),
+				High:             ks.Kline.HighPrice.Float64(),
+				Low:              ks.Kline.LowPrice.Float64(),
+				Volume:           ks.Kline.Volume.Float64(),
+				ValidationIssues: validationIssues,
 			}},
 		})
 	case "depth":

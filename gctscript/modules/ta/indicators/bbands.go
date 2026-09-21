@@ -13,7 +13,7 @@ import (
 
 // BBandsModule bollinger bands indicator commands
 var BBandsModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: bbands},
+	calculate: &objects.UserFunction{Name: calculate, Value: bbands},
 }
 
 // BollingerBands is the string constant
@@ -38,7 +38,7 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(BBands)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 
