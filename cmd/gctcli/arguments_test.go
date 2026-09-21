@@ -14,59 +14,57 @@ import (
 func TestValidateCommandArguments(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
-		name  string
-		args  string
-		mixed bool
+		name     string
+		args     string
+		mixed    bool
+		wantArgs []string
 	}{
-		{name: "empty", args: "cancelallorders"},
-		{name: "positional", args: "cancelallorders Bitmex perpetualcontract ETH-USD"},
-		{name: "flags", args: "cancelallorders --exchange Bitmex --asset perpetualcontract --pair ETH-USD"},
-		{name: "equals flags", args: "cancelallorders --exchange=Bitmex --asset=perpetualcontract --pair=ETH-USD"},
-		{name: "reported missing pair", args: "cancelallorders --asset perpetualcontract Bitmex ETH-USD", mixed: true},
-		{name: "flagged exchange", args: "cancelallorders --exchange Bitmex perpetualcontract ETH-USD", mixed: true},
-		{name: "flagged pair", args: "cancelallorders --pair ETH-USD Bitmex perpetualcontract", mixed: true},
-		{name: "two flags", args: "cancelallorders --asset perpetualcontract --pair ETH-USD Bitmex", mixed: true},
-		{name: "trailing flag", args: "cancelallorders Bitmex perpetualcontract --pair ETH-USD", mixed: true},
-		{name: "trailing equals flag", args: "cancelallorders Bitmex perpetualcontract --pair=ETH-USD", mixed: true},
-		{name: "trailing ignored flag", args: "cancelallorders Bitmex perpetualcontract ETH-USD --asset spot", mixed: true},
-		{name: "unknown trailing flag", args: "cancelallorders Bitmex --typo spot", mixed: true},
-		{name: "single dash flag", args: "cancelallorders Bitmex -asset spot", mixed: true},
-		{name: "alias before positional", args: "cancelallorders -a spot Bitmex", mixed: true},
-		{name: "alias after positional", args: "cancelallorders Bitmex -a spot", mixed: true},
-		{name: "boolean flag", args: "cancelallorders --force Bitmex", mixed: true},
-		{name: "explicit false", args: "cancelallorders --force=false Bitmex", mixed: true},
-		{name: "global and positional", args: "--rpchost localhost:9052 cancelallorders Bitmex perpetualcontract ETH-USD"},
-		{name: "global and flags", args: "--rpchost localhost:9052 cancelallorders --exchange Bitmex"},
-		{name: "global cannot hide mixed", args: "--rpchost localhost:9052 cancelallorders --asset spot Bitmex", mixed: true},
-		{name: "negative number", args: "cancelallorders Bitmex -1 -0.25 -1e-3"},
-		{name: "single dash", args: "cancelallorders Bitmex -"},
-		{name: "literal leading flag", args: "cancelallorders -- --literal"},
-		{name: "literal trailing flag", args: "cancelallorders Bitmex -- --literal"},
-		{name: "terminator cannot hide mixed", args: "cancelallorders --asset spot -- Bitmex", mixed: true},
-		{name: "nested positional", args: "group nested cancelallorders Bitmex perpetualcontract ETH-USD"},
-		{name: "nested flags", args: "group nested cancelallorders --exchange Bitmex"},
-		{name: "nested mixed", args: "group nested cancelallorders --asset spot Bitmex", mixed: true},
-		{name: "nested trailing", args: "group nested cancelallorders Bitmex --asset spot", mixed: true},
-		{name: "parent flag mixed", args: "group --mode value nested cancelallorders Bitmex", mixed: true},
-		{name: "parent flag and flags", args: "group --mode value nested cancelallorders --exchange Bitmex"},
-		{name: "nested global positional", args: "--rpchost localhost:9052 group nested cancelallorders Bitmex"},
+		{name: "empty", args: "getticker"},
+		{name: "positional", args: "getticker Bitmex ETH-USD perpetualcontract"},
+		{name: "flags", args: "getticker --exchange Bitmex --asset perpetualcontract --pair ETH-USD"},
+		{name: "equals flags", args: "getticker --exchange=Bitmex --asset=perpetualcontract --pair=ETH-USD"},
+		{name: "reported missing pair", args: "getticker --asset perpetualcontract Bitmex ETH-USD", mixed: true},
+		{name: "flagged exchange", args: "getticker --exchange Bitmex ETH-USD perpetualcontract", mixed: true},
+		{name: "flagged pair", args: "getticker --pair ETH-USD Bitmex perpetualcontract", mixed: true},
+		{name: "two flags", args: "getticker --asset perpetualcontract --pair ETH-USD Bitmex", mixed: true},
+		{name: "trailing flag", args: "getticker Bitmex ETH-USD --asset perpetualcontract", mixed: true},
+		{name: "trailing equals flag", args: "getticker Bitmex ETH-USD --asset=perpetualcontract", mixed: true},
+		{name: "trailing ignored flag", args: "getticker Bitmex ETH-USD perpetualcontract --asset spot", mixed: true},
+		{name: "unknown trailing flag", args: "getticker Bitmex --typo spot", mixed: true},
+		{name: "single dash flag", args: "getticker Bitmex -asset spot", mixed: true},
+		{name: "global and positional", args: "--rpchost localhost:9052 getticker Bitmex ETH-USD perpetualcontract"},
+		{name: "global and flags", args: "--rpchost localhost:9052 getticker --exchange Bitmex"},
+		{name: "global cannot hide mixed", args: "--rpchost localhost:9052 getticker --asset spot Bitmex", mixed: true},
+		{name: "negative number", args: "getticker Bitmex -1 -0.25 -1e-3"},
+		{name: "single dash", args: "getticker Bitmex -"},
+		{name: "literal leading flag", args: "getticker -- --literal", wantArgs: []string{"--literal"}},
+		{name: "literal trailing flag", args: "getticker Bitmex -- --literal", mixed: true},
+		{name: "terminator cannot hide mixed", args: "getticker --asset spot -- Bitmex", mixed: true},
+		{name: "nested positional", args: "group nested getticker Bitmex ETH-USD perpetualcontract"},
+		{name: "nested flags", args: "group nested getticker --exchange Bitmex"},
+		{name: "nested mixed", args: "group nested getticker --asset spot Bitmex", mixed: true},
+		{name: "nested trailing", args: "group nested getticker Bitmex --asset spot", mixed: true},
+		{name: "parent flag mixed", args: "group --mode value nested getticker Bitmex", mixed: true},
+		{name: "parent flag and flags", args: "group --mode value nested getticker --exchange Bitmex"},
+		{name: "nested global positional", args: "--rpchost localhost:9052 group nested getticker Bitmex"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var actionCalled bool
+			var actionArgs []string
 			command := &cli.Command{
-				Name:     "cancelallorders",
+				Name:     "getticker",
 				HideHelp: true,
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "exchange"},
-					&cli.StringFlag{Name: "asset", Aliases: []string{"a"}},
-					&cli.StringFlag{Name: "pair"},
-					&cli.BoolFlag{Name: "force"},
+					&cli.StringFlag{Name: exchangeFlag},
+					&cli.StringFlag{Name: pairFlag},
+					&cli.StringFlag{Name: assetFlag},
 				},
 				Before: validateCommandArguments,
-				Action: func(*cli.Context) error {
+				Action: func(c *cli.Context) error {
 					actionCalled = true
+					actionArgs = c.Args().Slice()
 					return nil
 				},
 			}
@@ -93,6 +91,9 @@ func TestValidateCommandArguments(t *testing.T) {
 				require.NoError(t, err, "a single argument style must be accepted")
 			}
 			assert.Equal(t, !tc.mixed, actionCalled, "only valid input should reach the command action")
+			if tc.wantArgs != nil {
+				assert.Equal(t, tc.wantArgs, actionArgs, "command action should receive normalised positional arguments")
+			}
 		})
 	}
 }

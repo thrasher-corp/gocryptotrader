@@ -55,7 +55,7 @@ func validateCommandArguments(c *cli.Context) error {
 	}
 	for _, arg := range args {
 		if arg == "--" {
-			break
+			return errMixedArguments
 		}
 		if len(arg) > 1 && strings.HasPrefix(arg, "-") {
 			// Negative numeric parameters are positional values, not flags.
