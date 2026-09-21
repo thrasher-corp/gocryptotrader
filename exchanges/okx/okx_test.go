@@ -4383,10 +4383,10 @@ func TestCancelAllOrders(t *testing.T) {
 		})
 	}
 
-	t.Run("later batch failure returns partial response and error", func(t *testing.T) {
+	t.Run("intermediate batch failure returns partial response and continues", func(t *testing.T) {
 		t.Parallel()
 
-		pendingOrders := make([]map[string]string, 21)
+		pendingOrders := make([]map[string]string, 41)
 		for i := range pendingOrders {
 			pendingOrders[i] = map[string]string{
 				"instId": "BTC-USDT",
@@ -4406,7 +4406,7 @@ func TestCancelAllOrders(t *testing.T) {
 				}
 				_, _ = w.Write(payload)
 			case "/api/v5/trade/cancel-batch-orders":
-				if cancellationCalls.Add(1) > 1 {
+				if cancellationCalls.Add(1) == 2 {
 					http.Error(w, "second cancellation batch failed", http.StatusInternalServerError)
 					return
 				}
@@ -4443,9 +4443,9 @@ func TestCancelAllOrders(t *testing.T) {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
 
 		result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
-		require.Error(t, err, "CancelAllOrders must return the later batch error")
-		assert.Len(t, result.Status, 20, "CancelAllOrders should preserve successful cancellation results")
-		assert.Equal(t, int32(2), cancellationCalls.Load(), "CancelAllOrders should attempt both cancellation batches")
+		require.Error(t, err, "CancelAllOrders must return the intermediate batch error")
+		assert.Len(t, result.Status, 21, "CancelAllOrders should preserve successful cancellation results")
+		assert.Equal(t, int32(3), cancellationCalls.Load(), "CancelAllOrders should attempt every cancellation batch")
 	})
 
 	t.Run("REST with websocket available", func(t *testing.T) {

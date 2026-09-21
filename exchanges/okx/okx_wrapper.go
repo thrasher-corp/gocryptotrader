@@ -1849,17 +1849,12 @@ ordersLoop:
 	if len(cancelAllOrdersRequestParams) == 0 {
 		return cancelAllResponse, nil
 	}
-	remaining := cancelAllOrdersRequestParams
-	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
-	for range loop {
-		batch := remaining
-		if len(remaining) > 20 {
-			batch = remaining[:20]
-			remaining = remaining[20:]
-		}
-		response, err := e.CancelMultipleOrders(ctx, batch)
-		if err != nil {
-			return cancelAllResponse, err
+	var errs error
+	for _, batch := range common.Batch(cancelAllOrdersRequestParams, maxBatchOrders) {
+		response, batchErr := e.CancelMultipleOrders(ctx, batch)
+		if batchErr != nil {
+			errs = common.AppendError(errs, batchErr)
+			continue
 		}
 		for y := range response {
 			if response[y].StatusCode == 0 {
@@ -1869,7 +1864,7 @@ ordersLoop:
 			}
 		}
 	}
-	return cancelAllResponse, nil
+	return cancelAllResponse, errs
 }
 
 // GetOrderInfo returns order information based on order ID
