@@ -1543,8 +1543,8 @@ func TestProcessTicker(t *testing.T) {
 	// size is the quantity of the latest fill rather than a 24 hour volume
 	msg := []byte(`{"topic":"/market/ticker:BTC-USDT","type":"message","subject":"trade.ticker","data":{"bestAsk":"76330.2","bestAskSize":"1.06213577","bestBid":"76330.1","bestBidSize":"0.00480864","price":"76330.1","sequence":"37257610995","size":"0.00002628","time":1789624664495}}`)
 	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
-	require.Len(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for a pair enabled on spot alone")
-	exp := &ticker.Price{
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker batch for a pair enabled on spot alone")
+	exp := ticker.Price{
 		Last:         76330.1,
 		LastSize:     0.00002628,
 		Bid:          76330.1,
@@ -1556,7 +1556,9 @@ func TestProcessTicker(t *testing.T) {
 		AssetType:    asset.Spot,
 		LastUpdated:  time.UnixMilli(1789624664495),
 	}
-	assert.Equal(t, exp, (<-ku.Websocket.DataHandler.C).Data, "processTicker should map the latest fill's size to LastSize rather than a volume")
+	got, ok := (<-ku.Websocket.DataHandler.C).Data.([]ticker.Price)
+	require.True(t, ok, "processTicker must send a ticker batch")
+	assert.Equal(t, []ticker.Price{exp}, got, "processTicker should map the latest fill's size to LastSize rather than a volume")
 }
 
 func TestProcessFuturesTickerV2(t *testing.T) {
@@ -1611,46 +1613,51 @@ func TestProcessMarketSnapshot(t *testing.T) {
 	ku := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
-	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
-	seenAssetTypes := map[asset.Item]int{}
+	var tickers []ticker.Price
 	for resp := range ku.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
-		case *ticker.Price:
-			switch len(ku.Websocket.DataHandler.C) {
-			case 3:
-				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
-				assert.Equal(t, 0.004445, v.High, "high")
-				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.004191, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 13097.3357, v.BaseVolume, "BaseVolume should decode from vol")
-				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
-			case 2, 1:
-				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
-				assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
-				seenAssetTypes[v.AssetType]++
-				assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
-				assert.Equal(t, 0.054846, v.High, "high")
-				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.05364, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2958.3139116, v.BaseVolume, "BaseVolume should decode from vol")
-				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
-			case 0:
-				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
-				assert.Equal(t, 37750.0, v.High, "high")
-				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
-				assert.Equal(t, 36700.0, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2900.37846402, v.BaseVolume, "BaseVolume should decode from vol")
-				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
-			}
+		case []ticker.Price:
+			tickers = append(tickers, v...)
 		case error:
 			t.Error(v)
 		default:
 			t.Errorf("Got unexpected data: %T %v", v, v)
+		}
+	}
+	require.Len(t, tickers, 4, "processMarketSnapshot must send four tickers")
+	seenAssetTypes := map[asset.Item]int{}
+	for i := range tickers {
+		v := &tickers[i]
+		switch i {
+		case 0:
+			assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
+			assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
+			assert.Equal(t, 0.004445, v.High, "high")
+			assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
+			assert.Equal(t, 0.004191, v.Low, "low")
+			assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
+			assert.Equal(t, 13097.3357, v.BaseVolume, "BaseVolume should decode from vol")
+			assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
+		case 1, 2:
+			assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
+			assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
+			seenAssetTypes[v.AssetType]++
+			assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
+			assert.Equal(t, 0.054846, v.High, "high")
+			assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
+			assert.Equal(t, 0.05364, v.Low, "low")
+			assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
+			assert.Equal(t, 2958.3139116, v.BaseVolume, "BaseVolume should decode from vol")
+			assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
+		case 3:
+			assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+			assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
+			assert.Equal(t, 37750.0, v.High, "high")
+			assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
+			assert.Equal(t, 36700.0, v.Low, "low")
+			assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
+			assert.Equal(t, 2900.37846402, v.BaseVolume, "BaseVolume should decode from vol")
+			assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
 		}
 	}
 }
