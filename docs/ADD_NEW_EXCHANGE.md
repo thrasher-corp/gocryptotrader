@@ -135,8 +135,8 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Huobi.Pro | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
-| MEXC | Yes | Yes | No |
 | Lbank | Yes | No | NA |
+| MEXC | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
