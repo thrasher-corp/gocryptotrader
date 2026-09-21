@@ -1891,7 +1891,7 @@ type FuturesOrder struct {
 	MakerFeeRate              types.Number  `json:"mkfr"`
 	TakerFeeRate              types.Number  `json:"tkfr"`
 	TimeInForce               string        `json:"tif"`
-	ReferenceUserID           types.Number  `json:"refu"`
+	ReferenceUserID           int64         `json:"refu"`
 	IsReduceOnly              bool          `json:"is_reduce_only"`
 	IsClose                   bool          `json:"is_close"`
 	IsOrderForLiquidation     bool          `json:"is_liq"`

@@ -83,7 +83,7 @@ var (
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
-	errMissingInstrumentIDCode              = errors.New("missing instrument ID Code")
+	errMissingInstrumentIDCode              = errors.New("missing instrument ID code")
 	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
@@ -856,7 +856,7 @@ func (r *ResponseResult) Error() error {
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
 	InstrumentID     string `json:"instId"`
-	InstrumentIDCode uint64 `json:"instIdCode"`
+	InstrumentIDCode uint64 `json:"instIdCode,omitempty"`
 	OrderID          string `json:"ordId"`
 	ClientOrderID    string `json:"clOrdId,omitempty"`
 }
@@ -870,7 +870,7 @@ type CancelMassReqParam struct {
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
 	InstrumentID     string  `json:"instId"`
-	InstrumentIDCode uint64  `json:"instIdCode,string,omitempty"`
+	InstrumentIDCode uint64  `json:"instIdCode,omitempty"`
 	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
 	OrderID          string  `json:"ordId,omitempty"`
 	ClientOrderID    string  `json:"clOrdId,omitempty"`

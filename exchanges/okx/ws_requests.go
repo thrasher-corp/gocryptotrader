@@ -70,6 +70,9 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
+	if arg.InstrumentIDCode == 0 {
+		return nil, errMissingInstrumentIDCode
+	}
 
 	var resp []*OrderData
 	if err := e.SendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
@@ -92,6 +95,9 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 		if args[i].OrderID == "" && args[i].ClientOrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
+		if args[i].InstrumentIDCode == 0 {
+			return nil, errMissingInstrumentIDCode
+		}
 	}
 
 	var resp []*OrderData
@@ -111,6 +117,9 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	}
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
+	}
+	if arg.InstrumentIDCode == 0 {
+		return nil, errMissingInstrumentIDCode
 	}
 
 	var resp []*OrderData
@@ -135,6 +144,9 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 		}
 		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
+		}
+		if args[x].InstrumentIDCode == 0 {
+			return nil, errMissingInstrumentIDCode
 		}
 	}
 

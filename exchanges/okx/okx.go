@@ -35,6 +35,9 @@ type Exchange struct {
 
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
+	// instrumentIDCodeMap caches instrument ID codes by instrument ID for
+	// websocket order operations which identify instruments by code.
+	instrumentIDCodeMap map[string]uint64
 }
 
 const (

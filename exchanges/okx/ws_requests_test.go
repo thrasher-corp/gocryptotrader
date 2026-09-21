@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -19,18 +20,31 @@ func TestWSPlaceOrder(t *testing.T) {
 	_, err := e.WSPlaceOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
+	_, err = e.WSPlaceOrder(t.Context(), &PlaceOrderRequestParam{
+		InstrumentID: mainPair.String(),
+		TradeMode:    TradeModeCash,
+		Side:         "buy",
+		OrderType:    orderLimit,
+		Amount:       1,
+	})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
 
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
 	out := &PlaceOrderRequestParam{
-		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+		Side:             "Buy",
+		OrderType:        "post_only",
+		Amount:           0.0001,
+		Price:            20000,
+		Currency:         "USDT",
 	}
 
 	got, err := e.WSPlaceOrder(request.WithVerbose(t.Context()), out)
@@ -47,18 +61,31 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
+	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{
+		InstrumentID: mainPair.String(),
+		TradeMode:    TradeModeCash,
+		Side:         "buy",
+		OrderType:    orderLimit,
+		Amount:       1,
+	}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
 
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
 	out := PlaceOrderRequestParam{
-		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+		Side:             "Buy",
+		OrderType:        "post_only",
+		Amount:           0.0001,
+		Price:            20000,
+		Currency:         "USDT",
 	}
 
 	got, err := e.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
@@ -78,11 +105,21 @@ func TestWSCancelOrder(t *testing.T) {
 	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String()})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String(), OrderID: "1"})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
 
-	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: mainPair.String(), OrderID: "2341161427393388544"})
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+		OrderID:          "2341161427393388544",
+	})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -99,11 +136,21 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String()}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "1"}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
 
-	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "2341184920998715392"}})
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: e.getInstrumentIDCode(mainPair.String()),
+		OrderID:          "2341184920998715392",
+	}})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -126,11 +173,18 @@ func TestWSAmendOrder(t *testing.T) {
 	_, err = e.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
+	out.NewPrice = 21000
+	_, err = e.WSAmendOrder(t.Context(), out)
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
 
-	out.NewPrice = 21000
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	out.InstrumentIDCode = e.getInstrumentIDCode(mainPair.String())
 	got, err := e.WSAmendOrder(request.WithVerbose(t.Context()), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -154,10 +208,17 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
+	out.NewPrice = 20000
+	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
-	out.NewPrice = 20000
 
+	_, err = e.getInstrumentsForAsset(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	out.InstrumentIDCode = e.getInstrumentIDCode(mainPair.String())
 	got, err := e.WSAmendMultipleOrders(request.WithVerbose(t.Context()), []AmendOrderRequestParams{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
