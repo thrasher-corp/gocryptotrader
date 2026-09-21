@@ -368,6 +368,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 		submitResponse.Status = gctorder.Filled
 		submitResponse.OrderID = orderID.String()
 		submitResponse.Fee = fee.InexactFloat64()
+		submitResponse.ExecutedAmount = amount.InexactFloat64()
 		submitResponse.ExecutedQuoteAmount = amount.Mul(price).InexactFloat64()
 		submitResponse.LastUpdated = f.GetTime()
 		submitResponse.Date = f.GetTime()

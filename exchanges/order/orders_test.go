@@ -1223,6 +1223,17 @@ func TestUpdateOrderFromDetailClearsRemainingWhenFilled(t *testing.T) {
 		RemainingAmount: -540,
 	}), "UpdateOrderFromDetail must not error")
 	assert.Zero(t, od.RemainingAmount, "a negative RemainingAmount should not be stored")
+
+	od = &Detail{Exchange: "test", OrderID: "1", RemainingAmount: 30}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:        "test",
+		OrderID:         "1",
+		Status:          PartiallyFilled,
+		Amount:          60,
+		ExecutedAmount:  600,
+		RemainingAmount: 0,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 30.0, od.RemainingAmount, "an active mixed-unit update should not clear RemainingAmount")
 }
 
 // TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report

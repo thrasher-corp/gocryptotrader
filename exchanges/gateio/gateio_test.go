@@ -2461,6 +2461,7 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 		TimeInForce: order.GoodTillCancel,
 	})
 	require.NoError(t, err)
+	require.Equal(t, 2.0, response.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
 	require.Equal(t, 1.0, response.RemainingAmount, "remaining amount must be copied from the exchange response")
 	require.Equal(t, 10.0, response.AverageExecutedPrice, "average execution price must be copied from the exchange response")
 	require.Equal(t, 20.0, response.ExecutedQuoteAmount, "filled quote amount must be copied from the exchange response")
@@ -2565,7 +2566,6 @@ func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
 			assert.Zero(t, got.RemainingAmount)
 			assert.Equal(t, 9.95, got.ExecutedQuoteAmount)
 
-			got.RemainingAmount = 0.05
 			submittedAmount := 10.0
 			submittedQuoteAmount := 0.0
 			if tc.assetType == asset.Spot {
@@ -4630,7 +4630,7 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()
 
 	var resp *WebsocketOrderResponse
-	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_amount":"0.0001","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","stp_id":"123456","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
+	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","stp_id":"123456","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
 
 	got, err := e.deriveSpotWebsocketOrderResponse(resp)
 	require.NoError(t, err)
@@ -4671,7 +4671,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			name: "assortment of spot orders",
 			orders: [][]byte{
 				[]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
-				[]byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_amount":"816.3","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
+				[]byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
 				[]byte(`{"left":"0","update_time":"1735778597","amount":"200","create_time":"1735778597","price":"0.03673","finish_as":"filled","time_in_force":"fok","currency_pair":"REX_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1364","status":"closed","iceberg":"0","avg_deal_price":"0.03673","filled_total":"7.346","id":"766488882062","fill_price":"7.346","update_time_ms":1735778597363,"create_time_ms":1735778597363}`),
 				[]byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
 				[]byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
@@ -4686,6 +4686,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735720637188),
 					LastUpdated:          time.UnixMilli(1735720637188),
 					Amount:               0.0001,
+					ExecutedAmount:       0.0001,
 					ExecutedQuoteAmount:  9.35033,
 					AverageExecutedPrice: 93503.3,
 					Type:                 order.Market,
@@ -4702,7 +4703,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735720637142),
 					LastUpdated:          time.UnixMilli(1735720637142),
 					QuoteAmount:          9.99152,
-					ExecutedAmount:       816.3,
 					ExecutedQuoteAmount:  9.991512,
 					AverageExecutedPrice: 0.01224,
 					Type:                 order.Market,
@@ -4719,6 +4719,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735778597363),
 					LastUpdated:          time.UnixMilli(1735778597363),
 					Amount:               200,
+					ExecutedAmount:       200,
 					ExecutedQuoteAmount:  7.346,
 					Price:                0.03673,
 					AverageExecutedPrice: 0.03673,
@@ -4767,7 +4768,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			// AverageDealPrice is not returned when using this endpoint, but the
 			// authoritative filled quote total must still be retained.
 			orders: [][]byte{
-				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_amount":"0.003","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
 				[]byte(`{"text":"t-742","label":"BALANCE_NOT_ENOUGH","message":"Not enough balance"}`),
 			},
@@ -4781,7 +4782,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                time.UnixMilli(1736980695949),
 					LastUpdated:         time.UnixMilli(1736980695949),
 					QuoteAmount:         9.98,
-					ExecutedAmount:      0.003,
 					ExecutedQuoteAmount: 9.932761,
 					Type:                order.Market,
 					Side:                order.Buy,

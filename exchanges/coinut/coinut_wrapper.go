@@ -877,6 +877,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
 						RemainingAmount: trades.Trades[x].OpenQuantity,
 					}
+					// This legacy flat response does not establish whether Price is the
+					// order price or fill price, so do not derive execution value from it.
 					detail.InferExecutionAndTimes()
 					allOrders = append(allOrders, detail)
 				}

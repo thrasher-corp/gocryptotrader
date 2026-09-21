@@ -303,7 +303,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	// or from a different snapshot. Preserve a supplied non-zero value, and
 	// accept zero only when the update establishes that the order is filled.
 	if m.RemainingAmount != d.RemainingAmount &&
-		(m.RemainingAmount > 0 || (m.RemainingAmount == 0 && m.Amount > 0 && m.ExecutedAmount >= m.Amount)) {
+		(m.RemainingAmount > 0 ||
+			(m.RemainingAmount == 0 && m.Amount > 0 && m.ExecutedAmount >= m.Amount && m.Status.IsInactive())) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}

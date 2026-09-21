@@ -700,6 +700,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				orderDetail.Side = order.Sell
 			}
 
+			// The API does not distinguish limit and market rows here, so Price
+			// cannot be assumed to be an authoritative execution price.
 			orderDetail.InferExecutionAndTimes()
 			orders = append(orders, orderDetail)
 		}

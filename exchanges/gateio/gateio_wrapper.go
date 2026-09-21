@@ -1024,11 +1024,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			response.QuoteAmount = sOrder.Amount.Float64()
 			response.Amount = 0
 			response.RemainingAmount = 0
+			response.ExecutedAmount = sOrder.FilledAmount.Float64()
 		} else {
 			response.RemainingAmount = sOrder.RemainingAmount.Float64()
+			response.ExecutedAmount = sOrder.Amount.Float64() - sOrder.RemainingAmount.Float64()
 		}
 		response.AverageExecutedPrice = sOrder.AverageFillPrice.Float64()
-		response.ExecutedAmount = sOrder.FilledAmount.Float64()
 		response.ExecutedQuoteAmount = sOrder.FilledTotal.Float64()
 		response.Fee = sOrder.FeeDeducted.Float64()
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
@@ -2891,12 +2892,14 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		amount := resp.Amount.Float64()
 		quoteAmount := 0.0
 		remainingAmount := resp.Left.Float64()
+		executedAmount := amount - remainingAmount
 		if isQuoteDenominatedMarketBuy(resp.Account, side, oType) {
 			// Gate's spot-style market-buy amount is quote-denominated. Preserve it
 			// in the matching generic request field.
 			quoteAmount = amount
 			amount = 0
 			remainingAmount = 0
+			executedAmount = resp.FilledAmount.Float64()
 		}
 		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
@@ -2909,7 +2912,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			RemainingAmount:      remainingAmount,
 			Amount:               amount,
 			QuoteAmount:          quoteAmount,
-			ExecutedAmount:       resp.FilledAmount.Float64(),
+			ExecutedAmount:       executedAmount,
 			ExecutedQuoteAmount:  resp.FilledTotal.Float64(),
 			Price:                resp.Price.Float64(),
 			Type:                 oType,
