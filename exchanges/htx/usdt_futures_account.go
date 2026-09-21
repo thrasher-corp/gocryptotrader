@@ -63,7 +63,7 @@ func (e *Exchange) GetV5AccountBills(ctx context.Context, req *V5AccountBillsReq
 		params.Set("from", strconv.FormatUint(req.From, 10))
 	}
 	if req.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	if req.Direction != "" {
 		params.Set("direct", req.Direction)
@@ -133,7 +133,7 @@ func (e *Exchange) GetV5UniversalTransferRecords(ctx context.Context, req *V5Uni
 		params.Set("from", strconv.FormatUint(req.From, 10))
 	}
 	if req.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	if req.Direction != "" {
 		params.Set("direct", req.Direction)

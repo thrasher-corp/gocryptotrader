@@ -126,9 +126,9 @@ func (e *Exchange) SwitchLinearSwapLeverage(ctx context.Context, code currency.P
 	if err != nil {
 		return err
 	}
-	marginMode := "isolated"
+	marginMode := marginModeIsolated
 	if crossMargin {
-		marginMode = "cross"
+		marginMode = marginModeCross
 	}
 	positionSide := "both"
 	switch {

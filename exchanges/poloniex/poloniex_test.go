@@ -2,7 +2,10 @@ package poloniex
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -24,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -166,7 +170,10 @@ func TestGetFee(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide})
+	_, err := e.GetActiveOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetActiveOrders should error for a nil request")
+
+	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if !mockTests {
@@ -221,6 +228,37 @@ func TestGetOrderHistory(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	if !mockTests {
+		t.Skip("skipped: fill amount assertions rely on mock fixture data")
+	}
+	// Spot fills are reported in both base (filledQuantity) and quote (filledAmount) units; Detail amounts must all be base
+	result, err = e.GetOrderHistory(generateContext(t), &order.MultiOrderRequest{
+		Type:      order.Market,
+		AssetType: asset.Spot,
+		Side:      order.Sell,
+	})
+	require.NoError(t, err)
+	require.Len(t, result, 1, "Must see exactly one spot order")
+	assert.Equal(t, 0.5, result[0].Amount, "Amount should be the base quantity")
+	assert.Equal(t, 0.2, result[0].ExecutedAmount, "ExecutedAmount should be the filled base quantity")
+	assert.Equal(t, 0.3, result[0].RemainingAmount, "RemainingAmount should be the unfilled base quantity")
+	assert.Equal(t, 12000.0, result[0].Cost, "Cost should be the filled quote amount")
+
+	// Futures report execQty in contracts alongside execAmt as quote value
+	result, err = e.GetOrderHistory(generateContext(t), &order.MultiOrderRequest{
+		Type:      order.Limit,
+		AssetType: asset.Futures,
+		Side:      order.Sell,
+	})
+	require.NoError(t, err)
+	require.Len(t, result, 1, "Must see exactly one futures order")
+	assert.Equal(t, 5.0, result[0].Amount, "Amount should be the order size")
+	assert.Equal(t, 3.0, result[0].ExecutedAmount, "ExecutedAmount should be the executed contract quantity")
+	assert.Equal(t, 2.0, result[0].RemainingAmount, "RemainingAmount should be the unfilled contract quantity")
+	assert.Equal(t, 59900.0, result[0].AverageExecutedPrice, "AverageExecutedPrice should be the exchange avgPx")
+	assert.Equal(t, 179.7, result[0].Cost, "Cost should be the exchange execAmt, not avgPx times contracts")
+	assert.Equal(t, currency.USDT, result[0].CostAsset, "CostAsset should be the quote currency")
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -476,6 +514,8 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	assert.ErrorIs(t, e.WebsocketCancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "WebsocketCancelOrder should error for a nil cancellation")
 
 	err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
@@ -1555,6 +1595,26 @@ func TestGetOrderInfo(t *testing.T) {
 	result, err = e.GetOrderInfo(generateContext(t), "12345", futuresTradablePair, asset.Futures)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	if !mockTests {
+		t.Skip("skipped: fill amount assertions rely on mock fixture data")
+	}
+	result, err = e.GetOrderInfo(generateContext(t), "31234567890123456", spotTradablePair, asset.Spot)
+	require.NoError(t, err)
+	assert.Equal(t, 0.5, result.Amount, "Amount should be the base quantity")
+	assert.Equal(t, 0.2, result.ExecutedAmount, "ExecutedAmount should be the filled base quantity")
+	assert.Equal(t, 0.3, result.RemainingAmount, "RemainingAmount should be the unfilled base quantity")
+	assert.Equal(t, 12000.0, result.Cost, "Cost should be the filled quote amount")
+
+	result, err = e.GetOrderInfo(generateContext(t), "331380922769473536", futuresTradablePair, asset.Futures)
+	require.NoError(t, err)
+	assert.Equal(t, 5.0, result.Amount, "Amount should be the order size")
+	assert.Equal(t, 3.0, result.ExecutedAmount, "ExecutedAmount should be the executed contract quantity")
+	assert.Equal(t, 2.0, result.RemainingAmount, "RemainingAmount should be the unfilled contract quantity")
+	assert.Equal(t, 59900.0, result.AverageExecutedPrice, "AverageExecutedPrice should be the exchange avgPx")
+	assert.Equal(t, 179.7, result.Cost, "Cost should be the exchange execAmt, not avgPx times contracts")
+	assert.Equal(t, currency.USDT, result.CostAsset, "CostAsset should be the quote currency")
+	assert.Zero(t, result.QuoteAmount, "QuoteAmount should stay unset for a futures order")
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -2235,6 +2295,49 @@ func TestWsHandleData(t *testing.T) {
 	require.NoError(t, err, "book_lv2 snapshot must not error")
 	err = e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(`{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}],"action":"update"}`))
 	assert.NoError(t, err, "book_lv2 update should not error")
+}
+
+func TestProcessOrders(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+
+	resp := &SubscriptionResponse{
+		Channel: "orders",
+		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"32471407854219265","tradeFee":"0.0001","clientOrderId":"","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","source":"API","side":"BUY","filledQuantity":"0.3","filledAmount":"18000","matchRole":"MAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"12000","orderAmount":"0","createTime":1757800000000,"price":"60000","tradeQty":"0.2","tradePrice":"60000","tradeId":"68561300","ts":1757800060010}]`),
+	}
+	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
+	exp := []order.Detail{{
+		Price:           60000,
+		Amount:          0.5,
+		ExecutedAmount:  0.3,
+		RemainingAmount: 0.2,
+		Fee:             0.0001,
+		FeeAsset:        currency.BTC,
+		Exchange:        ex.Name,
+		OrderID:         "32471407854219265",
+		Type:            order.Limit,
+		Side:            order.Buy,
+		Status:          order.PartiallyFilled,
+		AssetType:       asset.Spot,
+		Date:            time.UnixMilli(1757800000000),
+		LastUpdated:     time.UnixMilli(1757800060000),
+		Pair:            currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+		Trades: []order.TradeHistory{{
+			Price:     60000,
+			Amount:    0.2,
+			Fee:       0.0001,
+			Exchange:  ex.Name,
+			TID:       "68561300",
+			Type:      order.Limit,
+			Side:      order.Buy,
+			Timestamp: time.UnixMilli(1757800060010),
+			FeeAsset:  "BTC",
+			Total:     12000,
+		}},
+	}}
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should map the order update")
 }
 
 func TestProcessCandlestickDataIntervalMapping(t *testing.T) {
@@ -3382,7 +3485,7 @@ func TestWebsocketSliceErrorCheck(t *testing.T) {
 
 func TestSendBatchValidatedAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
-	result, err := SendBatchValidatedAuthenticatedHTTPRequest[*OrderIDResponse](t.Context(), e, exchange.RestSpot, sBatchOrderEPL, http.MethodGet, "path", nil, nil)
+	result, err := e.SendBatchValidatedAuthenticatedHTTPRequest[*OrderIDResponse](t.Context(), exchange.RestSpot, sBatchOrderEPL, http.MethodGet, "path", nil, nil)
 	require.Error(t, err)
 	assert.IsType(t, []*OrderIDResponse{}, result)
 }
@@ -3536,4 +3639,170 @@ func TestUnmarshalFuturesOrderIDResponse(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, sample)
 	assert.NoError(t, sample.Error())
+}
+
+// TestFuturesTicker pins what a futures response contributes. qty counts contracts, so recording it
+// as a base volume overstates BTC_USDT_PERP a thousandfold against its 0.001 BTC contract, and the
+// response carries no size to convert it with
+func TestFuturesTicker(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	e.Name = "Poloniex"
+	// figures from GET /v3/market/tickers
+	got := e.futuresTicker(&FuturesTickerDetails{
+		ContractAmount: 77706,
+		QuoteAmount:    6100138.7169,
+		ClosingPrice:   78850.77,
+		MarkPrice:      78849.1,
+	})
+	assert.Zero(t, got.BaseVolume, "a contract count is not a base volume, so none should be recorded")
+	assert.Equal(t, 6100138.7169, got.QuoteVolume, "amt should be recorded as the quote volume")
+	assert.Equal(t, 78850.77, got.Last, "the closing price should be recorded as the last price")
+	assert.Equal(t, asset.Futures, got.AssetType, "the asset type should be set")
+
+	// the bulk response carries only cT, the single pair one only ts, so neither may be dropped
+	byCloseTime := e.futuresTicker(&FuturesTickerDetails{EndTime: types.Time(time.UnixMilli(1788926189000))})
+	assert.Equal(t, int64(1788926189000), byCloseTime.LastUpdated.UnixMilli(), "the close time should be used when no ts is served")
+	byTimestamp := e.futuresTicker(&FuturesTickerDetails{Timestamp: types.Time(time.UnixMilli(1788926190000))})
+	assert.Equal(t, int64(1788926190000), byTimestamp.LastUpdated.UnixMilli(), "ts should be preferred when it is served")
+	// The websocket serves both, so which one wins has to be pinned with both set
+	byBoth := e.futuresTicker(&FuturesTickerDetails{
+		Timestamp: types.Time(time.UnixMilli(1788926190000)),
+		EndTime:   types.Time(time.UnixMilli(1788926189000)),
+	})
+	assert.Equal(t, int64(1788926190000), byBoth.LastUpdated.UnixMilli(), "ts should win over the close time when both are served")
+}
+
+// TestWsProcessTickers covers both websocket ticker handlers, which no test reached: the spot one
+// builds its own ticker.Price and the futures one delegates to futuresTicker, so a mapping wrong in
+// either is invisible to the helper tests
+func TestWsProcessTickers(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	// Trimmed from the spot ticker channel
+	spot := &SubscriptionResponse{Data: []byte(`[{"symbol":"BTC_USDT","open":"78000","close":"78616.33","high":"79000","low":"78000","quantity":"6454.56","amount":"507434304","markPrice":"78616","ts":1788926190000}]`)}
+	require.NoError(t, ex.processTicker(t.Context(), spot), "processTicker must not error")
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]ticker.Price)
+		require.True(t, ok, "the spot handler must send ticker prices")
+		require.Len(t, got, 1, "the spot handler must send the one ticker")
+		assert.Equal(t, 78616.33, got[0].Last, "the close should be recorded as the last price")
+		assert.Equal(t, 6454.56, got[0].BaseVolume, "quantity should be recorded as the base volume")
+		assert.Equal(t, 507434304.0, got[0].QuoteVolume, "amount should be recorded as the quote volume")
+	default:
+		require.Fail(t, "no spot tickers sent", "processTicker must send ticker prices")
+	}
+
+	// Trimmed from the futures ticker channel, where qty counts contracts
+	perp := []byte(`[{"s":"BTC_USDT_PERP","o":"78318.68","c":"78850.77","h":"79700","l":"77626.67","qty":"77706","amt":"6100138.7169","mPx":"78849.1","ts":1788926190000}]`)
+	require.NoError(t, ex.processFuturesTickers(t.Context(), perp), "processFuturesTickers must not error")
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]ticker.Price)
+		require.True(t, ok, "the futures handler must send ticker prices")
+		require.Len(t, got, 1, "the futures handler must send the one ticker")
+		assert.Equal(t, 78850.77, got[0].Last, "the closing price should be recorded as the last price")
+		assert.Zero(t, got[0].BaseVolume, "a contract count is not a base volume, so none should be recorded")
+		assert.Equal(t, 6100138.7169, got[0].QuoteVolume, "amt should be recorded as the quote volume")
+	default:
+		require.Fail(t, "no futures tickers sent", "processFuturesTickers must send ticker prices")
+	}
+}
+
+// TestUpdateTickersReachesTheStore covers the wiring into the store, which the spotTicker and
+// futuresTicker tests do not reach
+func TestUpdateTickersReachesTheStore(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body string
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/markets/ticker24h"):
+			// Trimmed from GET /markets/ticker24h
+			body = `[{"symbol":"BTC_USDT","close":"78616.33","high":"79000","low":"78000","bid":"78615","bidQuantity":"1.5","ask":"78617","askQuantity":"2.5","quantity":"6454.56","amount":"507434304","markPrice":"78616","ts":1788926190000}]`
+		case strings.HasSuffix(r.URL.Path, "market/tickers"):
+			// Trimmed from GET /v3/market/tickers
+			body = `{"code":200,"data":[{"s":"BTC_USDT_PERP","c":"78850.77","qty":"77706","amt":"6100138.7169","mPx":"78849.1","ts":1788926190000}]}`
+		default:
+			assert.Failf(t, "unexpected request path", "no request should reach %s", r.URL.Path)
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "UpdateTickers must not error for spot")
+	spot, err := ticker.GetTicker(ex.Name, currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
+	require.NoError(t, err, "GetTicker must not error for spot")
+	assert.Equal(t, 78616.33, spot.Last, "the close should reach the store as the last price")
+	assert.Equal(t, 1.5, spot.BidSize, "the bid quantity should reach the store as the bid size")
+	assert.Equal(t, 6454.56, spot.BaseVolume, "quantity should reach the store as the base volume")
+	assert.Equal(t, 507434304.0, spot.QuoteVolume, "amount should reach the store as the quote volume")
+
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Futures), "UpdateTickers must not error for futures")
+	perp, err := ticker.GetTicker(ex.Name, currency.NewPairWithDelimiter("BTC", "USDT_PERP", "_"), asset.Futures)
+	require.NoError(t, err, "GetTicker must not error for futures")
+	assert.Equal(t, 78850.77, perp.Last, "the closing price should reach the store as the last price")
+	assert.Zero(t, perp.BaseVolume, "a contract count is not a base volume, so none should reach the store")
+	assert.Equal(t, 6100138.7169, perp.QuoteVolume, "amt should reach the store as the quote volume")
+}
+
+// TestUpdateTickerStoresTheRequestedPair covers a pair split differently from the response's symbol.
+// The store keys base and quote separately, so storing under the response's split made a
+// successful fetch report no ticker found
+func TestUpdateTickerStoresTheRequestedPair(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Trimmed from GET /v3/market/tickers?symbol=BTC_USDT_PERP
+		assert.Equal(t, "BTC_USDT_PERP", r.URL.Query().Get("symbol"), "the requested pair should reach the exchange formatted")
+		_, err := fmt.Fprint(w, `{"code":200,"data":[{"s":"BTC_USDT_PERP","c":"78850.77","qty":"77706","amt":"6100138.7169","mPx":"78849.1","ts":1788926190000}]}`)
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	pair := currency.NewPairWithDelimiter("BTC_USDT", "PERP", "_")
+	got, err := ex.UpdateTicker(t.Context(), pair, asset.Futures)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.True(t, got.Pair.Equal(pair), "the ticker should be stored under the requested pair")
+	assert.Equal(t, 78850.77, got.Last, "the closing price should be recorded as the last price")
+}
+
+// TestSpotTicker pins the single pair and bulk spot paths sharing one field set, the store
+// overwriting a pair wholesale
+func TestSpotTicker(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	e.Name = "Poloniex"
+	got := e.spotTicker(&TickerData{
+		Close:       78616.33,
+		High:        79000,
+		Low:         78000,
+		Bid:         78615,
+		BidQuantity: 1.5,
+		Ask:         78617,
+		AskQuantity: 2.5,
+		BaseAmount:  6454.56,
+		QuoteAmount: 507434304,
+		MarkPrice:   78616,
+	})
+	assert.Equal(t, 78616.33, got.Last, "the close should be recorded as the last price")
+	assert.Equal(t, 6454.56, got.BaseVolume, "quantity should be recorded as the base volume")
+	assert.Equal(t, 507434304.0, got.QuoteVolume, "amount should be recorded as the quote volume")
+	assert.Equal(t, 1.5, got.BidSize, "the bid size should be recorded")
 }

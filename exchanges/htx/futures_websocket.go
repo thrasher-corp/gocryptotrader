@@ -41,7 +41,6 @@ const (
 	wsTradeUpdatesChannel     = "tradeUpdates"
 	wsExecutionDetailsChannel = "executionDetails"
 	wsFuturesSignatureVersion = "2"
-	orderPriceTypePostOnly    = "post_only"
 	orderOffsetClose          = "close"
 )
 
@@ -457,9 +456,9 @@ func (e *Exchange) formatLegacyFuturesWSOrder(data *legacyFuturesWSOrder) (order
 	if priceType == "" {
 		switch data.orderType {
 		case 1:
-			priceType = "limit"
+			priceType = orderPriceTypeLimit
 		case 3:
-			priceType = "opponent"
+			priceType = orderPriceTypeOpponent
 		case 6:
 			priceType = orderPriceTypePostOnly
 		default:

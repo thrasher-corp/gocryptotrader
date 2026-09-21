@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -414,9 +412,9 @@ func (e *Exchange) UpdateCurrencyStates(ctx context.Context, a asset.Item) error
 			canWithdraw = canWithdraw || currencies[i].ChainData[j].WithdrawStatus == "allowed"
 		}
 		updates[currency.NewCode(currencies[i].Currency)] = currencystate.Options{
-			Deposit:  convert.BoolPtr(canDeposit),
-			Withdraw: convert.BoolPtr(canWithdraw),
-			Trade:    convert.BoolPtr(currencies[i].InstStatus == "normal"),
+			Deposit:  new(canDeposit),
+			Withdraw: new(canWithdraw),
+			Trade:    new(currencies[i].InstStatus == "normal"),
 		}
 	}
 	return e.States.UpdateAll(a, updates)
@@ -449,9 +447,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          ticks.Data[i].Low,
 				Bid:          ticks.Data[i].Bid,
 				Ask:          ticks.Data[i].Ask,
-				Volume:       ticks.Data[i].Amount,
+				BaseVolume:   ticks.Data[i].Amount,
 				QuoteVolume:  ticks.Data[i].Volume,
 				Open:         ticks.Data[i].Open,
+				Last:         ticks.Data[i].Close,
 				Close:        ticks.Data[i].Close,
 				BidSize:      ticks.Data[i].BidSize,
 				AskSize:      ticks.Data[i].AskSize,
@@ -494,9 +493,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Amount.Float64(),
+				BaseVolume:   ticks[i].Amount.Float64(),
 				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
+				Last:         ticks[i].Close.Float64(),
 				Close:        ticks[i].Close.Float64(),
 				Bid:          ticks[i].Bid[0],
 				BidSize:      ticks[i].Bid[1],
@@ -538,9 +538,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Amount.Float64(),
+				BaseVolume:   ticks[i].Amount.Float64(),
 				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
+				Last:         ticks[i].Close.Float64(),
 				Close:        ticks[i].Close.Float64(),
 				Bid:          ticks[i].Bid[0],
 				BidSize:      ticks[i].Bid[1],
@@ -597,9 +598,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
-				Volume:       ticks[i].Amount.Float64(),
+				BaseVolume:   ticks[i].Amount.Float64(),
 				QuoteVolume:  ticks[i].Volume.Float64(),
 				Open:         ticks[i].Open.Float64(),
+				Last:         ticks[i].Close.Float64(),
 				Close:        ticks[i].Close.Float64(),
 				Bid:          ticks[i].Bid[0],
 				BidSize:      ticks[i].Bid[1],
@@ -620,6 +622,19 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return errs
 }
 
+// bookLevel returns the price and size one side of a tick carries. Huobi serves each side as a two
+// element array and null when nothing rests there, so neither element can be indexed
+// unconditionally, and a contract with an empty book still has a ticker to record
+func bookLevel(level []float64) (price, size float64) {
+	if len(level) > 0 {
+		price = level[0]
+	}
+	if len(level) > 1 {
+		size = level[1]
+	}
+	return price, size
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if p.IsEmpty() {
@@ -630,22 +645,31 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}
 	switch a {
 	case asset.Spot:
-		tickerData, err := e.Get24HrMarketSummary(ctx, p)
+		// the merged endpoint rather than the 24 hour summary, since the store overwrites a pair
+		// wholesale and the summary carries no bid or ask for UpdateTickers' entry to keep
+		tickerData, err := e.GetMarketDetailMerged(ctx, p)
 		if err != nil {
 			return nil, err
 		}
-		err = ticker.ProcessTicker(&ticker.Price{
-			High:         tickerData.Tick.High,
-			Low:          tickerData.Tick.Low,
-			Volume:       tickerData.Tick.Amount,
-			QuoteVolume:  tickerData.Tick.Volume,
-			Open:         tickerData.Tick.Open,
-			Close:        tickerData.Tick.Close,
+		bid, bidSize := bookLevel(tickerData.Bid)
+		ask, askSize := bookLevel(tickerData.Ask)
+		if err := ticker.ProcessTicker(&ticker.Price{
+			High:         tickerData.High,
+			Low:          tickerData.Low,
+			BaseVolume:   tickerData.Amount,
+			QuoteVolume:  tickerData.Volume,
+			Open:         tickerData.Open,
+			Last:         tickerData.Close,
+			Close:        tickerData.Close,
+			Bid:          bid,
+			BidSize:      bidSize,
+			Ask:          ask,
+			AskSize:      askSize,
 			Pair:         p,
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
-		})
-		if err != nil {
+			LastUpdated:  tickerData.Timestamp.Time(),
+		}); err != nil {
 			return nil, err
 		}
 	case asset.CoinMarginedFutures:
@@ -653,28 +677,19 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-
-		if len(marketData.Tick.Bid) == 0 {
-			return nil, errInvalidBidData
-		}
-		if len(marketData.Tick.Ask) == 0 {
-			return nil, errInvalidAskData
-		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			High:         marketData.Tick.High.Float64(),
-			Low:          marketData.Tick.Low.Float64(),
-			Volume:       marketData.Tick.Amount.Float64(),
-			QuoteVolume:  marketData.Tick.Vol.Float64(),
-			Open:         marketData.Tick.Open.Float64(),
-			Close:        marketData.Tick.Close.Float64(),
-			Pair:         p,
-			Bid:          marketData.Tick.Bid[0],
-			Ask:          marketData.Tick.Ask[0],
-			ExchangeName: e.Name,
-			AssetType:    a,
-		})
-		if err != nil {
+		bid, bidSize := bookLevel(marketData.Tick.Bid)
+		ask, askSize := bookLevel(marketData.Tick.Ask)
+		// vol counts contracts on this endpoint, so it cannot supply quote volume.
+		if err := ticker.ProcessTicker(&ticker.Price{
+			High:       marketData.Tick.High.Float64(),
+			Low:        marketData.Tick.Low.Float64(),
+			BaseVolume: marketData.Tick.Amount.Float64(),
+			Open:       marketData.Tick.Open.Float64(),
+			Last:       marketData.Tick.Close.Float64(),
+			Close:      marketData.Tick.Close.Float64(),
+			Pair:       p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
+			ExchangeName: e.Name, AssetType: a,
+		}); err != nil {
 			return nil, err
 		}
 	case asset.USDTMarginedFutures:
@@ -682,28 +697,19 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-
-		if len(marketData.Tick.Bid) == 0 {
-			return nil, errInvalidBidData
-		}
-		if len(marketData.Tick.Ask) == 0 {
-			return nil, errInvalidAskData
-		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			High:         marketData.Tick.High.Float64(),
-			Low:          marketData.Tick.Low.Float64(),
-			Volume:       marketData.Tick.Amount.Float64(),
-			QuoteVolume:  marketData.Tick.Vol.Float64(),
-			Open:         marketData.Tick.Open.Float64(),
-			Close:        marketData.Tick.Close.Float64(),
-			Pair:         p,
-			Bid:          marketData.Tick.Bid[0],
-			Ask:          marketData.Tick.Ask[0],
-			ExchangeName: e.Name,
-			AssetType:    a,
-		})
-		if err != nil {
+		bid, bidSize := bookLevel(marketData.Tick.Bid)
+		ask, askSize := bookLevel(marketData.Tick.Ask)
+		// vol counts contracts on this endpoint, so it cannot supply quote volume.
+		if err := ticker.ProcessTicker(&ticker.Price{
+			High:       marketData.Tick.High.Float64(),
+			Low:        marketData.Tick.Low.Float64(),
+			BaseVolume: marketData.Tick.Amount.Float64(),
+			Open:       marketData.Tick.Open.Float64(),
+			Last:       marketData.Tick.Close.Float64(),
+			Close:      marketData.Tick.Close.Float64(),
+			Pair:       p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
+			ExchangeName: e.Name, AssetType: a,
+		}); err != nil {
 			return nil, err
 		}
 	case asset.Futures:
@@ -711,27 +717,19 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-		if len(marketData.Tick.Bid) == 0 {
-			return nil, errInvalidBidData
-		}
-		if len(marketData.Tick.Ask) == 0 {
-			return nil, errInvalidAskData
-		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			High:         marketData.Tick.High.Float64(),
-			Low:          marketData.Tick.Low.Float64(),
-			Volume:       marketData.Tick.Amount.Float64(),
-			QuoteVolume:  marketData.Tick.Vol.Float64(),
-			Open:         marketData.Tick.Open.Float64(),
-			Close:        marketData.Tick.Close.Float64(),
-			Pair:         p,
-			Bid:          marketData.Tick.Bid[0],
-			Ask:          marketData.Tick.Ask[0],
-			ExchangeName: e.Name,
-			AssetType:    a,
-		})
-		if err != nil {
+		bid, bidSize := bookLevel(marketData.Tick.Bid)
+		ask, askSize := bookLevel(marketData.Tick.Ask)
+		// vol counts contracts on this endpoint, so it cannot supply quote volume.
+		if err := ticker.ProcessTicker(&ticker.Price{
+			High:       marketData.Tick.High.Float64(),
+			Low:        marketData.Tick.Low.Float64(),
+			BaseVolume: marketData.Tick.Amount.Float64(),
+			Open:       marketData.Tick.Open.Float64(),
+			Last:       marketData.Tick.Close.Float64(),
+			Close:      marketData.Tick.Close.Float64(),
+			Pair:       p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
+			ExchangeName: e.Name, AssetType: a,
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -1182,7 +1180,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -1222,7 +1220,7 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit, positionMode string) (*
 	}
 	req := &V5OrderRequest{
 		ContractCode:  formattedPair,
-		MarginMode:    "cross",
+		MarginMode:    marginModeCross,
 		PositionSide:  "both",
 		ClientOrderID: s.ClientOrderID,
 		Volume:        types.Number(s.Amount),
@@ -1231,7 +1229,7 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit, positionMode string) (*
 	switch s.MarginType {
 	case margin.Unset, margin.Multi:
 	case margin.Isolated:
-		req.MarginMode = "isolated"
+		req.MarginMode = marginModeIsolated
 	default:
 		return nil, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, s.MarginType)
 	}
@@ -1259,7 +1257,7 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit, positionMode string) (*
 	case order.Market:
 		req.Type = "market"
 	case order.Limit:
-		req.Type = "limit"
+		req.Type = orderPriceTypeLimit
 		req.Price = types.Number(s.Price)
 	default:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
@@ -1269,9 +1267,9 @@ func (e *Exchange) formatV5OrderRequest(s *order.Submit, positionMode string) (*
 		req.Type = orderPriceTypePostOnly
 	case s.TimeInForce == order.UnknownTIF, s.TimeInForce.Is(order.GoodTillCancel):
 	case s.TimeInForce.Is(order.ImmediateOrCancel):
-		req.TimeInForce = "ioc"
+		req.TimeInForce = orderTimeInForceIOC
 	case s.TimeInForce.Is(order.FillOrKill):
-		req.TimeInForce = "fok"
+		req.TimeInForce = orderTimeInForceFOK
 	default:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedTimeInForce, s.TimeInForce)
 	}
@@ -1290,13 +1288,13 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	var orderID string
 	switch s.AssetType {
 	case asset.Spot:
-		accountID, err := strconv.ParseInt(s.ClientID, 10, 64)
+		accountID, err := strconv.ParseUint(s.ClientID, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		var formattedType SpotNewOrderRequestParamsType
 		params := SpotNewOrderRequestParams{
-			AccountID:     int(accountID),
+			AccountID:     accountID,
 			ClientOrderID: s.ClientOrderID,
 			Amount:        s.GetTradeAmount(e.GetTradingRequirements()),
 			Source:        "api",
@@ -1340,20 +1338,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			//
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
-			oType = "optimal_20"
+			oType = orderPriceTypeOptimal20
 			switch {
 			case s.TimeInForce.Is(order.ImmediateOrCancel):
-				oType = "optimal_20_ioc"
+				oType = orderPriceTypeOptimal20IOC
 			case s.TimeInForce.Is(order.FillOrKill):
-				oType = "optimal_20_fok"
+				oType = orderPriceTypeOptimal20FOK
 			}
 		case order.Limit:
-			oType = "limit"
+			oType = orderPriceTypeLimit
 			if s.TimeInForce.Is(order.PostOnly) {
 				oType = orderPriceTypePostOnly
 			}
 		default:
-			oType = "opponent"
+			oType = orderPriceTypeOpponent
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1408,20 +1406,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			//
 			// It is important to note that the above methods will not guarantee the order to be fully-filled
 			// The exchange will obtain the optimal N price when the order is placed
-			oType = "optimal_20"
+			oType = orderPriceTypeOptimal20
 			switch {
 			case s.TimeInForce.Is(order.ImmediateOrCancel):
-				oType = "optimal_20_ioc"
+				oType = orderPriceTypeOptimal20IOC
 			case s.TimeInForce.Is(order.FillOrKill):
-				oType = "optimal_20_fok"
+				oType = orderPriceTypeOptimal20FOK
 			}
 		case order.Limit:
-			oType = "limit"
+			oType = orderPriceTypeLimit
 			if s.TimeInForce.Is(order.PostOnly) {
 				oType = orderPriceTypePostOnly
 			}
 		default:
-			oType = "opponent"
+			oType = orderPriceTypeOpponent
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -2102,7 +2100,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	case asset.USDTMarginedFutures:
 		var orderInfo *V5OrderQueryResponse
 		var lookupErr error
-		for _, marginMode := range []string{"cross", "isolated"} {
+		for _, marginMode := range []string{marginModeCross, marginModeIsolated} {
 			var err error
 			orderInfo, err = e.GetV5Order(ctx, pair, marginMode, orderID, "")
 			if err != nil {
@@ -2342,7 +2340,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.USDTMarginedFutures:
-		marginModes := []string{"cross", "isolated"}
+		marginModes := []string{marginModeCross, marginModeIsolated}
 		switch req.MarginType {
 		case margin.Unset:
 		case margin.Multi:
@@ -2597,7 +2595,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		marginModes := []string{"cross", "isolated"}
+		marginModes := []string{marginModeCross, marginModeIsolated}
 		switch req.MarginType {
 		case margin.Unset:
 		case margin.Multi:
@@ -2683,7 +2681,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						"",
 						"all",
 						"all",
-						"limit",
+						orderPriceTypeLimit,
 						[]order.Status{order.AnyStatus},
 						window.start,
 						window.end,
@@ -2943,9 +2941,9 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	}
 
 	switch orderPriceType {
-	case "limit", "ioc", "fok":
+	case orderPriceTypeLimit, orderTimeInForceIOC, orderTimeInForceFOK:
 		resp.OrderType = order.Limit
-	case "market", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
+	case "market", orderPriceTypeOpponent, orderPriceTypeLightning, "optimal_5", "optimal_10", "optimal_20",
 		"opponent_ioc", "lightning_ioc", "optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc",
 		"opponent_fok", "lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok":
 		resp.OrderType = order.Market
@@ -2956,9 +2954,9 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 		return resp, errInvalidOrderPriceType
 	}
 	switch {
-	case orderPriceType == "ioc" || strings.HasSuffix(orderPriceType, "_ioc"):
+	case orderPriceType == orderTimeInForceIOC || strings.HasSuffix(orderPriceType, "_ioc"):
 		resp.TimeInForce = order.ImmediateOrCancel
-	case orderPriceType == "fok" || strings.HasSuffix(orderPriceType, "_fok"):
+	case orderPriceType == orderTimeInForceFOK || strings.HasSuffix(orderPriceType, "_fok"):
 		resp.TimeInForce = order.FillOrKill
 	}
 

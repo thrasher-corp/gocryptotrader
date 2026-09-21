@@ -306,11 +306,11 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 			}
 		}
 	case asset.USDTMarginedFutures:
-		marginMode := "cross"
+		marginMode := marginModeCross
 		switch marginType {
 		case margin.Unset, margin.Multi:
 		case margin.Isolated:
-			marginMode = "isolated"
+			marginMode = marginModeIsolated
 		default:
 			return 0, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
 		}

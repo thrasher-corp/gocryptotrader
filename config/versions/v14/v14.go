@@ -1,193 +1,133 @@
-// Package v14 migrates Huobi exchange configurations to HTX and adds derivative defaults.
+// Package v14 migrates GateIO's default spot orderbook websocket subscription to V2.
 package v14
 
 import (
-	"bytes"
 	"context"
-	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
+	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
+	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version implements ExchangeVersion to migrate Huobi configurations to HTX.
+const (
+	legacyOrderbookChannel      = "orderbook"
+	legacyOrderbookAliasChannel = "spot.order_book_update"
+	spotAsset                   = "spot"
+	allAsset                    = "all"
+	spotOrderbookV2Channel      = "spot.obu"
+)
+
+// Version implements ExchangeVersion for GateIO's spot orderbook subscription migration.
 type Version struct{}
 
-// Exchanges returns the legacy and current exchange names handled by this migration.
-func (*Version) Exchanges() []string { return []string{"Huobi", "HTX"} }
+// Exchanges returns just GateIO.
+func (*Version) Exchanges() []string { return []string{"GateIO"} }
 
-// UpgradeExchange changes the legacy Huobi exchange name to HTX and adds its derivative configuration.
+// UpgradeExchange replaces the previous default spot orderbook subscription with V2.
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if name, err := jsonparser.GetString(exchange, "name"); err == nil && name == "Huobi" {
-		var setErr error
-		exchange, setErr = jsonparser.Set(exchange, []byte(`"HTX"`), "name")
-		if setErr != nil {
-			return exchange, setErr
+	return migrateSubscriptions(exchange, true)
+}
+
+// DowngradeExchange restores the previous default spot orderbook subscription.
+func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	return migrateSubscriptions(exchange, false)
+}
+
+func migrateSubscriptions(exchange []byte, upgrade bool) ([]byte, error) {
+	raw, _, _, err := jsonparser.Get(exchange, "features", "subscriptions")
+	if err != nil {
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return exchange, nil
+		}
+		return exchange, fmt.Errorf("error getting GateIO subscriptions: %w", err)
+	}
+
+	var subscriptions []struct {
+		Enabled       *bool           `json:"enabled"`
+		Channel       string          `json:"channel"`
+		Asset         string          `json:"asset"`
+		Interval      json.RawMessage `json:"interval"`
+		Levels        int             `json:"levels"`
+		Pairs         string          `json:"pairs"`
+		Authenticated bool            `json:"authenticated"`
+	}
+	if err := json.Unmarshal(raw, &subscriptions); err != nil {
+		return exchange, fmt.Errorf("error decoding GateIO subscriptions: %w", err)
+	}
+	var entries []json.RawMessage
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return exchange, fmt.Errorf("error decoding GateIO subscription entries: %w", err)
+	}
+
+	legacyIndex, v2Index := -1, -1
+	for i := range subscriptions {
+		isSpot := strings.EqualFold(subscriptions[i].Asset, spotAsset)
+		isAll := strings.EqualFold(subscriptions[i].Asset, allAsset)
+		if ((subscriptions[i].Channel == legacyOrderbookAliasChannel && isSpot) ||
+			((subscriptions[i].Channel == legacyOrderbookAliasChannel ||
+				subscriptions[i].Channel == legacyOrderbookChannel ||
+				subscriptions[i].Channel == spotOrderbookV2Channel) && isAll)) &&
+			subscriptions[i].Enabled != nil && *subscriptions[i].Enabled {
+			return exchange, nil
+		}
+		if !isSpot {
+			continue
+		}
+		switch subscriptions[i].Channel {
+		case legacyOrderbookChannel:
+			if legacyIndex != -1 {
+				return exchange, nil
+			}
+			legacyIndex = i
+		case spotOrderbookV2Channel:
+			if v2Index != -1 {
+				return exchange, nil
+			}
+			v2Index = i
 		}
 	}
-
-	var config map[string]any
-	decoder := json.NewDecoder(bytes.NewReader(exchange))
-	decoder.UseNumber()
-	if err := decoder.Decode(&config); err != nil {
-		return exchange, err
-	}
-	name, _ := config["name"].(string)
-	if !strings.EqualFold(name, "HTX") {
+	if legacyIndex == -1 ||
+		string(subscriptions[legacyIndex].Interval) != `"100ms"` || subscriptions[legacyIndex].Pairs != "" ||
+		subscriptions[legacyIndex].Authenticated ||
+		subscriptions[legacyIndex].Enabled == nil ||
+		*subscriptions[legacyIndex].Enabled != upgrade {
 		return exchange, nil
 	}
-
-	addUSDTMarginedPair(config)
-	addDerivativeSubscriptions(config)
-	// Patch only the changed subtrees, preserving unrelated key order and numeric text.
-	for _, path := range [][]string{{"currencyPairs", "pairs", "usdtmarginedfutures"}, {"features", "subscriptions"}} {
-		var value any = config
-		for _, key := range path {
-			object, ok := value.(map[string]any)
-			if !ok {
-				value = nil
-				break
-			}
-			value = object[key]
+	if v2Index == -1 {
+		if !upgrade {
+			return exchange, nil
 		}
-		if value == nil {
-			continue
-		}
-		raw, err := json.Marshal(value)
+		v2Index = len(entries)
+		entries = append(entries, json.RawMessage(`{"enabled":true,"channel":"spot.obu","asset":"spot","levels":50}`))
+		updated, err := json.Marshal(entries)
 		if err != nil {
-			return exchange, err
+			return exchange, fmt.Errorf("error encoding GateIO subscription entries: %w", err)
 		}
-		exchange, err = jsonparser.Set(exchange, raw, path...)
+		exchange, err = jsonparser.Set(exchange, updated, "features", "subscriptions")
 		if err != nil {
-			return exchange, err
+			return exchange, fmt.Errorf("error adding GateIO V2 spot orderbook subscription: %w", err)
+		}
+	} else {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(entries[v2Index], &fields); err != nil {
+			return exchange, fmt.Errorf("error decoding GateIO V2 subscription: %w", err)
+		}
+		if len(fields) != 4 || subscriptions[v2Index].Levels != 50 ||
+			subscriptions[v2Index].Enabled == nil || *subscriptions[v2Index].Enabled == upgrade {
+			return exchange, nil
 		}
 	}
-	return exchange, nil
-}
 
-// addUSDTMarginedPair adds the pair configuration required by the V5 wrapper without replacing user settings.
-func addUSDTMarginedPair(config map[string]any) {
-	currencyPairs, ok := config["currencyPairs"].(map[string]any)
-	if !ok {
-		return
+	exchange, err = jsonparser.Set(exchange, []byte(strconv.FormatBool(!upgrade)), "features", "subscriptions", "["+strconv.Itoa(legacyIndex)+"]", "enabled")
+	if err != nil {
+		return exchange, fmt.Errorf("error setting GateIO legacy spot orderbook subscription: %w", err)
 	}
-	pairs, ok := currencyPairs["pairs"].(map[string]any)
-	if !ok {
-		return
-	}
-	if _, found := pairs["usdtmarginedfutures"]; found {
-		return
-	}
-	pairs["usdtmarginedfutures"] = map[string]any{
-		"assetEnabled": true,
-		"enabled":      "BTC-USDT",
-		"available":    "BTC-USDT",
-		"requestFormat": map[string]any{
-			"uppercase": true,
-			"delimiter": "-",
-		},
-		"configFormat": map[string]any{
-			"uppercase": true,
-			"delimiter": "-",
-		},
-	}
-}
-
-// addDerivativeSubscriptions adds public defaults, leaves private defaults disabled and preserves user entries.
-func addDerivativeSubscriptions(config map[string]any) {
-	features, hasFeatures := config["features"].(map[string]any)
-	if !hasFeatures {
-		return
-	}
-	subscriptions, _ := features["subscriptions"].([]any)
-	for _, sub := range subscriptions {
-		entry, ok := sub.(map[string]any)
-		if !ok {
-			continue
-		}
-		channel, _ := entry["channel"].(string)
-		assetName, _ := entry["asset"].(string)
-		if channel == "myAccount" && assetName == "" {
-			entry["asset"] = "spot"
-		}
-	}
-	for _, item := range []struct {
-		asset           string
-		publicChannels  []string
-		privateChannels []string
-	}{
-		{
-			asset:           "futures",
-			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades"},
-			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
-		},
-		{
-			asset:           "coinmarginedfutures",
-			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades", "public.%s.funding_rate"},
-			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
-		},
-		{
-			asset:          "usdtmarginedfutures",
-			publicChannels: []string{"ticker", "candles", "orderbook", "allTrades", "public.%s.funding_rate"},
-			privateChannels: []string{
-				"myOrders",
-				"tradeUpdates",
-				"executionDetails",
-				"myAccount",
-				"positions",
-				"myTrades",
-				"triggerOrders",
-			},
-		},
-	} {
-		for _, group := range []struct {
-			channels      []string
-			enabled       bool
-			authenticated bool
-		}{
-			{channels: item.publicChannels, enabled: true},
-			{channels: item.privateChannels, authenticated: true},
-		} {
-			for _, channel := range group.channels {
-				found := false
-				for _, sub := range subscriptions {
-					entry, ok := sub.(map[string]any)
-					if !ok {
-						continue
-					}
-					assetName, _ := entry["asset"].(string)
-					channelName, _ := entry["channel"].(string)
-					authenticated, _ := entry["authenticated"].(bool)
-					if assetName == item.asset && channelName == channel && authenticated == group.authenticated {
-						found = true
-						break
-					}
-				}
-				if found {
-					continue
-				}
-				sub := map[string]any{
-					"enabled": group.enabled,
-					"channel": channel,
-					"asset":   item.asset,
-				}
-				if group.authenticated {
-					sub["authenticated"] = true
-				}
-				if channel == "candles" {
-					sub["interval"] = "1m"
-				}
-				subscriptions = append(subscriptions, sub)
-			}
-		}
-	}
-	features["subscriptions"] = subscriptions
-}
-
-// DowngradeExchange changes the HTX exchange name back to Huobi.
-func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if name, err := jsonparser.GetString(exchange, "name"); err == nil && name == "HTX" {
-		return jsonparser.Set(exchange, []byte(`"Huobi"`), "name")
+	exchange, err = jsonparser.Set(exchange, []byte(strconv.FormatBool(upgrade)), "features", "subscriptions", "["+strconv.Itoa(v2Index)+"]", "enabled")
+	if err != nil {
+		return exchange, fmt.Errorf("error setting GateIO V2 spot orderbook subscription: %w", err)
 	}
 	return exchange, nil
 }

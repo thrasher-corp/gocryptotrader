@@ -8,6 +8,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// Order price types referenced when mapping GoCryptoTrader order types onto the Huobi API
+const (
+	orderPriceTypeLightning    = "lightning"
+	orderTimeInForceFOK        = "fok"
+	orderTimeInForceIOC        = "ioc"
+	marginModeCross            = "cross"
+	marginModeIsolated         = "isolated"
+	orderPriceTypeLimit        = "limit"
+	orderPriceTypeOpponent     = "opponent"
+	orderPriceTypeOptimal20    = "optimal_20"
+	orderPriceTypeOptimal20IOC = "optimal_20_ioc"
+	orderPriceTypeOptimal20FOK = "optimal_20_fok"
+	orderPriceTypePostOnly     = "post_only"
+)
+
 type errorCapture struct {
 	Status      string     `json:"status"`
 	CodeType1   any        `json:"err-code"` // can be either a string or int depending on the endpoint
@@ -29,7 +44,7 @@ type MarketSummary24Hr struct {
 		Low     float64 `json:"low"`
 		Version int64   `json:"version"`
 		Volume  float64 `json:"vol"`
-	}
+	} `json:"tick"`
 }
 
 // CurrenciesChainData stores currency and chain info
@@ -502,15 +517,15 @@ type KlineItem struct {
 	High        float64    `json:"high"`
 	Amount      float64    `json:"amount"`
 	Volume      float64    `json:"vol"`
-	Count       int        `json:"count"`
+	Count       uint64     `json:"count"`
 }
 
 // CancelOpenOrdersBatch stores open order batch response data
 type CancelOpenOrdersBatch struct {
 	Data struct {
-		FailedCount  int `json:"failed-count"`
-		NextID       int `json:"next-id"`
-		SuccessCount int `json:"success-count"`
+		FailedCount  uint64 `json:"failed-count"`
+		NextID       int64  `json:"next-id"` // Signed because the API sends -1 when no open orders remain
+		SuccessCount uint64 `json:"success-count"`
 	} `json:"data"`
 	Status       string `json:"status"`
 	ErrorMessage string `json:"err-msg"`
@@ -582,7 +597,7 @@ var (
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair                  // Required; example LTCBTC,BTCUSDT
-	Type   OrderBookDataRequestParamsType `json:"type"` // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
+	Type   OrderBookDataRequestParamsType // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
 }
 
 // Orderbook stores the orderbook data
@@ -617,7 +632,7 @@ type Detail struct {
 	High      float64    `json:"high"`
 	Timestamp types.Time `json:"timestamp"`
 	ID        int64      `json:"id"`
-	Count     int        `json:"count"`
+	Count     uint64     `json:"count"`
 	Low       float64    `json:"low"`
 	Volume    float64    `json:"vol"`
 }
@@ -710,9 +725,9 @@ type OrderInfo struct {
 
 // OrderMatchInfo stores the order match info
 type OrderMatchInfo struct {
-	ID           int        `json:"id"`
-	OrderID      int        `json:"order-id"`
-	MatchID      int        `json:"match-id"`
+	ID           uint64     `json:"id"`
+	OrderID      uint64     `json:"order-id"`
+	MatchID      uint64     `json:"match-id"`
 	Symbol       string     `json:"symbol"`
 	Type         string     `json:"type"`
 	Source       string     `json:"source"`
@@ -733,16 +748,16 @@ type MarginOrder struct {
 	CreatedAt       int64  `json:"created-at"`
 	InterestAmount  string `json:"interest-amount"`
 	InterestRate    string `json:"interest-rate"`
-	AccountID       int    `json:"account-id"`
-	UserID          int    `json:"user-id"`
+	AccountID       uint64 `json:"account-id"`
+	UserID          uint64 `json:"user-id"`
 	UpdatedAt       int64  `json:"updated-at"`
-	ID              int    `json:"id"`
+	ID              uint64 `json:"id"`
 	State           string `json:"state"`
 }
 
 // MarginAccountBalance stores the margin account balance info
 type MarginAccountBalance struct {
-	ID       int              `json:"id"`
+	ID       uint64           `json:"id"`
 	Type     string           `json:"type"`
 	State    string           `json:"state"`
 	Symbol   string           `json:"symbol"`
@@ -754,7 +769,7 @@ type MarginAccountBalance struct {
 
 // SpotNewOrderRequestParams holds the params required to place an order
 type SpotNewOrderRequestParams struct {
-	AccountID int `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
+	AccountID uint64 `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
 	// ClientOrderID lets callers reconcile an accepted order when the HTTP response is lost.
 	ClientOrderID string                        `json:"client-order-id,omitempty"`
 	Amount        float64                       `json:"amount"` // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
@@ -856,8 +871,8 @@ var (
 	}
 
 	validOrderTypes = []string{
-		"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
-		"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
+		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, "optimal_5", "optimal_10", "optimal_20",
+		orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
 		"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
 	}
 
@@ -867,11 +882,11 @@ var (
 	}
 
 	validOrderPriceType = []string{
-		"limit", "optimal_5", "optimal_10", "optimal_20",
+		orderPriceTypeLimit, "optimal_5", "optimal_10", "optimal_20",
 	}
 
 	validLightningOrderPriceType = []string{
-		"lightning", "lightning_fok", "lightning_ioc",
+		orderPriceTypeLightning, "lightning_fok", "lightning_ioc",
 	}
 
 	validTradeType = map[string]int64{
@@ -912,8 +927,8 @@ var (
 	}
 
 	validFuturesOrderPriceTypes = []string{
-		"limit", "opponent", "lightning", "optimal_5", "optimal_10",
-		"optimal_20", "fok", "ioc", "opponent_ioc", "lightning_ioc",
+		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, "optimal_5", "optimal_10",
+		"optimal_20", orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", "lightning_ioc",
 		"optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc", "opponent_fok",
 		"lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok",
 	}
@@ -949,7 +964,7 @@ var (
 	}
 
 	validOPTypes = []string{
-		"lightning", "lightning_fok", "lightning_ioc",
+		orderPriceTypeLightning, "lightning_fok", "lightning_ioc",
 	}
 
 	validFuturesReqType = map[string]int64{
@@ -958,16 +973,16 @@ var (
 	}
 
 	validFuturesOrderTypes = map[string]int64{
-		"limit":        1,
-		"opponent":     3,
-		"lightning":    4,
-		"triggerOrder": 5,
-		"postOnly":     6,
-		"optimal_5":    7,
-		"optimal_10":   8,
-		"optimal_20":   9,
-		"fok":          10,
-		"ioc":          11,
+		orderPriceTypeLimit:     1,
+		orderPriceTypeOpponent:  3,
+		orderPriceTypeLightning: 4,
+		"triggerOrder":          5,
+		"postOnly":              6,
+		"optimal_5":             7,
+		"optimal_10":            8,
+		"optimal_20":            9,
+		orderTimeInForceFOK:     10,
+		orderTimeInForceIOC:     11,
 	}
 
 	validOrderStatus = map[order.Status]int64{

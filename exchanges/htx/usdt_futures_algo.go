@@ -71,7 +71,7 @@ func (e *Exchange) GetV5OpenAlgoOrders(ctx context.Context, req *V5OpenAlgoOrder
 		params.Set("from", strconv.FormatUint(req.From, 10))
 	}
 	if req.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	if req.Direction != "" {
 		params.Set("direct", req.Direction)
@@ -109,7 +109,7 @@ func (e *Exchange) GetV5AlgoOrderHistory(ctx context.Context, req *V5AlgoOrderHi
 		params.Set("from", strconv.FormatUint(req.From, 10))
 	}
 	if req.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	if req.Direction != "" {
 		params.Set("direct", req.Direction)

@@ -216,7 +216,6 @@ func (e *Exchange) FGetMarketDepth(ctx context.Context, symbol currency.Pair, da
 		Bids:   make([]obItem, len(tempData.Tick.Bids)),
 		Asks:   make([]obItem, len(tempData.Tick.Asks)),
 	}
-	resp.Symbol = symbolValue
 	for x := range tempData.Tick.Asks {
 		resp.Asks[x] = obItem{
 			Price:    tempData.Tick.Asks[x][0],
@@ -598,7 +597,7 @@ func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType 
 		req["from_id"] = pageIndex
 	}
 	if pageSize != 0 {
-		req["limit"] = pageSize
+		req[orderPriceTypeLimit] = pageSize
 	}
 	req["direct"] = v3HistoryDirectionNext
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fFinancialRecords, nil, req, &resp); err != nil {
@@ -1085,7 +1084,7 @@ func (e *Exchange) FGetOrderHistoryByTimeRange(ctx context.Context, contractCode
 		req["from_id"] = pageIndex
 	}
 	if pageSize != 0 {
-		req["limit"] = pageSize
+		req[orderPriceTypeLimit] = pageSize
 	}
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fOrderHistory, nil, req, &resp); err != nil {
 		return resp, err
@@ -1121,7 +1120,7 @@ func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair
 		req["from_id"] = pageIndex
 	}
 	if pageSize != 0 {
-		req["limit"] = pageSize
+		req[orderPriceTypeLimit] = pageSize
 	}
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fMatchResult, nil, req, &resp); err != nil {
 		return resp, err

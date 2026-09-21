@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -552,6 +553,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var crossRequests, isolatedRequests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		assert.Equal(t, "/v5/trade/order/opens", r.URL.Path, "V5 open-order path should match")
 		marginMode := r.URL.Query().Get("margin_mode")
 		switch marginMode {
@@ -562,7 +564,13 @@ func TestGetActiveOrders(t *testing.T) {
 		default:
 			assert.Failf(t, "unexpected margin mode", "received %q", marginMode)
 		}
-		_, _ = w.Write([]byte(`{"code":200,"data":[{"id":"1","contract_code":"BTC-USDT","order_id":"1","side":"buy","type":"limit","state":"submitted","time_in_force":"gtc","margin_mode":"` + marginMode + `","price":"100","volume":"2","trade_volume":"1"}]}`))
+		response, err := json.Marshal(map[string]any{
+			"code": 200,
+			"data": []map[string]string{{"id": "1", "contract_code": "BTC-USDT", "order_id": "1", "side": "buy", "type": "limit", "state": "submitted", "time_in_force": "gtc", "margin_mode": marginMode, "price": "100", "volume": "2", "trade_volume": "1"}},
+		})
+		assert.NoError(t, err, "response should encode")
+		_, err = w.Write(response)
+		assert.NoError(t, err, "response should write")
 	}))
 	t.Cleanup(server.Close)
 	h = new(Exchange)
@@ -623,7 +631,7 @@ func TestGetActiveOrdersValidation(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
-	var requests uint64
+	var requests atomic.Uint64
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/query/deposit-withdraw",
 		`{"status":"ok","data":[{"id":1,"type":"deposit","currency":"btc","tx-hash":"tx-1","chain":"btc","amount":2,"address":"address-1","fee":0,"state":"safe","created-at":1612261330443},{"id":2,"type":"withdraw","currency":"usdt","tx-hash":"tx-2","chain":"trc20usdt","amount":3,"address":"address-2","fee":0.1,"state":"confirmed","error-message":"","created-at":1612261389250}]}`,
 		func(r *http.Request) {
@@ -634,13 +642,13 @@ func TestGetAccountFundingHistory(t *testing.T) {
 			default:
 				require.Failf(t, "unexpected funding history type", "type %q must be deposit or withdraw", r.URL.Query().Get("type"))
 			}
-			atomic.AddUint64(&requests, 1)
+			requests.Add(1)
 		})
 	h.Name = "HTX"
 	history, err := h.GetAccountFundingHistory(t.Context())
 	require.NoError(t, err, "GetAccountFundingHistory must not error")
 	require.Len(t, history, 4, "funding history must include both endpoint responses")
-	assert.Equal(t, uint64(2), atomic.LoadUint64(&requests), "funding history should make two requests")
+	assert.Equal(t, uint64(2), requests.Load(), "funding history should make two requests")
 	assert.Equal(t, exchange.FundingHistory{
 		ExchangeName:    "HTX",
 		Status:          "safe",
@@ -1871,9 +1879,13 @@ func TestUpdateTickers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			h := newHTTPTestExchange(t, tc.endpoint, http.MethodGet, tc.path, tc.response, nil)
+			h.Name = t.Name()
 			require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, false), "available pair must be set")
 			require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, true), "enabled pair must be set")
 			require.NoError(t, h.UpdateTickers(t.Context(), tc.item), "UpdateTickers must not error")
+			price, err := ticker.GetTicker(h.Name, tc.pair, tc.item)
+			require.NoError(t, err, "updated ticker must be cached")
+			assert.Equal(t, price.Close, price.Last, "Last should carry the closing price")
 		})
 	}
 

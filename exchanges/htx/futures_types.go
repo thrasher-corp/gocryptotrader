@@ -21,7 +21,7 @@ type FContractInfoData struct {
 		CreateDate     types.Time `json:"create_date"`
 		ContractStatus int64      `json:"contract_status"`
 		SettlementTime types.Time `json:"settlement_time"`
-	}
+	} `json:"data"`
 }
 
 // FContractIndexPriceInfo stores contract index price

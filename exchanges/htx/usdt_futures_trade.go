@@ -166,7 +166,7 @@ func (e *Exchange) GetV5OpenOrders(ctx context.Context, code currency.Pair, marg
 		params.Set("from", strconv.FormatUint(from, 10))
 	}
 	if limit != 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(orderPriceTypeLimit, strconv.FormatUint(limit, 10))
 	}
 	if direct != "" {
 		params.Set("direct", direct)
@@ -208,7 +208,7 @@ func (e *Exchange) GetV5OrderHistory(ctx context.Context, req *V5OrderHistoryReq
 		params.Set("from", strconv.FormatUint(req.From, 10))
 	}
 	if req.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	if req.Direction != "" {
 		params.Set("direct", req.Direction)
@@ -240,7 +240,7 @@ func (e *Exchange) GetV5OrderDetails(ctx context.Context, req *V5OrderDetailsReq
 		params.Set("from", req.From)
 	}
 	if req.Limit != 0 {
-		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	if req.Direction != "" {
 		params.Set("direct", req.Direction)

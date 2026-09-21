@@ -1,111 +1,89 @@
 package v14
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAddUSDTMarginedPair(t *testing.T) {
+func TestMigrateSubscriptions(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name     string
-		config   map[string]any
-		expected bool
-	}{
-		{name: "missing currency pairs", config: map[string]any{}},
-		{name: "missing pairs", config: map[string]any{"currencyPairs": map[string]any{}}},
-		{
-			name: "existing pair",
-			config: map[string]any{
-				"currencyPairs": map[string]any{
-					"pairs": map[string]any{"usdtmarginedfutures": "existing"},
-				},
+	for _, upgrade := range []bool{true, false} {
+		legacy := fmt.Sprintf(`{"enabled":%t,"channel":"orderbook","asset":"spot","interval":"100ms"}`, upgrade)
+		v2 := fmt.Sprintf(`{"enabled":%t,"channel":"spot.obu","asset":"spot","levels":50}`, !upgrade)
+		migratedLegacy := fmt.Sprintf(`{"enabled":%t,"channel":"orderbook","asset":"spot","interval":"100ms"}`, !upgrade)
+		migratedV2 := fmt.Sprintf(`{"enabled":%t,"channel":"spot.obu","asset":"spot","levels":50}`, upgrade)
+		otherAssets := `{"enabled":true,"channel":"orderbook","asset":"usdtmarginedfutures","interval":"100ms"},{"enabled":false,"channel":"spot.obu","asset":"margin","levels":50},{"enabled":true,"channel":"spot.order_book_update","asset":"coinmarginedfutures"}`
+		missingV2Expected := ""
+		if upgrade {
+			missingV2Expected = `{"features":{"subscriptions":[` + migratedLegacy + `,` + migratedV2 + `]}}`
+		}
+		for _, test := range []struct {
+			name        string
+			input       string
+			expected    string
+			errContains string
+		}{
+			{
+				name:     "defaults",
+				input:    `{"features":{"subscriptions":[` + legacy + `,` + v2 + `]}}`,
+				expected: `{"features":{"subscriptions":[` + migratedLegacy + `,` + migratedV2 + `]}}`,
 			},
-			expected: true,
-		},
-		{
-			name: "add pair",
-			config: map[string]any{
-				"currencyPairs": map[string]any{"pairs": map[string]any{}},
+			{
+				name:  "duplicate legacy entries",
+				input: `{"features":{"subscriptions":[` + legacy + `,` + legacy + `,` + v2 + `]}}`,
 			},
-			expected: true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			addUSDTMarginedPair(tc.config)
-			currencyPairs, ok := tc.config["currencyPairs"].(map[string]any)
-			if !tc.expected {
-				if ok {
-					pairs, _ := currencyPairs["pairs"].(map[string]any)
-					assert.NotContains(t, pairs, "usdtmarginedfutures", "pair should not be added without the required parent configuration")
+			{
+				name:  "non-spot entries only",
+				input: `{"features":{"subscriptions":[` + otherAssets + `]}}`,
+			},
+			{
+				name:     "non-spot entries alongside spot defaults",
+				input:    `{"features":{"subscriptions":[` + otherAssets + `,` + legacy + `,` + v2 + `]}}`,
+				expected: `{"features":{"subscriptions":[` + otherAssets + `,` + migratedLegacy + `,` + migratedV2 + `]}}`,
+			},
+			{
+				name:     "missing V2 entry",
+				input:    `{"features":{"subscriptions":[` + legacy + `]}}`,
+				expected: missingV2Expected,
+			},
+			{
+				name:  "missing subscriptions",
+				input: `{"features":{}}`,
+			},
+			{
+				name:        "malformed subscription array",
+				input:       `{"features":{"subscriptions":[}`,
+				errContains: "error getting GateIO subscriptions",
+			},
+			{
+				name:        "subscriptions object",
+				input:       `{"features":{"subscriptions":{}}}`,
+				errContains: "error decoding GateIO subscriptions",
+			},
+			{
+				name:        "invalid enabled type",
+				input:       `{"features":{"subscriptions":[{"enabled":"true","channel":"orderbook","asset":"spot"}]}}`,
+				errContains: "error decoding GateIO subscriptions",
+			},
+		} {
+			t.Run(fmt.Sprintf("%s/upgrade=%t", test.name, upgrade), func(t *testing.T) {
+				t.Parallel()
+				got, err := migrateSubscriptions([]byte(test.input), upgrade)
+				if test.errContains != "" {
+					require.ErrorContains(t, err, test.errContains, "migration must report the failing operation")
+					assert.Equal(t, test.input, string(got), "failed migration should preserve the input")
+					return
 				}
-				return
-			}
-			require.True(t, ok, "currency-pair configuration must exist")
-			pairs, ok := currencyPairs["pairs"].(map[string]any)
-			require.True(t, ok, "pair configuration must exist")
-			pair, found := pairs["usdtmarginedfutures"]
-			require.True(t, found, "USDT-margined pair configuration must exist")
-			if tc.name == "existing pair" {
-				assert.Equal(t, "existing", pair, "existing pair configuration should be preserved")
-				return
-			}
-			pairConfig, ok := pair.(map[string]any)
-			require.True(t, ok, "added pair configuration must use an object")
-			assert.Equal(t, "BTC-USDT", pairConfig["enabled"], "enabled pair should match")
-			assert.Equal(t, "BTC-USDT", pairConfig["available"], "available pair should match")
-		})
+				require.NoError(t, err, "migration must accept valid subscriptions")
+				if test.expected == "" {
+					assert.Equal(t, test.input, string(got), "ineligible migration should preserve the input byte-for-byte")
+				} else {
+					assert.JSONEq(t, test.expected, string(got), "migration should change only eligible spot defaults")
+				}
+			})
+		}
 	}
-}
-
-func TestAddDerivativeSubscriptions(t *testing.T) {
-	t.Parallel()
-	t.Run("missing features", func(t *testing.T) {
-		t.Parallel()
-		config := map[string]any{}
-		addDerivativeSubscriptions(config)
-		assert.NotContains(t, config, "features", "missing feature configuration should remain unchanged")
-	})
-
-	t.Run("add and preserve subscriptions", func(t *testing.T) {
-		t.Parallel()
-		config := map[string]any{
-			"features": map[string]any{
-				"subscriptions": []any{
-					nil,
-					map[string]any{"enabled": true, "channel": "myAccount", "authenticated": true},
-					map[string]any{"enabled": true, "channel": "ticker", "asset": "futures"},
-					map[string]any{"enabled": true, "channel": "myOrders", "asset": "futures", "authenticated": true},
-				},
-			},
-		}
-		addDerivativeSubscriptions(config)
-		features, ok := config["features"].(map[string]any)
-		require.True(t, ok, "features must remain an object")
-		subscriptions, ok := features["subscriptions"].([]any)
-		require.True(t, ok, "subscriptions must remain a list")
-		require.Len(t, subscriptions, 33, "existing entries and missing derivative defaults must be retained")
-		spotAccount, ok := subscriptions[1].(map[string]any)
-		require.True(t, ok, "spot account subscription must remain an object")
-		assert.Equal(t, "spot", spotAccount["asset"], "spot account subscription should gain its asset")
-		privateCount := 0
-		for _, sub := range subscriptions {
-			entry, ok := sub.(map[string]any)
-			if !ok {
-				continue
-			}
-			assetName, _ := entry["asset"].(string)
-			authenticated, _ := entry["authenticated"].(bool)
-			if authenticated && assetName != "spot" {
-				privateCount++
-			}
-		}
-		assert.Equal(t, 17, privateCount, "all derivative private subscriptions should exist")
-
-		addDerivativeSubscriptions(config)
-		assert.Len(t, features["subscriptions"], 33, "repeated migration should not duplicate subscriptions")
-	})
 }

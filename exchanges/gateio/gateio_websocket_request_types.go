@@ -83,7 +83,7 @@ type WebsocketOrderResponse struct {
 	GTDiscount                bool          `json:"gt_discount"`
 	RebatedFee                types.Number  `json:"rebated_fee"`
 	RebatedFeeCurrency        currency.Code `json:"rebated_fee_currency"`
-	SelfTradePreventionID     int           `json:"stp_id"`
+	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AverageDealPrice          types.Number  `json:"avg_deal_price"`
 	Label                     string        `json:"label"`
@@ -112,7 +112,7 @@ type WebsocketFuturesOrderResponse struct {
 	TakerFee                  types.Number  `json:"tkfr"`
 	MakerFee                  types.Number  `json:"mkfr"`
 	ReferenceUserID           int64         `json:"refu"`
-	SelfTradePreventionID     int64         `json:"stp_id"`
+	SelfTradePreventionID     types.Number  `json:"stp_id"`
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
 	BizInfo                   string        `json:"biz_info"`

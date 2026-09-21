@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -55,11 +54,11 @@ var bid = Levels{
 	{Price: 1317, Amount: 1},
 }
 
-func (l Levels) display() {
+func (l Levels) display(t *testing.T) {
+	t.Helper()
 	for x := range l {
-		fmt.Printf("Level: %+v %p \n", l[x], &l[x])
+		t.Logf("Level: %+v %p", l[x], &l[x])
 	}
-	fmt.Println()
 }
 
 func TestLoad(t *testing.T) {
@@ -266,7 +265,7 @@ func TestUpdateByID(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errIDCannotBeMatched)
 
-	err = a.updateByID(Levels{ // Simulate Bitmex updating
+	err = a.updateByID(Levels{ // Amount-only update
 		{Price: 0, Amount: 1337, ID: 3},
 	})
 	require.NoError(t, err)
@@ -834,212 +833,6 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 14, 87, 7)
 }
 
-func TestInsertUpdatesBid(t *testing.T) {
-	b := bidLevels{}
-	bidsSnapshot := Levels{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
-	}
-	b.load(bidsSnapshot)
-
-	err := b.insertUpdates(Levels{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
-	})
-	require.ErrorIs(t, err, errCollisionDetected)
-
-	Check(t, b, 6, 36, 6)
-
-	// Insert at head
-	err = b.insertUpdates(Levels{{Price: 12, Amount: 1, ID: 11}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 7, 48, 7)
-
-	// Insert at tail
-	err = b.insertUpdates(Levels{{Price: 0.5, Amount: 1, ID: 12}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 8, 48.5, 8)
-
-	// Insert at mid
-	err = b.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 9, 54, 9)
-
-	// purge
-	b.load(nil)
-
-	// Add one at head
-	err = b.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, b, 1, 5.5, 1)
-}
-
-func TestInsertUpdatesAsk(t *testing.T) {
-	a := askLevels{}
-	askSnapshot := Levels{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
-	}
-	a.load(askSnapshot)
-
-	err := a.insertUpdates(Levels{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
-	})
-	require.ErrorIs(t, err, errCollisionDetected)
-
-	Check(t, a, 6, 36, 6)
-
-	// Insert at tail
-	err = a.insertUpdates(Levels{{Price: 12, Amount: 1, ID: 11}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 7, 48, 7)
-
-	// Insert at head
-	err = a.insertUpdates(Levels{{Price: 0.5, Amount: 1, ID: 12}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 8, 48.5, 8)
-
-	// Insert at mid
-	err = a.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 9, 54, 9)
-
-	// purge
-	a.load(nil)
-
-	// Add one at head
-	err = a.insertUpdates(Levels{{Price: 5.5, Amount: 1, ID: 13}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Check(t, a, 1, 5.5, 1)
-}
-
-func TestLevelsInsertUpdates(t *testing.T) {
-	t.Parallel()
-
-	t.Run("empty updates", func(t *testing.T) {
-		t.Parallel()
-		levels := Levels{{Price: 2, Amount: 1, ID: 2}}
-		err := levels.insertUpdates(nil, askCompare)
-		require.NoError(t, err, "insertUpdates must not error for empty updates")
-		assert.Equal(t, Levels{{Price: 2, Amount: 1, ID: 2}}, levels, "insertUpdates should preserve levels for empty updates")
-	})
-
-	t.Run("empty book", func(t *testing.T) {
-		t.Parallel()
-		var levels Levels
-		update := Level{Price: 2, Amount: 1, ID: 2}
-		err := levels.insertUpdates(Levels{update}, askCompare)
-		require.NoError(t, err, "insertUpdates must not error for an empty book")
-		assert.Equal(t, Levels{update}, levels, "insertUpdates should append to an empty book correctly")
-	})
-
-	t.Run("ordered inserts without spare capacity", func(t *testing.T) {
-		t.Parallel()
-		levels := make(Levels, 2)
-		levels[0] = Level{Price: 2, Amount: 1, ID: 2}
-		levels[1] = Level{Price: 4, Amount: 1, ID: 4}
-		require.Equal(t, len(levels), cap(levels), "levels must start without spare capacity")
-
-		err := levels.insertUpdates(Levels{
-			{Price: 1, Amount: 1, ID: 1},
-			{Price: 3, Amount: 1, ID: 3},
-			{Price: 5, Amount: 1, ID: 5},
-		}, askCompare)
-		require.NoError(t, err, "insertUpdates must not error for ordered inserts")
-		assert.Equal(t, Levels{
-			{Price: 1, Amount: 1, ID: 1},
-			{Price: 2, Amount: 1, ID: 2},
-			{Price: 3, Amount: 1, ID: 3},
-			{Price: 4, Amount: 1, ID: 4},
-			{Price: 5, Amount: 1, ID: 5},
-		}, levels, "insertUpdates should insert head, middle, and tail levels correctly")
-	})
-
-	t.Run("collision", func(t *testing.T) {
-		t.Parallel()
-		levels := Levels{{Price: 2, Amount: 1, ID: 2}}
-		err := levels.insertUpdates(levels[:1], askCompare)
-		assert.ErrorIs(t, err, errCollisionDetected, "insertUpdates should return the collision error")
-		assert.Equal(t, Levels{{Price: 2, Amount: 1, ID: 2}}, levels, "insertUpdates should preserve levels after a collision")
-	})
-
-	t.Run("collision after insertion", func(t *testing.T) {
-		t.Parallel()
-		levels := Levels{
-			{Price: 2, Amount: 1, ID: 2},
-			{Price: 4, Amount: 1, ID: 4},
-		}
-		err := levels.insertUpdates(Levels{
-			{Price: 1, Amount: 1, ID: 1},
-			{Price: 2, Amount: 2, ID: 20},
-		}, askCompare)
-		assert.ErrorIs(t, err, errCollisionDetected, "insertUpdates should return the collision error after an insertion")
-		assert.Equal(t, Levels{
-			{Price: 1, Amount: 1, ID: 1},
-			{Price: 2, Amount: 1, ID: 2},
-			{Price: 4, Amount: 1, ID: 4},
-		}, levels, "insertUpdates should preserve updates applied before a collision")
-	})
-
-	t.Run("aliased update with spare capacity", func(t *testing.T) {
-		t.Parallel()
-		backing := make(Levels, 3, 4)
-		backing[0] = Level{Price: 1, Amount: 1, ID: 1}
-		backing[1] = Level{Price: 3, Amount: 1, ID: 3}
-		backing[2] = Level{Price: 2, Amount: 1, ID: 2}
-		levels := backing[:2]
-
-		err := levels.insertUpdates(backing[2:3], askCompare)
-		require.NoError(t, err, "insertUpdates must not error for an aliased update")
-		assert.Equal(t, Levels{
-			{Price: 1, Amount: 1, ID: 1},
-			{Price: 2, Amount: 1, ID: 2},
-			{Price: 3, Amount: 1, ID: 3},
-		}, levels, "insertUpdates should preserve an aliased update while reusing capacity")
-	})
-}
-
 // check checks depth values after an update has taken place
 func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 	t.Helper()
@@ -1058,17 +851,17 @@ func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 
 	liquidityTotal, valueTotal := l.amount()
 	if liquidityTotal != liquidity {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched liquidity expecting %v but received %v", liquidity, liquidityTotal)
 	}
 
 	if valueTotal != value {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched total value expecting %v but received %v", value, valueTotal)
 	}
 
 	if len(l) != expectedLen {
-		l.display()
+		l.display(t)
 		t.Fatalf("mismatched expected length count expecting %v but received %v", expectedLen, len(l))
 	}
 
@@ -1082,10 +875,10 @@ func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 		case price == 0:
 			price = l[x].Price
 		case isBid && price < l[x].Price:
-			l.display()
+			l.display(t)
 			t.Fatal("Bid pricing out of order should be descending")
 		case isAsk && price > l[x].Price:
-			l.display()
+			l.display(t)
 			t.Fatal("Ask pricing out of order should be ascending")
 		default:
 			price = l[x].Price

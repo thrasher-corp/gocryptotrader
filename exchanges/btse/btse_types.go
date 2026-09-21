@@ -33,13 +33,13 @@ type MarketPair struct {
 	LowestAsk           float64             `json:"lowestAsk"`
 	HighestBid          float64             `json:"highestBid"`
 	PercentageChange    float64             `json:"percentageChange"`
-	Volume              float64             `json:"volume"`
-	High24Hr            float64             `json:"high24Hr"`
-	Low24Hr             float64             `json:"low24Hr"`
+	QuoteVolume24Hour   float64             `json:"volume"`
+	High24Hour          float64             `json:"high24Hr"`
+	Low24Hour           float64             `json:"low24Hr"`
 	Base                currency.Code       `json:"base"`
 	Quote               currency.Code       `json:"quote"`
 	Active              bool                `json:"active"`
-	Size                float64             `json:"size"`
+	BaseVolume24Hour    float64             `json:"size"` // spot only; the futures summary omits it and reports turnover in the quote currency alone
 	MinValidPrice       float64             `json:"minValidPrice"`
 	MinPriceIncrement   float64             `json:"minPriceIncrement"`
 	MinOrderSize        float64             `json:"minOrderSize"`
@@ -57,8 +57,8 @@ type MarketPair struct {
 	FundingRate         float64             `json:"fundingRate"`
 	ContractSize        float64             `json:"contractSize"`
 	MaxPosition         int64               `json:"maxPosition"`
-	MinRiskLimit        int                 `json:"minRiskLimit"`
-	MaxRiskLimit        int                 `json:"maxRiskLimit"`
+	MinRiskLimit        uint64              `json:"minRiskLimit"`
+	MaxRiskLimit        uint64              `json:"maxRiskLimit"`
 	AvailableSettlement currency.Currencies `json:"availableSettlement"`
 	Futures             bool                `json:"futures"`
 	IsMarketOpenToSpot  bool                `json:"isMarketOpenToSpot"`
@@ -68,8 +68,8 @@ type MarketPair struct {
 // OHLCV holds Open, High Low, Close, Volume data for set symbol
 type OHLCV [][]float64
 
-// Price stores last price for requested symbol
-type Price []struct {
+// Price stores the last, index and mark price for a symbol
+type Price struct {
 	IndexPrice float64 `json:"indexPrice"`
 	LastPrice  float64 `json:"lastPrice"`
 	MarkPrice  float64 `json:"markPrice"`
@@ -121,34 +121,34 @@ type AccountFees struct {
 	TakerFee float64 `json:"takerFee"`
 }
 
-// TradeHistory stores user trades for exchange
-type TradeHistory []struct {
-	Base         string     `json:"base"`
-	ClOrderID    string     `json:"clOrderID"`
-	FeeAmount    float64    `json:"feeAmount"`
-	FeeCurrency  string     `json:"feeCurrency"`
-	FilledPrice  float64    `json:"filledPrice"`
-	FilledSize   float64    `json:"filledSize"`
-	OrderID      string     `json:"orderId"`
-	OrderType    int        `json:"orderType"`
-	Price        float64    `json:"price"`
-	Quote        string     `json:"quote"`
-	RealizedPnl  float64    `json:"realizedPnl"`
-	SerialID     int64      `json:"serialId"`
-	Side         string     `json:"side"`
-	Size         float64    `json:"size"`
-	Symbol       string     `json:"symbol"`
-	Timestamp    types.Time `json:"timestamp"`
-	Total        float64    `json:"total"`
-	TradeID      string     `json:"tradeId"`
-	TriggerPrice float64    `json:"triggerPrice"`
-	TriggerType  int        `json:"triggerType"`
-	Username     string     `json:"username"`
-	Wallet       string     `json:"wallet"`
+// TradeHistory stores one of a user's trades
+type TradeHistory struct {
+	Base          string     `json:"base"`
+	ClientOrderID string     `json:"clOrderID"`
+	FeeAmount     float64    `json:"feeAmount"`
+	FeeCurrency   string     `json:"feeCurrency"`
+	FilledPrice   float64    `json:"filledPrice"`
+	FilledSize    float64    `json:"filledSize"`
+	OrderID       string     `json:"orderId"`
+	OrderType     uint64     `json:"orderType"`
+	Price         float64    `json:"price"`
+	Quote         string     `json:"quote"`
+	RealizedPNL   float64    `json:"realizedPnl"`
+	SerialID      int64      `json:"serialId"`
+	Side          string     `json:"side"`
+	Size          float64    `json:"size"`
+	Symbol        string     `json:"symbol"`
+	Timestamp     types.Time `json:"timestamp"`
+	Total         float64    `json:"total"`
+	TradeID       string     `json:"tradeId"`
+	TriggerPrice  float64    `json:"triggerPrice"`
+	TriggerType   uint64     `json:"triggerType"`
+	Username      string     `json:"username"`
+	Wallet        string     `json:"wallet"`
 }
 
-// WalletHistory stores account funding history
-type WalletHistory []struct {
+// WalletHistory stores one entry of an account's funding history
+type WalletHistory struct {
 	Amount      float64    `json:"amount"`
 	Currency    string     `json:"currency"`
 	Description string     `json:"description"`
@@ -161,10 +161,10 @@ type WalletHistory []struct {
 	Wallet      string     `json:"wallet"`
 }
 
-// WalletAddress stores address for crypto deposit's
-type WalletAddress []struct {
-	Address string `json:"address"`
-	Created int    `json:"created"`
+// WalletAddress stores a crypto deposit address
+type WalletAddress struct {
+	Address string     `json:"address"`
+	Created types.Time `json:"created"`
 }
 
 // WithdrawalResponse response received when submitting a crypto withdrawal request
@@ -176,12 +176,12 @@ type WithdrawalResponse struct {
 type OpenOrder struct {
 	AverageFillPrice             float64    `json:"averageFillPrice"`
 	CancelDuration               int64      `json:"cancelDuration"`
-	ClOrderID                    string     `json:"clOrderID"`
+	ClientOrderID                string     `json:"clOrderID"`
 	FillSize                     float64    `json:"fillSize"`
 	FilledSize                   float64    `json:"filledSize"`
 	OrderID                      string     `json:"orderID"`
 	OrderState                   string     `json:"orderState"`
-	OrderType                    int        `json:"orderType"`
+	OrderType                    uint64     `json:"orderType"`
 	OrderValue                   float64    `json:"orderValue"`
 	PegPriceDeviation            float64    `json:"pegPriceDeviation"`
 	PegPriceMax                  float64    `json:"pegPriceMax"`
@@ -193,7 +193,7 @@ type OpenOrder struct {
 	Timestamp                    types.Time `json:"timestamp"`
 	TrailValue                   float64    `json:"trailValue"`
 	TriggerOrder                 bool       `json:"triggerOrder"`
-	TriggerOrderType             int        `json:"triggerOrderType"`
+	TriggerOrderType             uint64     `json:"triggerOrderType"`
 	TriggerOriginalPrice         float64    `json:"triggerOriginalPrice"`
 	TriggerPrice                 float64    `json:"triggerPrice"`
 	TriggerStopPrice             float64    `json:"triggerStopPrice"`
@@ -207,16 +207,16 @@ type CancelOrder []Order
 // Order stores information for a single order
 type Order struct {
 	AverageFillPrice float64    `json:"averageFillPrice"`
-	ClOrderID        string     `json:"clOrderID"`
+	ClientOrderID    string     `json:"clOrderID"`
 	Deviation        float64    `json:"deviation"`
 	FillSize         float64    `json:"fillSize"`
 	Message          string     `json:"message"`
 	OrderID          string     `json:"orderID"`
-	OrderType        int        `json:"orderType"`
+	OrderType        uint64     `json:"orderType"`
 	Price            float64    `json:"price"`
 	Side             string     `json:"side"`
 	Size             float64    `json:"size"`
-	Status           int        `json:"status"`
+	Status           int64      `json:"status"` // Signed because the status enum includes -1 for a timed out request
 	Stealth          float64    `json:"stealth"`
 	StopPrice        float64    `json:"stopPrice"`
 	Symbol           string     `json:"symbol"`
@@ -252,7 +252,7 @@ type wsTradeData struct {
 	Side      order.Side `json:"side"`
 	Size      float64    `json:"size"`
 	Price     float64    `json:"price"`
-	TID       int64      `json:"tradeID"`
+	TID       int64      `json:"tradeId"`
 	Timestamp types.Time `json:"timestamp"`
 }
 
@@ -283,9 +283,9 @@ type wsOrderUpdate struct {
 
 // ErrorResponse contains errors received from API
 type ErrorResponse struct {
-	ErrorCode int    `json:"errorCode"`
+	ErrorCode int64  `json:"errorCode"` // Signed because BTSE documents error codes as an unbounded Long
 	Message   string `json:"message"`
-	Status    int    `json:"status"`
+	Status    int64  `json:"status"` // Signed because the status enum includes -1 for a timed out request
 }
 
 // WsSubscriptionAcknowledgement contains successful subscription messages

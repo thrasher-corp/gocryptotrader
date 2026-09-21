@@ -84,8 +84,9 @@ func TestGetTWAP_OHLC(t *testing.T) {
 	_, err = ohlc.GetTWAP()
 	assert.ErrorIs(t, err, errDataLengthMismatch, "GetTWAP should error on length mismatch")
 
-	i := Item{}
-	i.Candles = twapdataset
+	i := Item{
+		Candles: twapdataset,
+	}
 
 	ohlc = i.GetOHLC()
 	twap, err := ohlc.GetTWAP()

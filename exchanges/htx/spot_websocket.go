@@ -90,7 +90,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	}
 
 	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		return e.wsHandleV1ping(ctx, conn, int(pingValue))
+		return e.wsHandleV1ping(ctx, conn, pingValue)
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
@@ -150,11 +150,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
-func (e *Exchange) wsHandleV1ping(ctx context.Context, conn websocket.Connection, pingValue int) error {
+func (e *Exchange) wsHandleV1ping(ctx context.Context, conn websocket.Connection, pingValue int64) error {
 	if err := common.NilGuard(conn); err != nil {
 		return err
 	}
-	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.FormatInt(pingValue, 10)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
@@ -289,18 +289,24 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	price := &ticker.Price{
 		ExchangeName: e.Name,
 		Open:         wsTicker.Tick.Open,
+		Last:         wsTicker.Tick.Close,
 		Close:        wsTicker.Tick.Close,
-		Volume:       wsTicker.Tick.Amount,
-		QuoteVolume:  wsTicker.Tick.Volume,
+		BaseVolume:   wsTicker.Tick.Amount,
 		High:         wsTicker.Tick.High,
 		Low:          wsTicker.Tick.Low,
 		LastUpdated:  wsTicker.Timestamp.Time(),
 		AssetType:    s.Asset,
 		Pair:         s.Pairs[0],
-	})
+	}
+	// vol is the quote currency on spot but counts contracts on the derivative channels, where the
+	// quote figure is served as trade_turnover and this message carries none
+	if s.Asset == asset.Spot {
+		price.QuoteVolume = wsTicker.Tick.Volume
+	}
+	return e.Websocket.DataHandler.Send(ctx, price)
 }
 
 func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
@@ -651,7 +657,7 @@ func stringToOrderType(oType string) (order.Type, error) {
 		return order.StopLimit, nil
 	case oType == "buy-ioc" || oType == "sell-ioc":
 		return order.Limit, nil
-	case strings.Contains(oType, "limit"):
+	case strings.Contains(oType, orderPriceTypeLimit):
 		return order.Limit, nil
 	case strings.Contains(oType, "market"):
 		return order.Market, nil

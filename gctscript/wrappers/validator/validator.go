@@ -2,7 +2,7 @@ package validator
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -81,7 +81,7 @@ func (w Wrapper) Ticker(_ context.Context, exch string, pair currency.Pair, item
 		Low:          3,
 		Bid:          4,
 		Ask:          5,
-		Volume:       6,
+		BaseVolume:   6,
 		QuoteVolume:  7,
 		PriceATH:     8,
 		Open:         9,

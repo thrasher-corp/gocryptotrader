@@ -1,5 +1,6 @@
 {{define "exchanges htx" -}}
 {{template "header" .}}
+
 ## HTX Exchange
 
 ### Current Features
@@ -14,7 +15,7 @@
 Position mode is fetched using each order call's credentials. Avoid changing account
 position mode concurrently with order submission, including through other clients.
 
-Configuration version 14 renames Huobi to HTX and adds derivative pairs and subscriptions.
+Configuration version 16 renames Huobi to HTX and adds derivative pairs and subscriptions.
 Private derivative subscriptions default to disabled and require authenticated access.
 
 The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),
@@ -24,14 +25,15 @@ The implementation follows HTX's official [spot](https://huobiapi.github.io/docs
 
 ### How to enable
 
-+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
++ [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-exchange-via-config-example)
 
 + Individual package example below:
 
 ```go
-	// Exchanges will be abstracted out in further updates and examples will be
-	// supplied then
+    // Exchanges will be abstracted out in further updates and examples will be
+    // supplied then
 ```
+
 ### How to do REST public/private calls
 
 + If enabled via "configuration".json file the exchange will be added to the
@@ -41,13 +43,14 @@ for an example of integration usage with GoCryptoTrader. Rudimentary example
 below:
 
 main.go
+
 ```go
 var h exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "HTX" {
-		h = bot.Exchanges[i]
-	}
+    if bot.Exchanges[i].GetName() == "HTX" {
+        h = bot.Exchanges[i]
+    }
 }
 
 // Public calls - wrapper functions
@@ -55,13 +58,13 @@ for i := range bot.Exchanges {
 // Fetches current ticker information
 tick, err := h.UpdateTicker(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Fetches current orderbook information
 ob, err := h.UpdateOrderbook(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Private calls - wrapper functions - make sure your APIKEY and APISECRET are
@@ -70,7 +73,7 @@ if err != nil {
 // Fetches current account information
 accountInfo, err := h.GetAccountInfo()
 if err != nil {
-	// Handle error
+    // Handle error
 }
 ```
 
@@ -82,13 +85,13 @@ if err != nil {
 // Fetches current ticker information
 ticker, err := h.GetTicker()
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Fetches current orderbook information
 ob, err := h.GetOrderBook()
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Private calls - make sure your APIKEY and APISECRET are set and
@@ -97,13 +100,13 @@ if err != nil {
 // GetUserInfo returns account info
 accountInfo, err := h.GetUserInfo(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 
 // Submits an order to the exchange and returns its tradeID
 tradeID, err := h.Trade(...)
 if err != nil {
-	// Handle error
+    // Handle error
 }
 ```
 
@@ -112,19 +115,23 @@ if err != nil {
 All subscriptions are for spot only.
 
 Default Public Subscriptions:
-- Ticker
-- Candles ( Interval: 1min )
-- Orderbook ( Level: 0 - No aggregation )
-  - Configure Level: 1-5 for depth aggregation, for example:
+
++ Ticker
++ Candles ( Interval: 1min )
++ Orderbook ( Level: 0 - No aggregation )
+  + Configure Level: 1-5 for depth aggregation, for example:
+
 ```json
  {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
 ```
-- Trades
+
++ Trades
 
 Default Authenticated Subscriptions:
-- Account Trades
-- Account Orders
-- Account Updates
+
++ Account Trades
++ Account Orders
++ Account Updates
 
 {{template "donations" .}}
 {{end}}

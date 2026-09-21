@@ -19,7 +19,7 @@ type GenericResponse struct {
 // InstrumentBase holds information on base currency
 type InstrumentBase struct {
 	Base          string `json:"base"`
-	DecimalPlaces int    `json:"decimal_places"`
+	DecimalPlaces uint64 `json:"decimal_places"`
 	InstrumentID  int64  `json:"inst_id"`
 	Quote         string `json:"quote"`
 }
@@ -33,7 +33,7 @@ type Instruments struct {
 type Ticker struct {
 	High24                float64    `json:"high24,string"`
 	HighestBuy            float64    `json:"highest_buy,string"`
-	InstrumentID          int        `json:"inst_id"`
+	InstrumentID          uint64     `json:"inst_id"`
 	Last                  float64    `json:"last,string"`
 	Low24                 float64    `json:"low24,string"`
 	LowestSell            float64    `json:"lowest_sell,string"`
@@ -51,7 +51,7 @@ type Ticker struct {
 
 // OrderbookBase is a sub-type holding price and quantity
 type OrderbookBase struct {
-	Count    int     `json:"count"`
+	Count    uint64  `json:"count"`
 	Price    float64 `json:"price,string"`
 	Quantity float64 `json:"qty,string"`
 }
@@ -60,7 +60,7 @@ type OrderbookBase struct {
 type Orderbook struct {
 	Buy           []OrderbookBase `json:"buy"`
 	Sell          []OrderbookBase `json:"sell"`
-	InstrumentID  int             `json:"inst_id"`
+	InstrumentID  uint64          `json:"inst_id"`
 	TotalBuy      float64         `json:"total_buy,string"`
 	TotalSell     float64         `json:"total_sell,string"`
 	TransactionID int64           `json:"trans_id"`
@@ -107,8 +107,8 @@ type Order struct {
 	InstrumentID  int64   `json:"inst_id"`
 	Price         float64 `json:"price,string"`
 	Quantity      float64 `json:"qty,string"`
-	ClientOrderID int     `json:"client_ord_id"`
-	Side          string  `json:"side,string"`
+	ClientOrderID uint64  `json:"client_ord_id"`
+	Side          string  `json:"side"`
 }
 
 // OrderResponse is a response for orders
@@ -147,11 +147,11 @@ type OrdersBase struct {
 
 // GetOpenOrdersResponse holds all order data from GetOpenOrders request
 type GetOpenOrdersResponse struct {
-	Nonce         int             `json:"nonce"`
+	Nonce         uint64          `json:"nonce"`
 	Orders        []OrderResponse `json:"orders"`
 	Reply         string          `json:"reply"`
 	Status        []string        `json:"status"`
-	TransactionID int             `json:"trans_id"`
+	TransactionID uint64          `json:"trans_id"`
 }
 
 // OrdersResponse holds the full data range on orders
@@ -190,7 +190,7 @@ type IndexTicker struct {
 // Option holds options information
 type Option struct {
 	HighestBuy   float64 `json:"highest_buy,string"`
-	InstrumentID int     `json:"inst_id"`
+	InstrumentID uint64  `json:"inst_id"`
 	Last         float64 `json:"last,string"`
 	LowestSell   float64 `json:"lowest_sell,string"`
 	OpenInterest float64 `json:"open_interest,string"`
@@ -205,17 +205,17 @@ type OptionChainResponse struct {
 		Call   Option  `json:"call"`
 		Put    Option  `json:"put"`
 		Strike float64 `json:"strike,string"`
-	}
+	} `json:"entries"`
 }
 
 // PositionHistory holds the complete position history
 type PositionHistory struct {
 	Positions []struct {
-		PositionID int `json:"position_id"`
+		PositionID uint64 `json:"position_id"`
 		Records    []struct {
 			Commission    Commission `json:"commission"`
 			FillPrice     float64    `json:"fill_price,string,omitempty"`
-			TransactionID int        `json:"trans_id"`
+			TransactionID uint64     `json:"trans_id"`
 			FillQuantity  float64    `json:"fill_qty,omitempty"`
 			Position      struct {
 				Commission Commission `json:"commission"`
@@ -231,25 +231,25 @@ type PositionHistory struct {
 			ContractSize   float64    `json:"contract_size,string"`
 			ConversionRate float64    `json:"conversion_rate,string"`
 			OptionType     string     `json:"option_type"`
-			InstrumentID   int        `json:"inst_id"`
+			InstrumentID   uint64     `json:"inst_id"`
 			SecType        string     `json:"sec_type"`
 			Asset          string     `json:"asset"`
 			Strike         float64    `json:"strike,string"`
 		} `json:"inst"`
 		OpenTimestamp types.Time `json:"open_timestamp"`
 	} `json:"positions"`
-	TotalNumber int `json:"total_number"`
+	TotalNumber uint64 `json:"total_number"`
 }
 
 // OpenPosition holds information on an open position
 type OpenPosition struct {
-	PositionID    int        `json:"position_id"`
+	PositionID    uint64     `json:"position_id"`
 	Commission    Commission `json:"commission"`
 	OpenPrice     float64    `json:"open_price,string"`
 	RealizedPL    float64    `json:"realized_pl,string"`
 	Quantity      float64    `json:"qty,string"`
 	OpenTimestamp types.Time `json:"open_timestamp"`
-	InstrumentID  int        `json:"inst_id"`
+	InstrumentID  uint64     `json:"inst_id"`
 }
 
 type wsRequest struct {
@@ -432,7 +432,7 @@ type WsSubmitOrdersRequestData struct {
 	InstrumentID  int64   `json:"inst_id"`
 	Price         float64 `json:"price,string"`
 	Quantity      float64 `json:"qty,string"`
-	ClientOrderID int     `json:"client_ord_id"`
+	ClientOrderID uint64  `json:"client_ord_id"`
 	Side          string  `json:"side"`
 }
 
@@ -490,7 +490,7 @@ type wsInstList struct {
 		DecimalPlaces int64  `json:"decimal_places"`
 		InstrumentID  int64  `json:"inst_id"`
 		Quote         string `json:"quote"`
-	} `json:"spot"`
+	} `json:"SPOT"`
 }
 
 // WsUserOpenOrdersResponse ws response
