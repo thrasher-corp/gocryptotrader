@@ -1047,7 +1047,7 @@ func TestConvertToNewInterval(t *testing.T) {
 	_, err = old.ConvertToNewInterval(OneMonth)
 	assert.ErrorIs(t, err, ErrInsufficientCandleData)
 
-	tn := time.Now().Truncate(time.Duration(OneDay))
+	tn := time.Now().UTC().Truncate(time.Duration(OneDay))
 
 	// Test incorrectly padded candles
 	old.Candles = []Candle{
@@ -1116,7 +1116,7 @@ func TestConvertToNewInterval(t *testing.T) {
 func TestAddPadding(t *testing.T) {
 	t.Parallel()
 
-	tn := time.Now().Truncate(time.Duration(OneDay))
+	tn := time.Now().UTC().Truncate(time.Duration(OneDay))
 
 	var k *Item
 	err := k.addPadding(tn, tn.AddDate(0, 0, 5), false)

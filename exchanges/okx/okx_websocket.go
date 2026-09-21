@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -34,8 +35,11 @@ import (
 )
 
 var (
-	pingMsg = []byte("ping")
-	pongMsg = []byte("pong")
+	pingMsg                   = []byte("ping")
+	pongMsg                   = []byte("pong")
+	errOptionSummaryUnmarshal = errors.New("option summary unmarshal failed")
+	errOptionSummaryPairParse = errors.New("option summary pair parse failed")
+	errOptionSummaryDispatch  = errors.New("option summary dispatch failed")
 
 	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 	authConnErrorCodes = []string{
@@ -218,8 +222,11 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Options, Channel: channelOptSummary},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Channel: channelBalanceAndPosition, Authenticated: true},
+	{Enabled: true, Channel: channelAccountGreeks, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -271,18 +278,18 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRequestEPL, "login-response", op)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 	var intermediary struct {
 		Code    int64  `json:"code,string"`
 		Message string `json:"msg"`
 	}
 	if err := json.Unmarshal(resp, &intermediary); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 
 	if intermediary.Code != 0 {
-		return getStatusError(intermediary.Code, intermediary.Message)
+		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operationLogin, intermediary.Code, intermediary.Message)
 	}
 	return nil
 }
@@ -328,6 +335,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 // chunkRequests splits subscription requests into multiple requests if the total byte length exceeds maxConnByteLen.
 func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionInformationList, error) {
 	eval := e.getSpotMarginEvaluator(subs)
+	sentArgs := make(map[string]struct{})
 
 	var requests []WSSubscriptionInformationList
 	for len(subs) > 0 {
@@ -346,8 +354,19 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if err != nil {
 				return nil, err
 			}
+			argKey := ""
+			addedArgument := false
 			if isSubNeeded {
-				arguments = append(arguments, arg)
+				argKeyBytes, err := json.Marshal(arg)
+				if err != nil {
+					return nil, err
+				}
+				argKey = string(argKeyBytes)
+				if _, alreadyAdded := sentArgs[argKey]; !alreadyAdded {
+					arguments = append(arguments, arg)
+					sentArgs[argKey] = struct{}{}
+					addedArgument = true
+				}
 			}
 			channels = append(channels, sub)
 			chunk, err := json.Marshal(WSSubscriptionInformationList{Arguments: arguments, Operation: operation})
@@ -357,7 +376,10 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if len(chunk) > maxConnByteLen {
 				// Remove last added channel and argument as they exceed max byte length
 				channels = channels[:len(channels)-1]
-				arguments = arguments[:len(arguments)-1]
+				if addedArgument {
+					arguments = arguments[:len(arguments)-1]
+					delete(sentArgs, argKey)
+				}
 				subs = subs[i:]
 				break
 			}
@@ -492,8 +514,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelOptionTrades:
 		return e.wsProcessOptionTrades(respRaw)
 	case channelOptSummary:
-		var response WsOptionSummary
-		return e.wsProcessPushData(ctx, respRaw, &response)
+		return e.wsProcessOptionSummary(ctx, respRaw)
 	case channelFundingRate:
 		var response WsFundingRate
 		return e.wsProcessPushData(ctx, respRaw, &response)
@@ -1170,7 +1191,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		execAmount := response.Data[x].AccumulatedFillSize.Float64()
 
 		var quoteAmount float64
-		if response.Data[x].SizeType == "quote_ccy" {
+		if response.Data[x].SizeType == targetCurrencyQuote {
 			// Size is quote amount.
 			quoteAmount = orderAmount
 			if orderStatus == order.Filled {
@@ -1326,25 +1347,92 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 	return nil
 }
 
+func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) error {
+	var response WsOptionSummary
+	if err := json.Unmarshal(respRaw, &response); err != nil {
+		return fmt.Errorf("%w: %w", errOptionSummaryUnmarshal, err)
+	}
+	for i := range response.Data {
+		pair, err := e.GetPairFromInstrumentID(response.Data[i].InstrumentID)
+		if err != nil {
+			return fmt.Errorf("%w: %w", errOptionSummaryPairParse, err)
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
+			ExchangeName:          e.Name,
+			Pair:                  pair,
+			AssetType:             asset.Options,
+			InstrumentID:          response.Data[i].InstrumentID,
+			LastUpdated:           response.Data[i].Timestamp.Time(),
+			ExchangeTimestamp:     response.Data[i].Timestamp.Time(),
+			ReceivedAt:            time.Now().UTC(),
+			Delta:                 response.Data[i].DeltaBS.Float64(),
+			Gamma:                 response.Data[i].GammaBS.Float64(),
+			Vega:                  response.Data[i].VegaBS.Float64(),
+			Theta:                 response.Data[i].ThetaBS.Float64(),
+			UnderlyingPrice:       response.Data[i].ForwardPrice.Float64(),
+			BidImpliedVolatility:  response.Data[i].BidVolatility.Float64(),
+			AskImpliedVolatility:  response.Data[i].AskVolatility.Float64(),
+			MarkImpliedVolatility: response.Data[i].MarkVolatility.Float64(),
+		}); err != nil {
+			return fmt.Errorf("%w: %w", errOptionSummaryDispatch, err)
+		}
+	}
+	return nil
+}
+
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions(public bool) (subscription.List, error) {
 	list, err := e.Features.Subscriptions.ExpandTemplates(e)
 	if err != nil {
 		return nil, err
 	}
-	if public {
-		return list.Public(), nil
+	// Family channels unsubscribe as a unit, so track all member pairs together.
+	families := make(map[string]*subscription.Subscription)
+	grouped := make(subscription.List, 0, len(list))
+	for _, sub := range list {
+		if isInstFamilyChannel(sub) {
+			if existing := families[sub.QualifiedChannel]; existing != nil {
+				existing.Pairs = existing.Pairs.Add(sub.Pairs...)
+				continue
+			}
+			families[sub.QualifiedChannel] = sub
+		}
+		grouped = append(grouped, sub)
 	}
-	return list.Private(), nil
+	if public {
+		return grouped.Public(), nil
+	}
+	return grouped.Private(), nil
+}
+
+func optionInstrumentFamilyFromPair(pair currency.Pair) string {
+	if !pair.IsPopulated() {
+		return ""
+	}
+
+	b := pair.Base.Upper().String()
+	q := pair.Quote.Upper().String()
+	// Options quote can include expiry/strike/type suffixes (e.g. USD-230224-18000-C).
+	// OKX instFamily expects just BASE-QUOTE.
+	if idx := strings.Index(q, currency.DashDelimiter); idx >= 0 {
+		q = q[:idx]
+	}
+	if q == "" {
+		return ""
+	}
+	return b + currency.DashDelimiter + q
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":     channelName,
-		"isSymbolChannel": isSymbolChannel,
-		"isAssetChannel":  isAssetChannel,
-		"instType":        GetInstrumentTypeFromAssetItem,
+		"subscriptionForAsset": subscriptionForAsset,
+		"channelName":          channelName,
+		"isSymbolChannel":      isSymbolChannel,
+		"isAssetChannel":       isAssetChannel,
+		"isInstFamily":         isInstFamilyChannel,
+		"instType":             GetInstrumentTypeFromAssetItem,
+		"instFamily":           optionInstrumentFamilyFromPair,
 	}).Parse(subTplText)
 }
 
@@ -1415,6 +1503,9 @@ func (e *Exchange) wsProcessPushData(ctx context.Context, data []byte, resp any)
 
 // channelName converts global subscription channel names to exchange specific names
 func channelName(s *subscription.Subscription) string {
+	if s.Asset == asset.Options && s.Channel == subscription.AllTradesChannel {
+		return channelOptionTrades
+	}
 	if s, ok := subscriptionNames[s.Channel]; ok {
 		return s
 	}
@@ -1426,8 +1517,23 @@ func isAssetChannel(s *subscription.Subscription) bool {
 	return s.Channel == subscription.MyOrdersChannel
 }
 
+func isInstFamilyChannel(s *subscription.Subscription) bool {
+	return s.Asset == asset.Options && (s.Channel == subscription.AllTradesChannel || s.Channel == channelOptSummary)
+}
+
+// subscriptionForAsset applies the current template expansion asset to a clone so
+// channel mapping/shape checks operate on the concrete asset (e.g. options).
+func subscriptionForAsset(s *subscription.Subscription, a asset.Item) *subscription.Subscription {
+	cloned := s.Clone()
+	cloned.Asset = a
+	return cloned
+}
+
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
+	if isInstFamilyChannel(s) {
+		return false
+	}
 	switch s.Channel {
 	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate:
 		return true
@@ -1436,11 +1542,17 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 }
 
 const subTplText = `
-{{- with $name := channelName $.S }}
-	{{- range $asset, $pairs := $.AssetPairs }}
-		{{- if isAssetChannel $.S -}}
+{{- range $asset, $pairs := $.AssetPairs }}
+	{{- with $sub := subscriptionForAsset $.S $asset -}}
+	{{- with $name := channelName $sub }}
+		{{- if isAssetChannel $sub -}}
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
-		{{- else if isSymbolChannel $.S }}
+		{{- else if isInstFamily $sub }}
+			{{- range $p := $pairs -}}
+				{"channel":"{{ $name }}","instFamily":"{{ instFamily $p }}","instType":"{{ instType $asset }}"}
+				{{ $.PairSeparator }}
+			{{- end -}}
+		{{- else if isSymbolChannel $sub }}
 			{{- range $p := $pairs -}}
 				{"channel":"{{ $name }}","instId":"{{ $p }}"}
 				{{ $.PairSeparator }}
@@ -1450,7 +1562,8 @@ const subTplText = `
 			{{- with $algoId := index $.S.Params "algoId" -}} ,"algoId":"{{ $algoId }}" {{- end -}}
 			}
 		{{- end }}
-	{{- $.AssetSeparator }}
 	{{- end }}
-{{- end }}
+	{{- end }}
+	{{- $.AssetSeparator }}
+{{- end -}}
 `

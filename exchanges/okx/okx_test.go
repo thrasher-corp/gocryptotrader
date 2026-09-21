@@ -5,13 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -3698,6 +3702,41 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	var websocketOrderRequests atomic.Int64
+	websocketExchange := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+		tb.Helper()
+		require.Contains(tb, string(payload), `"instIdCode":42`, "websocket order request must include the resolved instrument ID code")
+		if websocketOrderRequests.Add(1) == 2 {
+			assert.Contains(tb, string(payload), `"side":"buy"`, "reduce-only futures buy should retain its execution side")
+			assert.Contains(tb, string(payload), `"posSide":"short"`, "reduce-only futures buy should close a short position")
+			assert.Contains(tb, string(payload), `"reduceOnly":"true"`, "reduce-only intent should reach OKX")
+		}
+		return okxOrderWsMock(tb, payload, conn)
+	})
+	result, err := websocketExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  websocketExchange.Name,
+		Pair:      mainPair,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.NoError(t, err, "SubmitOrder must place the websocket order")
+	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket order ID")
+	result, err = websocketExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:   websocketExchange.Name,
+		Pair:       mainPair,
+		AssetType:  asset.Futures,
+		Side:       order.Buy,
+		Type:       order.Limit,
+		Amount:     1,
+		Price:      1,
+		ReduceOnly: true,
+	})
+	require.NoError(t, err, "SubmitOrder must place the reduce-only futures order")
+	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket futures order ID")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{
 		Pair: currency.Pair{
@@ -3712,7 +3751,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
-	result, err := e.SubmitOrder(contextGenerate(), arg)
+	result, err = e.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -3902,6 +3941,59 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, id, clientID string
+		noMatch            bool
+		side               order.Side
+	}{
+		{name: "buy side", side: order.Buy},
+		{name: "order ID", id: "buy-1"},
+		{name: "conflicting IDs", id: "buy-1", clientID: "sell-client", noMatch: true},
+		{name: "matching IDs", id: "buy-1", clientID: "buy-client"},
+	} {
+		t.Run("mocked filter "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, p []byte, conn *gws.Conn) error {
+				tb.Helper()
+				assert.False(tb, tc.noMatch, "conflicting identifiers should not send cancellations")
+				var req struct {
+					ID   string                    `json:"id"`
+					Op   string                    `json:"op"`
+					Args []CancelOrderRequestParam `json:"args"`
+				}
+				if err := json.Unmarshal(p, &req); err != nil {
+					return err
+				}
+				assert.Equal(tb, "batch-cancel-orders", req.Op, "cancellation should use the batch operation")
+				assert.Len(tb, req.Args, 1, "only the selected order should be sent without empty entries")
+				for _, arg := range req.Args {
+					assert.Equal(tb, "buy-1", arg.OrderID, "only the matching order should be cancelled")
+					assert.Equal(tb, int64(42), arg.InstrumentIDCode, "cancellation should include the resolved instrument code")
+				}
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"0","data":[{"ordId":"buy-1","sCode":"0"}]}`))
+			})
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := `{"code":"0","data":[{"instId":"BTC-USDT","instIdCode":"42"}]}`
+				if strings.Contains(r.URL.Path, "orders-pending") {
+					body = `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","clOrdId":"sell-client","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","clOrdId":"buy-client","side":"buy"}]}`
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: tc.side, OrderID: tc.id, ClientOrderID: tc.clientID})
+			require.NoError(t, err, "filtered cancellation must succeed")
+			if tc.noMatch {
+				assert.Empty(t, resp.Status, "conflicting identifiers should cancel nothing")
+			} else {
+				assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+			}
+		})
+	}
+
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3921,6 +4013,14 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	for _, ai := range []asset.Item{asset.Binary, asset.Index} {
+		t.Run("unsupported "+ai.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.ModifyOrder(t.Context(), &order.Modify{OrderID: "1", Pair: mainPair, AssetType: ai, Amount: 0.5})
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "unsupported asset should be rejected before dispatch")
+		})
+	}
+
 	_, err := e.ModifyOrder(contextGenerate(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil)
 
@@ -6730,6 +6830,36 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	t.Run("family membership refresh", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		pairs := currency.Pairs{
+			currency.NewPairWithDelimiter("BTC", "USD-270625-42000-C", "-"),
+			currency.NewPairWithDelimiter("BTC", "USD-270625-44000-C", "-"),
+		}
+		require.NoError(t, ex.SetPairs(pairs, asset.Options, false), "available options must update")
+		require.NoError(t, ex.SetPairs(pairs, asset.Options, true), "enabled options must update")
+		ex.Features.Subscriptions = subscription.List{{Channel: subscription.AllTradesChannel, Asset: asset.Options}, {Channel: channelOptSummary, Asset: asset.Options}}
+		before, err := ex.generateSubscriptions(true)
+		require.NoError(t, err, "family subscriptions must generate")
+		require.Len(t, before, 2, "each channel must have one family subscription")
+		store, err := subscription.NewStoreFromList(before)
+		require.NoError(t, err, "family subscriptions must be stored")
+		require.NoError(t, ex.SetPairs(pairs[1:], asset.Options, true), "one option must be disabled")
+		after, err := ex.generateSubscriptions(true)
+		require.NoError(t, err, "updated families must generate")
+		added, removed := store.Diff(after)
+		require.Len(t, removed, 2, "refresh must remove both complete old family subscriptions")
+		require.Len(t, added, 2, "refresh must resubscribe both families for remaining pairs")
+		for _, sub := range removed {
+			assert.Len(t, sub.Pairs, 2, "unsubscription should retire all old family members")
+		}
+		for _, sub := range added {
+			assert.True(t, sub.Pairs.Equal(pairs[1:]), "replacement should retain the surviving option")
+		}
+	})
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -6737,8 +6867,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{
-		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	exp := subscription.List{}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
+		exp = append(exp, s)
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6752,14 +6888,22 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			if isSymbolChannel(s) {
+			switch {
+			case isSymbolChannel(s):
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instId":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			} else {
+			case isInstFamilyChannel(s):
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instFamily":%q,"instType":%q}`, name, optionInstrumentFamilyFromPair(p), GetInstrumentTypeFromAssetItem(s.Asset))
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6771,7 +6915,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, append(public, private...))
+	testsubs.EqualLists(t, exp, slices.Concat(public, private))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)
