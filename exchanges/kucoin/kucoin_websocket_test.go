@@ -1570,6 +1570,10 @@ func TestProcessTicker(t *testing.T) {
 	got, ok := (<-ku.Websocket.DataHandler.C).Data.([]ticker.Price)
 	require.True(t, ok, "processTicker must send a ticker batch")
 	assert.Equal(t, []ticker.Price{exp}, got, "processTicker should map the latest fill's size to LastSize rather than a volume")
+
+	msg = []byte(`{"topic":"/market/ticker:all","type":"message","subject":"UNTRACKED-USDT","data":{"price":"1","time":1789624664495}}`)
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must ignore a ticker for an untracked pair")
+	assert.Empty(t, ku.Websocket.DataHandler.C, "wsHandleData should not send an empty ticker batch")
 }
 
 func TestProcessFuturesTickerV2(t *testing.T) {
@@ -1671,6 +1675,11 @@ func TestProcessMarketSnapshot(t *testing.T) {
 			assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
 		}
 	}
+
+	ku = testInstance(t)
+	msg := []byte(`{"data":{"symbol":"UNTRACKED-USDT"}}`)
+	require.NoError(t, ku.processMarketSnapshot(t.Context(), msg, marketSnapshotChannel), "processMarketSnapshot must ignore an untracked pair")
+	assert.Empty(t, ku.Websocket.DataHandler.C, "processMarketSnapshot should not send an empty ticker batch")
 }
 
 // TestSubscribeBatches ensures that endpoints support batching, contrary to kucoin api docs

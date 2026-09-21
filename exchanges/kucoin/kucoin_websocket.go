@@ -771,6 +771,9 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 			BidSize:      response.BestBidSize,
 		})
 	}
+	if len(tickerPrices) == 0 {
+		return nil
+	}
 	if err := ticker.ProcessBatch(tickerPrices); err != nil {
 		return err
 	}
@@ -947,6 +950,9 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 			Close:        response.Data.Close,
 			LastUpdated:  response.Data.Datetime.Time(),
 		})
+	}
+	if len(tickerPrices) == 0 {
+		return nil
 	}
 	if err := ticker.ProcessBatch(tickerPrices); err != nil {
 		return err
