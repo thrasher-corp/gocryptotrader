@@ -83,6 +83,14 @@ type partialErrorReader struct {
 	read    bool
 }
 
+type closeErrorReader struct {
+	io.Reader
+}
+
+func (closeErrorReader) Close() error {
+	return errors.New("close failure")
+}
+
 func (p *partialErrorReader) Read(b []byte) (int, error) {
 	if p.read {
 		return 0, p.err
@@ -138,6 +146,21 @@ func TestDumpRequestForLog(t *testing.T) {
 	assert.Equal(t, http.NoBody, req.Body, "dumpRequestForLog should preserve an explicit http.NoBody")
 	assert.Zero(t, req.ContentLength, "dumpRequestForLog should preserve the zero content length")
 	assert.NotContains(t, string(dump), "Transfer-Encoding: chunked", "dumpRequestForLog should not change framing for http.NoBody")
+}
+
+func TestDumpRequestForLogReplaysCloseFailure(t *testing.T) {
+	t.Parallel()
+	body := closeErrorReader{Reader: strings.NewReader("key=secret-body&nonce=1")}
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", body)
+	require.NoError(t, err, "NewRequestWithContext must not error")
+	require.Nil(t, req.GetBody, "a plain ReadCloser must not be replayable")
+
+	_, err = dumpRequestForLog(req, "")
+	require.ErrorContains(t, err, "close failure", "dumpRequestForLog must return the body close error")
+
+	restored, readErr := io.ReadAll(req.Body)
+	assert.Equal(t, "key=secret-body&nonce=1", string(restored), "the restored body should retain the bytes read")
+	assert.ErrorContains(t, readErr, "close failure", "the restored body should replay the close failure")
 }
 
 type cyclicError struct {
