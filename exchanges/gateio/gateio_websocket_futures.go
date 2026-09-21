@@ -497,9 +497,9 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, asset
 			Pair:         resp.Result[x].Contract,
 			LastUpdated:  resp.Time.Time(),
 		}
-		if err := ticker.ProcessTicker(&tickerPriceDatas[x]); err != nil {
-			return err
-		}
+	}
+	if err := ticker.ProcessBatch(tickerPriceDatas); err != nil {
+		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickerPriceDatas)
 }

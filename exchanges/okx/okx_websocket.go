@@ -748,9 +748,9 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 			AssetType:    asset.Spread,
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
-		if err := ticker.ProcessTicker(&tickers[x]); err != nil {
-			return err
-		}
+	}
+	if err := ticker.ProcessBatch(tickers); err != nil {
+		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickers)
 }

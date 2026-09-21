@@ -178,12 +178,11 @@ func ProcessTicker(p *Price) error {
 
 // ProcessBatch processes a batch of tickers.
 func ProcessBatch(p []Price) error {
+	var errs error
 	for i := range p {
-		if err := ProcessTicker(&p[i]); err != nil {
-			return err
-		}
+		errs = common.AppendError(errs, ProcessTicker(&p[i]))
 	}
-	return nil
+	return errs
 }
 
 // update updates ticker price
