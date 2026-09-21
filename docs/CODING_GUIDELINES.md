@@ -80,7 +80,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](../docs/ADD_NEW_EXCHANGE.md) document for com
   fee-adjusted exposure, profitability, hedge outcomes, or recovery actions in
   an exchange wrapper. Those decisions belong to the consuming engine or
   application, where they can be applied consistently across exchanges.
-- Structural normalization required by a documented generic field is allowed,
+- Structural normalisation required by a documented generic field is allowed,
   such as parsing side and status, converting signed contracts to side plus
   absolute quantity, or calculating executed quantity from authoritative total
   and remaining quantities. Do not infer an execution from the submitted
