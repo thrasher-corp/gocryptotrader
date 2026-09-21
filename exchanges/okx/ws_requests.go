@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -255,7 +256,11 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 		return errInvalidWebsocketRequest
 	}
 
-	conn, err := e.Websocket.GetConnection(privateConnection)
+	connection := privateConnection
+	if strings.HasPrefix(operation, "sprd-") {
+		connection = businessConnection
+	}
+	conn, err := e.Websocket.GetConnection(connection)
 	if err != nil {
 		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}

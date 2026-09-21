@@ -33,7 +33,7 @@ type Greeks struct {
 	LastTradeSize         float64
 	LastTradeAt           time.Time
 	OpenInterest          float64
-	Volume24h             float64
+	Volume24Hour          float64
 	BidImpliedVolatility  float64
 	AskImpliedVolatility  float64
 	MarkImpliedVolatility float64

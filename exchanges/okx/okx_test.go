@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -3701,9 +3702,15 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	var websocketOrderRequests atomic.Int64
 	websocketExchange := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
 		tb.Helper()
 		require.Contains(tb, string(payload), `"instIdCode":42`, "websocket order request must include the resolved instrument ID code")
+		if websocketOrderRequests.Add(1) == 2 {
+			assert.Contains(tb, string(payload), `"side":"buy"`, "reduce-only futures buy should retain its execution side")
+			assert.Contains(tb, string(payload), `"posSide":"short"`, "reduce-only futures buy should close a short position")
+			assert.Contains(tb, string(payload), `"reduceOnly":"true"`, "reduce-only intent should reach OKX")
+		}
 		return okxOrderWsMock(tb, payload, conn)
 	})
 	result, err := websocketExchange.SubmitOrder(t.Context(), &order.Submit{
@@ -3717,6 +3724,18 @@ func TestSubmitOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "SubmitOrder must place the websocket order")
 	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket order ID")
+	result, err = websocketExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:   websocketExchange.Name,
+		Pair:       mainPair,
+		AssetType:  asset.Futures,
+		Side:       order.Buy,
+		Type:       order.Limit,
+		Amount:     1,
+		Price:      1,
+		ReduceOnly: true,
+	})
+	require.NoError(t, err, "SubmitOrder must place the reduce-only futures order")
+	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket futures order ID")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{

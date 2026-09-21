@@ -126,7 +126,7 @@ func gateioOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
 	return c.WriteMessage(gws.TextMessage, []byte(response))
 }
 
-func gateioAmendStatusWsMock(status string) mockws.WsMockFunc {
+func gateioAmendStatusWsMock(status, finishAs string) mockws.WsMockFunc {
 	return func(tb testing.TB, p []byte, c *gws.Conn) error {
 		tb.Helper()
 		var req struct {
@@ -140,9 +140,9 @@ func gateioAmendStatusWsMock(status string) mockws.WsMockFunc {
 		}
 		switch req.Channel {
 		case "spot.order_amend":
-			return c.WriteMessage(gws.TextMessage, []byte(`{"request_id":"`+req.Payload.RequestID+`","header":{"status":"200"},"data":{"result":{"id":"spot-amended","status":"`+status+`"}}}`))
+			return c.WriteMessage(gws.TextMessage, []byte(`{"request_id":"`+req.Payload.RequestID+`","header":{"status":"200"},"data":{"result":{"id":"spot-amended","status":"`+status+`","finish_as":"`+finishAs+`"}}}`))
 		case "futures.order_amend":
-			return c.WriteMessage(gws.TextMessage, []byte(`{"request_id":"`+req.Payload.RequestID+`","header":{"status":"200"},"data":{"result":{"id":999,"status":"`+status+`"}}}`))
+			return c.WriteMessage(gws.TextMessage, []byte(`{"request_id":"`+req.Payload.RequestID+`","header":{"status":"200"},"data":{"result":{"id":999,"status":"`+status+`","finish_as":"`+finishAs+`"}}}`))
 		default:
 			return gateioOrderWsMock(tb, p, c)
 		}
@@ -274,7 +274,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, types.Number(-0.5), <-shortSizes, "short futures amendment should send a negative decimal size")
 
-	closed := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("cancelled"))
+	closed := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("cancelled", ""))
 	closedResp, err := closed.WebsocketModifyOrder(t.Context(), &order.Modify{
 		OrderID:   "spot-closed",
 		AssetType: asset.Spot,
@@ -283,7 +283,8 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, order.Cancelled, closedResp.Status)
-	closedResp, err = closed.WebsocketModifyOrder(t.Context(), &order.Modify{
+	futuresClosed := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock(statusFinished, "cancelled"))
+	closedResp, err = futuresClosed.WebsocketModifyOrder(t.Context(), &order.Modify{
 		OrderID:   "futures-closed",
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      getPair(t, asset.USDTMarginedFutures),
@@ -293,7 +294,14 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, order.Cancelled, closedResp.Status)
 
-	invalidStatus := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("not-a-status"))
+	futuresFilled := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock(statusFinished, "filled"))
+	filledResp, err := futuresFilled.WebsocketModifyOrder(t.Context(), &order.Modify{
+		OrderID: "futures-filled", AssetType: asset.USDTMarginedFutures, Pair: getPair(t, asset.USDTMarginedFutures), Side: order.Buy, Amount: 1,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, order.Filled, filledResp.Status, "finished futures amendments should use finish_as")
+
+	invalidStatus := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("not-a-status", ""))
 	_, err = invalidStatus.WebsocketModifyOrder(t.Context(), &order.Modify{
 		OrderID:   "spot-invalid-status",
 		AssetType: asset.Spot,

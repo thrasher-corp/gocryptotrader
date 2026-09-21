@@ -939,6 +939,7 @@ type OptionsTicker struct {
 	LastPrice             types.Number  `json:"last_price"`
 	MarkPrice             types.Number  `json:"mark_price"`
 	IndexPrice            types.Number  `json:"index_price"`
+	UnderlyingPrice       types.Number  `json:"underlying_price"`
 	PositionSize          types.Number  `json:"position_size"`
 	Ask1Size              types.Number  `json:"ask1_size"`
 	Ask1Price             types.Number  `json:"ask1_price"`

@@ -714,6 +714,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err != nil {
 		return nil, err
 	}
+	if modify == nil {
+		return nil, common.ErrNoResponse
+	}
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
@@ -742,6 +745,9 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	})
 	if err != nil {
 		return nil, err
+	}
+	if modify == nil {
+		return nil, common.ErrNoResponse
 	}
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {

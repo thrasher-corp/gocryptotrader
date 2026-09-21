@@ -255,9 +255,22 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	_, err = exError.WebsocketModifyOrder(t.Context(), mod)
 	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
+	nullResult := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitEdit: `{"jsonrpc":"2.0","id":"{{id}}","result":null}`,
+	}))
+	_, err = nullResult.WebsocketModifyOrder(t.Context(), mod)
+	require.ErrorIs(t, err, common.ErrNoResponse)
+
 	resp, err := ex.WebsocketModifyOrder(t.Context(), mod)
 	require.NoError(t, err)
 	require.Equal(t, "edited-order", resp.OrderID)
+}
+
+func TestWsLogin(t *testing.T) {
+	t.Parallel()
+	err := new(Exchange).wsLogin(t.Context())
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsLogin should return an authentication request error")
+	assert.ErrorIs(t, err, errAuthenticatedWebsocketNotEnabled, "wsLogin should return the websocket authentication sentinel")
 }
 
 func TestWebsocketCancelOrder(t *testing.T) {

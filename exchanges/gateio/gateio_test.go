@@ -3064,7 +3064,7 @@ func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
 
 // ******************************************** Options web-socket unit test funcs ********************
 
-const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
+const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "underlying_price": "81435.92",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
 
 func TestProcessOptionsContractTickers(t *testing.T) {
 	t.Parallel()
@@ -3086,6 +3086,7 @@ func TestProcessOptionsContractTickers(t *testing.T) {
 	assert.Equal(t, int64(1630576352), greeks.ExchangeTimestamp.Unix(), "ExchangeTimestamp should use the exchange message timestamp")
 	assert.Equal(t, 10611.7, greeks.BidPrice, "BidPrice should be normalised")
 	assert.Equal(t, 11728.7, greeks.AskPrice, "AskPrice should be normalised")
+	assert.Equal(t, 81435.92, greeks.UnderlyingPrice, "UnderlyingPrice should be normalised")
 	assert.False(t, greeks.ReceivedAt.Before(processingStarted), "ReceivedAt should not predate local receipt")
 	assert.False(t, greeks.ReceivedAt.After(processingFinished), "ReceivedAt should not postdate completed processing")
 
@@ -3140,7 +3141,7 @@ func TestOptionsUnderlyingPricePushData(t *testing.T) {
 	}
 }
 
-const optionsMarkPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.mark_price",	"event": "update",	"result": {    "contract": "BTC_USDT-20211231-59800-P",    "price": 11021.27,    "time": 1639143401,    "time_ms": 1639143401676}}`
+const optionsMarkPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.mark_prices",	"event": "update",	"result": {    "contract": "BTC_USDT-20211231-59800-P",    "price": 11021.27,    "time": 1639143401,    "time_ms": 1639143401676}}`
 
 func TestOptionsMarkPricePushData(t *testing.T) {
 	t.Parallel()

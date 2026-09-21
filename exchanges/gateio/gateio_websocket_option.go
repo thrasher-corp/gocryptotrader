@@ -38,7 +38,6 @@ const (
 	optionsUnderlyingTradesChannel       = "options.ul_trades"
 	optionsUnderlyingPriceChannel        = "options.ul_price"
 	optionsMarkPriceChannel              = "options.mark_prices"
-	optionsMarkPriceLegacyChannel        = "options.mark_price"
 	optionsSettlementChannel             = "options.settlements"
 	optionsContractsChannel              = "options.contracts"
 	optionsContractCandlesticksChannel   = "options.contract_candlesticks"
@@ -330,7 +329,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 		return e.processOptionsTradesPushData(respRaw)
 	case optionsUnderlyingPriceChannel:
 		return e.processOptionsUnderlyingPricePushData(ctx, push.Result)
-	case optionsMarkPriceChannel, optionsMarkPriceLegacyChannel:
+	case optionsMarkPriceChannel:
 		return e.processOptionsMarkPrice(ctx, push.Result)
 	case optionsSettlementChannel:
 		return e.processOptionsSettlementPushData(ctx, push.Result)
@@ -405,6 +404,7 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		AskSize:               data.Ask1Size.Float64(),
 		MarkPrice:             data.MarkPrice.Float64(),
 		IndexPrice:            data.IndexPrice.Float64(),
+		UnderlyingPrice:       data.UnderlyingPrice.Float64(),
 		LastTradePrice:        data.LastPrice.Float64(),
 		OpenInterest:          data.PositionSize.Float64(),
 		BidImpliedVolatility:  data.BidImpliedVolatility.Float64(),

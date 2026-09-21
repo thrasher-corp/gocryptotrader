@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 15,
+ "version": 16,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,

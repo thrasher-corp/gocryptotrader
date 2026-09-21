@@ -1186,11 +1186,17 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 			return nil, err
 		}
 		modResp.Status = order.Open
-		if resp.Status != "" && resp.Status != statusOpen {
-			modResp.Status, err = order.StringToOrderStatus(resp.Status)
-			if err != nil {
-				return nil, err
+		if resp.Status == statusFinished {
+			if resp.FinishAs == "ioc" || resp.FinishAs == "reduce_only" {
+				modResp.Status = order.Cancelled
+			} else {
+				modResp.Status, err = order.StringToOrderStatus(resp.FinishAs)
 			}
+		} else if resp.Status != "" && resp.Status != statusOpen {
+			modResp.Status, err = order.StringToOrderStatus(resp.Status)
+		}
+		if err != nil {
+			return nil, err
 		}
 		modResp.OrderID = strconv.FormatInt(resp.ID, 10)
 	case asset.Options:

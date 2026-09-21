@@ -55,9 +55,28 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	t.Cleanup(instrumentServer.Close)
 	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", instrumentServer.URL+"/"))
 
-	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
-	t.Cleanup(server.Close)
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+	privateServer := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+		tb.Helper()
+		var request struct {
+			Operation string `json:"op"`
+		}
+		require.NoError(tb, json.Unmarshal(payload, &request), "private websocket request must decode")
+		assert.False(tb, strings.HasPrefix(request.Operation, "sprd-"), "spread requests should use the business websocket")
+		return wsHandler(tb, payload, conn)
+	}))
+	t.Cleanup(privateServer.Close)
+	privateURL := "ws" + strings.TrimPrefix(privateServer.URL, "http")
+	businessServer := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+		tb.Helper()
+		var request struct {
+			Operation string `json:"op"`
+		}
+		require.NoError(tb, json.Unmarshal(payload, &request), "business websocket request must decode")
+		assert.True(tb, strings.HasPrefix(request.Operation, "sprd-"), "standard requests should use the private websocket")
+		return wsHandler(tb, payload, conn)
+	}))
+	t.Cleanup(businessServer.Close)
+	businessURL := "ws" + strings.TrimPrefix(businessServer.URL, "http")
 
 	ex.Websocket = websocket.NewManager()
 	exchCfg := ex.Config
@@ -69,8 +88,8 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		UseMultiConnectionManagement: true,
 	}))
 
-	require.NoError(t, ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsURL,
+	connectionSetup := &websocket.ConnectionSetup{
+		URL:                  privateURL,
 		ResponseCheckTimeout: exchCfg.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exchCfg.WebsocketResponseMaxLimit,
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
@@ -94,15 +113,20 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 			return nil
 		},
 		MessageFilter: privateConnection,
-	}))
+	}
+	require.NoError(t, ex.Websocket.SetupNewConnection(connectionSetup))
+	businessSetup := *connectionSetup
+	businessSetup.URL = businessURL
+	businessSetup.MessageFilter = businessConnection
+	require.NoError(t, ex.Websocket.SetupNewConnection(&businessSetup))
 
 	ex.Websocket.SetSubscriptionsNotRequired()
-	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
 	require.NoError(t, ex.Websocket.Connect(t.Context()))
 	require.Eventually(t, func() bool {
-		_, err := ex.Websocket.GetConnection(privateConnection)
-		return err == nil
-	}, time.Second, 10*time.Millisecond, "private websocket connection was not ready")
+		_, privateErr := ex.Websocket.GetConnection(privateConnection)
+		_, businessErr := ex.Websocket.GetConnection(businessConnection)
+		return privateErr == nil && businessErr == nil
+	}, time.Second, 10*time.Millisecond, "websocket connections were not ready")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
@@ -348,6 +372,8 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	}
 	err := ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.NoError(t, err)
+	err = ex.WebsocketCancelOrder(t.Context(), nil)
+	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
 
 	err = ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
 		OrderID:   "spread-1",
@@ -503,6 +529,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, order.Buy.Lower(), arg.Side)
 		assert.Equal(t, positionSideShort, arg.PositionSide)
+		assert.True(t, arg.ReduceOnly, "reduce-only should be passed to OKX")
 	})
 
 	t.Run("options side is set", func(t *testing.T) {
@@ -748,6 +775,11 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errContractAmountCanNotBeDecimal)
 
+	_, err = ex.deriveAmendOrderArguments(&order.Modify{
+		OrderID: "1", AssetType: asset.Options, Pair: mainPair, Amount: 1, Type: order.Trigger,
+	})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
 	arg, err := ex.deriveAmendOrderArguments(&order.Modify{
 		OrderID:       "1",
 		ClientOrderID: "abc",
@@ -809,6 +841,11 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 		OrderID:   "1",
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = ex.deriveCancelOrderArguments(&order.Cancel{
+		AssetType: asset.Options, Pair: mainPair, OrderID: "1", Type: order.Trigger,
+	})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
 	arg, err := ex.deriveCancelOrderArguments(&order.Cancel{
 		AssetType:     asset.Options,
@@ -929,7 +966,7 @@ func TestResolveInstrumentIDCode(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
-		published := []Instrument{{InstrumentID: currency.NewBTCUSDT()}}
+		published := []Instrument{{InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)}}
 		ex.instrumentsInfoMap = map[string][]Instrument{"SPOT": published}
 		var requests atomic.Int64
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
