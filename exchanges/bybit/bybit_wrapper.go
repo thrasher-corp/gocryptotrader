@@ -913,6 +913,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 
 	resp.ReduceOnly = orderDetails.ReduceOnly
 	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
+	resp.ExecutedAmount = orderDetails.CumulativeExecutedQuantity.Float64()
 	resp.AverageExecutedPrice = orderDetails.AveragePrice.Float64()
 	resp.ClientOrderID = orderDetails.OrderLinkID
 	resp.Fee = orderDetails.CumulativeExecutedFee.Float64()
