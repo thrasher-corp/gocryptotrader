@@ -1014,3 +1014,34 @@ func TestCreateBatchOrderAcceptsLimitOrderTypes(t *testing.T) {
 		})
 	}
 }
+
+// TestNewOrderMarketParameters sends a market order with quantity or quoteOrderQty, never both and
+// never a price: the venue takes one of the two amounts for a MARKET order and has no price for it.
+func TestNewOrderMarketParameters(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                           string
+		orderType                      string
+		quantity, quoteOrderQty, price float64
+		expected                       url.Values
+	}{
+		{"market with both amounts", "MARKET", 1, 50, 0, url.Values{"quoteOrderQty": {"50"}}},
+		{"market with a price", "MARKET", 1, 0, 25000, url.Values{"quantity": {"1"}}},
+		{"market by quote", "MARKET", 0, 50, 25000, url.Values{"quoteOrderQty": {"50"}}},
+		{"limit", "LIMIT", 1, 0, 25000, url.Values{"quantity": {"1"}, "price": {"25000"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var got url.Values
+			e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				got = r.URL.Query()
+				_, _ = w.Write([]byte(`{"symbol":"BTCUSDT","orderId":"1"}`))
+			}))
+			_, err := e.NewOrder(t.Context(), currency.NewBTCUSDT(), "", "BUY", tc.orderType, tc.quantity, tc.quoteOrderQty, tc.price)
+			require.NoError(t, err, "NewOrder must not error")
+			for _, field := range []string{"quantity", "quoteOrderQty", "price"} {
+				assert.Equalf(t, tc.expected.Get(field), got.Get(field), "%s should be sent only when the order type takes it", field)
+			}
+		})
+	}
+}

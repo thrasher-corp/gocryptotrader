@@ -860,14 +860,24 @@ func (e *Exchange) newOrder(ctx context.Context, symbol currency.Pair, newClient
 	params.Set("symbol", symbol.String())
 	params.Set("side", side)
 	params.Set("type", orderType)
-	if quantity > 0 {
-		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
-	}
-	if quoteOrderQty > 0 {
-		params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
-	}
-	if price != 0 {
-		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	if orderType == typeMarket {
+		// A MARKET order takes quantity or quoteOrderQty and no price, so the price is never sent and a
+		// quote amount, when given, is sent alone.
+		if quoteOrderQty > 0 {
+			params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
+		} else {
+			params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+		}
+	} else {
+		if quantity > 0 {
+			params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+		}
+		if quoteOrderQty > 0 {
+			params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
+		}
+		if price != 0 {
+			params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+		}
 	}
 	if newClientOrderID != "" {
 		params.Set("newClientOrderId", newClientOrderID)
