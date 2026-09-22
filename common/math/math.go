@@ -60,9 +60,10 @@ func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 }
 
 // SignedPercentageDifferenceDecimal returns the difference between two decimal
-// values as a percentage of the absolute value of their average. The result's
-// sign indicates whether x is greater than y. A zero sum returns zero to avoid
-// division by zero.
+// values as a percentage of the absolute value of their average. A positive or
+// negative result indicates whether x is greater than or less than y. Zero may
+// also mean the difference is below the selected backend's precision. A zero
+// sum returns zero to avoid division by zero.
 func SignedPercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 	sum := x.Add(y)
 	if sum.IsZero() {
@@ -73,10 +74,10 @@ func SignedPercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 
 // CompareSignedPercentageDifferenceDecimal compares the signed percentage
 // difference between x and y with target, returning standard Cmp semantics. It
-// avoids division to reduce rounding near a target boundary. Multiplication can
-// still truncate under the udecimal backend, so exactness is best effort there.
-// Its equality may differ from comparing SignedPercentageDifferenceDecimal's
-// rounded value with target.
+// avoids division to reduce rounding near a target boundary. Under the udecimal
+// backend, the comparison can be incorrect when target and the sum of x and y
+// together carry more than 19 fractional digits. Its result may differ from
+// comparing SignedPercentageDifferenceDecimal's rounded value with target.
 func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int {
 	sum := x.Add(y)
 	if sum.IsZero() {
