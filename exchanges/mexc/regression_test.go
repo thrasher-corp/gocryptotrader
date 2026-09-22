@@ -1109,15 +1109,19 @@ func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 		{
 			"GetAPIKeyInfo", http.MethodGet, "/api/v3/apiKeyInfo",
 			url.Values{"accessKey": {"mx0npKfh57kEEVmyLa"}},
-			`{"note":"note2","apikey":"mx0npKfh57kEEVmyLa","status":"VALID","permissions":"SPOT_ACCOUNT_READ,","createTime":"1758043350000","remainingValidity":"23","ipWhiteList":"162.133.62.1"}`,
+			`{"note":"note2","accessKey":"mx0npKfh57kEEVmyLa","createTime":"2026-09-14T18:53:36.000+00:00",` +
+				`"permissions":"CONTRACT_ACCOUNT_READ,CONTRACT_DEAL_READ,SPOT_ACCOUNT_READ,SPOT_DEAL_WRITE,SPOT_DEAL_READ",` +
+				`"remainingValidity":82,"ipWhiteList":"","status":"VALID"}`,
 			func(ctx context.Context, t *testing.T, e *Exchange) {
 				t.Helper()
 				info, err := e.GetAPIKeyInfo(ctx, "mx0npKfh57kEEVmyLa")
 				require.NoError(t, err, "GetAPIKeyInfo must not error")
+				assert.Equal(t, "mx0npKfh57kEEVmyLa", info.AccessKey, "AccessKey should be decoded from accessKey")
 				assert.Equal(t, "VALID", info.Status, "Status should be decoded")
-				assert.Equal(t, "162.133.62.1", info.IPWhiteList, "IPWhiteList should be decoded")
-				assert.Equal(t, 23.0, info.RemainingValidity.Float64(), "RemainingValidity should be decoded")
-				assert.Equal(t, int64(1758043350000), info.CreateTime.Time().UnixMilli(), "CreateTime should be decoded")
+				assert.Equal(t, "CONTRACT_ACCOUNT_READ,CONTRACT_DEAL_READ,SPOT_ACCOUNT_READ,SPOT_DEAL_WRITE,SPOT_DEAL_READ", info.Permissions, "Permissions should be decoded")
+				assert.Empty(t, info.IPWhiteList, "an empty IP whitelist should decode as empty")
+				assert.Equal(t, 82.0, info.RemainingValidity.Float64(), "RemainingValidity should be decoded")
+				assert.Equal(t, time.Date(2026, 9, 14, 18, 53, 36, 0, time.UTC), info.CreateTime.UTC(), "CreateTime should be decoded from the ISO 8601 timestamp")
 			},
 		},
 		{

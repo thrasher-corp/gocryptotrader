@@ -1,6 +1,8 @@
 package mexc
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -277,15 +279,18 @@ type KYCStatusInfo struct {
 
 // APIKeyInfo represents an API key's details
 type APIKeyInfo struct {
-	Note   string `json:"note"`
-	APIKey string `json:"apikey"`
+	Note string `json:"note"`
+	// AccessKey is the public key. The documentation names this field apikey; the venue sends accessKey.
+	AccessKey string `json:"accessKey"`
 	// Status is VALID, DELETE or FROZEN
 	Status string `json:"status"`
 	// Permissions is the comma-separated list of the key's permissions
 	Permissions string `json:"permissions"`
 	// IPWhiteList is the comma-separated list of IP addresses linked to the key
-	IPWhiteList string     `json:"ipWhiteList"`
-	CreateTime  types.Time `json:"createTime"`
+	IPWhiteList string `json:"ipWhiteList"`
+	// CreateTime arrives as an ISO 8601 timestamp (2026-09-14T18:53:36.000+00:00), not in epoch
+	// milliseconds as the documentation shows.
+	CreateTime time.Time `json:"createTime"`
 	// RemainingValidity is the days left: -999 for a permanent key, 0 once expired
 	RemainingValidity types.Number `json:"remainingValidity"`
 }
