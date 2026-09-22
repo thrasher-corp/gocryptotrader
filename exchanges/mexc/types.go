@@ -54,6 +54,28 @@ type SymbolDetail struct {
 	TradeSideType              int64           `json:"tradeSideType"`
 }
 
+// OfflineSymbol is a symbol taken off the market
+type OfflineSymbol struct {
+	Symbol string `json:"symbol"`
+	// State is 2 for suspended and 3 for delisted
+	State       int64      `json:"state"`
+	OfflineTime types.Time `json:"offlineTime"`
+}
+
+// AnnouncementPage is one page of venue announcements
+type AnnouncementPage struct {
+	TotalPage types.Number   `json:"totalPage"`
+	Details   []Announcement `json:"details"`
+}
+
+// Announcement is a venue announcement
+type Announcement struct {
+	Title    string     `json:"title"`
+	URL      string     `json:"url"`
+	Language string     `json:"language"`
+	PostTime types.Time `json:"postTime"`
+}
+
 // Orderbook represents a symbol orderbook detail
 type Orderbook struct {
 	LastUpdateID int64                            `json:"lastUpdateId"`
@@ -240,6 +262,38 @@ type AccountBalanceInfo struct {
 // KYCStatusInfo represents a KYC status information
 type KYCStatusInfo struct {
 	Status string `json:"status"`
+}
+
+// APIKeyInfo represents an API key's details
+type APIKeyInfo struct {
+	Note   string `json:"note"`
+	APIKey string `json:"apikey"`
+	// Status is VALID, DELETE or FROZEN
+	Status string `json:"status"`
+	// Permissions is the comma-separated list of the key's permissions
+	Permissions string `json:"permissions"`
+	// IPWhiteList is the comma-separated list of IP addresses linked to the key
+	IPWhiteList string     `json:"ipWhiteList"`
+	CreateTime  types.Time `json:"createTime"`
+	// RemainingValidity is the days left: -999 for a permanent key, 0 once expired
+	RemainingValidity types.Number `json:"remainingValidity"`
+}
+
+// STPGroup represents a self-trade prevention group
+type STPGroup struct {
+	TradeGroupName string       `json:"tradeGroupName"`
+	TradeGroupID   types.Number `json:"tradeGroupId"`
+	// TradeGroupUID is the comma-separated list of uids in the group
+	TradeGroupUID string     `json:"tradeGroupUid"`
+	CreateTime    types.Time `json:"createTime"`
+	UpdateTime    types.Time `json:"updateTime"`
+}
+
+// ListenKeys represents the account's valid listen keys
+type ListenKeys struct {
+	ListenKeys []string `json:"listenKey"`
+	Total      int64    `json:"total"`
+	Available  int64    `json:"available"`
 }
 
 // OrderDetail represents an order detail

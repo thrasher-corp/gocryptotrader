@@ -52,6 +52,13 @@ var (
 	errBatchOrderRejected         = errors.New("batch order rejected")
 	errListenKeyRequired          = errors.New("listen key is required")
 	errCancelAllOrdersFailed      = errors.New("cancel all orders failed")
+	errAccessKeyRequired          = errors.New("access key is required")
+	errIPWhiteListRequired        = errors.New("at least one whitelisted IP address is required")
+	errTooManyIPAddresses         = errors.New("too many whitelisted IP addresses")
+	errInvalidPaginationLimit     = errors.New("invalid pagination limit")
+	errSTPGroupNameRequired       = errors.New("STP group name is required")
+	errSTPGroupIDRequired         = errors.New("STP group id is required")
+	errUIDRequired                = errors.New("at least one uid is required")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -80,6 +87,37 @@ func (e *Exchange) GetDefaultSymbols(ctx context.Context) ([]string, error) {
 		Symbols []string `json:"data"`
 	}
 	return resp.Symbols, e.SendHTTPRequest(ctx, exchange.RestSpot, defaultSymbolsEPL, http.MethodGet, "defaultSymbols", nil, nil, &resp)
+}
+
+// GetOfflineSymbols retrieves the symbols taken off the market. State is 2 for suspended and 3 for
+// delisted; OfflineTime is absent on some entries.
+func (e *Exchange) GetOfflineSymbols(ctx context.Context) ([]*OfflineSymbol, error) {
+	var resp struct {
+		Data []*OfflineSymbol `json:"data"`
+	}
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, offlineSymbolsEPL, http.MethodGet, "symbol/offline", nil, nil, &resp)
+}
+
+// GetAnnouncements retrieves the venue's announcements. language defaults to en-US on the venue, page
+// to 1 and limit to 20; limit is at most 100 and must be a multiple of 5.
+func (e *Exchange) GetAnnouncements(ctx context.Context, language string, page, limit int64) ([]*AnnouncementPage, error) {
+	if limit < 0 || limit > 100 || limit%5 != 0 {
+		return nil, fmt.Errorf("%w: %d, must be a multiple of 5 up to 100", errInvalidPaginationLimit, limit)
+	}
+	params := url.Values{}
+	if language != "" {
+		params.Set("language", language)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp struct {
+		Data []*AnnouncementPage `json:"data"`
+	}
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, announcementsEPL, http.MethodGet, "announcements", params, nil, &resp)
 }
 
 // GetOrderbook retrieves orderbook data of a symbol
@@ -465,6 +503,47 @@ func (e *Exchange) GetSubAccountAsset(ctx context.Context, subAccount string, ac
 func (e *Exchange) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
 	var resp *KYCStatusInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getKYCStatusEPL, http.MethodGet, "kyc/status", nil, nil, &resp, true)
+}
+
+// GetUID retrieves the account uid
+func (e *Exchange) GetUID(ctx context.Context) (string, error) {
+	var resp struct {
+		UID string `json:"uid"`
+	}
+	return resp.UID, e.SendHTTPRequest(ctx, exchange.RestSpot, getUIDEPL, http.MethodGet, "uid", nil, nil, &resp, true)
+}
+
+// GetAPIKeyInfo retrieves the status, permissions, IP whitelist and remaining validity of an API key
+func (e *Exchange) GetAPIKeyInfo(ctx context.Context, accessKey string) (*APIKeyInfo, error) {
+	if accessKey == "" {
+		return nil, errAccessKeyRequired
+	}
+	params := url.Values{}
+	params.Set("accessKey", accessKey)
+	var resp *APIKeyInfo
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAPIKeyInfoEPL, http.MethodGet, "apiKeyInfo", params, nil, &resp, true)
+}
+
+// SetAPIKeyInfo links up to 20 IP addresses to an API key, replacing its current whitelist, and
+// optionally sets its note
+func (e *Exchange) SetAPIKeyInfo(ctx context.Context, apiKey string, ipWhiteList []string, note string) (*APIKeyInfo, error) {
+	if apiKey == "" {
+		return nil, errAPIKeyMissing
+	}
+	if len(ipWhiteList) == 0 {
+		return nil, errIPWhiteListRequired
+	}
+	if len(ipWhiteList) > 20 {
+		return nil, fmt.Errorf("%w: %d, at most 20", errTooManyIPAddresses, len(ipWhiteList))
+	}
+	params := url.Values{}
+	params.Set("apiKey", apiKey)
+	params.Set("ipWhiteList", strings.Join(ipWhiteList, ","))
+	if note != "" {
+		params.Set("note", note)
+	}
+	var resp *APIKeyInfo
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setAPIKeyInfoEPL, http.MethodPost, "apiKeyInfo", params, nil, &resp, true)
 }
 
 // UseAPIDefaultSymbols retrieves a default user API symbols
@@ -1217,6 +1296,85 @@ func (e *Exchange) GetSymbolTradingFee(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSymbolTradingFeeEPL, http.MethodGet, "tradeFee", params, nil, &resp, true)
 }
 
+// CreateSTPGroup creates a self-trade prevention group. Only a master account can create one; the
+// name must be unique under it and at most 10 groups are allowed.
+func (e *Exchange) CreateSTPGroup(ctx context.Context, name string) (*STPGroup, error) {
+	if name == "" {
+		return nil, errSTPGroupNameRequired
+	}
+	params := url.Values{}
+	params.Set("tradeGroupName", name)
+	var resp struct {
+		Data *STPGroup `json:"data"`
+	}
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, createSTPGroupEPL, http.MethodPost, "strategy/group", params, nil, &resp, true)
+}
+
+// GetSTPGroup retrieves the self-trade prevention groups with the given name
+func (e *Exchange) GetSTPGroup(ctx context.Context, name string) ([]*STPGroup, error) {
+	if name == "" {
+		return nil, errSTPGroupNameRequired
+	}
+	params := url.Values{}
+	params.Set("tradeGroupName", name)
+	var resp struct {
+		Data []*STPGroup `json:"data"`
+	}
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, getSTPGroupEPL, http.MethodGet, "strategy/group", params, nil, &resp, true)
+}
+
+// DeleteSTPGroup deletes a self-trade prevention group and reports whether the venue deleted it
+func (e *Exchange) DeleteSTPGroup(ctx context.Context, groupID string) (bool, error) {
+	if groupID == "" {
+		return false, errSTPGroupIDRequired
+	}
+	params := url.Values{}
+	params.Set("tradeGroupId", groupID)
+	var resp struct {
+		Data bool `json:"data"`
+	}
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSTPGroupEPL, http.MethodDelete, "strategy/group", params, nil, &resp, true)
+}
+
+// AddSTPGroupUIDs adds uids to a self-trade prevention group
+func (e *Exchange) AddSTPGroupUIDs(ctx context.Context, groupID string, uids []string) (*STPGroup, error) {
+	params, err := stpGroupUIDParams(groupID, uids)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Data *STPGroup `json:"data"`
+	}
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, addSTPGroupUIDsEPL, http.MethodPost, "strategy/group/uid", params, nil, &resp, true)
+}
+
+// DeleteSTPGroupUIDs removes uids from a self-trade prevention group and reports whether the venue
+// removed them
+func (e *Exchange) DeleteSTPGroupUIDs(ctx context.Context, groupID string, uids []string) (bool, error) {
+	params, err := stpGroupUIDParams(groupID, uids)
+	if err != nil {
+		return false, err
+	}
+	var resp struct {
+		Data bool `json:"data"`
+	}
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSTPGroupUIDsEPL, http.MethodDelete, "strategy/group/uid", params, nil, &resp, true)
+}
+
+// stpGroupUIDParams builds the group id and comma-separated uid list the STP group uid endpoints take
+func stpGroupUIDParams(groupID string, uids []string) (url.Values, error) {
+	if groupID == "" {
+		return nil, errSTPGroupIDRequired
+	}
+	if len(uids) == 0 {
+		return nil, errUIDRequired
+	}
+	params := url.Values{}
+	params.Set("tradeGroupId", groupID)
+	params.Set("uid", strings.Join(uids, ","))
+	return params, nil
+}
+
 // GetRebateHistoryRecords retrieves a rebate history record
 func (e *Exchange) GetRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateHistory, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1476,6 +1634,22 @@ func (e *Exchange) ExtendListenKey(ctx context.Context, listenKey string) error 
 	values := url.Values{}
 	values.Set("listenKey", listenKey)
 	return e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPut, "userDataStream", values, nil, nil, true)
+}
+
+// GetListenKeys retrieves the account's valid listen keys, their total and how many more can be made
+func (e *Exchange) GetListenKeys(ctx context.Context) (*ListenKeys, error) {
+	var resp *ListenKeys
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "userDataStream", nil, nil, &resp, true)
+}
+
+// CloseListenKey closes a user data stream, releasing its listen key
+func (e *Exchange) CloseListenKey(ctx context.Context, listenKey string) error {
+	if listenKey == "" {
+		return errListenKeyRequired
+	}
+	values := url.Values{}
+	values.Set("listenKey", listenKey)
+	return e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodDelete, "userDataStream", values, nil, nil, true)
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)

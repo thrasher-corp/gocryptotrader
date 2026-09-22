@@ -78,6 +78,16 @@ const (
 	affiliateCampaignDataEPL
 	affiliateReferralDataEPL
 	subAffiliateDataEPL
+	getUIDEPL
+	getAPIKeyInfoEPL
+	setAPIKeyInfoEPL
+	offlineSymbolsEPL
+	announcementsEPL
+	createSTPGroupEPL
+	getSTPGroupEPL
+	deleteSTPGroupEPL
+	addSTPGroupUIDsEPL
+	deleteSTPGroupUIDsEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -88,6 +98,8 @@ func GetRateLimit() request.RateLimitDefinitions {
 	// per-second limiter rather than a weighted pool.
 	ipModeRate := request.NewRateLimit(tenSecondsInterval, 300)
 	orderRate := request.NewRateLimit(oneSecondInterval, 12)
+	// Announcements are limited on their own at 5 requests per 2 seconds, outside the weighted pool.
+	announcementsRate := request.NewRateLimit(twoSecondsInterval, 5)
 
 	return request.RateLimitDefinitions{
 		systemTimeEPL:          request.GetRateLimiterWithWeight(ipModeRate, 1),
@@ -157,5 +169,16 @@ func GetRateLimit() request.RateLimitDefinitions {
 		affiliateCampaignDataEPL:        request.GetRateLimiterWithWeight(ipModeRate, 1),
 		affiliateReferralDataEPL:        request.GetRateLimiterWithWeight(ipModeRate, 1),
 		subAffiliateDataEPL:             request.GetRateLimiterWithWeight(ipModeRate, 1),
+
+		getUIDEPL:             request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getAPIKeyInfoEPL:      request.GetRateLimiterWithWeight(ipModeRate, 1),
+		setAPIKeyInfoEPL:      request.GetRateLimiterWithWeight(ipModeRate, 1),
+		offlineSymbolsEPL:     request.GetRateLimiterWithWeight(ipModeRate, 10),
+		announcementsEPL:      request.GetRateLimiterWithWeight(announcementsRate, 1),
+		createSTPGroupEPL:     request.GetRateLimiterWithWeight(ipModeRate, 20),
+		getSTPGroupEPL:        request.GetRateLimiterWithWeight(ipModeRate, 20),
+		deleteSTPGroupEPL:     request.GetRateLimiterWithWeight(ipModeRate, 20),
+		addSTPGroupUIDsEPL:    request.GetRateLimiterWithWeight(ipModeRate, 20),
+		deleteSTPGroupUIDsEPL: request.GetRateLimiterWithWeight(ipModeRate, 20),
 	}
 }

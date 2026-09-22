@@ -1087,3 +1087,230 @@ func TestCancelAllOrdersWithoutPairCancelsAccountWide(t *testing.T) {
 	assert.Equal(t, map[string]string{"9": "cancelled"}, resp.Status, "the symbol cancel should report the cancelled order")
 	assert.Equal(t, []string{"/api/v3/order/all", "/api/v3/openOrders"}, paths, "the empty pair should cancel account-wide and the pair by symbol")
 }
+
+// TestAccountPlatformAndSTPEndpoints pins the request and the decoding of the uid, API key, offline
+// symbol, announcement, STP group and listen key endpoints against the documented examples.
+func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		method string
+		path   string
+		query  url.Values
+		body   string
+		call   func(context.Context, *testing.T, *Exchange)
+	}{
+		{"GetUID", http.MethodGet, "/api/v3/uid", nil, `{"uid":"209302839"}`, func(ctx context.Context, t *testing.T, e *Exchange) {
+			t.Helper()
+			uid, err := e.GetUID(ctx)
+			require.NoError(t, err, "GetUID must not error")
+			assert.Equal(t, "209302839", uid, "GetUID should return the uid")
+		}},
+		{
+			"GetAPIKeyInfo", http.MethodGet, "/api/v3/apiKeyInfo",
+			url.Values{"accessKey": {"mx0npKfh57kEEVmyLa"}},
+			`{"note":"note2","apikey":"mx0npKfh57kEEVmyLa","status":"VALID","permissions":"SPOT_ACCOUNT_READ,","createTime":"1758043350000","remainingValidity":"23","ipWhiteList":"162.133.62.1"}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				info, err := e.GetAPIKeyInfo(ctx, "mx0npKfh57kEEVmyLa")
+				require.NoError(t, err, "GetAPIKeyInfo must not error")
+				assert.Equal(t, "VALID", info.Status, "Status should be decoded")
+				assert.Equal(t, "162.133.62.1", info.IPWhiteList, "IPWhiteList should be decoded")
+				assert.Equal(t, 23.0, info.RemainingValidity.Float64(), "RemainingValidity should be decoded")
+				assert.Equal(t, int64(1758043350000), info.CreateTime.Time().UnixMilli(), "CreateTime should be decoded")
+			},
+		},
+		{
+			"SetAPIKeyInfo", http.MethodPost, "/api/v3/apiKeyInfo",
+			url.Values{"apiKey": {"mx0npKfh57kEEVmyLa"}, "ipWhiteList": {"1.1.1.1,2.2.2.2"}, "note": {"note2"}},
+			`{"note":"note2","apikey":"mx0npKfh57kEEVmyLa","ipWhiteList":"1.1.1.1,2.2.2.2"}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				info, err := e.SetAPIKeyInfo(ctx, "mx0npKfh57kEEVmyLa", []string{"1.1.1.1", "2.2.2.2"}, "note2")
+				require.NoError(t, err, "SetAPIKeyInfo must not error")
+				assert.Equal(t, "1.1.1.1,2.2.2.2", info.IPWhiteList, "IPWhiteList should be decoded")
+			},
+		},
+		{
+			"GetOfflineSymbols", http.MethodGet, "/api/v3/symbol/offline", nil, `{"data":[{"symbol":"LVNUSDT","state":3},{"symbol":"LOKAUSDT","state":3,"offlineTime":1724125694000}]}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				symbols, err := e.GetOfflineSymbols(ctx)
+				require.NoError(t, err, "GetOfflineSymbols must not error")
+				require.Len(t, symbols, 2, "both offline symbols must be decoded")
+				assert.Equal(t, int64(3), symbols[0].State, "State should be decoded")
+				assert.True(t, symbols[0].OfflineTime.Time().IsZero(), "an absent offlineTime should decode to the zero time")
+				assert.Equal(t, int64(1724125694000), symbols[1].OfflineTime.Time().UnixMilli(), "OfflineTime should be decoded")
+			},
+		},
+		{
+			"GetAnnouncements", http.MethodGet, "/api/v3/announcements",
+			url.Values{"language": {"en-US"}, "page": {"2"}, "limit": {"5"}},
+			`{"data":[{"details":[{"title":"t","url":"https://www.mexc.com/announcements/article/a","postTime":1790090755000,"language":"en-US"}],"totalPage":5549}],"code":0,"msg":"success"}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				pages, err := e.GetAnnouncements(ctx, "en-US", 2, 5)
+				require.NoError(t, err, "GetAnnouncements must not error")
+				require.Len(t, pages, 1, "the announcement page must be decoded")
+				assert.Equal(t, 5549.0, pages[0].TotalPage.Float64(), "TotalPage should be decoded")
+				require.Len(t, pages[0].Details, 1, "the announcement must be decoded")
+				assert.Equal(t, int64(1790090755000), pages[0].Details[0].PostTime.Time().UnixMilli(), "PostTime should be decoded")
+			},
+		},
+		{
+			"CreateSTPGroup", http.MethodPost, "/api/v3/strategy/group",
+			url.Values{"tradeGroupName": {"tradeGroupOne"}},
+			`{"data":{"tradeGroupName":"tradeGroupOne","tradeGroupId":91,"createTime":1758043350000,"updateTime":1758043350000},"code":200,"msg":"success","timestamp":1758043350233}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				group, err := e.CreateSTPGroup(ctx, "tradeGroupOne")
+				require.NoError(t, err, "CreateSTPGroup must not error")
+				assert.Equal(t, int64(91), group.TradeGroupID.Int64(), "TradeGroupID should be decoded")
+			},
+		},
+		{
+			"GetSTPGroup", http.MethodGet, "/api/v3/strategy/group",
+			url.Values{"tradeGroupName": {"tradeGroupOne"}},
+			`{"data":[{"tradeGroupName":"tradeGroupOne","tradeGroupId":"91","tradeGroupUid":"1,2","createTime":1758043350000,"updateTime":1758043350000}],"code":200,"msg":"success","timestamp":1758044090972}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				groups, err := e.GetSTPGroup(ctx, "tradeGroupOne")
+				require.NoError(t, err, "GetSTPGroup must not error")
+				require.Len(t, groups, 1, "the group must be decoded")
+				assert.Equal(t, int64(91), groups[0].TradeGroupID.Int64(), "a quoted TradeGroupID should be decoded")
+				assert.Equal(t, "1,2", groups[0].TradeGroupUID, "TradeGroupUID should be decoded")
+			},
+		},
+		{
+			"DeleteSTPGroup", http.MethodDelete, "/api/v3/strategy/group",
+			url.Values{"tradeGroupId": {"91"}},
+			`{"data":true,"code":200,"msg":"success","timestamp":1758044399749}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				deleted, err := e.DeleteSTPGroup(ctx, "91")
+				require.NoError(t, err, "DeleteSTPGroup must not error")
+				assert.True(t, deleted, "DeleteSTPGroup should report the deletion")
+			},
+		},
+		{
+			"AddSTPGroupUIDs", http.MethodPost, "/api/v3/strategy/group/uid",
+			url.Values{"tradeGroupId": {"92"}, "uid": {"49910594,49910595"}},
+			`{"data":{"tradeGroupName":"1","tradeGroupId":92,"tradeGroupUid":"49910594,49910595","createTime":1758044671000,"updateTime":1758044777000},"code":200,"msg":"success","timestamp":1758044777023}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				group, err := e.AddSTPGroupUIDs(ctx, "92", []string{"49910594", "49910595"})
+				require.NoError(t, err, "AddSTPGroupUIDs must not error")
+				assert.Equal(t, "49910594,49910595", group.TradeGroupUID, "TradeGroupUID should be decoded")
+			},
+		},
+		{
+			"DeleteSTPGroupUIDs", http.MethodDelete, "/api/v3/strategy/group/uid",
+			url.Values{"tradeGroupId": {"92"}, "uid": {"49910594"}},
+			`{"data":true,"code":200,"msg":"success","timestamp":1758045403352}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				deleted, err := e.DeleteSTPGroupUIDs(ctx, "92", []string{"49910594"})
+				require.NoError(t, err, "DeleteSTPGroupUIDs must not error")
+				assert.True(t, deleted, "DeleteSTPGroupUIDs should report the removal")
+			},
+		},
+		{
+			"GetListenKeys", http.MethodGet, "/api/v3/userDataStream", nil, `{"total":200,"listenKey":["342e","c716"],"available":198}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				keys, err := e.GetListenKeys(ctx)
+				require.NoError(t, err, "GetListenKeys must not error")
+				assert.Equal(t, []string{"342e", "c716"}, keys.ListenKeys, "ListenKeys should be decoded")
+				assert.Equal(t, int64(198), keys.Available, "Available should be decoded")
+			},
+		},
+		{
+			"CloseListenKey", http.MethodDelete, "/api/v3/userDataStream",
+			url.Values{"listenKey": {"KEY1"}},
+			`{}`,
+			func(ctx context.Context, t *testing.T, e *Exchange) {
+				t.Helper()
+				require.NoError(t, e.CloseListenKey(ctx, "KEY1"), "CloseListenKey must not error")
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var method, path string
+			var query url.Values
+			e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				method, path, query = r.Method, r.URL.Path, r.URL.Query()
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			tc.call(t.Context(), t, e)
+			assert.Equal(t, tc.method, method, "the request method should match the documented endpoint")
+			assert.Equal(t, tc.path, path, "the request path should match the documented endpoint")
+			for k := range tc.query {
+				assert.Equalf(t, tc.query.Get(k), query.Get(k), "%s should be sent", k)
+			}
+		})
+	}
+}
+
+// TestAccountPlatformAndSTPEndpointsRejectMissingParameters rejects a request the venue would refuse
+// before it is sent.
+func TestAccountPlatformAndSTPEndpointsRejectMissingParameters(t *testing.T) {
+	t.Parallel()
+	e := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		assert.Fail(t, "no request should reach the venue")
+	}))
+	_, err := e.GetAPIKeyInfo(t.Context(), "")
+	assert.ErrorIs(t, err, errAccessKeyRequired, "GetAPIKeyInfo should require an access key")
+	_, err = e.SetAPIKeyInfo(t.Context(), "", []string{"1.1.1.1"}, "")
+	assert.ErrorIs(t, err, errAPIKeyMissing, "SetAPIKeyInfo should require an API key")
+	_, err = e.SetAPIKeyInfo(t.Context(), "k", nil, "")
+	assert.ErrorIs(t, err, errIPWhiteListRequired, "SetAPIKeyInfo should require an IP address")
+	_, err = e.SetAPIKeyInfo(t.Context(), "k", make([]string, 21), "")
+	assert.ErrorIs(t, err, errTooManyIPAddresses, "SetAPIKeyInfo should refuse more than 20 IP addresses")
+	for _, limit := range []int64{-5, 7, 105} {
+		_, err = e.GetAnnouncements(t.Context(), "", 0, limit)
+		assert.ErrorIsf(t, err, errInvalidPaginationLimit, "GetAnnouncements should refuse a limit of %d", limit)
+	}
+	_, err = e.CreateSTPGroup(t.Context(), "")
+	assert.ErrorIs(t, err, errSTPGroupNameRequired, "CreateSTPGroup should require a name")
+	_, err = e.GetSTPGroup(t.Context(), "")
+	assert.ErrorIs(t, err, errSTPGroupNameRequired, "GetSTPGroup should require a name")
+	_, err = e.DeleteSTPGroup(t.Context(), "")
+	assert.ErrorIs(t, err, errSTPGroupIDRequired, "DeleteSTPGroup should require a group id")
+	_, err = e.AddSTPGroupUIDs(t.Context(), "", []string{"1"})
+	assert.ErrorIs(t, err, errSTPGroupIDRequired, "AddSTPGroupUIDs should require a group id")
+	_, err = e.DeleteSTPGroupUIDs(t.Context(), "1", nil)
+	assert.ErrorIs(t, err, errUIDRequired, "DeleteSTPGroupUIDs should require a uid")
+	assert.ErrorIs(t, e.CloseListenKey(t.Context(), ""), errListenKeyRequired, "CloseListenKey should require a listen key")
+}
+
+// TestKeepListenKeyAliveClosesItsKey releases a connection's listen key once its renewer stops, so keys
+// do not pile up against the account's limit across reconnects.
+func TestKeepListenKeyAliveClosesItsKey(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var closed []string
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			mu.Lock()
+			closed = append(closed, r.URL.Query().Get("listenKey"))
+			mu.Unlock()
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		ex.keepListenKeyAlive(ctx, nil, "KEY_A")
+		close(done)
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		require.Fail(t, "the renewer must stop once its context is cancelled")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"KEY_A"}, closed, "the renewer should close its own listen key when it stops")
+}

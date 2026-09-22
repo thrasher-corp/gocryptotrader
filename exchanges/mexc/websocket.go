@@ -88,15 +88,27 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 // rather than a constant so tests can shorten it.
 var listenKeyKeepAliveInterval = 30 * time.Minute
 
+// listenKeyCloseTimeout bounds the request that releases a listen key once its connection is done
+const listenKeyCloseTimeout = 5 * time.Second
+
 // keepListenKeyAlive renews one connection's user data stream on a timer for as long as the connection
 // lives. Each authenticated connection mints its own listen key, so the renewer is handed that key and
 // renews it: once subscriptions span more than one connection, a single shared slot would hold only
 // the last key minted and leave every other stream to expire after an hour, silently stopping the
 // private updates on it. The stream closes 60 minutes after creation unless a keepalive PUT is sent;
-// the PING handler keeps the socket open but does not touch the key.
+// the PING handler keeps the socket open but does not touch the key. When the renewer stops it closes
+// the key: the venue caps the listen keys an account may hold, and every reconnect mints a new one.
 func (e *Exchange) keepListenKeyAlive(ctx context.Context, conn websocket.Connection, listenKey string) {
 	e.Websocket.Wg.Add(1)
 	defer e.Websocket.Wg.Done()
+	defer func() {
+		// The connection's context is usually done by now, so release the key on a detached one.
+		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), listenKeyCloseTimeout)
+		defer cancel()
+		if err := e.CloseListenKey(closeCtx, listenKey); err != nil {
+			log.Warnf(log.WebsocketMgr, "%s: closing listen key: %v", e.Name, err)
+		}
+	}()
 	renew := time.NewTicker(listenKeyKeepAliveInterval)
 	defer renew.Stop()
 	for {

@@ -75,6 +75,16 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"affiliateCampaignData":          affiliateCampaignDataEPL,
 		"affiliateReferralData":          affiliateReferralDataEPL,
 		"subAffiliateData":               subAffiliateDataEPL,
+		"getUID":                         getUIDEPL,
+		"getAPIKeyInfo":                  getAPIKeyInfoEPL,
+		"setAPIKeyInfo":                  setAPIKeyInfoEPL,
+		"offlineSymbols":                 offlineSymbolsEPL,
+		"announcements":                  announcementsEPL,
+		"createSTPGroup":                 createSTPGroupEPL,
+		"getSTPGroup":                    getSTPGroupEPL,
+		"deleteSTPGroup":                 deleteSTPGroupEPL,
+		"addSTPGroupUIDs":                addSTPGroupUIDsEPL,
+		"deleteSTPGroupUIDs":             deleteSTPGroupUIDsEPL,
 	}
 	rl, err := request.New("rateLimitTest2", &http.Client{}, request.WithLimiter(GetRateLimit()))
 	require.NoError(t, err)
@@ -112,6 +122,15 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 		{"cancelTradeOrder", cancelTradeOrderEPL, 1},
 		{"withdrawCapital", withdrawCapitalEPL, 1},
 		{"capitalWithdrawal", capitalWithdrawalEPL, 10},
+		{"getUID", getUIDEPL, 1},
+		{"getAPIKeyInfo", getAPIKeyInfoEPL, 1},
+		{"setAPIKeyInfo", setAPIKeyInfoEPL, 1},
+		{"offlineSymbols", offlineSymbolsEPL, 10},
+		{"createSTPGroup", createSTPGroupEPL, 20},
+		{"getSTPGroup", getSTPGroupEPL, 20},
+		{"deleteSTPGroup", deleteSTPGroupEPL, 20},
+		{"addSTPGroupUIDs", addSTPGroupUIDsEPL, 20},
+		{"deleteSTPGroupUIDs", deleteSTPGroupUIDsEPL, 20},
 	} {
 		limiter, ok := rl[tc.epl]
 		require.Truef(t, ok, "%s must have a rate limiter", tc.name)
@@ -132,6 +151,7 @@ func TestRateLimitPoolBudgets(t *testing.T) {
 	}{
 		{"IP pool at weight 1", systemTimeEPL, 30},
 		{"shared order budget", newOrderEPL, 12},
+		{"announcements at 5 per 2 seconds", announcementsEPL, 2.5},
 	} {
 		assert.Equalf(t, tc.rate, rl[tc.epl].Limit(), "%s should draw on a budget of %v actions per second", tc.name, tc.rate)
 	}
@@ -146,4 +166,5 @@ func TestRateLimitPoolBudgets(t *testing.T) {
 	} {
 		assert.Truef(t, rl[epl.epl].SharesBudgetWith(rl[newOrderEPL]), "%s should draw on the same budget as newOrder, not an identical one of its own", epl.name)
 	}
+	assert.False(t, rl[announcementsEPL].SharesBudgetWith(rl[systemTimeEPL]), "announcements should be limited outside the weighted IP pool")
 }
