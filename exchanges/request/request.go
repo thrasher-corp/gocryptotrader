@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -123,45 +124,18 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 		return nil, err
 	}
 
-	if i.HTTPDebugging {
-		// Item headers are deliberately applied after this dump so authentication
-		// headers cannot be exposed if request logging changes.
-		contentType := req.Header.Get("Content-Type")
-		for name, value := range i.Headers {
-			if strings.EqualFold(name, "Content-Type") {
-				contentType = value
-				break
-			}
-		}
-		// Context headers replace rather than append, so an entry present under any spelling
-		// wins outright, matching how they are applied below.
-		for name, values := range headersFromContext(ctx) {
-			if strings.EqualFold(name, "Content-Type") {
-				contentType = ""
-				if len(values) > 0 {
-					contentType = values[0]
-				}
-				break
-			}
-		}
-		if dump, err := dumpRequestForLog(req, contentType); err != nil {
-			log.Errorf(log.RequestSys, "%s DumpRequest invalid request: %v", r.name, err)
-		} else {
-			log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
-		}
-	}
-
-	for k, v := range i.Headers {
-		req.Header.Add(k, v)
-	}
+	applyStringHeaders(req.Header, i.Headers)
 
 	if r.userAgent != "" && req.Header.Get(userAgent) == "" {
 		req.Header.Add(userAgent, r.userAgent)
 	}
-	for key, values := range headersFromContext(ctx) {
-		req.Header.Del(key)
-		for _, value := range values {
-			req.Header.Add(key, value)
+	applyHeaders(req.Header, headersFromContext(ctx))
+
+	if i.HTTPDebugging {
+		if dump, err := dumpRequestForLog(req, req.Header.Get("Content-Type")); err != nil {
+			log.Errorf(log.RequestSys, "%s DumpRequest invalid request: %v", r.name, err)
+		} else {
+			log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
 		}
 	}
 
@@ -231,9 +205,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 			if bodyErr != nil {
 				return false, bodyErr
 			}
-			if isFormEncoded(req.Header.Get("Content-Type")) {
-				payload = []byte(redactEncodedValues(string(payload)))
-			}
+			payload = bodyForLog(payload, req.Header.Get("Content-Type"))
 			log.Debugf(log.RequestSys, "%s request body: %s", r.name, payload)
 		}
 	}
@@ -279,9 +251,13 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > http.StatusNoContent {
-		return false, fmt.Errorf("%s %w: %d raw response: %s", r.name, ErrBadStatus, resp.StatusCode, string(contents))
+		return false, fmt.Errorf("%s %w: %d raw response: %s", r.name, ErrBadStatus, resp.StatusCode, bodyForLog(contents, resp.Header.Get("Content-Type")))
 	}
 
+	var contentsForLog []byte
+	if p.HTTPDebugging || verbose {
+		contentsForLog = bodyForLog(contents, resp.Header.Get("Content-Type"))
+	}
 	if p.HTTPDebugging {
 		respForLog := *resp
 		respForLog.Header = make(http.Header, len(resp.Header))
@@ -294,7 +270,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 		} else {
 			log.Debugf(log.RequestSys, "DumpResponse (%v):\n%s", pathForLog(p.Path), dump)
 		}
-		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", pathForLog(p.Path), string(contents))
+		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", pathForLog(p.Path), contentsForLog)
 	}
 
 	if verbose {
@@ -303,7 +279,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 		}
 		log.Debugf(log.RequestSys, "HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 		if !p.HTTPDebugging {
-			log.Debugf(log.RequestSys, "%s raw response: %s", r.name, string(contents))
+			log.Debugf(log.RequestSys, "%s raw response: %s", r.name, contentsForLog)
 		}
 	}
 	return false, unmarshallError
@@ -314,6 +290,31 @@ func headerValuesForLog(name string, values []string) []string {
 		return []string{"[REDACTED]"}
 	}
 	return values
+}
+
+func applyStringHeaders(destination http.Header, headers map[string]string) {
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		destination.Set(key, headers[key])
+	}
+}
+
+func applyHeaders(destination, headers http.Header) {
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		destination.Del(key)
+		for _, value := range headers[key] {
+			destination.Add(key, value)
+		}
+	}
 }
 
 // isSensitiveLogKey matches name suffixes rather than substrings, so OK-ACCESS-KEY, X-BAPI-SIGN and listenKey are
@@ -341,7 +342,8 @@ func redactEncodedValues(encoded string) string {
 		if !ok {
 			continue
 		}
-		if unescaped, err := url.QueryUnescape(name); err == nil && isSensitiveLogKey(unescaped) {
+		unescaped, err := url.QueryUnescape(name)
+		if err != nil || isSensitiveLogKey(unescaped) {
 			fields[i] = name + "=[REDACTED]"
 		}
 	}
@@ -362,16 +364,70 @@ func isFormEncoded(contentType string) bool {
 	return mediaType == "" || strings.EqualFold(mediaType, "application/x-www-form-urlencoded")
 }
 
-type errorReader struct {
-	err error
+func isJSONEncoded(contentType string) bool {
+	mediaType, _, _ := strings.Cut(contentType, ";")
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
 }
 
-func (e errorReader) Read([]byte) (int, error) {
-	return 0, e.err
+func bodyForLog(payload []byte, contentType string) []byte {
+	if len(payload) == 0 {
+		return payload
+	}
+	trimmed := bytes.TrimSpace(payload)
+	looksLikeJSON := len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[')
+	if isJSONEncoded(contentType) || looksLikeJSON || json.Valid(payload) {
+		var value any
+		if err := json.Unmarshal(payload, &value); err == nil {
+			redactJSONValue(value)
+			if redacted, err := json.Marshal(value); err == nil {
+				return redacted
+			}
+		}
+		return []byte("[REDACTED INVALID JSON BODY]")
+	}
+	if isFormEncoded(contentType) {
+		return []byte(redactEncodedValues(string(payload)))
+	}
+	return []byte("[REDACTED NON-FORM BODY]")
+}
+
+func redactJSONValue(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, nested := range typed {
+			if isSensitiveLogKey(key) {
+				typed[key] = "[REDACTED]"
+				continue
+			}
+			redactJSONValue(nested)
+		}
+	case []any:
+		for _, nested := range typed {
+			redactJSONValue(nested)
+		}
+	}
+}
+
+type replayReader struct {
+	io.Reader
+	terminalErr error
+}
+
+func (r replayReader) Read(payload []byte) (int, error) {
+	n, err := r.Reader.Read(payload)
+	if errors.Is(err, io.EOF) {
+		return n, r.terminalErr
+	}
+	return n, err
 }
 
 func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
 	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	for name, values := range clone.Header {
+		clone.Header[name] = headerValuesForLog(name, values)
+	}
 	if req.URL != nil {
 		requestURL := *req.URL
 		requestURL.RawQuery = redactEncodedValues(requestURL.RawQuery)
@@ -391,29 +447,26 @@ func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
 			err = closeErr
 		}
 		if req.GetBody == nil {
-			// The reader is not replayable, so restore what the debug dump consumed,
-			// including any read or close failure. This preserves the failure that
-			// net/http would encounter without debug logging enabled.
+			// The reader is not replayable, so restore what the debug dump consumed.
+			// A close failure is surfaced as the terminal read error; HTTP/2 may handle
+			// that differently from the original Close failure.
 			var restored io.Reader = bytes.NewReader(payload)
 			if err != nil {
-				restored = io.MultiReader(restored, errorReader{err: err})
+				restored = replayReader{Reader: restored, terminalErr: err}
 			}
 			req.Body = io.NopCloser(restored)
 		}
 		if err != nil {
 			return nil, err
 		}
-		if isFormEncoded(contentType) {
-			payload = []byte(redactEncodedValues(string(payload)))
-		}
+		payload = bodyForLog(payload, contentType)
 		clone.Body = io.NopCloser(bytes.NewReader(payload))
 		clone.ContentLength = int64(len(payload))
 	}
 	return httputil.DumpRequestOut(clone, true)
 }
 
-// urlErrorForLog redacts the request URL that http.Client.Do embeds in its errors, copying rather than mutating so the
-// error handed back to the caller is untouched.
+// urlErrorForLog redacts the request URL that http.Client.Do embeds in its errors without mutating the original.
 func urlErrorForLog(err error) error {
 	return urlErrorForLogDepth(err, maxURLErrorLogDepth)
 }
@@ -424,13 +477,11 @@ const maxURLErrorLogDepth = 8
 var errTruncatedErrorChain = errors.New("error chain truncated for logging")
 
 func urlErrorForLogDepth(err error, depth int) error {
-	// Check before unwrapping: errors.As walks the chain itself, so a cyclic
-	// remainder at the cap would not terminate.
 	if depth == 0 {
 		return errTruncatedErrorChain
 	}
-	var urlErr *url.Error
-	if !errors.As(err, &urlErr) || urlErr == nil {
+	urlErr, ok := err.(*url.Error)
+	if !ok || urlErr == nil {
 		return err
 	}
 	return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: urlErrorForLogDepth(urlErr.Err, depth-1)}
@@ -442,7 +493,7 @@ func urlErrorForLogDepth(err error, depth int) error {
 // a retry-decision error.
 func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, incomingErr error, attempt int, verbose bool) (bool, error) {
 	if hasRetryNotAllowed(ctx) {
-		return false, incomingErr
+		return false, urlErrorForLog(incomingErr)
 	}
 
 	retry, err := r.retryPolicy(resp, incomingErr)
@@ -454,7 +505,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 	}
 
 	if !retry {
-		return false, incomingErr
+		return false, urlErrorForLog(incomingErr)
 	}
 
 	if incomingErr == nil {
@@ -464,7 +515,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 
 	if attempt > r.maxRetries {
 		if incomingErr != nil {
-			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, errExceedsMaxRetries, incomingErr)
+			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, errExceedsMaxRetries, urlErrorForLog(incomingErr))
 		}
 		return false, fmt.Errorf("%w %w: status %q", errFailedToRetryRequest, errExceedsMaxRetries, resp.Status)
 	}
@@ -475,7 +526,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 		if incomingErr != nil {
-			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, context.DeadlineExceeded, incomingErr)
+			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, context.DeadlineExceeded, urlErrorForLog(incomingErr))
 		}
 		return false, fmt.Errorf("%w %w: status %q", errFailedToRetryRequest, context.DeadlineExceeded, resp.Status)
 	}

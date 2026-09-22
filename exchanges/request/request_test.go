@@ -77,6 +77,13 @@ func BenchmarkHeaderValuesForLog(b *testing.B) {
 	}
 }
 
+func TestRedactEncodedValuesFailsClosed(t *testing.T) {
+	t.Parallel()
+	redacted := redactEncodedValues("%ZZ=secret-value&nonce=1")
+	expected := "%ZZ=[REDACTED]&nonce=1"
+	assert.Equal(t, expected, redacted, "a malformed field name should have its value redacted")
+}
+
 type partialErrorReader struct {
 	payload []byte
 	err     error
@@ -85,10 +92,11 @@ type partialErrorReader struct {
 
 type closeErrorReader struct {
 	io.Reader
+	err error
 }
 
-func (closeErrorReader) Close() error {
-	return errors.New("close failure")
+func (c closeErrorReader) Close() error {
+	return c.err
 }
 
 func (p *partialErrorReader) Read(b []byte) (int, error) {
@@ -123,11 +131,27 @@ func TestDumpRequestForLog(t *testing.T) {
 	require.NoError(t, err, "ReadAll must read the restored streaming body")
 	assert.Equal(t, "key=streaming-secret&nonce=2", string(restoredBody), "request dump should restore a non-replayable body")
 
-	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", strings.NewReader(`{"note":"a&key=b","passphrase":"secret"}`))
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", strings.NewReader(`{"note":"a&key=b","nested":{"passphrase":"secret"}}`))
 	require.NoError(t, err, "NewRequestWithContext must not error for a JSON body")
 	dump, err = dumpRequestForLog(req, "application/json")
 	require.NoError(t, err, "dumpRequestForLog must not error for a JSON body")
-	assert.Contains(t, string(dump), `{"note":"a&key=b","passphrase":"secret"}`, "request dump should not treat a JSON body as form-encoded")
+	assert.Contains(t, string(dump), `{"nested":{"passphrase":"[REDACTED]"},"note":"a\u0026key=b"}`, "request dump should redact nested JSON credentials")
+	assert.NotContains(t, string(dump), "secret", "request dump should not expose JSON credentials")
+
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", strings.NewReader(`{"password":"secret"`))
+	require.NoError(t, err, "NewRequestWithContext must not error for invalid JSON")
+	dump, err = dumpRequestForLog(req, "application/json")
+	require.NoError(t, err, "dumpRequestForLog must fail closed for invalid JSON")
+	assert.Contains(t, string(dump), "[REDACTED INVALID JSON BODY]", "request dump should replace invalid JSON")
+	assert.NotContains(t, string(dump), "secret", "request dump should not expose invalid JSON contents")
+
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/api", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error for sensitive headers")
+	req.Header.Set("Authorization", "secret-header")
+	dump, err = dumpRequestForLog(req, "")
+	require.NoError(t, err, "dumpRequestForLog must not error for sensitive headers")
+	assert.Contains(t, string(dump), "Authorization: [REDACTED]", "request dump should redact sensitive headers")
+	assert.NotContains(t, string(dump), "secret-header", "request dump should not expose sensitive headers")
 
 	readErr := errors.New("body read failure")
 	partialBody := &partialErrorReader{payload: []byte("partial-body"), err: readErr}
@@ -150,17 +174,23 @@ func TestDumpRequestForLog(t *testing.T) {
 
 func TestDumpRequestForLogReplaysCloseFailure(t *testing.T) {
 	t.Parallel()
-	body := closeErrorReader{Reader: strings.NewReader("key=secret-body&nonce=1")}
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", body)
-	require.NoError(t, err, "NewRequestWithContext must not error")
-	require.Nil(t, req.GetBody, "a plain ReadCloser must not be replayable")
+	for _, closeErr := range []error{errors.New("close failure"), io.EOF, io.ErrUnexpectedEOF} {
+		body := closeErrorReader{Reader: strings.NewReader("key=secret-body&nonce=1"), err: closeErr}
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", body)
+		require.NoError(t, err, "NewRequestWithContext must not error")
+		require.Nil(t, req.GetBody, "a plain ReadCloser must not be replayable")
 
-	_, err = dumpRequestForLog(req, "")
-	require.ErrorContains(t, err, "close failure", "dumpRequestForLog must return the body close error")
+		_, err = dumpRequestForLog(req, "")
+		require.ErrorIs(t, err, closeErr, "dumpRequestForLog must return the body close error")
 
-	restored, readErr := io.ReadAll(req.Body)
-	assert.Equal(t, "key=secret-body&nonce=1", string(restored), "the restored body should retain the bytes read")
-	assert.ErrorContains(t, readErr, "close failure", "the restored body should replay the close failure")
+		restored, readErr := io.ReadAll(req.Body)
+		assert.Equal(t, "key=secret-body&nonce=1", string(restored), "the restored body should retain the bytes read")
+		if errors.Is(closeErr, io.EOF) {
+			assert.NoError(t, readErr, "io.ReadAll should treat a replayed EOF as successful completion")
+		} else {
+			assert.ErrorIs(t, readErr, closeErr, "the restored body should replay the close failure")
+		}
+	}
 }
 
 type cyclicError struct {
@@ -194,14 +224,6 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	assert.Contains(t, err.Error(), "outer-secret", "redaction should not mutate the original outer error")
 	assert.Contains(t, err.Error(), "inner-secret", "redaction should not mutate the original nested error")
 
-	cycle := new(cyclicError)
-	cyclicURL := &url.Error{Op: http.MethodGet, URL: "https://example.com/api?signature=cyclic-secret", Err: cycle}
-	cycle.next = cyclicURL
-	redacted = urlErrorForLog(cyclicURL)
-	assert.Error(t, redacted, "urlErrorForLog should return an error for a cyclic error chain")
-	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "cyclic URL errors should be truncated with a safe sentinel")
-	assert.NotContains(t, redacted.Error(), "cyclic-secret", "truncating a cyclic error should not expose URL credentials")
-
 	var deep error
 	deep = errors.New("transport failure")
 	for depth := 0; depth <= maxURLErrorLogDepth; depth++ {
@@ -221,6 +243,16 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	redacted = urlErrorForLog(bounded)
 	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "the depth cap should truncate before traversing a cyclic remainder")
 	assert.NotContains(t, redacted.Error(), "bounded-secret", "bounded cyclic errors should not expose URL credentials")
+
+	cyclicURLRemainder := &url.Error{Op: http.MethodGet, URL: "https://example.com/api?signature=remainder-secret"}
+	cyclicURLRemainder.Err = cyclicURLRemainder
+	bounded = cyclicURLRemainder
+	for depth := 1; depth < maxURLErrorLogDepth; depth++ {
+		bounded = &url.Error{Op: http.MethodGet, URL: fmt.Sprintf("https://example.com/api?signature=near-secret-%d", depth), Err: bounded}
+	}
+	redacted = urlErrorForLog(bounded)
+	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "a URL cycle just inside the depth cap should be truncated")
+	assert.NotContains(t, redacted.Error(), "remainder-secret", "a URL cycle should not expose credentials")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -262,7 +294,7 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 			Status:     "200 OK",
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Set-Cookie": []string{"session=secret-cookie"}},
-			Body:       io.NopCloser(strings.NewReader(`{}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"nested":{"password":"response-secret"},"value":1}`)),
 			Request:    req,
 		}, nil
 	})}
@@ -290,7 +322,7 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 	assert.Equal(t, "secret-header", sent.Header.Get("OK-ACCESS-KEY"), "redaction should not change the headers sent")
 	assert.Equal(t, "key=secret-key&nonce=1", string(sentBody), "redaction should not change the body sent")
 
-	const jsonBody = `{"note":"a&key=b","nonce":1}`
+	const jsonBody = `{"note":"a&key=b","password":"request-secret","nonce":1}`
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", strings.NewReader(jsonBody))
 	require.NoError(t, err, "NewRequestWithContext must not error for a JSON request")
 	req.Header.Set("Content-Type", "application/json")
@@ -307,13 +339,36 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 		`test request body: key=[REDACTED]&nonce=1`,
 		`cause: Post "https://example.com/api?timestamp=1&signature=[REDACTED]": transport failure`,
 		`test response header [Set-Cookie]: [[REDACTED]]`,
-		jsonBody,
+		`{"nested":{"password":"[REDACTED]"},"value":1}`,
+		`{"nonce":1,"note":"a\u0026key=b","password":"[REDACTED]"}`,
 	} {
 		assert.Containsf(t, out, line, "verbose log should contain %s", line)
 	}
-	for _, secret := range []string{"secret-signature", "secret-key", "secret-header", "secret-cookie"} {
+	for _, secret := range []string{"secret-signature", "secret-key", "secret-header", "secret-cookie", "request-secret", "response-secret"} {
 		assert.NotContainsf(t, out, secret, "verbose log should not contain %s", secret)
 	}
+}
+
+func TestExecuteRequestBadStatusRedactsCredentials(t *testing.T) {
+	t.Parallel()
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Status:     "400 Bad Request",
+			StatusCode: http.StatusBadRequest,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"password":"response-secret","reason":"invalid"}`)),
+			Request:    req,
+		}, nil
+	})}
+	r, err := New("test", httpClient)
+	require.NoError(t, err, "New must not error")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error")
+
+	_, err = r.executeRequest(t.Context(), &Item{Method: http.MethodGet, Path: "https://example.com"}, req, 1, false)
+	require.ErrorIs(t, err, ErrBadStatus, "executeRequest must return ErrBadStatus")
+	assert.Contains(t, err.Error(), `"password":"[REDACTED]"`, "bad status error should retain redacted response structure")
+	assert.NotContains(t, err.Error(), "response-secret", "bad status error should not expose response credentials")
 }
 
 func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
@@ -345,7 +400,7 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 			Status:     "200 OK",
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Set-Cookie": []string{"session=secret-cookie"}},
-			Body:       io.NopCloser(strings.NewReader(`{}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"secret":"response-secret","value":1}`)),
 			Request:    req,
 		}, nil
 	})}
@@ -353,16 +408,19 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 	require.NoError(t, err, "New must not error")
 
 	const path = "https://example.com/api?timestamp=1&signature=secret-signature"
+	responseHeaders := make(http.Header)
 	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
 		return &Item{
-			Method:        http.MethodPost,
-			Path:          path,
-			Body:          struct{ io.Reader }{strings.NewReader("key=secret-key&nonce=1")},
-			HTTPDebugging: true,
+			Method:         http.MethodPost,
+			Path:           path,
+			Body:           struct{ io.Reader }{strings.NewReader("key=secret-key&nonce=1")},
+			HeaderResponse: &responseHeaders,
+			HTTPDebugging:  true,
 		}, nil
 	}, UnauthenticatedRequest)
 	require.NoError(t, err, "SendPayload must not error")
 	assert.Equal(t, "key=secret-key&nonce=1", string(sentBody), "dumping the request should not change the body sent")
+	assert.Equal(t, "session=secret-cookie", responseHeaders.Get("Set-Cookie"), "HeaderResponse should retain the unredacted response headers")
 
 	const itemHeaderJSON = `{"note":"a&key=b","nonce":1}`
 	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
@@ -427,6 +485,21 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		}, nil
 	}, UnauthenticatedRequest)
 	require.NoError(t, err, "SendPayload must not error with an empty context content type override")
+
+	const duplicateHeaderJSON = `{"password":"DUPLICATEHEADERSECRET","nonce":6}`
+	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
+		return &Item{
+			Method: http.MethodPost,
+			Path:   "https://example.com/api",
+			Body:   strings.NewReader(duplicateHeaderJSON),
+			Headers: map[string]string{
+				"Content-Type": "application/x-www-form-urlencoded",
+				"content-type": "application/json",
+			},
+			HTTPDebugging: true,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error with duplicate content type spellings")
 	require.Equal(t, []string{
 		"",
 		"application/json",
@@ -434,6 +507,7 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		"application/json",
 		"application/x-www-form-urlencoded",
 		"",
+		"application/json",
 	}, sentContentTypes, "the transport should receive each effective content type")
 
 	mu.Lock()
@@ -445,15 +519,17 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		`DumpResponse (https://example.com/api?timestamp=1&signature=[REDACTED])`,
 		`DumpResponse Body (https://example.com/api?timestamp=1&signature=[REDACTED])`,
 		`Set-Cookie: [REDACTED]`,
-		itemHeaderJSON,
-		contextHeaderJSON,
-		lowerCaseJSON,
+		`{"nonce":1,"note":"a\u0026key=b"}`,
+		`{"nonce":2,"note":"context\u0026key=b"}`,
+		`{"nonce":3,"note":"lowercase\u0026key=b"}`,
 		"key=[REDACTED]&nonce=4",
 		"key=[REDACTED]&nonce=5",
+		`{"nonce":6,"password":"[REDACTED]"}`,
+		`{"secret":"[REDACTED]","value":1}`,
 	} {
 		assert.Containsf(t, out, line, "HTTPDebugging log should contain %s", line)
 	}
-	for _, secret := range []string{"secret-signature", "secret-key", "secret-cookie", "LOWERCASEFORMSECRET", "EMPTYOVERRIDESECRET"} {
+	for _, secret := range []string{"secret-signature", "secret-key", "secret-cookie", "LOWERCASEFORMSECRET", "EMPTYOVERRIDESECRET", "DUPLICATEHEADERSECRET", "response-secret"} {
 		assert.NotContainsf(t, out, secret, "HTTPDebugging log should not contain %s", secret)
 	}
 }
@@ -1670,6 +1746,13 @@ func TestEvaluateRetry(t *testing.T) {
 	retry, err = r.evaluateRetry(t.Context(), nil, transportErr, 1, false)
 	require.ErrorIs(t, err, transportErr, "evaluateRetry must return the transport error when retrying is declined")
 	require.False(t, retry, "evaluateRetry must not retry when the retry policy declines")
+
+	credentialErr := &url.Error{Op: http.MethodGet, URL: "https://example.com?signature=returned-secret", Err: transportErr}
+	retry, err = r.evaluateRetry(t.Context(), nil, credentialErr, 1, false)
+	require.ErrorIs(t, err, transportErr, "evaluateRetry must preserve the transport cause after redacting the URL")
+	require.False(t, retry, "evaluateRetry must not retry a declined URL error")
+	assert.NotContains(t, err.Error(), "returned-secret", "evaluateRetry should not return URL credentials to its caller")
+	assert.Contains(t, err.Error(), "signature=[REDACTED]", "evaluateRetry should retain redacted URL structure")
 
 	r.retryPolicy = DefaultRetryPolicy
 	retry, err = r.evaluateRetry(t.Context(), nil, errInvalidPath, 1, false)
