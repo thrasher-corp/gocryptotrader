@@ -479,7 +479,8 @@ func (e *Exchange) GetCurrencyInformation(ctx context.Context) ([]*CurrencyInfor
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getCurrencyInformationEPL, http.MethodGet, "capital/config/getall", nil, nil, &resp, true)
 }
 
-// WithdrawCapital withdraws an asset through chains
+// WithdrawCapital withdraws an asset through chains. network is sent as netWork, the parameter the
+// current withdraw endpoint takes; the values are the netWork field of GetCurrencyInformation.
 func (e *Exchange) WithdrawCapital(ctx context.Context, amount float64, coin currency.Code, withdrawID, network, contractAddress, address, memo, remark string) (*IDResponse, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -802,6 +803,9 @@ func (e *Exchange) GetInternalTransferHistory(ctx context.Context, transferID st
 }
 
 // CapitalWithdrawal withdraws an asset through a network
+//
+// Deprecated: the venue lists capital/withdraw/apply as the previous withdraw endpoint, to be taken
+// offline; use WithdrawCapital.
 func (e *Exchange) CapitalWithdrawal(ctx context.Context, coin currency.Code, withdrawOrderID, network, address, memo, remark string, amount float64) ([]IDResponse, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty

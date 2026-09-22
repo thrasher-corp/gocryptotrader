@@ -142,7 +142,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		dustLogEPL:                        request.GetRateLimiterWithWeight(ipModeRate, 1),
 		internalTransferEPL:               request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getInternalTransferHistoryEPL:     request.GetRateLimiterWithWeight(ipModeRate, 1),
-		capitalWithdrawalEPL:              request.GetRateLimiterWithWeight(ipModeRate, 1),
+		capitalWithdrawalEPL:              request.GetRateLimiterWithWeight(ipModeRate, 10),
 
 		getUniversalTransferhistoryEPL:  request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getUserRebateHistoryEPL:         request.GetRateLimiterWithWeight(ipModeRate, 1),

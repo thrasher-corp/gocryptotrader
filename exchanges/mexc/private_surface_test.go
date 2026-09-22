@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // newPrivateTestExchange builds an isolated Exchange whose spot REST endpoint points at a local
@@ -376,4 +377,44 @@ func TestOrderListingsValidateAndFilter(t *testing.T) {
 			assert.Equal(t, "buy-limit", orders[0].OrderID, "the returned order should be the one the request asked for")
 		})
 	}
+}
+
+// TestWithdrawCryptocurrencyFunds sends a crypto withdrawal through the current withdraw endpoint,
+// which names the network netWork and carries the destination tag as memo.
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	var got url.Values
+	var path string
+	ex := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		path, got = r.URL.Path, r.URL.Query()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"7213fea8e94b4a5593d507237e5a555b"}`))
+	})
+	resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+		Exchange:      ex.Name,
+		Currency:      currency.USDT,
+		Amount:        12.5,
+		Type:          withdraw.Crypto,
+		ClientOrderID: "w1",
+		Description:   "rent",
+		Crypto:        withdraw.CryptoRequest{Address: "TXYZ", AddressTag: "42", Chain: "TRX"},
+	})
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
+	assert.Equal(t, "7213fea8e94b4a5593d507237e5a555b", resp.ID, "ID should be the withdrawal id the venue returned")
+	assert.True(t, strings.HasSuffix(path, "/capital/withdraw"), "the withdrawal should go to the current withdraw endpoint")
+	for field, want := range map[string]string{
+		"coin":            "USDT",
+		"address":         "TXYZ",
+		"amount":          "12.5",
+		"netWork":         "TRX",
+		"memo":            "42",
+		"withdrawOrderId": "w1",
+		"remark":          "rent",
+	} {
+		assert.Equalf(t, want, got.Get(field), "%s should carry the request field", field)
+	}
+	assert.Empty(t, got.Get("network"), "the legacy network parameter should not be sent")
+
+	_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{Exchange: ex.Name, Type: withdraw.Crypto})
+	assert.Error(t, err, "an invalid withdrawal request should be rejected before it is sent")
 }

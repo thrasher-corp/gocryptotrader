@@ -916,8 +916,25 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, code currency.Code, _,
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (e *Exchange) WithdrawCryptocurrencyFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+	resp, err := e.WithdrawCapital(ctx,
+		withdrawRequest.Amount,
+		withdrawRequest.Currency,
+		withdrawRequest.ClientOrderID,
+		withdrawRequest.Crypto.Chain,
+		"", // contract address
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Description)
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		ID: resp.ID,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

@@ -110,6 +110,8 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 		{"newOrder", newOrderEPL, 1},
 		{"createBatchOrders", createBatchOrdersEPL, 1},
 		{"cancelTradeOrder", cancelTradeOrderEPL, 1},
+		{"withdrawCapital", withdrawCapitalEPL, 1},
+		{"capitalWithdrawal", capitalWithdrawalEPL, 10},
 	} {
 		limiter, ok := rl[tc.epl]
 		require.Truef(t, ok, "%s must have a rate limiter", tc.name)

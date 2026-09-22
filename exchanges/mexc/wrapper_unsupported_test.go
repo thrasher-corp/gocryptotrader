@@ -28,11 +28,6 @@ func TestUnsupportedOperations(t *testing.T) {
 		_, err := e.CancelBatchOrders(t.Context(), nil)
 		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should report it is unsupported")
 	})
-	t.Run("WithdrawCryptocurrencyFunds", func(t *testing.T) {
-		t.Parallel()
-		_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{})
-		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "WithdrawCryptocurrencyFunds should report it is unsupported")
-	})
 	t.Run("WithdrawFiatFunds", func(t *testing.T) {
 		t.Parallel()
 		_, err := e.WithdrawFiatFunds(t.Context(), &withdraw.Request{})
