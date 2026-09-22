@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -989,4 +990,27 @@ func TestOrderDetailDecodesSelfTradePrevention(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTCUSDT","orderId":"1","status":"CANCELED","type":"LIMIT","side":"BUY","stpMode":"cancel_taker","cancelReason":"stp_cancel"}`), &o), "Unmarshal must not error")
 	assert.Equal(t, "cancel_taker", o.StpMode, "StpMode should carry the stpMode field")
 	assert.Equal(t, "stp_cancel", o.CancelReason, "CancelReason should carry the cancelReason field")
+}
+
+// TestCreateBatchOrderAcceptsLimitOrderTypes sends the limit-family types the venue lists as order
+// types (LIMIT_MAKER, IMMEDIATE_OR_CANCEL, FILL_OR_KILL) through the batch endpoint under the same
+// quantity and price checks a single order gets.
+func TestCreateBatchOrderAcceptsLimitOrderTypes(t *testing.T) {
+	t.Parallel()
+	for _, orderType := range []string{"LIMIT_MAKER", "IMMEDIATE_OR_CANCEL", "FILL_OR_KILL"} {
+		t.Run(orderType, func(t *testing.T) {
+			t.Parallel()
+			var batch string
+			e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				batch = r.URL.Query().Get("batchOrders")
+				_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"1","orderListId":-1}]`))
+			}))
+			_, err := e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{{OrderType: orderType, Symbol: currency.NewBTCUSDT(), Side: "BUY", Quantity: 1, Price: 2}})
+			require.NoError(t, err, "CreateBatchOrder must not error")
+			assert.Contains(t, batch, `"type":"`+orderType+`"`, "the batch should carry the order type on the wire")
+
+			_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{{OrderType: orderType, Symbol: currency.NewBTCUSDT(), Side: "BUY", Quantity: 1}})
+			assert.ErrorIs(t, err, limits.ErrPriceBelowMin, "a priceless limit-family order should be rejected before it is sent")
+		})
+	}
 }

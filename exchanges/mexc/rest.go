@@ -853,21 +853,8 @@ func (e *Exchange) newOrder(ctx context.Context, symbol currency.Pair, newClient
 		return nil, order.ErrTypeIsInvalid
 	}
 	orderType = strings.ToUpper(orderType)
-	switch orderType {
-	case typeLimit, typeLimitMaker, typeImmediateOrCancel, typeFillOrKill:
-		// IMMEDIATE_OR_CANCEL and FILL_OR_KILL are limit order types on MEXC: both require a price.
-		if quantity <= 0 {
-			return nil, fmt.Errorf("%w, quantity %v", limits.ErrAmountBelowMin, quantity)
-		}
-		if price <= 0 {
-			return nil, fmt.Errorf("%w, price %v", limits.ErrPriceBelowMin, price)
-		}
-	case typeMarket:
-		if quantity <= 0 && quoteOrderQty <= 0 {
-			return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", limits.ErrAmountBelowMin)
-		}
-	default:
-		return nil, fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, orderType)
+	if err := validateSpotOrderParams(orderType, quantity, quoteOrderQty, price); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
@@ -887,6 +874,29 @@ func (e *Exchange) newOrder(ctx context.Context, symbol currency.Pair, newClient
 	}
 	var resp *OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, newOrderEPL, http.MethodPost, path, params, nil, &resp, true)
+}
+
+// validateSpotOrderParams checks the amounts an order type requires before it is sent. It is shared by
+// the single and batch order endpoints, which take the same order types and parameters.
+func validateSpotOrderParams(orderType string, quantity, quoteOrderQty, price float64) error {
+	switch orderType {
+	case typeLimit, typeLimitMaker, typeImmediateOrCancel, typeFillOrKill:
+		// LIMIT_MAKER, IMMEDIATE_OR_CANCEL and FILL_OR_KILL are limit order types on MEXC: all require a
+		// quantity and a price.
+		if quantity <= 0 {
+			return fmt.Errorf("%w, quantity %v", limits.ErrAmountBelowMin, quantity)
+		}
+		if price <= 0 {
+			return fmt.Errorf("%w, price %v", limits.ErrPriceBelowMin, price)
+		}
+	case typeMarket:
+		if quantity <= 0 && quoteOrderQty <= 0 {
+			return fmt.Errorf("%w, either quantity or quote order quantity must be filled", limits.ErrAmountBelowMin)
+		}
+	default:
+		return fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, orderType)
+	}
+	return nil
 }
 
 // OrderTypeStringFromOrderTypeAndTimeInForce returns a string representation of an order.Type instance.
@@ -978,20 +988,8 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 			return nil, order.ErrSideIsInvalid
 		}
 		args[a].OrderType = strings.ToUpper(args[a].OrderType)
-		switch args[a].OrderType {
-		case typeLimit:
-			if args[a].Quantity <= 0 {
-				return nil, fmt.Errorf("%w, quantity %v", limits.ErrAmountBelowMin, args[a].Quantity)
-			}
-			if args[a].Price <= 0 {
-				return nil, fmt.Errorf("%w, price %v", limits.ErrPriceBelowMin, args[a].Price)
-			}
-		case typeMarket:
-			if args[a].Quantity <= 0 && args[a].QuoteOrderQty <= 0 {
-				return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", limits.ErrAmountBelowMin)
-			}
-		default:
-			return nil, fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, args[a].OrderType)
+		if err := validateSpotOrderParams(args[a].OrderType, args[a].Quantity.Float64(), args[a].QuoteOrderQty.Float64(), args[a].Price.Float64()); err != nil {
+			return nil, err
 		}
 	}
 	jsonString, err := json.Marshal(args)
