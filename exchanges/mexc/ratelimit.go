@@ -98,8 +98,9 @@ func GetRateLimit() request.RateLimitDefinitions {
 		candlestickEPL:         request.GetRateLimiterWithWeight(ipModeRate, 1),
 		currentAveragePriceEPL: request.GetRateLimiterWithWeight(ipModeRate, 1),
 
+		// The 24hr ticker costs 25 whether one symbol or the whole catalogue is requested.
 		symbolTickerPriceChangeStatEPL:  request.GetRateLimiterWithWeight(ipModeRate, 25),
-		symbolsTickerPriceChangeStatEPL: request.GetRateLimiterWithWeight(ipModeRate, 40),
+		symbolsTickerPriceChangeStatEPL: request.GetRateLimiterWithWeight(ipModeRate, 25),
 
 		symbolPriceTickerEPL:              request.GetRateLimiterWithWeight(ipModeRate, 10),
 		symbolsPriceTickerEPL:             request.GetRateLimiterWithWeight(ipModeRate, 10),

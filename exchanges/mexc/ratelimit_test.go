@@ -103,7 +103,7 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 		{"getSymbols", getSymbolsEPL, 25},
 		{"orderbooks", orderbooksEPL, 3},
 		{"symbolTickerPriceChangeStat", symbolTickerPriceChangeStatEPL, 25},
-		{"symbolsTickerPriceChangeStat", symbolsTickerPriceChangeStatEPL, 40},
+		{"symbolsTickerPriceChangeStat", symbolsTickerPriceChangeStatEPL, 25},
 		{"symbolPriceTicker", symbolPriceTickerEPL, 10},
 		{"symbolsPriceTicker", symbolsPriceTickerEPL, 10},
 		{"symbolOrderbookTicker", symbolOrderbookTickerEPL, 10},
