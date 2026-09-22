@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -488,5 +489,123 @@ func TestFindNominalAmount(t *testing.T) {
 	nomAmt, remainingAmt = b.FindNominalAmount(15)
 	if nomAmt != 0 && remainingAmt != 30 {
 		t.Errorf("invalid return")
+	}
+}
+
+func TestLevelsCalculateExecution(t *testing.T) {
+	t.Parallel()
+	levels := Levels{
+		{Price: 100, Amount: 2},
+		{Price: 110, Amount: 3},
+		{Price: 120, Amount: 5},
+	}
+
+	result, err := levels.CalculateExecution(decimal.NewFromInt(4), decimal.NewFromFloat(0.5))
+	require.NoError(t, err, "CalculateExecution must not error for sufficient liquidity")
+	assert.True(t, result.RequestedAmount.Equal(decimal.NewFromInt(4)), "requested amount should match")
+	assert.True(t, result.ExecutedAmount.Equal(decimal.NewFromInt(4)), "executed amount should match")
+	assert.True(t, result.RemainingAmount.IsZero(), "remaining amount should be zero")
+	assert.True(t, result.BaseAmount.Equal(decimal.NewFromInt(2)), "base amount should include the multiplier")
+	assert.True(t, result.QuoteAmount.Equal(decimal.NewFromInt(210)), "quote amount should match the book walk")
+	assert.True(t, result.AveragePrice.Equal(decimal.NewFromInt(105)), "average price should be the VWAP")
+	assert.True(t, result.MarginalPrice.Equal(decimal.NewFromInt(110)), "marginal price should be the final consumed level")
+	assert.Equal(t, 2, result.LevelsUsed, "levels used should match")
+}
+
+func TestLevelsCalculateExecutionExactValues(t *testing.T) {
+	t.Parallel()
+	levels := Levels{{
+		Amount:    0.1,
+		StrAmount: "0.100000000000000001",
+		Price:     0.2,
+		StrPrice:  "0.200000000000000003",
+	}}
+	amount := decimal.RequireFromString("0.100000000000000001")
+
+	result, err := levels.CalculateExecution(amount, decimal.NewFromInt(1))
+	require.NoError(t, err, "CalculateExecution must use valid exact level values")
+	assert.True(t, result.QuoteAmount.Equal(decimal.RequireFromString("0.020000000000000000500000000000000003")),
+		"quote amount should retain exact level precision")
+	assert.True(t, result.AveragePrice.Equal(decimal.RequireFromString("0.200000000000000003")),
+		"average price should retain exact level precision")
+}
+
+func TestLevelsCalculateExecutionInsufficientLiquidity(t *testing.T) {
+	t.Parallel()
+	levels := Levels{{Price: 100, Amount: 2}, {Price: 110, Amount: 3}}
+
+	result, err := levels.CalculateExecution(decimal.NewFromInt(6), decimal.NewFromInt(1))
+	require.ErrorIs(t, err, ErrInsufficientLiquidity, "CalculateExecution must report insufficient liquidity")
+	assert.True(t, result.ExecutedAmount.Equal(decimal.NewFromInt(5)), "executed amount should describe the partial fill")
+	assert.True(t, result.RemainingAmount.Equal(decimal.NewFromInt(1)), "remaining amount should describe the shortfall")
+	assert.True(t, result.QuoteAmount.Equal(decimal.NewFromInt(530)), "quote amount should describe consumed liquidity")
+	assert.True(t, result.AveragePrice.Equal(decimal.NewFromInt(106)), "average price should describe consumed liquidity")
+	assert.True(t, result.MarginalPrice.Equal(decimal.NewFromInt(110)), "marginal price should describe the final consumed level")
+	assert.Equal(t, 2, result.LevelsUsed, "levels used should describe consumed liquidity")
+}
+
+func TestLevelsCalculateExecutionValidation(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		levels     Levels
+		amount     decimal.Decimal
+		multiplier decimal.Decimal
+		expected   error
+	}{
+		{
+			name:       "invalid amount",
+			amount:     decimal.Zero,
+			multiplier: decimal.NewFromInt(1),
+			expected:   ErrInvalidExecutionAmount,
+		},
+		{
+			name:       "invalid multiplier",
+			amount:     decimal.NewFromInt(1),
+			multiplier: decimal.Zero,
+			expected:   ErrInvalidContractMultiplier,
+		},
+		{
+			name:       "zero level amount",
+			levels:     Levels{{Price: 1}},
+			amount:     decimal.NewFromInt(1),
+			multiplier: decimal.NewFromInt(1),
+			expected:   ErrOrderbookInvalid,
+		},
+		{
+			name:       "zero level price",
+			levels:     Levels{{Amount: 1}},
+			amount:     decimal.NewFromInt(1),
+			multiplier: decimal.NewFromInt(1),
+			expected:   ErrOrderbookInvalid,
+		},
+		{
+			name:       "invalid exact amount",
+			levels:     Levels{{Amount: 1, StrAmount: "invalid", Price: 1}},
+			amount:     decimal.NewFromInt(1),
+			multiplier: decimal.NewFromInt(1),
+			expected:   ErrOrderbookInvalid,
+		},
+	}
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tests[i].levels.CalculateExecution(tests[i].amount, tests[i].multiplier)
+			assert.ErrorIs(t, err, tests[i].expected, "CalculateExecution should return the expected validation error")
+		})
+	}
+}
+
+func BenchmarkLevelsCalculateExecution(b *testing.B) {
+	levels := Levels{
+		{Price: 100, Amount: 2},
+		{Price: 110, Amount: 3},
+		{Price: 120, Amount: 5},
+	}
+	amount := decimal.NewFromInt(4)
+	multiplier := decimal.NewFromFloat(0.5)
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _ = levels.CalculateExecution(amount, multiplier)
 	}
 }

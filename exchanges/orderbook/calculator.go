@@ -3,7 +3,9 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	stdmath "math"
 
+	"github.com/shopspring/decimal"
 	math "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -11,9 +13,29 @@ import (
 const fullLiquidityUsageWarning = "[WARNING]: Full liquidity exhausted."
 
 var (
-	errPriceTargetInvalid = errors.New("price target is invalid")
-	errCannotShiftPrice   = errors.New("cannot shift price")
+	// ErrInvalidExecutionAmount is returned when the requested execution amount is not positive.
+	ErrInvalidExecutionAmount = errors.New("execution amount must be greater than zero")
+	// ErrInvalidContractMultiplier is returned when the base amount multiplier is not positive.
+	ErrInvalidContractMultiplier = errors.New("contract multiplier must be greater than zero")
+	// ErrInsufficientLiquidity is returned when the levels cannot fill the requested amount.
+	ErrInsufficientLiquidity = errors.New("insufficient liquidity")
+	errPriceTargetInvalid    = errors.New("price target is invalid")
+	errCannotShiftPrice      = errors.New("cannot shift price")
 )
+
+// ExecutionCalculation contains the result of walking an orderbook side for a
+// requested order amount. Order amounts are expressed in the same units as the
+// level amounts; base amounts include the supplied contract multiplier.
+type ExecutionCalculation struct {
+	RequestedAmount decimal.Decimal
+	ExecutedAmount  decimal.Decimal
+	RemainingAmount decimal.Decimal
+	BaseAmount      decimal.Decimal
+	QuoteAmount     decimal.Decimal
+	AveragePrice    decimal.Decimal
+	MarginalPrice   decimal.Decimal
+	LevelsUsed      int
+}
 
 // WhaleBombResult returns the whale bomb result
 type WhaleBombResult struct {
@@ -285,4 +307,69 @@ func (l Levels) FindNominalAmount(amount float64) (aggNominalAmount, remainingAm
 		remainingAmount -= l[x].Amount
 	}
 	return aggNominalAmount, remainingAmount
+}
+
+// CalculateExecution walks the levels required to execute orderAmount. The
+// multiplier converts each order unit, such as a derivative contract, into its
+// base-asset amount. Use a multiplier of one when level amounts are already in
+// base units.
+func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (ExecutionCalculation, error) {
+	if !orderAmount.IsPositive() {
+		return ExecutionCalculation{}, fmt.Errorf("%w: %s", ErrInvalidExecutionAmount, orderAmount)
+	}
+	if !multiplier.IsPositive() {
+		return ExecutionCalculation{}, fmt.Errorf("%w: %s", ErrInvalidContractMultiplier, multiplier)
+	}
+
+	result := ExecutionCalculation{
+		RequestedAmount: orderAmount,
+		RemainingAmount: orderAmount,
+	}
+	for i := range l {
+		levelAmount, err := levelDecimal(l[i].Amount, l[i].StrAmount)
+		if err != nil || !levelAmount.IsPositive() {
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid amount %q", ErrOrderbookInvalid, i, l[i].StrAmount)
+		}
+		levelPrice, err := levelDecimal(l[i].Price, l[i].StrPrice)
+		if err != nil || !levelPrice.IsPositive() {
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid price %q", ErrOrderbookInvalid, i, l[i].StrPrice)
+		}
+
+		used := decimal.Min(result.RemainingAmount, levelAmount)
+		baseAmount := used.Mul(multiplier)
+		result.ExecutedAmount = result.ExecutedAmount.Add(used)
+		result.RemainingAmount = result.RemainingAmount.Sub(used)
+		result.BaseAmount = result.BaseAmount.Add(baseAmount)
+		result.QuoteAmount = result.QuoteAmount.Add(baseAmount.Mul(levelPrice))
+		result.MarginalPrice = levelPrice
+		result.LevelsUsed++
+		if result.RemainingAmount.IsZero() {
+			result.setAveragePrice()
+			return result, nil
+		}
+	}
+	if result.BaseAmount.IsPositive() {
+		result.setAveragePrice()
+	}
+	return result, fmt.Errorf("%w: requested amount %s, remaining amount %s, multiplier %s", ErrInsufficientLiquidity, orderAmount, result.RemainingAmount, multiplier)
+}
+
+func (e *ExecutionCalculation) setAveragePrice() {
+	if e.LevelsUsed == 1 {
+		e.AveragePrice = e.MarginalPrice
+		return
+	}
+	if e.BaseAmount.IsPositive() {
+		e.AveragePrice = e.QuoteAmount.Div(e.BaseAmount)
+	}
+}
+
+func levelDecimal(value float64, exact string) (decimal.Decimal, error) {
+	if exact != "" {
+		return decimal.NewFromString(exact)
+	}
+	if stdmath.IsNaN(value) || stdmath.IsInf(value, 0) {
+		return decimal.Zero, ErrOrderbookInvalid
+	}
+	return decimal.NewFromFloat(value), nil
 }
