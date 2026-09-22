@@ -66,12 +66,19 @@ const (
 	lbankWithdraw                = "withdraw.do"
 	lbankRevokeWithdraw          = "withdrawCancel.do"
 	lbankTimestamp               = "timestamp.do"
+
+	// lbankOrderHistoryMaxPages bounds how far order history is crawled. The
+	// endpoint is only bounded by an empty page, and LBank registers no rate
+	// limiter, so a server that keeps returning rows for a page past the end
+	// would spin this loop forever.
+	lbankOrderHistoryMaxPages = 1000
 )
 
 var (
 	errPEMBlockIsNil           = errors.New("pem block is nil")
 	errUnableToParsePrivateKey = errors.New("unable to parse private key")
 	errPrivateKeyNotLoaded     = errors.New("private key not loaded")
+	errOrderHistoryPageLimit   = errors.New("order history page limit reached")
 )
 
 // GetTicker returns a ticker for the specified symbol
