@@ -1204,7 +1204,7 @@ func TestFetchTradablePairs(t *testing.T) {
 			require.NotEmpty(t, result, "the permitted spot symbols must remain")
 			// BTCUSDT carries isSpotTradingAllowed:false in the fixture, so it must be filtered out
 			// even though its status is 1 like every other symbol.
-			assert.False(t, result.Contains(currency.NewPair(currency.BTC, currency.USDT), false),
+			assert.False(t, result.Contains(currency.NewBTCUSDT(), false),
 				"a symbol the venue does not allow for spot trading should be excluded from the tradable pairs")
 		}
 	}
