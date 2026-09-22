@@ -28,6 +28,7 @@ var (
 	one        = decimal.NewFromInt(1)
 	two        = decimal.NewFromInt(2)
 	oneHundred = decimal.NewFromInt(100)
+	twoHundred = decimal.NewFromInt(200)
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -56,6 +57,29 @@ func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 		return decimal.Zero
 	}
 	return x.Sub(y).Abs().Div(x.Add(y).Div(two)).Mul(oneHundred)
+}
+
+// SignedPercentageDifferenceDecimal returns the signed difference between two
+// decimal values as a percentage of their average. A positive result indicates
+// x is greater than y. A zero sum returns zero to avoid division by zero.
+func SignedPercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
+	sum := x.Add(y)
+	if sum.IsZero() {
+		return decimal.Zero
+	}
+	return x.Sub(y).Div(sum).Mul(twoHundred)
+}
+
+// CompareSignedPercentageDifferenceDecimal compares the signed percentage
+// difference between x and y with target, returning standard Cmp semantics. It
+// avoids division when the sum is positive, preventing division rounding from
+// changing comparisons near a target boundary.
+func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int {
+	sum := x.Add(y)
+	if !sum.IsPositive() {
+		return SignedPercentageDifferenceDecimal(x, y).Cmp(target)
+	}
+	return x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum))
 }
 
 // CalculateNetProfit returns net profit
