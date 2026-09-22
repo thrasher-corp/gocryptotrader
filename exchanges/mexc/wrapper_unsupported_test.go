@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -63,4 +64,46 @@ func TestGetFeeByTypeOffline(t *testing.T) {
 	taker, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, PurchasePrice: 50000, Amount: 0.5})
 	require.NoError(t, err, "the offline taker fee must not error")
 	assert.Equal(t, 12.5, taker, "the offline taker fee should be 5 bps of the trade value (0.0005 * 50000 * 0.5)")
+}
+
+// TestFeaturesMatchImplementation pins the advertised capabilities to what the wrapper implements:
+// spot has no fiat withdrawal and orders cannot be placed over the websocket. Deposit chains are not
+// advertised because the deposit address endpoint names networks differently from the withdraw
+// networks GetAvailableTransferChains returns.
+func TestFeaturesMatchImplementation(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.SetDefaults()
+	assert.Equal(t, protocol.Features{
+		TickerBatching:        true,
+		TickerFetching:        true,
+		OrderbookFetching:     true,
+		KlineFetching:         true,
+		TradeFetching:         true,
+		AccountInfo:           true,
+		SubmitOrder:           true,
+		GetOrder:              true,
+		GetOrders:             true,
+		CancelOrder:           true,
+		CancelOrders:          true,
+		UserTradeHistory:      true,
+		TradeFee:              true,
+		CryptoDeposit:         true,
+		CryptoWithdrawal:      true,
+		DepositHistory:        true,
+		WithdrawalHistory:     true,
+		MultiChainWithdrawals: true,
+		AutoPairUpdates:       true,
+	}, ex.Features.Supports.RESTCapabilities, "the REST capabilities should match the implemented wrapper methods")
+	assert.Equal(t, protocol.Features{
+		TickerFetching:         true,
+		OrderbookFetching:      true,
+		KlineFetching:          true,
+		TradeFetching:          true,
+		AccountInfo:            true,
+		AuthenticatedEndpoints: true,
+		Subscribe:              true,
+		Unsubscribe:            true,
+	}, ex.Features.Supports.WebsocketCapabilities, "the websocket capabilities should match the implemented streams")
+	assert.Equal(t, exchange.AutoWithdrawCrypto|exchange.NoFiatWithdrawals, ex.Features.Supports.WithdrawPermissions, "only crypto withdrawal should be advertised")
 }

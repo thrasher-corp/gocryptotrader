@@ -50,22 +50,43 @@ func (e *Exchange) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:    true,
 				TickerFetching:    true,
 				OrderbookFetching: true,
 				KlineFetching:     true,
+				TradeFetching:     true,
 				AccountInfo:       true,
 				SubmitOrder:       true,
-				AutoPairUpdates:   true,
+				GetOrder:          true,
+				GetOrders:         true,
+				CancelOrder:       true,
+				CancelOrders:      true,
+				UserTradeHistory:  true,
+				TradeFee:          true,
+				CryptoDeposit:     true,
+				CryptoWithdrawal:  true,
+				DepositHistory:    true,
+				WithdrawalHistory: true,
+				// GetAvailableTransferChains returns the withdraw endpoint's netWork identifiers. The
+				// deposit address endpoint names its networks differently, so deposits are not
+				// advertised as multi-chain.
+				MultiChainWithdrawals: true,
+				AutoPairUpdates:       true,
 			},
+			// The spot websocket carries market data and account pushes only; orders are placed over REST.
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
-				KlineFetching:     true,
-				AccountInfo:       true,
-				SubmitOrder:       true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				KlineFetching:          true,
+				TradeFetching:          true,
+				AccountInfo:            true,
+				AuthenticatedEndpoints: true,
+				Subscribe:              true,
+				Unsubscribe:            true,
 			},
+			// The wallet API withdraws crypto only.
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.AutoWithdrawFiat,
+				exchange.NoFiatWithdrawals,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
