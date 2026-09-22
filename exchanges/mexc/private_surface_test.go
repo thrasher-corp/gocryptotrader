@@ -418,3 +418,24 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{Exchange: ex.Name, Type: withdraw.Crypto})
 	assert.Error(t, err, "an invalid withdrawal request should be rejected before it is sent")
 }
+
+// TestGetAvailableTransferChains lists a currency's withdraw networks by their netWork value, the one
+// the withdraw endpoint takes, rather than the display name in network.
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	ex := newPrivateTestExchange(t, jsonHandler(t, map[string]string{
+		"capital/config/getall": `[{"coin":"USDT","name":"TetherUS","networkList":[` +
+			`{"coin":"USDT","network":"Tron(TRC20)","netWork":"TRX"},{"coin":"USDT","network":"Ethereum(ERC20)","netWork":"ETH"}]},` +
+			`{"coin":"USDTX","name":"Other","networkList":[{"coin":"USDTX","network":"BNB Smart Chain(BEP20)","netWork":"BSC"}]}]`,
+	}))
+	chains, err := ex.GetAvailableTransferChains(t.Context(), currency.NewCode("usdt"))
+	require.NoError(t, err, "GetAvailableTransferChains must not error")
+	assert.Equal(t, []string{"TRX", "ETH"}, chains, "the chains should be the netWork values of the matching coin only")
+
+	chains, err = ex.GetAvailableTransferChains(t.Context(), currency.NewCode("NOPE"))
+	require.NoError(t, err, "GetAvailableTransferChains must not error for an unlisted coin")
+	assert.Empty(t, chains, "an unlisted coin should have no chains")
+
+	_, err = ex.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "an empty currency should be rejected")
+}

@@ -937,6 +937,31 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}, nil
 }
 
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency.
+// Each chain is the network's netWork value, the identifier the withdraw endpoint takes; network is
+// only a display name the venue is retiring.
+func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	if cryptocurrency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	coins, err := e.GetCurrencyInformation(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var chains []string
+	for i := range coins {
+		if !strings.EqualFold(coins[i].Coin, cryptocurrency.String()) {
+			continue
+		}
+		for j := range coins[i].NetworkList {
+			if coins[i].NetworkList[j].NetWork != "" {
+				chains = append(chains, coins[i].NetworkList[j].NetWork)
+			}
+		}
+	}
+	return chains, nil
+}
+
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (e *Exchange) WithdrawFiatFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
