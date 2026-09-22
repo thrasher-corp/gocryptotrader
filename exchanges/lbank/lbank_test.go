@@ -12,6 +12,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -564,4 +566,27 @@ func TestUnwrapV2Response(t *testing.T) {
 			assert.Equal(t, tc.expected, string(payload), "unwrapV2Response should return the expected payload")
 		})
 	}
+}
+
+// TestSendHTTPRequestEnvelopeFailure covers the path where an LBank v2
+// envelope reports a failed request. Without the boolean-aware envelope
+// handling this error was never surfaced to the caller.
+func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
+	t.Parallel()
+
+	sm := http.NewServeMux()
+	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":false,"msg":"instrument not found"}`))
+	})
+	server := httptest.NewServer(sm)
+	defer server.Close()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	var result any
+	err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, "", &result)
+	assert.ErrorContains(t, err, "lbank: request failed", "a failed envelope must be reported as an error")
 }
