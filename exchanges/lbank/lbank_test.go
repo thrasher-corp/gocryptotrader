@@ -588,5 +588,5 @@ func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
 
 	var result any
 	err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, "", &result)
-	assert.ErrorContains(t, err, "lbank: request failed", "a failed envelope must be reported as an error")
+	assert.ErrorContains(t, err, "lbank: request failed", "a failed envelope should be reported as an error")
 }
