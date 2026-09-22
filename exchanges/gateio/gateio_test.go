@@ -1212,6 +1212,79 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 	}
 }
 
+func TestGetSubAccountTransferHistoryTimeRange(t *testing.T) {
+	t.Parallel()
+
+	from := time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC)
+	to := from.Add(24 * time.Hour)
+	for _, tc := range []struct {
+		name         string
+		from         time.Time
+		to           time.Time
+		expectedFrom string
+		expectedTo   string
+		expectedErr  error
+	}{
+		{
+			name: "unset range keeps the exchange default window",
+		},
+		{
+			name:         "full range is forwarded",
+			from:         from,
+			to:           to,
+			expectedFrom: strconv.FormatInt(from.Unix(), 10),
+			expectedTo:   strconv.FormatInt(to.Unix(), 10),
+		},
+		{
+			name:       "end without start is forwarded",
+			to:         to,
+			expectedTo: strconv.FormatInt(to.Unix(), 10),
+		},
+		{
+			name:        "start after end is rejected",
+			from:        to,
+			to:          from,
+			expectedErr: common.ErrStartAfterEnd,
+		},
+		{
+			name:        "start before the earliest available record is rejected",
+			from:        time.Date(2019, time.January, 1, 0, 0, 0, 0, time.UTC),
+			to:          to,
+			expectedErr: errSubAccountTransferHistoryStart,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var requests atomic.Int64
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, "1337", r.URL.Query().Get("sub_uid"), "sub-account user id should be forwarded")
+				assert.Equal(t, tc.expectedFrom, r.URL.Query().Get("from"), "from should match the requested time range")
+				assert.Equal(t, tc.expectedTo, r.URL.Query().Get("to"), "to should match the requested time range")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Mocked transfer history response should be written")
+			}))
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+			_, err := ex.GetSubAccountTransferHistory(t.Context(), "1337", tc.from, tc.to, 0, 0)
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "an unusable time range must be reported to the caller")
+				assert.Zero(t, requests.Load(), "a request with an unusable time range should not be sent")
+				return
+			}
+			require.NoError(t, err, "GetSubAccountTransferHistory must not error")
+			assert.Equal(t, int64(1), requests.Load(), "a valid request should reach the exchange once")
+		})
+	}
+}
+
 func TestSubAccountTransferToSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

@@ -162,6 +162,7 @@ var (
 	errMultipleOrders                   = errors.New("multiple orders passed")
 	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
 	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
+	errSubAccountTransferHistoryStart   = errors.New("from is before the earliest available sub-account transfer record")
 	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
@@ -1195,11 +1196,13 @@ func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountU
 	if err != nil {
 		return nil, err
 	}
-	if err := common.StartEndTimeCheck(startingTime, from); err == nil {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	if !from.IsZero() {
+		if err := common.StartEndTimeCheck(startingTime, from); err != nil {
+			return nil, fmt.Errorf("%w: %s", errSubAccountTransferHistoryStart, startingTime.Format(time.DateOnly))
+		}
 	}
-	if err := common.StartEndTimeCheck(from, to); err == nil {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
