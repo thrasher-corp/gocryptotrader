@@ -29,13 +29,14 @@ type AmountStep struct {
 // BaseIncrement returns the smallest base-asset quantity executable under the
 // amount step.
 func (a AmountStep) BaseIncrement() (decimal.Decimal, error) {
-	if !a.Increment.IsPositive() {
-		return decimal.Zero, fmt.Errorf("%w: %s", ErrAmountStepNotPositive, a.Increment)
+	increment, err := a.orderIncrement()
+	if err != nil {
+		return decimal.Zero, err
 	}
 	if !a.ContractMultiplier.IsPositive() {
 		return decimal.Zero, fmt.Errorf("%w: %s", ErrContractMultiplierNotPositive, a.ContractMultiplier)
 	}
-	return a.Increment.Mul(a.ContractMultiplier), nil
+	return increment.Mul(a.ContractMultiplier), nil
 }
 
 // FloorBaseAmount rounds a base-asset amount down to an executable increment.
@@ -67,15 +68,17 @@ func (a AmountStep) CeilBaseAmount(amount decimal.Decimal) (decimal.Decimal, err
 }
 
 // FloorOrderAmount rounds an amount in exchange order units down to its
-// executable increment.
+// executable increment. A contract multiplier is not required because both
+// the amount and increment are already expressed in order units.
 func (a AmountStep) FloorOrderAmount(amount decimal.Decimal) (decimal.Decimal, error) {
 	if !amount.IsPositive() {
 		return decimal.Zero, fmt.Errorf("%w: %s", ErrAmountNotPositive, amount)
 	}
-	if _, err := a.BaseIncrement(); err != nil {
+	increment, err := a.orderIncrement()
+	if err != nil {
 		return decimal.Zero, err
 	}
-	return amount.Sub(amount.Mod(a.Increment)), nil
+	return amount.Sub(amount.Mod(increment)), nil
 }
 
 // CommonBaseIncrement returns the smallest base-asset amount executable by
@@ -131,4 +134,11 @@ func decimalScale(value string) int {
 		return 0
 	}
 	return len(value) - point - 1
+}
+
+func (a AmountStep) orderIncrement() (decimal.Decimal, error) {
+	if !a.Increment.IsPositive() {
+		return decimal.Zero, fmt.Errorf("%w: %s", ErrAmountStepNotPositive, a.Increment)
+	}
+	return a.Increment, nil
 }

@@ -69,6 +69,7 @@ func TestAmountStepFloorOrderAmount(t *testing.T) {
 		{name: "contract amount", amount: "2.5369", increment: "1", multiplier: "100", expected: "2"},
 		{name: "spot amount", amount: "2.61469", increment: "0.01", multiplier: "1", expected: "2.61"},
 		{name: "exact amount", amount: "8242", increment: "1", multiplier: "1", expected: "8242"},
+		{name: "does not require multiplier", amount: "2.5369", increment: "1", multiplier: "0", expected: "2"},
 	}
 	for i := range tests {
 		t.Run(tests[i].name, func(t *testing.T) {
@@ -124,7 +125,11 @@ func TestAmountStepValidation(t *testing.T) {
 			_, err = tests[i].step.CeilBaseAmount(tests[i].amount)
 			assert.ErrorIs(t, err, tests[i].expected, "CeilBaseAmount should return the expected validation error")
 			_, err = tests[i].step.FloorOrderAmount(tests[i].amount)
-			assert.ErrorIs(t, err, tests[i].expected, "FloorOrderAmount should return the expected validation error")
+			if tests[i].expected == ErrContractMultiplierNotPositive {
+				assert.NoError(t, err, "FloorOrderAmount should not require a contract multiplier")
+			} else {
+				assert.ErrorIs(t, err, tests[i].expected, "FloorOrderAmount should return the expected validation error")
+			}
 		})
 	}
 }
