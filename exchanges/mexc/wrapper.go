@@ -1279,6 +1279,20 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType ass
 	return nil
 }
 
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	switch a {
+	case asset.Spot:
+		if _, err := e.CurrencyPairs.IsPairEnabled(cp, a); err != nil {
+			return "", err
+		}
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + "exchange/" + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
+	}
+}
+
 // orderStatusFromString converts a MEXC order status into the common order.Status.
 //
 // MEXC reports "PARTIALLY_CANCELED", a spelling the shared order.StringToOrderStatus parser does

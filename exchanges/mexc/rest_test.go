@@ -1578,3 +1578,13 @@ func TestWithdrawalStatusToString(t *testing.T) {
 		assert.Equalf(t, expected, withdrawalStatusToString(status), "withdrawalStatusToString should return correct value for %d", status)
 	}
 }
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	resp, err := e.GetCurrencyTradeURL(t.Context(), asset.Spot, spotTradablePair)
+	require.NoError(t, err, "GetCurrencyTradeURL must not error")
+	assert.Equal(t, "https://www.mexc.com/exchange/"+spotTradablePair.Base.Upper().String()+"_"+spotTradablePair.Quote.Upper().String(), resp, "the spot trade URL should name the pair as BASE_QUOTE")
+
+	_, err = e.GetCurrencyTradeURL(t.Context(), asset.Futures, spotTradablePair)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "a non-spot asset should be reported as unsupported")
+}
