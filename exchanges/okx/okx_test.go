@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -1108,6 +1111,45 @@ func TestTransactionHistory(t *testing.T) {
 	result, err := e.GetTransactionDetailsLast3Days(contextGenerate(), &TransactionDetailRequestParams{InstrumentType: "MARGIN", Limit: 1})
 	require.NoError(t, err)
 	require.NotNil(t, result)
+}
+
+// TestGetTransactionDetailsOrderID covers forwarding the order ID filter to the
+// fills endpoint. Before the fix the order ID was dropped, so a caller asking for
+// the fills of a single order silently received every fill in the requested
+// window.
+func TestGetTransactionDetailsOrderID(t *testing.T) {
+	t.Parallel()
+	var (
+		mutex sync.Mutex
+		query url.Values
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mutex.Lock()
+		query = r.URL.Query()
+		mutex.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
+	}))
+	defer server.Close()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
+
+	const orderID = "312269865356374016"
+	_, err := ex.GetTransactionDetailsLast3Days(t.Context(), &TransactionDetailRequestParams{
+		InstrumentType: instTypeSpot,
+		OrderID:        orderID,
+		Limit:          3,
+	})
+	require.NoError(t, err, "GetTransactionDetailsLast3Days must not error")
+	mutex.Lock()
+	defer mutex.Unlock()
+	require.NotNil(t, query, "a request must have been sent")
+	assert.Equal(t, orderID, query.Get("ordId"), "GetTransactionDetailsLast3Days should forward the order ID filter as ordId")
+	assert.Equal(t, instTypeSpot, query.Get("instType"), "GetTransactionDetailsLast3Days should forward the instrument type")
+	assert.Equal(t, "3", query.Get("limit"), "GetTransactionDetailsLast3Days should forward the limit")
 }
 
 func TestGetTransactionDetailsLast3Months(t *testing.T) {
