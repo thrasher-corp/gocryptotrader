@@ -472,6 +472,26 @@ func TestGetOrderInfoOrderIDNotFound(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order ID the exchange does not return")
 }
 
+// TestGetOrderHistoryCompoundOrderType ensures a compound order type LBank
+// documents, such as sell_market, is mapped to its side instead of erroring.
+// The compound order is served after a plain one so the history crawl only
+// reaches it through the indexed order it reads, tempResp.Orders[x].
+func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHistoryHandler(t, orderGuardHistoryCompoundOrder))
+
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error for a compound order type")
+	require.Len(t, got, 2, "GetOrderHistory must keep every order on the page")
+	assert.Equal(t, order.Buy, got[0].Side, "GetOrderHistory should map the leading plain order to the buy side")
+	assert.Equal(t, order.Sell, got[1].Side, "GetOrderHistory should map sell_market to the sell side")
+}
+
 // orderGuardNoOrders is an empty LBank order query response.
 const orderGuardNoOrders = `{"result":"true","error_code":0,"orders":[]}`
 
@@ -484,6 +504,27 @@ func orderGuardOpenOrder(orderID string) string {
 // the supplied type.
 func orderGuardSingleOrder(orderType string) string {
 	return fmt.Sprintf(`{"result":"true","error_code":0,"orders":[{"order_id":"1","symbol":"btc_usdt","type":%q,"price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`, orderType)
+}
+
+// orderGuardHistoryCompoundOrder is an order history page carrying a plain
+// order followed by a compound one, so the compound order sits where the
+// history crawl reads it, at an index after the first.
+const orderGuardHistoryCompoundOrder = `{"result":"true","error_code":0,"page_length":200,"current_page":1,"orders":[{"order_id":"1","symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000},{"order_id":"2","symbol":"btc_usdt","type":"sell_market","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`
+
+// orderGuardHistoryHandler answers the order history crawl with firstPage on
+// the first page and nothing after it.
+func orderGuardHistoryHandler(t *testing.T, firstPage string) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, r.ParseForm(), "the request body should parse as a form")
+		assert.Truef(t, strings.HasSuffix(r.URL.Path, lbankQueryHistoryOrder), "the wrapper should only request order history, got %s", r.URL.Path)
+		body := orderGuardNoOrders
+		if r.Form.Get("current_page") == "1" {
+			body = firstPage
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the response should not error")
+	}
 }
 
 // orderGuardHandler answers the open order listing with a single order on the
