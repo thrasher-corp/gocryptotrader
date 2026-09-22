@@ -28,8 +28,8 @@ type wsV5FuturesSubscriptionRequest struct {
 }
 
 type wsFuturesPong struct {
-	Operation string `json:"op"`
-	Timestamp string `json:"ts"`
+	Operation string     `json:"op"`
+	Timestamp types.Time `json:"ts"`
 }
 
 // WsFundingRate contains a public derivative funding-rate update.
