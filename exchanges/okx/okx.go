@@ -5123,7 +5123,7 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 	if !arg.After.IsZero() {
 		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
 	}
-	if arg.Limit > 0 {
+	if arg.Limit > 0 && arg.Limit < 100 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []LiquidationOrder

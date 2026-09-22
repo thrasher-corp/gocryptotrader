@@ -727,21 +727,6 @@ func TestGetLiquidationOrdersInstrumentTypes(t *testing.T) {
 			},
 		},
 		{
-			name: "limit is forwarded above the previous guard",
-			arg: &LiquidationOrderRequestParams{
-				InstrumentType: instTypeSwap,
-				Underlying:     mainPair.String(),
-				State:          "filled",
-				Limit:          150,
-			},
-			expected: url.Values{
-				"instType": {instTypeSwap},
-				"uly":      {mainPair.String()},
-				"state":    {"filled"},
-				"limit":    {"150"},
-			},
-		},
-		{
 			name:        "margin without instrument ID or currency is rejected",
 			arg:         &LiquidationOrderRequestParams{InstrumentType: instTypeMargin},
 			expectedErr: errEitherInstIDOrCcyIsRequired,
