@@ -65,6 +65,8 @@ func wsPushFrameForSymbol(tb testing.TB, symbol, channel string, sendTime int64,
 		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreBookTicker{PublicAggreBookTicker: b}
 	case *mexc_proto_types.PublicMiniTickerV3Api:
 		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicMiniTicker{PublicMiniTicker: b}
+	case *mexc_proto_types.PublicMiniTickersV3Api:
+		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicMiniTickers{PublicMiniTickers: b}
 	case *mexc_proto_types.PublicAggreDealsV3Api:
 		w.Body = &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDeals{PublicAggreDeals: b}
 	case *mexc_proto_types.PublicSpotKlineV3Api:
@@ -225,4 +227,39 @@ func TestAccountTypeMatches(t *testing.T) {
 	assert.True(t, accountTypeMatches("spot", asset.Spot), "an already lower-case value should still match")
 	assert.True(t, accountTypeMatches("SPOT", asset.Empty), "an empty asset should match anything")
 	assert.False(t, accountTypeMatches("SPOT", asset.Futures), "a different account type should not match")
+}
+
+// TestWsSpotTickerFromMiniTickers applies each item of the all-symbols miniTickers push the way the
+// per-symbol miniTicker is applied, and skips a symbol that is not tracked instead of failing the frame.
+func TestWsSpotTickerFromMiniTickers(t *testing.T) {
+	drainTickers(t)
+	raw := wsPushFrameForSymbol(t, "", "spot@"+channelMiniTickersV3+"@"+miniTickerTimezone, 1736412093000,
+		&mexc_proto_types.PublicMiniTickersV3Api{Items: []*mexc_proto_types.PublicMiniTickerV3Api{
+			{Symbol: "NOTTRACKEDUSDT", Price: "1", High: "1", Low: "1", Volume: "1", Quantity: "1"},
+			{Symbol: wsTestSymbol, Price: "93391.5", High: "94001", Low: "92001", Volume: "0", Quantity: "0"},
+		}})
+	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error on an untracked symbol")
+
+	ticks := drainTickers(t)
+	require.Len(t, ticks, 1, "only the tracked symbol must publish a ticker")
+	got := ticks[0]
+	assert.Equal(t, 93391.5, got.Last, "Last should be correct")
+	assert.Equal(t, 94001.0, got.High, "High should be correct")
+	assert.Equal(t, 92001.0, got.Low, "Low should be correct")
+	assert.Zero(t, got.BaseVolume, "an explicit zero base volume should be kept")
+	assert.Zero(t, got.QuoteVolume, "an explicit zero quote volume should be kept")
+	assert.Equal(t, int64(1736412093000), got.LastUpdated.UnixMilli(), "LastUpdated should come from the exchange send time")
+}
+
+// TestMiniTickersSubscription qualifies the all-symbols channel without a symbol but with the
+// mandatory timezone suffix, and keeps it out of the default subscriptions.
+func TestMiniTickersSubscription(t *testing.T) {
+	t.Parallel()
+	subs, err := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickersV3}}.ExpandTemplates(e)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	require.Len(t, subs, 1, "the all-symbols channel must expand to a single subscription")
+	assert.Equal(t, "spot@"+channelMiniTickersV3+"@"+miniTickerTimezone, subs[0].QualifiedChannel, "the channel should carry no symbol and the timezone suffix")
+	for _, s := range defaultSubscriptions {
+		assert.NotEqual(t, channelMiniTickersV3, s.Channel, "the all-symbols channel should not be a default subscription")
+	}
 }

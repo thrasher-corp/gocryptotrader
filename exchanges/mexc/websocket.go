@@ -34,6 +34,7 @@ const (
 
 	channelBookTiker        = "public.aggre.bookTicker.v3.api.pb"
 	channelMiniTickerV3     = "public.miniTicker.v3.api.pb"
+	channelMiniTickersV3    = "public.miniTickers.v3.api.pb"
 	channelAggreDealsV3     = "public.aggre.deals.v3.api.pb"
 	channelKlineV3          = "public.kline.v3.api.pb"
 	channelLimitDepthV3     = "public.limit.depth.v3.api.pb"
@@ -42,8 +43,9 @@ const (
 	channelPrivateDealsV3   = "private.deals.v3.api.pb"
 	channelPrivateOrdersAPI = "private.orders.v3.api.pb"
 
-	// miniTickerTimezone is a mandatory suffix of the spot miniTicker channel: MEXC rejects the
-	// subscription without it ("Not Subscribed successfully! ... Reason: Blocked!" — measured live).
+	// miniTickerTimezone is a mandatory suffix of the spot miniTicker and miniTickers channels: MEXC
+	// rejects the subscription without it ("Not Subscribed successfully! ... Reason: Blocked!" — measured
+	// live).
 	// It only shifts the rate fields we do not consume; price/high/low/volume are timezone-agnostic.
 	miniTickerTimezone = "UTC+8"
 	// wsPongMessage is the msg field of the spot ping acknowledgement
@@ -232,13 +234,16 @@ func (e *Exchange) wsUnhandled(ctx context.Context, respRaw []byte) error {
 	})
 }
 
+// isSymbolChannel reports whether a channel is subscribed per symbol. The private channels and the
+// all-symbols miniTickers channel carry no symbol.
 func isSymbolChannel(channel string) bool {
-	return !slices.Contains([]string{channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI}, channel)
+	return !slices.Contains([]string{channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI, channelMiniTickersV3}, channel)
 }
 
-// channelSuffix returns the trailing element a channel requires after the symbol, if any
+// channelSuffix returns the trailing element a channel requires after the symbol, or after the channel
+// name when it carries no symbol, if any
 func channelSuffix(channel string) string {
-	if channel == channelMiniTickerV3 {
+	if channel == channelMiniTickerV3 || channel == channelMiniTickersV3 {
 		return "@" + miniTickerTimezone
 	}
 	return ""
@@ -311,6 +316,47 @@ func (e *Exchange) wsUpdateSpotTicker(ctx context.Context, cp currency.Pair, upd
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, tick)
+}
+
+// wsUpdateSpotMiniTicker applies one miniTicker record to the cached spot ticker. The per-symbol
+// miniTicker channel and the all-symbols miniTickers channel push the same record, so both go through
+// here.
+func (e *Exchange) wsUpdateSpotMiniTicker(ctx context.Context, cp currency.Pair, updated time.Time, body *mexc_proto_types.PublicMiniTickerV3Api) error {
+	last, err := parseOptionalFloat(body.Price)
+	if err != nil {
+		return err
+	}
+	high, err := parseOptionalFloat(body.High)
+	if err != nil {
+		return err
+	}
+	low, err := parseOptionalFloat(body.Low)
+	if err != nil {
+		return err
+	}
+	// Measured against GET /api/v3/ticker/24hr for KASUSDT: miniTicker `quantity` is the base
+	// asset volume and `volume` is the quote volume — the opposite of the REST field naming.
+	baseVolume, err := parseOptionalFloat(body.Quantity)
+	if err != nil {
+		return err
+	}
+	quoteVolume, err := parseOptionalFloat(body.Volume)
+	if err != nil {
+		return err
+	}
+	return e.wsUpdateSpotTicker(ctx, cp, updated, func(t *ticker.Price) {
+		setIfNonZero(&t.Last, last)
+		setIfNonZero(&t.High, high)
+		setIfNonZero(&t.Low, low)
+		// Volume is legitimately zero on an idle symbol, so presence in the frame decides rather
+		// than the value: setIfNonZero cannot tell an explicit "0" from an omitted field.
+		if body.Quantity != "" {
+			t.BaseVolume = baseVolume
+		}
+		if body.Volume != "" {
+			t.QuoteVolume = quoteVolume
+		}
+	})
 }
 
 // parseOptionalFloat parses a numeric field which the exchange may omit entirely
@@ -445,41 +491,25 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		last, err := parseOptionalFloat(body.Price)
-		if err != nil {
-			return err
+		return e.wsUpdateSpotMiniTicker(ctx, cp, wsSendTime(result), body)
+	case channelMiniTickersV3:
+		body := result.GetPublicMiniTickers()
+		if body == nil {
+			return e.wsUnhandled(ctx, respRaw)
 		}
-		high, err := parseOptionalFloat(body.High)
-		if err != nil {
-			return err
-		}
-		low, err := parseOptionalFloat(body.Low)
-		if err != nil {
-			return err
-		}
-		// Measured against GET /api/v3/ticker/24hr for KASUSDT: miniTicker `quantity` is the base
-		// asset volume and `volume` is the quote volume — the opposite of the REST field naming.
-		baseVolume, err := parseOptionalFloat(body.Quantity)
-		if err != nil {
-			return err
-		}
-		quoteVolume, err := parseOptionalFloat(body.Volume)
-		if err != nil {
-			return err
-		}
-		return e.wsUpdateSpotTicker(ctx, cp, wsSendTime(result), func(t *ticker.Price) {
-			setIfNonZero(&t.Last, last)
-			setIfNonZero(&t.High, high)
-			setIfNonZero(&t.Low, low)
-			// Volume is legitimately zero on an idle symbol, so presence in the frame decides rather
-			// than the value: setIfNonZero cannot tell an explicit "0" from an omitted field.
-			if body.Quantity != "" {
-				t.BaseVolume = baseVolume
+		updated := wsSendTime(result)
+		for _, item := range body.Items {
+			// The push covers every symbol whose price moved, so one that is not tracked is skipped
+			// rather than failing the rest of the frame.
+			cp, err := e.MatchSymbolWithAvailablePairs(item.Symbol, asset.Spot, false)
+			if err != nil {
+				continue
 			}
-			if body.Volume != "" {
-				t.QuoteVolume = quoteVolume
+			if err := e.wsUpdateSpotMiniTicker(ctx, cp, updated, item); err != nil {
+				return err
 			}
-		})
+		}
+		return nil
 	case channelAggreDealsV3:
 		// Read both trade settings per frame so a feed switched on after setup takes effect straight
 		// away; skip the work entirely when neither wants the trades. The private deals channel is
@@ -842,7 +872,7 @@ const subTplText = `
 				{{- $.AssetSeparator }}
 			{{- end }}
 	{{- else }}
-		{{- assetTypeToString $.S.Asset}}@{{- $name -}}
+		{{- assetTypeToString $.S.Asset}}@{{- $name -}}{{- channelSuffix $name }}
 	{{- end }}
 {{- end }}
 `
