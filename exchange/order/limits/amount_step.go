@@ -16,6 +16,7 @@ var (
 	ErrAmountStepNotPositive = errors.New("amount step must be greater than zero")
 	// ErrContractMultiplierNotPositive is returned when a contract multiplier is invalid.
 	ErrContractMultiplierNotPositive = errors.New("contract multiplier must be greater than zero")
+	errCannotParseBaseIncrement      = errors.New("cannot parse base increment")
 )
 
 // AmountStep describes the executable order increment and the base amount
@@ -36,10 +37,16 @@ func (a AmountStep) BaseIncrement() (decimal.Decimal, error) {
 	if !a.ContractMultiplier.IsPositive() {
 		return decimal.Zero, fmt.Errorf("%w: %s", ErrContractMultiplierNotPositive, a.ContractMultiplier)
 	}
-	return increment.Mul(a.ContractMultiplier), nil
+	baseIncrement := increment.Mul(a.ContractMultiplier)
+	if !baseIncrement.IsPositive() {
+		return decimal.Zero, fmt.Errorf("%w: increment %s with multiplier %s underflows to %s",
+			ErrAmountStepNotPositive, increment, a.ContractMultiplier, baseIncrement)
+	}
+	return baseIncrement, nil
 }
 
 // FloorBaseAmount rounds a base-asset amount down to an executable increment.
+// A positive amount smaller than the increment rounds to zero without error.
 func (a AmountStep) FloorBaseAmount(amount decimal.Decimal) (decimal.Decimal, error) {
 	if !amount.IsPositive() {
 		return decimal.Zero, fmt.Errorf("%w: %s", ErrAmountNotPositive, amount)
@@ -69,7 +76,8 @@ func (a AmountStep) CeilBaseAmount(amount decimal.Decimal) (decimal.Decimal, err
 
 // FloorOrderAmount rounds an amount in exchange order units down to its
 // executable increment. A contract multiplier is not required because both
-// the amount and increment are already expressed in order units.
+// the amount and increment are already expressed in order units. A positive
+// amount smaller than the increment rounds to zero without error.
 func (a AmountStep) FloorOrderAmount(amount decimal.Decimal) (decimal.Decimal, error) {
 	if !amount.IsPositive() {
 		return decimal.Zero, fmt.Errorf("%w: %s", ErrAmountNotPositive, amount)
@@ -99,13 +107,15 @@ func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, erro
 		return second, nil
 	}
 
-	firstRat, ok := new(big.Rat).SetString(first.String())
+	firstString := first.String()
+	secondString := second.String()
+	firstRat, ok := new(big.Rat).SetString(firstString)
 	if !ok {
-		return decimal.Zero, fmt.Errorf("cannot parse first base increment %q", first)
+		return decimal.Zero, fmt.Errorf("%w: first value %q", errCannotParseBaseIncrement, firstString)
 	}
-	secondRat, ok := new(big.Rat).SetString(second.String())
+	secondRat, ok := new(big.Rat).SetString(secondString)
 	if !ok {
-		return decimal.Zero, fmt.Errorf("cannot parse second base increment %q", second)
+		return decimal.Zero, fmt.Errorf("%w: second value %q", errCannotParseBaseIncrement, secondString)
 	}
 
 	var numeratorProduct, numeratorLCM, denominatorGCD big.Int
@@ -114,7 +124,7 @@ func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, erro
 	denominatorGCD.GCD(nil, nil, firstRat.Denom(), secondRat.Denom())
 
 	resultRat := new(big.Rat).SetFrac(&numeratorLCM, &denominatorGCD)
-	scale := max(decimalScale(first.String()), decimalScale(second.String()))
+	scale := max(decimalScale(firstString), decimalScale(secondString))
 	result, err := decimal.NewFromString(resultRat.FloatString(scale))
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("cannot convert common base increment: %w", err)

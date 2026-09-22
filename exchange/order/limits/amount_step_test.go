@@ -19,6 +19,33 @@ func TestAmountStepBaseIncrement(t *testing.T) {
 	assert.Equal(t, "0.025", result.String(), "BaseIncrement should combine the amount step and multiplier")
 }
 
+func TestAmountStepBaseIncrementUnderflow(t *testing.T) {
+	t.Parallel()
+	step := AmountStep{
+		Increment:          decimal.MustFromString("0.0000000001"),
+		ContractMultiplier: decimal.MustFromString("0.0000000001"),
+	}
+	unit := AmountStep{Increment: decimal.NewFromInt(1), ContractMultiplier: decimal.NewFromInt(1)}
+	expectedProduct := step.Increment.Mul(step.ContractMultiplier)
+
+	result, err := step.BaseIncrement()
+	if expectedProduct.IsZero() {
+		require.ErrorIs(t, err, ErrAmountStepNotPositive, "BaseIncrement must reject an underflowed product")
+		assert.True(t, result.IsZero(), "BaseIncrement should return zero on product underflow")
+		_, err = step.FloorBaseAmount(decimal.NewFromInt(1))
+		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "FloorBaseAmount should reject an underflowed increment")
+		_, err = step.CeilBaseAmount(decimal.NewFromInt(1))
+		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "CeilBaseAmount should reject an underflowed increment")
+		_, err = step.CommonBaseIncrement(unit)
+		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "CommonBaseIncrement should reject an underflowed first increment")
+		_, err = unit.CommonBaseIncrement(step)
+		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "CommonBaseIncrement should reject an underflowed second increment")
+		return
+	}
+	require.NoError(t, err, "BaseIncrement must accept a representable positive product")
+	assert.Equal(t, expectedProduct, result, "BaseIncrement should return the representable product")
+}
+
 func TestAmountStepRoundBaseAmount(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -33,6 +60,7 @@ func TestAmountStepRoundBaseAmount(t *testing.T) {
 		{name: "fractional spot increment", amount: "10.251", increment: "0.25", multiplier: "1", floor: "10.25", ceil: "10.5"},
 		{name: "fractional contract multiplier", amount: "1.82624", increment: "1", multiplier: "0.1", floor: "1.8", ceil: "1.9"},
 		{name: "large contract multiplier", amount: "2044", increment: "1", multiplier: "1000", floor: "2000", ceil: "3000"},
+		{name: "amount below increment", amount: "0.5", increment: "1", multiplier: "1", floor: "0", ceil: "1"},
 		{
 			name: "precision beyond default division scale", amount: "0.000000000000000007",
 			increment: "0.000000000000000002", multiplier: "1",
@@ -70,6 +98,7 @@ func TestAmountStepFloorOrderAmount(t *testing.T) {
 		{name: "spot amount", amount: "2.61469", increment: "0.01", multiplier: "1", expected: "2.61"},
 		{name: "exact amount", amount: "8242", increment: "1", multiplier: "1", expected: "8242"},
 		{name: "does not require multiplier", amount: "2.5369", increment: "1", multiplier: "0", expected: "2"},
+		{name: "amount below increment", amount: "0.5", increment: "1", multiplier: "1", expected: "0"},
 	}
 	for i := range tests {
 		t.Run(tests[i].name, func(t *testing.T) {
@@ -154,6 +183,12 @@ func TestAmountStepCommonBaseIncrement(t *testing.T) {
 			first:    AmountStep{Increment: decimal.MustFromString("0.2"), ContractMultiplier: decimal.NewFromInt(1)},
 			second:   AmountStep{Increment: decimal.MustFromString("0.03"), ContractMultiplier: decimal.NewFromInt(1)},
 			expected: "0.6",
+		},
+		{
+			name:     "non-coprime numerators require greatest common divisor",
+			first:    AmountStep{Increment: decimal.MustFromString("0.6"), ContractMultiplier: decimal.NewFromInt(1)},
+			second:   AmountStep{Increment: decimal.MustFromString("0.9"), ContractMultiplier: decimal.NewFromInt(1)},
+			expected: "1.8",
 		},
 		{
 			name:     "different contract multipliers",
