@@ -1,14 +1,13 @@
 package mexc
 
 import (
-	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"golang.org/x/time/rate"
 )
 
 func TestRateLimit_LimitStatic(t *testing.T) {
@@ -119,31 +118,29 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 }
 
 // TestRateLimitPoolBudgets pins the shared budgets themselves, which the weight table cannot express:
-// a weight-1 IP endpoint must admit no more than 300/10s and an order endpoint no more than 12/s.
-// Only the upper bound is asserted, so a slow runner cannot fail it.
+// the IP-weighted endpoints draw on 300 per 10 seconds, and place, batch, cancel and cancel-all draw
+// on one shared 12 per second rather than 12 each.
 func TestRateLimitPoolBudgets(t *testing.T) {
 	t.Parallel()
+	rl := GetRateLimit()
 	for _, tc := range []struct {
 		name string
 		epl  request.EndpointLimit
-		max  int
+		rate rate.Limit
 	}{
 		{"IP pool at weight 1", systemTimeEPL, 30},
 		{"shared order budget", newOrderEPL, 12},
 	} {
-		rl, err := request.New("pool-"+tc.name, &http.Client{}, request.WithLimiter(GetRateLimit()))
-		require.NoError(t, err)
-		n := 0
-		deadline := time.Now().Add(time.Second)
-		for time.Now().Before(deadline) {
-			ctx, cancel := context.WithDeadline(t.Context(), deadline)
-			err := rl.InitiateRateLimit(ctx, tc.epl)
-			cancel()
-			if err != nil {
-				break
-			}
-			n++
-		}
-		assert.LessOrEqualf(t, n, tc.max, "%s should admit no more than %d requests per second, got %d", tc.name, tc.max, n)
+		assert.Equalf(t, tc.rate, rl[tc.epl].Limit(), "%s should draw on a budget of %v actions per second", tc.name, tc.rate)
+	}
+	for _, epl := range []struct {
+		name string
+		epl  request.EndpointLimit
+	}{
+		{"createBatchOrders", createBatchOrdersEPL},
+		{"cancelTradeOrder", cancelTradeOrderEPL},
+		{"cancelAllOpenOrdersBySymbol", cancelAllOpenOrdersBySymbolEPL},
+	} {
+		assert.Truef(t, rl[epl.epl].SharesBudgetWith(rl[newOrderEPL]), "%s should draw on the same budget as newOrder, not an identical one of its own", epl.name)
 	}
 }
