@@ -2980,6 +2980,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 			LastUpdated:          resp.UpdateTime.Time(),
 			RemainingAmount:      math.Abs(resp.Left.Float64()),
 			Amount:               math.Abs(resp.Size.Float64()),
+			ExecutedAmount:       math.Abs(resp.Size.Float64()) - math.Abs(resp.Left.Float64()),
 			Price:                resp.Price.Float64(),
 			AverageExecutedPrice: resp.FillPrice.Float64(),
 			Type:                 oType,
