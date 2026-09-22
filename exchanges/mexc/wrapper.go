@@ -1242,6 +1242,14 @@ func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
+//
+// The PERCENT_PRICE_BY_SIDE filter is stored as ratios to the last trade price, the form the Binance
+// wrapper loads into MultiplierUp and MultiplierDown: 1+bidMultiplierUp caps a buy and
+// 1-askMultiplierDown floors a sell. The limits store does not enforce them itself. MinimumQuoteAmount and MinNotional carry
+// quoteAmountPrecision; quoteAmountPrecisionMarket equals it on every listed symbol. The market-order
+// quote cap maxQuoteAmountMarket is not loaded: MarketMaxQty is a base amount and MaximumQuoteAmount
+// already holds the limit-order cap maxQuoteAmount. Symbols whose orderTypes omit MARKET are not
+// flagged either, as the limits carry no order-type set.
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spot:
@@ -1273,6 +1281,12 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType ass
 				MinNotional:             result.Symbols[a].QuoteAmountPrecision.Float64(),
 				MaximumQuoteAmount:      result.Symbols[a].MaxQuoteAmount.Float64(),
 				MinimumBaseAmount:       result.Symbols[a].BaseSizePrecision.Float64(),
+			}
+			for _, f := range result.Symbols[a].Filters {
+				if f.FilterType == filterPercentPriceBySide {
+					l[a].MultiplierUp = 1 + f.BidMultiplierUp.Float64()
+					l[a].MultiplierDown = 1 - f.AskMultiplierDown.Float64()
+				}
 			}
 		}
 		if err := limits.Load(l); err != nil {

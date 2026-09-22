@@ -8,6 +8,8 @@ import (
 )
 
 const (
+	filterPercentPriceBySide = "PERCENT_PRICE_BY_SIDE"
+
 	typeFillOrKill        = "FILL_OR_KILL"
 	typeImmediateOrCancel = "IMMEDIATE_OR_CANCEL"
 	typeLimitMaker        = "LIMIT_MAKER"
@@ -29,29 +31,29 @@ type ExchangeConfig struct {
 
 // SymbolDetail represents a symbol detail.
 type SymbolDetail struct {
-	Symbol                     string          `json:"symbol"`
-	Status                     types.Number    `json:"status"`
-	BaseAsset                  string          `json:"baseAsset"`
-	BaseAssetPrecision         float64         `json:"baseAssetPrecision"`
-	QuoteAsset                 string          `json:"quoteAsset"`
-	QuotePrecision             float64         `json:"quotePrecision"`
-	QuoteAssetPrecision        float64         `json:"quoteAssetPrecision"`
-	BaseCommissionPrecision    float64         `json:"baseCommissionPrecision"`
-	QuoteCommissionPrecision   float64         `json:"quoteCommissionPrecision"`
-	OrderTypes                 []string        `json:"orderTypes"`
-	IsSpotTradingAllowed       bool            `json:"isSpotTradingAllowed"`
-	IsMarginTradingAllowed     bool            `json:"isMarginTradingAllowed"`
-	QuoteAmountPrecision       types.Number    `json:"quoteAmountPrecision"`
-	BaseSizePrecision          types.Number    `json:"baseSizePrecision"`
-	Permissions                []string        `json:"permissions"`
-	Filters                    json.RawMessage `json:"filters"`
-	MaxQuoteAmount             types.Number    `json:"maxQuoteAmount"`
-	MakerCommission            types.Number    `json:"makerCommission"`
-	TakerCommission            types.Number    `json:"takerCommission"`
-	QuoteAmountPrecisionMarket types.Number    `json:"quoteAmountPrecisionMarket"`
-	MaxQuoteAmountMarket       types.Number    `json:"maxQuoteAmountMarket"`
-	FullName                   string          `json:"fullName"`
-	TradeSideType              int64           `json:"tradeSideType"`
+	Symbol                     string         `json:"symbol"`
+	Status                     types.Number   `json:"status"`
+	BaseAsset                  string         `json:"baseAsset"`
+	BaseAssetPrecision         float64        `json:"baseAssetPrecision"`
+	QuoteAsset                 string         `json:"quoteAsset"`
+	QuotePrecision             float64        `json:"quotePrecision"`
+	QuoteAssetPrecision        float64        `json:"quoteAssetPrecision"`
+	BaseCommissionPrecision    float64        `json:"baseCommissionPrecision"`
+	QuoteCommissionPrecision   float64        `json:"quoteCommissionPrecision"`
+	OrderTypes                 []string       `json:"orderTypes"`
+	IsSpotTradingAllowed       bool           `json:"isSpotTradingAllowed"`
+	IsMarginTradingAllowed     bool           `json:"isMarginTradingAllowed"`
+	QuoteAmountPrecision       types.Number   `json:"quoteAmountPrecision"`
+	BaseSizePrecision          types.Number   `json:"baseSizePrecision"`
+	Permissions                []string       `json:"permissions"`
+	Filters                    []SymbolFilter `json:"filters"`
+	MaxQuoteAmount             types.Number   `json:"maxQuoteAmount"`
+	MakerCommission            types.Number   `json:"makerCommission"`
+	TakerCommission            types.Number   `json:"takerCommission"`
+	QuoteAmountPrecisionMarket types.Number   `json:"quoteAmountPrecisionMarket"`
+	MaxQuoteAmountMarket       types.Number   `json:"maxQuoteAmountMarket"`
+	FullName                   string         `json:"fullName"`
+	TradeSideType              int64          `json:"tradeSideType"`
 }
 
 // OfflineSymbol is a symbol taken off the market
@@ -74,6 +76,15 @@ type Announcement struct {
 	URL      string     `json:"url"`
 	Language string     `json:"language"`
 	PostTime types.Time `json:"postTime"`
+}
+
+// SymbolFilter is a trading rule attached to a symbol. PERCENT_PRICE_BY_SIDE bounds the order price
+// against the last trade price: a buy at most lastPrice*(1+BidMultiplierUp) and a sell at least
+// lastPrice*(1-AskMultiplierDown).
+type SymbolFilter struct {
+	FilterType        string       `json:"filterType"`
+	BidMultiplierUp   types.Number `json:"bidMultiplierUp"`
+	AskMultiplierDown types.Number `json:"askMultiplierDown"`
 }
 
 // Orderbook represents a symbol orderbook detail

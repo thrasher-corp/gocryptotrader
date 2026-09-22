@@ -439,3 +439,29 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	_, err = ex.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "an empty currency should be rejected")
 }
+
+// TestUpdateOrderExecutionLimitsPercentPriceBySide loads the PERCENT_PRICE_BY_SIDE band as ratios to
+// the last price: a buy may be priced up to lastPrice*(1+bidMultiplierUp) and a sell down to
+// lastPrice*(1-askMultiplierDown).
+func TestUpdateOrderExecutionLimitsPercentPriceBySide(t *testing.T) {
+	t.Parallel()
+	ex := newPrivateTestExchange(t, jsonHandler(t, map[string]string{
+		"exchangeInfo": `{"symbols":[{"symbol":"LIMBANDUSDT","status":"1","baseAsset":"LIMBAND","baseAssetPrecision":2,` +
+			`"quoteAsset":"USDT","quotePrecision":4,"quoteAssetPrecision":4,"orderTypes":["LIMIT","MARKET"],"isSpotTradingAllowed":true,` +
+			`"quoteAmountPrecision":"1","baseSizePrecision":"0","maxQuoteAmount":"2000000","quoteAmountPrecisionMarket":"1","maxQuoteAmountMarket":"100000",` +
+			`"filters":[{"filterType":"PERCENT_PRICE_BY_SIDE","bidMultiplierUp":"0.2","askMultiplierDown":"0.1"}]},` +
+			`{"symbol":"LIMNONEUSDT","status":"1","baseAsset":"LIMNONE","baseAssetPrecision":2,"quoteAsset":"USDT","quotePrecision":4,` +
+			`"quoteAssetPrecision":4,"orderTypes":["LIMIT"],"isSpotTradingAllowed":true,"quoteAmountPrecision":"1","filters":[]}]}`,
+	}))
+	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")
+
+	banded, err := ex.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.NewCode("LIMBAND"), currency.USDT))
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	assert.InDelta(t, 1.2, banded.MultiplierUp, 1e-12, "MultiplierUp should be 1+bidMultiplierUp")
+	assert.InDelta(t, 0.9, banded.MultiplierDown, 1e-12, "MultiplierDown should be 1-askMultiplierDown")
+
+	unbanded, err := ex.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.NewCode("LIMNONE"), currency.USDT))
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	assert.Zero(t, unbanded.MultiplierUp, "a symbol without the filter should carry no upper band")
+	assert.Zero(t, unbanded.MultiplierDown, "a symbol without the filter should carry no lower band")
+}
