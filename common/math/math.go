@@ -59,27 +59,30 @@ func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 	return x.Sub(y).Abs().Div(x.Add(y).Div(two)).Mul(oneHundred)
 }
 
-// SignedPercentageDifferenceDecimal returns the signed difference between two
-// decimal values as a percentage of their average. A positive result indicates
-// x is greater than y. A zero sum returns zero to avoid division by zero.
+// SignedPercentageDifferenceDecimal returns the difference between two decimal
+// values as a percentage of the absolute value of their average. The result's
+// sign indicates whether x is greater than y. A zero sum returns zero to avoid
+// division by zero.
 func SignedPercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 	sum := x.Add(y)
 	if sum.IsZero() {
 		return decimal.Zero
 	}
-	return x.Sub(y).Div(sum).Mul(twoHundred)
+	return x.Sub(y).Mul(twoHundred).Div(sum.Abs())
 }
 
 // CompareSignedPercentageDifferenceDecimal compares the signed percentage
 // difference between x and y with target, returning standard Cmp semantics. It
-// avoids division when the sum is positive, preventing division rounding from
-// changing comparisons near a target boundary.
+// avoids division to reduce rounding near a target boundary. Multiplication can
+// still truncate under the udecimal backend, so exactness is best effort there.
+// Its equality may differ from comparing SignedPercentageDifferenceDecimal's
+// rounded value with target.
 func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int {
 	sum := x.Add(y)
-	if !sum.IsPositive() {
-		return SignedPercentageDifferenceDecimal(x, y).Cmp(target)
+	if sum.IsZero() {
+		return decimal.Zero.Cmp(target)
 	}
-	return x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum))
+	return x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum.Abs()))
 }
 
 // CalculateNetProfit returns net profit
