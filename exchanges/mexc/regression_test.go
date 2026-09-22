@@ -176,6 +176,11 @@ func TestBatchOrderCreationParamMarshalsNumbersAsStrings(t *testing.T) {
 			param:    BatchOrderCreationParam{OrderType: "LIMIT", Price: 1e21, Quantity: 0.000001, Symbol: currency.NewBTCUSDT()},
 			expected: `{"type":"LIMIT","price":"1000000000000000000000","quantity":"0.000001","symbol":"BTCUSDT"}`,
 		},
+		{
+			name:     "stp mode",
+			param:    BatchOrderCreationParam{OrderType: "LIMIT", Price: 1, Quantity: 2, Symbol: currency.NewBTCUSDT(), Side: "SELL", StpMode: "cancel_maker"},
+			expected: `{"type":"LIMIT","price":"1","quantity":"2","symbol":"BTCUSDT","side":"SELL","stpMode":"cancel_maker"}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -973,4 +978,15 @@ func TestDeleteAPIKeySubAccountSendsAPIKey(t *testing.T) {
 	require.NoError(t, err, "DeleteAPIKeySubAccount must not error")
 	assert.Equal(t, "the-key", got.Get("apiKey"), "the request should carry the apiKey being deleted")
 	assert.Equal(t, "SubAcc1", got.Get("subAccount"), "the request should carry the sub-account name")
+}
+
+// TestOrderDetailDecodesSelfTradePrevention decodes the self-trade prevention fields the order
+// queries carry: stpMode is the mode the order was placed with and cancelReason is stp_cancel when
+// the venue cancelled it under that rule.
+func TestOrderDetailDecodesSelfTradePrevention(t *testing.T) {
+	t.Parallel()
+	var o OrderDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTCUSDT","orderId":"1","status":"CANCELED","type":"LIMIT","side":"BUY","stpMode":"cancel_taker","cancelReason":"stp_cancel"}`), &o), "Unmarshal must not error")
+	assert.Equal(t, "cancel_taker", o.StpMode, "StpMode should carry the stpMode field")
+	assert.Equal(t, "stp_cancel", o.CancelReason, "CancelReason should carry the cancelReason field")
 }

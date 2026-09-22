@@ -264,6 +264,11 @@ type OrderDetail struct {
 	UpdateTime          types.Time   `json:"updateTime"`
 	IsWorking           bool         `json:"isWorking"`
 	OrigQuoteOrderQty   types.Number `json:"origQuoteOrderQty"`
+	// StpMode is the self-trade prevention mode the order was placed with: empty (none), cancel_maker,
+	// cancel_taker or cancel_both.
+	StpMode string `json:"stpMode"`
+	// CancelReason is stp_cancel when the venue cancelled the order under its self-trade prevention mode.
+	CancelReason string `json:"cancelReason"`
 }
 
 // BatchOrderResult is one entry of a batch order creation response. MEXC returns a mixed array where
@@ -286,6 +291,9 @@ type BatchOrderCreationParam struct {
 	Symbol           currency.Pair `json:"symbol"`
 	Side             string        `json:"side,omitempty"`
 	NewClientOrderID string        `json:"newClientOrderId,omitempty"`
+	// StpMode selects self-trade prevention for the order: cancel_maker, cancel_taker or cancel_both.
+	// Left empty the venue applies no self-trade restriction.
+	StpMode string `json:"stpMode,omitempty"`
 }
 
 // AccountDetail represents an account detail information
