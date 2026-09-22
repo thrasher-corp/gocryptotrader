@@ -1081,7 +1081,8 @@ func (e *Exchange) GetOrderByID(ctx context.Context, symbol currency.Pair, clien
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOrderByIDEPL, http.MethodGet, "order", params, nil, &resp, true)
 }
 
-// GetOpenOrders retrieves all open orders on a symbol. Careful when accessing this with no symbol.
+// GetOpenOrders retrieves all open orders on a symbol. The venue accepts up to 5 comma-separated
+// symbols in one request; this method asks for a single one.
 func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair) ([]*OrderDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -1092,8 +1093,8 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair) ([]*
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOpenOrdersEPL, http.MethodGet, "openOrders", params, nil, &resp, true)
 }
 
-// GetAllOrders retrieves all account orders including active, cancelled or completed orders(the query period is the latest 24 hours by default).
-// You can query a maximum of the latest 7 days.
+// GetAllOrders retrieves all account orders including active, cancelled or completed orders. Without a
+// time window the venue returns the last 24 hours; at most the last 7 days can be queried.
 func (e *Exchange) GetAllOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit int64) ([]*OrderDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -1125,7 +1126,8 @@ func (e *Exchange) GetAccountInformation(ctx context.Context) (*AccountDetail, e
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, accountInformationEPL, http.MethodGet, "account", nil, nil, &resp, true)
 }
 
-// GetAccountTradeList retrieves trades for a specific account and symbol,Only the transaction records in the past 1 month can be queried.
+// GetAccountTradeList retrieves trades for a specific account and symbol. Only the last month of trades
+// can be queried; limit defaults to 10 and is capped at 1000.
 func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol currency.Pair, orderID string, startTime, endTime time.Time, limit int64) ([]*AccountTrade, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty

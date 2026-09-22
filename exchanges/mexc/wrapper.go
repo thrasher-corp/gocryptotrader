@@ -1028,7 +1028,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 }
 
 // GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
+// Can Limit response to specific order status. Without a start and end time the venue returns the
+// last 24 hours of orders, and it serves at most the last 7 days.
 func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
