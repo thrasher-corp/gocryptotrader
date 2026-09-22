@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -603,6 +606,125 @@ func TestGetLiquidationOrders(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+// TestGetLiquidationOrdersInstrumentTypes covers the request parameters built for
+// every supported instrument type. Before the fix the instId/ccy switch rejected
+// each instrument type other than MARGIN, so a SWAP, FUTURES or OPTION request
+// could never be built and the uly and alias handling further below was
+// unreachable.
+func TestGetLiquidationOrdersInstrumentTypes(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name        string
+		arg         *LiquidationOrderRequestParams
+		expected    map[string]string
+		expectedErr error
+	}{
+		{
+			name: "swap is filtered by underlying",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeSwap,
+				Underlying:     mainPair.String(),
+				Limit:          2,
+			},
+			expected: map[string]string{
+				"instType": instTypeSwap,
+				"uly":      mainPair.String(),
+				"limit":    "2",
+			},
+		},
+		{
+			name: "futures is filtered by underlying and alias",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeFutures,
+				Underlying:     mainPair.String(),
+				Alias:          "this_week",
+			},
+			expected: map[string]string{
+				"instType": instTypeFutures,
+				"uly":      mainPair.String(),
+				"alias":    "this_week",
+			},
+		},
+		{
+			name: "option is filtered by underlying",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeOption,
+				Underlying:     "BTC-USD",
+			},
+			expected: map[string]string{
+				"instType": instTypeOption,
+				"uly":      "BTC-USD",
+			},
+		},
+		{
+			name: "margin is filtered by instrument ID",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeMargin,
+				InstrumentID:   mainPair.String(),
+			},
+			expected: map[string]string{
+				"instType": instTypeMargin,
+				"instId":   mainPair.String(),
+			},
+		},
+		{
+			name: "margin is filtered by currency",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeMargin,
+				Currency:       currency.BTC,
+			},
+			expected: map[string]string{
+				"instType": instTypeMargin,
+				"ccy":      "BTC",
+			},
+		},
+		{
+			name:        "margin without instrument ID or currency is rejected",
+			arg:         &LiquidationOrderRequestParams{InstrumentType: instTypeMargin},
+			expectedErr: errEitherInstIDOrCcyIsRequired,
+		},
+		{
+			name:        "empty instrument type is rejected",
+			arg:         &LiquidationOrderRequestParams{},
+			expectedErr: errInvalidInstrumentType,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var (
+				mutex sync.Mutex
+				query url.Values
+			)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mutex.Lock()
+				query = r.URL.Query()
+				mutex.Unlock()
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":{"instType":"SWAP","instId":"BTC-USDT-SWAP","totalLoss":"0"}}`))
+			}))
+			defer server.Close()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
+
+			_, err := ex.GetLiquidationOrders(t.Context(), tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr, "GetLiquidationOrders should reject unsupported parameters")
+				return
+			}
+			require.NoError(t, err, "GetLiquidationOrders must not error")
+			mutex.Lock()
+			defer mutex.Unlock()
+			require.NotNil(t, query, "a request must have been sent")
+			for key, expected := range tc.expected {
+				assert.Equalf(t, expected, query.Get(key), "GetLiquidationOrders should forward the %s request parameter", key)
+			}
+		})
+	}
 }
 
 func TestGetMarkPrice(t *testing.T) {

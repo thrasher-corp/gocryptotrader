@@ -5090,9 +5090,12 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 		params.Set("mgnMode", arg.MarginMode)
 	}
 	switch {
-	case arg.InstrumentType == instTypeMargin && arg.InstrumentID != "":
+	case arg.InstrumentType != instTypeMargin:
+		// instId and ccy only apply to MARGIN, SWAP, FUTURES and OPTION orders
+		// are filtered by uly and alias further below.
+	case arg.InstrumentID != "":
 		params.Set("instId", arg.InstrumentID)
-	case arg.InstrumentType == instTypeMargin && arg.Currency.String() != "":
+	case arg.Currency.String() != "":
 		params.Set("ccy", arg.Currency.String())
 	default:
 		return nil, errEitherInstIDOrCcyIsRequired
