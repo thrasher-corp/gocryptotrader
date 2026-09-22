@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -679,6 +680,68 @@ func (r *orderGuardTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	clone := req.Clone(req.Context())
 	clone.URL = &url.URL{Scheme: server.Scheme, Host: server.Host, Path: req.URL.Path, RawQuery: req.URL.RawQuery}
 	return r.base.RoundTrip(clone)
+}
+
+// TestGetOrderHistoryPagination ensures order history is crawled page by page.
+// orders_info_history.do paginates through the current_page body parameter, so
+// the page counter must advance once per page and not once per order.
+func TestGetOrderHistoryPagination(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+	var err error
+	ex.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err, "the RSA test key must generate")
+
+	transport := &orderHistoryTransport{t: t}
+	require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: transport}), "the mocked transport must install")
+
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	assert.Equal(t, []string{"1", "2", "3"}, transport.pages, "GetOrderHistory should request each page once, in order")
+	assert.Len(t, got, 3, "GetOrderHistory should return the orders held on every page")
+}
+
+// orderHistoryTransport serves a three page order history for the mocked
+// exchange and records the current_page values LBank was asked for.
+type orderHistoryTransport struct {
+	t     *testing.T
+	pages []string
+}
+
+func (o *orderHistoryTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+	assert.True(o.t, strings.HasSuffix(r.URL.Path, lbankQueryHistoryOrder), "GetOrderHistory should only request order history")
+	page := r.Form.Get("current_page")
+	o.pages = append(o.pages, page)
+	body := `{"result":"true","error_code":0,"current_page":3,"orders":[]}`
+	switch page {
+	case "1":
+		body = `{"result":"true","error_code":0,"current_page":1,"orders":[` + orderHistoryEntry("1") + "," + orderHistoryEntry("2") + `]}`
+	case "2":
+		body = `{"result":"true","error_code":0,"current_page":2,"orders":[` + orderHistoryEntry("3") + `]}`
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Request:    r,
+	}, nil
+}
+
+// orderHistoryEntry returns the JSON of a single LBank order history entry
+func orderHistoryEntry(orderID string) string {
+	return `{"order_id":"` + orderID + `","symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}`
 }
 
 func TestGetHistoricCandles(t *testing.T) {
