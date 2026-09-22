@@ -35,8 +35,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | NA |
-| MEXC | Yes | Yes | No |
 | Lbank | Yes | No | NA |
+| MEXC | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
