@@ -945,24 +945,15 @@ func (e *Exchange) newOrder(ctx context.Context, symbol currency.Pair, newClient
 	params.Set("symbol", symbol.String())
 	params.Set("side", side)
 	params.Set("type", orderType)
-	if orderType == typeMarket {
-		// A MARKET order takes quantity or quoteOrderQty and no price, so the price is never sent and a
-		// quote amount, when given, is sent alone.
-		if quoteOrderQty > 0 {
-			params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
-		} else {
-			params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
-		}
-	} else {
-		if quantity > 0 {
-			params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
-		}
-		if quoteOrderQty > 0 {
-			params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
-		}
-		if price != 0 {
-			params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-		}
+	quantity, quoteOrderQty, price = spotOrderAmounts(orderType, quantity, quoteOrderQty, price)
+	if quantity > 0 {
+		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	}
+	if quoteOrderQty > 0 {
+		params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
+	}
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 	if newClientOrderID != "" {
 		params.Set("newClientOrderId", newClientOrderID)
@@ -992,6 +983,20 @@ func validateSpotOrderParams(orderType string, quantity, quoteOrderQty, price fl
 		return fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, orderType)
 	}
 	return nil
+}
+
+// spotOrderAmounts returns the amounts an order of the given type is sent with; a zero amount is left
+// off the request. A MARKET order takes quantity or quoteOrderQty and no price, so its price is dropped
+// and a quote amount, when given, is sent alone. Other types are sent as given. It is shared by the
+// single and batch order endpoints.
+func spotOrderAmounts(orderType string, quantity, quoteOrderQty, price float64) (sendQuantity, sendQuoteOrderQty, sendPrice float64) {
+	if orderType != typeMarket {
+		return quantity, quoteOrderQty, price
+	}
+	if quoteOrderQty > 0 {
+		return 0, quoteOrderQty, 0
+	}
+	return quantity, 0, 0
 }
 
 // OrderTypeStringFromOrderTypeAndTimeInForce returns a string representation of an order.Type instance.
@@ -1086,6 +1091,8 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 		if err := validateSpotOrderParams(args[a].OrderType, args[a].Quantity.Float64(), args[a].QuoteOrderQty.Float64(), args[a].Price.Float64()); err != nil {
 			return nil, err
 		}
+		quantity, quoteOrderQty, price := spotOrderAmounts(args[a].OrderType, args[a].Quantity.Float64(), args[a].QuoteOrderQty.Float64(), args[a].Price.Float64())
+		args[a].Quantity, args[a].QuoteOrderQty, args[a].Price = types.Number(quantity), types.Number(quoteOrderQty), types.Number(price)
 	}
 	jsonString, err := json.Marshal(args)
 	if err != nil {

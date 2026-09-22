@@ -1318,3 +1318,25 @@ func TestKeepListenKeyAliveClosesItsKey(t *testing.T) {
 	defer mu.Unlock()
 	assert.Equal(t, []string{"KEY_A"}, closed, "the renewer should close its own listen key when it stops")
 }
+
+// TestCreateBatchOrderMarketParameters applies the single-order market rules to each batch entry: no
+// price, and a quote amount sent alone when one is given.
+func TestCreateBatchOrderMarketParameters(t *testing.T) {
+	t.Parallel()
+	var batch string
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		batch = r.URL.Query().Get("batchOrders")
+		_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"1","orderListId":-1},{"symbol":"BTCUSDT","orderId":"2","orderListId":-1},{"symbol":"BTCUSDT","orderId":"3","orderListId":-1}]`))
+	}))
+	_, err := e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{
+		{OrderType: "MARKET", Symbol: currency.NewBTCUSDT(), Side: "BUY", Quantity: 1, QuoteOrderQty: 50, Price: 25000},
+		{OrderType: "MARKET", Symbol: currency.NewBTCUSDT(), Side: "SELL", Quantity: 1, Price: 25000},
+		{OrderType: "LIMIT", Symbol: currency.NewBTCUSDT(), Side: "BUY", Quantity: 1, Price: 25000},
+	})
+	require.NoError(t, err, "CreateBatchOrder must not error")
+	assert.JSONEq(t, `[`+
+		`{"type":"MARKET","quoteOrderQty":"50","symbol":"BTCUSDT","side":"BUY"},`+
+		`{"type":"MARKET","quantity":"1","symbol":"BTCUSDT","side":"SELL"},`+
+		`{"type":"LIMIT","price":"25000","quantity":"1","symbol":"BTCUSDT","side":"BUY"}]`,
+		batch, "market entries should carry no price and a quote amount alone")
+}
