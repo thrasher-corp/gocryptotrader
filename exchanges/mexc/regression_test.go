@@ -1340,3 +1340,30 @@ func TestCreateBatchOrderMarketParameters(t *testing.T) {
 		`{"type":"LIMIT","price":"25000","quantity":"1","symbol":"BTCUSDT","side":"BUY"}]`,
 		batch, "market entries should carry no price and a quote amount alone")
 }
+
+// TestAPIKeyInfoCreateTime decodes the key creation time in either form it is published in: an
+// RFC 3339 timestamp with milliseconds and an offset, or epoch milliseconds.
+func TestAPIKeyInfoCreateTime(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, raw string
+		expected  time.Time
+	}{
+		{"rfc3339", `"2026-09-14T18:53:36.000+00:00"`, time.Date(2026, 9, 14, 18, 53, 36, 0, time.UTC)},
+		{"rfc3339 with offset", `"2026-09-15T02:53:36.250+08:00"`, time.Date(2026, 9, 14, 18, 53, 36, 250e6, time.UTC)},
+		{"epoch milliseconds string", `"1758043350000"`, time.UnixMilli(1758043350000).UTC()},
+		{"epoch milliseconds number", `1758043350000`, time.UnixMilli(1758043350000).UTC()},
+		{"absent", `null`, time.Time{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var info APIKeyInfo
+			require.NoError(t, json.Unmarshal([]byte(`{"accessKey":"k","status":"VALID","createTime":`+tc.raw+`}`), &info), "Unmarshal must not error")
+			assert.True(t, tc.expected.Equal(info.CreateTime), "CreateTime should be %v, got %v", tc.expected, info.CreateTime)
+			assert.Equal(t, "k", info.AccessKey, "the other fields should still be decoded")
+			assert.Equal(t, "VALID", info.Status, "the other fields should still be decoded")
+		})
+	}
+	var info APIKeyInfo
+	assert.Error(t, json.Unmarshal([]byte(`{"createTime":"yesterday"}`), &info), "an unreadable creation time should be reported")
+}

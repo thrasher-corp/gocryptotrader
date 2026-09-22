@@ -1,6 +1,8 @@
 package mexc
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -288,11 +290,43 @@ type APIKeyInfo struct {
 	Permissions string `json:"permissions"`
 	// IPWhiteList is the comma-separated list of IP addresses linked to the key
 	IPWhiteList string `json:"ipWhiteList"`
-	// CreateTime arrives as an ISO 8601 timestamp (2026-09-14T18:53:36.000+00:00), not in epoch
-	// milliseconds as the documentation shows.
+	// CreateTime is sent as an RFC 3339 timestamp with milliseconds and an offset
+	// (2026-09-14T18:53:36.000+00:00); the published example gives epoch milliseconds, so both are read.
 	CreateTime time.Time `json:"createTime"`
 	// RemainingValidity is the days left: -999 for a permanent key, 0 once expired
 	RemainingValidity types.Number `json:"remainingValidity"`
+}
+
+// UnmarshalJSON decodes an APIKeyInfo, reading createTime as either an RFC 3339 timestamp or epoch
+// milliseconds
+func (a *APIKeyInfo) UnmarshalJSON(data []byte) error {
+	type Alias APIKeyInfo
+	chil := &struct {
+		*Alias
+		CreateTime json.RawMessage `json:"createTime"`
+	}{Alias: (*Alias)(a)}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	a.CreateTime = time.Time{}
+	if len(chil.CreateTime) == 0 || string(chil.CreateTime) == "null" {
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(chil.CreateTime, &s); err == nil && strings.Contains(s, "T") {
+		t, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return fmt.Errorf("createTime: %w", err)
+		}
+		a.CreateTime = t
+		return nil
+	}
+	var ms types.Time
+	if err := json.Unmarshal(chil.CreateTime, &ms); err != nil {
+		return fmt.Errorf("createTime: %w", err)
+	}
+	a.CreateTime = ms.Time()
+	return nil
 }
 
 // STPGroup represents a self-trade prevention group
