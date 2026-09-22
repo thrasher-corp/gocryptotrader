@@ -3,6 +3,7 @@ package mexc
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -163,6 +164,26 @@ func TestGetFeeByTypeReturnsAmount(t *testing.T) {
 	})
 	require.NoError(t, err, "GetFeeByType must not error")
 	assert.InDelta(t, 50.0, taker, 1e-9, "taker fee should be rate * price * quantity")
+}
+
+// TestGetFeeByTypeFormatsPair pins the symbol the authenticated fee request puts on the wire: MEXC
+// rejects the delimited config-format pair a caller gets from GetEnabledPairs.
+func TestGetFeeByTypeFormatsPair(t *testing.T) {
+	t.Parallel()
+	var got url.Values
+	ex := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":0,"data":{"makerCommission":0.001,"takerCommission":0.002}}`))
+	})
+	_, err := ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter),
+		PurchasePrice: 50000,
+		Amount:        0.5,
+	})
+	require.NoError(t, err, "GetFeeByType must not error")
+	assert.Equal(t, "BTCUSDT", got.Get("symbol"), "the fee request should send the exchange-format symbol, not the config-format pair")
 }
 
 // TestOrderTypeStringPostOnlyAndTIF maps a limit order's time-in-force into MEXC's order type field:

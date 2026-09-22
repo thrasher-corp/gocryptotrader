@@ -229,6 +229,8 @@ func (e *Exchange) GetCurrentAveragePrice(ctx context.Context, symbol currency.P
 func (e *Exchange) Get24HourTickerPriceChangeStatistics(ctx context.Context, symbols []string) (TickerList, error) {
 	params := url.Values{}
 	if len(symbols) > 1 {
+		// MEXC ignores the plural `symbols` filter on the ticker endpoints and returns the whole
+		// catalogue regardless; only the singular `symbol` below narrows the response.
 		params.Set("symbols", strings.Join(symbols, ","))
 	} else if len(symbols) == 1 {
 		params.Set("symbol", symbols[0])
@@ -252,7 +254,9 @@ func (e *Exchange) GetSymbolPriceTicker(ctx context.Context, symbol currency.Pai
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolPriceTickerEPL, http.MethodGet, "ticker/price", params, nil, &resp)
 }
 
-// GetSymbolsPriceTicker represents a symbol price ticker detail
+// GetSymbolsPriceTicker returns price tickers for spot symbols. MEXC ignores the plural `symbols`
+// filter on this endpoint and returns the whole catalogue whatever is passed, so callers receive
+// every symbol regardless of the argument; use GetSymbolPriceTicker for a single symbol.
 func (e *Exchange) GetSymbolsPriceTicker(ctx context.Context, symbols []string) ([]*SymbolPriceTicker, error) {
 	params := url.Values{}
 	if len(symbols) > 0 {

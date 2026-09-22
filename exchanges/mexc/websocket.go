@@ -459,8 +459,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			setIfNonZero(&t.Last, last)
 			setIfNonZero(&t.High, high)
 			setIfNonZero(&t.Low, low)
-			setIfNonZero(&t.BaseVolume, baseVolume)
-			setIfNonZero(&t.QuoteVolume, quoteVolume)
+			// Volume is legitimately zero on an idle symbol, so presence in the frame decides rather
+			// than the value: setIfNonZero cannot tell an explicit "0" from an omitted field.
+			if body.Quantity != "" {
+				t.BaseVolume = baseVolume
+			}
+			if body.Volume != "" {
+				t.QuoteVolume = quoteVolume
+			}
 		})
 	case channelAggreDealsV3:
 		// Read both trade settings per frame so a feed switched on after setup takes effect straight
