@@ -1435,6 +1435,9 @@ func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawa
 	if arg.PaymentMethod != "" {
 		params.Set("paymentMethod", arg.PaymentMethod)
 	}
+	if arg.OrderID != "" {
+		params.Set("orderId", arg.OrderID)
+	}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return response, e.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -1563,6 +1566,9 @@ func (e *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRe
 	}
 	if arg.PaymentMethod != "" {
 		params.Set("paymentMethod", arg.PaymentMethod)
+	}
+	if arg.OrderID != "" {
+		params.Set("orderId", arg.OrderID)
 	}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response FiatAssetsHistory

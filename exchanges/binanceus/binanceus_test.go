@@ -2,6 +2,8 @@ package binanceus
 
 import (
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	reflects "reflect"
 	"strings"
@@ -1154,6 +1156,76 @@ func TestFiatDepositHistory(t *testing.T) {
 	_, er := e.FiatDepositHistory(t.Context(), &FiatWithdrawalRequestParams{})
 	if er != nil {
 		t.Error("Binanceus FiatDepositHistory() error", er)
+	}
+}
+
+// TestFiatHistoryForwardsOrderID verifies the fiat withdrawal and deposit history
+// endpoints forward an orderId filter when one is supplied and omit it otherwise.
+func TestFiatHistoryForwardsOrderID(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		path        string
+		wantOrderID string
+		history     func(*Exchange, *FiatWithdrawalRequestParams) error
+	}{
+		{
+			name:        "withdrawal history forwards order ID",
+			path:        fiatWithdrawalHistory,
+			wantOrderID: "1337",
+			history: func(ex *Exchange, arg *FiatWithdrawalRequestParams) error {
+				_, err := ex.FiatWithdrawalHistory(t.Context(), arg)
+				return err
+			},
+		},
+		{
+			name: "withdrawal history omits order ID",
+			path: fiatWithdrawalHistory,
+			history: func(ex *Exchange, arg *FiatWithdrawalRequestParams) error {
+				_, err := ex.FiatWithdrawalHistory(t.Context(), arg)
+				return err
+			},
+		},
+		{
+			name:        "deposit history forwards order ID",
+			path:        fiatDepositHistory,
+			wantOrderID: "1337",
+			history: func(ex *Exchange, arg *FiatWithdrawalRequestParams) error {
+				_, err := ex.FiatDepositHistory(t.Context(), arg)
+				return err
+			},
+		},
+		{
+			name: "deposit history omits order ID",
+			path: fiatDepositHistory,
+			history: func(ex *Exchange, arg *FiatWithdrawalRequestParams) error {
+				_, err := ex.FiatDepositHistory(t.Context(), arg)
+				return err
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{
+				Key:    "test-key",
+				Secret: "test-secret",
+			})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.path, r.URL.Path, "the fiat history request should target the documented endpoint")
+				assert.Equal(t, tc.wantOrderID, r.URL.Query().Get("orderId"), "the orderId query parameter should be forwarded only when set")
+				_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
+				assert.NoError(t, err, "writing the fiat history response should not error")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+			require.NoError(t, tc.history(ex, &FiatWithdrawalRequestParams{
+				FiatCurrency: "USD",
+				OrderID:      tc.wantOrderID,
+			}), "the fiat history request must not error")
+		})
 	}
 }
 
