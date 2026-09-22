@@ -396,7 +396,8 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, pair, pageNumber, pageLeng
 func (e *Exchange) USD2RMBRate(ctx context.Context) (float64, error) {
 	var rate types.Number
 	path := "/v" + lbankAPIVersion2 + "/" + lbankUSD2CNYRate
-	return rate.Float64(), e.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
+	return rate.Float64(), err
 }
 
 // GetWithdrawConfig gets information about withdrawals

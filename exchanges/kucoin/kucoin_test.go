@@ -2001,9 +2001,9 @@ func TestGetMaxWithdrawMarginMocked(t *testing.T) {
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
 
-	margin, err := ex.GetMaxWithdrawMargin(t.Context(), "XBTUSDTM")
+	got, err := ex.GetMaxWithdrawMargin(t.Context(), "XBTUSDTM")
 	require.NoError(t, err, "GetMaxWithdrawMargin must not error")
-	assert.Equal(t, 1.5, margin, "GetMaxWithdrawMargin should return the margin the endpoint sent, not the pre-call zero value")
+	assert.Equal(t, 1.5, got, "GetMaxWithdrawMargin should return the margin the endpoint sent, not the pre-call zero value")
 }
 
 func TestRemoveMarginManually(t *testing.T) {

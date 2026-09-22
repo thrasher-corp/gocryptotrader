@@ -11,7 +11,10 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -196,6 +199,29 @@ func TestUSD2RMBRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.USD2RMBRate(t.Context())
 	assert.NoError(t, err, "USD2RMBRate should not error")
+}
+
+// TestUSD2RMBRateMocked pins the rate the caller receives. The live endpoint returns a bare
+// JSON number; USD2RMBRate must return that value rather than the zero value it read before the
+// filling call ran.
+func TestUSD2RMBRateMocked(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v"+lbankAPIVersion2+"/"+lbankUSD2CNYRate, r.URL.Path, "the request path should be the USD to CNY rate endpoint")
+		_, err := fmt.Fprint(w, `6.6951`)
+		assert.NoError(t, err, "writing the rate response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	rate, err := ex.USD2RMBRate(t.Context())
+	require.NoError(t, err, "USD2RMBRate must not error")
+	assert.Equal(t, 6.6951, rate, "USD2RMBRate should return the rate the endpoint sent, not the pre-call zero value")
 }
 
 func TestGetWithdrawConfig(t *testing.T) {
