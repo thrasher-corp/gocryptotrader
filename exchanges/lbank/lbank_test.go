@@ -398,6 +398,24 @@ func TestGetActiveOrdersEmptyResponse(t *testing.T) {
 	assert.Empty(t, got, "GetActiveOrders should skip orders the exchange no longer reports")
 }
 
+// TestGetActiveOrdersCompoundOrderType ensures a compound order type LBank
+// documents, such as buy_maker, is mapped to its side instead of aborting the
+// rest of the open order listing.
+func TestGetActiveOrdersCompoundOrderType(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy_maker")))
+
+	got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error for a compound order type")
+	require.Len(t, got, 1, "GetActiveOrders must keep the resting order")
+	assert.Equal(t, order.Buy, got[0].Side, "GetActiveOrders should map buy_maker to the buy side")
+}
+
 // TestGetActiveOrdersUnknownSide ensures an order type LBank does not document
 // surfaces as an error instead of being reported as a sell.
 func TestGetActiveOrdersUnknownSide(t *testing.T) {
@@ -433,6 +451,27 @@ func TestGetOrderInfoUnknownSide(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetOrderInfo should reject an order type it cannot map")
 }
 
+// TestGetOrderInfoCompoundOrderType ensures a compound order type LBank
+// documents, such as sell_market, is mapped to its side instead of erroring.
+func TestGetOrderInfoCompoundOrderType(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("sell_market")))
+
+	got, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for a compound order type")
+	assert.Equal(t, order.Sell, got.Side, "GetOrderInfo should map sell_market to the sell side")
+}
+
+// TestGetOrderInfoOrderIDNotFound ensures an order ID the exchange does not
+// report is reported as missing instead of as a zero-valued order.
+func TestGetOrderInfoOrderIDNotFound(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy")))
+
+	_, err := ex.GetOrderInfo(t.Context(), "2", testPair, asset.Spot)
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order ID the exchange does not return")
+}
+
 // orderGuardNoOrders is an empty LBank order query response.
 const orderGuardNoOrders = `{"result":"true","error_code":0,"orders":[]}`
 
@@ -465,6 +504,7 @@ func orderGuardHandler(t *testing.T, queryResponse string) http.HandlerFunc {
 			body = queryResponse
 		default:
 			assert.Failf(t, "unexpected endpoint", "the wrapper should only request open orders and order queries, got %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		_, err := fmt.Fprint(w, body)
@@ -488,7 +528,6 @@ func setupOrderGuard(t *testing.T, handler http.Handler) *Exchange {
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, false), "StorePairs must not error for available pairs")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, true), "StorePairs must not error for enabled pairs")
 	require.NoError(t, ex.SetHTTPClient(orderGuardClient(server)), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 	return ex
 }
 

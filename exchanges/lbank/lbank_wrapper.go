@@ -480,8 +480,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 				return nil, err
 			}
 			if len(tempResp.Orders) == 0 {
-				// The order left the book between the open order listing and this
-				// query, so the exchange has nothing left to report for it.
+				// The exchange returned no order for this ID.
 				return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 			}
 			resp.Exchange = e.Name
@@ -490,7 +489,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 				return nil, err
 			}
 
-			resp.Side, err = order.StringToOrderSide(tempResp.Orders[0].Type)
+			// orders_info.do echoes the order type back in its compound form, e.g.
+			// buy_maker, so only the leading token names the side.
+			side, _, _ := strings.Cut(tempResp.Orders[0].Type, "_")
+			resp.Side, err = order.StringToOrderSide(side)
 			if err != nil {
 				return nil, err
 			}
@@ -508,9 +510,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
+			return &resp, nil
 		}
 	}
-	return &resp, nil
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -572,8 +575,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				return finalResp, err
 			}
 			if len(tempResp.Orders) == 0 {
-				// The order left the book between the open order listing and this
-				// query, so it is no longer an active order.
+				// The exchange returned no order for this ID, so it is not active.
 				continue
 			}
 			resp.Exchange = e.Name
@@ -582,7 +584,10 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				return nil, err
 			}
 
-			resp.Side, err = order.StringToOrderSide(tempResp.Orders[0].Type)
+			// orders_info.do echoes the order type back in its compound form, e.g.
+			// buy_maker, so only the leading token names the side.
+			side, _, _ := strings.Cut(tempResp.Orders[0].Type, "_")
+			resp.Side, err = order.StringToOrderSide(side)
 			if err != nil {
 				return finalResp, err
 			}
@@ -664,10 +669,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 					return nil, err
 				}
 
-				if strings.EqualFold(tempResp.Orders[x].Type, order.Buy.String()) {
-					resp.Side = order.Buy
-				} else {
-					resp.Side = order.Sell
+				// orders_info.do echoes the order type back in its compound form, e.g.
+				// sell_market, so only the leading token names the side.
+				side, _, _ := strings.Cut(tempResp.Orders[x].Type, "_")
+				resp.Side, err = order.StringToOrderSide(side)
+				if err != nil {
+					return nil, err
 				}
 				resp.Status = e.GetStatus(tempResp.Orders[x].Status)
 				resp.Price = tempResp.Orders[x].Price
