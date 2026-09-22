@@ -11,7 +11,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -376,6 +380,155 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 	})
 	assert.NoError(t, err, "GetOrderHistory should not error")
+}
+
+// TestGetActiveOrdersEmptyResponse ensures an order the exchange no longer
+// reports is skipped instead of panicking on an empty order slice.
+func TestGetActiveOrdersEmptyResponse(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardNoOrders))
+
+	got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	assert.Empty(t, got, "GetActiveOrders should skip orders the exchange no longer reports")
+}
+
+// TestGetActiveOrdersUnknownSide ensures an order type LBank does not document
+// surfaces as an error instead of being reported as a sell.
+func TestGetActiveOrdersUnknownSide(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("hold")))
+
+	_, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetActiveOrders should reject an order type it cannot map")
+}
+
+// TestGetOrderInfoEmptyResponse ensures an order the exchange no longer reports
+// is reported as missing instead of panicking on an empty order slice.
+func TestGetOrderInfoEmptyResponse(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardNoOrders))
+
+	_, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order the exchange no longer holds")
+}
+
+// TestGetOrderInfoUnknownSide ensures an order type LBank does not document
+// surfaces as an error instead of being reported as a sell.
+func TestGetOrderInfoUnknownSide(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("hold")))
+
+	_, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetOrderInfo should reject an order type it cannot map")
+}
+
+// orderGuardNoOrders is an empty LBank order query response.
+const orderGuardNoOrders = `{"result":"true","error_code":0,"orders":[]}`
+
+// orderGuardOpenOrder returns an open order listing carrying a single order.
+func orderGuardOpenOrder(orderID string) string {
+	return fmt.Sprintf(`{"result":"true","error_code":0,"orders":[{"order_id":%q,"symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`, orderID)
+}
+
+// orderGuardSingleOrder returns an order query response carrying one order of
+// the supplied type.
+func orderGuardSingleOrder(orderType string) string {
+	return fmt.Sprintf(`{"result":"true","error_code":0,"orders":[{"order_id":"1","symbol":"btc_usdt","type":%q,"price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`, orderType)
+}
+
+// orderGuardHandler answers the open order listing with a single order on the
+// first page and nothing after it, and every order query with queryResponse.
+func orderGuardHandler(t *testing.T, queryResponse string) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, r.ParseForm(), "the request body should parse as a form")
+		var body string
+		switch {
+		case strings.HasSuffix(r.URL.Path, lbankOpeningOrders):
+			if r.Form.Get("current_page") == "1" {
+				body = orderGuardOpenOrder("1")
+			} else {
+				body = orderGuardNoOrders
+			}
+		case strings.HasSuffix(r.URL.Path, lbankQueryOrder):
+			body = queryResponse
+		default:
+			assert.Failf(t, "unexpected endpoint", "the wrapper should only request open orders and order queries, got %s", r.URL.Path)
+			return
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the response should not error")
+	}
+}
+
+// setupOrderGuard returns an exchange served by handler, with a single enabled
+// spot pair so the open order crawl only asks about the pair under test.
+func setupOrderGuard(t *testing.T, handler http.Handler) *Exchange {
+	t.Helper()
+	server := httptest.NewTestServer(t, handler)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+	var err error
+	ex.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err, "the RSA test key must generate")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, false), "StorePairs must not error for available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, true), "StorePairs must not error for enabled pairs")
+	require.NoError(t, ex.SetHTTPClient(orderGuardClient(server)), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	return ex
+}
+
+// orderGuardClient returns the test server's client with the relative URL
+// adapter installed.
+func orderGuardClient(server *httptest.Server) *http.Client {
+	client := server.Client()
+	client.Transport = &orderGuardTransport{base: client.Transport, serverURL: server.URL}
+	return client
+}
+
+// orderGuardTransport resolves the relative request URLs SendAuthHTTPRequest
+// builds against the test server, so these tests exercise a real http.Client
+// against a real server rather than a transport answering on its behalf.
+//
+// SendAuthHTTPRequest assigns the caller's path straight to request.Item.Path
+// without prefixing the configured endpoint URL, so a relative request never
+// leaves the client at all:
+//
+//	Post "/v2/orders_info.do": unsupported protocol scheme ""
+//
+// That pre-existing bug is being fixed separately in #2272. Requests that
+// already carry a host are passed through untouched, so this adapter turns into
+// a no-op once #2272 lands and can be deleted with it.
+type orderGuardTransport struct {
+	base      http.RoundTripper
+	serverURL string
+}
+
+func (r *orderGuardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Host != "" {
+		return r.base.RoundTrip(req)
+	}
+	server, err := url.Parse(r.serverURL)
+	if err != nil {
+		return nil, err
+	}
+	clone := req.Clone(req.Context())
+	clone.URL = &url.URL{Scheme: server.Scheme, Host: server.Host, Path: req.URL.Path, RawQuery: req.URL.RawQuery}
+	return r.base.RoundTrip(clone)
 }
 
 func TestGetHistoricCandles(t *testing.T) {

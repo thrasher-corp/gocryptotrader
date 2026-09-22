@@ -479,16 +479,20 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			if err != nil {
 				return nil, err
 			}
+			if len(tempResp.Orders) == 0 {
+				// The order left the book between the open order listing and this
+				// query, so the exchange has nothing left to report for it.
+				return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
+			}
 			resp.Exchange = e.Name
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err
 			}
 
-			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
-				resp.Side = order.Buy
-			} else {
-				resp.Side = order.Sell
+			resp.Side, err = order.StringToOrderSide(tempResp.Orders[0].Type)
+			if err != nil {
+				return nil, err
 			}
 
 			resp.Status = e.GetStatus(tempResp.Orders[0].Status)
@@ -567,16 +571,20 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			if err != nil {
 				return finalResp, err
 			}
+			if len(tempResp.Orders) == 0 {
+				// The order left the book between the open order listing and this
+				// query, so it is no longer an active order.
+				continue
+			}
 			resp.Exchange = e.Name
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err
 			}
 
-			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
-				resp.Side = order.Buy
-			} else {
-				resp.Side = order.Sell
+			resp.Side, err = order.StringToOrderSide(tempResp.Orders[0].Type)
+			if err != nil {
+				return finalResp, err
 			}
 			resp.Status = e.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
