@@ -271,6 +271,13 @@ type OrderDetail struct {
 	CancelReason string `json:"cancelReason"`
 }
 
+// CancelAllOrdersResponse is the acknowledgement of an account-wide cancel
+type CancelAllOrdersResponse struct {
+	Code      int64      `json:"code"`
+	Message   string     `json:"msg"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
 // BatchOrderResult is one entry of a batch order creation response. MEXC returns a mixed array where
 // a rejected order carries code and msg in place of the order fields; without them a rejected entry
 // decodes to a zero-value OrderDetail a caller cannot tell from a placed order. It also carries

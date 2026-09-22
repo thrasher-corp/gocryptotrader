@@ -51,6 +51,7 @@ var (
 	errPaginationLimitIsRequired  = errors.New("limit is required")
 	errBatchOrderRejected         = errors.New("batch order rejected")
 	errListenKeyRequired          = errors.New("listen key is required")
+	errCancelAllOrdersFailed      = errors.New("cancel all orders failed")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -1072,6 +1073,24 @@ func (e *Exchange) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol curre
 	params.Set("symbol", symbol.String())
 	var resp []*OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllOpenOrdersBySymbolEPL, http.MethodDelete, "openOrders", params, nil, &resp, true)
+}
+
+// CancelAllOpenOrders cancels every open order of the account across all symbols. The venue confirms
+// with code 200 and does not name the cancelled orders.
+func (e *Exchange) CancelAllOpenOrders(ctx context.Context) error {
+	var resp *CancelAllOrdersResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllOrdersEPL, http.MethodDelete, "order/all", nil, nil, &resp, true); err != nil {
+		return err
+	}
+	if resp == nil || resp.Code != 200 {
+		var code int64
+		var msg string
+		if resp != nil {
+			code, msg = resp.Code, resp.Message
+		}
+		return fmt.Errorf("%w: code %d: %s", errCancelAllOrdersFailed, code, msg)
+	}
+	return nil
 }
 
 // GetOrderByID retrieves a single order

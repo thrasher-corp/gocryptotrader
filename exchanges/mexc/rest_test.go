@@ -1547,8 +1547,8 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345"})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Spot})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	// A spot request without a pair cancels account-wide; TestCancelAllOrdersWithoutPairCancelsAccountWide
+	// covers it against a local server rather than cancelling every order of a live account here.
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Spot, Pair: spotTradablePair})

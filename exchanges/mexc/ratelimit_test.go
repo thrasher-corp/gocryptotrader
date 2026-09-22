@@ -142,6 +142,7 @@ func TestRateLimitPoolBudgets(t *testing.T) {
 		{"createBatchOrders", createBatchOrdersEPL},
 		{"cancelTradeOrder", cancelTradeOrderEPL},
 		{"cancelAllOpenOrdersBySymbol", cancelAllOpenOrdersBySymbolEPL},
+		{"cancelAllOrders", cancelAllOrdersEPL},
 	} {
 		assert.Truef(t, rl[epl.epl].SharesBudgetWith(rl[newOrderEPL]), "%s should draw on the same budget as newOrder, not an identical one of its own", epl.name)
 	}

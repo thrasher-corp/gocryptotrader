@@ -699,7 +699,8 @@ func (e *Exchange) CancelBatchOrders(context.Context, []order.Cancel) (*order.Ca
 	return nil, common.ErrFunctionNotSupported
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
+// CancelAllOrders cancels all orders associated with a currency pair, or every open order of the
+// account when no pair is given
 func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	// This is a symbol-wide cancel: it cancels every open order for the pair and takes no order id,
 	// so StandardCancel() (which requires an OrderID) must not gate it - it rejected a valid
@@ -713,6 +714,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	var err error
 	switch orderCancellation.AssetType {
 	case asset.Spot:
+		if orderCancellation.Pair.IsEmpty() {
+			// The account-wide cancel names no orders, so the status map stays empty on success.
+			return resp, e.CancelAllOpenOrders(ctx)
+		}
 		orderCancellation.Pair, err = e.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 		if err != nil {
 			return order.CancelAllResponse{}, err

@@ -1045,3 +1045,45 @@ func TestNewOrderMarketParameters(t *testing.T) {
 		})
 	}
 }
+
+// TestCancelAllOpenOrders cancels every open order of the account in one call. The venue confirms
+// with code 200 and names no orders; any other code is a failure the caller must see.
+func TestCancelAllOpenOrders(t *testing.T) {
+	t.Parallel()
+	var method, path string
+	body := `{"code":200,"msg":"success","timestamp":1778744778528}`
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		_, _ = w.Write([]byte(body))
+	}))
+	require.NoError(t, e.CancelAllOpenOrders(t.Context()), "CancelAllOpenOrders must not error on a confirmed cancel")
+	assert.Equal(t, http.MethodDelete, method, "cancel-all should be a DELETE")
+	assert.Equal(t, "/api/v3/order/all", path, "cancel-all should target the account-wide endpoint")
+
+	body = `{"code":30000,"msg":"suspended","timestamp":1778744778528}`
+	assert.ErrorIs(t, e.CancelAllOpenOrders(t.Context()), errCancelAllOrdersFailed, "an unconfirmed cancel-all should be reported as failed")
+}
+
+// TestCancelAllOrdersWithoutPairCancelsAccountWide routes a cancel-all with no pair to the
+// account-wide endpoint, and one with a pair to the symbol endpoint.
+func TestCancelAllOrdersWithoutPairCancelsAccountWide(t *testing.T) {
+	t.Parallel()
+	var paths []string
+	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		if strings.HasSuffix(r.URL.Path, "/openOrders") {
+			_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"9"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"code":200,"msg":"success","timestamp":1778744778528}`))
+	}))
+	require.NoError(t, e.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
+	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	require.NoError(t, err, "CancelAllOrders must not error without a pair")
+	assert.Empty(t, resp.Status, "the account-wide cancel names no orders")
+
+	resp, err = e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: spotTradablePair})
+	require.NoError(t, err, "CancelAllOrders must not error with a pair")
+	assert.Equal(t, map[string]string{"9": "cancelled"}, resp.Status, "the symbol cancel should report the cancelled order")
+	assert.Equal(t, []string{"/api/v3/order/all", "/api/v3/openOrders"}, paths, "the empty pair should cancel account-wide and the pair by symbol")
+}

@@ -41,6 +41,7 @@ const (
 	createBatchOrdersEPL
 	cancelTradeOrderEPL
 	cancelAllOpenOrdersBySymbolEPL
+	cancelAllOrdersEPL
 	getOrderByIDEPL
 	getOpenOrdersEPL
 	allOrdersEPL
@@ -119,6 +120,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		createBatchOrdersEPL:              request.GetRateLimiterWithWeight(orderRate, 1),
 		cancelTradeOrderEPL:               request.GetRateLimiterWithWeight(orderRate, 1),
 		cancelAllOpenOrdersBySymbolEPL:    request.GetRateLimiterWithWeight(orderRate, 1),
+		cancelAllOrdersEPL:                request.GetRateLimiterWithWeight(orderRate, 1),
 		getOrderByIDEPL:                   request.GetRateLimiterWithWeight(ipModeRate, 2),
 		getOpenOrdersEPL:                  request.GetRateLimiterWithWeight(ipModeRate, 3),
 		allOrdersEPL:                      request.GetRateLimiterWithWeight(ipModeRate, 10),
