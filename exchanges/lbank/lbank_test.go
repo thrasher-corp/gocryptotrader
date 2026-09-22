@@ -502,3 +502,66 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
+
+func TestUnwrapV2Response(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		payload  string
+		expected string
+		err      string
+	}{
+		{
+			name:     "string result true",
+			payload:  `{"result":"true","data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "boolean result true",
+			payload:  `{"result":true,"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:    "string result false",
+			payload: `{"result":"false","msg":"Invalid parameter","error_code":10003}`,
+			err:     "lbank: request failed: Invalid parameter",
+		},
+		{
+			name:    "boolean result false",
+			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003}`,
+			err:     "lbank: request failed: Invalid parameter",
+		},
+		{
+			name:     "absent result is not a failure",
+			payload:  `{"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "null result is not a failure",
+			payload:  `{"result":null,"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "envelope without data returns the payload",
+			payload:  `{"result":"true"}`,
+			expected: `{"result":"true"}`,
+		},
+		{
+			name:     "non envelope payload is unchanged",
+			payload:  `[{"symbol":"btc_usdt"}]`,
+			expected: `[{"symbol":"btc_usdt"}]`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := unwrapV2Response([]byte(tc.payload))
+			if tc.err != "" {
+				assert.EqualError(t, err, tc.err, "unwrapV2Response should reject a failed envelope")
+				return
+			}
+			require.NoError(t, err, "unwrapV2Response must not error")
+			assert.Equal(t, tc.expected, string(payload), "unwrapV2Response should return the expected payload")
+		})
+	}
+}
