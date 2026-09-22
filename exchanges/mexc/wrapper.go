@@ -172,7 +172,9 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		currencyPairs := make(currency.Pairs, 0, len(result.Symbols))
 		for i := range result.Symbols {
-			if result.Symbols[i].Status.Int64() != 1 {
+			// Status is 1 for every symbol in the catalogue; isSpotTradingAllowed is the flag that
+			// separates the API-spot-tradable ones, so both must hold.
+			if result.Symbols[i].Status.Int64() != 1 || !result.Symbols[i].IsSpotTradingAllowed {
 				continue
 			}
 			pair, err := currency.NewPairFromStrings(result.Symbols[i].BaseAsset, result.Symbols[i].QuoteAsset)

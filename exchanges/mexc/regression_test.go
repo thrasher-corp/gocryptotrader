@@ -721,18 +721,23 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 			}
 			_, _ = w.Write([]byte(orderBody))
 		}))
+		var cancelledAt atomic.Int64
 		go func() {
 			<-served
 			// Let the first lookup finish and enter the retry wait before cancelling it.
 			time.Sleep(50 * time.Millisecond)
+			cancelledAt.Store(time.Now().UnixNano())
 			cancel()
 		}()
-		start := time.Now()
 		detail, err := e.GetOrderInfo(ctx, "1", kas, asset.Spot)
-		elapsed := time.Since(start)
+		// Measured from the cancellation rather than the start of the lookup: the absolute elapsed time
+		// also carries the HTTP round trips and the 50ms hand-off, which a loaded runner inflates past
+		// any ceiling. Time from cancel to return is ~0 when the wait is abandoned and the remainder of
+		// the full second when it is not.
+		sinceCancel := time.Since(time.Unix(0, cancelledAt.Load()))
 		require.NoError(t, err, "a cancelled retry wait must not fail the order lookup")
 		assert.Equal(t, int64(1), tradeCalls.Load(), "the lookup should stop at the first call when the wait is cancelled")
-		assert.Less(t, elapsed, 900*time.Millisecond, "the retry wait should be abandoned on cancellation rather than run its full second")
+		assert.Less(t, sinceCancel, 500*time.Millisecond, "the retry wait should be abandoned as soon as the context is cancelled rather than run its full second")
 		assert.Empty(t, detail.Trades, "no trades should be attached when the wait is cancelled")
 	})
 }
