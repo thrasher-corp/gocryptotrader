@@ -77,6 +77,10 @@ var (
 	errPEMBlockIsNil           = errors.New("pem block is nil")
 	errUnableToParsePrivateKey = errors.New("unable to parse private key")
 	errPrivateKeyNotLoaded     = errors.New("private key not loaded")
+	// errRequestFailed is returned when an LBank v2 envelope reports a failed
+	// request. Callers and tests match this category with errors.Is instead of
+	// matching the exchange supplied message text.
+	errRequestFailed = errors.New("lbank: request failed")
 )
 
 // GetTicker returns a ticker for the specified symbol
@@ -529,14 +533,19 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 // endpoints and as a JSON boolean on others. Decoding it into a string failed
 // outright for the boolean form, which made the envelope fall back to being
 // parsed as the payload and skipped the failed request check below. A payload
-// that is not an envelope is returned unchanged.
+// that is not a JSON object is returned unchanged; a JSON object that does not
+// decode as the envelope is reported as an error so that a further change of
+// shape in the envelope cannot silently disable the failed request check.
 func unwrapV2Response(payload json.RawMessage) (json.RawMessage, error) {
 	var v2Resp V2Response
 	if err := json.Unmarshal(payload, &v2Resp); err != nil {
-		return payload, nil //nolint:nilerr // not an envelope; return it unchanged for the caller to unmarshal
+		if bytes.HasPrefix(bytes.TrimLeft(payload, " \t\r\n"), []byte("{")) {
+			return nil, fmt.Errorf("lbank: decoding response envelope: %w", err)
+		}
+		return payload, nil // not an envelope; return it unchanged for the caller to unmarshal
 	}
 	if v2Resp.Result != nil && !v2Resp.Result.Bool() {
-		return nil, fmt.Errorf("lbank: request failed: %s", v2Resp.Msg)
+		return nil, fmt.Errorf("%w: %s (error_code %d)", errRequestFailed, v2Resp.Msg, v2Resp.ErrorCode)
 	}
 	if v2Resp.Data != nil {
 		return v2Resp.Data, nil

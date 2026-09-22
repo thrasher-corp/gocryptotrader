@@ -512,6 +512,7 @@ func TestUnwrapV2Response(t *testing.T) {
 		payload  string
 		expected string
 		err      string
+		isErr    error
 	}{
 		{
 			name:     "string result true",
@@ -526,12 +527,20 @@ func TestUnwrapV2Response(t *testing.T) {
 		{
 			name:    "string result false",
 			payload: `{"result":"false","msg":"Invalid parameter","error_code":10003}`,
-			err:     "lbank: request failed: Invalid parameter",
+			err:     "lbank: request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
 		},
 		{
 			name:    "boolean result false",
 			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003}`,
-			err:     "lbank: request failed: Invalid parameter",
+			err:     "lbank: request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:    "failed envelope without error code",
+			payload: `{"result":false,"msg":"instrument not found"}`,
+			err:     "lbank: request failed: instrument not found (error_code 0)",
+			isErr:   errRequestFailed,
 		},
 		{
 			name:     "absent result is not a failure",
@@ -553,13 +562,38 @@ func TestUnwrapV2Response(t *testing.T) {
 			payload:  `[{"symbol":"btc_usdt"}]`,
 			expected: `[{"symbol":"btc_usdt"}]`,
 		},
+		{
+			name:     "non json payload is unchanged",
+			payload:  `not json at all`,
+			expected: `not json at all`,
+		},
+		{
+			name:    "object with a reshaped field is an error",
+			payload: `{"result":true,"error_code":"10003"}`,
+			err:     "lbank: decoding response envelope:",
+		},
+		{
+			name:    "object with leading whitespace and a reshaped field is an error",
+			payload: " \n\t{\"result\":true,\"error_code\":{}}",
+			err:     "lbank: decoding response envelope:",
+		},
+		{
+			name:    "truncated object is an error",
+			payload: `{"result":true,oops}`,
+			err:     "lbank: decoding response envelope:",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			payload, err := unwrapV2Response([]byte(tc.payload))
 			if tc.err != "" {
-				assert.EqualError(t, err, tc.err, "unwrapV2Response should reject a failed envelope")
+				assert.ErrorContains(t, err, tc.err, "unwrapV2Response should report the expected error")
+				if tc.isErr == nil {
+					assert.NotErrorIs(t, err, errRequestFailed, "a malformed envelope should not be reported as a failed request")
+				} else {
+					assert.ErrorIs(t, err, tc.isErr, "unwrapV2Response should report a matchable envelope failure")
+				}
 				return
 			}
 			require.NoError(t, err, "unwrapV2Response must not error")
@@ -577,7 +611,7 @@ func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"result":false,"msg":"instrument not found"}`))
+		_, _ = w.Write([]byte(`{"result":false,"msg":"instrument not found","error_code":10076}`))
 	})
 	server := httptest.NewServer(sm)
 	defer server.Close()
@@ -588,5 +622,6 @@ func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
 
 	var result any
 	err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, "", &result)
-	assert.ErrorContains(t, err, "lbank: request failed", "a failed envelope should be reported as an error")
+	assert.ErrorIs(t, err, errRequestFailed, "a failed envelope should be reported as a failed request")
+	assert.ErrorContains(t, err, "(error_code 10076)", "a failed envelope should carry the exchange error code")
 }
