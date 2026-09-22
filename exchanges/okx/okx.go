@@ -349,6 +349,9 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 	if arg.OrderID != "" {
 		params.Set("ordId", arg.OrderID)
 	}
+	if arg.SubType != "" {
+		params.Set("subType", arg.SubType)
+	}
 	if arg.After != "" {
 		params.Set("after", arg.After)
 	}

@@ -1123,24 +1123,27 @@ func TestGetTransactionDetailsOrderID(t *testing.T) {
 		mutex sync.Mutex
 		query url.Values
 	)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "the fills request should be a GET")
+		assert.Equal(t, "/trade/fills", r.URL.Path, "GetTransactionDetailsLast3Days should call the 3-day fills endpoint")
 		mutex.Lock()
 		query = r.URL.Query()
 		mutex.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
 	}))
-	defer server.Close()
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.SkipAuthCheck = true
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
 
 	const orderID = "312269865356374016"
 	_, err := ex.GetTransactionDetailsLast3Days(t.Context(), &TransactionDetailRequestParams{
 		InstrumentType: instTypeSpot,
 		OrderID:        orderID,
+		SubType:        "2",
 		Limit:          3,
 	})
 	require.NoError(t, err, "GetTransactionDetailsLast3Days must not error")
@@ -1148,6 +1151,7 @@ func TestGetTransactionDetailsOrderID(t *testing.T) {
 	defer mutex.Unlock()
 	require.NotNil(t, query, "a request must have been sent")
 	assert.Equal(t, orderID, query.Get("ordId"), "GetTransactionDetailsLast3Days should forward the order ID filter as ordId")
+	assert.Equal(t, "2", query.Get("subType"), "GetTransactionDetailsLast3Days should forward the transaction type filter as subType")
 	assert.Equal(t, instTypeSpot, query.Get("instType"), "GetTransactionDetailsLast3Days should forward the instrument type")
 	assert.Equal(t, "3", query.Get("limit"), "GetTransactionDetailsLast3Days should forward the limit")
 }
