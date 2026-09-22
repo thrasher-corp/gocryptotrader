@@ -525,8 +525,9 @@ var orderHistoryFixture = [][]orderHistoryOrder{
 }
 
 // orderHistoryTimestamp is the 2025-09-22T00:00:00Z created_time every fixture
-// order carries.
-const orderHistoryTimestamp = 1758499200000
+// order carries. It is typed int64 so the millisecond value stays representable
+// where the fixtures format it on 32-bit platforms.
+const orderHistoryTimestamp int64 = 1758499200000
 
 // orderHistoryEntry returns the JSON of a single LBank order history entry
 func orderHistoryEntry(o orderHistoryOrder) string {
