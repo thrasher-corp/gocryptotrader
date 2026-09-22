@@ -533,7 +533,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 func unwrapV2Response(payload json.RawMessage) (json.RawMessage, error) {
 	var v2Resp V2Response
 	if err := json.Unmarshal(payload, &v2Resp); err != nil {
-		return payload, nil
+		return payload, nil //nolint:nilerr // not an envelope; return it unchanged for the caller to unmarshal
 	}
 	if v2Resp.Result != nil && !v2Resp.Result.Bool() {
 		return nil, fmt.Errorf("lbank: request failed: %s", v2Resp.Msg)
