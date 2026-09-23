@@ -165,6 +165,29 @@ func TestWsSpotTickerFromMiniTicker(t *testing.T) {
 	assert.Equal(t, int64(1736412092500), got.LastUpdated.UnixMilli(), "LastUpdated should come from the exchange send time")
 }
 
+// TestWsMiniTickerVolumePresence pins that an explicit zero volume is applied and an omitted one keeps
+// the last known figure: idle symbols report "0", which setIfNonZero would discard.
+func TestWsMiniTickerVolumePresence(t *testing.T) {
+	drainTickers(t)
+	for i, tc := range []struct {
+		volume, quantity    string
+		wantQuote, wantBase float64
+	}{
+		{"323169.867864", "12058672.07", 323169.867864, 12058672.07},
+		{"0", "0", 0, 0},
+		{"777", "888", 777, 888},
+		{"", "", 777, 888},
+	} {
+		raw := wsPushFrame(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, 1736412092500+int64(i),
+			&mexc_proto_types.PublicMiniTickerV3Api{Symbol: "BTCUSDT", Price: "93390.11", High: "94000.5", Low: "92000.25", Volume: tc.volume, Quantity: tc.quantity})
+		require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+		ticks := drainTickers(t)
+		require.Len(t, ticks, 1, "exactly one ticker must be published")
+		assert.Equalf(t, tc.wantBase, ticks[0].BaseVolume, "frame %d base volume should match", i)
+		assert.Equalf(t, tc.wantQuote, ticks[0].QuoteVolume, "frame %d quote volume should match", i)
+	}
+}
+
 // TestWsHandleDataUndecodableFrame asserts a binary frame that is not a valid push frame is
 // reported rather than silently dropped. It used to be answered with an unhandled-message warning,
 // because the handler routed on the raw bytes and merely failed to find a separator in them; a
