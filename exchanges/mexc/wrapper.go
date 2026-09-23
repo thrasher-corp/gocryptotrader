@@ -74,6 +74,11 @@ func (e *Exchange) SetDefaults() {
 				AutoPairUpdates:       true,
 			},
 			// The spot websocket carries market data and account pushes only; orders are placed over REST.
+			// Subscribe and Unsubscribe are left off, so a flush reconnects from scratch: the websocket
+			// manager records a connection's subscriptions only when its subscriber returns no error, and
+			// the venue refuses a duplicate subscription, so updating a partly refused connection in place
+			// would strand the channels it accepted. The incremental flush can be enabled once the manager
+			// keeps partial registrations.
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
 				OrderbookFetching:      true,
@@ -81,8 +86,6 @@ func (e *Exchange) SetDefaults() {
 				TradeFetching:          true,
 				AccountInfo:            true,
 				AuthenticatedEndpoints: true,
-				Subscribe:              true,
-				Unsubscribe:            true,
 			},
 			// The wallet API withdraws crypto only.
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |

@@ -69,7 +69,8 @@ func TestGetFeeByTypeOffline(t *testing.T) {
 // TestFeaturesMatchImplementation pins the advertised capabilities to what the wrapper implements:
 // spot has no fiat withdrawal and orders cannot be placed over the websocket. Deposit chains are not
 // advertised because the deposit address endpoint names networks differently from the withdraw
-// networks GetAvailableTransferChains returns.
+// networks GetAvailableTransferChains returns. Subscribe and Unsubscribe are not advertised, so a flush
+// reconnects rather than updating a connection's subscriptions in place.
 func TestFeaturesMatchImplementation(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
@@ -102,8 +103,6 @@ func TestFeaturesMatchImplementation(t *testing.T) {
 		TradeFetching:          true,
 		AccountInfo:            true,
 		AuthenticatedEndpoints: true,
-		Subscribe:              true,
-		Unsubscribe:            true,
 	}, ex.Features.Supports.WebsocketCapabilities, "the websocket capabilities should match the implemented streams")
 	assert.Equal(t, exchange.AutoWithdrawCrypto|exchange.NoFiatWithdrawals, ex.Features.Supports.WithdrawPermissions, "only crypto withdrawal should be advertised")
 }
