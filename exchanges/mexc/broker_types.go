@@ -16,18 +16,18 @@ type BrokerUniversalTransferHistory struct {
 
 // BrokerAssetTransfer holds a response data after asset transfer by brokers
 type BrokerAssetTransfer struct {
-	TransactionID       string       `json:"tranId"`
-	FromAccount         string       `json:"fromAccount"`
-	ToAccount           string       `json:"toAccount"`
-	ClientTransactionID string       `json:"clientTranId"`
-	Asset               string       `json:"asset"`
-	FromAccountType     string       `json:"fromAccountType"`
-	ToAccountType       string       `json:"toAccountType"`
-	FromSymbol          string       `json:"fromSymbol"`
-	ToSymbol            string       `json:"toSymbol"`
-	Status              string       `json:"status"`
-	Amount              types.Number `json:"amount"`
-	Timestamp           types.Time   `json:"timestamp"`
+	TransactionID       string        `json:"tranId"`
+	FromAccount         string        `json:"fromAccount"`
+	ToAccount           string        `json:"toAccount"`
+	ClientTransactionID string        `json:"clientTranId"`
+	Asset               currency.Code `json:"asset"`
+	FromAccountType     string        `json:"fromAccountType"`
+	ToAccountType       string        `json:"toAccountType"`
+	FromSymbol          string        `json:"fromSymbol"`
+	ToSymbol            string        `json:"toSymbol"`
+	Status              string        `json:"status"`
+	Amount              types.Number  `json:"amount"`
+	Timestamp           types.Time    `json:"timestamp"`
 }
 
 // BrokerSubAccounts represents a broker sub-accounts and their detail.
@@ -98,10 +98,10 @@ type BrokerSubAccountCreationParams struct {
 
 // BrokerSubAccountDepositAddress holds a broker sub-account deposit address
 type BrokerSubAccountDepositAddress struct {
-	Address string `json:"address"`
-	Coin    string `json:"coin"`
-	Network string `json:"network"`
-	Memo    string `json:"memo"`
+	Address string        `json:"address"`
+	Coin    currency.Code `json:"coin"`
+	Network string        `json:"network"`
+	Memo    string        `json:"memo"`
 }
 
 // BrokerSubAccountDepositAddressCreationParams holds sub-account deposit address creation parameter
@@ -112,13 +112,13 @@ type BrokerSubAccountDepositAddressCreationParams struct {
 
 // BrokerSubAccountDepositDetail holds a broker sub-account asset deposit history item
 type BrokerSubAccountDepositDetail struct {
-	Coin          string       `json:"coin"`
-	Network       string       `json:"network"`
-	Address       string       `json:"address"`
-	AddressTag    string       `json:"addressTag"`
-	TransactionID string       `json:"txId"`
-	UnlockConfirm string       `json:"unlockConfirm"`
-	Amount        types.Number `json:"amount"`
-	Status        types.Number `json:"status"`
-	ConfirmTimes  types.Number `json:"confirmTimes"`
+	Coin          currency.Code `json:"coin"`
+	Network       string        `json:"network"`
+	Address       string        `json:"address"`
+	AddressTag    string        `json:"addressTag"`
+	TransactionID string        `json:"txId"`
+	UnlockConfirm string        `json:"unlockConfirm"`
+	Amount        types.Number  `json:"amount"`
+	Status        types.Number  `json:"status"`
+	ConfirmTimes  types.Number  `json:"confirmTimes"`
 }

@@ -38,9 +38,9 @@ type ExchangeConfig struct {
 type SymbolDetail struct {
 	Symbol                     string         `json:"symbol"`
 	Status                     types.Number   `json:"status"`
-	BaseAsset                  string         `json:"baseAsset"`
+	BaseAsset                  currency.Code  `json:"baseAsset"`
 	BaseAssetPrecision         float64        `json:"baseAssetPrecision"`
-	QuoteAsset                 string         `json:"quoteAsset"`
+	QuoteAsset                 currency.Code  `json:"quoteAsset"`
 	QuotePrecision             float64        `json:"quotePrecision"`
 	QuoteAssetPrecision        float64        `json:"quoteAssetPrecision"`
 	BaseCommissionPrecision    float64        `json:"baseCommissionPrecision"`
@@ -253,16 +253,16 @@ type UniversalTransferHistoryResponse struct {
 
 // UniversalTransferHistoryData represents a universal asset transfer history detail
 type UniversalTransferHistoryData struct {
-	TranID          string       `json:"tranId"`
-	ClientTranID    string       `json:"clientTranId"`
-	Asset           string       `json:"asset"`
-	Amount          types.Number `json:"amount"`
-	FromAccountType string       `json:"fromAccountType"`
-	ToAccountType   string       `json:"toAccountType"`
-	FromSymbol      string       `json:"fromSymbol"`
-	ToSymbol        string       `json:"toSymbol"`
-	Status          string       `json:"status"`
-	Timestamp       types.Time   `json:"timestamp"`
+	TranID          string        `json:"tranId"`
+	ClientTranID    string        `json:"clientTranId"`
+	Asset           currency.Code `json:"asset"`
+	Amount          types.Number  `json:"amount"`
+	FromAccountType string        `json:"fromAccountType"`
+	ToAccountType   string        `json:"toAccountType"`
+	FromSymbol      string        `json:"fromSymbol"`
+	ToSymbol        string        `json:"toSymbol"`
+	Status          string        `json:"status"`
+	Timestamp       types.Time    `json:"timestamp"`
 
 	// Used with sub-account universal asset transfers
 	FromAccount string `json:"fromAccount"`
@@ -276,9 +276,9 @@ type SubAccountAssetBalances struct {
 
 // AccountBalanceInfo represents an account balance information
 type AccountBalanceInfo struct {
-	Asset  string       `json:"asset"`
-	Free   types.Number `json:"free"`
-	Locked types.Number `json:"locked"`
+	Asset  currency.Code `json:"asset"`
+	Free   types.Number  `json:"free"`
+	Locked types.Number  `json:"locked"`
 }
 
 // KYCStatusInfo represents a KYC status information
@@ -427,21 +427,21 @@ type AccountDetail struct {
 
 // AccountTrade represents an account trade detail
 type AccountTrade struct {
-	Symbol          string       `json:"symbol"`
-	ID              string       `json:"id"`
-	ClientOrderID   string       `json:"clientOrderId"`
-	OrderID         string       `json:"orderId"`
-	OrderListID     int64        `json:"orderListId"`
-	Commission      types.Number `json:"commission"`
-	CommissionAsset string       `json:"commissionAsset"`
-	IsBuyer         bool         `json:"isBuyer"`
-	IsMaker         bool         `json:"isMaker"`
-	IsBestMatch     bool         `json:"isBestMatch"`
-	IsSelfTrade     bool         `json:"isSelfTrade"`
-	Price           types.Number `json:"price"`
-	Quantity        types.Number `json:"qty"`
-	QuoteQuantity   types.Number `json:"quoteQty"`
-	Time            types.Time   `json:"time"`
+	Symbol          string        `json:"symbol"`
+	ID              string        `json:"id"`
+	ClientOrderID   string        `json:"clientOrderId"`
+	OrderID         string        `json:"orderId"`
+	OrderListID     int64         `json:"orderListId"`
+	Commission      types.Number  `json:"commission"`
+	CommissionAsset currency.Code `json:"commissionAsset"`
+	IsBuyer         bool          `json:"isBuyer"`
+	IsMaker         bool          `json:"isMaker"`
+	IsBestMatch     bool          `json:"isBestMatch"`
+	IsSelfTrade     bool          `json:"isSelfTrade"`
+	Price           types.Number  `json:"price"`
+	Quantity        types.Number  `json:"qty"`
+	QuoteQuantity   types.Number  `json:"quoteQty"`
+	Time            types.Time    `json:"time"`
 }
 
 // MXDeductResponse represents an MX deduct response from spot commissions.
@@ -473,7 +473,7 @@ type CommissionRate struct {
 
 // CurrencyInformation represents a exchange's currency item details
 type CurrencyInformation struct {
-	Coin        string            `json:"coin"`
+	Coin        currency.Code     `json:"coin"`
 	Name        string            `json:"Name"`
 	NetworkList []CurrencyNetwork `json:"networkList"`
 }
@@ -523,32 +523,32 @@ type FundDepositInfo struct {
 
 // WithdrawalInfo represents an asset withdrawal detailed information
 type WithdrawalInfo struct {
-	ID             string       `json:"id"`
-	TransactionID  string       `json:"txId"`
-	Coin           string       `json:"coin"`
-	Network        string       `json:"network"`
-	Address        string       `json:"address"`
-	TransferType   int64        `json:"transferType"`
-	Status         int64        `json:"status"`
-	ConfirmNo      any          `json:"confirmNo"`
-	Remark         string       `json:"remark"`
-	Memo           string       `json:"memo"`
-	TransHash      string       `json:"transHash"`
-	CoinID         string       `json:"coinId"`
-	VcoinID        string       `json:"vcoinId"`
-	TransactionFee types.Number `json:"transactionFee"`
-	Amount         types.Number `json:"amount"`
-	ApplyTime      types.Time   `json:"applyTime"`
-	UpdateTime     types.Time   `json:"updateTime"`
+	ID             string        `json:"id"`
+	TransactionID  string        `json:"txId"`
+	Coin           currency.Code `json:"coin"`
+	Network        string        `json:"network"`
+	Address        string        `json:"address"`
+	TransferType   int64         `json:"transferType"`
+	Status         int64         `json:"status"`
+	ConfirmNo      any           `json:"confirmNo"`
+	Remark         string        `json:"remark"`
+	Memo           string        `json:"memo"`
+	TransHash      string        `json:"transHash"`
+	CoinID         string        `json:"coinId"`
+	VcoinID        string        `json:"vcoinId"`
+	TransactionFee types.Number  `json:"transactionFee"`
+	Amount         types.Number  `json:"amount"`
+	ApplyTime      types.Time    `json:"applyTime"`
+	UpdateTime     types.Time    `json:"updateTime"`
 }
 
 // DepositAddressInfo represents a deposit address information
 type DepositAddressInfo struct {
-	Coin    string `json:"coin"`
-	Network string `json:"network"`
-	Address string `json:"address"`
-	Tag     string `json:"tag,omitempty"`
-	Memo    string `json:"memo,omitempty"`
+	Coin    currency.Code `json:"coin"`
+	Network string        `json:"network"`
+	Address string        `json:"address"`
+	Tag     string        `json:"tag,omitempty"`
+	Memo    string        `json:"memo,omitempty"`
 }
 
 // WithdrawalAddressTag represents an asset withdrawal address detail
@@ -593,9 +593,9 @@ type DustConvertResponse struct {
 
 // DustAssetConversionFailResponse represents a dust asset conversion failure message for each asset.
 type DustAssetConversionFailResponse struct {
-	Asset   string `json:"asset"`
-	Message string `json:"message"`
-	Code    int64  `json:"code"`
+	Asset   currency.Code `json:"asset"`
+	Message string        `json:"message"`
+	Code    int64         `json:"code"`
 }
 
 // DustLogDetail represents a dust log detail
@@ -634,14 +634,14 @@ type InternalTransferDetail struct {
 
 // InternalTransferRecord holds an internal asset transfer
 type InternalTransferRecord struct {
-	TransferID    string       `json:"tranId"`
-	Asset         string       `json:"asset"`
-	Amount        types.Number `json:"amount"`
-	ToAccountType string       `json:"toAccountType"`
-	ToAccount     string       `json:"toAccount"`
-	FromAccount   string       `json:"fromAccount"`
-	Status        string       `json:"status"`
-	Timestamp     types.Time   `json:"timestamp"`
+	TransferID    string        `json:"tranId"`
+	Asset         currency.Code `json:"asset"`
+	Amount        types.Number  `json:"amount"`
+	ToAccountType string        `json:"toAccountType"`
+	ToAccount     string        `json:"toAccount"`
+	FromAccount   string        `json:"fromAccount"`
+	Status        string        `json:"status"`
+	Timestamp     types.Time    `json:"timestamp"`
 }
 
 // RebateHistory holds rebate transactions related to a user's trading activity
@@ -672,14 +672,14 @@ type RebateRecordDetail struct {
 
 // RebateRecord holds a rebate earned on an invited user's trade
 type RebateRecord struct {
-	Asset      string       `json:"asset"`
-	Type       string       `json:"type"`
-	Rate       types.Number `json:"rate"`
-	Amount     types.Number `json:"amount"`
-	UID        string       `json:"uid"`
-	Account    string       `json:"account"`
-	TradeTime  types.Time   `json:"tradeTime"`
-	UpdateTime types.Time   `json:"updateTime"`
+	Asset      currency.Code `json:"asset"`
+	Type       string        `json:"type"`
+	Rate       types.Number  `json:"rate"`
+	Amount     types.Number  `json:"amount"`
+	UID        string        `json:"uid"`
+	Account    string        `json:"account"`
+	TradeTime  types.Time    `json:"tradeTime"`
+	UpdateTime types.Time    `json:"updateTime"`
 }
 
 // ReferCode holds a refer code
@@ -741,9 +741,9 @@ type AffiliateWithdrawPage struct {
 
 // AffiliateWithdrawal holds an affiliate commission withdrawal
 type AffiliateWithdrawal struct {
-	WithdrawTime types.Time   `json:"withdrawTime"`
-	Asset        string       `json:"asset"`
-	Amount       types.Number `json:"amount"`
+	WithdrawTime types.Time    `json:"withdrawTime"`
+	Asset        currency.Code `json:"asset"`
+	Amount       types.Number  `json:"amount"`
 }
 
 // RebateAffiliateCommissionDetail holds a rebate affiliate commission detail
@@ -767,19 +767,19 @@ type AffiliateCommissionDetailPage struct {
 
 // AffiliateCommissionDetail holds the commission earned on one trade or deposit
 type AffiliateCommissionDetail struct {
-	Type           int64        `json:"type"`
-	SourceType     int64        `json:"sourceType"`
-	State          int64        `json:"state"`
-	Date           types.Time   `json:"date"`
-	UID            string       `json:"uid"`
-	Rate           float64      `json:"rate"`
-	Symbol         string       `json:"symbol"`
-	TakerAmount    types.Number `json:"takerAmount"`
-	MakerAmount    types.Number `json:"makerAmount"`
-	AmountCurrency string       `json:"amountCurrency"`
-	UsdtAmount     types.Number `json:"usdtAmount"`
-	Commission     types.Number `json:"commission"`
-	Currency       string       `json:"currency"`
+	Type           int64         `json:"type"`
+	SourceType     int64         `json:"sourceType"`
+	State          int64         `json:"state"`
+	Date           types.Time    `json:"date"`
+	UID            string        `json:"uid"`
+	Rate           float64       `json:"rate"`
+	Symbol         string        `json:"symbol"`
+	TakerAmount    types.Number  `json:"takerAmount"`
+	MakerAmount    types.Number  `json:"makerAmount"`
+	AmountCurrency currency.Code `json:"amountCurrency"`
+	UsdtAmount     types.Number  `json:"usdtAmount"`
+	Commission     types.Number  `json:"commission"`
+	Currency       currency.Code `json:"currency"`
 }
 
 // AffiliateCampaignData holds an affiliate campaign data
@@ -832,21 +832,21 @@ type AffiliateReferralPage struct {
 
 // ReferralData holds a referral detail
 type ReferralData struct {
-	UID              string       `json:"uid"`
-	NickName         string       `json:"nickName"`
-	Email            string       `json:"email"`
-	RegisterTime     types.Time   `json:"registerTime"`
-	InviteCode       string       `json:"inviteCode"`
-	DepositAmount    types.Number `json:"depositAmount"`
-	TradingAmount    types.Number `json:"tradingAmount"`
-	Commission       types.Number `json:"commission"`
-	FirstDepositTime types.Time   `json:"firstDepositTime"`
-	FirstTradeTime   types.Time   `json:"firstTradeTime"`
-	LastDepositTime  types.Time   `json:"lastDepositTime"`
-	LastTradeTime    types.Time   `json:"lastTradeTime"`
-	WithdrawAmount   types.Number `json:"withdrawAmount"`
-	Asset            string       `json:"asset"`
-	Identification   int64        `json:"identification"`
+	UID              string        `json:"uid"`
+	NickName         string        `json:"nickName"`
+	Email            string        `json:"email"`
+	RegisterTime     types.Time    `json:"registerTime"`
+	InviteCode       string        `json:"inviteCode"`
+	DepositAmount    types.Number  `json:"depositAmount"`
+	TradingAmount    types.Number  `json:"tradingAmount"`
+	Commission       types.Number  `json:"commission"`
+	FirstDepositTime types.Time    `json:"firstDepositTime"`
+	FirstTradeTime   types.Time    `json:"firstTradeTime"`
+	LastDepositTime  types.Time    `json:"lastDepositTime"`
+	LastTradeTime    types.Time    `json:"lastTradeTime"`
+	WithdrawAmount   types.Number  `json:"withdrawAmount"`
+	Asset            currency.Code `json:"asset"`
+	Identification   int64         `json:"identification"`
 }
 
 // SubAffiliateData represents a sub-affiliate details

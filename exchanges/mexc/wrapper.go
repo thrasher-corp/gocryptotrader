@@ -198,10 +198,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if result.Symbols[i].Status.Int64() != 1 || !result.Symbols[i].IsSpotTradingAllowed {
 				continue
 			}
-			pair, err := currency.NewPairFromStrings(result.Symbols[i].BaseAsset, result.Symbols[i].QuoteAsset)
-			if err != nil {
-				return nil, err
-			}
+			pair := currency.NewPair(result.Symbols[i].BaseAsset, result.Symbols[i].QuoteAsset)
 			currencyPairs = append(currencyPairs, pair.Format(pairFormat))
 		}
 		return currencyPairs, nil
@@ -405,7 +402,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		Balances:  make(accounts.CurrencyBalances, len(accountInfo.Balances)),
 	}
 	for b := range accountInfo.Balances {
-		ccy := currency.NewCode(accountInfo.Balances[b].Asset)
+		ccy := accountInfo.Balances[b].Asset
 		// MEXC reports free (available) and locked (frozen) per asset. The account layer keeps the
 		// three views independently: Total = free + locked, Hold = locked, Free = free. Free was left
 		// unset, so an asset with free=10/locked=3 reported Total=13/Hold=3/Free=0 - a consumer
@@ -498,7 +495,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Status:          withdrawalStatusToString(withdrawals[w].Status),
 			TransferID:      withdrawals[w].TransactionID,
 			Timestamp:       withdrawals[w].UpdateTime.Time(),
-			Currency:        withdrawals[w].Coin,
+			Currency:        withdrawals[w].Coin.String(),
 			Amount:          withdrawals[w].Amount.Float64(),
 			CryptoToAddress: withdrawals[w].Address,
 			TransferType:    "withdrawal",
@@ -519,7 +516,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			Status:          withdrawalStatusToString(withdrawals[w].Status),
 			TransferID:      withdrawals[w].TransactionID,
 			Timestamp:       withdrawals[w].UpdateTime.Time(),
-			Currency:        withdrawals[w].Coin,
+			Currency:        withdrawals[w].Coin.String(),
 			Amount:          withdrawals[w].Amount.Float64(),
 			CryptoToAddress: withdrawals[w].Address,
 			TransferType:    "withdrawal",
@@ -807,7 +804,7 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 		if !f.IsBuyer {
 			side = order.Sell
 		}
-		fillAsset := currency.NewCode(f.CommissionAsset)
+		fillAsset := f.CommissionAsset
 		totalFee += f.Commission.Float64()
 		switch {
 		case feeAsset.IsEmpty():
@@ -824,7 +821,7 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 			Side:      side,
 			Timestamp: f.Time.Time(),
 			IsMaker:   f.IsMaker,
-			FeeAsset:  f.CommissionAsset,
+			FeeAsset:  f.CommissionAsset.String(),
 			Total:     f.QuoteQuantity.Float64(),
 		})
 	}
@@ -976,7 +973,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	}
 	var chains []string
 	for i := range coins {
-		if !strings.EqualFold(coins[i].Coin, cryptocurrency.String()) {
+		if !coins[i].Coin.Equal(cryptocurrency) {
 			continue
 		}
 		for j := range coins[i].NetworkList {
@@ -1284,10 +1281,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType ass
 		}
 		l := make([]limits.MinMaxLevel, len(result.Symbols))
 		for a := range result.Symbols {
-			pair, err := currency.NewPairFromStrings(result.Symbols[a].BaseAsset, result.Symbols[a].QuoteAsset)
-			if err != nil {
-				return err
-			}
+			pair := currency.NewPair(result.Symbols[a].BaseAsset, result.Symbols[a].QuoteAsset)
 			// quoteAmountPrecision is the minimum quote order amount (measured live for METALUSDT:
 			// "1" USDT), not a price step; the price tick is 10^-quotePrecision (quotePrecision=5 =>
 			// 0.00001) and the base amount step is 10^-baseAssetPrecision. The previous mapping put

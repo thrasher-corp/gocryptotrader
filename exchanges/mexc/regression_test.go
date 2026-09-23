@@ -1442,3 +1442,21 @@ func TestTickerListUnmarshalJSON(t *testing.T) {
 	require.Error(t, err, "a malformed array element must be reported")
 	assert.NotContains(t, err.Error(), "array", "the error should describe the malformed element, not a retry as a single object")
 }
+
+// TestCurrencyFieldsDecodeAsCodes decodes the currency fields of the responses into currency codes, so
+// callers compare them with Code.Equal rather than by string.
+func TestCurrencyFieldsDecodeAsCodes(t *testing.T) {
+	t.Parallel()
+	var symbol SymbolDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTCUSDT","baseAsset":"BTC","quoteAsset":"USDT"}`), &symbol), "Unmarshal must not error")
+	assert.True(t, symbol.BaseAsset.Equal(currency.BTC), "BaseAsset should decode as BTC")
+	assert.True(t, symbol.QuoteAsset.Equal(currency.USDT), "QuoteAsset should decode as USDT")
+
+	var fill AccountTrade
+	require.NoError(t, json.Unmarshal([]byte(`{"commissionAsset":"MX"}`), &fill), "Unmarshal must not error")
+	assert.True(t, fill.CommissionAsset.Equal(currency.MX), "CommissionAsset should decode as MX")
+
+	var info CurrencyInformation
+	require.NoError(t, json.Unmarshal([]byte(`{"coin":"usdt","networkList":[{"coin":"USDT","netWork":"TRX"}]}`), &info), "Unmarshal must not error")
+	assert.True(t, info.Coin.Equal(currency.USDT), "Coin should match regardless of case")
+}
