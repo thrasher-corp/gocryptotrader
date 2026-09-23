@@ -1826,3 +1826,211 @@ func TestSubscribeToConnection(t *testing.T) {
 	_, err = m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subs)
 	require.NoError(t, err, "must not error when all subscriptions can be added, this exercises the path where available > len(subs)")
 }
+
+var errSubscriptionRejected = errors.New("subscription rejected")
+
+// partialSubscriber accepts the first subscription of each batch and rejects the rest, as an exchange does when the
+// venue refuses part of a batch
+func partialSubscriber(m *Manager) func(context.Context, Connection, subscription.List) error {
+	return func(_ context.Context, c Connection, subs subscription.List) error {
+		if len(subs) == 0 {
+			return nil
+		}
+		if err := m.AddSuccessfulSubscriptions(c, subs[0]); err != nil {
+			return err
+		}
+		if len(subs) == 1 {
+			return nil
+		}
+		return fmt.Errorf("%w: %s", errSubscriptionRejected, subs[1:])
+	}
+}
+
+// partialUnsubscriber removes the first subscription of each batch and fails on the rest
+func partialUnsubscriber(m *Manager) func(context.Context, Connection, subscription.List) error {
+	return func(_ context.Context, c Connection, subs subscription.List) error {
+		if len(subs) == 0 {
+			return nil
+		}
+		if err := m.RemoveSubscriptions(c, subs[0]); err != nil {
+			return err
+		}
+		if len(subs) == 1 {
+			return nil
+		}
+		return fmt.Errorf("%w: %s", errSubscriptionRejected, subs[1:])
+	}
+}
+
+func TestSubscribeToConnectionRecordsPartialSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Managed connection", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.useMultiConnectionManagement = true
+		ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{Subscriber: partialSubscriber(m)}}
+		conn := &fakeConnection{subscriptions: subscription.NewStore()}
+		m.trackConnection(conn, ws)
+
+		accepted := &subscription.Subscription{Channel: "accepted"}
+		rejected := &subscription.Subscription{Channel: "rejected"}
+		remaining, err := m.subscribeToConnection(t.Context(), conn, subscription.List{accepted, rejected})
+		require.ErrorIs(t, err, errSubscriptionRejected, "subscribeToConnection must return the subscriber error")
+		assert.Nil(t, remaining, "remaining should be nil on error")
+		require.NotNil(t, ws.subscriptions.Get(accepted), "accepted subscription must be in the websocket store")
+		assert.NotNil(t, conn.subscriptions.Get(accepted), "accepted subscription should be recorded against the connection")
+		assert.Nil(t, conn.subscriptions.Get(rejected), "rejected subscription should not be recorded against the connection")
+		assert.Equal(t, 1, conn.subscriptions.Len(), "connection store should only hold the accepted subscription")
+	})
+
+	t.Run("Global subscriber", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		m.Subscriber = func(subs subscription.List) error {
+			if err := m.AddSuccessfulSubscriptions(nil, subs[0]); err != nil {
+				return err
+			}
+			return errSubscriptionRejected
+		}
+		store := subscription.NewStore()
+
+		accepted := &subscription.Subscription{Channel: "accepted"}
+		rejected := &subscription.Subscription{Channel: "rejected"}
+		_, err := m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subscription.List{accepted, rejected})
+		require.ErrorIs(t, err, ErrSubscriptionFailure, "subscribeToConnection must return a subscription failure")
+		require.ErrorIs(t, err, errSubscriptionRejected, "subscribeToConnection must wrap the subscriber error")
+		assert.NotNil(t, store.Get(accepted), "accepted subscription should be recorded against the connection")
+		assert.Nil(t, store.Get(rejected), "rejected subscription should not be recorded against the connection")
+	})
+
+	t.Run("Subscription held before the call", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		subscriberCalled := false
+		m.Subscriber = func(subscription.List) error {
+			subscriberCalled = true
+			return nil
+		}
+		held := &subscription.Subscription{Channel: "held"}
+		require.NoError(t, m.subscriptions.Add(held), "subscription must be added to the manager store")
+		store := subscription.NewStore()
+
+		_, err := m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subscription.List{held})
+		require.ErrorIs(t, err, subscription.ErrDuplicate, "subscribeToConnection must error on a subscription the manager already holds")
+		assert.False(t, subscriberCalled, "subscriber should not be called for a duplicate subscription")
+		assert.Zero(t, store.Len(), "a subscription held before the call should not be recorded against the connection")
+	})
+
+	t.Run("Nil subscription", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.subscriptions = subscription.NewStore()
+		m.Subscriber = func(subscription.List) error { return nil }
+		store := subscription.NewStore()
+
+		_, err := m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subscription.List{{Channel: "one"}, nil})
+		require.ErrorIs(t, err, common.ErrNilPointer, "subscribeToConnection must error on a nil subscription")
+		assert.Zero(t, store.Len(), "nothing should be recorded against the connection")
+	})
+}
+
+func TestUnsubscribeFromConnectionReleasesPartialUnsubscriptions(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.useMultiConnectionManagement = true
+	ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{Unsubscriber: partialUnsubscriber(m)}}
+	conn := &fakeConnection{subscriptions: subscription.NewStore()}
+	m.trackConnection(conn, ws)
+
+	removed := &subscription.Subscription{Channel: "removed"}
+	kept := &subscription.Subscription{Channel: "kept"}
+	for _, s := range []*subscription.Subscription{removed, kept} {
+		require.NoError(t, ws.subscriptions.Add(s), "subscription must be added to the websocket store")
+		require.NoError(t, conn.subscriptions.Add(s), "subscription must be added to the connection store")
+	}
+
+	missing, err := m.unsubscribeFromConnection(t.Context(), conn, subscription.List{removed, kept})
+	require.ErrorIs(t, err, errSubscriptionRejected, "unsubscribeFromConnection must return the unsubscriber error")
+	assert.Nil(t, missing, "missing should be nil on error")
+	require.Nil(t, ws.subscriptions.Get(removed), "removed subscription must be gone from the websocket store")
+	assert.Nil(t, conn.subscriptions.Get(removed), "removed subscription should be released from the connection")
+	assert.NotNil(t, conn.subscriptions.Get(kept), "subscription still held should remain on the connection")
+	assert.NotNil(t, ws.subscriptions.Get(kept), "subscription still held should remain in the websocket store")
+}
+
+func TestUnsubscribeFromConnectionKeepsSubscriptionsOnFailure(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.subscriptions = subscription.NewStore()
+	m.Unsubscriber = func(subscription.List) error { return errSubscriptionRejected }
+	store := subscription.NewStore()
+	sub := &subscription.Subscription{Channel: "sub"}
+	require.NoError(t, m.subscriptions.Add(sub), "subscription must be added to the manager store")
+	require.NoError(t, store.Add(sub), "subscription must be added to the connection store")
+
+	_, err := m.unsubscribeFromConnection(t.Context(), &connection{subscriptions: store}, subscription.List{sub})
+	require.ErrorIs(t, err, errSubscriptionRejected, "unsubscribeFromConnection must return the unsubscriber error")
+	assert.NotNil(t, store.Get(sub), "a subscription the manager still holds should remain on the connection")
+}
+
+func TestFlushChannelsKeepsConnectionWithPartialSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.exchangeName = "test"
+	m.useMultiConnectionManagement = true
+	m.features.Subscribe = true
+	m.features.Unsubscribe = true
+	m.trafficTimeout = time.Minute
+	m.setEnabled(true)
+
+	srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+
+	accepted := &subscription.Subscription{Channel: "accepted"}
+	rejected := &subscription.Subscription{Channel: "rejected"}
+	var enabledMu sync.Mutex
+	enabled := subscription.List{accepted, rejected}
+	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+		URL: "ws" + srv.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			return conn.Dial(ctx, dialer, nil, nil)
+		},
+		GenerateSubscriptions: func() (subscription.List, error) {
+			enabledMu.Lock()
+			defer enabledMu.Unlock()
+			return enabled, nil
+		},
+		Subscriber:   partialSubscriber(m),
+		Unsubscriber: partialUnsubscriber(m),
+		Handler:      func(context.Context, Connection, []byte) error { return nil },
+	}))
+
+	err := m.Connect(t.Context())
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "Connect must report the rejected subscription")
+	require.ErrorIs(t, err, errSubscriptionRejected, "Connect must wrap the subscriber error")
+	require.Len(t, m.connectionManager, 1, "must have one connection setup")
+	ws := m.connectionManager[0]
+	require.Len(t, ws.connections, 1, "connection must be established despite the rejected subscription")
+	conn := ws.connections[0]
+
+	enabledMu.Lock()
+	enabled = subscription.List{accepted}
+	enabledMu.Unlock()
+
+	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must not error")
+	require.Len(t, ws.connections, 1, "connection holding the accepted subscription must not be flushed as stale")
+	assert.Same(t, conn, ws.connections[0], "the original connection should be kept")
+	wsConn, ok := conn.(*connection)
+	require.True(t, ok, "connection must be a websocket connection")
+	assert.True(t, wsConn.IsConnected(), "connection should remain connected")
+	assert.NotNil(t, conn.Subscriptions().Get(accepted), "accepted subscription should remain recorded against the connection")
+	assert.NotNil(t, ws.subscriptions.Get(accepted), "accepted subscription should remain in the websocket store")
+}
