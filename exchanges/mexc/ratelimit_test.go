@@ -85,6 +85,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"deleteSTPGroup":                 deleteSTPGroupEPL,
 		"addSTPGroupUIDs":                addSTPGroupUIDsEPL,
 		"deleteSTPGroupUIDs":             deleteSTPGroupUIDsEPL,
+		"listenKey":                      listenKeyEPL,
 	}
 	rl, err := request.New("rateLimitTest2", &http.Client{}, request.WithLimiter(rateLimits))
 	require.NoError(t, err)
@@ -133,6 +134,7 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 		{"deleteSTPGroup", deleteSTPGroupEPL, 20},
 		{"addSTPGroupUIDs", addSTPGroupUIDsEPL, 20},
 		{"deleteSTPGroupUIDs", deleteSTPGroupUIDsEPL, 20},
+		{"listenKey", listenKeyEPL, 1},
 	} {
 		limiter, ok := rl[tc.epl]
 		require.Truef(t, ok, "%s must have a rate limiter", tc.name)

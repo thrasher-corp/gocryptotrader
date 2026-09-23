@@ -1629,7 +1629,7 @@ func (e *Exchange) GenerateListenKey(ctx context.Context) (string, error) {
 	var resp struct {
 		ListenKey string `json:"listenKey"`
 	}
-	return resp.ListenKey, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "userDataStream", nil, nil, &resp, true)
+	return resp.ListenKey, e.SendHTTPRequest(ctx, exchange.RestSpot, listenKeyEPL, http.MethodPost, "userDataStream", nil, nil, &resp, true)
 }
 
 // ExtendListenKey renews the user data stream so it stays open past its 60-minute expiry. The stream
@@ -1641,13 +1641,13 @@ func (e *Exchange) ExtendListenKey(ctx context.Context, listenKey string) error 
 	}
 	values := url.Values{}
 	values.Set("listenKey", listenKey)
-	return e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPut, "userDataStream", values, nil, nil, true)
+	return e.SendHTTPRequest(ctx, exchange.RestSpot, listenKeyEPL, http.MethodPut, "userDataStream", values, nil, nil, true)
 }
 
 // GetListenKeys retrieves the account's valid listen keys, their total and how many more can be made
 func (e *Exchange) GetListenKeys(ctx context.Context) (*ListenKeys, error) {
 	var resp *ListenKeys
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "userDataStream", nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, listenKeyEPL, http.MethodGet, "userDataStream", nil, nil, &resp, true)
 }
 
 // CloseListenKey closes a user data stream, releasing its listen key
@@ -1657,7 +1657,7 @@ func (e *Exchange) CloseListenKey(ctx context.Context, listenKey string) error {
 	}
 	values := url.Values{}
 	values.Set("listenKey", listenKey)
-	return e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodDelete, "userDataStream", values, nil, nil, true)
+	return e.SendHTTPRequest(ctx, exchange.RestSpot, listenKeyEPL, http.MethodDelete, "userDataStream", values, nil, nil, true)
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
