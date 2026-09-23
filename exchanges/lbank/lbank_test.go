@@ -537,6 +537,12 @@ func TestUnwrapV2Response(t *testing.T) {
 			isErr:   errRequestFailed,
 		},
 		{
+			name:    "failed envelope carrying data is still a failure",
+			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003,"data":[1,2,3]}`,
+			err:     "lbank: request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
 			name:    "failed envelope without error code",
 			payload: `{"result":false,"msg":"instrument not found"}`,
 			err:     "lbank: request failed: instrument not found (error_code 0)",
