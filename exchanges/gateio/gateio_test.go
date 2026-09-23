@@ -2478,6 +2478,39 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 	require.Equal(t, currency.USDT, detail.FeeAsset, "fee asset must be copied from the exchange response")
 }
 
+func TestFuturesExecutionResponseMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"id":123456789,"user":"12870774","contract":"BTC_USDT","create_time":1735787107.449,"size":10,"left":4,"price":"0","fill_price":"98172.9","tif":"ioc","text":"t-1337","status":"finished","finish_time":1735787107.45,"finish_as":"cancelled","update_time":1735787107.45}`))
+		assert.NoError(t, err, "mock futures order response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.DeliveryFutures} {
+		response, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      currency.NewBTCUSDT(),
+			Side:      order.Long,
+			Type:      order.Market,
+			Amount:    10,
+			AssetType: a,
+		})
+		require.NoErrorf(t, err, "SubmitOrder must not error for %s", a)
+		assert.Equalf(t, 10.0, response.Amount, "amount should be the absolute submitted size for %s", a)
+		assert.Equalf(t, 6.0, response.ExecutedAmount, "executed amount should use authoritative size and remaining quantities for %s", a)
+		assert.Equalf(t, 4.0, response.RemainingAmount, "remaining amount should be copied from the exchange response for %s", a)
+		assert.Equalf(t, 98172.9, response.AverageExecutedPrice, "average execution price should be copied from the exchange response for %s", a)
+	}
+}
+
 func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
@@ -4889,6 +4922,8 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				[]byte(`{"text":"apiv4-ws","price":"200000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596748780649,"create_time":1735790222.185,"size":-1,"update_time":1735790222.185,"left":-1,"user":2365748}`),
 				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98172.9","id":36028797827161124,"create_time":1740108860.761,"size":1,"finish_time":1740108860.761,"update_time":1740108860.761,"left":0,"user":2365748}`),
 				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98113.1","id":36028797827225781,"create_time":1740109172.06,"size":-1,"finish_time":1740109172.06,"update_time":1740109172.06,"left":0,"user":2365748,"is_reduce_only":true}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"cancelled","fill_price":"98172.9","id":36028797827161125,"create_time":1740108860.761,"size":10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":4,"user":2365748}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"cancelled","fill_price":"98172.9","id":36028797827161126,"create_time":1740108860.761,"size":-10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":-4,"user":2365748}`),
 			},
 			expected: []*order.SubmitResponse{
 				{
@@ -4984,6 +5019,38 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
 					ReduceOnly:           true,
+				},
+				{
+					Exchange:             e.Name,
+					OrderID:              "36028797827161125",
+					AssetType:            asset.Futures,
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Date:                 time.UnixMilli(1740108860761),
+					LastUpdated:          time.UnixMilli(1740108860761),
+					Amount:               10,
+					ExecutedAmount:       6,
+					RemainingAmount:      4,
+					AverageExecutedPrice: 98172.9,
+					Type:                 order.Market,
+					Side:                 order.Long,
+					Status:               order.Cancelled,
+					TimeInForce:          order.ImmediateOrCancel,
+				},
+				{
+					Exchange:             e.Name,
+					OrderID:              "36028797827161126",
+					AssetType:            asset.Futures,
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Date:                 time.UnixMilli(1740108860761),
+					LastUpdated:          time.UnixMilli(1740108860761),
+					Amount:               10,
+					ExecutedAmount:       6,
+					RemainingAmount:      4,
+					AverageExecutedPrice: 98172.9,
+					Type:                 order.Market,
+					Side:                 order.Short,
+					Status:               order.Cancelled,
+					TimeInForce:          order.ImmediateOrCancel,
 				},
 			},
 		},
