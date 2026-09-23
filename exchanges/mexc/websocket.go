@@ -504,10 +504,10 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		updated := wsSendTime(result)
 		for _, item := range body.Items {
-			// The push covers every symbol whose price moved, so one that is not tracked is skipped
-			// rather than failing the rest of the frame.
-			cp, err := e.MatchSymbolWithAvailablePairs(item.Symbol, asset.Spot, false)
-			if err != nil {
+			// The push covers every symbol whose price moved. Only enabled pairs are published: the
+			// engine's sync manager rejects a ticker for any pair it does not track.
+			cp, enabled, err := e.MatchSymbolCheckEnabled(item.Symbol, asset.Spot, false)
+			if err != nil || !enabled {
 				continue
 			}
 			if err := e.wsUpdateSpotMiniTicker(ctx, cp, updated, item); err != nil {

@@ -487,3 +487,26 @@ func TestWsSpotTickerMergesAreSerialised(t *testing.T) {
 	require.NoError(t, err, "GetTicker must not error")
 	assert.Equal(t, float64(writers*merges), got.Last, "every merge should be kept")
 }
+
+// TestWsMiniTickersPublishesEnabledPairsOnly pins that the all-symbols miniTickers push publishes only
+// the enabled pairs: the engine's sync manager rejects a ticker for any pair it does not track.
+func TestWsMiniTickersPublishesEnabledPairsOnly(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	btc, ada := currency.NewBTCUSDT(), currency.NewPair(currency.ADA, currency.USDT)
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc, ada}, false), "storing available pairs must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, true), "storing enabled pairs must not error")
+	ex.Websocket.DataHandler = stream.NewRelay(10)
+	raw := wsPushFrameForSymbol(t, "", "spot@"+channelMiniTickersV3+"@"+miniTickerTimezone, 1736412093000,
+		&mexc_proto_types.PublicMiniTickersV3Api{Items: []*mexc_proto_types.PublicMiniTickerV3Api{
+			{Symbol: "ADAUSDT", Price: "0.5", High: "0.6", Low: "0.4", Volume: "1", Quantity: "2"},
+			{Symbol: "BTCUSDT", Price: "93391.5", High: "94001", Low: "92001", Volume: "1", Quantity: "2"},
+		}})
+	require.NoError(t, ex.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "only the enabled pair must publish a ticker")
+	got, ok := (<-ex.Websocket.DataHandler.C).Data.(*ticker.Price)
+	require.True(t, ok, "the relayed data must be a ticker")
+	assert.Equal(t, btc, got.Pair, "the ticker should be for the enabled pair")
+}
