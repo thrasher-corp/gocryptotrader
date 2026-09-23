@@ -3,6 +3,7 @@ package mexc
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -1366,4 +1367,40 @@ func TestAPIKeyInfoCreateTime(t *testing.T) {
 	}
 	var info APIKeyInfo
 	assert.Error(t, json.Unmarshal([]byte(`{"createTime":"yesterday"}`), &info), "an unreadable creation time should be reported")
+}
+
+// subscriptionTestConn answers each subscription request with the reply configured for its channel.
+type subscriptionTestConn struct {
+	websocket.Connection
+	replies map[string]string
+}
+
+func (c *subscriptionTestConn) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
+	p, ok := req.(*WsSubscriptionPayload)
+	if !ok || len(p.Params) != 1 {
+		return nil, errors.New("unexpected subscription payload")
+	}
+	return []byte(c.replies[p.Params[0]]), nil
+}
+
+// TestHandleSubscriptionKeepsAcceptedWhenOneIsRejected registers the accepted subscriptions when another
+// in the same request is rejected, and names the rejected one in the error. A rejected subscription was
+// never stored, so removing it failed with subscription.ErrNotFound before the accepted ones were added.
+func TestHandleSubscriptionKeepsAcceptedWhenOneIsRejected(t *testing.T) {
+	t.Parallel()
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	accepted := &subscription.Subscription{Channel: channelLimitDepthV3, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: 5, QualifiedChannel: "spot@public.limit.depth.v3.api.pb@BTCUSDT@5"}
+	refused := &subscription.Subscription{Channel: channelLimitDepthV3, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}, Levels: 50, QualifiedChannel: "spot@public.limit.depth.v3.api.pb@ETHUSDT@50"}
+	conn := &subscriptionTestConn{replies: map[string]string{
+		accepted.QualifiedChannel: `{"id":0,"code":0,"msg":"` + accepted.QualifiedChannel + `"}`,
+		refused.QualifiedChannel:  `{"id":0,"code":0,"msg":"Not Subscribed successfully! [` + refused.QualifiedChannel + `]. Reason： Blocked!"}`,
+	}}
+	err := ex.handleSubscription(t.Context(), conn, "SUBSCRIPTION", subscription.List{accepted, refused})
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "a rejected subscription must be reported")
+	assert.ErrorContains(t, err, "ETH/USDT", "the error should name the rejected subscription")
+	assert.NotContains(t, err.Error(), "BTC/USDT", "the error should not name the accepted subscription")
+	got := ex.Websocket.GetSubscriptions()
+	require.Len(t, got, 1, "only the accepted subscription must be stored")
+	assert.Equal(t, accepted.QualifiedChannel, got[0].QualifiedChannel, "the accepted subscription should be stored")
+	assert.Equal(t, subscription.SubscribedState, got[0].State(), "the accepted subscription should be marked subscribed")
 }

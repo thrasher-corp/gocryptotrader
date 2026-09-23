@@ -12,6 +12,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -291,11 +292,13 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 		// channel — measured live) re-registered the channel it had just cancelled.
 		return e.Websocket.RemoveSubscriptions(conn, confirmed...)
 	}
-	// SUBSCRIPTION: drop the rejected pending subscriptions and register the confirmed ones.
-	if err := e.Websocket.RemoveSubscriptions(conn, rejected...); err != nil {
-		return err
+	// A rejected subscription was never stored, so there is nothing to remove: register the confirmed
+	// ones and name the rejected ones in the error.
+	err := e.Websocket.AddSuccessfulSubscriptions(conn, confirmed...)
+	if len(rejected) > 0 {
+		err = common.AppendError(err, fmt.Errorf("%w: %s", websocket.ErrSubscriptionFailure, rejected))
 	}
-	return e.Websocket.AddSuccessfulSubscriptions(conn, confirmed...)
+	return err
 }
 
 // wsUpdateSpotTicker merges a partial spot ticker update into the cached ticker and publishes it.
