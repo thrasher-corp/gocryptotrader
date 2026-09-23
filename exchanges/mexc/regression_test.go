@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -1098,6 +1099,66 @@ func TestCancelAllOrdersWithoutPairCancelsAccountWide(t *testing.T) {
 // symbol, announcement, STP group and listen key endpoints against the documented examples.
 func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 	t.Parallel()
+	// liveChecks run instead of the recorded responses when built with -tags mock_test_off. They assert the
+	// shape of the venue's answer. An endpoint without one changes account settings, so it is exercised
+	// against its recorded response only.
+	liveChecks := map[string]func(context.Context, *testing.T){
+		"GetUID": func(ctx context.Context, t *testing.T) {
+			t.Helper()
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			uid, err := e.GetUID(ctx)
+			require.NoError(t, err, "GetUID must not error")
+			assert.NotEmpty(t, uid, "GetUID should return the uid")
+		},
+		"GetAPIKeyInfo": func(ctx context.Context, t *testing.T) {
+			t.Helper()
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			creds, err := e.GetCredentials(ctx)
+			require.NoError(t, err, "GetCredentials must not error")
+			info, err := e.GetAPIKeyInfo(ctx, creds.Key)
+			require.NoError(t, err, "GetAPIKeyInfo must not error")
+			assert.Equal(t, creds.Key, info.AccessKey, "AccessKey should be the key asked about")
+			assert.NotEmpty(t, info.Status, "Status should be decoded")
+			assert.NotEmpty(t, info.Permissions, "Permissions should be decoded")
+			assert.False(t, info.CreateTime.IsZero(), "CreateTime should be decoded")
+		},
+		"GetOfflineSymbols": func(ctx context.Context, t *testing.T) {
+			t.Helper()
+			symbols, err := e.GetOfflineSymbols(ctx)
+			require.NoError(t, err, "GetOfflineSymbols must not error")
+			require.NotEmpty(t, symbols, "the venue must list offline symbols")
+			for _, s := range symbols {
+				assert.NotEmpty(t, s.Symbol, "Symbol should be decoded")
+				assert.Containsf(t, []uint8{2, 3}, s.State, "%s State should be suspended or delisted", s.Symbol)
+			}
+		},
+		"GetAnnouncements": func(ctx context.Context, t *testing.T) {
+			t.Helper()
+			pages, err := e.GetAnnouncements(ctx, "en-US", 1, 5)
+			require.NoError(t, err, "GetAnnouncements must not error")
+			require.NotEmpty(t, pages, "the announcement page must be decoded")
+			assert.Positive(t, pages[0].TotalPage.Float64(), "TotalPage should be decoded")
+			for _, d := range pages[0].Details {
+				assert.NotEmpty(t, d.Title, "Title should be decoded")
+				assert.False(t, d.PostTime.Time().IsZero(), "PostTime should be decoded")
+			}
+		},
+		"GetListenKeys": func(ctx context.Context, t *testing.T) {
+			t.Helper()
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			keys, err := e.GetListenKeys(ctx)
+			require.NoError(t, err, "GetListenKeys must not error")
+			assert.Positive(t, keys.Total, "Total should be decoded")
+			assert.LessOrEqual(t, keys.Available, keys.Total, "Available should not exceed Total")
+		},
+		"CloseListenKey": func(ctx context.Context, t *testing.T) {
+			t.Helper()
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			key, err := e.GenerateListenKey(ctx)
+			require.NoError(t, err, "GenerateListenKey must not error")
+			require.NoError(t, e.CloseListenKey(ctx, key), "CloseListenKey must not error")
+		},
+	}
 	for _, tc := range []struct {
 		name   string
 		method string
@@ -1246,6 +1307,14 @@ func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if !mockTests {
+				live, ok := liveChecks[tc.name]
+				if !ok {
+					t.Skip("changes account settings, so it runs against the recorded response only")
+				}
+				live(t.Context(), t)
+				return
+			}
 			var method, path string
 			var query url.Values
 			e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
