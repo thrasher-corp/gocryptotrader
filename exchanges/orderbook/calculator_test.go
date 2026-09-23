@@ -449,7 +449,7 @@ func TestGetAveragePrice(t *testing.T) {
 		Pair:     currency.NewBTCUSD(),
 	}
 	_, err := b.GetAveragePrice(false, 5)
-	assert.ErrorIs(t, err, errNotEnoughLiquidity)
+	assert.ErrorIs(t, err, ErrNotEnoughLiquidity)
 
 	b = Book{
 		Asks: []Level{
@@ -471,7 +471,7 @@ func TestGetAveragePrice(t *testing.T) {
 	assert.Equal(t, 2.333, math.Round(avgPrice*1000)/1000)
 
 	_, err = b.GetAveragePrice(true, 25)
-	assert.ErrorIs(t, err, errNotEnoughLiquidity)
+	assert.ErrorIs(t, err, ErrNotEnoughLiquidity)
 }
 
 func TestFindNominalAmount(t *testing.T) {
@@ -539,6 +539,28 @@ func TestLevelsCalculateExecutionAggregatesBeforeScaling(t *testing.T) {
 	assert.True(t, result.BaseAmount.Equal(decimal.MustFromString("0.0000000000000000001")), "base amount should retain the aggregate before scaling")
 	assert.True(t, result.QuoteAmount.Equal(decimal.MustFromString("0.000000000000000055")), "quote amount should retain the aggregate before scaling")
 	assert.True(t, result.AveragePrice.Equal(decimal.NewFromInt(550)), "average price should reflect all levels")
+
+	for i := range levels {
+		levels[i].StrAmount = "0.00000000015"
+	}
+	result, err = levels.CalculateExecution(decimal.MustFromString("0.0000000015"), decimal.MustFromString("0.0000000001"))
+	require.NoError(t, err, "CalculateExecution must not error when scaled totals exceed the backend precision")
+	assert.True(t, result.AveragePrice.Equal(decimal.NewFromInt(550)), "average price should not depend on the contract multiplier")
+
+	result, err = levels.CalculateExecution(decimal.MustFromString("0.000000002"), decimal.MustFromString("0.0000000001"))
+	require.ErrorIs(t, err, ErrNotEnoughLiquidity, "CalculateExecution must report insufficient liquidity with scaled totals")
+	assert.True(t, result.AveragePrice.Equal(decimal.NewFromInt(550)), "partial execution average price should use unscaled totals")
+}
+
+func TestLevelsCalculateExecutionAveragePriceWithTruncatedQuote(t *testing.T) {
+	t.Parallel()
+	levels := Levels{
+		{StrAmount: "0.00000001", StrPrice: "0.00000001"},
+		{StrAmount: "0.00000001", StrPrice: "0.00000002"},
+	}
+	result, err := levels.CalculateExecution(decimal.MustFromString("0.00000002"), decimal.MustFromString("0.0001"))
+	require.NoError(t, err, "CalculateExecution must not error when scaled quote truncates")
+	assert.True(t, result.AveragePrice.Equal(decimal.MustFromString("0.000000015")), "average price should use the unscaled quote amount")
 }
 
 func TestLevelsCalculateExecutionExactValues(t *testing.T) {
@@ -557,7 +579,7 @@ func TestLevelsCalculateExecutionExactValues(t *testing.T) {
 		"quote amount should retain exact level precision")
 	assert.True(t, result.AveragePrice.Equal(decimal.MustFromString("0.200000000000000003")),
 		"average price should retain exact level precision")
-	assert.True(t, result.FullLiquidityUsed, "single-level execution should report full liquidity use")
+	assert.True(t, result.FullLiquidityUsed, "execution of the entire single level should report full liquidity use")
 
 	levels = Levels{{Amount: 1, Price: 1}, {Amount: 2, Price: 2}}
 	result, err = levels.CalculateExecution(decimal.NewFromInt(3), decimal.NewFromInt(1))
@@ -710,6 +732,32 @@ func TestLevelsCalculateExecutionValidation(t *testing.T) {
 			if tests[i].contains != "" {
 				assert.ErrorContains(t, err, tests[i].contains, "CalculateExecution should identify the invalid input")
 			}
+		})
+	}
+}
+
+func TestLevelDecimalNonFinite(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		value float64
+		level Level
+	}{
+		{name: "NaN amount", value: math.NaN(), level: Level{Amount: math.NaN(), Price: 1}},
+		{name: "positive infinity price", value: math.Inf(1), level: Level{Amount: 1, Price: math.Inf(1)}},
+		{name: "negative infinity price", value: math.Inf(-1), level: Level{Amount: 1, Price: math.Inf(-1)}},
+	}
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			t.Parallel()
+			value, err := levelDecimal(tests[i].value, "")
+			assert.ErrorIs(t, err, errNonFiniteValue, "levelDecimal should identify a non-finite value")
+			assert.True(t, value.IsZero(), "levelDecimal should return zero for a non-finite value")
+
+			_, err = (Levels{tests[i].level}).CalculateExecution(decimal.NewFromInt(1), decimal.NewFromInt(1))
+			require.ErrorIs(t, err, ErrOrderbookInvalid, "CalculateExecution must report an invalid orderbook level")
+			assert.ErrorContains(t, err, errNonFiniteValue.Error(), "CalculateExecution should identify the non-finite value")
+			assert.Equal(t, 1, strings.Count(err.Error(), ErrOrderbookInvalid.Error()), "CalculateExecution should report the orderbook sentinel only once")
 		})
 	}
 }

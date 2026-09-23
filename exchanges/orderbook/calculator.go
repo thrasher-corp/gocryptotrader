@@ -16,14 +16,16 @@ const fullLiquidityUsageWarning = "[WARNING]: Full liquidity exhausted."
 var (
 	errPriceTargetInvalid = errors.New("price target is invalid")
 	errCannotShiftPrice   = errors.New("cannot shift price")
+	errNonFiniteValue     = errors.New("non-finite value")
 )
 
 // ExecutionCalculation contains the result of walking an orderbook side for a
 // requested order amount. Order amounts are expressed in the same units as the
 // level amounts; base amounts include the supplied contract multiplier.
 type ExecutionCalculation struct {
-	// Amount fields are expressed in order units, except BaseAmount which applies
-	// the linear contract multiplier and QuoteAmount which applies each level price.
+	// RequestedAmount, ExecutedAmount and RemainingAmount are in order units.
+	// BaseAmount and QuoteAmount apply the linear contract multiplier; QuoteAmount
+	// also applies each consumed level's price.
 	RequestedAmount decimal.Decimal
 	ExecutedAmount  decimal.Decimal
 	RemainingAmount decimal.Decimal
@@ -290,7 +292,7 @@ func (b *Book) GetAveragePrice(buy bool, amount float64) (float64, error) {
 		aggNominalAmount, remainingAmount = b.Bids.FindNominalAmount(amount)
 	}
 	if remainingAmount != 0 {
-		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", errNotEnoughLiquidity, b.Pair, b.Exchange, amount)
+		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", ErrNotEnoughLiquidity, b.Pair, b.Exchange, amount)
 	}
 	return aggNominalAmount / amount, nil
 }
@@ -316,7 +318,9 @@ func (l Levels) FindNominalAmount(amount float64) (aggNominalAmount, remainingAm
 // multiplier converts each order unit into its base-asset amount by
 // multiplication. This supports linear contracts, including USDT-margined
 // derivatives; inverse and quanto contracts are out of scope. Use a multiplier
-// of one when level amounts are already in base units.
+// of one when level amounts are already in base units. If a non-empty side
+// cannot fill the request, the result describes the partial execution and the
+// error wraps ErrNotEnoughLiquidity.
 func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (ExecutionCalculation, error) {
 	if !orderAmount.IsPositive() {
 		return ExecutionCalculation{}, fmt.Errorf("%w: %s", errAmountInvalid, orderAmount)
@@ -360,28 +364,25 @@ func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (Exe
 		result.LevelsUsed++
 		if result.RemainingAmount.IsZero() {
 			result.FullLiquidityUsed = i == len(l)-1 && used.Equal(levelAmount)
-			result.BaseAmount = result.ExecutedAmount.Mul(multiplier)
-			result.QuoteAmount = unscaledQuoteAmount.Mul(multiplier)
-			result.setAveragePrice()
+			result.setTotals(unscaledQuoteAmount, multiplier)
 			return result, nil
 		}
 	}
 	result.FullLiquidityUsed = true
-	result.BaseAmount = result.ExecutedAmount.Mul(multiplier)
-	result.QuoteAmount = unscaledQuoteAmount.Mul(multiplier)
-	result.setAveragePrice()
+	result.setTotals(unscaledQuoteAmount, multiplier)
 	return result, fmt.Errorf("%w: requested amount %s, remaining amount %s, multiplier %s", ErrNotEnoughLiquidity, orderAmount, result.RemainingAmount, multiplier)
 }
 
-func (e *ExecutionCalculation) setAveragePrice() {
+func (e *ExecutionCalculation) setTotals(unscaledQuoteAmount, multiplier decimal.Decimal) {
+	e.BaseAmount = e.ExecutedAmount.Mul(multiplier)
+	e.QuoteAmount = unscaledQuoteAmount.Mul(multiplier)
 	if e.LevelsUsed == 1 {
 		// Avoiding division preserves the exact price supplied by the level.
 		e.AveragePrice = e.MarginalPrice
 		return
 	}
-	if e.BaseAmount.IsPositive() {
-		e.AveragePrice = e.QuoteAmount.Div(e.BaseAmount)
-	}
+	// The multiplier cancels out of VWAP; unscaled totals avoid backend truncation.
+	e.AveragePrice = unscaledQuoteAmount.Div(e.ExecutedAmount)
 }
 
 func levelDecimal(value float64, exact string) (decimal.Decimal, error) {
@@ -389,7 +390,7 @@ func levelDecimal(value float64, exact string) (decimal.Decimal, error) {
 		return decimal.NewFromString(exact)
 	}
 	if stdmath.IsNaN(value) || stdmath.IsInf(value, 0) {
-		return decimal.Zero, ErrOrderbookInvalid
+		return decimal.Zero, errNonFiniteValue
 	}
 	return decimal.MustFromFloat(value), nil
 }
