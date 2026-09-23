@@ -47,8 +47,8 @@ func newSignedTestExchange(t *testing.T, handler http.Handler) *Exchange {
 	// The limiters are shared by every instance and the server is local, so a test exchange does not
 	// draw on the budget the other tests wait on.
 	require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
-	server := httptest.NewServer(handler)
-	t.Cleanup(server.Close)
+	server := httptest.NewTestServer(t, handler)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for k := range ex.API.Endpoints.GetURLMap() {
 		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(k, server.URL), "SetRunningURL must not error for %s", k)
 	}
