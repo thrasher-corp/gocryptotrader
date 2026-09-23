@@ -86,7 +86,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"addSTPGroupUIDs":                addSTPGroupUIDsEPL,
 		"deleteSTPGroupUIDs":             deleteSTPGroupUIDsEPL,
 	}
-	rl, err := request.New("rateLimitTest2", &http.Client{}, request.WithLimiter(GetRateLimit()))
+	rl, err := request.New("rateLimitTest2", &http.Client{}, request.WithLimiter(rateLimits))
 	require.NoError(t, err)
 	for name, tt := range testTable {
 		t.Run(name, func(t *testing.T) {
@@ -104,7 +104,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 // by TestRateLimitPoolBudgets.
 func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 	t.Parallel()
-	rl := GetRateLimit()
+	rl := rateLimits
 	for _, tc := range []struct {
 		name   string
 		epl    request.EndpointLimit
@@ -145,7 +145,7 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 // on one shared 12 per second rather than 12 each.
 func TestRateLimitPoolBudgets(t *testing.T) {
 	t.Parallel()
-	rl := GetRateLimit()
+	rl := rateLimits
 	for _, tc := range []struct {
 		name string
 		epl  request.EndpointLimit
@@ -169,4 +169,17 @@ func TestRateLimitPoolBudgets(t *testing.T) {
 		assert.Truef(t, rl[epl.epl].SharesBudgetWith(rl[newOrderEPL]), "%s should draw on the same budget as newOrder, not an identical one of its own", epl.name)
 	}
 	assert.False(t, rl[announcementsEPL].SharesBudgetWith(rl[systemTimeEPL]), "announcements should be limited outside the weighted IP pool")
+}
+
+// TestRateLimitsAreSharedAcrossInstances draws a request from one Exchange instance and asserts a second
+// instance then has to wait for the same endpoint: the venue's budgets are per IP address and per account,
+// so instances built by SetDefaults must share one set of limiters rather than each carrying its own.
+func TestRateLimitsAreSharedAcrossInstances(t *testing.T) {
+	t.Parallel()
+	first, second := new(Exchange), new(Exchange)
+	first.SetDefaults()
+	second.SetDefaults()
+	require.NoError(t, first.Requester.InitiateRateLimit(t.Context(), announcementsEPL), "the first instance must be admitted")
+	err := second.Requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), announcementsEPL)
+	assert.ErrorIs(t, err, request.ErrDelayNotAllowed, "the second instance should wait on the budget the first one drew from")
 }

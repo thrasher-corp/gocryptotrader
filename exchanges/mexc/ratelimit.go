@@ -90,8 +90,9 @@ const (
 	deleteSTPGroupUIDsEPL
 )
 
-// GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
-func GetRateLimit() request.RateLimitDefinitions {
+// rateLimits holds the endpoint limits. The venue's budgets are per IP address and per account, not per
+// Exchange instance, so every instance shares these limiters instead of building its own.
+var rateLimits = func() request.RateLimitDefinitions {
 	// IP-weighted endpoints share 300 weight per 10 seconds; the order-placement and cancel
 	// endpoints are documented as a shared 12-requests-per-second budget, which is the binding
 	// constraint on them (12/s is well inside the UID pool they also sit in), so they draw from one
@@ -181,4 +182,4 @@ func GetRateLimit() request.RateLimitDefinitions {
 		addSTPGroupUIDsEPL:    request.GetRateLimiterWithWeight(ipModeRate, 20),
 		deleteSTPGroupUIDsEPL: request.GetRateLimiterWithWeight(ipModeRate, 20),
 	}
-}
+}()

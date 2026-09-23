@@ -29,6 +29,9 @@ func newPrivateTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+	// The limiters are shared by every instance and the server is local, so a test exchange does not
+	// draw on the budget the other tests wait on.
+	require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	b := ex.GetBase()

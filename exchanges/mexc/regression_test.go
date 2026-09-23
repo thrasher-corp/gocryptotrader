@@ -43,6 +43,9 @@ func newSignedTestExchange(t *testing.T, handler http.Handler) *Exchange {
 	require.NoError(t, testexch.Setup(ex), "test exchange Setup must not error")
 	ex.SetCredentials(&accounts.Credentials{Key: testCredentialKey, Secret: testCredentialSecret})
 	ex.GetBase().SkipAuthCheck = true
+	// The limiters are shared by every instance and the server is local, so a test exchange does not
+	// draw on the budget the other tests wait on.
+	require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 	for k := range ex.API.Endpoints.GetURLMap() {
