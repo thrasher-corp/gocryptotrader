@@ -24,8 +24,7 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 		return nil, fmt.Errorf("%w, toAccountType is required", asset.ErrInvalidAsset)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
