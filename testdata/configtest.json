@@ -2725,7 +2725,7 @@
     "supports": {
      "restAPI": true,
      "restCapabilities": {
-      "tickerBatching": false,
+      "tickerBatching": true,
       "autoPairUpdates": true,
       "fundingRateFetching": false
      },
