@@ -16,14 +16,17 @@ var (
 	ErrAmountStepNotPositive = errors.New("amount step must be greater than zero")
 	// ErrContractMultiplierNotPositive is returned when a contract multiplier is invalid.
 	ErrContractMultiplierNotPositive = errors.New("contract multiplier must be greater than zero")
-	// ErrBaseIncrementNotRepresentable is returned when the decimal backend truncates a positive base increment.
+	// ErrBaseIncrementNotRepresentable is returned when the decimal backend truncates a positive product, including to zero.
 	ErrBaseIncrementNotRepresentable = errors.New("base increment cannot be represented exactly")
 	errCannotParseBaseIncrement      = errors.New("cannot parse base increment")
 )
 
 // AmountStep describes the executable order increment and the base amount
 // represented by each order unit. Spot markets conventionally use a contract
-// multiplier of one.
+// multiplier of one. The base-amount methods require ContractMultiplier to be
+// a fixed base-asset amount per order unit; a quote-denominated contract value,
+// such as an inverse contract's, cannot be used directly. FloorOrderAmount
+// needs order units only.
 type AmountStep struct {
 	Increment          decimal.Decimal
 	ContractMultiplier decimal.Decimal
@@ -40,28 +43,11 @@ func (a AmountStep) BaseIncrement() (decimal.Decimal, error) {
 		return decimal.Zero, fmt.Errorf("%w: %s", ErrContractMultiplierNotPositive, a.ContractMultiplier)
 	}
 	baseIncrement := increment.Mul(a.ContractMultiplier)
-	if !baseIncrement.IsPositive() {
-		return decimal.Zero, fmt.Errorf("%w: increment %s with multiplier %s underflows to %s",
-			ErrAmountStepNotPositive, increment, a.ContractMultiplier, baseIncrement)
-	}
-	if decimal.MaxFractionalDigits > 0 &&
-		decimalScale(increment.String())+decimalScale(a.ContractMultiplier.String()) > decimal.MaxFractionalDigits {
-		incrementRat, ok := new(big.Rat).SetString(increment.String())
-		if !ok {
-			return decimal.Zero, fmt.Errorf("%w: increment %s", errCannotParseBaseIncrement, increment)
-		}
-		multiplierRat, ok := new(big.Rat).SetString(a.ContractMultiplier.String())
-		if !ok {
-			return decimal.Zero, fmt.Errorf("%w: multiplier %s", errCannotParseBaseIncrement, a.ContractMultiplier)
-		}
-		productRat, ok := new(big.Rat).SetString(baseIncrement.String())
-		if !ok {
-			return decimal.Zero, fmt.Errorf("%w: product %s", errCannotParseBaseIncrement, baseIncrement)
-		}
-		if new(big.Rat).Mul(incrementRat, multiplierRat).Cmp(productRat) != 0 {
-			return decimal.Zero, fmt.Errorf("%w: increment %s with multiplier %s truncates to %s",
-				ErrBaseIncrementNotRepresentable, increment, a.ContractMultiplier, baseIncrement)
-		}
+	// udecimal's Div truncates like its Mul, so a truncated product, including
+	// one that underflows to zero, cannot divide back to the increment.
+	if decimal.MaxFractionalDigits > 0 && !baseIncrement.Div(a.ContractMultiplier).Equal(increment) {
+		return decimal.Zero, fmt.Errorf("%w: increment %s with multiplier %s truncates to %s",
+			ErrBaseIncrementNotRepresentable, increment, a.ContractMultiplier, baseIncrement)
 	}
 	return baseIncrement, nil
 }

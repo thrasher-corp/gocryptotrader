@@ -30,16 +30,16 @@ func TestAmountStepBaseIncrementUnderflow(t *testing.T) {
 
 	result, err := step.BaseIncrement()
 	if expectedProduct.IsZero() {
-		require.ErrorIs(t, err, ErrAmountStepNotPositive, "BaseIncrement must reject an underflowed product")
+		require.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "BaseIncrement must reject an underflowed product")
 		assert.True(t, result.IsZero(), "BaseIncrement should return zero on product underflow")
 		_, err = step.FloorBaseAmount(decimal.NewFromInt(1))
-		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "FloorBaseAmount should reject an underflowed increment")
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "FloorBaseAmount should reject an underflowed increment")
 		_, err = step.CeilBaseAmount(decimal.NewFromInt(1))
-		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "CeilBaseAmount should reject an underflowed increment")
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CeilBaseAmount should reject an underflowed increment")
 		_, err = step.CommonBaseIncrement(unit)
-		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "CommonBaseIncrement should reject an underflowed first increment")
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject an underflowed first increment")
 		_, err = unit.CommonBaseIncrement(step)
-		assert.ErrorIs(t, err, ErrAmountStepNotPositive, "CommonBaseIncrement should reject an underflowed second increment")
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject an underflowed second increment")
 		return
 	}
 	require.NoError(t, err, "BaseIncrement must accept a representable positive product")

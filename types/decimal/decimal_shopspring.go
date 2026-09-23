@@ -7,7 +7,8 @@ import shopspring "github.com/shopspring/decimal" //nolint:depguard // Default b
 // Implementation identifies the selected decimal backend.
 const Implementation = "shopspring/decimal"
 
-// MaxFractionalDigits is zero because the default backend has no fixed fractional precision limit.
+// MaxFractionalDigits is zero because the default backend's Add, Sub and Mul
+// never truncate. Its Div still rounds to shopspring.DivisionPrecision digits.
 const MaxFractionalDigits = 0
 
 // Zero is the zero-value Decimal.
