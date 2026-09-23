@@ -1173,14 +1173,14 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 // interval. It is the single mapping shared by GetHistoricCandles and GetHistoricCandlesExtended.
 func candlesFromCandlestick(result []*CandlestickData) []kline.Candle {
 	candles := make([]kline.Candle, len(result))
-	for c := range result {
-		candles[c] = kline.Candle{
-			Open:   result[c].OpenPrice.Float64(),
-			High:   result[c].HighPrice.Float64(),
-			Low:    result[c].LowPrice.Float64(),
-			Close:  result[c].ClosePrice.Float64(),
-			Volume: result[c].Volume.Float64(),
-			Time:   result[c].OpenTime.Time(),
+	for i := range result {
+		candles[i] = kline.Candle{
+			Open:   result[i].OpenPrice.Float64(),
+			High:   result[i].HighPrice.Float64(),
+			Low:    result[i].LowPrice.Float64(),
+			Close:  result[i].ClosePrice.Float64(),
+			Volume: result[i].Volume.Float64(),
+			Time:   result[i].OpenTime.Time(),
 		}
 	}
 	return candles
