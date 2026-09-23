@@ -400,8 +400,8 @@ func TestCreateBatchOrderPartialRejection(t *testing.T) {
 
 // TestAuthRequestReSignsOnRetry asserts each attempt of an authenticated request signs a fresh
 // timestamp. doRequest re-invokes the request builder on a rate-limit wait or 429; a timestamp minted
-// once before the first attempt goes stale on the retry (recvWindow exceeded) and is rejected. group
-// T defect #11a.
+// once before the first attempt goes stale on the retry (recvWindow exceeded) and is rejected. It also
+// pins that every attempt carries the API key header.
 func TestAuthRequestReSignsOnRetry(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex

@@ -172,8 +172,8 @@ func TestUpdateAccountBalancesArithmetic(t *testing.T) {
 	assert.Equal(t, 10.0, bal.Free, "Free should be the available (free) balance")
 }
 
-// TestCancelOrderFormatsSymbol sends the delimiter-free symbol the exchange expects. Contract: group
-// T defect #4 (symbol format).
+// TestCancelOrderFormatsSymbol sends the delimiter-free symbol the exchange expects: a cancel for a pair
+// carrying a delimiter must not put that delimiter on the wire.
 func TestCancelOrderFormatsSymbol(t *testing.T) {
 	t.Parallel()
 	var sentSymbol string
