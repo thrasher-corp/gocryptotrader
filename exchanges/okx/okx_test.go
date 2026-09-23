@@ -721,10 +721,10 @@ func TestGetSupportCoins(t *testing.T) {
 
 func TestGetTakerVolume(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTakerVolume(contextGenerate(), currency.BTC, "", "", time.Time{}, time.Time{}, kline.OneDay)
+	_, err := e.GetTakerVolume(contextGenerate(), currency.BTC, "", time.Time{}, time.Time{}, kline.OneDay)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	result, err := e.GetTakerVolume(contextGenerate(), currency.BTC, instTypeSpot, "", time.Time{}, time.Time{}, kline.OneDay)
+	result, err := e.GetTakerVolume(contextGenerate(), currency.BTC, instTypeSpot, time.Time{}, time.Time{}, kline.OneDay)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1447,11 +1447,11 @@ func TestCancelAdvanceAlgoOrder(t *testing.T) {
 
 func TestGetAlgoOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAlgoOrderList(contextGenerate(), "", "", "", "", "", time.Time{}, time.Time{}, 1)
+	_, err := e.GetAlgoOrderList(contextGenerate(), "", "", "", "", time.Time{}, time.Time{}, 1)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAlgoOrderList(contextGenerate(), "conditional", "", "", "", "", time.Time{}, time.Time{}, 1)
+	result, err := e.GetAlgoOrderList(contextGenerate(), "conditional", "", "", "", time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2359,26 +2359,26 @@ func TestSetLeverageRate(t *testing.T) {
 
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, "", "cross", "", 5, true)
+	_, err := e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, "", "cross", "", 5)
 	require.ErrorIs(t, err, errMissingInstrumentID)
-	_, err = e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "", "", 5, true)
+	_, err = e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "", "", 5)
 	require.ErrorIs(t, err, errInvalidTradeModeValue)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "cross", "", 5, true)
+	result, err := e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "cross", "", 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetMaximumAvailableTradableAmount(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, "", "cross", "", true, false, 123)
+	_, err := e.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, "", "cross", true, 123)
 	require.ErrorIs(t, err, errMissingInstrumentID)
-	_, err = e.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, mainPair.String(), "", "", true, false, 123)
+	_, err = e.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, mainPair.String(), "", true, 123)
 	require.ErrorIs(t, err, errInvalidTradeModeValue)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, mainPair.String(), "cross", "", true, false, 123)
+	result, err := e.GetMaximumAvailableTradableAmount(contextGenerate(), currency.BTC, mainPair.String(), "cross", true, 123)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2444,11 +2444,11 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 
 func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTradeFee(contextGenerate(), "", "", "", "", "")
+	_, err := e.GetTradeFee(contextGenerate(), "", "", "", "")
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetTradeFee(contextGenerate(), instTypeSpot, "", "", "", "")
+	result, err := e.GetTradeFee(contextGenerate(), instTypeSpot, "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5706,7 +5706,7 @@ func TestStopRecurringBuyOrder(t *testing.T) {
 func TestGetRecurringBuyOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetRecurringBuyOrderList(contextGenerate(), "", "paused", time.Time{}, time.Time{}, 30)
+	result, err := e.GetRecurringBuyOrderList(contextGenerate(), "", time.Time{}, time.Time{}, 30)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5721,11 +5721,11 @@ func TestGetRecurringBuyOrderHistory(t *testing.T) {
 
 func TestGetRecurringOrderDetails(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetRecurringOrderDetails(contextGenerate(), "", "")
+	_, err := e.GetRecurringOrderDetails(contextGenerate(), "")
 	require.ErrorIs(t, err, errAlgoIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetRecurringOrderDetails(contextGenerate(), "560473220642766848", "")
+	result, err := e.GetRecurringOrderDetails(contextGenerate(), "560473220642766848")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6021,13 +6021,11 @@ func TestGetLeadTraderStats(t *testing.T) {
 
 func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLeadTraderCurrencyPreferences(contextGenerate(), "SWAP", "", "2")
+	_, err := e.GetLeadTraderCurrencyPreferences(contextGenerate(), "SWAP", "")
 	require.ErrorIs(t, err, errUniqueCodeRequired)
-	_, err = e.GetLeadTraderCurrencyPreferences(contextGenerate(), "SWAP", "MEOW", "")
-	require.ErrorIs(t, err, errLastDaysRequired)
 
 	require.NoError(t, syncLeadTraderUniqueID(t), "syncLeadTraderUniqueID must not error")
-	result, err := e.GetLeadTraderCurrencyPreferences(contextGenerate(), "SWAP", leadTraderUniqueID, "2")
+	result, err := e.GetLeadTraderCurrencyPreferences(contextGenerate(), "SWAP", leadTraderUniqueID)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
