@@ -173,17 +173,22 @@ func TestRateLimitPoolBudgets(t *testing.T) {
 		assert.Truef(t, rl[epl.epl].SharesBudgetWith(rl[newOrderEPL]), "%s should draw on the same budget as newOrder, not an identical one of its own", epl.name)
 	}
 	assert.False(t, rl[announcementsEPL].SharesBudgetWith(rl[systemTimeEPL]), "announcements should be limited outside the weighted IP pool")
+	assert.True(t, rl[listenKeyEPL].SharesBudgetWith(rl[systemTimeEPL]), "the listen key endpoints should draw on the weighted IP pool")
+	assert.True(t, rl[brokerEPL].SharesBudgetWith(rl[systemTimeEPL]), "the broker endpoints should draw on the weighted IP pool")
 }
 
-// TestRateLimitsAreSharedAcrossInstances draws a request from one Exchange instance and asserts a second
-// instance then has to wait for the same endpoint: the venue's budgets are per IP address and per account,
-// so instances built by SetDefaults must share one set of limiters rather than each carrying its own.
+// TestRateLimitsAreSharedAcrossInstances asserts two instances built by SetDefaults draw every endpoint on
+// the same budget: the venue's budgets are per IP address and per account, so each instance carrying its
+// own limiters would let two of them together exceed the venue's limit.
 func TestRateLimitsAreSharedAcrossInstances(t *testing.T) {
 	t.Parallel()
 	first, second := new(Exchange), new(Exchange)
 	first.SetDefaults()
 	second.SetDefaults()
-	require.NoError(t, first.Requester.InitiateRateLimit(t.Context(), announcementsEPL), "the first instance must be admitted")
-	err := second.Requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), announcementsEPL)
-	assert.ErrorIs(t, err, request.ErrDelayNotAllowed, "the second instance should wait on the budget the first one drew from")
+	firstLimits := first.Requester.GetRateLimiterDefinitions()
+	secondLimits := second.Requester.GetRateLimiterDefinitions()
+	require.Len(t, secondLimits, len(firstLimits), "both instances must define the same endpoints")
+	for epl, limiter := range firstLimits {
+		assert.Truef(t, limiter.SharesBudgetWith(secondLimits[epl]), "endpoint %d should draw on the same budget in both instances", epl)
+	}
 }
