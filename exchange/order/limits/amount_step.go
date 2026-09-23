@@ -16,6 +16,8 @@ var (
 	ErrAmountStepNotPositive = errors.New("amount step must be greater than zero")
 	// ErrContractMultiplierNotPositive is returned when a contract multiplier is invalid.
 	ErrContractMultiplierNotPositive = errors.New("contract multiplier must be greater than zero")
+	// ErrBaseIncrementNotRepresentable is returned when the decimal backend truncates a positive base increment.
+	ErrBaseIncrementNotRepresentable = errors.New("base increment cannot be represented exactly")
 	errCannotParseBaseIncrement      = errors.New("cannot parse base increment")
 )
 
@@ -41,6 +43,25 @@ func (a AmountStep) BaseIncrement() (decimal.Decimal, error) {
 	if !baseIncrement.IsPositive() {
 		return decimal.Zero, fmt.Errorf("%w: increment %s with multiplier %s underflows to %s",
 			ErrAmountStepNotPositive, increment, a.ContractMultiplier, baseIncrement)
+	}
+	if decimal.MaxFractionalDigits > 0 &&
+		decimalScale(increment.String())+decimalScale(a.ContractMultiplier.String()) > decimal.MaxFractionalDigits {
+		incrementRat, ok := new(big.Rat).SetString(increment.String())
+		if !ok {
+			return decimal.Zero, fmt.Errorf("%w: increment %s", errCannotParseBaseIncrement, increment)
+		}
+		multiplierRat, ok := new(big.Rat).SetString(a.ContractMultiplier.String())
+		if !ok {
+			return decimal.Zero, fmt.Errorf("%w: multiplier %s", errCannotParseBaseIncrement, a.ContractMultiplier)
+		}
+		productRat, ok := new(big.Rat).SetString(baseIncrement.String())
+		if !ok {
+			return decimal.Zero, fmt.Errorf("%w: product %s", errCannotParseBaseIncrement, baseIncrement)
+		}
+		if new(big.Rat).Mul(incrementRat, multiplierRat).Cmp(productRat) != 0 {
+			return decimal.Zero, fmt.Errorf("%w: increment %s with multiplier %s truncates to %s",
+				ErrBaseIncrementNotRepresentable, increment, a.ContractMultiplier, baseIncrement)
+		}
 	}
 	return baseIncrement, nil
 }

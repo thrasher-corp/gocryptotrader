@@ -43,7 +43,44 @@ func TestAmountStepBaseIncrementUnderflow(t *testing.T) {
 		return
 	}
 	require.NoError(t, err, "BaseIncrement must accept a representable positive product")
-	assert.Equal(t, expectedProduct, result, "BaseIncrement should return the representable product")
+	assert.Equal(t, expectedProduct.String(), result.String(), "BaseIncrement should return the representable product")
+}
+
+func TestAmountStepBaseIncrementTruncation(t *testing.T) {
+	t.Parallel()
+	step := AmountStep{
+		Increment:          decimal.MustFromString("0.0000000003"),
+		ContractMultiplier: decimal.MustFromString("0.0000000005"),
+	}
+	unit := AmountStep{Increment: decimal.NewFromInt(1), ContractMultiplier: decimal.NewFromInt(1)}
+
+	result, err := step.BaseIncrement()
+	if decimal.MaxFractionalDigits > 0 {
+		require.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "BaseIncrement must reject a truncated positive product")
+		assert.True(t, result.IsZero(), "BaseIncrement should return zero for a truncated product")
+		_, err = step.FloorBaseAmount(decimal.NewFromInt(1))
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "FloorBaseAmount should reject a truncated increment")
+		_, err = step.CeilBaseAmount(decimal.NewFromInt(1))
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CeilBaseAmount should reject a truncated increment")
+		_, err = step.CommonBaseIncrement(unit)
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject a truncated first increment")
+		_, err = unit.CommonBaseIncrement(step)
+		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject a truncated second increment")
+		return
+	}
+	require.NoError(t, err, "BaseIncrement must accept an exactly representable product")
+	assert.Equal(t, "0.00000000000000000015", result.String(), "BaseIncrement should retain the exact product")
+}
+
+func TestAmountStepBaseIncrementHighScaleExactProduct(t *testing.T) {
+	t.Parallel()
+	step := AmountStep{
+		Increment:          decimal.MustFromString("0.0000000002"),
+		ContractMultiplier: decimal.MustFromString("0.0000000005"),
+	}
+	result, err := step.BaseIncrement()
+	require.NoError(t, err, "BaseIncrement must accept an exact product despite the combined input scale")
+	assert.Equal(t, "0.0000000000000000001", result.String(), "BaseIncrement should retain the exact high-scale product")
 }
 
 func TestAmountStepRoundBaseAmount(t *testing.T) {
