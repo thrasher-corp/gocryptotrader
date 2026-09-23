@@ -527,25 +527,25 @@ func TestUnwrapV2Response(t *testing.T) {
 		{
 			name:    "string result false",
 			payload: `{"result":"false","msg":"Invalid parameter","error_code":10003}`,
-			err:     "lbank: request failed: Invalid parameter (error_code 10003)",
+			err:     "request failed: Invalid parameter (error_code 10003)",
 			isErr:   errRequestFailed,
 		},
 		{
 			name:    "boolean result false",
 			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003}`,
-			err:     "lbank: request failed: Invalid parameter (error_code 10003)",
+			err:     "request failed: Invalid parameter (error_code 10003)",
 			isErr:   errRequestFailed,
 		},
 		{
 			name:    "failed envelope carrying data is still a failure",
 			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003,"data":[1,2,3]}`,
-			err:     "lbank: request failed: Invalid parameter (error_code 10003)",
+			err:     "request failed: Invalid parameter (error_code 10003)",
 			isErr:   errRequestFailed,
 		},
 		{
 			name:    "failed envelope without error code",
 			payload: `{"result":false,"msg":"instrument not found"}`,
-			err:     "lbank: request failed: instrument not found (error_code 0)",
+			err:     "request failed: instrument not found (error_code 0)",
 			isErr:   errRequestFailed,
 		},
 		{
@@ -576,17 +576,17 @@ func TestUnwrapV2Response(t *testing.T) {
 		{
 			name:    "object with a reshaped field is an error",
 			payload: `{"result":true,"error_code":"10003"}`,
-			err:     "lbank: decoding response envelope:",
+			err:     "decoding response envelope:",
 		},
 		{
 			name:    "object with leading whitespace and a reshaped field is an error",
 			payload: " \n\t{\"result\":true,\"error_code\":{}}",
-			err:     "lbank: decoding response envelope:",
+			err:     "decoding response envelope:",
 		},
 		{
 			name:    "truncated object is an error",
 			payload: `{"result":true,oops}`,
-			err:     "lbank: decoding response envelope:",
+			err:     "decoding response envelope:",
 		},
 	}
 	for _, tc := range testCases {
@@ -595,6 +595,7 @@ func TestUnwrapV2Response(t *testing.T) {
 			payload, err := unwrapV2Response([]byte(tc.payload))
 			if tc.err != "" {
 				assert.ErrorContains(t, err, tc.err, "unwrapV2Response should report the expected error")
+				assert.NotContains(t, err.Error(), "lbank:", "unwrapV2Response should return a bare error; SendHTTPRequest adds the exchange name")
 				if tc.isErr == nil {
 					assert.NotErrorIs(t, err, errRequestFailed, "a malformed envelope should not be reported as a failed request")
 				} else {
@@ -630,4 +631,5 @@ func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
 	err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, "", &result)
 	assert.ErrorIs(t, err, errRequestFailed, "a failed envelope should be reported as a failed request")
 	assert.ErrorContains(t, err, "(error_code 10076)", "a failed envelope should carry the exchange error code")
+	assert.ErrorContains(t, err, ex.Name+": request failed", "SendHTTPRequest should wrap the bare helper error with the exchange name")
 }
