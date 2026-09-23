@@ -85,11 +85,13 @@ func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int 
 	if sum.IsZero() {
 		return decimal.Zero.Cmp(target)
 	}
-	// Multiplication by 200 preserves scale; only target times sum can exceed
-	// the backend's fractional precision.
-	if decimal.MaxFractionalDigits == 0 ||
+	result := x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum.Abs()))
+	// A truncated product differs from the exact product by less than one unit
+	// in the backend's last fractional place. The scaled difference is a whole
+	// number of those units, so only an equal result can hide discarded digits.
+	if result != 0 || decimal.MaxFractionalDigits == 0 ||
 		fractionalDigits(target)+fractionalDigits(sum) <= decimal.MaxFractionalDigits {
-		return x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum.Abs()))
+		return result
 	}
 
 	// Decimal.String returns a valid, canonical decimal representation in both backends.

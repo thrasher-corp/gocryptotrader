@@ -123,8 +123,12 @@ func TestCompareSignedPercentageDifferenceDecimal(t *testing.T) {
 		{name: "equal target", x: "3", y: "1", target: "100", expected: 0},
 		{name: "below target", x: "3", y: "1", target: "101", expected: -1},
 		{name: "negative difference", x: "1", y: "3", target: "-99", expected: -1},
+		{name: "above zero target", x: "3", y: "1", target: "0", expected: 1},
+		{name: "matching values below target", x: "42.5", y: "42.5", target: "1", expected: -1},
 		{name: "zero sum", x: "0", y: "0", target: "1", expected: -1},
 		{name: "cancelling values", x: "5", y: "-5", target: "1", expected: -1},
+		{name: "cancelling values above negative target", x: "5", y: "-5", target: "-1", expected: 1},
+		{name: "cancelling values equal zero target", x: "5", y: "-5", target: "0", expected: 0},
 		{name: "negative sum and difference", x: "-3", y: "-1", target: "-100", expected: 0},
 		{name: "negative sum and positive difference", x: "-1", y: "-3", target: "100", expected: 0},
 		{name: "boundary above target", x: "1.471", y: "1.469", target: "0.13605442176870748", expected: 1},
@@ -135,6 +139,8 @@ func TestCompareSignedPercentageDifferenceDecimal(t *testing.T) {
 		{name: "cross-product precision below target", x: "1.0000000000000000001", y: "1", target: "0.00000000000000001", expected: -1},
 		{name: "negative difference above negative target", x: "1", y: "1.0000000000000000001", target: "-0.00000000000000001", expected: 1},
 		{name: "negative sum cross-product precision", x: "-1", y: "-1.0000000000000000001", target: "0.00000000000000001", expected: -1},
+		{name: "negative 19-place target just beyond combined limit", x: "-0.8", y: "1.2", target: "-1000.0000000000000000001", expected: 1},
+		{name: "opposite signs cross-product precision equal target", x: "-0.0000000000000000001", y: "0.0000000000000000126", target: "-203.2", expected: 0},
 	}
 	for i := range tests {
 		t.Run(tests[i].name, func(t *testing.T) {
@@ -160,7 +166,6 @@ func BenchmarkCompareSignedPercentageDifferenceDecimal(b *testing.B) {
 }
 
 func BenchmarkCompareSignedPercentageDifferenceDecimalPrecisionFallback(b *testing.B) {
-	// Under udecimal_on, the target and sum exceed the backend's combined fractional precision.
 	x := decimal.MustFromString("1.0000000000000000001")
 	y := decimal.NewFromInt(1)
 	target := decimal.MustFromString("0.00000000000000001")
