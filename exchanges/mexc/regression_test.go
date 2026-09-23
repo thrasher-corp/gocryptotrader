@@ -184,7 +184,7 @@ func TestBatchOrderCreationParamMarshalsNumbersAsStrings(t *testing.T) {
 		},
 		{
 			name:     "stp mode",
-			param:    BatchOrderCreationParam{OrderType: "LIMIT", Price: 1, Quantity: 2, Symbol: currency.NewBTCUSDT(), Side: "SELL", StpMode: "cancel_maker"},
+			param:    BatchOrderCreationParam{OrderType: "LIMIT", Price: 1, Quantity: 2, Symbol: currency.NewBTCUSDT(), Side: "SELL", SelfTradePreventionMode: "cancel_maker"},
 			expected: `{"type":"LIMIT","price":"1","quantity":"2","symbol":"BTCUSDT","side":"SELL","stpMode":"cancel_maker"}`,
 		},
 	} {
@@ -995,7 +995,7 @@ func TestOrderDetailDecodesSelfTradePrevention(t *testing.T) {
 	t.Parallel()
 	var o OrderDetail
 	require.NoError(t, json.Unmarshal([]byte(`{"symbol":"BTCUSDT","orderId":"1","status":"CANCELED","type":"LIMIT","side":"BUY","stpMode":"cancel_taker","cancelReason":"stp_cancel"}`), &o), "Unmarshal must not error")
-	assert.Equal(t, "cancel_taker", o.StpMode, "StpMode should carry the stpMode field")
+	assert.Equal(t, "cancel_taker", o.SelfTradePreventionMode, "SelfTradePreventionMode should carry the stpMode field")
 	assert.Equal(t, "stp_cancel", o.CancelReason, "CancelReason should carry the cancelReason field")
 }
 

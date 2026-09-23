@@ -388,9 +388,9 @@ type OrderDetail struct {
 	UpdateTime          types.Time   `json:"updateTime"`
 	IsWorking           bool         `json:"isWorking"`
 	OrigQuoteOrderQty   types.Number `json:"origQuoteOrderQty"`
-	// StpMode is the self-trade prevention mode the order was placed with: empty (none), cancel_maker,
-	// cancel_taker or cancel_both.
-	StpMode string `json:"stpMode"`
+	// SelfTradePreventionMode is the self-trade prevention mode the order was placed with: empty (none),
+	// cancel_maker, cancel_taker or cancel_both.
+	SelfTradePreventionMode string `json:"stpMode"`
 	// CancelReason is stp_cancel when the venue cancelled the order under its self-trade prevention mode.
 	CancelReason string `json:"cancelReason"`
 }
@@ -424,9 +424,9 @@ type BatchOrderCreationParam struct {
 	Symbol           currency.Pair `json:"symbol"`
 	Side             string        `json:"side,omitempty"`
 	NewClientOrderID string        `json:"newClientOrderId,omitempty"`
-	// StpMode selects self-trade prevention for the order: cancel_maker, cancel_taker or cancel_both.
-	// Left empty the venue applies no self-trade restriction.
-	StpMode string `json:"stpMode,omitempty"`
+	// SelfTradePreventionMode selects self-trade prevention for the order: cancel_maker, cancel_taker or
+	// cancel_both. Left empty the venue applies no self-trade restriction.
+	SelfTradePreventionMode string `json:"stpMode,omitempty"`
 }
 
 // AccountDetail represents an account detail information
@@ -471,7 +471,7 @@ type MXDeductResponse struct {
 
 // MXDeductStatus holds whether MX deduction of spot commission is enabled
 type MXDeductStatus struct {
-	MxDeductEnable bool `json:"mxDeductEnable"`
+	MXDeductEnable bool `json:"mxDeductEnable"`
 }
 
 // SymbolCommissionFee represents a symbol trading fee
@@ -722,8 +722,8 @@ type AffiliateCommissionPage struct {
 	TotalPage                 uint64                `json:"totalPage"`
 	CurrentPage               uint64                `json:"currentPage"`
 	USDTAmount                types.Number          `json:"usdtAmount"`
-	TotalCommissionUsdtAmount types.Number          `json:"totalCommissionUsdtAmount"`
-	TotalTradeUsdtAmount      types.Number          `json:"totalTradeUsdtAmount"`
+	TotalCommissionUSDTAmount types.Number          `json:"totalCommissionUsdtAmount"`
+	TotalTradeUSDTAmount      types.Number          `json:"totalTradeUsdtAmount"`
 	Finished                  types.Number          `json:"finished"`
 	ResultList                []AffiliateCommission `json:"resultList"`
 }
@@ -782,8 +782,8 @@ type AffiliateCommissionDetailPage struct {
 	TotalCount                uint64                      `json:"totalCount"`
 	TotalPage                 uint64                      `json:"totalPage"`
 	CurrentPage               uint64                      `json:"currentPage"`
-	TotalCommissionUsdtAmount types.Number                `json:"totalCommissionUsdtAmount"`
-	TotalTradeUsdtAmount      types.Number                `json:"totalTradeUsdtAmount"`
+	TotalCommissionUSDTAmount types.Number                `json:"totalCommissionUsdtAmount"`
+	TotalTradeUSDTAmount      types.Number                `json:"totalTradeUsdtAmount"`
 	ResultList                []AffiliateCommissionDetail `json:"resultList"`
 }
 
@@ -799,7 +799,7 @@ type AffiliateCommissionDetail struct {
 	TakerAmount    types.Number  `json:"takerAmount"`
 	MakerAmount    types.Number  `json:"makerAmount"`
 	AmountCurrency currency.Code `json:"amountCurrency"`
-	UsdtAmount     types.Number  `json:"usdtAmount"`
+	USDTAmount     types.Number  `json:"usdtAmount"`
 	Commission     types.Number  `json:"commission"`
 	Currency       currency.Code `json:"currency"`
 }
