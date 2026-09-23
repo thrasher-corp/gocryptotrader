@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
@@ -74,16 +76,40 @@ func SignedPercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 
 // CompareSignedPercentageDifferenceDecimal compares the signed percentage
 // difference between x and y with target, returning standard Cmp semantics. It
-// avoids division to reduce rounding near a target boundary. Under the udecimal
-// backend, the comparison can be incorrect when target and the sum of x and y
-// together carry more than 19 fractional digits. Its result may differ from
-// comparing SignedPercentageDifferenceDecimal's rounded value with target.
+// avoids division and compares exact cross-products so backend multiplication
+// cannot round away a difference near the target boundary. Its result may
+// differ from comparing SignedPercentageDifferenceDecimal's rounded value with
+// target.
 func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int {
 	sum := x.Add(y)
 	if sum.IsZero() {
 		return decimal.Zero.Cmp(target)
 	}
-	return x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum.Abs()))
+	// Multiplication by 200 preserves scale; only target times sum can exceed
+	// the backend's fractional precision.
+	if decimal.MaxFractionalDigits == 0 ||
+		fractionalDigits(target)+fractionalDigits(sum) <= decimal.MaxFractionalDigits {
+		return x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum.Abs()))
+	}
+
+	// Decimal.String returns a valid, canonical decimal representation in both backends.
+	xRat, _ := new(big.Rat).SetString(x.String())
+	yRat, _ := new(big.Rat).SetString(y.String())
+	sumRat := new(big.Rat).Add(xRat, yRat)
+	targetRat, _ := new(big.Rat).SetString(target.String())
+	difference := new(big.Rat).Sub(xRat, yRat)
+	difference.Mul(difference, big.NewRat(200, 1))
+	targetRat.Mul(targetRat, sumRat.Abs(sumRat))
+	return difference.Cmp(targetRat)
+}
+
+func fractionalDigits(value decimal.Decimal) int {
+	text := value.String()
+	point := strings.IndexByte(text, '.')
+	if point == -1 {
+		return 0
+	}
+	return len(text) - point - 1
 }
 
 // CalculateNetProfit returns net profit
