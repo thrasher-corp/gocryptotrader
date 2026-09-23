@@ -1561,7 +1561,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestAccountStatusToString(t *testing.T) {
 	t.Parallel()
-	for status, expected := range map[int64]string{
+	for status, expected := range map[uint8]string{
 		1: "SMALL", 2: "TIME_DELAY", 3: "LARGE_DELAY", 4: "PENDING",
 		5: "SUCCESS", 6: "AUDITING", 7: "REJECTED", 0: "", 99: "",
 	} {
@@ -1571,7 +1571,7 @@ func TestAccountStatusToString(t *testing.T) {
 
 func TestWithdrawalStatusToString(t *testing.T) {
 	t.Parallel()
-	for status, expected := range map[int64]string{
+	for status, expected := range map[uint8]string{
 		1: "APPLY", 2: "AUDITING", 3: "WAIT", 4: "PROCESSING", 5: "WAIT_PACKAGING",
 		6: "WAIT_CONFIRM", 7: "SUCCESS", 8: "FAILED", 9: "CANCEL", 10: "MANUAL", 0: "", 99: "",
 	} {

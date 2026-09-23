@@ -419,7 +419,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
 }
 
-func accountStatusToString(status int64) string {
+func accountStatusToString(status uint8) string {
 	switch status {
 	case 1:
 		return "SMALL"
@@ -439,7 +439,7 @@ func accountStatusToString(status int64) string {
 	return ""
 }
 
-func withdrawalStatusToString(withdrawalStatus int64) string {
+func withdrawalStatusToString(withdrawalStatus uint8) string {
 	switch withdrawalStatus {
 	case 1:
 		return "APPLY"

@@ -11,7 +11,7 @@ import (
 // an object carrying the page and its total, not with a bare array.
 type BrokerUniversalTransferHistory struct {
 	Result     []*BrokerAssetTransfer `json:"result"`
-	TotalCount int64                  `json:"totalCount"`
+	TotalCount uint64                 `json:"totalCount"`
 }
 
 // BrokerAssetTransfer holds a response data after asset transfer by brokers

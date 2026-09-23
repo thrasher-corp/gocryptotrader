@@ -1145,7 +1145,7 @@ func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 				symbols, err := e.GetOfflineSymbols(ctx)
 				require.NoError(t, err, "GetOfflineSymbols must not error")
 				require.Len(t, symbols, 2, "both offline symbols must be decoded")
-				assert.Equal(t, int64(3), symbols[0].State, "State should be decoded")
+				assert.Equal(t, uint8(3), symbols[0].State, "State should be decoded")
 				assert.True(t, symbols[0].OfflineTime.Time().IsZero(), "an absent offlineTime should decode to the zero time")
 				assert.Equal(t, int64(1724125694000), symbols[1].OfflineTime.Time().UnixMilli(), "OfflineTime should be decoded")
 			},
@@ -1228,7 +1228,7 @@ func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 				keys, err := e.GetListenKeys(ctx)
 				require.NoError(t, err, "GetListenKeys must not error")
 				assert.Equal(t, []string{"342e", "c716"}, keys.ListenKeys, "ListenKeys should be decoded")
-				assert.Equal(t, int64(198), keys.Available, "Available should be decoded")
+				assert.Equal(t, uint64(198), keys.Available, "Available should be decoded")
 			},
 		},
 		{
@@ -1459,4 +1459,19 @@ func TestCurrencyFieldsDecodeAsCodes(t *testing.T) {
 	var info CurrencyInformation
 	require.NoError(t, json.Unmarshal([]byte(`{"coin":"usdt","networkList":[{"coin":"USDT","netWork":"TRX"}]}`), &info), "Unmarshal must not error")
 	assert.True(t, info.Coin.Equal(currency.USDT), "Coin should match regardless of case")
+}
+
+// TestSignedFieldsDecodeNegatives decodes the negative values the fields left signed carry: orderListId
+// is -1 for an order outside an order list and the venue's error codes include -1121.
+func TestSignedFieldsDecodeNegatives(t *testing.T) {
+	t.Parallel()
+	var o OrderDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"orderId":"1","orderListId":-1}`), &o), "Unmarshal must not error")
+	assert.Equal(t, int64(-1), o.OrderListID, "OrderDetail.OrderListID should decode -1")
+	var fill AccountTrade
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"1","orderListId":-1}`), &fill), "Unmarshal must not error")
+	assert.Equal(t, int64(-1), fill.OrderListID, "AccountTrade.OrderListID should decode -1")
+	var r BatchOrderResult
+	require.NoError(t, json.Unmarshal([]byte(`{"code":-1121,"msg":"Invalid symbol."}`), &r), "Unmarshal must not error")
+	assert.Equal(t, int64(-1121), r.Code, "a negative error code should decode")
 }
