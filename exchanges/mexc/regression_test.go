@@ -1547,3 +1547,14 @@ func TestSignedFieldsDecodeNegatives(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"code":-1121,"msg":"Invalid symbol."}`), &r), "Unmarshal must not error")
 	assert.Equal(t, int64(-1121), r.Code, "a negative error code should decode")
 }
+
+// TestAPIKeyInfoPermanentKey decodes the remaining validity of a key that never expires, which the venue
+// documents as -999, whether it is sent as a number or as a string.
+func TestAPIKeyInfoPermanentKey(t *testing.T) {
+	t.Parallel()
+	for _, raw := range []string{`-999`, `"-999"`} {
+		var info APIKeyInfo
+		require.NoErrorf(t, json.Unmarshal([]byte(`{"accessKey":"k","status":"VALID","remainingValidity":`+raw+`}`), &info), "Unmarshal must not error for %s", raw)
+		assert.Equalf(t, -999.0, info.RemainingValidity.Float64(), "a permanent key's remaining validity should decode as -999 from %s", raw)
+	}
+}
