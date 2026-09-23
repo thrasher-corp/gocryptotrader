@@ -702,7 +702,7 @@ func (e *Exchange) handleWSBookUpdate(ctx context.Context, c *subscription.Subsc
 				})
 			}
 		}
-		if err := e.WsInsertSnapshot(c.Pairs[0], c.Asset, newOrderbook, fundingRate); err != nil {
+		if err := e.WsInsertSnapshot(ctx, c.Pairs[0], c.Asset, newOrderbook, fundingRate); err != nil {
 			return fmt.Errorf("inserting snapshot error: %s",
 				err)
 		}
@@ -1464,7 +1464,7 @@ func (e *Exchange) wsHandleOrder(ctx context.Context, data []any) error {
 }
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a channel
-func (e *Exchange) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
+func (e *Exchange) WsInsertSnapshot(ctx context.Context, p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
 	if len(books) == 0 {
 		return errors.New("no orderbooks submitted")
 	}
@@ -1502,7 +1502,7 @@ func (e *Exchange) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.IsFundingRate = fundingRate
 	book.ValidateOrderbook = e.ValidateOrderbook
 	book.LastUpdated = time.Now() // Not included in snapshot
-	return e.Websocket.Orderbook.LoadSnapshot(&book)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &book)
 }
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
@@ -1578,7 +1578,7 @@ func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscr
 	checkme := checksumStore[chanID]
 	if checkme == nil {
 		cMtx.Unlock()
-		return e.Websocket.Orderbook.Update(&orderbookUpdate)
+		return e.Websocket.Orderbook.Update(ctx, &orderbookUpdate)
 	}
 	checksumStore[chanID] = nil
 	cMtx.Unlock()
@@ -1603,7 +1603,7 @@ func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscr
 		}
 	}
 
-	return e.Websocket.Orderbook.Update(&orderbookUpdate)
+	return e.Websocket.Orderbook.Update(ctx, &orderbookUpdate)
 }
 
 // resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,

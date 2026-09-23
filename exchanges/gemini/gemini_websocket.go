@@ -474,7 +474,7 @@ func (e *Exchange) wsProcessUpdate(ctx context.Context, result *wsL2MarketData) 
 		newOrderBook.Exchange = e.Name
 		newOrderBook.ValidateOrderbook = e.ValidateOrderbook
 		newOrderBook.LastUpdated = time.Now() // No time is sent
-		err := e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		err := e.Websocket.Orderbook.LoadSnapshot(ctx, &newOrderBook)
 		if err != nil {
 			return err
 		}
@@ -482,13 +482,14 @@ func (e *Exchange) wsProcessUpdate(ctx context.Context, result *wsL2MarketData) 
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		err := e.Websocket.Orderbook.Update(&orderbook.Update{
+		err := e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 			Asks:       asks,
 			Bids:       bids,
 			Pair:       pair,
 			Asset:      asset.Spot,
-			UpdateTime: time.Now(), // No time is sent
+			UpdateTime: time.Now(),
 		})
+
 		if err != nil {
 			return err
 		}

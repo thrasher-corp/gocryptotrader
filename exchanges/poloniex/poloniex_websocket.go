@@ -162,9 +162,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelTicker:
 		return e.processTicker(ctx, &result)
 	case channelBookLevel2:
-		return e.processBooksLevel2(&result)
+		return e.processBooksLevel2(ctx, &result)
 	case channelBooks:
-		return e.processBooks(&result)
+		return e.processBooks(ctx, &result)
 	case channelOrders:
 		return e.processOrders(ctx, &result)
 	case channelBalances:
@@ -259,13 +259,13 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
-func (e *Exchange) processBooks(result *SubscriptionResponse) error {
+func (e *Exchange) processBooks(ctx context.Context, result *SubscriptionResponse) error {
 	var resp []*WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	for _, r := range resp {
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Pair:         r.Symbol,
 			Exchange:     e.Name,
 			LastUpdateID: r.ID,
@@ -281,7 +281,7 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 	return nil
 }
 
-func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
+func (e *Exchange) processBooksLevel2(ctx context.Context, result *SubscriptionResponse) error {
 	var resp []WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
@@ -292,7 +292,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 
 	r := resp[0]
 	if result.Action == "snapshot" {
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Exchange:     e.Name,
 			Pair:         r.Symbol,
 			Asset:        asset.Spot,
@@ -301,9 +301,10 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 			LastUpdateID: r.LastID,
 			LastUpdated:  r.Timestamp.Time(),
 		})
+
 	}
 
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       r.Symbol,
 		UpdateTime: r.Timestamp.Time(),
 		UpdateID:   r.ID,
@@ -311,6 +312,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 		Asks:       r.Asks.Levels(),
 		Bids:       r.Bids.Levels(),
 	})
+
 }
 
 func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionResponse) error {

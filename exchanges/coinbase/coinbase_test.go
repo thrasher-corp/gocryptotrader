@@ -1715,14 +1715,14 @@ func TestWsProcessCandleIntervalMapping(t *testing.T) {
 func TestProcessSnapshotUpdate(t *testing.T) {
 	t.Parallel()
 	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-	err := e.ProcessSnapshot(&req, time.Time{})
+	err := e.ProcessSnapshot(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.ProcessUpdate(&req, time.Time{})
+	err = e.ProcessUpdate(t.Context(), &req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 	req.Changes[0].Side = "offer"
-	err = e.ProcessSnapshot(&req, time.Now())
+	err = e.ProcessSnapshot(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
-	err = e.ProcessUpdate(&req, time.Now())
+	err = e.ProcessUpdate(t.Context(), &req, time.Now())
 	assert.NoError(t, err)
 }
 

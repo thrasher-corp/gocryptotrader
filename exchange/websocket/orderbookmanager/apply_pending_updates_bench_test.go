@@ -1,4 +1,4 @@
-package buffer
+package orderbookmanager
 
 import (
 	"context"
@@ -25,17 +25,17 @@ func BenchmarkLoadSnapshotExistingHolder(b *testing.B) {
 	}
 	ob := &Orderbook{
 		exchangeName: book.Exchange,
-		ob:           make(map[key.PairAsset]*orderbookHolder),
+		ob:           make(map[key.PairAsset]*orderbook.Depth),
 		dataHandler:  relay,
 	}
-	if err := ob.LoadSnapshot(book); err != nil {
+	if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 		b.Fatal(err)
 	}
 	<-relay.C
 
 	b.ReportAllocs()
 	for b.Loop() {
-		if err := ob.LoadSnapshot(book); err != nil {
+		if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 			b.Fatal(err)
 		}
 		<-relay.C
@@ -60,7 +60,7 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 
 			ob := &Orderbook{
 				exchangeName: exchangeName,
-				ob:           make(map[key.PairAsset]*orderbookHolder),
+				ob:           make(map[key.PairAsset]*orderbook.Depth),
 				dataHandler:  relay,
 			}
 			manager := NewUpdateManager(&UpdateManagerParams{
@@ -71,7 +71,7 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 				CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (bool, error) {
 					return false, nil
 				},
-				BufferInstance: ob,
+				Orderbook: ob,
 			})
 			pair := currency.NewBTCUSD()
 			now := time.Unix(1, 0)
@@ -98,11 +98,11 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 			}
 			cache := updateCache{updates: updates}
 
-			if err := ob.LoadSnapshot(book); err != nil {
+			if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 				b.Fatal(err)
 			}
 			cache.state = cacheStateQueuing
-			if err := manager.applyPendingUpdates(&cache); err != nil {
+			if err := manager.applyPendingUpdates(b.Context(), &cache); err != nil {
 				b.Fatal(err)
 			}
 			if cache.state != cacheStateSynced {
@@ -122,11 +122,11 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 
 			b.ReportAllocs()
 			for b.Loop() {
-				if err := ob.LoadSnapshot(book); err != nil {
+				if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 					b.Fatal(err)
 				}
 				cache.state = cacheStateQueuing
-				if err := manager.applyPendingUpdates(&cache); err != nil {
+				if err := manager.applyPendingUpdates(b.Context(), &cache); err != nil {
 					b.Fatal(err)
 				}
 				for range updateCount + 1 {

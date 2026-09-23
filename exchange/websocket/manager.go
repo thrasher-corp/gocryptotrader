@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -109,7 +109,7 @@ type Manager struct {
 	Match                         *Match
 	ShutdownC                     chan struct{}
 	Wg                            sync.WaitGroup
-	Orderbook                     buffer.Orderbook
+	Orderbook                     orderbookmanager.Orderbook
 	Trade                         trade.Trade // Trade is a notifier for trades
 	Fills                         fill.Fills  // Fills is a notifier for fills
 	TrafficAlert                  chan struct{}
@@ -139,8 +139,6 @@ type ManagerSetup struct {
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
-	OrderbookBufferConfig buffer.Config
-
 	// UseMultiConnectionManagement allows the connections to be managed by the
 	// connection manager. If false, this will default to the global fields
 	// provided in this struct.
@@ -190,7 +188,7 @@ func NewManager() *Manager {
 		Match:             NewMatch(),
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
-		Orderbook:         buffer.Orderbook{},
+		Orderbook:         orderbookmanager.Orderbook{},
 		connections:       make(map[Connection]*websocket),
 	}
 }
@@ -286,7 +284,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 
 	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	if err := m.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, m.DataHandler); err != nil {
+	if err := m.Orderbook.Setup(s.ExchangeConfig.Name, m.DataHandler, s.ExchangeConfig.Verbose); err != nil {
 		return err
 	}
 
@@ -755,8 +753,6 @@ func (m *Manager) shutdown() error {
 	if m.verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket: shutting down websocket", m.exchangeName)
 	}
-
-	defer m.Orderbook.FlushBuffer()
 
 	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
 	// been closed. In such cases, attempting to close the connection may result in a

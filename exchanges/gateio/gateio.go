@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -218,7 +218,7 @@ type Exchange struct {
 
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
-	wsOBUpdateMgr *buffer.UpdateManager
+	wsOBUpdateMgr *orderbookmanager.UpdateManager
 
 	futuresUserIDMu sync.RWMutex
 	futuresUserIDs  map[string]string

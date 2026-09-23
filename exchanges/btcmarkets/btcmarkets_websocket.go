@@ -121,7 +121,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 
 		if ob.Snapshot {
-			err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			err = e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 				Pair:              ob.Currency,
 				Bids:              orderbook.Levels(ob.Bids),
 				Asks:              orderbook.Levels(ob.Asks),
@@ -131,8 +131,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				Exchange:          e.Name,
 				ValidateOrderbook: e.ValidateOrderbook,
 			})
+
 		} else {
-			err = e.Websocket.Orderbook.Update(&orderbook.Update{
+			err = e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 				UpdateTime:                 ob.Timestamp,
 				UpdateID:                   ob.SnapshotID,
 				Asset:                      asset.Spot,
@@ -143,6 +144,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				GenerateChecksum:           orderbookChecksum,
 				SkipOutOfOrderLastUpdateID: true,
 			})
+
 		}
 		if err != nil {
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {

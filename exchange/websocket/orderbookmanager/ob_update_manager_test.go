@@ -1,4 +1,4 @@
-package buffer
+package orderbookmanager
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func newTestParams() UpdateManagerParams {
 		CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (bool, error) {
 			return false, nil
 		},
-		BufferInstance: &Orderbook{exchangeName: "TestExchange", ob: make(map[key.PairAsset]*orderbookHolder), dataHandler: stream.NewRelay(1000), verbose: true},
+		Orderbook: &Orderbook{exchangeName: "TestExchange", ob: make(map[key.PairAsset]*orderbook.Depth), dataHandler: stream.NewRelay(1000), verbose: true},
 	}
 }
 
@@ -71,7 +71,7 @@ func TestNewUpdateManager(t *testing.T) {
 	params.CheckPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return false, nil
 	}
-	params.BufferInstance = &Orderbook{}
+	params.Orderbook = &Orderbook{}
 	got := NewUpdateManager(params)
 	require.NotNil(t, got)
 	assert.NotNil(t, got.lookup)
@@ -114,7 +114,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	require.NoError(t, err, "ProcessOrderbookUpdate must not error on synced orderbook")
 
 	eventuallyCondition := func() bool {
-		id, err := tp.BufferInstance.LastUpdateID(pair, asset.USDTMarginedFutures)
+		id, err := tp.Orderbook.LastUpdateID(pair, asset.USDTMarginedFutures)
 		return err == nil && id == 1338
 	}
 	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "LastUpdateID must return to snapshot and update applied to state after invalidateCache is processed")
@@ -239,13 +239,15 @@ func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
 	m.delay = time.Second
 	pair, err := currency.NewPairFromStrings("APPLYERR", "SPOT")
 	require.NoError(t, err)
-	require.NoError(t, m.ob.LoadSnapshot(&orderbook.Book{
+	require.NoError(t, m.ob.LoadSnapshot(t.Context(), &orderbook.Book{
 		Exchange:     m.ob.exchangeName,
 		Pair:         pair,
 		Asset:        asset.Spot,
 		LastUpdated:  time.Now(),
 		LastUpdateID: 1336,
-	}), "LoadSnapshot must not error")
+	}),
+
+		"LoadSnapshot must not error")
 
 	cache, err := m.loadCache(pair, asset.Spot)
 	require.NoError(t, err, "loadCache must not error")
@@ -407,71 +409,78 @@ func TestApplyPendingUpdates(t *testing.T) {
 	m := NewUpdateManager(&tp)
 	pair := currency.NewPair(currency.LTC, currency.USDT)
 
-	err := m.applyPendingUpdates(&updateCache{})
+	err := m.applyPendingUpdates(t.Context(), &updateCache{})
 	require.ErrorIs(t, err, errUpdatesNotSupplied, "applyPendingUpdates must error when the pending-update queue is empty")
 
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Asset: asset.Spot}},
 	}})
+
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "applyPendingUpdates must error when the currency pair is empty")
 
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair}},
 	}})
+
 	require.ErrorIs(t, err, asset.ErrInvalidAsset, "applyPendingUpdates must error when the asset is invalid")
 
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
+
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "applyPendingUpdates must error when the orderbook depth is not found")
 
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now()})
+	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now()})
 	require.NoError(t, err, "LoadSnapshot must not error")
 
 	expectedErr := errors.New("test error")
 	m.checkPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return false, expectedErr
 	}
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
+
 	require.ErrorIs(t, err, expectedErr, "applyPendingUpdates must return the pending-update check error")
 
 	m.checkPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return true, nil
 	}
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
+
 	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "applyPendingUpdates must error when every pending update is skipped")
 
 	m.checkPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return false, nil
 	}
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
+
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "applyPendingUpdates must error when update application invalidates the orderbook")
 
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now()})
+	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now()})
 	require.NoError(t, err, "LoadSnapshot must not error after orderbook invalidation")
 
 	cache := &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot, AllowEmpty: true, UpdateTime: time.Now()}},
 	}}
-	err = m.applyPendingUpdates(cache)
+	err = m.applyPendingUpdates(t.Context(), cache)
 	require.NoError(t, err, "applyPendingUpdates must not error when update application succeeds")
 	assert.Equal(t, cacheStateSynced, cache.state, "applyPendingUpdates should set the cache state to synced")
 
 	pair, err = currency.NewPairFromStrings("PENDSEQ", "USDT")
 	require.NoError(t, err, "NewPairFromStrings must not error")
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 1336})
+	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 1336})
 	require.NoError(t, err, "LoadSnapshot must not error for the pending-sequence orderbook")
 
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{firstUpdateID: 1337, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1337, AllowEmpty: true, UpdateTime: time.Now()}},
 		{firstUpdateID: 1339, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1339, AllowEmpty: true, UpdateTime: time.Now()}},
 	}})
+
 	require.ErrorIs(t, err, ErrOrderbookSnapshotOutdated, "applyPendingUpdates must error when a later pending update is out of sequence")
 }
 
@@ -500,7 +509,7 @@ func TestApplyPendingUpdatesKeyMismatch(t *testing.T) {
 
 			tp := newTestParams()
 			m := NewUpdateManager(&tp)
-			err := m.ob.LoadSnapshot(&orderbook.Book{Pair: tc.pendingPair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
+			err := m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: tc.pendingPair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
 			require.NoError(t, err, "LoadSnapshot must not error for the pending-update key")
 			<-m.ob.dataHandler.C
 			cache := &updateCache{
@@ -511,7 +520,7 @@ func TestApplyPendingUpdatesKeyMismatch(t *testing.T) {
 				},
 			}
 
-			err = m.applyPendingUpdates(cache)
+			err = m.applyPendingUpdates(t.Context(), cache)
 			require.ErrorIs(t, err, errPendingUpdateKeyMismatch, "applyPendingUpdates must error when pending update keys differ")
 			assert.Contains(t, err.Error(), tc.wantContext, "applyPendingUpdates error should identify the mismatched pending-update key")
 			lastUpdateID, lastUpdateErr := m.ob.LastUpdateID(tc.pendingPair, asset.Spot)
@@ -530,7 +539,7 @@ func TestApplyPendingUpdatesCachedHolderAfterSkip(t *testing.T) {
 	m := NewUpdateManager(&tp)
 	pair, err := currency.NewPairFromStrings("PENDSKIP", "USDT")
 	require.NoError(t, err, "NewPairFromStrings must not error")
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
+	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
 	require.NoError(t, err, "LoadSnapshot must not error for the skipped-update orderbook")
 	m.checkPendingUpdate = func(_, _ int64, update *orderbook.Update) (bool, error) {
 		return update.UpdateID == 10, nil
@@ -540,7 +549,7 @@ func TestApplyPendingUpdatesCachedHolderAfterSkip(t *testing.T) {
 		{firstUpdateID: 10, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 10, AllowEmpty: true, UpdateTime: time.Now()}},
 		{firstUpdateID: 11, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 11, AllowEmpty: true, UpdateTime: time.Now()}},
 	}}
-	err = m.applyPendingUpdates(cache)
+	err = m.applyPendingUpdates(t.Context(), cache)
 	require.NoError(t, err, "applyPendingUpdates must not error after skipping an outdated pending update")
 	assert.Equal(t, cacheStateSynced, cache.state, "applyPendingUpdates should sync after skipping an outdated pending update")
 	lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
@@ -555,41 +564,19 @@ func TestApplyPendingUpdatesCachedHolderAdvances(t *testing.T) {
 	m := NewUpdateManager(&tp)
 	pair, err := currency.NewPairFromStrings("PENDADVANCE", "USDT")
 	require.NoError(t, err, "NewPairFromStrings must not error")
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
+	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
 	require.NoError(t, err, "LoadSnapshot must not error for the advancing orderbook")
 
 	cache := &updateCache{updates: []pendingUpdate{
 		{firstUpdateID: 11, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 11, AllowEmpty: true, UpdateTime: time.Now()}},
 		{firstUpdateID: 12, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 12, AllowEmpty: true, UpdateTime: time.Now()}},
 	}}
-	err = m.applyPendingUpdates(cache)
+	err = m.applyPendingUpdates(t.Context(), cache)
 	require.NoError(t, err, "applyPendingUpdates must not error for consecutive in-sequence updates")
 	assert.Equal(t, cacheStateSynced, cache.state, "applyPendingUpdates should sync consecutive in-sequence updates")
 	lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
 	require.NoError(t, err, "LastUpdateID must not error for the advancing orderbook")
 	assert.Equal(t, int64(12), lastUpdateID, "LastUpdateID should advance to the final applied update ID")
-}
-
-func TestApplyPendingUpdatesCachedHolderWithBuffer(t *testing.T) {
-	t.Parallel()
-
-	tp := newTestParams()
-	tp.BufferInstance.bufferEnabled = true
-	tp.BufferInstance.obBufferLimit = 3
-	m := NewUpdateManager(&tp)
-	pair, err := currency.NewPairFromStrings("PENDBUFFER", "USDT")
-	require.NoError(t, err, "NewPairFromStrings must not error")
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
-	require.NoError(t, err, "LoadSnapshot must not error for the buffered orderbook")
-
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
-		{firstUpdateID: 11, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 11, AllowEmpty: true, UpdateTime: time.Now()}},
-		{firstUpdateID: 12, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 12, AllowEmpty: true, UpdateTime: time.Now()}},
-	}})
-	require.ErrorIs(t, err, ErrOrderbookSnapshotOutdated, "applyPendingUpdates must error when buffering leaves the live update ID unchanged")
-	lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
-	require.NoError(t, err, "LastUpdateID must not error for the buffered orderbook")
-	assert.Equal(t, int64(10), lastUpdateID, "LastUpdateID should remain unchanged while the first update is buffered")
 }
 
 func TestApplyPendingUpdatesCachedHolderInvalidated(t *testing.T) {
@@ -599,7 +586,7 @@ func TestApplyPendingUpdatesCachedHolderInvalidated(t *testing.T) {
 	m := NewUpdateManager(&tp)
 	pair, err := currency.NewPairFromStrings("PENDINVALID", "USDT")
 	require.NoError(t, err, "NewPairFromStrings must not error")
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
+	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
 	require.NoError(t, err, "LoadSnapshot must not error for the invalidation orderbook")
 
 	var invalidationErr error
@@ -607,10 +594,11 @@ func TestApplyPendingUpdatesCachedHolderInvalidated(t *testing.T) {
 		invalidationErr = m.ob.InvalidateOrderbook(pair, asset.Spot)
 		return true, nil
 	}
-	err = m.applyPendingUpdates(&updateCache{updates: []pendingUpdate{
+	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{firstUpdateID: 10, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 10, AllowEmpty: true, UpdateTime: time.Now()}},
 		{firstUpdateID: 11, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 11, AllowEmpty: true, UpdateTime: time.Now()}},
 	}})
+
 	assert.NoError(t, invalidationErr, "InvalidateOrderbook should not error")
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "applyPendingUpdates must return the cached holder invalidation error")
 }

@@ -1,4 +1,4 @@
-package buffer
+package orderbookmanager
 
 import (
 	"context"
@@ -80,7 +80,8 @@ type UpdateManagerParams struct {
 	// CheckPendingUpdate allows custom logic to determine if a pending update added to cache should be skipped or if an
 	// error has occurred.
 	CheckPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
-	BufferInstance     *Orderbook // TODO: Integrate directly with orderbook struct
+	// Orderbook stores the snapshots and updates managed by UpdateManager.
+	Orderbook *Orderbook
 }
 
 // NewUpdateManager creates a new websocket orderbook update manager
@@ -91,7 +92,7 @@ func NewUpdateManager(params *UpdateManagerParams) *UpdateManager {
 	if params.FetchDelay < 0 {
 		panic("fetch delay must be greater than or equal to zero")
 	}
-	if err := common.NilGuard(params.FetchOrderbook, params.CheckPendingUpdate, params.BufferInstance); err != nil {
+	if err := common.NilGuard(params.FetchOrderbook, params.CheckPendingUpdate, params.Orderbook); err != nil {
 		panic(err)
 	}
 	return &UpdateManager{
@@ -100,7 +101,7 @@ func NewUpdateManager(params *UpdateManagerParams) *UpdateManager {
 		delay:              params.FetchDelay,
 		fetchOrderbook:     params.FetchOrderbook,
 		checkPendingUpdate: params.CheckPendingUpdate,
-		ob:                 params.BufferInstance,
+		ob:                 params.Orderbook,
 	}
 }
 
@@ -165,7 +166,7 @@ func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, fir
 		}
 		return m.invalidateCache(ctx, firstUpdateID, update, cache)
 	}
-	if err := m.ob.Update(update); err != nil {
+	if err := m.ob.Update(ctx, update); err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
 		return m.invalidateCache(ctx, firstUpdateID, update, cache)
 	}
@@ -220,7 +221,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		return err
 	}
 
-	if err := m.ob.LoadSnapshot(book); err != nil {
+	if err := m.ob.LoadSnapshot(ctx, book); err != nil {
 		cache.clearWithLock()
 		return err
 	}
@@ -231,7 +232,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		cache.m.Unlock()
 	}()
 
-	if err := m.applyPendingUpdates(cache); err != nil {
+	if err := m.applyPendingUpdates(ctx, cache); err != nil {
 		cache.resetStateNoLock()
 		return common.AppendError(err, m.ob.InvalidateOrderbook(pair, a))
 	}
@@ -241,7 +242,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 
 // applyPendingUpdates applies all pending updates to the orderbook
 // assumes lock already active on cache
-func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
+func (m *UpdateManager) applyPendingUpdates(ctx context.Context, cache *updateCache) error {
 	if len(cache.updates) == 0 {
 		return errUpdatesNotSupplied
 	}
@@ -263,7 +264,7 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 	}
 
 	m.ob.m.RLock()
-	holder, ok := m.ob.ob[pendingKey]
+	depth, ok := m.ob.ob[pendingKey]
 	m.ob.m.RUnlock()
 	if !ok {
 		return fmt.Errorf("%s %w: %s.%s", m.ob.exchangeName, orderbook.ErrDepthNotFound, firstUpdate.Asset, firstUpdate.Pair)
@@ -271,7 +272,7 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 
 	var updated bool
 	for _, data := range cache.updates {
-		bookLastUpdateID, err := holder.ob.LastUpdateID()
+		bookLastUpdateID, err := depth.LastUpdateID()
 		if err != nil {
 			return err
 		}
@@ -288,7 +289,7 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 			return fmt.Errorf("apply pending updates %w: last update ID %d, first update ID %d", ErrOrderbookSnapshotOutdated, bookLastUpdateID, data.firstUpdateID)
 		}
 
-		if err := m.ob.updateHolder(holder, data.update); err != nil {
+		if err := m.ob.updateDepth(ctx, depth, data.update); err != nil {
 			return err
 		}
 

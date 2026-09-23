@@ -192,7 +192,7 @@ func (e *Exchange) wsProcessMarketTrades(ctx context.Context, resp *StandardWebs
 }
 
 // wsProcessL2 handles l2 orderbook data from the websocket
-func (e *Exchange) wsProcessL2(resp *StandardWebsocketResponse) error {
+func (e *Exchange) wsProcessL2(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsL2 []WebsocketOrderbookDataHolder
 	err := json.Unmarshal(resp.Events, &wsL2)
 	if err != nil {
@@ -201,9 +201,9 @@ func (e *Exchange) wsProcessL2(resp *StandardWebsocketResponse) error {
 	for i := range wsL2 {
 		switch wsL2[i].Type {
 		case "snapshot":
-			err = e.ProcessSnapshot(&wsL2[i], resp.Timestamp)
+			err = e.ProcessSnapshot(ctx, &wsL2[i], resp.Timestamp)
 		case "update":
-			err = e.ProcessUpdate(&wsL2[i], resp.Timestamp)
+			err = e.ProcessUpdate(ctx, &wsL2[i], resp.Timestamp)
 		default:
 			err = fmt.Errorf("%w %v", errUnknownL2DataType, wsL2[i].Type)
 		}
@@ -337,7 +337,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) (*uint64, e
 			return &resp.Sequence, err
 		}
 	case "l2_data":
-		if err := e.wsProcessL2(&resp); err != nil {
+		if err := e.wsProcessL2(ctx, &resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "user":
@@ -351,7 +351,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) (*uint64, e
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
-func (e *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, timestamp time.Time) error {
+func (e *Exchange) ProcessSnapshot(ctx context.Context, snapshot *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(snapshot, true)
 	if err != nil {
 		return err
@@ -372,7 +372,7 @@ func (e *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, times
 		}
 		if isEnabled {
 			book.Pair = a
-			if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+			if err := e.Websocket.Orderbook.LoadSnapshot(ctx, book); err != nil {
 				return err
 			}
 		}
@@ -381,7 +381,7 @@ func (e *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, times
 }
 
 // ProcessUpdate updates the orderbook local cache
-func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp time.Time) error {
+func (e *Exchange) ProcessUpdate(ctx context.Context, update *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(update, false)
 	if err != nil {
 		return err
@@ -400,7 +400,7 @@ func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp
 		}
 		if isEnabled {
 			obU.Pair = a
-			if err := e.Websocket.Orderbook.Update(obU); err != nil {
+			if err := e.Websocket.Orderbook.Update(ctx, obU); err != nil {
 				return err
 			}
 		}

@@ -188,11 +188,11 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case spotCandlesticksChannel:
 		return e.processCandlestick(ctx, push.Result)
 	case spotOrderbookTickerChannel:
-		return e.processOrderbookTicker(push.Result, push.Time)
+		return e.processOrderbookTicker(ctx, push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
 		return e.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
-		return e.processOrderbookSnapshot(push.Result, push.Time)
+		return e.processOrderbookSnapshot(ctx, push.Result, push.Time)
 	case spotOrderbookV2:
 		return e.processOrderbookUpdateWithSnapshot(ctx, conn, push.Result, push.Time, asset.Spot)
 	case spotOrdersChannel:
@@ -359,12 +359,12 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 	return e.Websocket.DataHandler.Send(ctx, out)
 }
 
-func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
+func (e *Exchange) processOrderbookTicker(ctx context.Context, incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 		Exchange:    e.Name,
 		Pair:        data.Pair,
 		Asset:       asset.Spot,
@@ -392,7 +392,7 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 	})
 }
 
-func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Time) error {
+func (e *Exchange) processOrderbookSnapshot(ctx context.Context, incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -400,7 +400,7 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 				Exchange:    e.Name,
 				Pair:        data.CurrencyPair,
 				Asset:       a,
@@ -433,7 +433,7 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 	}
 
 	if data.Full {
-		err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Exchange:          e.Name,
 			Pair:              pair,
 			Asset:             a,
@@ -456,7 +456,7 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 	if err != nil || lastUpdateID+1 != data.FirstUpdateID {
 		return common.AppendError(err, e.wsOBResubMgr.Resubscribe(ctx, e, conn, data.Channel, pair, a))
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       pair,
 		Asset:      a,
 		UpdateTime: data.UpdateTime.Time(),

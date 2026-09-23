@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -101,12 +101,12 @@ func TestPushData(t *testing.T) {
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 
-	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-		BufferInstance: &e.Websocket.Orderbook,
+	e.wsOBUpdateMgr = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
+		Orderbook: &e.Websocket.Orderbook,
 		CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (skip bool, err error) {
 			return false, nil
 		},
-		FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchDeadline: orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 			if p.Equal(currency.NewBTCUSDT()) && a == asset.Spot {
 				return &orderbook.Book{
@@ -1222,7 +1222,7 @@ func TestProcessOrderbook(t *testing.T) {
 		require.NoError(t, err, "CalculateAssets must not error")
 		require.NotEmpty(t, assets, "must resolve at least one asset for the orderbook pair")
 
-		err = ku.processOrderbook([]byte(`{"asks":[["0.0500","1.5"],["0.0500","0.5"],["0.0600","2"]],"bids":[["0.0400","3"],["0.0400","1"],["0.0300","4"]],"timestamp":1700555340197}`), pair.String(), marketOrderbookDepth50Channel)
+		err = ku.processOrderbook(t.Context(), []byte(`{"asks":[["0.0500","1.5"],["0.0500","0.5"],["0.0600","2"]],"bids":[["0.0400","3"],["0.0400","1"],["0.0300","4"]],"timestamp":1700555340197}`), pair.String(), marketOrderbookDepth50Channel)
 		require.NoError(t, err, "processOrderbook must not error")
 
 		for _, a := range assets {
@@ -1267,7 +1267,7 @@ func TestProcessOrderbook(t *testing.T) {
 		require.NotEmpty(t, assets, "must resolve at least one asset for the orderbook pair")
 
 		before := time.Now()
-		err = ku.processOrderbook([]byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]]}`), pair.String(), marketOrderbookDepth50Channel)
+		err = ku.processOrderbook(t.Context(), []byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]]}`), pair.String(), marketOrderbookDepth50Channel)
 		after := time.Now()
 		require.NoError(t, err, "processOrderbook must not error when timestamp is absent")
 
@@ -1284,21 +1284,21 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Run("invalid_json", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processOrderbook([]byte(`{"asks":`), "ETH-BTC", marketOrderbookDepth50Channel)
+			err := ku.processOrderbook(t.Context(), []byte(`{"asks":`), "ETH-BTC", marketOrderbookDepth50Channel)
 			require.Error(t, err)
 		})
 
 		t.Run("invalid_symbol", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processOrderbook([]byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "a", marketOrderbookDepth50Channel)
+			err := ku.processOrderbook(t.Context(), []byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "a", marketOrderbookDepth50Channel)
 			require.ErrorIs(t, err, currency.ErrCreatingPair)
 		})
 
 		t.Run("calculate_assets", func(t *testing.T) {
 			t.Parallel()
 			ku := new(Exchange)
-			err := ku.processOrderbook([]byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "ETH-BTC", marketOrderbookDepth50Channel)
+			err := ku.processOrderbook(t.Context(), []byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "ETH-BTC", marketOrderbookDepth50Channel)
 			require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised)
 		})
 
@@ -1306,7 +1306,7 @@ func TestProcessOrderbook(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
 			ku.Name = ""
-			err := ku.processOrderbook([]byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "ETH-BTC", marketOrderbookDepth50Channel)
+			err := ku.processOrderbook(t.Context(), []byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "ETH-BTC", marketOrderbookDepth50Channel)
 			require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 		})
 	})
@@ -1314,10 +1314,10 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 	t.Parallel()
-	newUpdateManager := func(ku *Exchange) *buffer.UpdateManager {
-		return buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+	newUpdateManager := func(ku *Exchange) *orderbookmanager.UpdateManager {
+		return orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
 			FetchDelay:    0,
-			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+			FetchDeadline: orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 				return &orderbook.Book{
 					Exchange: ku.Name, Pair: p, Asset: a,
@@ -1326,7 +1326,7 @@ func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 				}, nil
 			},
 			CheckPendingUpdate: checkPendingUpdate,
-			BufferInstance:     &ku.Websocket.Orderbook,
+			Orderbook:          &ku.Websocket.Orderbook,
 		})
 	}
 
@@ -1402,9 +1402,9 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
 
 		const updateID = int64(18)
-		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+		ku.wsOBUpdateMgr = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
 			FetchDelay:    0,
-			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+			FetchDeadline: orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 				if !p.Equal(futuresTradablePair) {
 					return nil, fmt.Errorf("unexpected pair %s", p)
@@ -1424,7 +1424,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 				}, nil
 			},
 			CheckPendingUpdate: checkPendingUpdate,
-			BufferInstance:     &ku.Websocket.Orderbook,
+			Orderbook:          &ku.Websocket.Orderbook,
 		})
 
 		err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, futuresTradablePair.String())
@@ -1450,9 +1450,9 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
 
 		const updateID = int64(18)
-		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+		ku.wsOBUpdateMgr = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
 			FetchDelay:    0,
-			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+			FetchDeadline: orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 				if !p.Equal(futuresTradablePair) {
 					return nil, fmt.Errorf("unexpected pair %s", p)
@@ -1472,7 +1472,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 				}, nil
 			},
 			CheckPendingUpdate: checkPendingUpdate,
-			BufferInstance:     &ku.Websocket.Orderbook,
+			Orderbook:          &ku.Websocket.Orderbook,
 		})
 
 		err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,sell,83","timestamp":1551770400000}`), futuresTradablePair.String())

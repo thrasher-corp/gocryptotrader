@@ -202,7 +202,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case marketOrderbookChannel:
 		return e.processSpotOrderbookWithDepth(ctx, respData, topicInfo[1])
 	case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel:
-		return e.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
+		return e.processOrderbook(ctx, resp.Data, topicInfo[1], topicInfo[0])
 	case marketCandlesChannel:
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
@@ -241,7 +241,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case futuresOrderbookChannel:
 		return e.processFuturesOrderbookLevel2(ctx, resp.Data, topicInfo[1])
 	case futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
-		return e.processFuturesOrderbookSnapshot(resp.Data, topicInfo[1])
+		return e.processFuturesOrderbookSnapshot(ctx, resp.Data, topicInfo[1])
 	case futuresContractMarketDataChannel:
 		switch resp.Subject {
 		case "mark.index.price":
@@ -446,7 +446,7 @@ func (e *Exchange) processFuturesMarkPriceAndIndexPrice(ctx context.Context, res
 }
 
 // processFuturesOrderbookSnapshot processes a futures account orderbook websocket update.
-func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
+func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, respData []byte, instrument string) error {
 	var resp WsFuturesOrderbookLevelResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -458,7 +458,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 	bids := mergeRoundedOrderbookLevels(resp.Bids.Levels())
 	asks := mergeRoundedOrderbookLevels(resp.Asks.Levels())
 	// Note: KuCoin snapshot timestamps are all the same and each update is 100ms apart.
-	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 		Exchange:     e.Name,
 		LastUpdateID: resp.Sequence,
 		LastUpdated:  resp.Timestamp.Time(),
@@ -870,7 +870,7 @@ func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData [
 }
 
 // processOrderbook processes orderbook data for a specific symbol.
-func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error {
+func (e *Exchange) processOrderbook(ctx context.Context, respData []byte, symbol, topic string) error {
 	var resp Level2Depth5Or20
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -893,7 +893,7 @@ func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error
 	asks := mergeRoundedOrderbookLevels(resp.Asks.Levels())
 	bids := mergeRoundedOrderbookLevels(resp.Bids.Levels())
 	for x := range assets {
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Exchange:    e.Name,
 			Asks:        asks,
 			Bids:        bids,

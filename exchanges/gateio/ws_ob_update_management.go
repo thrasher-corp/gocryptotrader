@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -61,7 +61,7 @@ func checkPendingUpdate(lastUpdateID, firstUpdateID int64, update *orderbook.Upd
 
 	// From docs: `baseID+1` < first notification `U` current base order book falls behind notifications
 	if nextUpdateID < firstUpdateID {
-		return false, buffer.ErrOrderbookSnapshotOutdated
+		return false, orderbookmanager.ErrOrderbookSnapshotOutdated
 	}
 
 	return false, nil

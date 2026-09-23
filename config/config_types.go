@@ -18,27 +18,26 @@ import (
 
 // Constants declared here are filename strings and test strings
 const (
-	FXProviderFixer                      = "fixer"
-	EncryptedFile                        = "config.dat"
-	File                                 = "config.json"
-	TestFile                             = "../testdata/configtest.json"
-	TestFileV0                           = "../testdata/configtestv0.json"
-	fileEncryptionPrompt                 = 0
-	fileEncryptionEnabled                = 1
-	fileEncryptionDisabled               = -1
-	pairsLastUpdatedWarningThreshold     = 30 // 30 days
-	defaultHTTPTimeout                   = time.Second * 15
-	defaultWebsocketOrderbookBufferLimit = 5
-	DefaultConnectionMonitorDelay        = time.Second * 2
-	maxAuthFailures                      = 3
-	defaultNTPAllowedDifference          = 50000000
-	defaultNTPAllowedNegativeDifference  = 50000000
-	DefaultAPIKey                        = "Key"
-	DefaultAPISecret                     = "Secret"
-	DefaultAPIClientID                   = "ClientID"
-	defaultDataHistoryMonitorCheckTimer  = time.Minute
-	defaultCurrencyStateManagerDelay     = time.Minute
-	defaultMaxJobsPerCycle               = 5
+	FXProviderFixer                     = "fixer"
+	EncryptedFile                       = "config.dat"
+	File                                = "config.json"
+	TestFile                            = "../testdata/configtest.json"
+	TestFileV0                          = "../testdata/configtestv0.json"
+	fileEncryptionPrompt                = 0
+	fileEncryptionEnabled               = 1
+	fileEncryptionDisabled              = -1
+	pairsLastUpdatedWarningThreshold    = 30 // 30 days
+	defaultHTTPTimeout                  = time.Second * 15
+	DefaultConnectionMonitorDelay       = time.Second * 2
+	maxAuthFailures                     = 3
+	defaultNTPAllowedDifference         = 50000000
+	defaultNTPAllowedNegativeDifference = 50000000
+	DefaultAPIKey                       = "Key"
+	DefaultAPISecret                    = "Secret"
+	DefaultAPIClientID                  = "ClientID"
+	defaultDataHistoryMonitorCheckTimer = time.Minute
+	defaultCurrencyStateManagerDelay    = time.Minute
+	defaultMaxJobsPerCycle              = 5
 	// DefaultSyncerWorkers limits the number of sync workers
 	DefaultSyncerWorkers = 15
 	// DefaultSyncerTimeoutREST the default time to switch from REST to websocket protocols without a response
@@ -339,7 +338,5 @@ type APIConfig struct {
 
 // Orderbook stores the orderbook configuration variables
 type Orderbook struct {
-	VerificationBypass     bool `json:"verificationBypass"`
-	WebsocketBufferLimit   int  `json:"websocketBufferLimit"`
-	WebsocketBufferEnabled bool `json:"websocketBufferEnabled"`
+	VerificationBypass bool `json:"verificationBypass"`
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -46,7 +46,7 @@ func (e *Exchange) fetchWSOrderbookSnapshot(ctx context.Context, p currency.Pair
 func checkPendingUpdate(sequenceEndOld, sequenceStartNew int64, update *orderbook.Update) (skip bool, err error) {
 	target := sequenceEndOld + 1
 	if sequenceStartNew > target {
-		return false, buffer.ErrOrderbookSnapshotOutdated
+		return false, orderbookmanager.ErrOrderbookSnapshotOutdated
 	}
 
 	if update.UpdateID < target {
