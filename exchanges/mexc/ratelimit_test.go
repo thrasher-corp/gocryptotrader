@@ -59,7 +59,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"userUniversalTransfer":          userUniversalTransferEPL,
 		"getUniversalTransferDetailByID": getUniversalTransferDetailByIDEPL,
 		"getAssetConvertedMX":            getAssetConvertedMXEPL,
-		"dustTransfer":                   dustTransferEPL,
+		"dustConvert":                    dustConvertEPL,
 		"dustLog":                        dustLogEPL,
 		"internalTransfer":               internalTransferEPL,
 		"getInternalTransferHistory":     getInternalTransferHistoryEPL,

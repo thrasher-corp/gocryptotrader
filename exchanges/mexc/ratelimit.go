@@ -61,7 +61,7 @@ const (
 	userUniversalTransferEPL
 	getUniversalTransferDetailByIDEPL
 	getAssetConvertedMXEPL
-	dustTransferEPL
+	dustConvertEPL
 	dustLogEPL
 	internalTransferEPL
 	getInternalTransferHistoryEPL
@@ -152,7 +152,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		userUniversalTransferEPL:          request.GetRateLimiterWithWeight(ipModeRate, 50),
 		getUniversalTransferDetailByIDEPL: request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getAssetConvertedMXEPL:            request.GetRateLimiterWithWeight(ipModeRate, 1),
-		dustTransferEPL:                   request.GetRateLimiterWithWeight(ipModeRate, 10),
+		dustConvertEPL:                    request.GetRateLimiterWithWeight(ipModeRate, 10),
 		dustLogEPL:                        request.GetRateLimiterWithWeight(ipModeRate, 1),
 		internalTransferEPL:               request.GetRateLimiterWithWeight(ipModeRate, 1),
 		getInternalTransferHistoryEPL:     request.GetRateLimiterWithWeight(ipModeRate, 1),

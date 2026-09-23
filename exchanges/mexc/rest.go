@@ -782,8 +782,8 @@ func (e *Exchange) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]*Ass
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAssetConvertedMXEPL, http.MethodGet, "capital/convert/list", nil, nil, &resp, true)
 }
 
-// DustTransfer transfer near-worthless crypto assets whose value is smaller than transaction fees
-func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code) (*DustConvertResponse, error) {
+// DustConvert converts near-worthless crypto assets, whose value is smaller than the transaction fees, into MX
+func (e *Exchange) DustConvert(ctx context.Context, assets []currency.Code) (*DustConvertResponse, error) {
 	if len(assets) == 0 {
 		return nil, fmt.Errorf("%w: at least one asset must be specified", currency.ErrCurrencyCodeEmpty)
 	}
@@ -800,7 +800,7 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code) (*D
 	params := url.Values{}
 	params.Set("asset", assetsString)
 	var resp *DustConvertResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, dustTransferEPL, http.MethodPost, "capital/convert", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, dustConvertEPL, http.MethodPost, "capital/convert", params, nil, &resp, true)
 }
 
 // DustLog retrieves a dust conversion history

@@ -832,15 +832,15 @@ func TestGetAssetThatCanBeConvertedintoMX(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestDustTransfer(t *testing.T) {
+func TestDustConvert(t *testing.T) {
 	t.Parallel()
-	_, err := e.DustTransfer(t.Context(), []currency.Code{})
+	_, err := e.DustConvert(t.Context(), []currency.Code{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.DustTransfer(t.Context(), []currency.Code{currency.EMPTYCODE, currency.ETH})
+	_, err = e.DustConvert(t.Context(), []currency.Code{currency.EMPTYCODE, currency.ETH})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.DustTransfer(t.Context(), []currency.Code{currency.BTC, currency.ETH})
+	result, err := e.DustConvert(t.Context(), []currency.Code{currency.BTC, currency.ETH})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
