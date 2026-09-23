@@ -462,7 +462,7 @@ func TestAuthRequestSignsQueryAndBody(t *testing.T) {
 	}))
 	arg := map[string]string{"note": "hello"}
 	var result struct{}
-	err := e.SendHTTPRequest(t.Context(), exchange.RestSpot, request.Auth, http.MethodPost, "broker/sub-account/apiKey", url.Values{"symbol": {"BTCUSDT"}}, arg, &result, true)
+	err := e.SendHTTPRequest(t.Context(), exchange.RestSpot, brokerEPL, http.MethodPost, "broker/sub-account/apiKey", url.Values{"symbol": {"BTCUSDT"}}, arg, &result, true)
 	require.NoError(t, err, "SendHTTPRequest must not error")
 	sig := gotQuery.Get("signature")
 	require.NotEmpty(t, sig, "the signature must be present")

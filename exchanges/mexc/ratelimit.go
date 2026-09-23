@@ -89,6 +89,7 @@ const (
 	addSTPGroupUIDsEPL
 	deleteSTPGroupUIDsEPL
 	listenKeyEPL
+	brokerEPL
 )
 
 // rateLimits holds the endpoint limits. The venue's budgets are per IP address and per account, not per
@@ -186,5 +187,9 @@ var rateLimits = func() request.RateLimitDefinitions {
 		// The user data stream endpoints share one limit; their weight is undocumented, so they are
 		// charged at 1 on the IP pool.
 		listenKeyEPL: request.GetRateLimiterWithWeight(ipModeRate, 1),
+
+		// The broker endpoints share one limit; their weight is undocumented, so they are charged at 1
+		// on the IP pool.
+		brokerEPL: request.GetRateLimiterWithWeight(ipModeRate, 1),
 	}
 }()
