@@ -1,7 +1,6 @@
 package v16_test
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,7 +63,7 @@ func TestRegisteredMigration(t *testing.T) {
 
 	downgraded, err := versions.Manager.Deploy(t.Context(), out, 15)
 	require.NoError(t, err, "Deploy must downgrade from v16")
-	assert.JSONEq(t, `{"version":15,"exchanges":[{"name":"Kraken","orderbook":{"verificationBypass":true}},{"name":"Gemini","orderbook":{}}]}`, string(downgraded), "Downgrade should leave unrecoverable buffer settings absent")
+	assert.JSONEq(t, `{"version":15,"exchanges":[{"name":"Kraken","orderbook":{"verificationBypass":true,"websocketBufferLimit":5,"websocketBufferEnabled":false}},{"name":"Gemini","orderbook":{"websocketBufferLimit":5,"websocketBufferEnabled":false}}]}`, string(downgraded), "Downgrade should restore the v15 buffer defaults")
 
 	reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 16)
 	require.NoError(t, err, "Deploy must reapply v16")
@@ -73,8 +72,42 @@ func TestRegisteredMigration(t *testing.T) {
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-	input := []byte(`{"name":"Kraken","orderbook":{"verificationBypass":true}}`)
-	out, err := new(v16.Version).DowngradeExchange(t.Context(), bytes.Clone(input))
-	require.NoError(t, err, "DowngradeExchange must not error")
-	assert.Equal(t, input, out, "DowngradeExchange should not invent removed settings")
+	for _, tc := range []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "restore defaults",
+			input:    `{"name":"Kraken","orderbook":{"verificationBypass":true}}`,
+			expected: `{"name":"Kraken","orderbook":{"verificationBypass":true,"websocketBufferLimit":5,"websocketBufferEnabled":false}}`,
+		},
+		{
+			name:     "preserve explicit settings",
+			input:    `{"name":"Kraken","orderbook":{"websocketBufferLimit":0,"websocketBufferEnabled":true}}`,
+			expected: `{"name":"Kraken","orderbook":{"websocketBufferLimit":0,"websocketBufferEnabled":true}}`,
+		},
+		{
+			name:     "restore only missing setting",
+			input:    `{"name":"Kraken","orderbook":{"websocketBufferEnabled":true}}`,
+			expected: `{"name":"Kraken","orderbook":{"websocketBufferLimit":5,"websocketBufferEnabled":true}}`,
+		},
+		{
+			name:     "no orderbook",
+			input:    `{"name":"Coinbase"}`,
+			expected: `{"name":"Coinbase"}`,
+		},
+		{
+			name:     "null orderbook",
+			input:    `{"name":"Bitstamp","orderbook":null}`,
+			expected: `{"name":"Bitstamp","orderbook":null}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := new(v16.Version).DowngradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, tc.expected, string(out))
+		})
+	}
 }
