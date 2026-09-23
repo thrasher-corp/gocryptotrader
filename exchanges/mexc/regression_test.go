@@ -1359,7 +1359,7 @@ func TestAPIKeyInfoCreateTime(t *testing.T) {
 			t.Parallel()
 			var info APIKeyInfo
 			require.NoError(t, json.Unmarshal([]byte(`{"accessKey":"k","status":"VALID","createTime":`+tc.raw+`}`), &info), "Unmarshal must not error")
-			assert.True(t, tc.expected.Equal(info.CreateTime), "CreateTime should be %v, got %v", tc.expected, info.CreateTime)
+			assert.Truef(t, tc.expected.Equal(info.CreateTime), "CreateTime should be %v, got %v", tc.expected, info.CreateTime)
 			assert.Equal(t, "k", info.AccessKey, "the other fields should still be decoded")
 			assert.Equal(t, "VALID", info.Status, "the other fields should still be decoded")
 		})
