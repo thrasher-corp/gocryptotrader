@@ -32,13 +32,16 @@ type BrokerAssetTransfer struct {
 
 // BrokerSubAccounts represents a broker sub-accounts and their detail.
 type BrokerSubAccounts struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Data    []struct {
-		SubAccount string     `json:"subAccount"`
-		Note       string     `json:"note"`
-		Timestamp  types.Time `json:"timestamp"`
-	} `json:"data"`
+	Code    string             `json:"code"`
+	Message string             `json:"message"`
+	Data    []BrokerSubAccount `json:"data"`
+}
+
+// BrokerSubAccount holds a broker sub-account
+type BrokerSubAccount struct {
+	SubAccount string     `json:"subAccount"`
+	Note       string     `json:"note"`
+	Timestamp  types.Time `json:"timestamp"`
 }
 
 // BrokerSubAccountStatus holds broker's subaccount status information

@@ -213,12 +213,15 @@ type SubAccountCreationResponse struct {
 
 // SubAccounts represents list of sub-accounts and sub-account detail
 type SubAccounts struct {
-	SubAccounts []struct {
-		SubAccount string     `json:"subAccount"`
-		IsFreeze   bool       `json:"isFreeze"`
-		CreateTime types.Time `json:"createTime"`
-		UID        string     `json:"uid"`
-	} `json:"subAccounts"`
+	SubAccounts []SubAccountDetail `json:"subAccounts"`
+}
+
+// SubAccountDetail holds a sub-account and whether it is frozen
+type SubAccountDetail struct {
+	SubAccount string     `json:"subAccount"`
+	IsFreeze   bool       `json:"isFreeze"`
+	CreateTime types.Time `json:"createTime"`
+	UID        string     `json:"uid"`
 }
 
 // SubAccountAPIDetail represents a sub-account API key detail
@@ -443,47 +446,56 @@ type AccountTrade struct {
 
 // MXDeductResponse represents an MX deduct response from spot commissions.
 type MXDeductResponse struct {
-	Data struct {
-		MxDeductEnable bool `json:"mxDeductEnable"`
-	} `json:"data"`
-	Code      int64      `json:"code"`
-	Message   string     `json:"msg"`
-	Timestamp types.Time `json:"timestamp"`
+	Data      MXDeductStatus `json:"data"`
+	Code      int64          `json:"code"`
+	Message   string         `json:"msg"`
+	Timestamp types.Time     `json:"timestamp"`
+}
+
+// MXDeductStatus holds whether MX deduction of spot commission is enabled
+type MXDeductStatus struct {
+	MxDeductEnable bool `json:"mxDeductEnable"`
 }
 
 // SymbolCommissionFee represents a symbol trading fee
 type SymbolCommissionFee struct {
-	Data struct {
-		MakerCommission float64 `json:"makerCommission"`
-		TakerCommission float64 `json:"takerCommission"`
-	} `json:"data"`
-	Code      int64      `json:"code"`
-	Message   string     `json:"msg"`
-	Timestamp types.Time `json:"timestamp"`
+	Data      CommissionRate `json:"data"`
+	Code      int64          `json:"code"`
+	Message   string         `json:"msg"`
+	Timestamp types.Time     `json:"timestamp"`
+}
+
+// CommissionRate holds a symbol's maker and taker commission rates
+type CommissionRate struct {
+	MakerCommission float64 `json:"makerCommission"`
+	TakerCommission float64 `json:"takerCommission"`
 }
 
 // CurrencyInformation represents a exchange's currency item details
 type CurrencyInformation struct {
-	Coin        string `json:"coin"`
-	Name        string `json:"Name"`
-	NetworkList []struct {
-		Coin                    currency.Code `json:"coin"`
-		DepositDesc             string        `json:"depositDesc"`
-		DepositEnable           bool          `json:"depositEnable"`
-		MinConfirm              int64         `json:"minConfirm"`
-		Name                    string        `json:"Name"`
-		Network                 string        `json:"network"`
-		WithdrawEnable          bool          `json:"withdrawEnable"`
-		WithdrawFee             types.Number  `json:"withdrawFee"`
-		WithdrawIntegerMultiple types.Number  `json:"withdrawIntegerMultiple"`
-		WithdrawMax             types.Number  `json:"withdrawMax"`
-		WithdrawMin             types.Number  `json:"withdrawMin"`
-		SameAddress             bool          `json:"sameAddress"`
-		Contract                string        `json:"contract"`
-		WithdrawTips            string        `json:"withdrawTips"`
-		DepositTips             string        `json:"depositTips"`
-		NetWork                 string        `json:"netWork,omitempty"`
-	} `json:"networkList"`
+	Coin        string            `json:"coin"`
+	Name        string            `json:"Name"`
+	NetworkList []CurrencyNetwork `json:"networkList"`
+}
+
+// CurrencyNetwork holds a currency's deposit and withdrawal details on one network
+type CurrencyNetwork struct {
+	Coin                    currency.Code `json:"coin"`
+	DepositDesc             string        `json:"depositDesc"`
+	DepositEnable           bool          `json:"depositEnable"`
+	MinConfirm              int64         `json:"minConfirm"`
+	Name                    string        `json:"Name"`
+	Network                 string        `json:"network"`
+	WithdrawEnable          bool          `json:"withdrawEnable"`
+	WithdrawFee             types.Number  `json:"withdrawFee"`
+	WithdrawIntegerMultiple types.Number  `json:"withdrawIntegerMultiple"`
+	WithdrawMax             types.Number  `json:"withdrawMax"`
+	WithdrawMin             types.Number  `json:"withdrawMin"`
+	SameAddress             bool          `json:"sameAddress"`
+	Contract                string        `json:"contract"`
+	WithdrawTips            string        `json:"withdrawTips"`
+	DepositTips             string        `json:"depositTips"`
+	NetWork                 string        `json:"netWork,omitempty"`
 }
 
 // IDResponse represents response data which specify id of an order or related
@@ -588,71 +600,86 @@ type DustAssetConversionFailResponse struct {
 
 // DustLogDetail represents a dust log detail
 type DustLogDetail struct {
-	Data []struct {
-		TotalConvert   types.Number `json:"totalConvert"`
-		TotalFee       types.Number `json:"totalFee"`
-		ConvertTime    types.Time   `json:"convertTime"`
-		ConvertDetails []struct {
-			ID      string        `json:"id"`
-			Convert types.Number  `json:"convert"`
-			Fee     types.Number  `json:"fee"`
-			Amount  types.Number  `json:"amount"`
-			Time    types.Time    `json:"time"`
-			Asset   currency.Code `json:"asset"`
-		} `json:"convertDetails"`
-	} `json:"data"`
-	Page         int64 `json:"page"`
-	TotalRecords int64 `json:"totalRecords"`
-	TotalPageNum int64 `json:"totalPageNum"`
+	Data         []DustConversion `json:"data"`
+	Page         int64            `json:"page"`
+	TotalRecords int64            `json:"totalRecords"`
+	TotalPageNum int64            `json:"totalPageNum"`
+}
+
+// DustConversion holds one dust conversion and the assets it converted
+type DustConversion struct {
+	TotalConvert   types.Number        `json:"totalConvert"`
+	TotalFee       types.Number        `json:"totalFee"`
+	ConvertTime    types.Time          `json:"convertTime"`
+	ConvertDetails []DustConvertDetail `json:"convertDetails"`
+}
+
+// DustConvertDetail holds the conversion of one asset within a dust conversion
+type DustConvertDetail struct {
+	ID      string        `json:"id"`
+	Convert types.Number  `json:"convert"`
+	Fee     types.Number  `json:"fee"`
+	Amount  types.Number  `json:"amount"`
+	Time    types.Time    `json:"time"`
+	Asset   currency.Code `json:"asset"`
 }
 
 // InternalTransferDetail represents an internal asset transfer list
 type InternalTransferDetail struct {
-	Page         int64 `json:"page"`
-	TotalRecords int64 `json:"totalRecords"`
-	TotalPageNum int64 `json:"totalPageNum"`
-	Data         []struct {
-		TransferID    string       `json:"tranId"`
-		Asset         string       `json:"asset"`
-		Amount        types.Number `json:"amount"`
-		ToAccountType string       `json:"toAccountType"`
-		ToAccount     string       `json:"toAccount"`
-		FromAccount   string       `json:"fromAccount"`
-		Status        string       `json:"status"`
-		Timestamp     types.Time   `json:"timestamp"`
-	} `json:"data"`
+	Page         int64                    `json:"page"`
+	TotalRecords int64                    `json:"totalRecords"`
+	TotalPageNum int64                    `json:"totalPageNum"`
+	Data         []InternalTransferRecord `json:"data"`
+}
+
+// InternalTransferRecord holds an internal asset transfer
+type InternalTransferRecord struct {
+	TransferID    string       `json:"tranId"`
+	Asset         string       `json:"asset"`
+	Amount        types.Number `json:"amount"`
+	ToAccountType string       `json:"toAccountType"`
+	ToAccount     string       `json:"toAccount"`
+	FromAccount   string       `json:"fromAccount"`
+	Status        string       `json:"status"`
+	Timestamp     types.Time   `json:"timestamp"`
 }
 
 // RebateHistory holds rebate transactions related to a user's trading activity
 type RebateHistory struct {
-	Page         int64 `json:"page"`
-	TotalRecords int64 `json:"totalRecords"`
-	TotalPageNum int64 `json:"totalPageNum"`
-	Data         []struct {
-		Spot       string       `json:"spot"`
-		Futures    string       `json:"futures"`
-		Total      types.Number `json:"total"`
-		UID        string       `json:"uid"`
-		Account    string       `json:"account"`
-		InviteTime types.Time   `json:"inviteTime"`
-	} `json:"data"`
+	Page         int64           `json:"page"`
+	TotalRecords int64           `json:"totalRecords"`
+	TotalPageNum int64           `json:"totalPageNum"`
+	Data         []InviteeRebate `json:"data"`
+}
+
+// InviteeRebate holds the rebates earned from an invited user
+type InviteeRebate struct {
+	Spot       string       `json:"spot"`
+	Futures    string       `json:"futures"`
+	Total      types.Number `json:"total"`
+	UID        string       `json:"uid"`
+	Account    string       `json:"account"`
+	InviteTime types.Time   `json:"inviteTime"`
 }
 
 // RebateRecordDetail holds rebate records detail
 type RebateRecordDetail struct {
-	Page         int64 `json:"page"`
-	TotalRecords int64 `json:"totalRecords"`
-	TotalPageNum int64 `json:"totalPageNum"`
-	Data         []struct {
-		Asset      string       `json:"asset"`
-		Type       string       `json:"type"`
-		Rate       types.Number `json:"rate"`
-		Amount     types.Number `json:"amount"`
-		UID        string       `json:"uid"`
-		Account    string       `json:"account"`
-		TradeTime  types.Time   `json:"tradeTime"`
-		UpdateTime types.Time   `json:"updateTime"`
-	} `json:"data"`
+	Page         int64          `json:"page"`
+	TotalRecords int64          `json:"totalRecords"`
+	TotalPageNum int64          `json:"totalPageNum"`
+	Data         []RebateRecord `json:"data"`
+}
+
+// RebateRecord holds a rebate earned on an invited user's trade
+type RebateRecord struct {
+	Asset      string       `json:"asset"`
+	Type       string       `json:"type"`
+	Rate       types.Number `json:"rate"`
+	Amount     types.Number `json:"amount"`
+	UID        string       `json:"uid"`
+	Account    string       `json:"account"`
+	TradeTime  types.Time   `json:"tradeTime"`
+	UpdateTime types.Time   `json:"updateTime"`
 }
 
 // ReferCode holds a refer code
@@ -662,93 +689,114 @@ type ReferCode struct {
 
 // AffiliateCommissionRecord holds an affiliate commission records as a list
 type AffiliateCommissionRecord struct {
-	Success bool   `json:"success"`
-	Code    int64  `json:"code"`
-	Message string `json:"message"`
-	Data    struct {
-		PageSize                  int64        `json:"pageSize"`
-		TotalCount                int64        `json:"totalCount"`
-		TotalPage                 int64        `json:"totalPage"`
-		CurrentPage               int64        `json:"currentPage"`
-		USDTAmount                types.Number `json:"usdtAmount"`
-		TotalCommissionUsdtAmount types.Number `json:"totalCommissionUsdtAmount"`
-		TotalTradeUsdtAmount      types.Number `json:"totalTradeUsdtAmount"`
-		Finished                  types.Number `json:"finished"`
-		ResultList                []struct {
-			UID              string       `json:"uid"`
-			Account          string       `json:"account"`
-			InviteCode       string       `json:"inviteCode"`
-			InviteTime       types.Time   `json:"inviteTime"`
-			Spot             string       `json:"spot"`
-			ETF              string       `json:"etf"`
-			Futures          string       `json:"futures"`
-			Total            types.Number `json:"total"`
-			Deposit          types.Number `json:"deposit"`
-			FirstDepositTime types.Time   `json:"firstDepositTime"`
-		} `json:"resultList"`
-	} `json:"data"`
+	Success bool                    `json:"success"`
+	Code    int64                   `json:"code"`
+	Message string                  `json:"message"`
+	Data    AffiliateCommissionPage `json:"data"`
+}
+
+// AffiliateCommissionPage holds a page of affiliate commission records and their totals
+type AffiliateCommissionPage struct {
+	PageSize                  int64                 `json:"pageSize"`
+	TotalCount                int64                 `json:"totalCount"`
+	TotalPage                 int64                 `json:"totalPage"`
+	CurrentPage               int64                 `json:"currentPage"`
+	USDTAmount                types.Number          `json:"usdtAmount"`
+	TotalCommissionUsdtAmount types.Number          `json:"totalCommissionUsdtAmount"`
+	TotalTradeUsdtAmount      types.Number          `json:"totalTradeUsdtAmount"`
+	Finished                  types.Number          `json:"finished"`
+	ResultList                []AffiliateCommission `json:"resultList"`
+}
+
+// AffiliateCommission holds the commission earned from an invited user
+type AffiliateCommission struct {
+	UID              string       `json:"uid"`
+	Account          string       `json:"account"`
+	InviteCode       string       `json:"inviteCode"`
+	InviteTime       types.Time   `json:"inviteTime"`
+	Spot             string       `json:"spot"`
+	ETF              string       `json:"etf"`
+	Futures          string       `json:"futures"`
+	Total            types.Number `json:"total"`
+	Deposit          types.Number `json:"deposit"`
+	FirstDepositTime types.Time   `json:"firstDepositTime"`
 }
 
 // AffiliateWithdrawRecords holds a list of withdrawal records
 type AffiliateWithdrawRecords struct {
-	Success bool   `json:"success"`
-	Code    int64  `json:"code"`
-	Message string `json:"message"`
-	Data    struct {
-		PageSize    int64 `json:"pageSize"`
-		TotalCount  int64 `json:"totalCount"`
-		TotalPage   int64 `json:"totalPage"`
-		CurrentPage int64 `json:"currentPage"`
-		ResultList  []struct {
-			WithdrawTime types.Time   `json:"withdrawTime"`
-			Asset        string       `json:"asset"`
-			Amount       types.Number `json:"amount"`
-		} `json:"resultList"`
-	} `json:"data"`
+	Success bool                  `json:"success"`
+	Code    int64                 `json:"code"`
+	Message string                `json:"message"`
+	Data    AffiliateWithdrawPage `json:"data"`
+}
+
+// AffiliateWithdrawPage holds a page of affiliate withdrawal records
+type AffiliateWithdrawPage struct {
+	PageSize    int64                 `json:"pageSize"`
+	TotalCount  int64                 `json:"totalCount"`
+	TotalPage   int64                 `json:"totalPage"`
+	CurrentPage int64                 `json:"currentPage"`
+	ResultList  []AffiliateWithdrawal `json:"resultList"`
+}
+
+// AffiliateWithdrawal holds an affiliate commission withdrawal
+type AffiliateWithdrawal struct {
+	WithdrawTime types.Time   `json:"withdrawTime"`
+	Asset        string       `json:"asset"`
+	Amount       types.Number `json:"amount"`
 }
 
 // RebateAffiliateCommissionDetail holds a rebate affiliate commission detail
 type RebateAffiliateCommissionDetail struct {
-	Success bool  `json:"success"`
-	Code    int64 `json:"code"`
-	Message any   `json:"message"`
-	Data    struct {
-		PageSize                  int64        `json:"pageSize"`
-		TotalCount                int64        `json:"totalCount"`
-		TotalPage                 int64        `json:"totalPage"`
-		CurrentPage               int64        `json:"currentPage"`
-		TotalCommissionUsdtAmount types.Number `json:"totalCommissionUsdtAmount"`
-		TotalTradeUsdtAmount      types.Number `json:"totalTradeUsdtAmount"`
-		ResultList                []struct {
-			Type           int64        `json:"type"`
-			SourceType     int64        `json:"sourceType"`
-			State          int64        `json:"state"`
-			Date           types.Time   `json:"date"`
-			UID            string       `json:"uid"`
-			Rate           float64      `json:"rate"`
-			Symbol         string       `json:"symbol"`
-			TakerAmount    types.Number `json:"takerAmount"`
-			MakerAmount    types.Number `json:"makerAmount"`
-			AmountCurrency string       `json:"amountCurrency"`
-			UsdtAmount     types.Number `json:"usdtAmount"`
-			Commission     types.Number `json:"commission"`
-			Currency       string       `json:"currency"`
-		} `json:"resultList"`
-	} `json:"data"`
+	Success bool                          `json:"success"`
+	Code    int64                         `json:"code"`
+	Message any                           `json:"message"`
+	Data    AffiliateCommissionDetailPage `json:"data"`
+}
+
+// AffiliateCommissionDetailPage holds a page of affiliate commission details and their totals
+type AffiliateCommissionDetailPage struct {
+	PageSize                  int64                       `json:"pageSize"`
+	TotalCount                int64                       `json:"totalCount"`
+	TotalPage                 int64                       `json:"totalPage"`
+	CurrentPage               int64                       `json:"currentPage"`
+	TotalCommissionUsdtAmount types.Number                `json:"totalCommissionUsdtAmount"`
+	TotalTradeUsdtAmount      types.Number                `json:"totalTradeUsdtAmount"`
+	ResultList                []AffiliateCommissionDetail `json:"resultList"`
+}
+
+// AffiliateCommissionDetail holds the commission earned on one trade or deposit
+type AffiliateCommissionDetail struct {
+	Type           int64        `json:"type"`
+	SourceType     int64        `json:"sourceType"`
+	State          int64        `json:"state"`
+	Date           types.Time   `json:"date"`
+	UID            string       `json:"uid"`
+	Rate           float64      `json:"rate"`
+	Symbol         string       `json:"symbol"`
+	TakerAmount    types.Number `json:"takerAmount"`
+	MakerAmount    types.Number `json:"makerAmount"`
+	AmountCurrency string       `json:"amountCurrency"`
+	UsdtAmount     types.Number `json:"usdtAmount"`
+	Commission     types.Number `json:"commission"`
+	Currency       string       `json:"currency"`
 }
 
 // AffiliateCampaignData holds an affiliate campaign data
 type AffiliateCampaignData struct {
-	Success bool  `json:"success"`
-	Code    int64 `json:"code"`
-	Message any   `json:"message"`
-	Data    struct {
-		PageSize    int64           `json:"pageSize"`
-		TotalCount  int64           `json:"totalCount"`
-		TotalPage   int64           `json:"totalPage"`
-		CurrentPage int64           `json:"currentPage"`
-		ResultList  []*CampaignData `json:"resultList"`
-	} `json:"data"`
+	Success bool                  `json:"success"`
+	Code    int64                 `json:"code"`
+	Message any                   `json:"message"`
+	Data    AffiliateCampaignPage `json:"data"`
+}
+
+// AffiliateCampaignPage holds a page of affiliate campaigns
+type AffiliateCampaignPage struct {
+	PageSize    int64           `json:"pageSize"`
+	TotalCount  int64           `json:"totalCount"`
+	TotalPage   int64           `json:"totalPage"`
+	CurrentPage int64           `json:"currentPage"`
+	ResultList  []*CampaignData `json:"resultList"`
 }
 
 // CampaignData represents a campaign data
@@ -767,16 +815,19 @@ type CampaignData struct {
 
 // AffiliateReferralData holds an affiliate referral data
 type AffiliateReferralData struct {
-	Success bool  `json:"success"`
-	Code    int64 `json:"code"`
-	Message any   `json:"message"`
-	Data    struct {
-		PageSize    int64           `json:"pageSize"`
-		TotalCount  int64           `json:"totalCount"`
-		TotalPage   int64           `json:"totalPage"`
-		CurrentPage int64           `json:"currentPage"`
-		ResultList  []*ReferralData `json:"resultList"`
-	} `json:"data"`
+	Success bool                  `json:"success"`
+	Code    int64                 `json:"code"`
+	Message any                   `json:"message"`
+	Data    AffiliateReferralPage `json:"data"`
+}
+
+// AffiliateReferralPage holds a page of affiliate referrals
+type AffiliateReferralPage struct {
+	PageSize    int64           `json:"pageSize"`
+	TotalCount  int64           `json:"totalCount"`
+	TotalPage   int64           `json:"totalPage"`
+	CurrentPage int64           `json:"currentPage"`
+	ResultList  []*ReferralData `json:"resultList"`
 }
 
 // ReferralData holds a referral detail
@@ -800,26 +851,32 @@ type ReferralData struct {
 
 // SubAffiliateData represents a sub-affiliate details
 type SubAffiliateData struct {
-	Success bool  `json:"success"`
-	Code    int64 `json:"code"`
-	Message any   `json:"message"`
-	Data    struct {
-		PageSize    int64 `json:"pageSize"`
-		TotalCount  int64 `json:"totalCount"`
-		TotalPage   int64 `json:"totalPage"`
-		CurrentPage int64 `json:"currentPage"`
-		ResultList  []struct {
-			SubaffiliateName string       `json:"subaffiliateName"`
-			SubaffiliateMail string       `json:"subaffiliateMail"`
-			Campaign         string       `json:"campaign"`
-			InviteCode       string       `json:"inviteCode"`
-			ActivationTime   types.Time   `json:"activationTime"`
-			Registered       int64        `json:"registered"`
-			Deposited        int64        `json:"deposited"`
-			DepositAmount    types.Number `json:"depositAmount"`
-			Commission       types.Number `json:"commission"`
-		} `json:"resultList"`
-	} `json:"data"`
+	Success bool             `json:"success"`
+	Code    int64            `json:"code"`
+	Message any              `json:"message"`
+	Data    SubAffiliatePage `json:"data"`
+}
+
+// SubAffiliatePage holds a page of sub-affiliates
+type SubAffiliatePage struct {
+	PageSize    int64          `json:"pageSize"`
+	TotalCount  int64          `json:"totalCount"`
+	TotalPage   int64          `json:"totalPage"`
+	CurrentPage int64          `json:"currentPage"`
+	ResultList  []SubAffiliate `json:"resultList"`
+}
+
+// SubAffiliate holds a sub-affiliate and its activity
+type SubAffiliate struct {
+	SubaffiliateName string       `json:"subaffiliateName"`
+	SubaffiliateMail string       `json:"subaffiliateMail"`
+	Campaign         string       `json:"campaign"`
+	InviteCode       string       `json:"inviteCode"`
+	ActivationTime   types.Time   `json:"activationTime"`
+	Registered       int64        `json:"registered"`
+	Deposited        int64        `json:"deposited"`
+	DepositAmount    types.Number `json:"depositAmount"`
+	Commission       types.Number `json:"commission"`
 }
 
 // WsSubscriptionPayload represents a websocket subscription/unsubscription payload
