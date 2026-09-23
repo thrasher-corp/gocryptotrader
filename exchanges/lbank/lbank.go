@@ -79,8 +79,9 @@ var (
 	errPrivateKeyNotLoaded     = errors.New("private key not loaded")
 	// errRequestFailed is returned when an LBank v2 envelope reports a failed
 	// request. Callers and tests match this category with errors.Is instead of
-	// matching the exchange supplied message text.
-	errRequestFailed = errors.New("lbank: request failed")
+	// matching the exchange supplied message text. It carries no exchange name;
+	// the wrapping layer adds that.
+	errRequestFailed = errors.New("request failed")
 )
 
 // GetTicker returns a ticker for the specified symbol
@@ -523,7 +524,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 
 	payload, err := unwrapV2Response(tempResp)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", e.Name, err)
 	}
 	return json.Unmarshal(payload, result)
 }
@@ -535,12 +536,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 // parsed as the payload and skipped the failed request check below. A payload
 // that is not a JSON object is returned unchanged; a JSON object that does not
 // decode as the envelope is reported as an error so that a further change of
-// shape in the envelope cannot silently disable the failed request check.
+// shape in the envelope cannot silently disable the failed request check. The
+// errors returned here are bare; SendHTTPRequest prepends the exchange name.
 func unwrapV2Response(payload json.RawMessage) (json.RawMessage, error) {
 	var v2Resp V2Response
 	if err := json.Unmarshal(payload, &v2Resp); err != nil {
 		if bytes.HasPrefix(bytes.TrimLeft(payload, " \t\r\n"), []byte("{")) {
-			return nil, fmt.Errorf("lbank: decoding response envelope: %w", err)
+			return nil, fmt.Errorf("decoding response envelope: %w", err)
 		}
 		return payload, nil // not an envelope; return it unchanged for the caller to unmarshal
 	}
