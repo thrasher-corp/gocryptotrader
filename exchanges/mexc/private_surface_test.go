@@ -503,15 +503,15 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	_, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{Exchange: ex.Name, Type: withdraw.Crypto})
 	assert.Error(t, err, "an invalid withdrawal request should be rejected before it is sent")
 	if !mockTests {
-		resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+		// A negative amount keeps a live run from moving funds: the request is refused on its amount alone.
+		_, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 			Exchange: ex.Name,
 			Currency: currency.BTC,
-			Amount:   0.001,
+			Amount:   -0.1,
 			Type:     withdraw.Crypto,
 			Crypto:   withdraw.CryptoRequest{Address: core.BitcoinDonationAddress, Chain: "BTC"},
 		})
-		require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
-		assert.NotEmpty(t, resp.ID, "the venue should return the withdrawal id")
+		assert.ErrorContains(t, err, withdraw.ErrStrAmountMustBeGreaterThanZero, "a negative withdrawal should be refused on its amount")
 		return
 	}
 	resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
