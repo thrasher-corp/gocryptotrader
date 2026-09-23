@@ -401,11 +401,12 @@ func TestCreateBatchOrderPartialRejection(t *testing.T) {
 func TestAuthRequestReSignsOnRetry(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
-	var timestamps []string
+	var timestamps, keys []string
 	var calls int
 	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		timestamps = append(timestamps, r.URL.Query().Get("timestamp"))
+		keys = append(keys, r.Header.Get("X-MEXC-APIKEY"))
 		calls++
 		n := calls
 		mu.Unlock()
@@ -419,6 +420,7 @@ func TestAuthRequestReSignsOnRetry(t *testing.T) {
 	require.NoError(t, err, "the request must succeed after a retry")
 	require.Len(t, timestamps, 2, "the 429 must have triggered exactly one retry")
 	assert.NotEqual(t, timestamps[0], timestamps[1], "each attempt should sign a fresh timestamp, not reuse a stale one")
+	assert.Equal(t, []string{testCredentialKey, testCredentialKey}, keys, "every attempt should carry the API key header")
 }
 
 // TestAuthRequestErrorWrapsTransport asserts an authenticated request failure keeps the underlying

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1676,6 +1677,14 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if authed {
 		authType = request.AuthenticatedRequest
 	}
+	var creds *accounts.Credentials
+	if authed {
+		creds, err = e.GetCredentials(ctx)
+		if err != nil {
+			return err
+		}
+		headers["X-MEXC-APIKEY"] = creds.Key
+	}
 	var payload string
 	if arg != nil {
 		byteData, err := json.Marshal(arg)
@@ -1693,11 +1702,6 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		path := ePoint + versionStr + common.EncodeURLValues(requestPath, values)
 		if authed {
-			creds, err := e.GetCredentials(ctx)
-			if err != nil {
-				return nil, err
-			}
-			headers["X-MEXC-APIKEY"] = creds.Key
 			signed := url.Values{}
 			maps.Copy(signed, values)
 			signed.Set("recvWindow", "5000")
