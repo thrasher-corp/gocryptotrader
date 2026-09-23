@@ -100,8 +100,8 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 
 // TestRateLimitWeightsMatchDocumentation pins the endpoint weights re-derived from MEXC's current
 // spot v3 documentation, so a regression to the retired 500-per-10-second table (every weight of
-// which matched that page exactly) is caught. The IP pool and the shared order-endpoint budget are
-// applied through the same limiter, and only the weight is exposed for inspection here.
+// which matched that page exactly) is caught. The budgets the weights draw on are pinned separately
+// by TestRateLimitPoolBudgets.
 func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 	t.Parallel()
 	rl := GetRateLimit()
@@ -120,6 +120,8 @@ func TestRateLimitWeightsMatchDocumentation(t *testing.T) {
 		{"newOrder", newOrderEPL, 1},
 		{"createBatchOrders", createBatchOrdersEPL, 1},
 		{"cancelTradeOrder", cancelTradeOrderEPL, 1},
+		{"cancelAllOpenOrdersBySymbol", cancelAllOpenOrdersBySymbolEPL, 1},
+		{"cancelAllOrders", cancelAllOrdersEPL, 1},
 		{"withdrawCapital", withdrawCapitalEPL, 1},
 		{"capitalWithdrawal", capitalWithdrawalEPL, 10},
 		{"getUID", getUIDEPL, 1},
