@@ -77,6 +77,11 @@ const (
 	operationSubscribe   = "subscribe"
 	operationUnsubscribe = "unsubscribe"
 	operationLogin       = "login"
+
+	// orderListPageSize is OKX's maximum, and default, records per pending
+	// order list request, used to page through accounts holding more open
+	// orders than a single page.
+	orderListPageSize = 100
 )
 
 var (
@@ -991,7 +996,7 @@ type OrderListRequestParams struct {
 	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
 	Underlying     string    `json:"uly"`
 	InstrumentID   string    `json:"instId"`
-	OrderType      string    `json:"orderType"`
+	OrderType      string    `json:"ordType"`
 	State          string    `json:"state"`            // live, partially_filled
 	Before         string    `json:"before,omitempty"` // used for order IDs
 	After          string    `json:"after,omitempty"`  // used for order IDs

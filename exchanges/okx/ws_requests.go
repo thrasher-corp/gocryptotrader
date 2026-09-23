@@ -23,6 +23,12 @@ var (
 	privateConnection = "private"
 )
 
+// missingInstrumentIDCode wraps errMissingInstrumentIDCode with the instrument
+// ID so the failure names the instrument lacking a cached code.
+func missingInstrumentIDCode(instID string) error {
+	return fmt.Errorf("%w: %s", errMissingInstrumentIDCode, instID)
+}
+
 // WSPlaceOrder submits an order
 func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if err := arg.Validate(); err != nil {
@@ -30,7 +36,7 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 	}
 
 	if arg.InstrumentIDCode == 0 {
-		return nil, errMissingInstrumentIDCode
+		return nil, missingInstrumentIDCode(arg.InstrumentID)
 	}
 
 	var resp []*OrderData
@@ -51,7 +57,7 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 			return nil, err
 		}
 		if args[i].InstrumentIDCode == 0 {
-			return nil, errMissingInstrumentIDCode
+			return nil, missingInstrumentIDCode(args[i].InstrumentID)
 		}
 	}
 
@@ -71,7 +77,7 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 		return nil, order.ErrOrderIDNotSet
 	}
 	if arg.InstrumentIDCode == 0 {
-		return nil, errMissingInstrumentIDCode
+		return nil, missingInstrumentIDCode(arg.InstrumentID)
 	}
 
 	var resp []*OrderData
@@ -96,7 +102,7 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 			return nil, order.ErrOrderIDNotSet
 		}
 		if args[i].InstrumentIDCode == 0 {
-			return nil, errMissingInstrumentIDCode
+			return nil, missingInstrumentIDCode(args[i].InstrumentID)
 		}
 	}
 
@@ -119,7 +125,7 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 	if arg.InstrumentIDCode == 0 {
-		return nil, errMissingInstrumentIDCode
+		return nil, missingInstrumentIDCode(arg.InstrumentID)
 	}
 
 	var resp []*OrderData
@@ -146,7 +152,7 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 		if args[x].InstrumentIDCode == 0 {
-			return nil, errMissingInstrumentIDCode
+			return nil, missingInstrumentIDCode(args[x].InstrumentID)
 		}
 	}
 

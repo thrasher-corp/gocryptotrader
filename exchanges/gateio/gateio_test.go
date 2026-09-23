@@ -517,6 +517,28 @@ func TestFuturesBaseVolume(t *testing.T) {
 	}
 }
 
+// TestFuturesOrderUserUnmarshal pins User as types.Number: REST sends the
+// account ID as a bare number while websocket sends it as a quoted string, and
+// a plain integer or a string field would drop one channel's decode.
+func TestFuturesOrderUserUnmarshal(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		payload  string
+		expected float64
+	}{
+		{"REST sends a bare number", `{"id":123,"user":110110110}`, 110110110},
+		{"websocket sends a quoted string", `{"id":123,"user":"110110110"}`, 110110110},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp FuturesOrder
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &resp), "Unmarshal must not error for %s", tc.payload)
+			assert.Equal(t, tc.expected, resp.User.Float64(), "User should decode from both shapes")
+		})
+	}
+}
+
 func TestListSpotCurrencies(t *testing.T) {
 	t.Parallel()
 	if _, err := e.ListSpotCurrencies(t.Context()); err != nil {
@@ -1612,7 +1634,7 @@ func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 
 func TestEnableOrDisableDualMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.EnableOrDisableDualMode(t.Context(), currency.BTC, true)
 	assert.NoError(t, err, "EnableOrDisableDualMode should not error")
 }

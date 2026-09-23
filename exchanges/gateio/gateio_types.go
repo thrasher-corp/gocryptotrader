@@ -1885,7 +1885,7 @@ type DeliveryOrderCreateParams struct {
 // FuturesOrder represents future order response
 type FuturesOrder struct {
 	ID                        int64         `json:"id"`
-	User                      types.Number  `json:"user"`
+	User                      types.Number  `json:"user"` // REST sends a bare number and websocket a quoted string, so types.Number decodes both channels
 	Contract                  currency.Pair `json:"contract"`
 	CreateTime                types.Time    `json:"create_time"`
 	Size                      types.Number  `json:"size"`

@@ -1376,7 +1376,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 		switch ord.Type {
 		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
-			if o[x].ClientID == "" && o[x].OrderID == "" {
+			if o[x].ClientOrderID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
 			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
@@ -1456,7 +1456,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if err != nil {
 			return cancelAllResponse, err
 		}
-		cancelAllResponse.Status[orderCancellation.OrderID] = strconv.FormatBool(success)
+		statusKey := orderCancellation.OrderID
+		if statusKey == "" {
+			statusKey = orderCancellation.ClientOrderID
+		}
+		cancelAllResponse.Status[statusKey] = strconv.FormatBool(success)
 		return cancelAllResponse, nil
 	}
 
@@ -1479,21 +1483,36 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if orderCancellation.Pair.IsPopulated() {
 		curr = orderCancellation.Pair.Upper().String()
 	}
-	myOrders, err := e.GetOrderList(ctx, &OrderListRequestParams{
-		InstrumentType: instrumentType,
-		OrderType:      oType,
-		InstrumentID:   curr,
-	})
-	if err != nil {
-		return cancelAllResponse, err
+	// OKX caps the pending order list at 100 records per request, so page
+	// through the full list before cancelling to reach accounts holding more
+	// open orders than a single page.
+	var myOrders []OrderDetail
+	for after := ""; ; {
+		var page []OrderDetail
+		page, err = e.GetOrderList(ctx, &OrderListRequestParams{
+			InstrumentType: instrumentType,
+			OrderType:      oType,
+			InstrumentID:   curr,
+			After:          after,
+		})
+		if err != nil {
+			return cancelAllResponse, err
+		}
+		myOrders = append(myOrders, page...)
+		if len(page) < orderListPageSize {
+			break
+		}
+		after = page[len(page)-1].OrderID
 	}
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
 ordersLoop:
 	for x := range myOrders {
 		switch {
 		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
-			if (orderCancellation.OrderID != "" && myOrders[x].OrderID == orderCancellation.OrderID) ||
-				(orderCancellation.ClientOrderID != "" && myOrders[x].ClientOrderID == orderCancellation.ClientOrderID) {
+			// Every supplied discriminator must match, so supplying both IDs
+			// cannot cancel an order matching only one of them.
+			if (orderCancellation.OrderID == "" || myOrders[x].OrderID == orderCancellation.OrderID) &&
+				(orderCancellation.ClientOrderID == "" || myOrders[x].ClientOrderID == orderCancellation.ClientOrderID) {
 				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
 					InstrumentID:  myOrders[x].InstrumentID,
 					OrderID:       myOrders[x].OrderID,
@@ -1520,10 +1539,15 @@ ordersLoop:
 	useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper()
 	if useWebsocket {
 		for x := range cancelAllOrdersRequestParams {
-			cancelAllOrdersRequestParams[x].InstrumentIDCode = e.getInstrumentIDCode(cancelAllOrdersRequestParams[x].InstrumentID)
-			if cancelAllOrdersRequestParams[x].InstrumentIDCode == 0 {
-				return cancelAllResponse, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, cancelAllOrdersRequestParams[x].InstrumentID)
+			code := e.getInstrumentIDCode(cancelAllOrdersRequestParams[x].InstrumentID)
+			if code == 0 {
+				// OKX documents instIdCode for websocket operations only, so
+				// an uncached instrument falls back to REST, which identifies
+				// orders by instId alone.
+				useWebsocket = false
+				break
 			}
+			cancelAllOrdersRequestParams[x].InstrumentIDCode = code
 		}
 	}
 	remaining := cancelAllOrdersRequestParams
@@ -1545,9 +1569,9 @@ ordersLoop:
 			}
 		}
 		if err != nil {
-			if len(cancelAllResponse.Status) == 0 {
-				return cancelAllResponse, err
-			}
+			// Statuses already collected are returned alongside the error so a
+			// mid-loop failure does not discard them.
+			return cancelAllResponse, err
 		}
 		for y := range response {
 			if response[y].StatusCode == 0 {
@@ -2264,8 +2288,10 @@ func (e *Exchange) cacheInstruments(instType string, instruments []Instrument) {
 
 // cacheInstrumentIDCodes upserts instrument ID codes from instruments channel
 // pushes, so instruments listed after the startup fetch resolve codes in a
-// running process. The instruments list itself is left alone because the
-// channel pushes deltas, not full snapshots.
+// running process. The instruments channel is not part of
+// defaultSubscriptions, so this only runs when it is subscribed explicitly.
+// The instruments list itself is left alone because the channel pushes deltas,
+// not full snapshots.
 func (e *Exchange) cacheInstrumentIDCodes(instruments []Instrument) {
 	e.instrumentsInfoMapLock.Lock()
 	defer e.instrumentsInfoMapLock.Unlock()
@@ -2274,6 +2300,11 @@ func (e *Exchange) cacheInstrumentIDCodes(instruments []Instrument) {
 
 func (e *Exchange) cacheInstrumentIDCodesLocked(instruments []Instrument) {
 	for x := range instruments {
+		// A push that omits instIdCode decodes to zero; keep the cached code
+		// rather than clobbering it with the zero value.
+		if instruments[x].InstrumentIDCode == 0 {
+			continue
+		}
 		e.instrumentIDCodeMap[instruments[x].InstrumentID.String()] = instruments[x].InstrumentIDCode
 	}
 }
