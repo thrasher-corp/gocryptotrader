@@ -1394,6 +1394,48 @@ func TestKeepListenKeyAliveClosesItsKey(t *testing.T) {
 	assert.Equal(t, []string{"KEY_A"}, closed, "the renewer should close its own listen key when it stops")
 }
 
+// failingDialConn is a connection whose dial always fails
+type failingDialConn struct {
+	websocket.Connection
+	url string
+}
+
+func (c *failingDialConn) GetURL() string  { return c.url }
+func (c *failingDialConn) SetURL(u string) { c.url = u }
+func (c *failingDialConn) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	return errors.New("dial refused")
+}
+
+// TestWsConnectReleasesListenKeyOnFailedDial releases the listen key minted for a connection whose dial
+// fails: no renewer owns it yet, and the monitor retries a failed connect every few seconds.
+func TestWsConnectReleasesListenKeyOnFailedDial(t *testing.T) {
+	t.Parallel()
+	keys := []string{"KEY_A", "KEY_B", "KEY_C"}
+	var mu sync.Mutex
+	var minted, closed []string
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch r.Method {
+		case http.MethodPost:
+			key := keys[len(minted)]
+			minted = append(minted, key)
+			_, _ = w.Write([]byte(`{"listenKey":"` + key + `"}`))
+		case http.MethodDelete:
+			closed = append(closed, r.URL.Query().Get("listenKey"))
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	for range 3 {
+		assert.Error(t, ex.WsConnect(t.Context(), &failingDialConn{url: spotWebsocketURL}), "WsConnect should report the failed dial")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, minted, 3, "each attempt must mint a listen key")
+	assert.Equal(t, minted, closed, "each minted listen key should be released when its dial fails")
+}
+
 // TestCreateBatchOrderMarketParameters applies the single-order market rules to each batch entry: no
 // price, and a quote amount sent alone when one is given.
 func TestCreateBatchOrderMarketParameters(t *testing.T) {

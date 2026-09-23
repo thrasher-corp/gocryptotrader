@@ -71,6 +71,11 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
 	}, http.Header{}, nil); err != nil {
+		if listenKey != "" {
+			// No renewer owns the key until the connection is up, so release it here: the monitor retries a
+			// failed connect every few seconds and would otherwise use up the account's listen keys.
+			e.releaseListenKey(ctx, listenKey)
+		}
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -106,14 +111,7 @@ const listenKeyCloseTimeout = 5 * time.Second
 func (e *Exchange) keepListenKeyAlive(ctx context.Context, conn websocket.Connection, listenKey string) {
 	e.Websocket.Wg.Add(1)
 	defer e.Websocket.Wg.Done()
-	defer func() {
-		// The connection's context is usually done by now, so release the key on a detached one.
-		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), listenKeyCloseTimeout)
-		defer cancel()
-		if err := e.CloseListenKey(closeCtx, listenKey); err != nil {
-			log.Warnf(log.WebsocketMgr, "%s: closing listen key: %v", e.Name, err)
-		}
-	}()
+	defer e.releaseListenKey(ctx, listenKey)
 	renew := time.NewTicker(listenKeyKeepAliveInterval)
 	defer renew.Stop()
 	for {
@@ -133,6 +131,16 @@ func (e *Exchange) keepListenKeyAlive(ctx context.Context, conn websocket.Connec
 				_ = e.Websocket.DataHandler.Send(ctx, err)
 			}
 		}
+	}
+}
+
+// releaseListenKey closes a connection's listen key. The connection's context is usually done by then,
+// so the request runs on a detached one.
+func (e *Exchange) releaseListenKey(ctx context.Context, listenKey string) {
+	closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), listenKeyCloseTimeout)
+	defer cancel()
+	if err := e.CloseListenKey(closeCtx, listenKey); err != nil {
+		log.Warnf(log.WebsocketMgr, "%s: closing listen key: %v", e.Name, err)
 	}
 }
 
