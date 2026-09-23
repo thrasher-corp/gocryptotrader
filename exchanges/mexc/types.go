@@ -246,6 +246,11 @@ type AssetTransferResponse struct {
 	TransferID uint64 `json:"tranId"`
 }
 
+// InternalTransferResponse holds the id of an internal transfer, which the venue sends as a string
+type InternalTransferResponse struct {
+	TransferID string `json:"tranId"`
+}
+
 // UniversalTransferHistoryResponse represents a universal transfer history response detail
 type UniversalTransferHistoryResponse struct {
 	Rows  []*UniversalTransferHistoryData `json:"rows"`

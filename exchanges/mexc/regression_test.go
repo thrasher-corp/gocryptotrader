@@ -1600,3 +1600,14 @@ func TestAPIKeyInfoPermanentKey(t *testing.T) {
 		assert.Equalf(t, -999.0, info.RemainingValidity.Float64(), "a permanent key's remaining validity should decode as -999 from %s", raw)
 	}
 }
+
+// TestInternalTransferDecodesTransferID decodes the documented response, whose tranId is a string
+func TestInternalTransferDecodesTransferID(t *testing.T) {
+	t.Parallel()
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tranId":"c45d800a47ba4cbc876a5cd29388319"}`))
+	}))
+	resp, err := ex.InternalTransfer(t.Context(), "EMAIL", "someone@example.com", "", currency.USDT, 1)
+	require.NoError(t, err, "InternalTransfer must not error")
+	assert.Equal(t, "c45d800a47ba4cbc876a5cd29388319", resp.TransferID, "TransferID should be decoded")
+}

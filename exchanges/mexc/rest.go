@@ -831,7 +831,7 @@ func (e *Exchange) DustLog(ctx context.Context, startTime, endTime time.Time, pa
 }
 
 // InternalTransfer allows an internal asset transfer between assets.
-func (e *Exchange) InternalTransfer(ctx context.Context, toAccountType, toAccount, areaCode string, ccy currency.Code, amount float64) (*AssetTransferResponse, error) {
+func (e *Exchange) InternalTransfer(ctx context.Context, toAccountType, toAccount, areaCode string, ccy currency.Code, amount float64) (*InternalTransferResponse, error) {
 	if toAccountType == "" {
 		return nil, fmt.Errorf("%w: toAccountType is required", errAccountTypeRequired)
 	}
@@ -852,7 +852,7 @@ func (e *Exchange) InternalTransfer(ctx context.Context, toAccountType, toAccoun
 	if areaCode != "" {
 		params.Set("areaCode", areaCode)
 	}
-	var resp *AssetTransferResponse
+	var resp *InternalTransferResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, internalTransferEPL, http.MethodPost, "capital/transfer/internal", params, nil, &resp, true)
 }
 
