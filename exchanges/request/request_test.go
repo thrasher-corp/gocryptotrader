@@ -152,6 +152,7 @@ func TestDumpRequestForLog(t *testing.T) {
 	require.NoError(t, err, "dumpRequestForLog must not error for sensitive headers")
 	assert.Contains(t, string(dump), "Authorization: [REDACTED]", "request dump should redact sensitive headers")
 	assert.NotContains(t, string(dump), "secret-header", "request dump should not expose sensitive headers")
+	assert.Equal(t, "secret-header", req.Header.Get("Authorization"), "request dump should not mutate the original headers")
 
 	readErr := errors.New("body read failure")
 	partialBody := &partialErrorReader{payload: []byte("partial-body"), err: readErr}
@@ -170,6 +171,28 @@ func TestDumpRequestForLog(t *testing.T) {
 	assert.Equal(t, http.NoBody, req.Body, "dumpRequestForLog should preserve an explicit http.NoBody")
 	assert.Zero(t, req.ContentLength, "dumpRequestForLog should preserve the zero content length")
 	assert.NotContains(t, string(dump), "Transfer-Encoding: chunked", "dumpRequestForLog should not change framing for http.NoBody")
+}
+
+func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		contentType string
+		body        string
+		expected    string
+	}{
+		{name: "unchanged JSON", contentType: "application/json", body: `{"orderId":1234567890123456789,"note":"a&b"}`, expected: `{"orderId":1234567890123456789,"note":"a&b"}`},
+		{name: "nested credential", contentType: "application/json", body: `{"nested":[{"password":"secret"}]}`, expected: `{"nested":[{"password":"[REDACTED]"}]}`},
+		{name: "declared form resembling JSON string", contentType: "application/x-www-form-urlencoded", body: `"password=secret"`, expected: `"password=[REDACTED]`},
+		{name: "declared form resembling JSON object", contentType: "application/x-www-form-urlencoded", body: `{"a":1}`, expected: `{"a":1}`},
+		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, string(bodyForLog([]byte(tc.body), tc.contentType)), "bodyForLog should follow the declared content type and preserve unchanged JSON")
+		})
+	}
 }
 
 func TestDumpRequestForLogReplaysCloseFailure(t *testing.T) {
@@ -253,6 +276,19 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	redacted = urlErrorForLog(bounded)
 	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "a URL cycle just inside the depth cap should be truncated")
 	assert.NotContains(t, redacted.Error(), "remainder-secret", "a URL cycle should not expose credentials")
+
+	nonURLCycle := new(cyclicError)
+	nonURLCycle.next = nonURLCycle
+	result := make(chan error, 1)
+	go func() {
+		result <- urlErrorForLog(&url.Error{Op: http.MethodGet, URL: "https://example.com/api?signature=cycle-secret", Err: nonURLCycle})
+	}()
+	select {
+	case redacted = <-result:
+	case <-time.After(time.Second):
+		t.Fatal("a non-URL error cycle must not hang redaction")
+	}
+	assert.NotContains(t, redacted.Error(), "cycle-secret", "a non-URL cycle should not expose URL credentials")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -519,9 +555,9 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		`DumpResponse (https://example.com/api?timestamp=1&signature=[REDACTED])`,
 		`DumpResponse Body (https://example.com/api?timestamp=1&signature=[REDACTED])`,
 		`Set-Cookie: [REDACTED]`,
-		`{"nonce":1,"note":"a\u0026key=b"}`,
-		`{"nonce":2,"note":"context\u0026key=b"}`,
-		`{"nonce":3,"note":"lowercase\u0026key=b"}`,
+		itemHeaderJSON,
+		contextHeaderJSON,
+		lowerCaseJSON,
 		"key=[REDACTED]&nonce=4",
 		"key=[REDACTED]&nonce=5",
 		`{"nonce":6,"password":"[REDACTED]"}`,
@@ -1817,6 +1853,51 @@ func TestEvaluateRetry(t *testing.T) {
 	retry, err = r.evaluateRetry(t.Context(), nil, errTimeout, 1, true)
 	require.NoError(t, err, "must not error")
 	require.True(t, retry, "must retry on timeout error")
+}
+
+func TestEvaluateRetryRedactsURLOnAllReturns(t *testing.T) {
+	t.Parallel()
+	transportErr := errors.New("transport failure")
+	credentialErr := &url.Error{Op: http.MethodGet, URL: "https://example.com?signature=returned-secret", Err: transportErr}
+	tests := []struct {
+		name            string
+		retryNotAllowed bool
+		defaultPolicy   bool
+		policyRetries   bool
+		maxRetries      int
+		deadline        bool
+	}{
+		{name: "retry not allowed", retryNotAllowed: true},
+		{name: "default policy declines non-timeout", defaultPolicy: true},
+		{name: "custom policy declines"},
+		{name: "maximum retries", policyRetries: true},
+		{name: "deadline prevents retry", policyRetries: true, maxRetries: 1, deadline: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := Requester{maxRetries: tc.maxRetries, backoff: func(int) time.Duration { return time.Millisecond }}
+			if tc.defaultPolicy {
+				r.retryPolicy = DefaultRetryPolicy
+			} else {
+				r.retryPolicy = func(*http.Response, error) (bool, error) { return tc.policyRetries, nil }
+			}
+			ctx := t.Context()
+			if tc.retryNotAllowed {
+				ctx = WithRetryNotAllowed(ctx)
+			}
+			if tc.deadline {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, time.Now())
+				defer cancel()
+			}
+			retry, err := r.evaluateRetry(ctx, nil, credentialErr, 1, false)
+			require.ErrorIs(t, err, transportErr, "evaluateRetry must preserve the transport cause")
+			assert.False(t, retry, "evaluateRetry should not retry on this return path")
+			assert.NotContains(t, err.Error(), "returned-secret", "evaluateRetry should not return URL credentials")
+			assert.Contains(t, err.Error(), "signature=[REDACTED]", "evaluateRetry should retain redacted URL structure")
+		})
+	}
 }
 
 func TestGetNonce(t *testing.T) {

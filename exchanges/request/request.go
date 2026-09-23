@@ -374,12 +374,17 @@ func bodyForLog(payload []byte, contentType string) []byte {
 	if len(payload) == 0 {
 		return payload
 	}
+	if strings.TrimSpace(contentType) != "" && isFormEncoded(contentType) {
+		return []byte(redactEncodedValues(string(payload)))
+	}
 	trimmed := bytes.TrimSpace(payload)
 	looksLikeJSON := len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[')
 	if isJSONEncoded(contentType) || looksLikeJSON || json.Valid(payload) {
 		var value any
 		if err := json.Unmarshal(payload, &value); err == nil {
-			redactJSONValue(value)
+			if !redactJSONValue(value) {
+				return payload
+			}
 			if redacted, err := json.Marshal(value); err == nil {
 				return redacted
 			}
@@ -392,21 +397,24 @@ func bodyForLog(payload []byte, contentType string) []byte {
 	return []byte("[REDACTED NON-FORM BODY]")
 }
 
-func redactJSONValue(value any) {
+func redactJSONValue(value any) bool {
+	redacted := false
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, nested := range typed {
 			if isSensitiveLogKey(key) {
 				typed[key] = "[REDACTED]"
+				redacted = true
 				continue
 			}
-			redactJSONValue(nested)
+			redacted = redactJSONValue(nested) || redacted
 		}
 	case []any:
 		for _, nested := range typed {
-			redactJSONValue(nested)
+			redacted = redactJSONValue(nested) || redacted
 		}
 	}
+	return redacted
 }
 
 type replayReader struct {
@@ -424,7 +432,8 @@ func (r replayReader) Read(payload []byte) (int, error) {
 
 func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
 	clone := req.Clone(req.Context())
-	clone.Header = req.Header.Clone()
+	// The sensitive-key suffixes must cover every credential-bearing header
+	// sent by exchange adapters because the dump includes their headers.
 	for name, values := range clone.Header {
 		clone.Header[name] = headerValuesForLog(name, values)
 	}
@@ -501,7 +510,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 		if incomingErr == nil && resp != nil {
 			r.drainBody(resp.Body)
 		}
-		return false, err
+		return false, urlErrorForLog(err)
 	}
 
 	if !retry {
