@@ -552,6 +552,23 @@ func TestLevelsCalculateExecutionAggregatesBeforeScaling(t *testing.T) {
 	assert.True(t, result.AveragePrice.Equal(decimal.NewFromInt(550)), "partial execution average price should use unscaled totals")
 }
 
+func TestLevelsCalculateExecutionRetainsSubPrecisionLevelValues(t *testing.T) {
+	t.Parallel()
+	levels := make(Levels, 10)
+	for i := range levels {
+		levels[i] = Level{StrAmount: "0.0000000000000000001", StrPrice: "0.1"}
+	}
+	result, err := levels.CalculateExecution(decimal.MustFromString("0.000000000000000001"), decimal.NewFromInt(1))
+	require.NoError(t, err, "CalculateExecution must aggregate sub-precision level values")
+	assert.Equal(t, "0.0000000000000000001", result.QuoteAmount.String(), "quote amount should retain the representable aggregate")
+	assert.Equal(t, "0.1", result.AveragePrice.String(), "average price should use the exact aggregate")
+	assert.Equal(t, uint64(10), result.LevelsUsed, "all ten levels should contribute to the fill")
+
+	result, err = levels[:1].CalculateExecution(decimal.MustFromString("0.0000000000000000001"), decimal.NewFromInt(10))
+	require.NoError(t, err, "CalculateExecution must apply the multiplier before truncating the quote amount")
+	assert.Equal(t, "0.0000000000000000001", result.QuoteAmount.String(), "quote amount should retain a scaled sub-precision value")
+}
+
 func TestLevelsCalculateExecutionAveragePriceWithTruncatedQuote(t *testing.T) {
 	t.Parallel()
 	levels := Levels{
@@ -722,6 +739,22 @@ func TestLevelsCalculateExecutionValidation(t *testing.T) {
 			multiplier: decimal.NewFromInt(1),
 			expected:   ErrOrderbookInvalid,
 			contains:   `amount "invalid":`,
+		},
+		{
+			name:       "invalid amount after fill",
+			levels:     Levels{{Amount: 1, Price: 1}, {Amount: 0, Price: 2}},
+			amount:     decimal.NewFromInt(1),
+			multiplier: decimal.NewFromInt(1),
+			expected:   ErrOrderbookInvalid,
+			contains:   `level 1 has invalid amount`,
+		},
+		{
+			name:       "invalid price after fill",
+			levels:     Levels{{Amount: 1, Price: 1}, {Amount: 1, Price: 0}},
+			amount:     decimal.NewFromInt(1),
+			multiplier: decimal.NewFromInt(1),
+			expected:   ErrOrderbookInvalid,
+			contains:   `level 1 has invalid price`,
 		},
 	}
 	for i := range tests {
