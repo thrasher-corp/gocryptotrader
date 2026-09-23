@@ -27,6 +27,8 @@ var (
 	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
 	// ErrInvalidContractMultiplier is returned when a linear contract multiplier is not positive.
 	ErrInvalidContractMultiplier = errors.New("contract multiplier must be greater than zero")
+	// ErrNotEnoughLiquidity indicates that an order could only be partially filled.
+	ErrNotEnoughLiquidity = errNotEnoughLiquidity
 )
 
 var (

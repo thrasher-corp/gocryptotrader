@@ -332,6 +332,7 @@ func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (Exe
 		RequestedAmount: orderAmount,
 		RemainingAmount: orderAmount,
 	}
+	var unscaledQuoteAmount decimal.Decimal
 	for i := range l {
 		levelAmount, err := levelDecimal(l[i].Amount, l[i].StrAmount)
 		if err != nil {
@@ -352,22 +353,24 @@ func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (Exe
 		if levelAmount.LessThan(used) {
 			used = levelAmount
 		}
-		baseAmount := used.Mul(multiplier)
 		result.ExecutedAmount = result.ExecutedAmount.Add(used)
 		result.RemainingAmount = result.RemainingAmount.Sub(used)
-		result.BaseAmount = result.BaseAmount.Add(baseAmount)
-		result.QuoteAmount = result.QuoteAmount.Add(baseAmount.Mul(levelPrice))
+		unscaledQuoteAmount = unscaledQuoteAmount.Add(used.Mul(levelPrice))
 		result.MarginalPrice = levelPrice
 		result.LevelsUsed++
 		if result.RemainingAmount.IsZero() {
-			result.FullLiquidityUsed = i == len(l)-1
+			result.FullLiquidityUsed = i == len(l)-1 && used.Equal(levelAmount)
+			result.BaseAmount = result.ExecutedAmount.Mul(multiplier)
+			result.QuoteAmount = unscaledQuoteAmount.Mul(multiplier)
 			result.setAveragePrice()
 			return result, nil
 		}
 	}
 	result.FullLiquidityUsed = true
+	result.BaseAmount = result.ExecutedAmount.Mul(multiplier)
+	result.QuoteAmount = unscaledQuoteAmount.Mul(multiplier)
 	result.setAveragePrice()
-	return result, fmt.Errorf("%w: requested amount %s, remaining amount %s, multiplier %s", errNotEnoughLiquidity, orderAmount, result.RemainingAmount, multiplier)
+	return result, fmt.Errorf("%w: requested amount %s, remaining amount %s, multiplier %s", ErrNotEnoughLiquidity, orderAmount, result.RemainingAmount, multiplier)
 }
 
 func (e *ExecutionCalculation) setAveragePrice() {
