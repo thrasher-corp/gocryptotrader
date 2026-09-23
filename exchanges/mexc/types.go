@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"time"
@@ -170,17 +171,20 @@ type TickerData struct {
 // TickerList represents list of ticker data
 type TickerList []TickerData
 
-// UnmarshalJSON deserialises byte data into TickerList
+// UnmarshalJSON deserialises byte data into TickerList. The endpoint returns a single object when one
+// symbol is requested and an array otherwise, so the first byte decides which is decoded.
 func (t *TickerList) UnmarshalJSON(data []byte) error {
-	tickers := []TickerData{}
-	err := json.Unmarshal(data, &tickers)
-	if err != nil {
-		var val *TickerData
-		err = json.Unmarshal(data, &val)
-		if err != nil {
+	if trimmed := bytes.TrimLeft(data, " \t\r\n"); len(trimmed) > 0 && trimmed[0] == '{' {
+		var val TickerData
+		if err := json.Unmarshal(trimmed, &val); err != nil {
 			return err
 		}
-		tickers = []TickerData{*val}
+		*t = TickerList{val}
+		return nil
+	}
+	var tickers []TickerData
+	if err := json.Unmarshal(data, &tickers); err != nil {
+		return err
 	}
 	*t = tickers
 	return nil

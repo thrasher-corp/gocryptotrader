@@ -1406,3 +1406,39 @@ func TestHandleSubscriptionKeepsAcceptedWhenOneIsRejected(t *testing.T) {
 	assert.Equal(t, accepted.QualifiedChannel, got[0].QualifiedChannel, "the accepted subscription should be stored")
 	assert.Equal(t, subscription.SubscribedState, got[0].State(), "the accepted subscription should be marked subscribed")
 }
+
+// TestTickerListUnmarshalJSON decodes the 24hr ticker in both of the shapes the endpoint returns: an
+// object for a single symbol and an array otherwise. The first byte decides which is decoded, so a
+// malformed array reports its own fault rather than a failed retry as a single object.
+func TestTickerListUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input string
+		want        []string
+	}{
+		{"object", `{"symbol":"BTCUSDT","lastPrice":"1"}`, []string{"BTCUSDT"}},
+		{"object after whitespace", " \n\t{\"symbol\":\"BTCUSDT\"}", []string{"BTCUSDT"}},
+		{"array", `[{"symbol":"BTCUSDT"},{"symbol":"ETHUSDT"}]`, []string{"BTCUSDT", "ETHUSDT"}},
+		{"empty array", `[]`, []string{}},
+		{"null", `null`, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var list TickerList
+			require.NoError(t, json.Unmarshal([]byte(tc.input), &list), "Unmarshal must not error")
+			got := make([]string, 0, len(list))
+			for i := range list {
+				got = append(got, list[i].Symbol)
+			}
+			if tc.want == nil {
+				assert.Empty(t, list, "null should decode to an empty list")
+				return
+			}
+			assert.Equal(t, tc.want, got, "the decoded symbols should match")
+		})
+	}
+	var list TickerList
+	err := json.Unmarshal([]byte(`[{"symbol":1}]`), &list)
+	require.Error(t, err, "a malformed array element must be reported")
+	assert.NotContains(t, err.Error(), "array", "the error should describe the malformed element, not a retry as a single object")
+}
