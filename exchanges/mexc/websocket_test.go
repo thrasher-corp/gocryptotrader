@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -214,7 +215,11 @@ func TestSubscriptionAccepted(t *testing.T) {
 
 func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {
 	t.Parallel()
-	subs, err := e.generateSubscriptions()
+	// A fresh instance: the live websocket tests' testexch.SetupWs empties the shared one's subscriptions.
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
+	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	var found bool
 	for _, s := range subs {
