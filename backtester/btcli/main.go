@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -35,6 +36,24 @@ var (
 )
 
 const defaultTimeout = time.Second * 30
+
+var errPositionalArgument = errors.New("unexpected positional argument; use named flags")
+
+func rejectPositionalArguments(commands []*cli.Command) {
+	for _, command := range commands {
+		before := command.Before
+		command.Before = func(c *cli.Context) error {
+			if c.NArg() > 0 && c.Command.Command(c.Args().First()) == nil {
+				return fmt.Errorf("%w: %q", errPositionalArgument, c.Args().First())
+			}
+			if before != nil {
+				return before(c)
+			}
+			return nil
+		}
+		rejectPositionalArguments(command.Subcommands)
+	}
+}
 
 func jsonOutput(in any) {
 	j, err := json.MarshalIndent(in, "", " ")
@@ -121,6 +140,8 @@ func main() {
 		clearTaskCommand,
 		clearAllTasksCommand,
 	}
+
+	rejectPositionalArguments(app.Commands)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

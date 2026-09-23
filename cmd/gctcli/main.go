@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -35,6 +36,24 @@ var (
 
 const defaultTimeout = time.Second * 30
 
+var errPositionalArgument = errors.New("unexpected positional argument; use named flags")
+
+func rejectPositionalArguments(commands []*cli.Command) {
+	for _, command := range commands {
+		before := command.Before
+		command.Before = func(c *cli.Context) error {
+			if c.NArg() > 0 && c.Command.Command(c.Args().First()) == nil {
+				return fmt.Errorf("%w: %q", errPositionalArgument, c.Args().First())
+			}
+			if before != nil {
+				return before(c)
+			}
+			return nil
+		}
+		rejectPositionalArguments(command.Subcommands)
+	}
+}
+
 // Flag names shared across command definitions and their lookups
 const (
 	exchangeFlag = "exchange"
@@ -49,8 +68,6 @@ const (
 
 // Usage strings shared across command definitions
 const (
-	commandArgsUsage     = "<command> <args>"
-	exchangeArgsUsage    = "<exchange>"
 	exchangeUsage        = "the exchange to act on"
 	pairUsage            = "the currency pair"
 	assetUsage           = "the asset type of the currency pair"
@@ -245,7 +262,7 @@ func main() {
 		orderbookCommand,
 		getCurrencyTradeURLCommand,
 	}
-	registerArgumentValidation(app.Commands)
+	rejectPositionalArguments(app.Commands)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

@@ -26,6 +26,14 @@ For a list of commands, you can run the following
 go run .
 ```
 
+Supply command parameters as named flags. Positional arguments are rejected.
+For example:
+
+```console
+btcli starttask --id task-1
+btcli executestrategyfromfile --path strategy.json
+```
+
 ## Donations
 
 <img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
