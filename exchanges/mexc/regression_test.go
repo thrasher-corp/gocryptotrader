@@ -1200,6 +1200,7 @@ func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 				info, err := e.SetAPIKeyInfo(ctx, "mx0npKfh57kEEVmyLa", []string{"1.1.1.1", "2.2.2.2"}, "note2")
 				require.NoError(t, err, "SetAPIKeyInfo must not error")
 				assert.Equal(t, "1.1.1.1,2.2.2.2", info.IPWhiteList, "IPWhiteList should be decoded")
+				assert.Equal(t, "mx0npKfh57kEEVmyLa", info.AccessKey, "AccessKey should be decoded from apikey")
 			},
 		},
 		{

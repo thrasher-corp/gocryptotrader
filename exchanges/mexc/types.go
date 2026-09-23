@@ -295,7 +295,8 @@ type KYCStatusInfo struct {
 // APIKeyInfo represents an API key's details
 type APIKeyInfo struct {
 	Note string `json:"note"`
-	// AccessKey is the public key. The documentation names this field apikey; the venue sends accessKey.
+	// AccessKey is the public key: the GET response sends it as accessKey, the documented POST response as
+	// apikey, so both are read.
 	AccessKey string `json:"accessKey"`
 	// Status is VALID, DELETE or FROZEN
 	Status string `json:"status"`
@@ -310,16 +311,21 @@ type APIKeyInfo struct {
 	RemainingValidity types.Number `json:"remainingValidity"`
 }
 
-// UnmarshalJSON decodes an APIKeyInfo, reading createTime as either an RFC 3339 timestamp or epoch
-// milliseconds
+// UnmarshalJSON decodes an APIKeyInfo, reading the key from accessKey or apikey and createTime as either
+// an RFC 3339 timestamp or epoch milliseconds
 func (a *APIKeyInfo) UnmarshalJSON(data []byte) error {
 	type Alias APIKeyInfo
 	chil := &struct {
 		*Alias
 		CreateTime json.RawMessage `json:"createTime"`
+		// APIKey is where the POST response puts the key, per its documented example
+		APIKey string `json:"apikey"`
 	}{Alias: (*Alias)(a)}
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
+	}
+	if chil.APIKey != "" {
+		a.AccessKey = chil.APIKey
 	}
 	a.CreateTime = time.Time{}
 	if len(chil.CreateTime) == 0 || string(chil.CreateTime) == "null" {
