@@ -124,7 +124,7 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 		_, _ = w.Write(encoded)
 	}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/trade/orders-pending":
 			after := r.URL.Query().Get("after")
@@ -160,10 +160,10 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	t.Cleanup(srv.Close)
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
 	for k := range b.API.Endpoints.GetURLMap() {
 		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
 	}
@@ -262,6 +262,24 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 		assert.NotContains(t, query, "orderType=", "OKX ignores an orderType parameter, so it should not be sent")
 	})
 
+	t.Run("formats the pair through the exchange's pair format", func(t *testing.T) {
+		resetCancelled()
+		setPending(
+			map[string]string{"instId": "BTC-USDT", "ordId": "ANY"},
+		)
+		slashPair := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
+		_, err := e.CancelAllOrders(t.Context(), &order.Cancel{
+			AssetType: asset.Spot,
+			Pair:      slashPair,
+		})
+		require.NoError(t, err, "CancelAllOrders must not error for a differently delimited pair")
+		mu.Lock()
+		query := pendingQuery
+		mu.Unlock()
+		assert.Contains(t, query, "instId=BTC-USDT", "the instrument filter should use the exchange's pair format")
+		assert.NotContains(t, query, "BTC%2FUSDT", "a raw slash-delimited pair should not reach OKX as instId")
+	})
+
 	t.Run("by side", func(t *testing.T) {
 		resetCancelled()
 		setPending(
@@ -325,7 +343,7 @@ func TestModifyOrderPriceOnlyAmend(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	var amendBody []byte
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/trade/amend-order" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -340,10 +358,10 @@ func TestModifyOrderPriceOnlyAmend(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"123","sCode":"0"}]}`))
 	}))
-	t.Cleanup(srv.Close)
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
 	for k := range b.API.Endpoints.GetURLMap() {
 		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
 	}
@@ -358,4 +376,295 @@ func TestModifyOrderPriceOnlyAmend(t *testing.T) {
 	})
 	require.NoError(t, err, "ModifyOrder must accept a price-only amend")
 	assert.Contains(t, string(amendBody), `"newPx":"42000"`, "a price-only amend should serialise the new price")
+}
+
+// TestCancelAllOrdersContinuesAfterFailedBatch guards the batch loop: a failed
+// batch must not stop later batches, and the joined error is returned with the
+// statuses collected from the batches that succeeded.
+func TestCancelAllOrdersContinuesAfterFailedBatch(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	var cancelRequests int
+
+	writeOKXData := func(w http.ResponseWriter, data any) {
+		encoded, err := json.Marshal(map[string]any{"code": "0", "msg": "", "data": data})
+		if err != nil {
+			t.Errorf("marshalling mock response should not error: %v", err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(encoded)
+	}
+
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trade/orders-pending":
+			// 22 orders exceed one batch of 20, forming a failing first batch
+			// and a succeeding second batch.
+			ords := make([]map[string]string, 0, 22)
+			for x := range 22 {
+				ords = append(ords, map[string]string{"instId": "BTC-USDT", "ordId": fmt.Sprintf("ORD-%02d", x)})
+			}
+			writeOKXData(w, ords)
+		case "/trade/cancel-batch-orders":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("reading cancel request body should not error: %v", err)
+				return
+			}
+			var reqs []CancelOrderRequestParam
+			if err := json.Unmarshal(body, &reqs); err != nil {
+				t.Errorf("decoding cancel request body should not error: %v", err)
+				return
+			}
+			mu.Lock()
+			cancelRequests++
+			first := cancelRequests == 1
+			mu.Unlock()
+			if first {
+				http.Error(w, "batch one failed", http.StatusInternalServerError)
+				return
+			}
+			respData := make([]map[string]string, 0, len(reqs))
+			for x := range reqs {
+				respData = append(respData, map[string]string{"ordId": reqs[x].OrderID, "sCode": "0"})
+			}
+			writeOKXData(w, respData)
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
+	require.Error(t, err, "CancelAllOrders must report the failed batch")
+	mu.Lock()
+	requests := cancelRequests
+	mu.Unlock()
+	assert.Equal(t, 2, requests, "a failed batch should not stop later batches from being sent")
+	assert.Contains(t, resp.Status, "ORD-21", "orders from the later successful batch should still be cancelled")
+	assert.NotContains(t, resp.Status, "ORD-00", "orders from the failed batch should not be reported as cancelled")
+}
+
+// TestCancelBatchOrdersSpreadGuards covers the spread branch of
+// CancelBatchOrders: client-ID-only cancels report a usable status key, the
+// missing-ID guard rejects the batch, and no cancel is sent until the whole
+// batch validates. Subtests share the mock server's request counter, so they
+// run sequentially.
+func TestCancelBatchOrdersSpreadGuards(t *testing.T) {
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	var spreadCancels int
+
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/sprd/cancel-order":
+			mu.Lock()
+			spreadCancels++
+			mu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":{"sCode":"0","sMsg":"","ordId":"","clOrdId":""}}`))
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	resetSpreadCancels := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		spreadCancels = 0
+	}
+	spreadCancelsSent := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return spreadCancels
+	}
+
+	t.Run("client order ID status key", func(t *testing.T) {
+		resetSpreadCancels()
+		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
+			AssetType:     asset.Spread,
+			Pair:          spreadPair,
+			ClientOrderID: "spread-cl",
+		}})
+		require.NoError(t, err, "CancelBatchOrders must not error for a client-ID-only spread cancel")
+		assert.Equal(t, 1, spreadCancelsSent(), "the spread cancel should have been sent")
+		assert.Equal(t, map[string]string{"spread-cl": order.Cancelled.String()}, resp.Status,
+			"a client-ID-only spread cancel should report the status under its client order ID")
+	})
+
+	t.Run("guard requires an ID", func(t *testing.T) {
+		resetSpreadCancels()
+		_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
+			AssetType: asset.Spread,
+			Pair:      spreadPair,
+		}})
+		assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "a spread cancel without either ID should be rejected")
+		assert.Zero(t, spreadCancelsSent(), "a rejected batch should send no cancels")
+	})
+
+	t.Run("invalid entry cancels nothing", func(t *testing.T) {
+		resetSpreadCancels()
+		_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "spread-cl"},
+			{AssetType: asset.Spot, Pair: currency.Pair{}, OrderID: "spot-order"},
+		})
+		assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "an invalid entry should fail the batch")
+		assert.Zero(t, spreadCancelsSent(), "no cancel should be sent before the whole batch validates")
+	})
+}
+
+// TestApplyWebsocketInstrumentIDCodes guards the resolve-all-then-apply shape:
+// an uncached instrument must report failure without touching the requests, so
+// no half-applied instIdCode leaks into a REST request body.
+func TestApplyWebsocketInstrumentIDCodes(t *testing.T) {
+	t.Parallel()
+	fresh := new(Exchange)
+	fresh.instrumentsInfoMap = make(map[string][]Instrument)
+	fresh.instrumentIDCodeMap = map[string]uint64{"BTC-USDT": 12345}
+
+	args := []CancelOrderRequestParam{
+		{InstrumentID: "BTC-USDT"},
+		{InstrumentID: "ETH-USDT"},
+	}
+	assert.False(t, fresh.applyWebsocketInstrumentIDCodes(args), "an uncached instrument should report failure")
+	assert.Zero(t, args[0].InstrumentIDCode, "a failed apply should leave the resolved requests untouched")
+
+	args = []CancelOrderRequestParam{
+		{InstrumentID: "BTC-USDT"},
+		{InstrumentID: "BTC-USDT"},
+	}
+	assert.True(t, fresh.applyWebsocketInstrumentIDCodes(args), "cached instruments should report success")
+	assert.EqualValues(t, 12345, args[0].InstrumentIDCode, "a successful apply should assign the cached code")
+	assert.EqualValues(t, 12345, args[1].InstrumentIDCode, "a successful apply should assign the cached code")
+}
+
+func TestWebsocketInstrumentIDCode(t *testing.T) {
+	t.Parallel()
+	fresh := new(Exchange)
+	fresh.instrumentsInfoMap = make(map[string][]Instrument)
+	fresh.instrumentIDCodeMap = map[string]uint64{"BTC-USDT": 12345}
+
+	code, ok := fresh.websocketInstrumentIDCode("BTC-USDT")
+	assert.True(t, ok, "a cached instrument should report availability")
+	assert.EqualValues(t, 12345, code, "a cached instrument should report its code")
+
+	code, ok = fresh.websocketInstrumentIDCode("ETH-USDT")
+	assert.False(t, ok, "an uncached instrument should report unavailability")
+	assert.Zero(t, code, "an uncached instrument should report a zero code")
+}
+
+// TestCancelAllOrdersScopesSpreadMassCancel guards the spread branch: OKX's
+// mass-cancel takes the spread pair as sprdId and cancels every spread order
+// when it is omitted, so a populated pair must scope the cancel instead of the
+// order ID leaking in as a bogus sprdId.
+func TestCancelAllOrdersScopesSpreadMassCancel(t *testing.T) {
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	var massCancelBodies []string
+
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/mass-cancel" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading mass-cancel body should not error: %v", err)
+			return
+		}
+		mu.Lock()
+		massCancelBodies = append(massCancelBodies, string(body))
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"result":true}]}`))
+	}))
+
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	t.Run("pair scopes the mass cancel", func(t *testing.T) {
+		resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{
+			AssetType: asset.Spread,
+			Pair:      spreadPair,
+		})
+		require.NoError(t, err, "CancelAllOrders must not error for a pair-scoped spread cancel")
+		mu.Lock()
+		last := massCancelBodies[len(massCancelBodies)-1]
+		mu.Unlock()
+		assert.Contains(t, last, `"sprdId":"BTC-USDT_BTC-USDT-SWAP"`, "a populated pair should scope the mass cancel to that spread")
+		assert.Contains(t, resp.Status, "", "the spread status should still be reported")
+	})
+
+	t.Run("no pair cancels every spread", func(t *testing.T) {
+		_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spread})
+		require.NoError(t, err, "CancelAllOrders must not error for an unscoped spread cancel")
+		mu.Lock()
+		last := massCancelBodies[len(massCancelBodies)-1]
+		mu.Unlock()
+		assert.Equal(t, "{}", last, "an unscoped cancel should omit sprdId so OKX cancels every spread order")
+	})
+}
+
+// TestCancelBatchOrdersReportsAlgoResults guards the per-item algo cancel
+// results: before the array decode, a batch response failed to decode and the
+// swallowed error left every algo reported as Cancelled.
+func TestCancelBatchOrdersReportsAlgoResults(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/cancel-advance-algos" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[` +
+			`{"algoId":"ALGO-OK","sCode":"0","sMsg":""},` +
+			`{"algoId":"ALGO-BAD","sCode":"51000","sMsg":"The algo order does not exist"}]}`))
+	}))
+
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+		{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-OK", Type: order.Trigger},
+		{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-BAD", Type: order.Trigger},
+	})
+	require.NoError(t, err, "CancelBatchOrders must not error when the batch is accepted")
+	assert.Equal(t, order.Cancelled.String(), resp.Status["ALGO-OK"], "a successfully cancelled algo order should report Cancelled")
+	assert.Equal(t, "The algo order does not exist", resp.Status["ALGO-BAD"], "a failed algo cancel should report its status message")
 }

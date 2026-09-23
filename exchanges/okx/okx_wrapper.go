@@ -999,8 +999,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				orderRequest.PositionSide = positionSideShort
 			}
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderRequest.InstrumentIDCode = e.getInstrumentIDCode(pairString)
+		if code, ok := e.websocketInstrumentIDCode(pairString); ok && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			orderRequest.InstrumentIDCode = code
 			placeOrderResponse, err = e.WSPlaceOrder(ctx, orderRequest)
 		} else {
 			placeOrderResponse, err = e.PlaceOrder(ctx, orderRequest)
@@ -1204,8 +1204,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			ClientOrderID: action.ClientOrderID,
 			NewPrice:      action.Price,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			amendRequest.InstrumentIDCode = e.getInstrumentIDCode(instrumentID)
+		if code, ok := e.websocketInstrumentIDCode(instrumentID); ok && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			amendRequest.InstrumentIDCode = code
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
 		} else {
 			_, err = e.AmendOrder(ctx, &amendRequest)
@@ -1311,14 +1311,14 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			OrderID:       ord.OrderID,
 			ClientOrderID: ord.ClientOrderID,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			req.InstrumentIDCode = e.getInstrumentIDCode(instrumentID)
+		if code, ok := e.websocketInstrumentIDCode(instrumentID); ok && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			req.InstrumentIDCode = code
 			_, err = e.WSCancelOrder(ctx, &req)
 		} else {
 			_, err = e.CancelSingleOrder(ctx, &req)
 		}
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
-		var response *AlgoOrder
+		var response []AlgoOrder
 		response, err = e.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
 			{
 				AlgoOrderID:  ord.OrderID,
@@ -1328,7 +1328,10 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		if err != nil {
 			return err
 		}
-		return getStatusError(response.StatusCode, response.StatusMessage)
+		if len(response) == 0 {
+			return fmt.Errorf("%w for algo order %s", common.ErrNoResponse, ord.OrderID)
+		}
+		return getStatusError(response[0].StatusCode, response[0].StatusMessage)
 	default:
 		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
 	}
@@ -1344,8 +1347,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	cancelOrderParams := make([]CancelOrderRequestParam, 0, len(o))
 	cancelAlgoOrderParams := make([]AlgoOrderCancelParams, 0, len(o))
+	cancelSpreadOrderParams := make([]order.Cancel, 0, len(o))
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	var err error
+	// The whole batch is validated before any cancel is sent, so an invalid
+	// entry cannot leave a partially executed batch behind.
 	for x := range o {
 		ord := o[x]
 		if !e.SupportsAsset(ord.AssetType) {
@@ -1363,15 +1369,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if ord.OrderID == "" && ord.ClientOrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for spread order cancel", order.ErrOrderIDNotSet)
 			}
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				_, err = e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-			} else {
-				_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-			}
-			if err != nil {
-				return nil, err
-			}
-			resp.Status[ord.OrderID] = order.Cancelled.String()
+			cancelSpreadOrderParams = append(cancelSpreadOrderParams, ord)
 			continue
 		}
 		switch ord.Type {
@@ -1397,12 +1395,25 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, o[x].Type)
 		}
 	}
+	for x := range cancelSpreadOrderParams {
+		ord := cancelSpreadOrderParams[x]
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			_, err = e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		} else {
+			_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		}
+		if err != nil {
+			return nil, err
+		}
+		statusKey := ord.OrderID
+		if statusKey == "" {
+			statusKey = ord.ClientOrderID
+		}
+		resp.Status[statusKey] = order.Cancelled.String()
+	}
 	if len(cancelOrderParams) > 0 {
 		var canceledOrders []*OrderData
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			for x := range cancelOrderParams {
-				cancelOrderParams[x].InstrumentIDCode = e.getInstrumentIDCode(cancelOrderParams[x].InstrumentID)
-			}
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && e.applyWebsocketInstrumentIDCodes(cancelOrderParams) {
 			canceledOrders, err = e.WSCancelMultipleOrders(ctx, cancelOrderParams)
 		} else {
 			canceledOrders, err = e.CancelMultipleOrders(ctx, cancelOrderParams)
@@ -1420,20 +1431,18 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 	}
 	if len(cancelAlgoOrderParams) > 0 {
-		cancelationResponse, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
+		algoResults, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
 		if err != nil {
-			if len(resp.Status) > 0 {
-				return resp, nil
-			}
-			return nil, err
-		} else if cancelationResponse.StatusCode != 0 {
-			if len(resp.Status) > 0 {
-				return resp, nil
-			}
-			return resp, getStatusError(cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
+			return resp, err
 		}
-		for x := range cancelAlgoOrderParams {
-			resp.Status[cancelAlgoOrderParams[x].AlgoOrderID] = order.Cancelled.String()
+		// OKX reports one result per requested algo order; failed cancels are
+		// reported with their status message instead of a false Cancelled.
+		for x := range algoResults {
+			if algoResults[x].StatusCode == 0 {
+				resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
+			} else {
+				resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
+			}
 		}
 	}
 	return resp, nil
@@ -1449,10 +1458,20 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		Status: map[string]string{},
 	}
 
-	// For asset.Spread asset orders cancellation
+	// For asset.Spread asset orders cancellation. OKX's mass-cancel scopes to
+	// one spread instrument via its sprdId, the spread pair itself such as
+	// BTC-USDT_BTC-USDT-SWAP, and cancels every spread order when sprdId is
+	// omitted, so a populated pair scopes the cancel instead of the order ID,
+	// which names a single order rather than a spread. The pair's own
+	// underscore-delimited form is used as-is: the configured spread pair
+	// format's dash delimiter would mangle the legs.
 	if orderCancellation.AssetType == asset.Spread {
+		var spreadID string
+		if orderCancellation.Pair.IsPopulated() {
+			spreadID = orderCancellation.Pair.Upper().String()
+		}
 		var success bool
-		success, err = e.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
+		success, err = e.CancelAllSpreadOrders(ctx, spreadID)
 		if err != nil {
 			return cancelAllResponse, err
 		}
@@ -1481,7 +1500,19 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 	var curr string
 	if orderCancellation.Pair.IsPopulated() {
-		curr = orderCancellation.Pair.Upper().String()
+		if orderCancellation.AssetType.IsValid() {
+			// Format through the exchange's pair format so callers passing a
+			// differently delimited pair still resolve their instrument; OKX
+			// rejects an unmatched instId with error 51001.
+			var pairFormat currency.PairFormat
+			pairFormat, err = e.GetPairFormat(orderCancellation.AssetType, true)
+			if err != nil {
+				return order.CancelAllResponse{}, err
+			}
+			curr = pairFormat.Format(orderCancellation.Pair)
+		} else {
+			curr = orderCancellation.Pair.Upper().String()
+		}
 	}
 	// OKX caps the pending order list at 100 records per request, so page
 	// through the full list before cancelling to reach accounts holding more
@@ -1537,41 +1568,40 @@ ordersLoop:
 		}
 	}
 	useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper()
-	if useWebsocket {
-		for x := range cancelAllOrdersRequestParams {
-			code := e.getInstrumentIDCode(cancelAllOrdersRequestParams[x].InstrumentID)
-			if code == 0 {
-				// OKX documents instIdCode for websocket operations only, so
-				// an uncached instrument falls back to REST, which identifies
-				// orders by instId alone.
-				useWebsocket = false
-				break
-			}
-			cancelAllOrdersRequestParams[x].InstrumentIDCode = code
-		}
+	if useWebsocket && !e.applyWebsocketInstrumentIDCodes(cancelAllOrdersRequestParams) {
+		// OKX documents instIdCode for websocket operations only, so an
+		// uncached instrument falls back to REST, which identifies orders by
+		// instId alone.
+		useWebsocket = false
 	}
 	remaining := cancelAllOrdersRequestParams
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
+	var errs error
 	for range loop {
-		var response []*OrderData
-		if len(remaining) > 20 {
-			if useWebsocket {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining[:20])
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining[:20])
-			}
+		if err := ctx.Err(); err != nil {
+			// A dead context stops the loop; the statuses and errors collected
+			// so far are still returned so the caller sees what was cancelled.
+			errs = common.AppendError(errs, err)
+			break
+		}
+		batch := remaining
+		if len(batch) > 20 {
+			batch = batch[:20]
 			remaining = remaining[20:]
 		} else {
-			if useWebsocket {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining)
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining)
-			}
+			remaining = nil
+		}
+		var response []*OrderData
+		if useWebsocket {
+			response, err = e.WSCancelMultipleOrders(ctx, batch)
+		} else {
+			response, err = e.CancelMultipleOrders(ctx, batch)
 		}
 		if err != nil {
-			// Statuses already collected are returned alongside the error so a
-			// mid-loop failure does not discard them.
-			return cancelAllResponse, err
+			// A failed batch does not stop later batches; the errors are
+			// joined so a cancel-all still reaches every remaining order.
+			errs = common.AppendError(errs, err)
+			continue
 		}
 		for y := range response {
 			if response[y].StatusCode == 0 {
@@ -1580,6 +1610,9 @@ ordersLoop:
 				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
 			}
 		}
+	}
+	if errs != nil {
+		return cancelAllResponse, errs
 	}
 	return cancelAllResponse, nil
 }
@@ -3195,4 +3228,33 @@ func (e *Exchange) getInstrumentIDCode(instID string) uint64 {
 	e.instrumentsInfoMapLock.Lock()
 	defer e.instrumentsInfoMapLock.Unlock()
 	return e.instrumentIDCodeMap[instID]
+}
+
+// websocketInstrumentIDCode returns the cached instrument ID code for an
+// instrument and whether it is available. An uncached instrument reports ok as
+// false so the caller falls back to REST: OKX requires the code on websocket
+// operations, and newly listed instruments carry a null code until OKX
+// generates one.
+func (e *Exchange) websocketInstrumentIDCode(instID string) (uint64, bool) {
+	code := e.getInstrumentIDCode(instID)
+	return code, code != 0
+}
+
+// applyWebsocketInstrumentIDCodes resolves and applies cached instrument ID
+// codes for websocket batch operations. It reports false without modifying the
+// requests when any instrument is uncached, so the caller falls back to REST
+// and no half-applied instIdCode leaks into a REST request body.
+func (e *Exchange) applyWebsocketInstrumentIDCodes(args []CancelOrderRequestParam) bool {
+	codes := make([]uint64, len(args))
+	for x := range args {
+		code := e.getInstrumentIDCode(args[x].InstrumentID)
+		if code == 0 {
+			return false
+		}
+		codes[x] = code
+	}
+	for x := range args {
+		args[x].InstrumentIDCode = codes[x]
+	}
+	return true
 }

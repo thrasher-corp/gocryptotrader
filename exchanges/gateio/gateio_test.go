@@ -523,18 +523,18 @@ func TestFuturesBaseVolume(t *testing.T) {
 func TestFuturesOrderUserUnmarshal(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name     string
-		payload  string
-		expected float64
+		name    string
+		payload string
 	}{
-		{"REST sends a bare number", `{"id":123,"user":110110110}`, 110110110},
-		{"websocket sends a quoted string", `{"id":123,"user":"110110110"}`, 110110110},
+		{"REST sends a bare number", `{"id":123,"user":110110110}`},
+		{"websocket sends a quoted string", `{"id":123,"user":"110110110"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			exp := FuturesOrder{ID: 123, User: 110110110}
 			var resp FuturesOrder
 			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &resp), "Unmarshal must not error for %s", tc.payload)
-			assert.Equal(t, tc.expected, resp.User.Float64(), "User should decode from both shapes")
+			assert.Equal(t, exp, resp, "FuturesOrder should decode User from both shapes")
 		})
 	}
 }
