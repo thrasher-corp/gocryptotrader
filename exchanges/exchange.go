@@ -49,8 +49,6 @@ const (
 	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 50
 	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
-	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
-	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
 // Public Errors

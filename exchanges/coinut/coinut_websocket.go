@@ -504,7 +504,8 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ctx context.Context, ob *WsOrderbo
 	newOrderBook.Pair, err = currency.NewPairFromFormattedPairs(
 		e.instrumentMap.LookupInstrument(ob.InstID),
 		pairs,
-		format)
+		format,
+	)
 	if err != nil {
 		return err
 	}
@@ -531,7 +532,8 @@ func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrder
 	p, err := currency.NewPairFromFormattedPairs(
 		e.instrumentMap.LookupInstrument(update.InstID),
 		pairs,
-		format)
+		format,
+	)
 	if err != nil {
 		return err
 	}

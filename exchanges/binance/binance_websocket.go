@@ -604,7 +604,6 @@ func (e *Exchange) ProcessOrderbookUpdate(ctx context.Context, cp currency.Pair,
 		UpdateTime: ws.Timestamp.Time(),
 		Asset:      a,
 	})
-
 }
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
@@ -630,7 +629,8 @@ func (e *Exchange) applyBufferUpdate(ctx context.Context, pair currency.Pair) er
 			log.WebsocketMgr,
 			"%s error fetching recent orderbook when applying updates: %s\n",
 			e.Name,
-			err)
+			err,
+		)
 	}
 
 	if recent != nil {
@@ -640,7 +640,8 @@ func (e *Exchange) applyBufferUpdate(ctx context.Context, pair currency.Pair) er
 				log.WebsocketMgr,
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
 				e.Name,
-				err)
+				err,
+			)
 			err = e.obm.setNeedsFetchingBook(pair)
 			if err != nil {
 				return err

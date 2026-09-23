@@ -113,7 +113,8 @@ func (c *Config) CheckClientBankAccounts() {
 	defer m.Unlock()
 
 	if len(c.BankAccounts) == 0 {
-		c.BankAccounts = append(c.BankAccounts,
+		c.BankAccounts = append(
+			c.BankAccounts,
 			banking.Account{
 				ID:                  "test-bank-01",
 				BankName:            "Test Bank",

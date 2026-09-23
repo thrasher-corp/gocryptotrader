@@ -529,7 +529,6 @@ func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrder
 		Asset:      asset.Spot,
 		UpdateTime: update.Params.Timestamp,
 	})
-
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature

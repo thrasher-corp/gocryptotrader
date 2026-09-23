@@ -42,7 +42,6 @@ func (e *Exchange) processBooks(ctx context.Context, updates *WsOrderbooks) erro
 		Asks:       asks,
 		UpdateTime: updates.DateTime.Time(),
 	})
-
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook

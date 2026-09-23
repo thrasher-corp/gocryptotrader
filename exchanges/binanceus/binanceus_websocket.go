@@ -643,7 +643,6 @@ func (e *Exchange) ProcessOrderbookUpdate(ctx context.Context, cp currency.Pair,
 		UpdateTime: wsDSUpdate.Timestamp.Time(),
 		Asset:      a,
 	})
-
 }
 
 // fetchBookViaREST pushes a job of fetching the orderbook via the REST protocol
@@ -694,7 +693,8 @@ func (e *Exchange) applyBufferUpdate(ctx context.Context, pair currency.Pair) er
 			log.WebsocketMgr,
 			"%s error fetching recent orderbook when applying updates: %s\n",
 			e.Name,
-			err)
+			err,
+		)
 	}
 
 	if recent != nil {
@@ -704,7 +704,8 @@ func (e *Exchange) applyBufferUpdate(ctx context.Context, pair currency.Pair) er
 				log.WebsocketMgr,
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
 				e.Name,
-				err)
+				err,
+			)
 			err = e.obm.setNeedsFetchingBook(pair)
 			if err != nil {
 				return err
@@ -776,9 +777,8 @@ func (e *Exchange) SeedLocalCacheWithBook(ctx context.Context, p currency.Pair, 
 		ValidateOrderbook: e.ValidateOrderbook,
 		Bids:              orderbookNew.Bids,
 		Asks:              orderbookNew.Asks,
-		LastUpdated:       time.Now(),
+		LastUpdated:       time.Now(), // Time not provided in REST book.
 	})
-
 }
 
 // handleFetchingBook checks if a full book is being fetched or needs to be

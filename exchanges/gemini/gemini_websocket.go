@@ -487,9 +487,8 @@ func (e *Exchange) wsProcessUpdate(ctx context.Context, result *wsL2MarketData) 
 			Bids:       bids,
 			Pair:       pair,
 			Asset:      asset.Spot,
-			UpdateTime: time.Now(),
+			UpdateTime: time.Now(), // No time is sent
 		})
-
 		if err != nil {
 			return err
 		}

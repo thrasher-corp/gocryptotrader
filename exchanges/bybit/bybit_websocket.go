@@ -762,7 +762,6 @@ func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item,
 			Asks:         result.Asks.Levels(),
 			Bids:         result.Bids.Levels(),
 		})
-
 	}
 	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       cp,
@@ -774,7 +773,6 @@ func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item,
 		LastPushed: resp.PushTimestamp.Time(),
 		AllowEmpty: true,
 	})
-
 }
 
 // channelName converts global channel names to exchange specific names

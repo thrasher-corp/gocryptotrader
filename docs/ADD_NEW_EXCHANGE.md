@@ -1017,12 +1017,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         // appropriately if we have a pair/asset enable/disable change. This is 
         // outlined below.
         Features:               &e.Features.Supports.WebsocketCapabilities, 
-
-        // Orderbook buffer specific variables for processing orderbook updates 
-        // via websocket feed: 
-        // SortBuffer            bool 
-        // SortBufferByUpdateIDs bool 
-        // UpdateEntriesByID     bool 
     })
     if err != nil {
         return err

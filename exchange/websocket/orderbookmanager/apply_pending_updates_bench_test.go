@@ -13,12 +13,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-// BenchmarkLoadSnapshotExistingHolder guards the shared-lock fast path against accidental serialisation.
-func BenchmarkLoadSnapshotExistingHolder(b *testing.B) {
+// BenchmarkLoadSnapshotExistingDepth guards the shared-lock fast path against accidental serialisation.
+func BenchmarkLoadSnapshotExistingDepth(b *testing.B) {
 	relay := stream.NewRelay(1)
 	pair := currency.NewBTCUSD()
 	book := &orderbook.Book{
-		Exchange:    "BenchmarkLoadSnapshotExistingHolder",
+		Exchange:    "BenchmarkLoadSnapshotExistingDepth",
 		Pair:        pair,
 		Asset:       asset.Spot,
 		LastUpdated: time.Unix(1, 0),

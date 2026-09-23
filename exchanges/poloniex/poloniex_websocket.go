@@ -301,7 +301,6 @@ func (e *Exchange) processBooksLevel2(ctx context.Context, result *SubscriptionR
 			LastUpdateID: r.LastID,
 			LastUpdated:  r.Timestamp.Time(),
 		})
-
 	}
 
 	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
@@ -312,7 +311,6 @@ func (e *Exchange) processBooksLevel2(ctx context.Context, result *SubscriptionR
 		Asks:       r.Asks.Levels(),
 		Bids:       r.Bids.Levels(),
 	})
-
 }
 
 func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionResponse) error {

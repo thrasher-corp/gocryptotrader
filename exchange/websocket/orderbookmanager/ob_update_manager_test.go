@@ -532,7 +532,7 @@ func TestApplyPendingUpdatesKeyMismatch(t *testing.T) {
 	}
 }
 
-func TestApplyPendingUpdatesCachedHolderAfterSkip(t *testing.T) {
+func TestApplyPendingUpdatesCachedDepthAfterSkip(t *testing.T) {
 	t.Parallel()
 
 	tp := newTestParams()
@@ -557,7 +557,7 @@ func TestApplyPendingUpdatesCachedHolderAfterSkip(t *testing.T) {
 	assert.Equal(t, int64(11), lastUpdateID, "LastUpdateID should return the applied update ID after a skip")
 }
 
-func TestApplyPendingUpdatesCachedHolderAdvances(t *testing.T) {
+func TestApplyPendingUpdatesCachedDepthAdvances(t *testing.T) {
 	t.Parallel()
 
 	tp := newTestParams()
@@ -579,7 +579,7 @@ func TestApplyPendingUpdatesCachedHolderAdvances(t *testing.T) {
 	assert.Equal(t, int64(12), lastUpdateID, "LastUpdateID should advance to the final applied update ID")
 }
 
-func TestApplyPendingUpdatesCachedHolderInvalidated(t *testing.T) {
+func TestApplyPendingUpdatesCachedDepthInvalidated(t *testing.T) {
 	t.Parallel()
 
 	tp := newTestParams()
@@ -600,7 +600,7 @@ func TestApplyPendingUpdatesCachedHolderInvalidated(t *testing.T) {
 	}})
 
 	assert.NoError(t, invalidationErr, "InvalidateOrderbook should not error")
-	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "applyPendingUpdates must return the cached holder invalidation error")
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "applyPendingUpdates must return the cached depth invalidation error")
 }
 
 func TestWaitForUpdate(t *testing.T) {

@@ -806,7 +806,6 @@ func (e *Exchange) processOrderbook(ctx context.Context, respRaw []byte, channel
 				UpdateID:   orderbookData.ChangeID,
 				UpdateTime: orderbookData.Timestamp.Time(),
 			})
-
 		}
 	} else if len(channels) == 5 {
 		a, cp, err := getAssetPairByInstrument(orderbookData.InstrumentName)
@@ -865,7 +864,6 @@ func (e *Exchange) processOrderbook(ctx context.Context, respRaw []byte, channel
 			LastUpdateID: orderbookData.ChangeID,
 			LastUpdated:  orderbookData.Timestamp.Time(),
 		})
-
 	}
 	return nil
 }

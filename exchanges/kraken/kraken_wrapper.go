@@ -172,7 +172,6 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets current exchange configuration
@@ -748,7 +747,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 	case asset.Futures:
 		var fOrder FuturesSendOrderData
-		fOrder, err = e.FuturesSendOrder(ctx,
+		fOrder, err = e.FuturesSendOrder(
+			ctx,
 			s.Type,
 			s.Pair,
 			s.Side.Lower(),

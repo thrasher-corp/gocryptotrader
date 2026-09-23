@@ -89,7 +89,8 @@ func TestResubscribe(t *testing.T) {
 	err = m.Resubscribe(t.Context(), e, conn, qualifiedChannel, currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
 	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "manager should mark the pair as resubscribing immediately")
-	assert.Eventually(t,
+	assert.Eventually(
+		t,
 		func() bool {
 			sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: qualifiedChannel, Asset: asset.Spot}})
 			return sub != nil && sub.State() == subscription.SubscribedState
@@ -100,7 +101,8 @@ func TestResubscribe(t *testing.T) {
 	)
 
 	m.CompletedResubscribe(currency.NewBTCUSDT(), asset.Spot)
-	assert.Eventually(t,
+	assert.Eventually(
+		t,
 		func() bool {
 			return !m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot)
 		},
@@ -137,7 +139,8 @@ func TestResubscribeWithoutOrderbook(t *testing.T) {
 	require.NoError(t, e.Websocket.AddSubscriptions(conn, subs...), "subscriptions must register")
 	require.NoError(t, e.wsOBResubMgr.Resubscribe(t.Context(), e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot), "Resubscribe must not require an existing orderbook")
 	assert.True(t, e.wsOBResubMgr.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "a pair whose first snapshot was rejected should be able to resubscribe")
-	assert.Eventually(t,
+	assert.Eventually(
+		t,
 		func() bool {
 			sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ob.BTC_USDT.50", Asset: asset.Spot}})
 			return sub != nil && sub.State() == subscription.SubscribedState

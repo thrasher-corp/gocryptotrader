@@ -705,7 +705,8 @@ func (e *Exchange) Subscribe(in subscription.List) error {
 	// Merge subs by grouping pairs for request; We make a single request to subscribe to N+ pairs, but get N+ responses back
 	groupedSubs := subs.GroupPairs()
 
-	errs = common.AppendError(errs,
+	errs = common.AppendError(
+		errs,
 		e.ParallelChanOp(ctx, groupedSubs, func(ctx context.Context, s subscription.List) error { return e.manageSubs(ctx, krakenWsSubscribe, s) }, 1),
 	)
 
@@ -743,7 +744,8 @@ func (e *Exchange) Unsubscribe(keys subscription.List) error {
 
 	subs = subs.GroupPairs()
 
-	return common.AppendError(errs,
+	return common.AppendError(
+		errs,
 		e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error { return e.manageSubs(ctx, krakenWsUnsubscribe, s) }, 1),
 	)
 }

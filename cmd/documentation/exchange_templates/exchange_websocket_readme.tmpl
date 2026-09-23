@@ -41,7 +41,6 @@ func (e *Exchange) SetDefault() {
     e.Websocket = websocket.NewManager()
     e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
     e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-    e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // In the exchange wrapper this is the original setup pattern for the websocket services
@@ -57,7 +56,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         GenerateSubscriptions:                  e.GenerateDefaultSubscriptions,
         Features:                               &e.Features.Supports.WebsocketCapabilities,
         MaxWebsocketSubscriptionsPerConnection: 240,
-        OrderbookBufferConfig: buffer.Config{ Checksum: e.CalculateUpdateOrderbookChecksum },
     }); err != nil {
         return err
     }

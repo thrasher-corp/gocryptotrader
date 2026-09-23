@@ -131,7 +131,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				Exchange:          e.Name,
 				ValidateOrderbook: e.ValidateOrderbook,
 			})
-
 		} else {
 			err = e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 				UpdateTime:                 ob.Timestamp,
@@ -144,7 +143,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				GenerateChecksum:           orderbookChecksum,
 				SkipOutOfOrderLastUpdateID: true,
 			})
-
 		}
 		if err != nil {
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {

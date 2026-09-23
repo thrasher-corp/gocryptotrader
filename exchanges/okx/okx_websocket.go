@@ -250,7 +250,8 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+	hmac, err := crypto.GetHMAC(
+		crypto.HashSHA256,
 		[]byte(strconv.FormatInt(ts, 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
@@ -812,7 +813,6 @@ func (e *Exchange) wsProcessSpreadOrderbook(ctx context.Context, respRaw []byte)
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
 		})
-
 		if err != nil {
 			return err
 		}
@@ -859,7 +859,6 @@ func (e *Exchange) wsProcessOrderbook5(ctx context.Context, data []byte) error {
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
 		})
-
 		if err != nil {
 			return err
 		}
@@ -1034,7 +1033,7 @@ func (e *Exchange) WsProcessUpdateOrderbook(ctx context.Context, data *WsOrderBo
 			LastPushed: data.Timestamp.Time(),
 			Asks:       asks,
 			Bids:       bids,
-			AllowEmpty: true,
+			AllowEmpty: true, // Allow empty levels to push forward sequence ID
 		}); err != nil {
 			if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 				dispatchErr = common.AppendError(dispatchErr, err)

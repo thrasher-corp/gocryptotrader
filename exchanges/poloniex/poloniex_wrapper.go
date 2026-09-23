@@ -169,7 +169,6 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user exchange configuration settings
@@ -1467,7 +1466,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			smartOrders, err := e.GetSmartOrderHistory(ctx,
+			smartOrders, err := e.GetSmartOrderHistory(
+				ctx,
 				&OrdersHistoryRequest{
 					Symbol:      currency.EMPTYPAIR,
 					AccountType: accountTypeString(req.AssetType),
@@ -1625,7 +1625,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	switch a {
 	case asset.Spot:
 		for i := range req.RangeHolder.Ranges {
-			resp, err := e.GetCandlesticks(ctx,
+			resp, err := e.GetCandlesticks(
+				ctx,
 				req.RequestFormatted,
 				req.ExchangeInterval,
 				req.RangeHolder.Ranges[i].Start.Time,
@@ -1649,7 +1650,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 	case asset.Futures:
 		for i := range req.RangeHolder.Ranges {
-			resp, err := e.GetFuturesKlineData(ctx,
+			resp, err := e.GetFuturesKlineData(
+				ctx,
 				req.RequestFormatted,
 				interval,
 				req.RangeHolder.Ranges[i].Start.Time,
