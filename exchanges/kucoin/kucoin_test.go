@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 	"uuid"
@@ -2342,7 +2343,12 @@ func TestGetOrderHistory(t *testing.T) {
 func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/1") {
+			_, err := w.Write([]byte(`{"code":"200000","data":{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","tradeType":"TRADE","price":"61000","size":"0.01","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}}`))
+			assert.NoError(t, err, "mock order detail response should be written")
+			return
+		}
 		_, err := w.Write([]byte(`{"code":"200000","data":{"currentPage":1,"pageSize":1,"totalNum":1,"totalPage":1,"items":[{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","price":"61000","size":"0.01","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}]}}`))
 		assert.NoError(t, err, "mock order history response should be written")
 	}))
@@ -2364,6 +2370,10 @@ func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	require.Len(t, orders, 1, "GetOrderHistory must return one order")
 	assert.Equal(t, 600.0, orders[0].ExecutedQuoteAmount, "executed quote amount should use dealFunds")
 	assert.Equal(t, 60000.0, orders[0].AverageExecutedPrice, "average execution price should be inferred from dealFunds and dealSize")
+	detail, err := ex.GetOrderInfo(t.Context(), "1", currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, orders[0].ExecutedQuoteAmount, detail.ExecutedQuoteAmount, "order detail should retain the same filled quote amount as history")
+	assert.Equal(t, orders[0].AverageExecutedPrice, detail.AverageExecutedPrice, "order detail should infer the same average execution price as history")
 }
 
 func TestGetActiveOrders(t *testing.T) {

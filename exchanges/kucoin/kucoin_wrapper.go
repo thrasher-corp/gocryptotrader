@@ -1094,29 +1094,31 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		} else {
 			remainingSize = orderDetail.Size.Float64() - orderDetail.DealSize.Float64()
 		}
-		return &order.Detail{
-			Exchange:             e.Name,
-			OrderID:              orderDetail.ID,
-			Pair:                 pair,
-			Type:                 oType,
-			Side:                 side,
-			Fee:                  orderDetail.Fee.Float64(),
-			AssetType:            assetType,
-			ExecutedAmount:       orderDetail.DealSize.Float64(),
-			RemainingAmount:      remainingSize,
-			Amount:               orderDetail.Size.Float64(),
-			Price:                orderDetail.Price.Float64(),
-			Date:                 orderDetail.CreatedAt.Time(),
-			HiddenOrder:          orderDetail.Hidden,
-			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
-			AverageExecutedPrice: orderDetail.Price.Float64(),
-			FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
-			ClientOrderID:        orderDetail.ClientOID,
-			Status:               oStatus,
-			CloseTime:            orderDetail.CreatedAt.Time(),
-			MarginType:           mType,
-			LastUpdated:          orderDetail.LastUpdatedAt.Time(),
-		}, nil
+		detail := &order.Detail{
+			Exchange:            e.Name,
+			OrderID:             orderDetail.ID,
+			Pair:                pair,
+			Type:                oType,
+			Side:                side,
+			Fee:                 orderDetail.Fee.Float64(),
+			AssetType:           assetType,
+			ExecutedAmount:      orderDetail.DealSize.Float64(),
+			ExecutedQuoteAmount: orderDetail.DealFunds.Float64(),
+			RemainingAmount:     remainingSize,
+			Amount:              orderDetail.Size.Float64(),
+			Price:               orderDetail.Price.Float64(),
+			Date:                orderDetail.CreatedAt.Time(),
+			HiddenOrder:         orderDetail.Hidden,
+			TimeInForce:         StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
+			FeeAsset:            currency.NewCode(orderDetail.FeeCurrency),
+			ClientOrderID:       orderDetail.ClientOID,
+			Status:              oStatus,
+			CloseTime:           orderDetail.CreatedAt.Time(),
+			MarginType:          mType,
+			LastUpdated:         orderDetail.LastUpdatedAt.Time(),
+		}
+		detail.InferExecutionAndTimes()
+		return detail, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -1717,7 +1719,8 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 					Low:    candles[x].Low,
 					Close:  candles[x].Close,
 					Volume: candles[x].Volume,
-				})
+				},
+			)
 		}
 	case asset.Spot, asset.Margin:
 		intervalString, err := IntervalToString(interval)
@@ -1738,7 +1741,8 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 					Low:    candles[x].Low.Float64(),
 					Close:  candles[x].Close.Float64(),
 					Volume: candles[x].Volume.Float64(),
-				})
+				},
+			)
 		}
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
@@ -1771,7 +1775,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 						Low:    candles[y].Low,
 						Close:  candles[y].Close,
 						Volume: candles[y].Volume,
-					})
+					},
+				)
 			}
 		}
 		return req.ProcessResponse(timeSeries)
@@ -1796,7 +1801,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 						Low:    candles[x].Low.Float64(),
 						Close:  candles[x].Close.Float64(),
 						Volume: candles[x].Volume.Float64(),
-					})
+					},
+				)
 			}
 		}
 		return req.ProcessResponse(timeSeries)

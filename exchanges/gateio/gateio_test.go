@@ -2482,8 +2482,9 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 
+	finishAs := "cancelled"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"id":123456789,"user":"12870774","contract":"BTC_USDT","create_time":1735787107.449,"size":10,"left":4,"price":"0","fill_price":"98172.9","tif":"ioc","text":"t-1337","status":"finished","finish_time":1735787107.45,"finish_as":"cancelled","update_time":1735787107.45}`))
+		_, err := fmt.Fprintf(w, `{"id":123456789,"user":"12870774","contract":"BTC_USDT","create_time":1735787107.449,"size":10,"left":4,"price":"0","fill_price":"98172.9","tif":"ioc","text":"t-1337","status":"finished","finish_time":1735787107.45,"finish_as":%q,"update_time":1735787107.45}`, finishAs)
 		assert.NoError(t, err, "mock futures order response should be written")
 	}))
 	t.Cleanup(server.Close)
@@ -2494,20 +2495,27 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
-	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		response, err := ex.SubmitOrder(t.Context(), &order.Submit{
-			Exchange:  ex.Name,
-			Pair:      currency.NewBTCUSDT(),
-			Side:      order.Long,
-			Type:      order.Market,
-			Amount:    10,
-			AssetType: a,
-		})
-		require.NoErrorf(t, err, "SubmitOrder must not error for %s", a)
-		assert.Equalf(t, 10.0, response.Amount, "amount should be the absolute submitted size for %s", a)
-		assert.Equalf(t, 6.0, response.ExecutedAmount, "executed amount should use authoritative size and remaining quantities for %s", a)
-		assert.Equalf(t, 4.0, response.RemainingAmount, "remaining amount should be copied from the exchange response for %s", a)
-		assert.Equalf(t, 98172.9, response.AverageExecutedPrice, "average execution price should be copied from the exchange response for %s", a)
+	for _, outcome := range []string{"cancelled", "ioc", "reduce_only", "reduce_out"} {
+		finishAs = outcome
+		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.DeliveryFutures} {
+			response, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:  ex.Name,
+				Pair:      currency.NewBTCUSDT(),
+				Side:      order.Long,
+				Type:      order.Market,
+				Amount:    10,
+				AssetType: a,
+			})
+			require.NoErrorf(t, err, "SubmitOrder must not error for %s", a)
+			assert.Equalf(t, 10.0, response.Amount, "amount should be the absolute submitted size for %s", a)
+			assert.Equalf(t, 6.0, response.ExecutedAmount, "executed amount should use authoritative size and remaining quantities for %s", a)
+			assert.Equalf(t, 4.0, response.RemainingAmount, "remaining amount should be copied from the exchange response for %s", a)
+			assert.Equalf(t, 98172.9, response.AverageExecutedPrice, "average execution price should be copied from the exchange response for %s", a)
+			assert.Equalf(t, order.Cancelled, response.Status, "finished %s order should cancel the unfilled remainder for %s", outcome, a)
+			detail, err := ex.GetOrderInfo(t.Context(), response.OrderID, currency.NewBTCUSDT(), a)
+			require.NoErrorf(t, err, "GetOrderInfo must not error for %s with finish_as %s", a, outcome)
+			assert.Equalf(t, order.Cancelled, detail.Status, "order detail should cancel the unfilled remainder for %s with finish_as %s", a, outcome)
+		}
 	}
 }
 
@@ -4507,6 +4515,7 @@ func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"ioc","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"auto_deleveraged","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.AutoDeleverage},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_only","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_out","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"position_closed","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Closed},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"stp","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.STP},
 	}
@@ -4928,8 +4937,8 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				[]byte(`{"text":"apiv4-ws","price":"200000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596748780649,"create_time":1735790222.185,"size":-1,"update_time":1735790222.185,"left":-1,"user":2365748}`),
 				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98172.9","id":36028797827161124,"create_time":1740108860.761,"size":1,"finish_time":1740108860.761,"update_time":1740108860.761,"left":0,"user":2365748}`),
 				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98113.1","id":36028797827225781,"create_time":1740109172.06,"size":-1,"finish_time":1740109172.06,"update_time":1740109172.06,"left":0,"user":2365748,"is_reduce_only":true}`),
-				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"cancelled","fill_price":"98172.9","id":36028797827161125,"create_time":1740108860.761,"size":10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":4,"user":2365748}`),
-				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"cancelled","fill_price":"98172.9","id":36028797827161126,"create_time":1740108860.761,"size":-10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":-4,"user":2365748}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"ioc","fill_price":"98172.9","id":36028797827161125,"create_time":1740108860.761,"size":10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":4,"user":2365748}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"reduce_out","fill_price":"98172.9","id":36028797827161126,"create_time":1740108860.761,"size":-10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":-4,"user":2365748}`),
 			},
 			expected: []*order.SubmitResponse{
 				{
@@ -5029,7 +5038,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "36028797827161125",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740108860761),
 					LastUpdated:          time.UnixMilli(1740108860761),
@@ -5045,7 +5054,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "36028797827161126",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740108860761),
 					LastUpdated:          time.UnixMilli(1740108860761),

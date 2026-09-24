@@ -2342,6 +2342,20 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err, "book_lv2 update should not error")
 }
 
+func TestProcessFuturesOrdersExecutionAmount(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	data := []byte(`[{"symbol":"BTC_USDT_PERP","side":"BUY","type":"LIMIT","mgnMode":"CROSS","timeInForce":"GTC","ordId":"123","sz":"3","px":"60","state":"NEW","avgPx":"59.9","execQty":"3","execAmt":"179.7","qCcy":"USDT"}]`)
+	require.NoError(t, ex.processFuturesOrders(t.Context(), data), "processFuturesOrders must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesOrders must emit one update")
+	got, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+	require.True(t, ok, "futures update must contain order details")
+	require.Len(t, got, 1, "futures update must contain one order")
+	assert.Equal(t, 3.0, got[0].ExecutedAmount, "executed amount should use execQty")
+	assert.Equal(t, 179.7, got[0].ExecutedQuoteAmount, "executed quote amount should use execAmt")
+}
+
 func TestProcessOrders(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)

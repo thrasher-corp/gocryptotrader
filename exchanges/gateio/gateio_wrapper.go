@@ -983,6 +983,15 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 	return nil, common.ErrFunctionNotSupported
 }
 
+// Gate's futures IOC and reduce outcomes cancel the unfilled remainder.
+func futuresFinishStatus(finishAs string) (order.Status, error) {
+	switch finishAs {
+	case "ioc", "reduce_only", "reduce_out":
+		return order.Cancelled, nil
+	}
+	return order.StringToOrderStatus(finishAs)
+}
+
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
@@ -1061,7 +1070,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		resp.Status = order.Open
 		if o.Status != statusOpen {
-			if resp.Status, err = order.StringToOrderStatus(o.FinishAs); err != nil {
+			if resp.Status, err = futuresFinishStatus(o.FinishAs); err != nil {
 				return nil, err
 			}
 		}
@@ -1093,7 +1102,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		resp.Status = order.Open
 		if o.Status != statusOpen {
-			if resp.Status, err = order.StringToOrderStatus(o.FinishAs); err != nil {
+			if resp.Status, err = futuresFinishStatus(o.FinishAs); err != nil {
 				return nil, err
 			}
 		}
@@ -1412,7 +1421,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		orderStatus := order.Open
 		if fOrder.Status != statusOpen {
-			orderStatus, err = order.StringToOrderStatus(fOrder.FinishAs)
+			orderStatus, err = futuresFinishStatus(fOrder.FinishAs)
 			if err != nil {
 				return nil, err
 			}
@@ -2950,7 +2959,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 		status := order.Open
 		if resp.FinishAs != "" && resp.FinishAs != statusOpen {
 			var err error
-			status, err = order.StringToOrderStatus(resp.FinishAs)
+			status, err = futuresFinishStatus(resp.FinishAs)
 			if err != nil {
 				return nil, err
 			}

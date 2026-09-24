@@ -309,6 +309,7 @@ func (e *Exchange) processFuturesOrders(ctx context.Context, data []byte) error 
 			Amount:               r.Size.Float64(),
 			AverageExecutedPrice: r.AveragePrice.Float64(),
 			ExecutedAmount:       r.ExecutedQuantity.Float64(),
+			ExecutedQuoteAmount:  r.ExecutedAmount.Float64(),
 			RemainingAmount:      r.Size.Float64() - r.ExecutedQuantity.Float64(),
 			Fee:                  r.FeeAmount.Float64(),
 			FeeAsset:             r.FeeCurrency,

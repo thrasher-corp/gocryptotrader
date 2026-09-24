@@ -1502,6 +1502,22 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestWSUserExecutionAmounts(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	resp := &StandardWebsocketResponse{
+		Events: json.RawMessage(`[{"orders":[{"order_id":"order-1","product_id":"BTC-USD","product_type":"SPOT","order_type":"LIMIT_ORDER_TYPE","order_side":"BUY","status":"FILLED","time_in_force":"GOOD_UNTIL_CANCELLED","cumulative_quantity":"0.01","leaves_quantity":"0","filled_value":"600","avg_price":"60000","limit_price":"61000"}]}]`),
+	}
+	require.NoError(t, ex.wsProcessUser(t.Context(), resp), "wsProcessUser must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessUser must emit one order update")
+	got, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+	require.True(t, ok, "websocket update must contain order details")
+	require.Len(t, got, 1, "websocket update must contain one order")
+	assert.Equal(t, 600.0, got[0].ExecutedQuoteAmount, "streamed order should retain filled_value")
+	assert.Equal(t, 60000.0, got[0].AverageExecutedPrice, "streamed order should retain avg_price rather than the limit price")
+}
+
 func TestGetOrderRespToOrderDetail(t *testing.T) {
 	t.Parallel()
 	mockData := &GetOrderResponse{
