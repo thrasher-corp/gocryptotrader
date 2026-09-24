@@ -38,12 +38,17 @@ type Exchange struct {
 
 const (
 	lbankAPIURL      = "https://api.lbkex.com"
-	lbankAPIVersion1 = "1"
 	lbankAPIVersion2 = "2"
 	lbankFeeNotFound = 0.0
 	tradeBaseURL     = "https://www.lbank.com/trade/"
 
 	// Public endpoints
+	//
+	// lbankTicker, lbankTrades, lbankUSD2CNYRate and lbankWithdrawConfig are no
+	// longer listed for the v2 API, or are listed there as abandoned. They are
+	// left on their current paths because the documented replacements return
+	// different payloads and cannot be adopted without recorded fixtures.
+	// See https://github.com/thrasher-corp/gocryptotrader/issues/1925
 	lbankTicker         = "ticker.do"
 	lbankCurrencyPairs  = "currencyPairs.do"
 	lbankMarketDepths   = "depth.do"
@@ -72,6 +77,11 @@ var (
 	errPEMBlockIsNil           = errors.New("pem block is nil")
 	errUnableToParsePrivateKey = errors.New("unable to parse private key")
 	errPrivateKeyNotLoaded     = errors.New("private key not loaded")
+	// errRequestFailed is returned when an LBank v2 envelope reports a failed
+	// request. Callers and tests match this category with errors.Is instead of
+	// matching the exchange supplied message text. It carries no exchange name;
+	// the wrapping layer adds that.
+	errRequestFailed = errors.New("request failed")
 )
 
 // GetTicker returns a ticker for the specified symbol
@@ -512,16 +522,37 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 
-	var v2Resp V2Response
-	if err := json.Unmarshal(tempResp, &v2Resp); err == nil {
-		if v2Resp.Result == "false" {
-			return fmt.Errorf("lbank: request failed: %s", v2Resp.Msg)
-		}
-		if v2Resp.Data != nil {
-			return json.Unmarshal(v2Resp.Data, result)
-		}
+	payload, err := unwrapV2Response(tempResp)
+	if err != nil {
+		return fmt.Errorf("%s: %w", e.Name, err)
 	}
-	return json.Unmarshal(tempResp, result)
+	return json.Unmarshal(payload, result)
+}
+
+// unwrapV2Response returns the payload held in an LBank v2 response envelope.
+// LBank returns the result field as a JSON string ("true"/"false") on some
+// endpoints and as a JSON boolean on others. Decoding it into a string failed
+// outright for the boolean form, which made the envelope fall back to being
+// parsed as the payload and skipped the failed request check below. A payload
+// that is not a JSON object is returned unchanged; a JSON object that does not
+// decode as the envelope is reported as an error so that a further change of
+// shape in the envelope cannot silently disable the failed request check. The
+// errors returned here are bare; SendHTTPRequest prepends the exchange name.
+func unwrapV2Response(payload json.RawMessage) (json.RawMessage, error) {
+	var v2Resp V2Response
+	if err := json.Unmarshal(payload, &v2Resp); err != nil {
+		if bytes.HasPrefix(bytes.TrimLeft(payload, " \t\r\n"), []byte("{")) {
+			return nil, fmt.Errorf("decoding response envelope: %w", err)
+		}
+		return payload, nil // not an envelope; return it unchanged for the caller to unmarshal
+	}
+	if v2Resp.Result != nil && !v2Resp.Result.Bool() {
+		return nil, fmt.Errorf("%w: %s (error_code %d)", errRequestFailed, v2Resp.Msg, v2Resp.ErrorCode)
+	}
+	if v2Resp.Data != nil {
+		return v2Resp.Data, nil
+	}
+	return payload, nil
 }
 
 func (e *Exchange) loadPrivKey(ctx context.Context) error {

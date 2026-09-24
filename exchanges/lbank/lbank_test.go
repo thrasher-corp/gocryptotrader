@@ -12,6 +12,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -501,4 +503,133 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestUnwrapV2Response(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		payload  string
+		expected string
+		err      string
+		isErr    error
+	}{
+		{
+			name:     "string result true",
+			payload:  `{"result":"true","data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "boolean result true",
+			payload:  `{"result":true,"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:    "string result false",
+			payload: `{"result":"false","msg":"Invalid parameter","error_code":10003}`,
+			err:     "request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:    "boolean result false",
+			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003}`,
+			err:     "request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:    "failed envelope carrying data is still a failure",
+			payload: `{"result":false,"msg":"Invalid parameter","error_code":10003,"data":[1,2,3]}`,
+			err:     "request failed: Invalid parameter (error_code 10003)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:    "failed envelope without error code",
+			payload: `{"result":false,"msg":"instrument not found"}`,
+			err:     "request failed: instrument not found (error_code 0)",
+			isErr:   errRequestFailed,
+		},
+		{
+			name:     "absent result is not a failure",
+			payload:  `{"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "null result is not a failure",
+			payload:  `{"result":null,"data":[1,2,3]}`,
+			expected: `[1,2,3]`,
+		},
+		{
+			name:     "envelope without data returns the payload",
+			payload:  `{"result":"true"}`,
+			expected: `{"result":"true"}`,
+		},
+		{
+			name:     "non envelope payload is unchanged",
+			payload:  `[{"symbol":"btc_usdt"}]`,
+			expected: `[{"symbol":"btc_usdt"}]`,
+		},
+		{
+			name:     "non json payload is unchanged",
+			payload:  `not json at all`,
+			expected: `not json at all`,
+		},
+		{
+			name:    "object with a reshaped field is an error",
+			payload: `{"result":true,"error_code":"10003"}`,
+			err:     "decoding response envelope:",
+		},
+		{
+			name:    "object with leading whitespace and a reshaped field is an error",
+			payload: " \n\t{\"result\":true,\"error_code\":{}}",
+			err:     "decoding response envelope:",
+		},
+		{
+			name:    "truncated object is an error",
+			payload: `{"result":true,oops}`,
+			err:     "decoding response envelope:",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := unwrapV2Response([]byte(tc.payload))
+			if tc.err != "" {
+				assert.ErrorContains(t, err, tc.err, "unwrapV2Response should report the expected error")
+				assert.NotContains(t, err.Error(), "lbank:", "unwrapV2Response should return a bare error; SendHTTPRequest adds the exchange name")
+				if tc.isErr == nil {
+					assert.NotErrorIs(t, err, errRequestFailed, "a malformed envelope should not be reported as a failed request")
+				} else {
+					assert.ErrorIs(t, err, tc.isErr, "unwrapV2Response should report a matchable envelope failure")
+				}
+				return
+			}
+			require.NoError(t, err, "unwrapV2Response must not error")
+			assert.Equal(t, tc.expected, string(payload), "unwrapV2Response should return the expected payload")
+		})
+	}
+}
+
+// TestSendHTTPRequestEnvelopeFailure covers the path where an LBank v2
+// envelope reports a failed request. Without the boolean-aware envelope
+// handling this error was never surfaced to the caller.
+func TestSendHTTPRequestEnvelopeFailure(t *testing.T) {
+	t.Parallel()
+
+	sm := http.NewServeMux()
+	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":false,"msg":"instrument not found","error_code":10076}`))
+	})
+	server := httptest.NewServer(sm)
+	defer server.Close()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	var result any
+	err := ex.SendHTTPRequest(t.Context(), exchange.RestSpot, "", &result)
+	assert.ErrorIs(t, err, errRequestFailed, "a failed envelope should be reported as a failed request")
+	assert.ErrorContains(t, err, "(error_code 10076)", "a failed envelope should carry the exchange error code")
+	assert.ErrorContains(t, err, ex.Name+": request failed", "SendHTTPRequest should wrap the bare helper error with the exchange name")
 }
