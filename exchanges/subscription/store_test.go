@@ -175,6 +175,27 @@ func TestStoreDiff(t *testing.T) {
 	assert.Equal(t, MyTradesChannel, subs[0].Channel, "Should get correct channels in sub")
 	require.Equal(t, 2, len(unsubs), "Should get the correct number of unsubs")
 	EqualLists(t, unsubs, List{{Channel: OrderbookChannel}, {Channel: CandlesChannel}})
+	t.Run("same pointer in ResubscribingState is not a new add", func(t *testing.T) {
+		t.Parallel()
+		s := NewStore()
+		resub := &Subscription{Channel: TickerChannel}
+		require.NoError(t, s.Add(resub))
+		require.NoError(t, resub.SetState(ResubscribingState))
+		added, removed := s.Diff(List{resub})
+		assert.Empty(t, added, "the same resubscribing pointer is already in the store")
+		assert.Empty(t, removed, "still-wanted resubscribing entry should not be removed")
+	})
+	t.Run("same-key different pointer in ResubscribingState is added", func(t *testing.T) {
+		t.Parallel()
+		s := NewStore()
+		existing := &Subscription{Channel: TickerChannel}
+		require.NoError(t, s.Add(existing))
+		require.NoError(t, existing.SetState(ResubscribingState))
+		incoming := &Subscription{Channel: TickerChannel}
+		added, removed := s.Diff(List{incoming})
+		assert.Empty(t, added, "the same-key entry is already in the store")
+		assert.Empty(t, removed, "still-wanted resubscribing entry should not be removed")
+	})
 }
 
 func EqualLists(tb testing.TB, a, b List) {
