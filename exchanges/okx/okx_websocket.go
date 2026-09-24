@@ -749,10 +749,11 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
 	}
-	if err := ticker.ProcessBatch(tickers); err != nil {
+	processed, err := ticker.ProcessBatch(tickers)
+	if err != nil && len(processed) == 0 {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickers)
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // wsProcessPublicSpreadTrades retrieve the recent trades data from sprd-public-trades.
@@ -1324,10 +1325,14 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 			})
 		}
 	}
-	if err := ticker.ProcessBatch(tickerPrices); err != nil {
+	if len(tickerPrices) == 0 {
+		return nil
+	}
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if err != nil && len(processed) == 0 {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature

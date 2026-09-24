@@ -498,10 +498,11 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, asset
 			LastUpdated:  resp.Time.Time(),
 		}
 	}
-	if err := ticker.ProcessBatch(tickerPriceDatas); err != nil {
+	processed, err := ticker.ProcessBatch(tickerPriceDatas)
+	if err != nil && len(processed) == 0 {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerPriceDatas)
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error {

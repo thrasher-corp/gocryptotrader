@@ -176,13 +176,18 @@ func ProcessTicker(p *Price) error {
 	return service.update(p)
 }
 
-// ProcessBatch processes a batch of tickers.
-func ProcessBatch(p []Price) error {
+// ProcessBatch stores valid tickers and returns only those that succeeded.
+func ProcessBatch(p []Price) ([]Price, error) {
 	var errs error
+	processed := make([]Price, 0, len(p))
 	for i := range p {
-		errs = common.AppendError(errs, ProcessTicker(&p[i]))
+		if err := ProcessTicker(&p[i]); err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		processed = append(processed, p[i])
 	}
-	return errs
+	return processed, errs
 }
 
 // update updates ticker price

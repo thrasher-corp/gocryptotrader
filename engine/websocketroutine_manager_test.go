@@ -173,8 +173,6 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	testPair := currency.NewPair(currency.NewCode("AAA"), currency.NewCode("BBB"))
-	err = exch.GetBase().CurrencyPairs.SetAssetEnabled(asset.Spot, false)
-	require.NoError(t, err)
 	err = m.websocketDataHandler(exchName, &ticker.Price{
 		ExchangeName: exchName,
 		Pair:         testPair,

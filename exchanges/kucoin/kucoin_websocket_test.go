@@ -146,6 +146,7 @@ func TestPushData(t *testing.T) {
 		for len(e.Websocket.DataHandler.C) > 0 {
 			response := <-e.Websocket.DataHandler.C
 			if prices, ok := response.Data.([]ticker.Price); ok {
+				require.NotEmpty(t, prices, "ticker batch must contain at least one price")
 				messageCount += len(prices)
 				continue
 			}
@@ -1551,6 +1552,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 func TestProcessTicker(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	ku.Name = t.Name()
 	// size is the quantity of the latest fill rather than a 24 hour volume
 	msg := []byte(`{"topic":"/market/ticker:BTC-USDT","type":"message","subject":"trade.ticker","data":{"bestAsk":"76330.2","bestAskSize":"1.06213577","bestBid":"76330.1","bestBidSize":"0.00480864","price":"76330.1","sequence":"37257610995","size":"0.00002628","time":1789624664495}}`)
 	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
@@ -1570,6 +1572,9 @@ func TestProcessTicker(t *testing.T) {
 	got, ok := (<-ku.Websocket.DataHandler.C).Data.([]ticker.Price)
 	require.True(t, ok, "processTicker must send a ticker batch")
 	assert.Equal(t, []ticker.Price{exp}, got, "processTicker should map the latest fill's size to LastSize rather than a volume")
+	stored, err := ticker.GetTicker(ku.Name, exp.Pair, asset.Spot)
+	require.NoError(t, err, "processTicker must store the ticker before dispatch")
+	assert.Equal(t, exp.Last, stored.Last, "stored ticker should contain the latest price")
 
 	msg = []byte(`{"topic":"/market/ticker:all","type":"message","subject":"UNTRACKED-USDT","data":{"price":"1","time":1789624664495}}`)
 	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must ignore a ticker for an untracked pair")
@@ -1626,6 +1631,7 @@ func TestProcessFuturesTickerV2(t *testing.T) {
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	ku.Name = t.Name()
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
 	var tickers []ticker.Price
@@ -1640,6 +1646,11 @@ func TestProcessMarketSnapshot(t *testing.T) {
 		}
 	}
 	require.Len(t, tickers, 4, "processMarketSnapshot must send four tickers")
+	for i := range tickers {
+		stored, err := ticker.GetTicker(ku.Name, tickers[i].Pair, tickers[i].AssetType)
+		require.NoError(t, err, "processMarketSnapshot must store each ticker before dispatch")
+		assert.Equal(t, tickers[i].Last, stored.Last, "stored ticker should contain the dispatched price")
+	}
 	seenAssetTypes := map[asset.Item]int{}
 	for i := range tickers {
 		v := &tickers[i]

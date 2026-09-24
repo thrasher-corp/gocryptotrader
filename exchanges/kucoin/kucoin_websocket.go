@@ -774,10 +774,11 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 	if len(tickerPrices) == 0 {
 		return nil
 	}
-	if err := ticker.ProcessBatch(tickerPrices); err != nil {
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if err != nil && len(processed) == 0 {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // processCandlesticks processes a candlestick data for an instrument with a particular interval
@@ -954,10 +955,11 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 	if len(tickerPrices) == 0 {
 		return nil
 	}
-	if err := ticker.ProcessBatch(tickerPrices); err != nil {
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if err != nil && len(processed) == 0 {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // Subscribe sends a websocket message to receive data from the channel

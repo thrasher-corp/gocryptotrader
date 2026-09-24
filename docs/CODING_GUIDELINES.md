@@ -28,6 +28,11 @@ See [SECURITY.md](../SECURITY.md) for the project's security policy, supported v
 
 Refer to the [ADD_NEW_EXCHANGE.md](../docs/ADD_NEW_EXCHANGE.md) document for comprehensive steps on integrating a new exchange.
 
+Websocket ticker handlers must process tickers into the shared store before
+relaying them to `DataHandler`. Do not relay a ticker that fails processing.
+For batches, relay the successfully processed entries and report any failures;
+skip empty batches from feeds that can include untracked markets.
+
 ### Endpoint Organisation
 
 - Implement API endpoints in the order they are presented in the API documentation to maintain alignment with the source.

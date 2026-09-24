@@ -4742,9 +4742,19 @@ func TestWsProcessTickers(t *testing.T) {
 		assert.Truef(t, seen[a], "a %s ticker should reach the data handler", a)
 	}
 
+	for _, data := range []string{`[]`, `null`} {
+		err := e.wsProcessTickers(t.Context(), []byte(`{"arg":{"channel":"tickers","instType":"SPOT"},"data":`+data+`}`))
+		require.NoError(t, err, "empty ticker data must not error")
+		assert.Empty(t, e.Websocket.DataHandler.C, "empty ticker data should not be dispatched")
+	}
+
 	err := e.wsProcessTickers(t.Context(), []byte(`{"arg":{"channel":"tickers","instType":"SPOT"},"data":[{"instId":"BTC-USDT","askPx":"2","bidPx":"1"},{"instId":"ETH-USDT","askPx":"1","bidPx":"2"}]}`))
 	require.Error(t, err, "wsProcessTickers must reject a batch containing an invalid ticker")
-	assert.Empty(t, e.Websocket.DataHandler.C, "wsProcessTickers should not dispatch a partial batch")
+	require.Len(t, e.Websocket.DataHandler.C, 1, "wsProcessTickers must dispatch valid tickers from a partial batch")
+	processed, ok := (<-e.Websocket.DataHandler.C).Data.([]ticker.Price)
+	require.True(t, ok, "wsProcessTickers must dispatch a ticker batch")
+	require.Len(t, processed, 1, "wsProcessTickers must exclude invalid tickers")
+	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), processed[0].Pair, "wsProcessTickers should dispatch the valid pair")
 }
 
 func TestWSProcessTrades(t *testing.T) {

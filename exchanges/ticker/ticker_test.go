@@ -418,13 +418,14 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 func TestProcessBatch(t *testing.T) {
 	t.Parallel()
 
-	err := ProcessBatch(nil)
+	processed, err := ProcessBatch(nil)
 	require.NoError(t, err, "ProcessBatch must not error for empty input")
+	assert.Empty(t, processed, "empty input should produce no tickers")
 
 	exchName := strings.ReplaceAll(t.Name(), "/", "-")
 	pairOne := currency.NewBTCUSD()
 	pairTwo := currency.NewPair(currency.ETH, currency.USD)
-	err = ProcessBatch([]Price{
+	processed, err = ProcessBatch([]Price{
 		{
 			ExchangeName: exchName,
 			Pair:         pairOne,
@@ -439,6 +440,7 @@ func TestProcessBatch(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "ProcessBatch must not error for valid ticker batches")
+	require.Len(t, processed, 2, "ProcessBatch must return both valid tickers")
 
 	_, err = GetTicker(exchName, pairOne, asset.Spot)
 	require.NoError(t, err, "GetTicker must not error after ProcessBatch stores the first ticker")
@@ -446,7 +448,7 @@ func TestProcessBatch(t *testing.T) {
 	require.NoError(t, err, "GetTicker must not error after ProcessBatch stores the second ticker")
 
 	pairThree := currency.NewPair(currency.LTC, currency.USD)
-	err = ProcessBatch([]Price{
+	processed, err = ProcessBatch([]Price{
 		{
 			Pair:      pairOne,
 			AssetType: asset.Spot,
@@ -468,6 +470,8 @@ func TestProcessBatch(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "ProcessBatch should retain the first batch error")
 	assert.ErrorIs(t, err, errBidGreaterThanAsk, "ProcessBatch should combine subsequent batch errors")
+	require.Len(t, processed, 1, "ProcessBatch must return only the valid ticker")
+	assert.Equal(t, pairThree, processed[0].Pair, "ProcessBatch should return the successful ticker")
 	_, err = GetTicker(exchName, pairThree, asset.Spot)
 	require.NoError(t, err, "ProcessBatch must continue processing valid entries after errors")
 }

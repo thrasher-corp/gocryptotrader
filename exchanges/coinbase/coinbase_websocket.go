@@ -136,11 +136,12 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 			}
 		}
 	}
-	errs = common.AppendError(errs, ticker.ProcessBatch(allTickers))
-	if errs != nil {
+	processed, processErr := ticker.ProcessBatch(allTickers)
+	errs = common.AppendError(errs, processErr)
+	if errs != nil && len(processed) == 0 {
 		return errs
 	}
-	return e.Websocket.DataHandler.Send(ctx, allTickers)
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // wsProcessCandle handles candle data from the websocket
