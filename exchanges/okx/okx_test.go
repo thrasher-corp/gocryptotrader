@@ -183,10 +183,10 @@ func TestGetTickers(t *testing.T) {
 	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, pairs[0].String())
 	require.NoError(t, err, "instrumentFamilyFromInstID must not error")
 
-	_, err = e.GetTickers(contextGenerate(), "", "", instFamily)
+	_, err = e.GetTickers(contextGenerate(), "", instFamily)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	result, err := e.GetTickers(contextGenerate(), instTypeOption, "", instFamily)
+	result, err := e.GetTickers(contextGenerate(), instTypeOption, instFamily)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -459,27 +459,27 @@ func TestGetInstrument(t *testing.T) {
 
 func TestGetDeliveryHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetDeliveryHistory(contextGenerate(), "", mainPair.String(), "", time.Time{}, time.Time{}, 3)
+	_, err := e.GetDeliveryHistory(contextGenerate(), "", "", time.Time{}, time.Time{}, 3)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, "", "", time.Time{}, time.Time{}, 3)
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, "", time.Time{}, time.Time{}, 3)
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
-	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), "", time.Time{}, time.Time{}, 345)
+	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), time.Time{}, time.Time{}, 345)
 	require.ErrorIs(t, err, errLimitValueExceedsMaxOf100)
 
-	result, err := e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), "", time.Time{}, time.Time{}, 3)
+	result, err := e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), time.Time{}, time.Time{}, 3)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterestData(contextGenerate(), "", mainPair.String(), "", "")
+	_, err := e.GetOpenInterestData(contextGenerate(), "", mainPair.String(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetOpenInterestData(contextGenerate(), instTypeOption, "", "", "")
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+	_, err = e.GetOpenInterestData(contextGenerate(), instTypeOption, "", "")
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	testexch.UpdatePairsOnce(t, e)
 	p, err := e.GetAvailablePairs(asset.Options)
@@ -487,39 +487,14 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
 	instrumentID := p[0].String()
+	// Option queries only resolve the plain underlying, without the _UM/_CM
+	// family suffix the instrument family carries.
 	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
-	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, instrumentID)
-	require.NoError(t, err)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instrumentID)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func (e *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
-	e.instrumentsInfoMapLock.Lock()
-	defer e.instrumentsInfoMapLock.Unlock()
-	if instrumentType != "" {
-		insts, okay := e.instrumentsInfoMap[instrumentType]
-		if !okay {
-			return "", errInvalidInstrumentType
-		}
-		for a := range insts {
-			if insts[a].InstrumentID.String() == instID {
-				return insts[a].Underlying, nil
-			}
-		}
-	} else {
-		for _, insts := range e.instrumentsInfoMap {
-			for a := range insts {
-				if insts[a].InstrumentID.String() == instID {
-					return insts[a].Underlying, nil
-				}
-			}
-		}
-	}
-	return "", fmt.Errorf("underlying not found for instrument %s", instID)
 }
 
 func TestGetSingleFundingRate(t *testing.T) {
@@ -554,10 +529,10 @@ func TestGetLimitPrice(t *testing.T) {
 
 func TestGetOptionMarketData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOptionMarketData(contextGenerate(), "", "", time.Time{})
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+	_, err := e.GetOptionMarketData(contextGenerate(), "", time.Time{})
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
-	result, err := e.GetOptionMarketData(contextGenerate(), "BTC-USD", "", time.Time{})
+	result, err := e.GetOptionMarketData(contextGenerate(), "BTC-USD", time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -607,29 +582,29 @@ func TestGetLiquidationOrders(t *testing.T) {
 
 func TestGetMarkPrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarkPrice(contextGenerate(), "", "", "", mainPair.String())
+	_, err := e.GetMarkPrice(contextGenerate(), "", "", mainPair.String())
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	result, err := e.GetMarkPrice(contextGenerate(), "MARGIN", "", "", "")
+	result, err := e.GetMarkPrice(contextGenerate(), "MARGIN", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetPositionTiers(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPositionTiers(contextGenerate(), "", "cross", mainPair.String(), "", "", "", currency.ETH)
+	_, err := e.GetPositionTiers(contextGenerate(), "", "cross", "", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "", mainPair.String(), "", "", "", currency.ETH)
+	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "", "", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidTradeMode)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "", "", "", "", currency.EMPTYCODE)
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "", "", "", currency.EMPTYCODE)
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", "", currency.EMPTYCODE)
+	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
-	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", "", currency.ETH)
+	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -670,9 +645,9 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 
 	arg.InstrumentType = instTypeSwap
 	_, err = e.GetInsuranceFundInformation(contextGenerate(), arg)
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
-	arg.Underlying = mainPair.String()
+	arg.InstrumentFamily = mainPair.String()
 	r, err := e.GetInsuranceFundInformation(contextGenerate(), arg)
 	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
@@ -684,9 +659,9 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 	}
 
 	r, err = e.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
-		InstrumentType: instTypeFutures,
-		Underlying:     mainPair.String(),
-		Limit:          2,
+		InstrumentType:   instTypeFutures,
+		InstrumentFamily: mainPair.String(),
+		Limit:            2,
 	})
 	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
@@ -2444,11 +2419,11 @@ func TestGetMaximumLoanOfInstrument(t *testing.T) {
 
 func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTradeFee(contextGenerate(), "", "", "", "", "")
+	_, err := e.GetTradeFee(contextGenerate(), "", "", "", "")
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetTradeFee(contextGenerate(), instTypeSpot, "", "", "", "")
+	result, err := e.GetTradeFee(contextGenerate(), instTypeSpot, "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2739,13 +2714,13 @@ func TestGetGreeks(t *testing.T) {
 
 func TestGetPMLimitation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPMPositionLimitation(contextGenerate(), "", mainPair.String(), "")
+	_, err := e.GetPMPositionLimitation(contextGenerate(), "", mainPair.String())
 	require.ErrorIs(t, err, errInvalidInstrumentType)
-	_, err = e.GetPMPositionLimitation(contextGenerate(), "SWAP", "", "")
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+	_, err = e.GetPMPositionLimitation(contextGenerate(), "SWAP", "")
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetPMPositionLimitation(contextGenerate(), "SWAP", mainPair.String(), "")
+	result, err := e.GetPMPositionLimitation(contextGenerate(), "SWAP", mainPair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3514,7 +3489,7 @@ func TestUpdateTicker(t *testing.T) {
 		assert.NotNilf(t, result, "UpdateTicker for asset %s and pair %s should not return nil", a, p[0])
 	}
 
-	ticks, err := e.GetTickers(contextGenerate(), instTypeSwap, "", "")
+	ticks, err := e.GetTickers(contextGenerate(), instTypeSwap, "")
 	require.NoError(t, err, "GetTickers must not error")
 	var checked bool
 	for i := range ticks {
@@ -3567,7 +3542,7 @@ func TestUpdateTickers(t *testing.T) {
 	// around half the swaps report both figures identically and cannot tell the fields apart
 	pairs, err := e.GetEnabledPairs(asset.PerpetualSwap)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	ticks, err := e.GetTickers(contextGenerate(), instTypeSwap, "", "")
+	ticks, err := e.GetTickers(contextGenerate(), instTypeSwap, "")
 	require.NoError(t, err, "GetTickers must not error")
 	byInstrument := make(map[string]TickerResponse, len(ticks))
 	for i := range ticks {
@@ -6490,19 +6465,15 @@ func TestGetTopTradersFuturesContractLongShortPositionRatio(t *testing.T) {
 
 func TestGetAccountInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAccountInstruments(contextGenerate(), asset.Empty, "", "", mainPair.String())
+	_, err := e.GetAccountInstruments(contextGenerate(), asset.Empty, "", mainPair.String())
 	require.ErrorIs(t, err, errInvalidInstrumentType)
-	_, err = e.GetAccountInstruments(contextGenerate(), asset.Futures, "", "", mainPair.String())
-	require.ErrorIs(t, err, errInvalidUnderlying)
-	_, err = e.GetAccountInstruments(contextGenerate(), asset.Options, "", "", mainPair.String())
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAccountInstruments(contextGenerate(), asset.Spot, "", "", mainPair.String())
+	result, err := e.GetAccountInstruments(contextGenerate(), asset.Spot, "", mainPair.String())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetAccountInstruments(contextGenerate(), asset.PerpetualSwap, "", mainPair.String(), perpetualSwapPair.String())
+	result, err = e.GetAccountInstruments(contextGenerate(), asset.PerpetualSwap, mainPair.String(), perpetualSwapPair.String())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -6516,7 +6487,7 @@ func TestGetAccountInstruments(t *testing.T) {
 	require.True(t, ok, "Quote must contain a hyphen")
 	uly += "-" + quoteBase
 
-	result, err = e.GetAccountInstruments(contextGenerate(), asset.Options, uly, "", p[0].String())
+	result, err = e.GetAccountInstruments(contextGenerate(), asset.Options, uly, p[0].String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6700,6 +6671,31 @@ func TestGetFiatDepositPaymentMethods(t *testing.T) {
 	result, err := e.GetFiatDepositPaymentMethods(contextGenerate(), currency.TRY)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func (e *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
+	e.instrumentsInfoMapLock.Lock()
+	defer e.instrumentsInfoMapLock.Unlock()
+	if instrumentType != "" {
+		insts, okay := e.instrumentsInfoMap[instrumentType]
+		if !okay {
+			return "", errInvalidInstrumentType
+		}
+		for a := range insts {
+			if insts[a].InstrumentID.String() == instID {
+				return insts[a].Underlying, nil
+			}
+		}
+	} else {
+		for _, insts := range e.instrumentsInfoMap {
+			for a := range insts {
+				if insts[a].InstrumentID.String() == instID {
+					return insts[a].Underlying, nil
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("underlying not found for instrument %s", instID)
 }
 
 func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {

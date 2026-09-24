@@ -591,7 +591,6 @@ type VIPInterestRateAndLoanQuotaInformation struct {
 type InsuranceFundInformationRequestParams struct {
 	InstrumentType   string        `json:"instType"`
 	InsuranceType    string        `json:"type"` //  Type values allowed are `liquidation_balance_deposit, bankruptcy_loss, and platform_revenue`
-	Underlying       string        `json:"uly"`
 	InstrumentFamily string        `json:"instFamily"`
 	Currency         currency.Code `json:"ccy"`
 	Before           time.Time     `json:"before"`
