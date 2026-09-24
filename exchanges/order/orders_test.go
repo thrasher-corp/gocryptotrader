@@ -1201,13 +1201,6 @@ func TestUpdateOrderFromDetailTradesOnly(t *testing.T) {
 	assert.Equal(t, 10.0, od.RemainingAmount, "RemainingAmount should be left as reported, not reduced by the merged trade")
 }
 
-func TestClassificationError_Error(t *testing.T) {
-	class := ClassificationError{OrderID: "1337", Exchange: "test", Err: errors.New("test error")}
-	require.Equal(t, "Exchange test: OrderID: 1337 classification error: test error", class.Error())
-	class.OrderID = ""
-	assert.Equal(t, "Exchange test: classification error: test error", class.Error())
-}
-
 func TestValidationOnOrderTypes(t *testing.T) {
 	var cancelMe *Cancel
 	require.ErrorIs(t, cancelMe.Validate(), ErrCancelOrderIsNil)

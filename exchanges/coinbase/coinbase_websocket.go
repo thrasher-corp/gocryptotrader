@@ -102,6 +102,12 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 
 // wsProcessTicker handles ticker data from the websocket
 func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketResponse) error {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil
+		}
+		return err
+	}
 	var wsTickers []WebsocketTickerHolder
 	if err := json.Unmarshal(resp.Events, &wsTickers); err != nil {
 		return err
@@ -124,15 +130,17 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 				Ask:          wsTickers[i].Tickers[j].BestAsk.Float64(),
 				AskSize:      wsTickers[i].Tickers[j].BestAskQuantity.Float64(),
 			}
-			var errs error
-			for k := range symbolAliases {
-				if isEnabled, err := e.CurrencyPairs.IsPairEnabled(symbolAliases[k], asset.Spot); err != nil {
-					errs = common.AppendError(errs, err)
+
+			for _, pair := range symbolAliases {
+				isAvailable, _ := e.CurrencyPairs.IsPairAvailable(pair, asset.Spot)
+				if !isAvailable {
 					continue
-				} else if isEnabled {
-					t.Pair = symbolAliases[k]
-					allTickers = append(allTickers, t)
 				}
+				t.Pair = pair
+				if err := ticker.ProcessTicker(&t); err != nil {
+					return err
+				}
+				allTickers = append(allTickers, t)
 			}
 		}
 	}

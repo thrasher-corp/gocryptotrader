@@ -850,6 +850,27 @@ func TestUpdateTickers(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestUpdateTickersUsesAvailablePairs(t *testing.T) {
+	t.Parallel()
+	testExchange := new(Exchange)
+	require.NoError(t, testexch.Setup(testExchange))
+	require.NoError(t, testexch.MockHTTPInstance(testExchange))
+	testExchange.Name += "-TestUpdateTickersUsesAvailablePairs"
+
+	availableButDisabled := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	excludedFromAvailable := currency.NewPairWithDelimiter("DOGE", "BTC", currency.UnderscoreDelimiter)
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{availableButDisabled}, false))
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{excludedFromAvailable}, true))
+
+	err := testExchange.UpdateTickers(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	_, err = ticker.GetTicker(testExchange.Name, availableButDisabled, asset.Spot)
+	require.NoError(t, err)
+	_, err = ticker.GetTicker(testExchange.Name, excludedFromAvailable, asset.Spot)
+	require.ErrorIs(t, err, ticker.ErrTickerNotFound)
+}
+
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateTicker(t.Context(), spotTradablePair, asset.Options)
@@ -869,8 +890,27 @@ func TestUpdateTicker(t *testing.T) {
 	if !mockTests {
 		t.Skip("skipped: downstream test data is intentionally malformed and only valid for mock tests")
 	}
-	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter), asset.Futures)
+	testExchange := new(Exchange)
+	require.NoError(t, testexch.Setup(testExchange))
+	require.NoError(t, testexch.MockHTTPInstance(testExchange))
+	malformedPair := currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter)
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{malformedPair}, false))
+	_, err = testExchange.UpdateTicker(t.Context(), malformedPair, asset.Futures)
 	assert.ErrorIs(t, err, common.ErrInvalidResponse)
+}
+
+func TestUpdateTickerUsesAvailablePairs(t *testing.T) {
+	t.Parallel()
+	testExchange := new(Exchange)
+	require.NoError(t, testexch.Setup(testExchange))
+	require.NoError(t, testexch.MockHTTPInstance(testExchange))
+
+	nonTradablePair := currency.NewPairWithDelimiter("ABC", "USDT", currency.UnderscoreDelimiter)
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, false))
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, true))
+
+	_, err := testExchange.UpdateTicker(t.Context(), spotTradablePair, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
@@ -3777,6 +3817,7 @@ func TestUpdateTickerStoresTheRequestedPair(t *testing.T) {
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	pair := currency.NewPairWithDelimiter("BTC_USDT", "PERP", "_")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{pair}, false), "requested pair must be available")
 	got, err := ex.UpdateTicker(t.Context(), pair, asset.Futures)
 	require.NoError(t, err, "UpdateTicker must not error")
 	assert.True(t, got.Pair.Equal(pair), "the ticker should be stored under the requested pair")

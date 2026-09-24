@@ -1791,6 +1791,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{
+		AssetType: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	}
@@ -1801,7 +1806,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	_, err := e.CancelAllOrders(t.Context(), orderCancellation)
+	_, err = e.CancelAllOrders(t.Context(), orderCancellation)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
 		t.Error("CancelAllExchangeOrders() error", err)

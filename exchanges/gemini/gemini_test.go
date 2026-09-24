@@ -438,6 +438,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewBTCUSD()})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should reject pair-scoped requests")
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	}
@@ -450,6 +452,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
+	orderCancellation.Pair = currency.EMPTYPAIR
 	resp, err := e.CancelAllOrders(t.Context(), orderCancellation)
 	switch {
 	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
@@ -460,7 +463,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if len(resp.Status) > 0 {
+	if err == nil && len(resp.Status) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
@@ -690,6 +693,40 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	t.Run("continues after an unavailable order symbol", func(t *testing.T) {
+		testExchange := new(Exchange)
+		require.NoError(t, testexch.Setup(testExchange), "Setup must not error")
+		require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error")
+		batch := []byte(`[
+  {
+    "type": "accepted",
+    "order_id": "1",
+    "symbol": "unknownusd",
+    "side": "buy",
+    "order_type": "exchange limit",
+    "timestampms": 1478203017455
+  },
+  {
+    "type": "accepted",
+    "order_id": "2",
+    "symbol": "btcusd",
+    "side": "buy",
+    "order_type": "exchange limit",
+    "timestampms": 1478203017455
+  }
+]`)
+
+		require.NoError(t, testExchange.wsHandleData(t.Context(), batch), "wsHandleData must continue processing the order batch")
+		select {
+		case msg := <-testExchange.Websocket.DataHandler.C:
+			detail, ok := msg.Data.(*order.Detail)
+			require.True(t, ok, "websocket message must contain order detail")
+			assert.Equal(t, "2", detail.OrderID, "wsHandleData should publish the later valid order")
+		default:
+			require.Fail(t, "wsHandleData must publish the later valid order")
+		}
+	})
 }
 
 func TestWsSubAck(t *testing.T) {

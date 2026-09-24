@@ -624,25 +624,26 @@ var cryptoChainPerExchange = map[string]string{
 
 // acceptable errors do not throw test errors, see below for why
 var acceptableErrors = []error{
-	common.ErrFunctionNotSupported,       // Shows API cannot perform function and developer has recognised this
-	common.ErrNotYetImplemented,          // Shows API can perform function but developer has not implemented it yet
-	asset.ErrNotSupported,                // Shows that valid and invalid asset types are handled
-	request.ErrAuthRequestFailed,         // We must set authenticated requests properly in order to understand and better handle auth failures
-	order.ErrUnsupportedOrderType,        // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
-	currency.ErrCurrencyPairEmpty,        // Demonstrates handling of EMPTYPAIR scenario and returns the correct error
-	currency.ErrCurrencyNotSupported,     // Ensures a standard error is used for when a particular currency/pair is not supported by an exchange
-	currency.ErrCurrencyNotFound,         // Semi-randomly selected currency pairs may not be found at an endpoint, so long as this is returned it is okay
-	asset.ErrNotEnabled,                  // Allows distinction when checking for supported versus enabled
-	request.ErrRateLimiterAlreadyEnabled, // If the rate limiter is already enabled, it is not an error
-	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
-	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
-	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
-	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
-	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
-	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
-	limits.ErrExchangeLimitNotLoaded,     // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
-	limits.ErrOrderLimitNotFound,         // Is thrown when the order limit isn't found for a particular exchange, asset, pair
-	limits.ErrEmptyLevels,                // Is thrown if limits are not provided for the asset
+	common.ErrFunctionNotSupported,          // Shows API cannot perform function and developer has recognised this
+	common.ErrNotYetImplemented,             // Shows API can perform function but developer has not implemented it yet
+	asset.ErrNotSupported,                   // Shows that valid and invalid asset types are handled
+	request.ErrAuthRequestFailed,            // We must set authenticated requests properly in order to understand and better handle auth failures
+	order.ErrUnsupportedOrderType,           // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
+	currency.ErrCurrencyPairEmpty,           // Demonstrates handling of EMPTYPAIR scenario and returns the correct error
+	currency.ErrCurrencyNotSupported,        // Ensures a standard error is used for when a particular currency/pair is not supported by an exchange
+	currency.ErrCurrencyNotFound,            // Semi-randomly selected currency pairs may not be found at an endpoint, so long as this is returned it is okay
+	asset.ErrNotEnabled,                     // Allows distinction when checking for supported versus enabled
+	request.ErrRateLimiterAlreadyEnabled,    // If the rate limiter is already enabled, it is not an error
+	context.DeadlineExceeded,                // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
+	order.ErrPairIsEmpty,                    // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
+	order.ErrPairRequiredForCancelAllFanout, // Is thrown when cancel all requires a pair to avoid an unsafe implicit fan-out
+	deposit.ErrAddressNotFound,              // Is thrown when an address is not found due to the exchange requiring valid API keys
+	futures.ErrNotFuturesAsset,              // Is thrown when a futures function receives a non-futures asset
+	currency.ErrSymbolStringEmpty,           // Is thrown when a symbol string is empty for blank MatchSymbol func checks
+	futures.ErrNotPerpetualFuture,           // Is thrown when a futures function receives a non-perpetual future
+	limits.ErrExchangeLimitNotLoaded,        // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
+	limits.ErrOrderLimitNotFound,            // Is thrown when the order limit isn't found for a particular exchange, asset, pair
+	limits.ErrEmptyLevels,                   // Is thrown if limits are not provided for the asset
 	limits.ErrPriceBelowMin,
 	limits.ErrPriceExceedsMax,
 	limits.ErrPriceExceedsStep,
