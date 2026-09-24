@@ -518,7 +518,7 @@ func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData [
 	})
 }
 
-// processFuturesTickerV2 processes a futures account ticker data. The tickerV2
+// processFuturesTickerV2 processes futures ticker data. The tickerV2
 // channel only reports the best bid and ask, so the stored snapshot of the pair
 // is carried over for every field the channel cannot report. ticker.ProcessTicker
 // replaces the stored ticker outright, so emitting a partial ticker here would
@@ -547,8 +547,8 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 		tickPrice.AssetType = asset.Futures
 		tickPrice.Pair = pair
 	}
-	// Only the fill carrying channel reports a trade, so a zero price here means
-	// the stored last trade is still the most recent one.
+	// tickerV2 frames carry no fill, so keep the stored Last and LastSize unless
+	// this frame reports a non-zero fill price.
 	if resp.FilledPrice.Float64() != 0 {
 		tickPrice.Last = resp.FilledPrice.Float64()
 		tickPrice.LastSize = resp.FilledSize.Float64()
