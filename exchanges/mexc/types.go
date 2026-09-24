@@ -772,7 +772,7 @@ type RebateAffiliateCommissionDetail struct {
 	Success bool `json:"success"`
 	// signed: the venue's status codes include negatives, e.g. -1121 for an invalid symbol
 	Code    int64                         `json:"code"`
-	Message any                           `json:"message"`
+	Message string                        `json:"message"`
 	Data    AffiliateCommissionDetailPage `json:"data"`
 }
 
@@ -809,7 +809,7 @@ type AffiliateCampaignData struct {
 	Success bool `json:"success"`
 	// signed: the venue's status codes include negatives, e.g. -1121 for an invalid symbol
 	Code    int64                 `json:"code"`
-	Message any                   `json:"message"`
+	Message string                `json:"message"`
 	Data    AffiliateCampaignPage `json:"data"`
 }
 
@@ -841,7 +841,7 @@ type AffiliateReferralData struct {
 	Success bool `json:"success"`
 	// signed: the venue's status codes include negatives, e.g. -1121 for an invalid symbol
 	Code    int64                 `json:"code"`
-	Message any                   `json:"message"`
+	Message string                `json:"message"`
 	Data    AffiliateReferralPage `json:"data"`
 }
 
@@ -878,7 +878,7 @@ type SubAffiliateData struct {
 	Success bool `json:"success"`
 	// signed: the venue's status codes include negatives, e.g. -1121 for an invalid symbol
 	Code    int64            `json:"code"`
-	Message any              `json:"message"`
+	Message string           `json:"message"`
 	Data    SubAffiliatePage `json:"data"`
 }
 

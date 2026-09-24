@@ -1707,3 +1707,38 @@ func TestCampaignDataClickCount(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"campaign":"11kd","clickTime":7,"createTime":1695125287000}`), &c), "Unmarshal must not error")
 	assert.Equal(t, uint64(7), c.ClickCount, "ClickCount should carry the clickTime count")
 }
+
+// TestAffiliateMessageDecodesAsString decodes the affiliate endpoints' message, which is null on success,
+// into a string.
+func TestAffiliateMessageDecodesAsString(t *testing.T) {
+	t.Parallel()
+	for name, decode := range map[string]func([]byte) (string, error){
+		"RebateAffiliateCommissionDetail": func(b []byte) (string, error) {
+			var d RebateAffiliateCommissionDetail
+			err := json.Unmarshal(b, &d)
+			return d.Message, err
+		},
+		"AffiliateCampaignData": func(b []byte) (string, error) {
+			var d AffiliateCampaignData
+			err := json.Unmarshal(b, &d)
+			return d.Message, err
+		},
+		"AffiliateReferralData": func(b []byte) (string, error) {
+			var d AffiliateReferralData
+			err := json.Unmarshal(b, &d)
+			return d.Message, err
+		},
+		"SubAffiliateData": func(b []byte) (string, error) {
+			var d SubAffiliateData
+			err := json.Unmarshal(b, &d)
+			return d.Message, err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			msg, err := decode([]byte(`{"success":true,"code":0,"message":null}`))
+			require.NoError(t, err, "Unmarshal must not error")
+			assert.Empty(t, msg, "a null message should decode to an empty string")
+		})
+	}
+}
