@@ -838,6 +838,8 @@ func TestDustConvert(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.DustConvert(t.Context(), []currency.Code{currency.EMPTYCODE, currency.ETH})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = e.DustConvert(t.Context(), make([]currency.Code, dustConvertMaxAssets+1))
+	require.ErrorIs(t, err, errTooManyDustAssets)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.DustConvert(t.Context(), []currency.Code{currency.BTC, currency.ETH})

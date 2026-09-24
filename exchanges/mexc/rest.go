@@ -61,6 +61,7 @@ var (
 	errSelfTradePreventionGroupIDRequired   = errors.New("self-trade prevention group id is required")
 	errUIDRequired                          = errors.New("at least one uid is required")
 	errTradesExceedPage                     = errors.New("more aggregated trades share one second than a page holds")
+	errTooManyDustAssets                    = errors.New("at most 15 assets can be converted in one dust transfer")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -784,23 +785,26 @@ func (e *Exchange) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]*Ass
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAssetConvertedMXEPL, http.MethodGet, "capital/convert/list", nil, nil, &resp, true)
 }
 
+// dustConvertMaxAssets is the most assets the venue converts in one dust transfer
+const dustConvertMaxAssets = 15
+
 // DustConvert converts near-worthless crypto assets, whose value is smaller than the transaction fees, into MX
 func (e *Exchange) DustConvert(ctx context.Context, assets []currency.Code) (*DustConvertResponse, error) {
 	if len(assets) == 0 {
 		return nil, fmt.Errorf("%w: at least one asset must be specified", currency.ErrCurrencyCodeEmpty)
 	}
-	assetsString := ""
-	var assetsStringSb682 strings.Builder
+	if len(assets) > dustConvertMaxAssets {
+		return nil, fmt.Errorf("%w: %d assets given", errTooManyDustAssets, len(assets))
+	}
+	codes := make([]string, len(assets))
 	for a := range assets {
 		if assets[a].IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
-		fmt.Fprintf(&assetsStringSb682, "%s%s", assets[a].String(), ",")
+		codes[a] = assets[a].String()
 	}
-	assetsString += assetsStringSb682.String()
-	assetsString = strings.Trim(assetsString, ",")
 	params := url.Values{}
-	params.Set("asset", assetsString)
+	params.Set("asset", strings.Join(codes, ","))
 	var resp *DustConvertResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, dustConvertEPL, http.MethodPost, "capital/convert", params, nil, &resp, true)
 }

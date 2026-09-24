@@ -1742,3 +1742,37 @@ func TestAffiliateMessageDecodesAsString(t *testing.T) {
 		})
 	}
 }
+
+// TestDustConvertJoinsAssets sends the assets to convert as one comma separated list, as the venue takes
+// them, for up to the 15 assets it accepts in one call.
+func TestDustConvertJoinsAssets(t *testing.T) {
+	t.Parallel()
+	var got []string
+	var mu sync.Mutex
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = append(got, r.URL.Query().Get("asset"))
+		mu.Unlock()
+		_, _ = w.Write([]byte(`{"successList":[],"failedList":[],"totalConvert":"0","convertFee":"0"}`))
+	}))
+	fifteen := make([]currency.Code, dustConvertMaxAssets)
+	codes := make([]string, dustConvertMaxAssets)
+	for i := range fifteen {
+		codes[i] = "C" + strconv.Itoa(i)
+		fifteen[i] = currency.NewCode(codes[i])
+	}
+	want := make([]string, 0, 3)
+	for _, tc := range []struct {
+		assets []currency.Code
+		want   string
+	}{
+		{[]currency.Code{currency.BTC}, "BTC"},
+		{[]currency.Code{currency.BTC, currency.ETH}, "BTC,ETH"},
+		{fifteen, strings.Join(codes, ",")},
+	} {
+		_, err := ex.DustConvert(t.Context(), tc.assets)
+		require.NoErrorf(t, err, "DustConvert must not error for %s", tc.want)
+		want = append(want, tc.want)
+	}
+	assert.Equal(t, want, got, "the assets should be sent as one comma separated list")
+}
