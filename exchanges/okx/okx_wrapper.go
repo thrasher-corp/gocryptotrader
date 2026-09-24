@@ -950,16 +950,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Price:         s.Price,
 		}
 		var placeSpreadOrderResponse *SpreadOrderResponse
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			placeSpreadOrderResponse, err = e.WSPlaceSpreadOrder(ctx, spreadParam)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			placeSpreadOrderResponse, err = e.PlaceSpreadOrder(ctx, spreadParam)
-			if err != nil {
-				return nil, err
-			}
+		// OKX accepts spread operations only on its business websocket, and
+		// WSPlaceSpreadOrder sends on the private one, so spread orders use REST.
+		placeSpreadOrderResponse, err = e.PlaceSpreadOrder(ctx, spreadParam)
+		if err != nil {
+			return nil, err
 		}
 		return s.DeriveSubmitResponse(placeSpreadOrderResponse.OrderID)
 	}
@@ -1173,11 +1168,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			NewSize:       action.Amount,
 			NewPrice:      action.Price,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSAmendSpreadOrder(ctx, amendSpreadOrder)
-		} else {
-			_, err = e.AmendSpreadOrder(ctx, amendSpreadOrder)
-		}
+		// OKX accepts spread operations only on its business websocket, and
+		// WSAmendSpreadOrder sends on the private one, so spread amends use REST.
+		_, err = e.AmendSpreadOrder(ctx, amendSpreadOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -1284,11 +1277,9 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	var err error
 	if ord.AssetType == asset.Spread {
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-		} else {
-			_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-		}
+		// OKX accepts spread operations only on its business websocket, and
+		// WSCancelSpreadOrder sends on the private one, so spread cancels use REST.
+		_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		return err
 	}
 	pairFormat, err := e.GetPairFormat(ord.AssetType, true)
