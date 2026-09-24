@@ -84,6 +84,13 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 }
 
 func main() {
+	flagString := cli.FlagStringer
+	cli.FlagStringer = func(f cli.Flag) string {
+		if required, ok := f.(cli.RequiredFlag); ok && required.IsRequired() {
+			return flagString(f) + " (required)"
+		}
+		return flagString(f)
+	}
 	version := core.Version(true)
 	version = strings.Replace(version, "GoCryptoTrader", "GoCryptoTrader Backtester", 1)
 	app := cli.NewApp()

@@ -296,11 +296,30 @@ func getDataHistoryJob(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
+	request, err := dataHistoryJobRequest(c)
+	if err != nil {
+		return err
+	}
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
 
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetDataHistoryJobDetails(c.Context, request)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func dataHistoryJobRequest(c *cli.Context) (*gctrpc.GetDataHistoryJobDetailsRequest, error) {
 	idSet := c.IsSet("id")
 	nicknameSet := c.IsSet("nickname")
 	if idSet && nicknameSet {
-		return errDataHistoryJobIdentifiersConflict
+		return nil, errDataHistoryJobIdentifiersConflict
 	}
 
 	var id string
@@ -313,16 +332,8 @@ func getDataHistoryJob(c *cli.Context) error {
 	}
 
 	if nickname == "" && id == "" {
-		return errDataHistoryJobIdentifierRequired
+		return nil, errDataHistoryJobIdentifierRequired
 	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Id:       id,
 		Nickname: nickname,
@@ -331,12 +342,7 @@ func getDataHistoryJob(c *cli.Context) error {
 		request.FullDetails = true
 	}
 
-	result, err := client.GetDataHistoryJobDetails(c.Context, request)
-	if err != nil {
-		return err
-	}
-	jsonOutput(result)
-	return nil
+	return request, nil
 }
 
 func getActiveDataHistoryJobs(c *cli.Context) error {

@@ -73,3 +73,17 @@ func TestMainRejectsPositionalArguments(t *testing.T) {
 	require.Error(t, err, "main must exit with an error")
 	assert.Contains(t, string(out), errPositionalArgument.Error(), "main should reject the positional argument")
 }
+
+func TestMainShowsRequiredFlags(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("BTCLI_TEST_HELP") == "1" {
+		os.Args = []string{"btcli", "starttask", "--help"}
+		main()
+		return
+	}
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestMainShowsRequiredFlags$") //nolint:gosec // re-runs this test binary to exercise main
+	cmd.Env = append(os.Environ(), "BTCLI_TEST_HELP=1")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "main must show command help")
+	assert.Contains(t, string(out), "(required)", "command help should mark required flags")
+}

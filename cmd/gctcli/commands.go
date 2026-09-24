@@ -2494,9 +2494,8 @@ var withdrawFiatFundsCommand = &cli.Command{
 			Usage:    "amount of funds to withdraw",
 		},
 		&cli.StringFlag{
-			Name:     "bankaccountid",
-			Required: true,
-			Usage:    "ID of bank account to use",
+			Name:  "bankaccountid",
+			Usage: "optional ID of the bank account to use; omit for an account without an ID",
 		},
 		&cli.StringFlag{
 			Name:  "description",
@@ -3166,7 +3165,6 @@ var (
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "filename",
-						Required:    true,
 						Usage:       "the script filename",
 						Destination: &filename,
 					},

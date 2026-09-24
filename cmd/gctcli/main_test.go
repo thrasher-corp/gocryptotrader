@@ -74,6 +74,20 @@ func TestMainRejectsPositionalArguments(t *testing.T) {
 	assert.Contains(t, string(out), errPositionalArgument.Error(), "main should reject the positional argument")
 }
 
+func TestMainShowsRequiredFlags(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("GCTCLI_TEST_HELP") == "1" {
+		os.Args = []string{"gctcli", "getticker", "--help"}
+		main()
+		return
+	}
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestMainShowsRequiredFlags$") //nolint:gosec // re-runs this test binary to exercise main
+	cmd.Env = append(os.Environ(), "GCTCLI_TEST_HELP=1")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "main must show command help")
+	assert.Contains(t, string(out), "(required)", "command help should mark required flags")
+}
+
 func TestRequiredCommandFlags(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -96,6 +110,10 @@ func TestRequiredCommandFlags(t *testing.T) {
 		{name: "set margin type required", command: futuresCommands.Command("setmargintype"), flagName: "margintype", required: true},
 		{name: "set proxy optional", command: websocketManagerCommand.Command("setproxy"), flagName: "proxy"},
 		{name: "set URL optional", command: websocketManagerCommand.Command("seturl"), flagName: "url"},
+		{name: "bank account ID optional", command: withdrawFiatFundsCommand, flagName: "bankaccountid"},
+		{name: "nominal percentage optional", command: nominal, flagName: "percent"},
+		{name: "whale bomb price optional", command: whaleBombCommand, flagName: "price"},
+		{name: "script filename optional", command: gctScriptCommand.Command("execute"), flagName: "filename"},
 		{name: "margin rates currency", command: getMarginRatesHistoryCommand, flagName: "currency", required: true},
 		{name: "job id alternative", command: dataHistoryCommands.Command("getajob"), flagName: "id"},
 		{name: "job nickname alternative", command: dataHistoryCommands.Command("getajob"), flagName: "nickname"},

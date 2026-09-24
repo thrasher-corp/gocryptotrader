@@ -58,9 +58,8 @@ var nominal = &cli.Command{
 	Usage:  "simulates a buy or sell based off the percentage between the reference price and the average order cost",
 	Action: getNominal,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:     "percent",
-		Required: true,
-		Usage:    "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
+		Name:  "percent",
+		Usage: "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
 	}),
 }
 
@@ -693,9 +692,8 @@ var whaleBombCommand = &cli.Command{
 			Usage:    "the asset type of the currency pair to get the orderbook for",
 		},
 		&cli.Float64Flag{
-			Name:     "price",
-			Required: true,
-			Usage:    "the price target",
+			Name:  "price",
+			Usage: "the price target",
 		},
 	},
 }
