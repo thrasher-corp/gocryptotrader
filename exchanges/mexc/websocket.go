@@ -666,7 +666,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			LastUpdated: wsSendTime(result),
 		})
 	case channelBookTickerBatch:
-		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, true)
+		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {
 			return err
 		}

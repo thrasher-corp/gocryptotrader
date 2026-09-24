@@ -185,6 +185,28 @@ func TestWsHandleBookTickerBatch(t *testing.T) {
 	assert.Equal(t, int64(1739503249114), got.LastUpdated.UnixMilli(), "LastUpdated should come from the batch frame's send time")
 }
 
+// TestWsBookTickerBatchPunctuatedSymbol resolves a batch book ticker for a symbol whose base carries
+// punctuation, as MEXC's GOLD(PAXG), GOLD(XAUT), OIL(USOON) and SPACEX(PRE) listings do.
+func TestWsBookTickerBatchPunctuatedSymbol(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	gold := currency.NewPair(currency.NewCode("GOLD(PAXG)"), currency.USDT)
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{gold}, false), "storing available pairs must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{gold}, true), "storing enabled pairs must not error")
+	ex.Websocket.DataHandler = stream.NewRelay(10)
+	raw := wsPushFrameForSymbol(t, "GOLD(PAXG)USDT", "spot@"+channelBookTickerBatch+"@GOLD(PAXG)USDT", 1739503249114,
+		&mexc_proto_types.PublicBookTickerBatchV3Api{Items: []*mexc_proto_types.PublicBookTickerV3Api{
+			{BidPrice: "4180.5", BidQuantity: "2", AskPrice: "4181", AskQuantity: "3"},
+		}})
+	require.NoError(t, ex.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+	got, err := ex.GetCachedTicker(gold, asset.Spot)
+	require.NoError(t, err, "GetCachedTicker must not error")
+	assert.Equal(t, 4180.5, got.Bid, "Bid should come from the batch frame")
+	assert.Equal(t, 4181.0, got.Ask, "Ask should come from the batch frame")
+}
+
 // TestWsHandleUnknownChannel asserts an unrecognised channel is surfaced instead of dropped.
 func TestWsHandleUnknownChannel(t *testing.T) {
 	drainData(t)
