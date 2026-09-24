@@ -439,6 +439,16 @@ func accountStatusToString(status uint8) string {
 		return "AUDITING"
 	case 7:
 		return "REJECTED"
+	case 8:
+		return "REFUND"
+	case 9:
+		return "PRE_SUCCESS"
+	case 10:
+		return "INVALID"
+	case 11:
+		return "RESTRICTED"
+	case 12:
+		return "COMPLETED"
 	}
 	return ""
 }

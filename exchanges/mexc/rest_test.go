@@ -1548,7 +1548,8 @@ func TestAccountStatusToString(t *testing.T) {
 	t.Parallel()
 	for status, expected := range map[uint8]string{
 		1: "SMALL", 2: "TIME_DELAY", 3: "LARGE_DELAY", 4: "PENDING",
-		5: "SUCCESS", 6: "AUDITING", 7: "REJECTED", 0: "", 99: "",
+		5: "SUCCESS", 6: "AUDITING", 7: "REJECTED", 8: "REFUND", 9: "PRE_SUCCESS",
+		10: "INVALID", 11: "RESTRICTED", 12: "COMPLETED", 0: "", 99: "",
 	} {
 		assert.Equalf(t, expected, accountStatusToString(status), "accountStatusToString should return correct value for %d", status)
 	}
