@@ -399,6 +399,48 @@ func TestLoadExchangeConcurrently(t *testing.T) {
 	}
 }
 
+// TestLoadExchangeEnabledRaceIsProtected checks that LoadExchange's writes to an exchange
+// config's Enabled field are synchronised with the config's readers, so that a bot loading
+// an exchange cannot race a concurrently served GetInfo request
+func TestLoadExchangeEnabledRaceIsProtected(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	testExchanges := []string{testExchange, "Bitfinex"}
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{}, runtimeCtx: ctx}
+	for _, name := range testExchanges {
+		e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
+			Name:                          name,
+			WebsocketResponseCheckTimeout: config.DefaultWebsocketResponseCheckTimeout,
+			WebsocketResponseMaxLimit:     config.DefaultWebsocketResponseMaxLimit,
+			WebsocketTrafficTimeout:       config.DefaultWebsocketTrafficTimeout,
+		})
+	}
+
+	var wg sync.WaitGroup
+	for _, name := range testExchanges {
+		// Load and unload flip the config's Enabled flag even when the cancelled context stops the surrounding work, so
+		// the errors are irrelevant here: this test only needs the writes and the reads to overlap
+		wg.Go(func() {
+			for range 20 {
+				_ = e.LoadExchange(name)
+				_ = e.UnloadExchange(name)
+			}
+		})
+	}
+	for range 2 {
+		// CountEnabledExchanges, GetEnabledExchanges and GetDisabledExchanges serve RPC and startup reads
+		wg.Go(func() {
+			for range 200 {
+				_ = e.Config.CountEnabledExchanges()
+				_ = e.Config.GetEnabledExchanges()
+				_ = e.Config.GetDisabledExchanges()
+			}
+		})
+	}
+	wg.Wait()
+}
+
 // onlyCancelled reports whether err consists solely of context cancellations, however they are wrapped or joined
 func onlyCancelled(err error) bool {
 	switch e := err.(type) {
