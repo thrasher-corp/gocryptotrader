@@ -105,16 +105,16 @@ const (
 	channelOpenInterest    = "open-interest"
 	channelTrades          = "trades"
 	channelAllTrades       = "trades-all"
+	channelOptionTrades    = "option-trades"
+	channelOptSummary      = "opt-summary"
 	channelEstimatedPrice  = "estimated-price"
 	channelMarkPrice       = "mark-price"
 	channelPriceLimit      = "price-limit"
 	channelOrderBooks      = "books"
-	channelOptionTrades    = "option-trades"
 	channelOrderBooks5     = "books5"
 	channelOrderBooks50TBT = "books50-l2-tbt"
 	channelOrderBooksTBT   = "books-l2-tbt"
 	channelBBOTBT          = "bbo-tbt"
-	channelOptSummary      = "opt-summary"
 	channelFundingRate     = "funding-rate"
 
 	// Candlestick lengths
@@ -243,6 +243,7 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 	return nil
 }
 
+// wsAuthenticateConnection performs websocket login for private channels.
 func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -271,18 +272,18 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRequestEPL, "login-response", op)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 	var intermediary struct {
 		Code    int64  `json:"code,string"`
 		Message string `json:"msg"`
 	}
 	if err := json.Unmarshal(resp, &intermediary); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 
 	if intermediary.Code != 0 {
-		return getStatusError(intermediary.Code, intermediary.Message)
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operationLogin, getStatusError(intermediary.Code, intermediary.Message))
 	}
 	return nil
 }
@@ -328,6 +329,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 // chunkRequests splits subscription requests into multiple requests if the total byte length exceeds maxConnByteLen.
 func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionInformationList, error) {
 	eval := e.getSpotMarginEvaluator(subs)
+	sentArgs := make(map[string]struct{})
 
 	var requests []WSSubscriptionInformationList
 	for len(subs) > 0 {
@@ -346,8 +348,19 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if err != nil {
 				return nil, err
 			}
+			argKey := ""
+			addedArgument := false
 			if isSubNeeded {
-				arguments = append(arguments, arg)
+				argKeyBytes, err := json.Marshal(arg)
+				if err != nil {
+					return nil, err
+				}
+				argKey = string(argKeyBytes)
+				if _, alreadyAdded := sentArgs[argKey]; !alreadyAdded {
+					arguments = append(arguments, arg)
+					sentArgs[argKey] = struct{}{}
+					addedArgument = true
+				}
 			}
 			channels = append(channels, sub)
 			chunk, err := json.Marshal(WSSubscriptionInformationList{Arguments: arguments, Operation: operation})
@@ -357,7 +370,10 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if len(chunk) > maxConnByteLen {
 				// Remove last added channel and argument as they exceed max byte length
 				channels = channels[:len(channels)-1]
-				arguments = arguments[:len(arguments)-1]
+				if addedArgument {
+					arguments = arguments[:len(arguments)-1]
+					delete(sentArgs, argKey)
+				}
 				subs = subs[i:]
 				break
 			}
@@ -635,6 +651,7 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
+// wsCandlestickChannelToInterval maps an OKX candle channel name to a kline interval.
 func wsCandlestickChannelToInterval(channel, prefix string) (kline.Interval, error) {
 	intervalString := strings.TrimPrefix(channel, prefix)
 	if intervalString == channel || intervalString == "" {
@@ -789,6 +806,7 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 
 // wsProcessSpreadOrderbook process spread orderbook data.
 func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
+	receivedAt := time.Now()
 	var resp WsSpreadOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -803,11 +821,14 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
+		lastUpdated := resp.Data[x].Timestamp.Time()
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:             asset.Spread,
 			Asks:              extractedResponse.Data[x].Asks,
 			Bids:              extractedResponse.Data[x].Bids,
-			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			LastUpdated:       lastUpdated,
+			LastPushed:        lastUpdated,
+			ReceivedAt:        receivedAt,
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -821,6 +842,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 
 // wsProcessOrderbook5 processes orderbook data
 func (e *Exchange) wsProcessOrderbook5(data []byte) error {
+	receivedAt := time.Now()
 	var resp WsOrderbook5
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -848,12 +870,15 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
 	}
 
+	lastUpdated := resp.Data[0].Timestamp.Time()
 	for x := range assets {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:             assets[x],
 			Asks:              asks,
 			Bids:              bids,
-			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			ReceivedAt:        receivedAt,
+			LastUpdated:       lastUpdated,
+			LastPushed:        lastUpdated,
 			Pair:              resp.Argument.InstrumentID,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -913,7 +938,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if err != nil {
 			return err
 		}
-		assets = append(assets, assetType)
+		assets = []asset.Item{assetType}
 	} else {
 		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
