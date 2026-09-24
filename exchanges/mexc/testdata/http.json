@@ -62,6 +62,67 @@
        "application/json"
       ]
      }
+    },
+    {
+     "data": [
+      {
+       "M": true,
+       "T": 1767204403000,
+       "a": null,
+       "f": null,
+       "l": null,
+       "m": false,
+       "p": "87644.58",
+       "q": "0.61162371"
+      },
+      {
+       "M": true,
+       "T": 1767204403000,
+       "a": null,
+       "f": null,
+       "l": null,
+       "m": true,
+       "p": "87644.57",
+       "q": "0.01"
+      },
+      {
+       "M": true,
+       "T": 1767204403000,
+       "a": null,
+       "f": null,
+       "l": null,
+       "m": true,
+       "p": "87644.58",
+       "q": "0.65109611"
+      },
+      {
+       "M": true,
+       "T": 1767204402000,
+       "a": null,
+       "f": null,
+       "l": null,
+       "m": false,
+       "p": "87644.57",
+       "q": "0.00029805"
+      },
+      {
+       "M": true,
+       "T": 1767204402000,
+       "a": null,
+       "f": null,
+       "l": null,
+       "m": true,
+       "p": "87644.57",
+       "q": "0.00054193"
+      }
+     ],
+     "queryString": "endTime=1767204403000&limit=1000&startTime=1767204284000&symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },

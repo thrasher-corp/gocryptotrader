@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -563,39 +564,124 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	}
 }
 
-// GetHistoricTrades returns historic trade data within the timeframe provided
+// aggregatedTradesPageLimit is the most aggregated trades the venue returns for one request
+const aggregatedTradesPageLimit = 1000
+
+// GetHistoricTrades returns historic trade data within the timeframe provided, oldest first. The venue
+// keeps about a day of aggregated trades, stamped to the second, and returns at most 1000 of them per
+// request, newest first and without trade ids, from a window of at most an hour whose bounds it reads to
+// the second. So the window is read in whole seconds, an hour at a time, each hour backwards from its
+// end; when a page fills, its oldest second is read again on its own, since the page can stop part-way
+// through it.
 func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
 	p, err := e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	switch assetType {
-	case asset.Spot:
-		result, err := e.GetAggregatedTrades(ctx, p, startTime, endTime, 0)
+	if assetType != asset.Spot {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+	}
+	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+		return nil, err
+	}
+	// A window reaching past now is read up to now: an hour starting in the future would be refused.
+	end := endTime
+	if now := time.Now(); end.After(now) {
+		end = now
+	}
+	end = end.Truncate(time.Second)
+	// Trades are stamped to the second, so none falls between the window's start and its first whole second.
+	first := startTime.Truncate(time.Second)
+	if first.Before(startTime) {
+		first = first.Add(time.Second)
+	}
+	var rows []*AggregatedTradeDetail
+	for !end.Before(first) {
+		if end.Equal(first) {
+			in, err := e.aggregatedTradesInSecond(ctx, p, end)
+			if err != nil {
+				return nil, err
+			}
+			rows = append(rows, in...)
+			break
+		}
+		start := end.Add(-time.Hour)
+		if start.Before(first) {
+			start = first
+		}
+		page, err := e.GetAggregatedTrades(ctx, p, start, end, aggregatedTradesPageLimit)
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]trade.Data, len(result))
-		for t := range result {
-			oSide := order.Buy
-			if result[t].MakerBuyer { // the buyer was the maker, so the taker sold
-				oSide = order.Sell
-			}
-			resp[t] = trade.Data{
-				TID:          result[t].LastTradeID,
-				Exchange:     e.Name,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Side:         oSide,
-				Price:        result[t].Price.Float64(),
-				Amount:       result[t].Quantity.Float64(),
-				Timestamp:    result[t].Timestamp.Time(),
+		if len(page) < aggregatedTradesPageLimit {
+			rows = append(rows, page...)
+			end = start.Add(-time.Second)
+			continue
+		}
+		oldest := page[0].Timestamp.Time()
+		for _, row := range page {
+			if row.Timestamp.Time().Before(oldest) {
+				oldest = row.Timestamp.Time()
 			}
 		}
-		return resp, nil
-	default:
-		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+		second := oldest.Truncate(time.Second)
+		for _, row := range page {
+			if !row.Timestamp.Time().Before(second.Add(time.Second)) {
+				rows = append(rows, row)
+			}
+		}
+		in, err := e.aggregatedTradesInSecond(ctx, p, second)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, in...)
+		end = second.Add(-time.Second)
 	}
+	// The pages arrive newest first; put the trades oldest first and keep only those inside the window.
+	slices.Reverse(rows)
+	slices.SortStableFunc(rows, func(a, b *AggregatedTradeDetail) int {
+		return a.Timestamp.Time().Compare(b.Timestamp.Time())
+	})
+	resp := make([]trade.Data, 0, len(rows))
+	for _, row := range rows {
+		ts := row.Timestamp.Time()
+		if ts.Before(startTime) || ts.After(endTime) {
+			continue
+		}
+		side := order.Buy
+		if row.MakerBuyer { // the buyer was the maker, so the taker sold
+			side = order.Sell
+		}
+		resp = append(resp, trade.Data{
+			TID:          row.LastTradeID,
+			Exchange:     e.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        row.Price.Float64(),
+			Amount:       row.Quantity.Float64(),
+			Timestamp:    ts,
+		})
+	}
+	return resp, nil
+}
+
+// aggregatedTradesInSecond returns the aggregated trades stamped within the second starting at second
+func (e *Exchange) aggregatedTradesInSecond(ctx context.Context, p currency.Pair, second time.Time) ([]*AggregatedTradeDetail, error) {
+	page, err := e.GetAggregatedTrades(ctx, p, second, second.Add(time.Second-time.Millisecond), aggregatedTradesPageLimit)
+	if err != nil {
+		return nil, err
+	}
+	if len(page) >= aggregatedTradesPageLimit {
+		return nil, fmt.Errorf("%w: %s", errTradesExceedPage, second)
+	}
+	in := make([]*AggregatedTradeDetail, 0, len(page))
+	for _, row := range page {
+		if ts := row.Timestamp.Time(); !ts.Before(second) && ts.Before(second.Add(time.Second)) {
+			in = append(in, row)
+		}
+	}
+	return in, nil
 }
 
 // GetServerTime returns the current exchange server time.

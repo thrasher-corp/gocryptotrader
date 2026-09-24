@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -495,12 +496,85 @@ func TestTradeSideIsTakerSide(t *testing.T) {
 	require.Len(t, recent, 2, "GetRecentTrades must return both trades")
 	assert.Equal(t, order.Sell, recent[0].Side, "a buyer-maker trade should be a taker sell")
 	assert.Equal(t, order.Buy, recent[1].Side, "a seller-maker trade should be a taker buy")
-	end := time.Now()
+	end := time.UnixMilli(1789251250000)
 	historic, err := e.GetHistoricTrades(t.Context(), btc, asset.Spot, end.Add(-time.Minute), end)
 	require.NoError(t, err, "GetHistoricTrades must not error")
 	require.Len(t, historic, 2, "GetHistoricTrades must return both trades")
-	assert.Equal(t, order.Sell, historic[0].Side, "a buyer-maker aggregate trade should be a taker sell")
-	assert.Equal(t, order.Buy, historic[1].Side, "a seller-maker aggregate trade should be a taker buy")
+	assert.Equal(t, order.Buy, historic[0].Side, "a seller-maker aggregate trade should be a taker buy")
+	assert.Equal(t, order.Sell, historic[1].Side, "a buyer-maker aggregate trade should be a taker sell")
+}
+
+// TestGetHistoricTradesPagesTheWindow reads windows holding more trades than one request returns. The
+// venue answers at most 1000 aggregated trades per request, newest first and stamped to the second, from
+// a window of at most an hour whose bounds it reads to the second.
+func TestGetHistoricTradesPagesTheWindow(t *testing.T) {
+	t.Parallel()
+	origin := time.Date(2026, 9, 23, 20, 0, 0, 0, time.UTC)
+	every := func(step time.Duration, per int, span time.Duration) []int64 {
+		stamps := make([]int64, 0, int(span/step)*per)
+		for at := origin; at.Before(origin.Add(span)); at = at.Add(step) {
+			for range per {
+				stamps = append(stamps, at.UnixMilli())
+			}
+		}
+		return stamps
+	}
+	for _, tc := range []struct {
+		name   string
+		stamps []int64
+		span   time.Duration
+	}{
+		// Pages end part-way through a second.
+		{"three trades a second", every(time.Second, 3, 70*time.Minute), 70 * time.Minute},
+		// Each hour fits in one page, so neighbouring hours meet at a second both could claim.
+		{"one trade every ten seconds", every(10*time.Second, 1, 2*time.Hour), 2 * time.Hour},
+		// The window starts part-way through a second holding more trades than a page, none of them in it.
+		{"a full second before the window", append(every(time.Second, 1000, time.Second), origin.Add(time.Second).UnixMilli()), time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				q := r.URL.Query()
+				from, _ := strconv.ParseInt(q.Get("startTime"), 10, 64)
+				to, _ := strconv.ParseInt(q.Get("endTime"), 10, 64)
+				limit, err := strconv.Atoi(q.Get("limit"))
+				if err != nil {
+					limit = 500
+				}
+				if to-from > time.Hour.Milliseconds() {
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"msg":"More than 1 hours between startTime and endTime.","code":-1127}`))
+					return
+				}
+				from, to = from/1000*1000, to/1000*1000
+				var rows []string
+				for i := len(tc.stamps) - 1; i >= 0 && len(rows) < limit; i-- {
+					if tc.stamps[i] >= from && tc.stamps[i] <= to {
+						rows = append(rows, `{"p":"`+strconv.Itoa(i)+`","q":"1","T":`+strconv.FormatInt(tc.stamps[i], 10)+`,"m":false,"M":true}`)
+					}
+				}
+				_, _ = w.Write([]byte("[" + strings.Join(rows, ",") + "]"))
+			}))
+			// Starting and ending part-way through a second, as a caller's window may.
+			start, end := origin.Add(250*time.Millisecond), origin.Add(tc.span+250*time.Millisecond)
+			trades, err := ex.GetHistoricTrades(t.Context(), currency.NewBTCUSDT(), asset.Spot, start, end)
+			require.NoError(t, err, "GetHistoricTrades must not error")
+			var want []float64
+			for i, ms := range tc.stamps {
+				if ms >= start.UnixMilli() && ms <= end.UnixMilli() {
+					want = append(want, float64(i))
+				}
+			}
+			require.Equal(t, len(want), len(trades), "every trade in the window must be returned once")
+			for i := range trades {
+				if !assert.Equalf(t, want[i], trades[i].Price, "trade %d should be returned in order, oldest first", i) {
+					break
+				}
+			}
+			_, err = ex.GetHistoricTrades(t.Context(), currency.NewBTCUSDT(), asset.Spot, time.Now().Add(-3*time.Minute), time.Now().Add(2*time.Hour))
+			assert.NoError(t, err, "a window ending in the future should be read up to now")
+		})
+	}
 }
 
 // TestExtendListenKey asserts the user data stream keepalive is a PUT to userDataStream carrying the

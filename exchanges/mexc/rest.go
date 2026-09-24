@@ -60,6 +60,7 @@ var (
 	errSelfTradePreventionGroupNameRequired = errors.New("self-trade prevention group name is required")
 	errSelfTradePreventionGroupIDRequired   = errors.New("self-trade prevention group id is required")
 	errUIDRequired                          = errors.New("at least one uid is required")
+	errTradesExceedPage                     = errors.New("more aggregated trades share one second than a page holds")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
