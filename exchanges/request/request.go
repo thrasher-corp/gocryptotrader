@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -118,26 +121,21 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	}
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
-		return nil, err
+		return nil, urlErrorForLog(err)
 	}
 
-	if i.HTTPDebugging {
-		// Err not evaluated due to validation check above
-		dump, _ := httputil.DumpRequestOut(req, true)
-		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
-	}
-
-	for k, v := range i.Headers {
-		req.Header.Add(k, v)
-	}
+	applyStringHeaders(req.Header, i.Headers)
 
 	if r.userAgent != "" && req.Header.Get(userAgent) == "" {
 		req.Header.Add(userAgent, r.userAgent)
 	}
-	for key, values := range headersFromContext(ctx) {
-		req.Header.Del(key)
-		for _, value := range values {
-			req.Header.Add(key, value)
+	applyHeaders(req.Header, headersFromContext(ctx))
+
+	if i.HTTPDebugging {
+		if dump, err := dumpRequestForLog(req, req.Header.Get("Content-Type")); err != nil {
+			log.Errorf(log.RequestSys, "%s DumpRequest invalid request: %v", r.name, err)
+		} else {
+			log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
 		}
 	}
 
@@ -190,9 +188,9 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 // caller should retry. Any response body is closed before this method returns.
 func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Request, attempt int, verbose bool) (bool, error) {
 	if verbose {
-		log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
+		log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, pathForLog(p.Path))
 		for k, d := range req.Header {
-			log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
+			log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, headerValuesForLog(k, d))
 		}
 		log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
 		if req.GetBody != nil {
@@ -207,6 +205,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 			if bodyErr != nil {
 				return false, bodyErr
 			}
+			payload = bodyForLog(payload, req.Header.Get("Content-Type"))
 			log.Debugf(log.RequestSys, "%s request body: %s", r.name, payload)
 		}
 	}
@@ -252,29 +251,258 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > http.StatusNoContent {
-		return false, fmt.Errorf("%s %w: %d raw response: %s", r.name, ErrBadStatus, resp.StatusCode, string(contents))
+		return false, fmt.Errorf("%s %w: %d raw response: %s", r.name, ErrBadStatus, resp.StatusCode, bodyForLog(contents, resp.Header.Get("Content-Type")))
 	}
 
+	var contentsForLog []byte
+	if p.HTTPDebugging || verbose {
+		contentsForLog = bodyForLog(contents, resp.Header.Get("Content-Type"))
+	}
 	if p.HTTPDebugging {
-		dump, dumpErr := httputil.DumpResponse(resp, false)
+		respForLog := *resp
+		respForLog.Header = make(http.Header, len(resp.Header))
+		for name, values := range resp.Header {
+			respForLog.Header[name] = headerValuesForLog(name, values)
+		}
+		dump, dumpErr := httputil.DumpResponse(&respForLog, false)
 		if dumpErr != nil {
 			log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", dumpErr)
 		} else {
-			log.Debugf(log.RequestSys, "DumpResponse (%v):\n%s", p.Path, dump)
+			log.Debugf(log.RequestSys, "DumpResponse (%v):\n%s", pathForLog(p.Path), dump)
 		}
-		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
+		log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", pathForLog(p.Path), contentsForLog)
 	}
 
 	if verbose {
 		for k, d := range resp.Header {
-			log.Debugf(log.RequestSys, "%s response header [%s]: %s", r.name, k, d)
+			log.Debugf(log.RequestSys, "%s response header [%s]: %s", r.name, k, headerValuesForLog(k, d))
 		}
 		log.Debugf(log.RequestSys, "HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 		if !p.HTTPDebugging {
-			log.Debugf(log.RequestSys, "%s raw response: %s", r.name, string(contents))
+			log.Debugf(log.RequestSys, "%s raw response: %s", r.name, contentsForLog)
 		}
 	}
 	return false, unmarshallError
+}
+
+func headerValuesForLog(name string, values []string) []string {
+	if isSensitiveLogKey(name) {
+		return []string{"[REDACTED]"}
+	}
+	return values
+}
+
+func applyStringHeaders(destination http.Header, headers map[string]string) {
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		destination.Set(key, headers[key])
+	}
+}
+
+func applyHeaders(destination, headers http.Header) {
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		destination.Del(key)
+		for _, value := range headers[key] {
+			destination.Add(key, value)
+		}
+	}
+}
+
+// isSensitiveLogKey matches name suffixes rather than substrings, so OK-ACCESS-KEY, X-BAPI-SIGN and listenKey are
+// caught while KC-API-KEY-VERSION, SignatureMethod and signTimestamp stay readable. BTSE sends its API key as btse-api.
+func isSensitiveLogKey(name string) bool {
+	name = strings.ToLower(name)
+	if i := strings.LastIndexAny(name, "-_"); i >= 0 && name[i+1:] == "api" {
+		return true
+	}
+	for _, suffix := range sensitiveLogKeySuffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+var sensitiveLogKeySuffixes = []string{"key", "keyid", "sign", "signature", "authent", "authorization", "passphrase", "password", "secret", "token", "cookie", "tfa", "user"}
+
+// redactEncodedValues keeps field order and non-sensitive values so a redacted query or form body still reads like the request that was sent.
+func redactEncodedValues(encoded string) string {
+	fields := strings.Split(encoded, "&")
+	for i, field := range fields {
+		name, _, ok := strings.Cut(field, "=")
+		if !ok {
+			continue
+		}
+		unescaped, err := url.QueryUnescape(name)
+		if err != nil || isSensitiveLogKey(unescaped) {
+			fields[i] = name + "=[REDACTED]"
+		}
+	}
+	return strings.Join(fields, "&")
+}
+
+func pathForLog(path string) string {
+	base, query, ok := strings.Cut(path, "?")
+	if !ok {
+		return path
+	}
+	return base + "?" + redactEncodedValues(query)
+}
+
+func isFormEncoded(contentType string) bool {
+	mediaType, _, _ := strings.Cut(contentType, ";")
+	mediaType = strings.TrimSpace(mediaType)
+	return mediaType == "" || strings.EqualFold(mediaType, "application/x-www-form-urlencoded")
+}
+
+func isJSONEncoded(contentType string) bool {
+	mediaType, _, _ := strings.Cut(contentType, ";")
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
+}
+
+func bodyForLog(payload []byte, contentType string) []byte {
+	if len(payload) == 0 {
+		return payload
+	}
+	trimmed := bytes.TrimSpace(payload)
+	looksLikeJSON := len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[')
+	if strings.TrimSpace(contentType) != "" && isFormEncoded(contentType) {
+		// Redact as a form first because that is how the receiver interprets it,
+		// then as JSON when the body also has that shape.
+		redacted := []byte(redactEncodedValues(string(payload)))
+		var value any
+		if looksLikeJSON && json.Unmarshal(redacted, &value) == nil && redactJSONValue(value) {
+			if remarshalled, err := json.Marshal(value); err == nil {
+				return remarshalled
+			}
+		}
+		return redacted
+	}
+	if isJSONEncoded(contentType) || looksLikeJSON || json.Valid(payload) {
+		var value any
+		if err := json.Unmarshal(payload, &value); err == nil {
+			if !redactJSONValue(value) {
+				return payload
+			}
+			if redacted, err := json.Marshal(value); err == nil {
+				return redacted
+			}
+		}
+		return []byte("[REDACTED INVALID JSON BODY]")
+	}
+	if isFormEncoded(contentType) {
+		return []byte(redactEncodedValues(string(payload)))
+	}
+	return []byte("[REDACTED NON-FORM BODY]")
+}
+
+func redactJSONValue(value any) bool {
+	redacted := false
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, nested := range typed {
+			if isSensitiveLogKey(key) {
+				typed[key] = "[REDACTED]"
+				redacted = true
+				continue
+			}
+			redacted = redactJSONValue(nested) || redacted
+		}
+	case []any:
+		for _, nested := range typed {
+			redacted = redactJSONValue(nested) || redacted
+		}
+	}
+	return redacted
+}
+
+type replayReader struct {
+	io.Reader
+	terminalErr error
+}
+
+func (r replayReader) Read(payload []byte) (int, error) {
+	n, err := r.Reader.Read(payload)
+	if errors.Is(err, io.EOF) {
+		return n, r.terminalErr
+	}
+	return n, err
+}
+
+func dumpRequestForLog(req *http.Request, contentType string) ([]byte, error) {
+	clone := req.Clone(req.Context())
+	// The sensitive-key suffixes must cover every credential-bearing header
+	// sent by exchange adapters because the dump includes their headers.
+	for name, values := range clone.Header {
+		clone.Header[name] = headerValuesForLog(name, values)
+	}
+	if req.URL != nil {
+		requestURL := *req.URL
+		requestURL.RawQuery = redactEncodedValues(requestURL.RawQuery)
+		clone.URL = &requestURL
+	}
+	if req.Body != nil && req.Body != http.NoBody {
+		body := req.Body
+		if req.GetBody != nil {
+			var err error
+			body, err = req.GetBody()
+			if err != nil {
+				return nil, err
+			}
+		}
+		payload, err := io.ReadAll(body)
+		if closeErr := body.Close(); err == nil {
+			err = closeErr
+		}
+		if req.GetBody == nil {
+			// The reader is not replayable, so restore what the debug dump consumed.
+			// A close failure is surfaced as the terminal read error; HTTP/2 may handle
+			// that differently from the original Close failure.
+			var restored io.Reader = bytes.NewReader(payload)
+			if err != nil {
+				restored = replayReader{Reader: restored, terminalErr: err}
+			}
+			req.Body = io.NopCloser(restored)
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload = bodyForLog(payload, contentType)
+		clone.Body = io.NopCloser(bytes.NewReader(payload))
+		clone.ContentLength = int64(len(payload))
+	}
+	return httputil.DumpRequestOut(clone, true)
+}
+
+// urlErrorForLog redacts the request URL that http.Client.Do embeds in its errors without mutating the original.
+func urlErrorForLog(err error) error {
+	return urlErrorForLogDepth(err, maxURLErrorLogDepth)
+}
+
+// maxURLErrorLogDepth prevents a cyclic error chain from exhausting the stack.
+const maxURLErrorLogDepth = 8
+
+var errTruncatedErrorChain = errors.New("error chain truncated for logging")
+
+func urlErrorForLogDepth(err error, depth int) error {
+	if depth == 0 {
+		return errTruncatedErrorChain
+	}
+	urlErr, ok := err.(*url.Error)
+	if !ok || urlErr == nil {
+		return err
+	}
+	return &url.Error{Op: urlErr.Op, URL: pathForLog(urlErr.URL), Err: urlErrorForLogDepth(urlErr.Err, depth-1)}
 }
 
 // evaluateRetry checks whether a request should be retried based on the retry
@@ -283,7 +511,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 // a retry-decision error.
 func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, incomingErr error, attempt int, verbose bool) (bool, error) {
 	if hasRetryNotAllowed(ctx) {
-		return false, incomingErr
+		return false, urlErrorForLog(incomingErr)
 	}
 
 	retry, err := r.retryPolicy(resp, incomingErr)
@@ -291,11 +519,11 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 		if incomingErr == nil && resp != nil {
 			r.drainBody(resp.Body)
 		}
-		return false, err
+		return false, urlErrorForLog(err)
 	}
 
 	if !retry {
-		return false, incomingErr
+		return false, urlErrorForLog(incomingErr)
 	}
 
 	if incomingErr == nil {
@@ -305,7 +533,7 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 
 	if attempt > r.maxRetries {
 		if incomingErr != nil {
-			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, errExceedsMaxRetries, incomingErr)
+			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, errExceedsMaxRetries, urlErrorForLog(incomingErr))
 		}
 		return false, fmt.Errorf("%w %w: status %q", errFailedToRetryRequest, errExceedsMaxRetries, resp.Status)
 	}
@@ -316,14 +544,14 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 		if incomingErr != nil {
-			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, context.DeadlineExceeded, incomingErr)
+			return false, fmt.Errorf("%w %w: err: %w", errFailedToRetryRequest, context.DeadlineExceeded, urlErrorForLog(incomingErr))
 		}
 		return false, fmt.Errorf("%w %w: status %q", errFailedToRetryRequest, context.DeadlineExceeded, resp.Status)
 	}
 
 	if verbose {
 		if incomingErr != nil {
-			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, cause: %s", r.name, delay, attempt, incomingErr)
+			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, cause: %s", r.name, delay, attempt, urlErrorForLog(incomingErr))
 		} else {
 			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, status: %q", r.name, delay, attempt, resp.Status)
 		}
