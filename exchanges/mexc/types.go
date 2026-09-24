@@ -826,7 +826,7 @@ type AffiliateCampaignPage struct {
 type CampaignData struct {
 	Campaign      string       `json:"campaign"`
 	InviteCode    string       `json:"inviteCode"`
-	ClickTime     types.Time   `json:"clickTime"`
+	ClickCount    uint64       `json:"clickTime"`
 	CreateTime    types.Time   `json:"createTime"`
 	Signup        uint64       `json:"signup"`
 	Traded        uint64       `json:"traded"`

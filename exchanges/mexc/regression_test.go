@@ -1699,3 +1699,11 @@ func TestBrokerSubAccountDepositDetailDecodesDocumentedExample(t *testing.T) {
 	assert.Empty(t, d.Memo, "Memo should carry the memo")
 	assert.Equal(t, 4.99, d.Amount.Float64(), "Amount should be decoded")
 }
+
+// TestCampaignDataClickCount decodes clickTime as the click count MEXC documents it to be
+func TestCampaignDataClickCount(t *testing.T) {
+	t.Parallel()
+	var c CampaignData
+	require.NoError(t, json.Unmarshal([]byte(`{"campaign":"11kd","clickTime":7,"createTime":1695125287000}`), &c), "Unmarshal must not error")
+	assert.Equal(t, uint64(7), c.ClickCount, "ClickCount should carry the clickTime count")
+}
