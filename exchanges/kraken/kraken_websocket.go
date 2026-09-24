@@ -493,7 +493,7 @@ func (e *Exchange) wsProcessOrderBook(ctx context.Context, c string, response []
 			copy(update.Bids, update2.Bids)
 			update.Checksum = update2.Checksum
 		}
-		err := e.wsProcessOrderBookUpdate(pair, &update)
+		err := e.wsProcessOrderBookUpdate(ctx, pair, &update)
 		if errors.Is(err, errInvalidChecksum) {
 			log.Debugf(log.Global, "%s Resubscribing to invalid %s orderbook", e.Name, pair)
 			go func() {
@@ -509,11 +509,11 @@ func (e *Exchange) wsProcessOrderBook(ctx context.Context, c string, response []
 	if err := json.Unmarshal(response[1], &snapshot); err != nil {
 		return fmt.Errorf("error unmarshalling orderbook snapshot: %w", err)
 	}
-	return e.wsProcessOrderBookPartial(pair, &snapshot, key.Levels)
+	return e.wsProcessOrderBookPartial(ctx, pair, &snapshot, key.Levels)
 }
 
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
-func (e *Exchange) wsProcessOrderBookPartial(pair currency.Pair, obSnapshot *wsSnapshot, levels int) error {
+func (e *Exchange) wsProcessOrderBookPartial(ctx context.Context, pair currency.Pair, obSnapshot *wsSnapshot, levels int) error {
 	base := orderbook.Book{
 		Pair:                   pair,
 		Asset:                  asset.Spot,
@@ -552,11 +552,11 @@ func (e *Exchange) wsProcessOrderBookPartial(pair currency.Pair, obSnapshot *wsS
 	}
 	base.LastUpdated = highestLastUpdate
 	base.Exchange = e.Name
-	return e.Websocket.Orderbook.LoadSnapshot(&base)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &base)
 }
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
-func (e *Exchange) wsProcessOrderBookUpdate(pair currency.Pair, wsUpdt *wsUpdate) error {
+func (e *Exchange) wsProcessOrderBookUpdate(ctx context.Context, pair currency.Pair, wsUpdt *wsUpdate) error {
 	obUpdate := orderbook.Update{
 		Asset: asset.Spot,
 		Pair:  pair,
@@ -596,7 +596,7 @@ func (e *Exchange) wsProcessOrderBookUpdate(pair currency.Pair, wsUpdt *wsUpdate
 	}
 	obUpdate.UpdateTime = highestLastUpdate
 
-	err := e.Websocket.Orderbook.Update(&obUpdate)
+	err := e.Websocket.Orderbook.Update(ctx, &obUpdate)
 	if err != nil {
 		return err
 	}

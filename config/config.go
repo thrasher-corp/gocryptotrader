@@ -991,13 +991,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				DefaultWebsocketTrafficTimeout)
 			e.WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
 		}
-		if e.Orderbook.WebsocketBufferLimit <= 0 {
-			log.Warnf(log.ConfigMgr,
-				"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
-				e.Name,
-				defaultWebsocketOrderbookBufferLimit)
-			e.Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
-		}
 		err := c.CheckPairConsistency(e.Name)
 		if err != nil {
 			log.Errorf(log.ConfigMgr,

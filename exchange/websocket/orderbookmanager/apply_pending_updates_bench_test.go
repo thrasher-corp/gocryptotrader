@@ -1,4 +1,4 @@
-package buffer
+package orderbookmanager
 
 import (
 	"context"
@@ -13,29 +13,29 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-// BenchmarkLoadSnapshotExistingHolder guards the shared-lock fast path against accidental serialisation.
-func BenchmarkLoadSnapshotExistingHolder(b *testing.B) {
+// BenchmarkLoadSnapshotExistingDepth guards the shared-lock fast path against accidental serialisation.
+func BenchmarkLoadSnapshotExistingDepth(b *testing.B) {
 	relay := stream.NewRelay(1)
 	pair := currency.NewBTCUSD()
 	book := &orderbook.Book{
-		Exchange:    "BenchmarkLoadSnapshotExistingHolder",
+		Exchange:    "BenchmarkLoadSnapshotExistingDepth",
 		Pair:        pair,
 		Asset:       asset.Spot,
 		LastUpdated: time.Unix(1, 0),
 	}
 	ob := &Orderbook{
 		exchangeName: book.Exchange,
-		ob:           make(map[key.PairAsset]*orderbookHolder),
+		ob:           make(map[key.PairAsset]*orderbook.Depth),
 		dataHandler:  relay,
 	}
-	if err := ob.LoadSnapshot(book); err != nil {
+	if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 		b.Fatal(err)
 	}
 	<-relay.C
 
 	b.ReportAllocs()
 	for b.Loop() {
-		if err := ob.LoadSnapshot(book); err != nil {
+		if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 			b.Fatal(err)
 		}
 		<-relay.C
@@ -60,7 +60,7 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 
 			ob := &Orderbook{
 				exchangeName: exchangeName,
-				ob:           make(map[key.PairAsset]*orderbookHolder),
+				ob:           make(map[key.PairAsset]*orderbook.Depth),
 				dataHandler:  relay,
 			}
 			manager := NewUpdateManager(&UpdateManagerParams{
@@ -71,7 +71,7 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 				CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (bool, error) {
 					return false, nil
 				},
-				BufferInstance: ob,
+				Orderbook: ob,
 			})
 			pair := currency.NewBTCUSD()
 			now := time.Unix(1, 0)
@@ -98,11 +98,11 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 			}
 			cache := updateCache{updates: updates}
 
-			if err := ob.LoadSnapshot(book); err != nil {
+			if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 				b.Fatal(err)
 			}
 			cache.state = cacheStateQueuing
-			if err := manager.applyPendingUpdates(&cache); err != nil {
+			if err := manager.applyPendingUpdates(b.Context(), &cache); err != nil {
 				b.Fatal(err)
 			}
 			if cache.state != cacheStateSynced {
@@ -122,11 +122,11 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 
 			b.ReportAllocs()
 			for b.Loop() {
-				if err := ob.LoadSnapshot(book); err != nil {
+				if err := ob.LoadSnapshot(b.Context(), book); err != nil {
 					b.Fatal(err)
 				}
 				cache.state = cacheStateQueuing
-				if err := manager.applyPendingUpdates(&cache); err != nil {
+				if err := manager.applyPendingUpdates(b.Context(), &cache); err != nil {
 					b.Fatal(err)
 				}
 				for range updateCount + 1 {

@@ -162,7 +162,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		init, err := e.UpdateLocalBuffer(&orderbooks)
+		init, err := e.UpdateLocalBuffer(ctx, &orderbooks)
 		if err != nil && !init {
 			return fmt.Errorf("%v - UpdateLocalCache error: %s", e.Name, err)
 		}

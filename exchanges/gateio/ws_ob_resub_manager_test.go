@@ -51,7 +51,7 @@ func TestResubscribe(t *testing.T) {
 	require.ErrorIs(t, err, subscription.ErrNotFound)
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 
-	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+	err = e.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 		Asks:        []orderbook.Level{{Price: 50000, Amount: 0.1}},
 		Bids:        []orderbook.Level{{Price: 49000, Amount: 0.2}},
 		Exchange:    e.Name,
@@ -75,7 +75,7 @@ func TestResubscribe(t *testing.T) {
 	require.NoError(t, err)
 
 	qualifiedChannel := "ob.BTC_USDT.50"
-	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+	err = e.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 		Asks:        []orderbook.Level{{Price: 50000, Amount: 0.1}},
 		Bids:        []orderbook.Level{{Price: 49000, Amount: 0.2}},
 		Exchange:    e.Name,

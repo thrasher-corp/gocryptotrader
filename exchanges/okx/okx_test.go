@@ -4173,7 +4173,7 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 		SequenceID: 42,
 	}
 	pair := currency.NewPairWithDelimiter("SNAP", "USDT", "-")
-	require.NoError(t, tracked.WsProcessSnapshotOrderBook(data, pair, []asset.Item{asset.Spot}), "WsProcessSnapshotOrderBook must not error")
+	require.NoError(t, tracked.WsProcessSnapshotOrderBook(t.Context(), data, pair, []asset.Item{asset.Spot}), "WsProcessSnapshotOrderBook must not error")
 
 	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
@@ -4240,7 +4240,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 				assets = append(assets, asset.Margin)
 			}
 			for _, a := range assets {
-				require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 					Exchange:     tracked.Name,
 					Pair:         pair,
 					Asset:        a,
@@ -4251,7 +4251,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 				}), "LoadSnapshot must not error")
 			}
 
-			err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+			err := tracked.WsProcessUpdateOrderbook(t.Context(), &WsOrderBookData{
 				Timestamp:          types.Time(time.UnixMilli(1659792392640)),
 				PreviousSequenceID: tc.previousSequenceID,
 				SequenceID:         tc.sequenceID,
@@ -4277,7 +4277,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
 		pair := currency.NewPairWithDelimiter("PART", "USDT", "-")
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 			Exchange:     tracked.Name,
 			Pair:         pair,
 			Asset:        asset.Spot,
@@ -4287,7 +4287,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
 		}), "LoadSnapshot must not error")
 
-		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+		err := tracked.WsProcessUpdateOrderbook(t.Context(), &WsOrderBookData{
 			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
 			PreviousSequenceID: 20,
 			SequenceID:         21,
@@ -4305,7 +4305,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
 		pair := currency.NewPairWithDelimiter("PENDING", "USDT", "-")
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 			Exchange:     tracked.Name,
 			Pair:         pair,
 			Asset:        asset.Spot,
@@ -4316,7 +4316,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		}), "LoadSnapshot must not error")
 		require.NoError(t, tracked.Websocket.Orderbook.InvalidateOrderbook(pair, asset.Spot), "InvalidateOrderbook must not error")
 
-		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+		err := tracked.WsProcessUpdateOrderbook(t.Context(), &WsOrderBookData{
 			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
 			PreviousSequenceID: 20,
 			SequenceID:         21,
@@ -4334,7 +4334,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 		pair := currency.NewPairWithDelimiter("DISPATCH", "USDT", "-")
 		assets := []asset.Item{asset.Spot, asset.Margin}
 		for _, a := range assets {
-			require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 				Exchange:     tracked.Name,
 				Pair:         pair,
 				Asset:        a,
@@ -4348,7 +4348,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			require.NoError(t, tracked.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
 		}
 
-		err := tracked.WsProcessUpdateOrderbook(&WsOrderBookData{
+		err := tracked.WsProcessUpdateOrderbook(t.Context(), &WsOrderBookData{
 			Bids:               [][4]types.Number{{100.5, 2, 0, 1}},
 			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
 			PreviousSequenceID: 10,
@@ -5144,7 +5144,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestWsProcessOrderbook5(t *testing.T) {
 	t.Parallel()
 	ob5payload := []byte(`{"arg":{"channel":"books5","instId":"OKB-USDT"},"data":[{"asks":[["0.0000007465","2290075956","0","4"],["0.0000007466","1747284705","0","4"],["0.0000007467","1338861655","0","3"],["0.0000007468","1661668387","0","6"],["0.0000007469","2715477116","0","5"]],"bids":[["0.0000007464","15693119","0","1"],["0.0000007463","2330835024","0","4"],["0.0000007462","1182926517","0","2"],["0.0000007461","3818684357","0","4"],["0.000000746","6021641435","0","7"]],"instId":"OKB-USDT","ts":"1695864901807","seqId":4826378794}]}`)
-	err := e.wsProcessOrderbook5(ob5payload)
+	err := e.wsProcessOrderbook5(t.Context(), ob5payload)
 	require.NoError(t, err)
 
 	required := currency.NewPairWithDelimiter("OKB", "USDT", "-")
@@ -6880,7 +6880,7 @@ const (
 
 func TestWsProcessSpreadOrderbook(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadOrderbook([]byte(processSpreadOrderbookJSON))
+	err := e.wsProcessSpreadOrderbook(t.Context(), []byte(processSpreadOrderbookJSON))
 	assert.NoError(t, err)
 }
 

@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -167,13 +167,12 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-		FetchDelay:         buffer.DefaultWSOrderbookUpdateTimeDelay,
-		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
+	e.wsOBUpdateMgr = orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
+		FetchDelay:         orderbookmanager.DefaultWSOrderbookUpdateTimeDelay,
+		FetchDeadline:      orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
 		CheckPendingUpdate: checkPendingUpdate,
-		BufferInstance:     &e.Websocket.Orderbook,
+		Orderbook:          &e.Websocket.Orderbook,
 	})
 }
 
