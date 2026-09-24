@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,7 @@ import (
 var (
 	startTime, endTime, orderingDirection string
 	limit                                 int
+	errWithdrawalLimitOutOfRange          = errors.New("withdrawal limit is outside the int32 range")
 )
 
 var getInfoCommand = &cli.Command{
@@ -2702,6 +2704,9 @@ func withdrawalRequestByExchangeID(c *cli.Context) error {
 		if c.IsSet("limit") {
 			limit = c.Int64("limit")
 		}
+		if limit < math.MinInt32 || limit > math.MaxInt32 {
+			return errWithdrawalLimitOutOfRange
+		}
 
 		if c.IsSet("currency") {
 			ccy = c.String("currency")
@@ -2755,6 +2760,9 @@ func withdrawalRequestByDate(c *cli.Context) error {
 
 	if c.IsSet("limit") {
 		limit = c.Int64("limit")
+	}
+	if limit < math.MinInt32 || limit > math.MaxInt32 {
+		return errWithdrawalLimitOutOfRange
 	}
 
 	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)

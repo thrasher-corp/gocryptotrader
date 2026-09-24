@@ -31,6 +31,8 @@ go build or go run .
 
 For a full list of commands, you can run `gctcli --help`. Alternatively, you can also
 visit our [GoCryptoTrader API reference](https://api.gocryptotrader.app/).
+Run `gctcli <command> --help` to see a command's flags. Set boolean flags with
+`=`, for example `gctcli getexchanges --enabled=false`.
 
 Supply command parameters as named flags. Positional arguments are rejected for
 all commands and subcommands.

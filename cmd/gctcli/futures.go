@@ -292,10 +292,9 @@ var futuresCommands = &cli.Command{
 					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
-					Name:     "margintype",
-					Required: true,
-					Aliases:  []string{"margin", "mt", "m"},
-					Usage:    "the margin type, such as 'isolated', 'multi' or 'cross'",
+					Name:    "margintype",
+					Aliases: []string{"margin", "mt", "m"},
+					Usage:   "the margin type, such as 'isolated', 'multi' or 'cross'",
 				},
 				&cli.Float64Flag{
 					Name:     "leverage",
@@ -335,10 +334,9 @@ var futuresCommands = &cli.Command{
 					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
-					Name:     "margintype",
-					Required: true,
-					Aliases:  []string{"margin", "mt", "m"},
-					Usage:    "the margin type, such as 'isolated', 'multi' or 'cross'",
+					Name:    "margintype",
+					Aliases: []string{"margin", "mt", "m"},
+					Usage:   "the margin type, such as 'isolated', 'multi' or 'cross'",
 				},
 				&cli.StringFlag{
 					Name:    "orderside",
@@ -372,10 +370,9 @@ var futuresCommands = &cli.Command{
 					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
-					Name:     "margintype",
-					Required: true,
-					Aliases:  []string{"margin", "mt", "m"},
-					Usage:    "the margin type, most likely 'isolated'",
+					Name:    "margintype",
+					Aliases: []string{"margin", "mt", "m"},
+					Usage:   "the margin type, most likely 'isolated'",
 				},
 				&cli.Float64Flag{
 					Name:    "originalallocatedmargin",

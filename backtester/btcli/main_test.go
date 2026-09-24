@@ -2,8 +2,11 @@ package main
 
 import (
 	"errors"
+	"os"
+	"os/exec"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -55,4 +58,18 @@ func TestRejectPositionalArguments(t *testing.T) {
 		app := &cli.App{Commands: []*cli.Command{command}}
 		require.ErrorIs(t, app.Run([]string{"btcli", "test", "--value", "set"}), errBefore)
 	})
+}
+
+func TestMainRejectsPositionalArguments(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("BTCLI_TEST_MAIN") == "1" {
+		os.Args = []string{"btcli", "--cert", os.DevNull, "listalltasks", "unexpected"}
+		main()
+		return
+	}
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestMainRejectsPositionalArguments$") //nolint:gosec // re-runs this test binary to exercise main
+	cmd.Env = append(os.Environ(), "BTCLI_TEST_MAIN=1")
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "main must exit with an error")
+	assert.Contains(t, string(out), errPositionalArgument.Error(), "main should reject the positional argument")
 }

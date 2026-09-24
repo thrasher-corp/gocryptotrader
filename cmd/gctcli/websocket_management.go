@@ -72,9 +72,8 @@ var websocketManagerCommand = &cli.Command{
 					Usage:    exchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:     "proxy",
-					Required: true,
-					Usage:    "proxy address to change to, if proxy string is not set, this will stop the utilisation of the prior set proxy.",
+					Name:  "proxy",
+					Usage: "proxy address to change to, if proxy string is not set, this will stop the utilisation of the prior set proxy.",
 				},
 			},
 			Action: setProxy,
@@ -89,9 +88,8 @@ var websocketManagerCommand = &cli.Command{
 					Usage:    exchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:     "url",
-					Required: true,
-					Usage:    "url string to change to, an empty string will set it back to the packaged defined default",
+					Name:  "url",
+					Usage: "url string to change to, an empty string will set it back to the packaged defined default",
 				},
 			},
 			Action: setURL,
