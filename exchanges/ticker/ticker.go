@@ -22,6 +22,7 @@ var (
 
 var (
 	errInvalidTicker     = errors.New("invalid ticker")
+	errNilTickerPrice    = errors.New("ticker price is nil")
 	errBidGreaterThanAsk = errors.New("bid greater than ask this is a crossed or locked market")
 	errExchangeNotFound  = errors.New("exchange not found")
 )
@@ -129,8 +130,15 @@ func FindLast(p currency.Pair, a asset.Item) (float64, error) {
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers list
 func ProcessTicker(p *Price) error {
+	if err := validateTicker(p); err != nil {
+		return err
+	}
+	return service.update(p)
+}
+
+func validateTicker(p *Price) error {
 	if p == nil {
-		return errors.New(errTickerPriceIsNil)
+		return errNilTickerPrice
 	}
 
 	if p.ExchangeName == "" {
@@ -172,47 +180,73 @@ func ProcessTicker(p *Price) error {
 	if p.LastUpdated.IsZero() {
 		p.LastUpdated = time.Now()
 	}
-
-	return service.update(p)
+	return nil
 }
 
 // ProcessBatch stores valid tickers and returns only those that succeeded.
 func ProcessBatch(p []Price) ([]Price, error) {
-	var errs error
 	processed := make([]Price, 0, len(p))
+	indexes := make([]int, 0, len(p))
+	ids := make([][]uuid.UUID, 0, len(p))
+	var errs error
+	service.mu.Lock()
 	for i := range p {
-		if err := ProcessTicker(&p[i]); err != nil {
+		if err := validateTicker(&p[i]); err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		processed = append(processed, p[i])
+		itemIDs, err := service.store(&p[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		indexes = append(indexes, i)
+		ids = append(ids, itemIDs)
+	}
+	service.mu.Unlock()
+
+	for i, index := range indexes {
+		if len(ids[i]) > 0 {
+			if err := service.mux.Publish(&p[index], ids[i]...); err != nil {
+				errs = common.AppendError(errs, err)
+				continue
+			}
+		}
+		processed = append(processed, p[index])
 	}
 	return processed, errs
 }
 
 // update updates ticker price
 func (s *Service) update(p *Price) error {
+	s.mu.Lock()
+	ids, err := s.store(p)
+	s.mu.Unlock()
+	if err != nil || len(ids) == 0 {
+		return err
+	}
+	return s.mux.Publish(p, ids...)
+}
+
+// store updates a ticker while the caller holds the service lock.
+func (s *Service) store(p *Price) ([]uuid.UUID, error) {
 	name := strings.ToLower(p.ExchangeName)
 	mapKey := key.NewExchangeAssetPair(name, p.AssetType, p.Pair)
-	s.mu.Lock()
-	t, ok := service.Tickers[mapKey]
+	t, ok := s.Tickers[mapKey]
 	if !ok || t == nil {
 		newTicker := &Ticker{}
-		err := s.setItemID(newTicker, p, name)
-		if err != nil {
-			s.mu.Unlock()
-			return err
+		if err := s.setItemID(newTicker, p, name); err != nil {
+			return nil, err
 		}
-		service.Tickers[mapKey] = newTicker
-		s.mu.Unlock()
-		return nil
+		s.Tickers[mapKey] = newTicker
+		return nil, nil
 	}
 
 	t.Price = *p
-	//nolint: gocritic
-	ids := append(t.Assoc, t.Main)
-	s.mu.Unlock()
-	return s.mux.Publish(p, ids...)
+	ids := make([]uuid.UUID, len(t.Assoc)+1)
+	copy(ids, t.Assoc)
+	ids[len(t.Assoc)] = t.Main
+	return ids, nil
 }
 
 // setItemID retrieves and sets dispatch mux publish IDs

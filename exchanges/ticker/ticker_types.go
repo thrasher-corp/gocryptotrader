@@ -13,9 +13,8 @@ import (
 
 // const values for the ticker package
 const (
-	errPairNotSet       = "ticker currency pair not set"
-	errAssetTypeNotSet  = "ticker asset type not set"
-	errTickerPriceIsNil = "ticker price is nil"
+	errPairNotSet      = "ticker currency pair not set"
+	errAssetTypeNotSet = "ticker asset type not set"
 )
 
 // Vars for the ticker package
