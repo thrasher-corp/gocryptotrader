@@ -226,26 +226,24 @@ func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) ([]Walle
 	var resp []WalletAddress
 	req := make(map[string]any, 1)
 	req["currency"] = ccy
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
-	if err != nil {
-		errResp := ErrorResponse{}
-		errResponseStr := strings.Split(err.Error(), "raw response: ")
-		err := json.Unmarshal([]byte(errResponseStr[1]), &errResp)
-		if err != nil {
-			return resp, err
-		}
-		if errResp.ErrorCode == 3528 {
-			walletAddress := strings.Split(errResp.Message, "BADREQUEST: ")
-			return []WalletAddress{
-				{
-					Address: walletAddress[1],
-				},
-			}, nil
-		}
-		return resp, err
+	requestErr := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
+	if requestErr == nil {
+		return resp, nil
 	}
 
-	return resp, nil
+	_, rawResponse, ok := strings.Cut(requestErr.Error(), "raw response: ")
+	if !ok {
+		return resp, requestErr
+	}
+	var errResp ErrorResponse
+	if err := json.NewDecoder(strings.NewReader(rawResponse)).Decode(&errResp); err != nil || errResp.ErrorCode != 3528 {
+		return resp, requestErr
+	}
+	_, walletAddress, ok := strings.Cut(errResp.Message, "BADREQUEST: ")
+	if !ok || walletAddress == "" {
+		return resp, requestErr
+	}
+	return []WalletAddress{{Address: walletAddress}}, nil
 }
 
 // WalletWithdrawal submit request to withdraw crypto currency
