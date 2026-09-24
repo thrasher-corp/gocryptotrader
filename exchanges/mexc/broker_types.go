@@ -110,8 +110,10 @@ type BrokerSubAccountDepositAddressCreationParams struct {
 	Network string        `json:"network"`
 }
 
-// BrokerSubAccountDepositDetail holds a broker sub-account asset deposit history item
+// BrokerSubAccountDepositDetail holds a broker sub-account asset deposit history item. SubAccount is
+// set by the all-sub-accounts endpoint only.
 type BrokerSubAccountDepositDetail struct {
+	SubAccount    string        `json:"subAccount"`
 	Coin          currency.Code `json:"coin"`
 	Network       string        `json:"network"`
 	Address       string        `json:"address"`
@@ -121,4 +123,6 @@ type BrokerSubAccountDepositDetail struct {
 	Amount        types.Number  `json:"amount"`
 	Status        types.Number  `json:"status"`
 	ConfirmTimes  types.Number  `json:"confirmTimes"`
+	InsertTime    types.Time    `json:"insertTime"`
+	Memo          string        `json:"memo"`
 }

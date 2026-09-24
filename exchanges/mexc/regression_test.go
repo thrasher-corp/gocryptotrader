@@ -1687,3 +1687,15 @@ func TestInternalTransferDecodesTransferID(t *testing.T) {
 	require.NoError(t, err, "InternalTransfer must not error")
 	assert.Equal(t, "c45d800a47ba4cbc876a5cd29388319", resp.TransferID, "TransferID should be decoded")
 }
+
+// TestBrokerSubAccountDepositDetailDecodesDocumentedExample decodes the all-sub-accounts deposit history
+// example MEXC documents, which names the sub-account and carries the deposit's time and memo.
+func TestBrokerSubAccountDepositDetailDecodesDocumentedExample(t *testing.T) {
+	t.Parallel()
+	var d BrokerSubAccountDepositDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"subAccount":"2896a8a258b84b7fb27eb7f076dcd91c","amount":"4.990000000000000000000000000000","coin":"USDT-BSC","network":"BNB Smart Chain(BEP20)","status":5,"address":"0x08b65ab99e2576d5bf30f6553f55661af47329ce","txId":"0x8ac3ecac6e53201037dd6394697132ae2f9eef176274e4e7f87ac3005a72921a:68","unlockConfirm":"61","confirmTimes":"136","insertTime":1779361732000,"netWork":"BSC","memo":""}`), &d), "Unmarshal must not error")
+	assert.Equal(t, "2896a8a258b84b7fb27eb7f076dcd91c", d.SubAccount, "SubAccount should name the sub-account the deposit went to")
+	assert.Equal(t, int64(1779361732000), d.InsertTime.Time().UnixMilli(), "InsertTime should carry the deposit's time")
+	assert.Empty(t, d.Memo, "Memo should carry the memo")
+	assert.Equal(t, 4.99, d.Amount.Float64(), "Amount should be decoded")
+}
