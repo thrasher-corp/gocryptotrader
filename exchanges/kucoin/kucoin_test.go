@@ -2374,6 +2374,7 @@ func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	require.NoError(t, err, "GetOrderInfo must not error")
 	assert.Equal(t, orders[0].ExecutedQuoteAmount, detail.ExecutedQuoteAmount, "order detail should retain the same filled quote amount as history")
 	assert.Equal(t, orders[0].AverageExecutedPrice, detail.AverageExecutedPrice, "order detail should infer the same average execution price as history")
+	assert.True(t, detail.LastUpdated.IsZero(), "order detail should not take its update time from the creation time")
 }
 
 func TestGetActiveOrders(t *testing.T) {

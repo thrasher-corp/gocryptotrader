@@ -2482,9 +2482,9 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 
-	finishAs := "cancelled"
+	finishAs, left := "cancelled", 4
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := fmt.Fprintf(w, `{"id":123456789,"user":"12870774","contract":"BTC_USDT","create_time":1735787107.449,"size":10,"left":4,"price":"0","fill_price":"98172.9","tif":"ioc","text":"t-1337","status":"finished","finish_time":1735787107.45,"finish_as":%q,"update_time":1735787107.45}`, finishAs)
+		_, err := fmt.Fprintf(w, `{"id":123456789,"user":"12870774","contract":"BTC_USDT","create_time":1735787107.449,"size":10,"left":%d,"price":"0","fill_price":"98172.9","tif":"ioc","text":"t-1337","status":"finished","finish_time":1735787107.45,"finish_as":%q,"update_time":1735787107.45}`, left, finishAs)
 		assert.NoError(t, err, "mock futures order response should be written")
 	}))
 	t.Cleanup(server.Close)
@@ -2495,8 +2495,19 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
-	for _, outcome := range []string{"cancelled", "ioc", "reduce_only", "reduce_out"} {
-		finishAs = outcome
+	for _, tc := range []struct {
+		finishAs string
+		left     int
+		status   order.Status
+	}{
+		{finishAs: "cancelled", left: 4, status: order.Cancelled},
+		{finishAs: "ioc", left: 4, status: order.Cancelled},
+		{finishAs: "reduce_only", left: 4, status: order.Cancelled},
+		{finishAs: "reduce_out", left: 4, status: order.Cancelled},
+		{finishAs: "filled", left: 0, status: order.Filled},
+		{finishAs: "liquidated", left: 4, status: order.Liquidated},
+	} {
+		finishAs, left = tc.finishAs, tc.left
 		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.DeliveryFutures} {
 			response, err := ex.SubmitOrder(t.Context(), &order.Submit{
 				Exchange:  ex.Name,
@@ -2508,13 +2519,13 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 			})
 			require.NoErrorf(t, err, "SubmitOrder must not error for %s", a)
 			assert.Equalf(t, 10.0, response.Amount, "amount should be the absolute submitted size for %s", a)
-			assert.Equalf(t, 6.0, response.ExecutedAmount, "executed amount should use authoritative size and remaining quantities for %s", a)
-			assert.Equalf(t, 4.0, response.RemainingAmount, "remaining amount should be copied from the exchange response for %s", a)
+			assert.Equalf(t, float64(10-tc.left), response.ExecutedAmount, "executed amount should use authoritative size and remaining quantities for %s", a)
+			assert.Equalf(t, float64(tc.left), response.RemainingAmount, "remaining amount should be copied from the exchange response for %s", a)
 			assert.Equalf(t, 98172.9, response.AverageExecutedPrice, "average execution price should be copied from the exchange response for %s", a)
-			assert.Equalf(t, order.Cancelled, response.Status, "finished %s order should cancel the unfilled remainder for %s", outcome, a)
+			assert.Equalf(t, tc.status, response.Status, "finished %s order should have its mapped status for %s", tc.finishAs, a)
 			detail, err := ex.GetOrderInfo(t.Context(), response.OrderID, currency.NewBTCUSDT(), a)
-			require.NoErrorf(t, err, "GetOrderInfo must not error for %s with finish_as %s", a, outcome)
-			assert.Equalf(t, order.Cancelled, detail.Status, "order detail should cancel the unfilled remainder for %s with finish_as %s", a, outcome)
+			require.NoErrorf(t, err, "GetOrderInfo must not error for %s with finish_as %s", a, tc.finishAs)
+			assert.Equalf(t, tc.status, detail.Status, "order detail should have its mapped status for %s with finish_as %s", a, tc.finishAs)
 		}
 	}
 }

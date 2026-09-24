@@ -1117,7 +1117,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			MarginType:          mType,
 			LastUpdated:         orderDetail.LastUpdatedAt.Time(),
 		}
-		detail.InferExecutionAndTimes()
+		if detail.ExecutedAmount > 0 {
+			detail.AverageExecutedPrice = detail.ExecutedQuoteAmount / detail.ExecutedAmount
+		}
 		return detail, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
@@ -1719,8 +1721,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 					Low:    candles[x].Low,
 					Close:  candles[x].Close,
 					Volume: candles[x].Volume,
-				},
-			)
+				})
 		}
 	case asset.Spot, asset.Margin:
 		intervalString, err := IntervalToString(interval)
@@ -1741,8 +1742,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 					Low:    candles[x].Low.Float64(),
 					Close:  candles[x].Close.Float64(),
 					Volume: candles[x].Volume.Float64(),
-				},
-			)
+				})
 		}
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
@@ -1775,8 +1775,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 						Low:    candles[y].Low,
 						Close:  candles[y].Close,
 						Volume: candles[y].Volume,
-					},
-				)
+					})
 			}
 		}
 		return req.ProcessResponse(timeSeries)
@@ -1801,8 +1800,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 						Low:    candles[x].Low.Float64(),
 						Close:  candles[x].Close.Float64(),
 						Volume: candles[x].Volume.Float64(),
-					},
-				)
+					})
 			}
 		}
 		return req.ProcessResponse(timeSeries)
