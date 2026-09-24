@@ -316,6 +316,7 @@ func (e *Exchange) wsProcessOpenOrders(ctx context.Context, ownOrdersResp json.R
 				Amount:               val.Volume,
 				LimitPriceUpper:      val.LimitPrice,
 				ExecutedAmount:       val.ExecutedVolume,
+				ExecutedQuoteAmount:  val.Cost,
 				Fee:                  val.Fee,
 				Date:                 val.OpenTime.Time(),
 				LastUpdated:          val.LastUpdated.Time(),

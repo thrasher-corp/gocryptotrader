@@ -1759,6 +1759,7 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
 				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
 				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 2.64252, v.ExecutedQuoteAmount, "filled quote amount should retain websocket cost")
 				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
 				assert.Equal(t, 0.00687, v.Fee, "Fee")
 			case 2:

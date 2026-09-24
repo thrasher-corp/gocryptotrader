@@ -2939,7 +2939,7 @@ func TestGetManagedPosition(t *testing.T) {
 		QuoteAmount:          1337,
 		ExecutedAmount:       1337,
 		RemainingAmount:      1337,
-		Cost:                 1337,
+		ExecutedQuoteAmount:  1337,
 		Exchange:             fakeExchangeName,
 		OrderID:              "1337",
 		Type:                 order.Market,
@@ -3031,7 +3031,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
 		Leverage:             1337,
 		Price:                1337,
-		Amount:               1337,
+		Amount:               7331,
 		LimitPriceUpper:      1337,
 		LimitPriceLower:      1337,
 		TriggerPrice:         1337,
@@ -3039,7 +3039,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 		QuoteAmount:          1337,
 		ExecutedAmount:       1337,
 		RemainingAmount:      1337,
-		Cost:                 1337,
+		ExecutedQuoteAmount:  1337,
 		Exchange:             fakeExchangeName,
 		OrderID:              "1337",
 		Type:                 order.Market,
@@ -3056,8 +3056,12 @@ func TestGetAllManagedPositions(t *testing.T) {
 	request.GetFundingPayments = true
 	request.IncludeFullFundingRates = true
 	request.IncludeFullOrderData = true
-	_, err = s.GetAllManagedPositions(t.Context(), request)
-	assert.NoError(t, err)
+	response, err := s.GetAllManagedPositions(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, response.Positions, 1)
+	require.Len(t, response.Positions[0].Orders, 1)
+	assert.Equal(t, 7331.0, response.Positions[0].Orders[0].Amount)
+	assert.Equal(t, 1337.0, response.Positions[0].Orders[0].ExecutedQuoteAmount)
 }
 
 func TestGetOrderbookMovement(t *testing.T) {

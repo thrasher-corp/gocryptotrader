@@ -877,7 +877,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
 						RemainingAmount: trades.Trades[x].OpenQuantity,
 					}
-					detail.InferCostsAndTimes()
+					// The legacy flat decoder does not capture the documented fill_price
+					// and fill_qty fields, so do not derive execution value from its zeros.
+					detail.InferExecutionAndTimes()
 					allOrders = append(allOrders, detail)
 				}
 				if len(trades.Trades) < 100 {

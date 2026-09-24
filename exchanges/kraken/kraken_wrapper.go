@@ -943,22 +943,22 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		}
 
 		orderDetail = order.Detail{
-			Exchange:        e.Name,
-			OrderID:         orderID,
-			Pair:            p,
-			Side:            side,
-			Type:            oType,
-			Date:            orderInfo.OpenTime.Time(),
-			CloseTime:       orderInfo.CloseTime.Time(),
-			Status:          status,
-			Price:           price,
-			Amount:          orderInfo.Volume,
-			ExecutedAmount:  orderInfo.VolumeExecuted,
-			RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
-			Fee:             orderInfo.Fee,
-			Trades:          trades,
-			Cost:            orderInfo.Cost,
-			AssetType:       asset.Spot,
+			Exchange:            e.Name,
+			OrderID:             orderID,
+			Pair:                p,
+			Side:                side,
+			Type:                oType,
+			Date:                orderInfo.OpenTime.Time(),
+			CloseTime:           orderInfo.CloseTime.Time(),
+			Status:              status,
+			Price:               price,
+			Amount:              orderInfo.Volume,
+			ExecutedAmount:      orderInfo.VolumeExecuted,
+			RemainingAmount:     orderInfo.Volume - orderInfo.VolumeExecuted,
+			Fee:                 orderInfo.Fee,
+			Trades:              trades,
+			ExecutedQuoteAmount: orderInfo.Cost,
+			AssetType:           asset.Spot,
 		}
 	case asset.Futures:
 		orderInfo, err := e.FuturesGetFills(ctx, time.Time{})
@@ -1268,22 +1268,21 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			detail := order.Detail{
-				OrderID:         i,
-				Amount:          resp.Closed[i].Volume,
-				ExecutedAmount:  resp.Closed[i].VolumeExecuted,
-				RemainingAmount: resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
-				Cost:            resp.Closed[i].Cost,
-				CostAsset:       p.Quote,
-				Exchange:        e.Name,
-				Date:            resp.Closed[i].OpenTime.Time(),
-				CloseTime:       resp.Closed[i].CloseTime.Time(),
-				Price:           resp.Closed[i].Description.Price,
-				Side:            side,
-				Status:          status,
-				Type:            orderType,
-				Pair:            p,
+				OrderID:             i,
+				Amount:              resp.Closed[i].Volume,
+				ExecutedAmount:      resp.Closed[i].VolumeExecuted,
+				RemainingAmount:     resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
+				ExecutedQuoteAmount: resp.Closed[i].Cost,
+				Exchange:            e.Name,
+				Date:                resp.Closed[i].OpenTime.Time(),
+				CloseTime:           resp.Closed[i].CloseTime.Time(),
+				Price:               resp.Closed[i].Description.Price,
+				Side:                side,
+				Status:              status,
+				Type:                orderType,
+				Pair:                p,
 			}
-			detail.InferCostsAndTimes()
+			detail.InferExecutionAndTimes()
 			orders = append(orders, detail)
 		}
 	case asset.Futures:

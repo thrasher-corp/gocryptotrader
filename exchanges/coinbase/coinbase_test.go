@@ -42,6 +42,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your APIKeys here for better testing
@@ -1501,6 +1502,22 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestWSUserExecutionAmounts(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	resp := &StandardWebsocketResponse{
+		Events: json.RawMessage(`[{"orders":[{"order_id":"order-1","product_id":"BTC-USD","product_type":"SPOT","order_type":"LIMIT_ORDER_TYPE","order_side":"BUY","status":"FILLED","time_in_force":"GOOD_UNTIL_CANCELLED","cumulative_quantity":"0.01","leaves_quantity":"0","filled_value":"600","avg_price":"60000","limit_price":"61000"}]}]`),
+	}
+	require.NoError(t, ex.wsProcessUser(t.Context(), resp), "wsProcessUser must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessUser must emit one order update")
+	got, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+	require.True(t, ok, "websocket update must contain order details")
+	require.Len(t, got, 1, "websocket update must contain one order")
+	assert.Equal(t, 600.0, got[0].ExecutedQuoteAmount, "streamed order should retain filled_value")
+	assert.Equal(t, 60000.0, got[0].AverageExecutedPrice, "streamed order should retain avg_price rather than the limit price")
+}
+
 func TestGetOrderRespToOrderDetail(t *testing.T) {
 	t.Parallel()
 	mockData := &GetOrderResponse{
@@ -1512,13 +1529,14 @@ func TestGetOrderRespToOrderDetail(t *testing.T) {
 			StopLimitStopLimitGTD: &StopLimitStopLimitGTD{},
 		},
 		SizeInQuote: false,
+		FilledValue: types.Number(42),
 		Side:        "BUY",
 		Status:      "OPEN",
 		Settled:     true,
 		EditHistory: []EditHistory{(EditHistory{})},
 	}
 	resp := e.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected := &order.Detail{TimeInForce: order.ImmediateOrCancel, Exchange: "Coinbase", Type: order.StopLimit, Side: order.Buy, Status: order.Open, AssetType: asset.Spot, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
+	expected := &order.Detail{TimeInForce: order.ImmediateOrCancel, ExecutedQuoteAmount: 42, Exchange: "Coinbase", Type: order.StopLimit, Side: order.Buy, Status: order.Open, AssetType: asset.Spot, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
 	assert.Equal(t, expected, resp)
 	mockData.Side = "SELL"
 	mockData.Status = "FILLED"

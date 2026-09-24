@@ -266,6 +266,12 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+func TestNonNegativeExecutedQuoteAmount(t *testing.T) {
+	t.Parallel()
+	assert.Zero(t, nonNegativeExecutedQuoteAmount(-1), "unavailable historical quote amount should be zero")
+	assert.Equal(t, 10.0, nonNegativeExecutedQuoteAmount(10), "available historical quote amount should be retained")
+}
+
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepositAddress(t.Context(), currency.EMPTYCODE, "", currency.BNB.String())
@@ -1704,7 +1710,6 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		Price:           52789.1,
 		Amount:          0.00028400,
 		RemainingAmount: 0.00028400,
-		CostAsset:       currency.USDT,
 		FeeAsset:        currency.BTC,
 		Exchange:        "Binanceus",
 		OrderID:         "5340845958",

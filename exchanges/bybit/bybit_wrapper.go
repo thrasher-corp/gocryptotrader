@@ -913,10 +913,15 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 
 	resp.ReduceOnly = orderDetails.ReduceOnly
 	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
+	resp.ExecutedAmount = orderDetails.CumulativeExecutedQuantity.Float64()
 	resp.AverageExecutedPrice = orderDetails.AveragePrice.Float64()
 	resp.ClientOrderID = orderDetails.OrderLinkID
 	resp.Fee = orderDetails.CumulativeExecutedFee.Float64()
-	resp.Cost = orderDetails.CumulativeExecutedValue.Float64()
+	if s.AssetType != asset.CoinMarginedFutures {
+		// Cumulative executed value is settlement/base-denominated for inverse
+		// contracts and therefore is not an executed quote amount.
+		resp.ExecutedQuoteAmount = orderDetails.CumulativeExecutedValue.Float64()
+	}
 	return resp, nil
 }
 
@@ -1103,23 +1108,28 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if remainingAmt == 0 {
 			remainingAmt = resp.List[0].OrderQuantity.Float64() - resp.List[0].CumulativeExecQuantity.Float64()
 		}
-		return &order.Detail{
-			Amount:          resp.List[0].OrderQuantity.Float64(),
-			Exchange:        e.Name,
-			OrderID:         resp.List[0].OrderID,
-			ClientOrderID:   resp.List[0].OrderLinkID,
-			Side:            getSide(resp.List[0].Side),
-			Type:            orderType,
-			Pair:            pair,
-			Cost:            resp.List[0].CumulativeExecQuantity.Float64() * resp.List[0].AveragePrice.Float64(),
-			AssetType:       assetType,
-			Status:          StringToOrderStatus(resp.List[0].OrderStatus),
-			Price:           resp.List[0].Price.Float64(),
-			ExecutedAmount:  resp.List[0].CumulativeExecQuantity.Float64(),
-			RemainingAmount: remainingAmt,
-			Date:            resp.List[0].CreatedTime.Time(),
-			LastUpdated:     resp.List[0].UpdatedTime.Time(),
-		}, nil
+		detail := &order.Detail{
+			Amount:               resp.List[0].OrderQuantity.Float64(),
+			Exchange:             e.Name,
+			OrderID:              resp.List[0].OrderID,
+			ClientOrderID:        resp.List[0].OrderLinkID,
+			Side:                 getSide(resp.List[0].Side),
+			Type:                 orderType,
+			Pair:                 pair,
+			AssetType:            assetType,
+			Status:               StringToOrderStatus(resp.List[0].OrderStatus),
+			Price:                resp.List[0].Price.Float64(),
+			ExecutedAmount:       resp.List[0].CumulativeExecQuantity.Float64(),
+			AverageExecutedPrice: resp.List[0].AveragePrice.Float64(),
+			RemainingAmount:      remainingAmt,
+			Fee:                  resp.List[0].CumulativeExecFee.Float64(),
+			Date:                 resp.List[0].CreatedTime.Time(),
+			LastUpdated:          resp.List[0].UpdatedTime.Time(),
+		}
+		if assetType != asset.CoinMarginedFutures {
+			detail.ExecutedQuoteAmount = resp.List[0].CumulativeExecValue.Float64()
+		}
+		return detail, nil
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
@@ -1271,7 +1281,7 @@ func (e *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType ass
 		if err != nil {
 			return nil, err
 		}
-		orders = append(orders, order.Detail{
+		detail := order.Detail{
 			Amount:               tradeOrders[x].OrderQuantity.Float64(),
 			Date:                 tradeOrders[x].CreatedTime.Time(),
 			Exchange:             e.Name,
@@ -1289,9 +1299,12 @@ func (e *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType ass
 			RemainingAmount:      tradeOrders[x].LeavesQuantity.Float64(),
 			TriggerPrice:         tradeOrders[x].TriggerPrice.Float64(),
 			AverageExecutedPrice: tradeOrders[x].AveragePrice.Float64(),
-			Cost:                 tradeOrders[x].AveragePrice.Float64() * tradeOrders[x].CumulativeExecQuantity.Float64(),
 			Fee:                  tradeOrders[x].CumulativeExecFee.Float64(),
-		})
+		}
+		if assetType != asset.CoinMarginedFutures {
+			detail.ExecutedQuoteAmount = tradeOrders[x].CumulativeExecValue.Float64()
+		}
+		orders = append(orders, detail)
 	}
 	return orders, nil
 }
@@ -1352,11 +1365,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
-				Cost:                 resp.List[i].AveragePrice.Float64() * resp.List[i].CumulativeExecQuantity.Float64(),
-				CostAsset:            pair.Quote,
 				Fee:                  resp.List[i].CumulativeExecFee.Float64(),
 				ClientOrderID:        resp.List[i].OrderLinkID,
 				AssetType:            req.AssetType,
+			}
+			if req.AssetType != asset.CoinMarginedFutures {
+				detail.ExecutedQuoteAmount = resp.List[i].CumulativeExecValue.Float64()
 			}
 			orders = append(orders, detail)
 		}
@@ -1386,7 +1400,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Amount:               resp.List[i].OrderQuantity.Float64(),
 				ExecutedAmount:       resp.List[i].CumulativeExecQuantity.Float64(),
 				RemainingAmount:      resp.List[i].CumulativeExecQuantity.Float64() - resp.List[i].CumulativeExecQuantity.Float64(),
-				Cost:                 resp.List[i].AveragePrice.Float64() * resp.List[i].CumulativeExecQuantity.Float64(),
 				Date:                 resp.List[i].CreatedTime.Time(),
 				LastUpdated:          resp.List[i].UpdatedTime.Time(),
 				Exchange:             e.Name,
@@ -1399,10 +1412,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
-				CostAsset:            pair.Quote,
 				ClientOrderID:        resp.List[i].OrderLinkID,
 				AssetType:            req.AssetType,
 			}
+			detail.ExecutedQuoteAmount = resp.List[i].CumulativeExecValue.Float64()
 			orders = append(orders, detail)
 		}
 	default:

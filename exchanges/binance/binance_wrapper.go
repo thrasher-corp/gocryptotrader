@@ -1095,22 +1095,21 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if resp.Type == "MARKET" {
 			orderType = order.Market
 		}
-
 		return &order.Detail{
-			Amount:         resp.OrigQty,
-			Exchange:       e.Name,
-			OrderID:        strconv.FormatInt(resp.OrderID, 10),
-			ClientOrderID:  resp.ClientOrderID,
-			Side:           side,
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           resp.CumulativeQuoteQty,
-			AssetType:      assetType,
-			Status:         status,
-			Price:          resp.Price,
-			ExecutedAmount: resp.ExecutedQty,
-			Date:           resp.Time.Time(),
-			LastUpdated:    resp.UpdateTime.Time(),
+			Amount:              resp.OrigQty,
+			Exchange:            e.Name,
+			OrderID:             strconv.FormatInt(resp.OrderID, 10),
+			ClientOrderID:       resp.ClientOrderID,
+			Side:                side,
+			Type:                orderType,
+			Pair:                pair,
+			ExecutedQuoteAmount: nonNegativeExecutedQuoteAmount(resp.CumulativeQuoteQty),
+			AssetType:           assetType,
+			Status:              status,
+			Price:               resp.Price,
+			ExecutedAmount:      resp.ExecutedQty,
+			Date:                resp.Time.Time(),
+			LastUpdated:         resp.UpdateTime.Time(),
 		}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := e.FuturesOpenOrderData(ctx, pair, orderID, "")
@@ -1174,6 +1173,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return &respData, nil
+}
+
+// Binance reports a negative total when it is unavailable for a historical order.
+func nonNegativeExecutedQuoteAmount(amount float64) float64 {
+	if amount < 0 {
+		return 0
+	}
+	return amount
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1400,29 +1407,22 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					continue
 				}
 
-				var cost float64
-				// For some historical orders cumulativeQuoteQty will be < 0,
-				// meaning the data is not available at this time.
-				if resp[i].CumulativeQuoteQty > 0 {
-					cost = resp[i].CumulativeQuoteQty
-				}
 				detail := order.Detail{
-					Amount:          resp[i].OrigQty,
-					ExecutedAmount:  resp[i].ExecutedQty,
-					RemainingAmount: resp[i].OrigQty - resp[i].ExecutedQty,
-					Cost:            cost,
-					CostAsset:       req.Pairs[x].Quote,
-					Date:            resp[i].Time.Time(),
-					LastUpdated:     resp[i].UpdateTime.Time(),
-					Exchange:        e.Name,
-					OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
-					Side:            side,
-					Type:            orderType,
-					Price:           resp[i].Price,
-					Pair:            req.Pairs[x],
-					Status:          orderStatus,
+					Amount:              resp[i].OrigQty,
+					ExecutedAmount:      resp[i].ExecutedQty,
+					RemainingAmount:     resp[i].OrigQty - resp[i].ExecutedQty,
+					ExecutedQuoteAmount: nonNegativeExecutedQuoteAmount(resp[i].CumulativeQuoteQty),
+					Date:                resp[i].Time.Time(),
+					LastUpdated:         resp[i].UpdateTime.Time(),
+					Exchange:            e.Name,
+					OrderID:             strconv.FormatInt(resp[i].OrderID, 10),
+					Side:                side,
+					Type:                orderType,
+					Price:               resp[i].Price,
+					Pair:                req.Pairs[x],
+					Status:              orderStatus,
 				}
-				detail.InferCostsAndTimes()
+				detail.InferExecutionAndTimes()
 				orders = append(orders, detail)
 			}
 		}
@@ -2642,7 +2642,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 							AverageExecutedPrice: orders[i].AveragePrice.Float64(),
 							ExecutedAmount:       orders[i].ExecutedQuantity.Float64(),
 							RemainingAmount:      orders[i].OriginalQuantity.Float64() - orders[i].ExecutedQuantity.Float64(),
-							CostAsset:            req.Pairs[x].Quote,
 							Leverage:             result[y].Leverage,
 							Exchange:             e.Name,
 							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
@@ -2696,11 +2695,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
-						var orderPair currency.Pair
-						orderPair, err = currency.NewPairFromString(orders[i].Pair)
-						if err != nil {
-							return nil, err
-						}
 						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
 						var mt margin.Type
 						mt, err = margin.StringToMarginType(result[y].MarginType)
@@ -2718,7 +2712,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 							ExecutedAmount:       orders[i].ExecutedQuantity.Float64(),
 							RemainingAmount:      orders[i].OriginalQuantity.Float64() - orders[i].ExecutedQuantity.Float64(),
 							Leverage:             result[y].Leverage,
-							CostAsset:            orderPair.Base,
 							Exchange:             e.Name,
 							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 							ClientOrderID:        orders[i].ClientOrderID,

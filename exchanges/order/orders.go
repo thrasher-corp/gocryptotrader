@@ -200,12 +200,16 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.AverageExecutedPrice = m.AverageExecutedPrice
 		updated = true
 	}
-	if m.Cost > 0 && m.Cost != d.Cost {
-		d.Cost = m.Cost
+	if m.ExecutedQuoteAmount > 0 && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount {
+		d.ExecutedQuoteAmount = m.ExecutedQuoteAmount
 		updated = true
 	}
 	if m.Fee > 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
+		updated = true
+	}
+	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+		d.FeeAsset = m.FeeAsset
 		updated = true
 	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
@@ -296,8 +300,11 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 	}
 	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
-	// or from a different snapshot. A supplied non-zero value is preserved.
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+	// or from a different snapshot. Preserve a supplied non-zero value, and
+	// accept zero only when the update establishes that the order is filled.
+	if m.RemainingAmount != d.RemainingAmount &&
+		(m.RemainingAmount > 0 ||
+			(m.RemainingAmount == 0 && m.Amount > 0 && m.ExecutedAmount >= m.Amount && m.Status.IsInactive())) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
@@ -595,13 +602,16 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 
 		InternalOrderID: internal,
 
-		LastUpdated: s.LastUpdated,
-		Date:        s.Date,
-		Status:      s.Status,
-		OrderID:     s.OrderID,
-		Trades:      s.Trades,
-		Fee:         s.Fee,
-		Cost:        s.Cost,
+		LastUpdated:          s.LastUpdated,
+		Date:                 s.Date,
+		Status:               s.Status,
+		OrderID:              s.OrderID,
+		Trades:               s.Trades,
+		Fee:                  s.Fee,
+		FeeAsset:             s.FeeAsset,
+		AverageExecutedPrice: s.AverageExecutedPrice,
+		ExecutedAmount:       s.ExecutedAmount,
+		ExecutedQuoteAmount:  s.ExecutedQuoteAmount,
 	}, nil
 }
 
@@ -858,13 +868,9 @@ func (s Status) String() string {
 	}
 }
 
-// InferCostsAndTimes infer order costs using execution information and times
+// InferExecutionAndTimes infers missing execution information and times
 // when available
-func (d *Detail) InferCostsAndTimes() {
-	if d.CostAsset.IsEmpty() {
-		d.CostAsset = d.Pair.Quote
-	}
-
+func (d *Detail) InferExecutionAndTimes() {
 	if d.LastUpdated.IsZero() {
 		if d.CloseTime.IsZero() {
 			d.LastUpdated = d.Date
@@ -878,14 +884,9 @@ func (d *Detail) InferCostsAndTimes() {
 	}
 
 	if d.AverageExecutedPrice == 0 {
-		if d.Cost != 0 {
-			d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
-		} else {
-			d.AverageExecutedPrice = d.Price
+		if d.ExecutedQuoteAmount != 0 {
+			d.AverageExecutedPrice = d.ExecutedQuoteAmount / d.ExecutedAmount
 		}
-	}
-	if d.Cost == 0 {
-		d.Cost = d.AverageExecutedPrice * d.ExecutedAmount
 	}
 }
 

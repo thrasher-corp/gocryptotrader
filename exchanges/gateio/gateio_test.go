@@ -2432,6 +2432,304 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
+func TestSpotExecutionResponseMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
+		"StorePairs must enable the test pair")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"limit","account":"spot","side":"buy","amount":"3","price":"10","time_in_force":"gtc","left":"1","avg_deal_price":"10","fee":"0.02","fee_currency":"USDT","filled_total":"20"}`))
+		assert.NoError(t, err, "Mock spot order response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	response, err := ex.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:    ex.Name,
+		Pair:        currency.NewBTCUSDT(),
+		Side:        order.Buy,
+		Type:        order.Limit,
+		Price:       10,
+		Amount:      3,
+		AssetType:   asset.Spot,
+		TimeInForce: order.GoodTillCancel,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2.0, response.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
+	require.Equal(t, 1.0, response.RemainingAmount, "remaining amount must be copied from the exchange response")
+	require.Equal(t, 10.0, response.AverageExecutedPrice, "average execution price must be copied from the exchange response")
+	require.Equal(t, 20.0, response.ExecutedQuoteAmount, "filled quote amount must be copied from the exchange response")
+	require.Equal(t, 0.02, response.Fee, "fee must be copied from the exchange response")
+	require.Equal(t, currency.USDT, response.FeeAsset, "fee asset must be copied from the exchange response")
+
+	detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err)
+	require.Equal(t, 2.0, detail.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
+	require.Equal(t, 1.0, detail.RemainingAmount, "remaining amount must be copied from the exchange response")
+	require.Equal(t, 10.0, detail.AverageExecutedPrice, "average execution price must be copied from the exchange response")
+	require.Equal(t, 20.0, detail.ExecutedQuoteAmount, "executed quote amount must be copied from the exchange filled total")
+	require.Equal(t, 0.02, detail.Fee, "fee must not be stored as execution cost")
+	require.Equal(t, currency.USDT, detail.FeeAsset, "fee asset must be copied from the exchange response")
+}
+
+func TestFuturesExecutionResponseMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	finishAs, left := "cancelled", 4
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := fmt.Fprintf(w, `{"id":123456789,"user":"12870774","contract":"BTC_USDT","create_time":1735787107.449,"size":10,"left":%d,"price":"0","fill_price":"98172.9","tif":"ioc","text":"t-1337","status":"finished","finish_time":1735787107.45,"finish_as":%q,"update_time":1735787107.45}`, left, finishAs)
+		assert.NoError(t, err, "mock futures order response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	for _, tc := range []struct {
+		finishAs string
+		left     int
+		status   order.Status
+	}{
+		{finishAs: "cancelled", left: 4, status: order.Cancelled},
+		{finishAs: "ioc", left: 4, status: order.Cancelled},
+		{finishAs: "reduce_only", left: 4, status: order.Cancelled},
+		{finishAs: "reduce_out", left: 4, status: order.Cancelled},
+		{finishAs: "filled", left: 0, status: order.Filled},
+		{finishAs: "liquidated", left: 4, status: order.Liquidated},
+	} {
+		finishAs, left = tc.finishAs, tc.left
+		for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.DeliveryFutures} {
+			response, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:  ex.Name,
+				Pair:      currency.NewBTCUSDT(),
+				Side:      order.Long,
+				Type:      order.Market,
+				Amount:    10,
+				AssetType: a,
+			})
+			require.NoErrorf(t, err, "SubmitOrder must not error for %s", a)
+			assert.Equalf(t, 10.0, response.Amount, "amount should be the absolute submitted size for %s", a)
+			assert.Equalf(t, float64(10-tc.left), response.ExecutedAmount, "executed amount should use authoritative size and remaining quantities for %s", a)
+			assert.Equalf(t, float64(tc.left), response.RemainingAmount, "remaining amount should be copied from the exchange response for %s", a)
+			assert.Equalf(t, 98172.9, response.AverageExecutedPrice, "average execution price should be copied from the exchange response for %s", a)
+			assert.Equalf(t, tc.status, response.Status, "finished %s order should have its mapped status for %s", tc.finishAs, a)
+			detail, err := ex.GetOrderInfo(t.Context(), response.OrderID, currency.NewBTCUSDT(), a)
+			require.NoErrorf(t, err, "GetOrderInfo must not error for %s with finish_as %s", a, tc.finishAs)
+			assert.Equalf(t, tc.status, detail.Status, "order detail should have its mapped status for %s with finish_as %s", a, tc.finishAs)
+		}
+	}
+}
+
+func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
+		"StorePairs must enable the test pair")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`[{"currency_pair":"BTC_USDT","total":"1","orders":[{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":"spot","side":"buy","amount":"2","price":"10","time_in_force":"gtc","left":"1.5","avg_deal_price":"10","fee":"0.001","fee_currency":"BTC","filled_amount":"0.5","filled_total":"5"}]}]`))
+		assert.NoError(t, err, "mock active spot orders response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{currency.NewBTCUSDT()},
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, orders, 1, "GetActiveOrders must return the mocked order")
+	assert.Equal(t, 0.5, orders[0].ExecutedAmount, "executed amount should retain the filled base quantity")
+	assert.Equal(t, 5.0, orders[0].ExecutedQuoteAmount, "executed quote amount should retain the filled quote total")
+	assert.Equal(t, 1.5, orders[0].RemainingAmount, "remaining amount should retain the exchange value")
+	assert.Equal(t, 0.001, orders[0].Fee, "fee should retain the exchange value")
+	assert.Equal(t, currency.BTC, orders[0].FeeAsset, "fee asset should retain the exchange value")
+}
+
+func TestIsQuoteDenominatedMarketBuy(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		assetType asset.Item
+		side      order.Side
+		orderType order.Type
+		expected  bool
+	}{
+		{name: "spot market buy", assetType: asset.Spot, side: order.Buy, orderType: order.Market, expected: true},
+		{name: "margin market buy", assetType: asset.Margin, side: order.Buy, orderType: order.Market, expected: true},
+		{name: "cross margin market buy", assetType: asset.CrossMargin, side: order.Buy, orderType: order.Market, expected: true},
+		{name: "futures market buy", assetType: asset.USDTMarginedFutures, side: order.Buy, orderType: order.Market},
+		{name: "spot market sell", assetType: asset.Spot, side: order.Sell, orderType: order.Market},
+		{name: "spot limit buy", assetType: asset.Spot, side: order.Buy, orderType: order.Limit},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isQuoteDenominatedMarketBuy(tc.assetType, tc.side, tc.orderType),
+				"quote-denominated market-buy classification should match the order shape")
+		})
+	}
+}
+
+func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		account   string
+		assetType asset.Item
+	}{
+		{account: "spot", assetType: asset.Spot},
+		{account: "margin", assetType: asset.Margin},
+		{account: "cross_margin", assetType: asset.CrossMargin},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.account, func(t *testing.T) {
+			t.Parallel()
+			var response *WebsocketOrderResponse
+			payload := fmt.Appendf(nil, `{"left":"0.05","amount":"10","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","time_in_force":"ioc","filled_amount":"0.000199","filled_total":"9.95"}`, tc.account)
+			require.NoError(t, json.Unmarshal(payload, &response),
+				"websocket order response must unmarshal")
+
+			got, err := e.deriveSpotWebsocketOrderResponse(response)
+			require.NoError(t, err, "deriveSpotWebsocketOrderResponse must not error")
+			assert.Equal(t, tc.assetType, got.AssetType)
+			assert.Zero(t, got.Amount)
+			assert.Equal(t, 10.0, got.QuoteAmount)
+			assert.Equal(t, 0.000199, got.ExecutedAmount)
+			assert.Zero(t, got.RemainingAmount)
+			assert.Equal(t, 9.95, got.ExecutedQuoteAmount)
+
+			submittedAmount := 10.0
+			submittedQuoteAmount := 0.0
+			if tc.assetType == asset.Spot {
+				submittedAmount = 0.0002
+				submittedQuoteAmount = 10
+			}
+			applySpotSubmitRequest(got, &order.Submit{
+				AssetType:   tc.assetType,
+				Side:        order.Buy,
+				Type:        order.Market,
+				Amount:      submittedAmount,
+				QuoteAmount: submittedQuoteAmount,
+			})
+			assert.Zero(t, got.Amount)
+			assert.Equal(t, 10.0, got.QuoteAmount)
+			assert.Zero(t, got.RemainingAmount)
+		})
+	}
+}
+
+func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	assetTypes := []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
+	for _, a := range assetTypes {
+		require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{currency.NewBTCUSDT()}, true),
+			"StorePairs must enable the test pair")
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","fee":"0.000000398","fee_currency":"BTC","filled_total":"9.95"}`))
+		assert.NoError(t, err, "Mock spot market-buy response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	for _, a := range assetTypes {
+		t.Run(a.String(), func(t *testing.T) {
+			amount := 10.0
+			quoteAmount := 0.0
+			if a == asset.Spot {
+				amount = 0.001
+				quoteAmount = 10
+			}
+			response, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:    ex.Name,
+				Pair:        currency.NewBTCUSDT(),
+				Side:        order.Buy,
+				Type:        order.Market,
+				Amount:      amount,
+				QuoteAmount: quoteAmount,
+				AssetType:   a,
+				TimeInForce: order.ImmediateOrCancel,
+			})
+			require.NoError(t, err, "SubmitOrder must not error")
+			assert.Zero(t, response.Amount)
+			assert.Equal(t, 10.0, response.QuoteAmount)
+			assert.Equal(t, 0.000199, response.ExecutedAmount)
+			assert.Zero(t, response.RemainingAmount)
+			assert.Equal(t, 9.95, response.ExecutedQuoteAmount)
+			assert.Equal(t, 50000.0, response.AverageExecutedPrice)
+			assert.Equal(t, 0.000000398, response.Fee)
+			assert.Equal(t, currency.BTC, response.FeeAsset)
+
+			detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), a)
+			require.NoError(t, err, "GetOrderInfo must not error")
+			assert.Zero(t, detail.Amount)
+			assert.Equal(t, 10.0, detail.QuoteAmount)
+			assert.Equal(t, 0.000199, detail.ExecutedAmount)
+			assert.Zero(t, detail.RemainingAmount)
+			assert.Equal(t, 9.95, detail.ExecutedQuoteAmount)
+			assert.Equal(t, 50000.0, detail.AverageExecutedPrice)
+			assert.Equal(t, 0.000000398, detail.Fee)
+			assert.Equal(t, currency.BTC, detail.FeeAsset)
+		})
+	}
+}
+
+func TestGetOrderHistorySpotExecutionPrice(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
+		"StorePairs must enable the test pair")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`[{"id":"1","create_time_ms":1735720637000,"currency_pair":"BTC_USDT","order_id":"2","side":"buy","amount":"0.01","price":"60000","fee":"0.1","fee_currency":"USDT"}]`))
+		assert.NoError(t, err, "mock spot trade history response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot,
+		Pairs:     currency.Pairs{currency.NewBTCUSDT()},
+		Side:      order.AnySide,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, orders, 1, "spot trade history must contain one fill")
+	assert.Equal(t, 60000.0, orders[0].AverageExecutedPrice, "single-fill price should be the average execution price")
+}
+
 func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	for _, a := range e.GetAssetTypes(false) {
@@ -2739,6 +3037,46 @@ func TestWsPushOrders(t *testing.T) {
 	t.Parallel()
 	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsSpotOrderPushDataJSON)); err != nil {
 		t.Errorf("%s websocket orders push data error: %v", e.Name, err)
+	}
+}
+
+func TestWsPushSpotMarketBuyOrder(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		account   string
+		assetType asset.Item
+	}{
+		{account: "spot", assetType: asset.Spot},
+		{account: "margin", assetType: asset.Margin},
+		{account: "cross_margin", assetType: asset.CrossMargin},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.account, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			payload := fmt.Appendf(nil, `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`, tc.account)
+			require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload))
+
+			select {
+			case msg := <-ex.Websocket.DataHandler.C:
+				details, ok := msg.Data.([]order.Detail)
+				require.True(t, ok, "websocket payload must contain order details")
+				require.Len(t, details, 1)
+				assert.Equal(t, tc.assetType, details[0].AssetType)
+				assert.Zero(t, details[0].Amount)
+				assert.Equal(t, 10.0, details[0].QuoteAmount)
+				assert.Equal(t, 0.000199, details[0].ExecutedAmount)
+				assert.Zero(t, details[0].RemainingAmount)
+				assert.Equal(t, 9.95, details[0].ExecutedQuoteAmount)
+				assert.Equal(t, 50000.0, details[0].AverageExecutedPrice)
+				assert.Equal(t, 0.000000398, details[0].Fee)
+				assert.Equal(t, currency.BTC, details[0].FeeAsset)
+			default:
+				require.Fail(t, "expected websocket spot market-buy order payload")
+			}
+		})
 	}
 }
 
@@ -4188,6 +4526,7 @@ func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"ioc","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"auto_deleveraged","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.AutoDeleverage},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_only","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_out","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"position_closed","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Closed},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"stp","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.STP},
 	}
@@ -4357,13 +4696,13 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 		Date:                 time.UnixMilli(1735720637188),
 		LastUpdated:          time.UnixMilli(1735720637188),
 		Amount:               0.0001,
+		ExecutedAmount:       0.0001,
+		ExecutedQuoteAmount:  9.35033,
 		AverageExecutedPrice: 93503.3,
 		Type:                 order.Market,
 		Side:                 order.Sell,
 		Status:               order.Filled,
 		TimeInForce:          order.ImmediateOrCancel,
-		Cost:                 0.0001,
-		Purchased:            9.35033,
 	}, got)
 }
 
@@ -4400,13 +4739,13 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735720637188),
 					LastUpdated:          time.UnixMilli(1735720637188),
 					Amount:               0.0001,
+					ExecutedAmount:       0.0001,
+					ExecutedQuoteAmount:  9.35033,
 					AverageExecutedPrice: 93503.3,
 					Type:                 order.Market,
 					Side:                 order.Sell,
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
-					Cost:                 0.0001,
-					Purchased:            9.35033,
 				},
 				{
 					Exchange:             e.Name,
@@ -4416,15 +4755,13 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					ClientOrderID:        "t-1735720637126962151",
 					Date:                 time.UnixMilli(1735720637142),
 					LastUpdated:          time.UnixMilli(1735720637142),
-					RemainingAmount:      0.000008,
-					Amount:               9.99152,
+					QuoteAmount:          9.99152,
+					ExecutedQuoteAmount:  9.991512,
 					AverageExecutedPrice: 0.01224,
 					Type:                 order.Market,
 					Side:                 order.Buy,
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
-					Cost:                 9.991512,
-					Purchased:            816.3,
 				},
 				{
 					Exchange:             e.Name,
@@ -4435,14 +4772,14 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735778597363),
 					LastUpdated:          time.UnixMilli(1735778597363),
 					Amount:               200,
+					ExecutedAmount:       200,
+					ExecutedQuoteAmount:  7.346,
 					Price:                0.03673,
 					AverageExecutedPrice: 0.03673,
 					Type:                 order.Limit,
 					Side:                 order.Buy,
 					Status:               order.Filled,
 					TimeInForce:          order.FillOrKill,
-					Cost:                 7.346,
-					Purchased:            200,
 				},
 				{
 					Exchange:        e.Name,
@@ -4481,7 +4818,8 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 		{
 			name: "batch of spot orders with error at end",
 			// This is specifically testing the return responses of WebsocketSpotSubmitOrders
-			// AverageDealPrice is not returned when using this endpoint so purchased and cost fields cannot be set.
+			// AverageDealPrice is not returned when using this endpoint, but the
+			// authoritative filled quote total must still be retained.
 			orders: [][]byte{
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
@@ -4489,34 +4827,34 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			},
 			expected: []*order.SubmitResponse{
 				{
-					Exchange:        e.Name,
-					OrderID:         "775453816782",
-					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-740",
-					Date:            time.UnixMilli(1736980695949),
-					LastUpdated:     time.UnixMilli(1736980695949),
-					Amount:          9.98,
-					RemainingAmount: 0.047239,
-					Type:            order.Market,
-					Side:            order.Buy,
-					Status:          order.Filled,
-					TimeInForce:     order.FillOrKill,
+					Exchange:            e.Name,
+					OrderID:             "775453816782",
+					AssetType:           asset.Spot,
+					Pair:                currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:       "t-740",
+					Date:                time.UnixMilli(1736980695949),
+					LastUpdated:         time.UnixMilli(1736980695949),
+					QuoteAmount:         9.98,
+					ExecutedQuoteAmount: 9.932761,
+					Type:                order.Market,
+					Side:                order.Buy,
+					Status:              order.Filled,
+					TimeInForce:         order.FillOrKill,
 				},
 				{
-					Exchange:        e.Name,
-					OrderID:         "775453816824",
-					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.LIKE, currency.ETH).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-741",
-					Date:            time.UnixMilli(1736980695956),
-					LastUpdated:     time.UnixMilli(1736980695956),
-					RemainingAmount: 0.00000000962,
-					Amount:          0.00289718,
-					Type:            order.Market,
-					Side:            order.Buy,
-					Status:          order.Filled,
-					TimeInForce:     order.FillOrKill,
+					Exchange:            e.Name,
+					OrderID:             "775453816824",
+					AssetType:           asset.Spot,
+					Pair:                currency.NewPair(currency.LIKE, currency.ETH).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:       "t-741",
+					Date:                time.UnixMilli(1736980695956),
+					LastUpdated:         time.UnixMilli(1736980695956),
+					QuoteAmount:         0.00289718,
+					ExecutedQuoteAmount: 0.00289717038,
+					Type:                order.Market,
+					Side:                order.Buy,
+					Status:              order.Filled,
+					TimeInForce:         order.FillOrKill,
 				},
 				{
 					Exchange:        e.Name,
@@ -4571,6 +4909,7 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 		Date:                 time.UnixMilli(1735787107449),
 		LastUpdated:          time.UnixMilli(1735787107450),
 		Amount:               2,
+		ExecutedAmount:       2,
 		AverageExecutedPrice: 0.0000002625,
 		Type:                 order.Market,
 		Side:                 order.Long,
@@ -4609,6 +4948,8 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				[]byte(`{"text":"apiv4-ws","price":"200000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596748780649,"create_time":1735790222.185,"size":-1,"update_time":1735790222.185,"left":-1,"user":2365748}`),
 				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98172.9","id":36028797827161124,"create_time":1740108860.761,"size":1,"finish_time":1740108860.761,"update_time":1740108860.761,"left":0,"user":2365748}`),
 				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98113.1","id":36028797827225781,"create_time":1740109172.06,"size":-1,"finish_time":1740109172.06,"update_time":1740109172.06,"left":0,"user":2365748,"is_reduce_only":true}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"ioc","fill_price":"98172.9","id":36028797827161125,"create_time":1740108860.761,"size":10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":4,"user":2365748}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"reduce_out","fill_price":"98172.9","id":36028797827161126,"create_time":1740108860.761,"size":-10,"finish_time":1740108860.761,"update_time":1740108860.761,"left":-4,"user":2365748}`),
 			},
 			expected: []*order.SubmitResponse{
 				{
@@ -4620,6 +4961,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735787107449),
 					LastUpdated:          time.UnixMilli(1735787107450),
 					Amount:               2,
+					ExecutedAmount:       2,
 					AverageExecutedPrice: 0.0000002625,
 					Type:                 order.Market,
 					Side:                 order.Long,
@@ -4636,6 +4978,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735778597374),
 					LastUpdated:          time.UnixMilli(1735778597374),
 					Amount:               2,
+					ExecutedAmount:       2,
 					AverageExecutedPrice: 0.03654,
 					Type:                 order.Market,
 					Side:                 order.Short,
@@ -4680,6 +5023,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1740108860761),
 					LastUpdated:          time.UnixMilli(1740108860761),
 					Amount:               1,
+					ExecutedAmount:       1,
 					AverageExecutedPrice: 98172.9,
 					Type:                 order.Market,
 					Side:                 order.Long,
@@ -4694,12 +5038,45 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1740109172060),
 					LastUpdated:          time.UnixMilli(1740109172060),
 					Amount:               1,
+					ExecutedAmount:       1,
 					AverageExecutedPrice: 98113.1,
 					Type:                 order.Market,
 					Side:                 order.Short,
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
 					ReduceOnly:           true,
+				},
+				{
+					Exchange:             e.Name,
+					OrderID:              "36028797827161125",
+					AssetType:            asset.USDTMarginedFutures,
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Date:                 time.UnixMilli(1740108860761),
+					LastUpdated:          time.UnixMilli(1740108860761),
+					Amount:               10,
+					ExecutedAmount:       6,
+					RemainingAmount:      4,
+					AverageExecutedPrice: 98172.9,
+					Type:                 order.Market,
+					Side:                 order.Long,
+					Status:               order.Cancelled,
+					TimeInForce:          order.ImmediateOrCancel,
+				},
+				{
+					Exchange:             e.Name,
+					OrderID:              "36028797827161126",
+					AssetType:            asset.USDTMarginedFutures,
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Date:                 time.UnixMilli(1740108860761),
+					LastUpdated:          time.UnixMilli(1740108860761),
+					Amount:               10,
+					ExecutedAmount:       6,
+					RemainingAmount:      4,
+					AverageExecutedPrice: 98172.9,
+					Type:                 order.Market,
+					Side:                 order.Short,
+					Status:               order.Cancelled,
+					TimeInForce:          order.ImmediateOrCancel,
 				},
 			},
 		},

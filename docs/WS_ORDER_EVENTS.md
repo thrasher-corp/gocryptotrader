@@ -15,11 +15,11 @@ out of reported trades.
 |----------------------|-------------------------------------------------------------------|---------------------------------------------------------|-----------|
 | Price                | Original price assigned to order                                  | Depends on order type (e.g. limit orders have prices)   | Mandatory |
 | Amount               | Original quantity assigned to order                               |                                                         | Mandatory |
+| QuoteAmount          | Requested quantity in the quote currency, where the exchange sizes the order that way |                                                         | Desirable |
 | AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially cancelled | Desirable |
 | ExecutedAmount       | How much of the original order quantity is filled                 | Order is filled, partially filled or partially cancelled | Mandatory |
-| RemainingAmount      | Amount - ExecutedAmount                                           |                                                         | Mandatory |
-| Cost                 | How much is spent thus far (cumulative transacted quote currency) | Order is filled, partially filled or partially cancelled | Mandatory |
-| CostAsset            | Deprecated, cost currency is always pair.Quote                    |                                                         | -         |
+| RemainingAmount      | Amount - ExecutedAmount, unless the exchange reports the remainder in the quote currency |                                                         | Mandatory |
+| ExecutedQuoteAmount  | Cumulative executed value in the quote currency, before fees      | Order is filled, partially filled or partially cancelled | Desirable |
 | Fee                  | How much last trade was charged by the exchange                   | Reported event is a trade                               | Optional  |
 | FeeAsset             | Asset of the taken fee                                            |                                                         | Optional  |
 | Exchange             | String name of concerned exchange                                 |                                                         | Mandatory |

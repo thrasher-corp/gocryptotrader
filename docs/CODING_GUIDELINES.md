@@ -69,6 +69,38 @@ Refer to the [ADD_NEW_EXCHANGE.md](../docs/ADD_NEW_EXCHANGE.md) document for com
     }
 ```
 
+### Exchange Adapter Boundary
+
+- Exchange implementations must translate authoritative API fields into the
+  corresponding generic GoCryptoTrader fields without discarding available
+  execution state. This includes executed and remaining quantities, average
+  execution price, fees, fee currency, status, and exchange timestamps when
+  the API supplies them.
+- Keep adapters free of consumer policy. Do not calculate strategy positions,
+  fee-adjusted exposure, profitability, hedge outcomes, or recovery actions in
+  an exchange wrapper. Those decisions belong to the consuming engine or
+  application, where they can be applied consistently across exchanges.
+- Structural normalisation required by a documented generic field is allowed,
+  such as parsing side and status, converting signed contracts to side plus
+  absolute quantity, or calculating executed quantity from authoritative total
+  and remaining quantities. Do not infer an execution from the submitted
+  request price, requested amount, an acknowledgement, or a zero value.
+- Prefer direct source-field mapping over reconstructing an equivalent value.
+  If the generic contract has no lossless representation for an authoritative
+  field, extend that contract or document the omission; do not overload a field
+  with different units or semantics. In particular, fees must populate fee
+  fields and must not be stored as execution cost.
+- Generic execution fields must have stable units and meaning across side and
+  transport. Do not expose direction-dependent convenience values, such as one
+  field meaning purchased base for buys and received quote for sells. Preserve
+  unit-stable exchange facts and leave derived execution counterparts to the
+  consumer. Ambiguous generic `Cost`, `CostAsset`, and `Purchased` execution
+  fields are prohibited; use explicit requested and executed quantity fields.
+- REST and websocket adapters for the same exchange must expose compatible
+  units and semantics. Tests must cover both mappings when either path is
+  changed. Missing or contradictory execution facts must remain visible so the
+  consumer can reconcile them authoritatively.
+
 ### TestMain usage
 
 - TestMain must avoid API calls, so that individual unit tests can run quickly. Use sync.Once or similar patterns to bootstrap common data without burdening all unit tests with the same overhaed. See `UpdatePairsOnce` for an example of this.

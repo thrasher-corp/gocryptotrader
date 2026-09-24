@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 	"uuid"
@@ -2337,6 +2338,43 @@ func TestGetOrderHistory(t *testing.T) {
 	result, err = e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/1") {
+			_, err := w.Write([]byte(`{"code":"200000","data":{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","tradeType":"TRADE","price":"61000","size":"0.01","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}}`))
+			assert.NoError(t, err, "mock order detail response should be written")
+			return
+		}
+		_, err := w.Write([]byte(`{"code":"200000","data":{"currentPage":1,"pageSize":1,"totalNum":1,"totalPage":1,"items":[{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","price":"61000","size":"0.01","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}]}}`))
+		assert.NoError(t, err, "mock order history response should be written")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
+	}
+	ex.API.AuthenticatedSupport = true
+	ex.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+
+	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, orders, 1, "GetOrderHistory must return one order")
+	assert.Equal(t, 600.0, orders[0].ExecutedQuoteAmount, "executed quote amount should use dealFunds")
+	assert.Equal(t, 60000.0, orders[0].AverageExecutedPrice, "average execution price should be inferred from dealFunds and dealSize")
+	detail, err := ex.GetOrderInfo(t.Context(), "1", currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, orders[0].ExecutedQuoteAmount, detail.ExecutedQuoteAmount, "order detail should retain the same filled quote amount as history")
+	assert.Equal(t, orders[0].AverageExecutedPrice, detail.AverageExecutedPrice, "order detail should infer the same average execution price as history")
+	assert.True(t, detail.LastUpdated.IsZero(), "order detail should not take its update time from the creation time")
 }
 
 func TestGetActiveOrders(t *testing.T) {

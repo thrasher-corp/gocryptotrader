@@ -711,7 +711,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			Status:               status,
 			Pair:                 pair,
 		}
-		detail.InferCostsAndTimes()
+		detail.InferExecutionAndTimes()
 		orders[i] = detail
 	}
 	return req.Filter(e.Name, orders), nil
