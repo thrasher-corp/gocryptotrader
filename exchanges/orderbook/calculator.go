@@ -3,9 +3,12 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	stdmath "math"
+	"strconv"
 
 	math "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const fullLiquidityUsageWarning = "[WARNING]: Full liquidity exhausted."
@@ -13,7 +16,31 @@ const fullLiquidityUsageWarning = "[WARNING]: Full liquidity exhausted."
 var (
 	errPriceTargetInvalid = errors.New("price target is invalid")
 	errCannotShiftPrice   = errors.New("cannot shift price")
+	errNonFiniteValue     = errors.New("non-finite value")
 )
+
+// ExecutionCalculation contains the result of walking an orderbook side for a
+// requested order amount. Order amounts are expressed in the same units as the
+// level amounts; base amounts include the supplied contract multiplier.
+type ExecutionCalculation struct {
+	// RequestedAmount, ExecutedAmount and RemainingAmount are in order units.
+	// BaseAmount and QuoteAmount apply the linear contract multiplier; QuoteAmount
+	// also applies each consumed level's price.
+	RequestedAmount decimal.Decimal
+	ExecutedAmount  decimal.Decimal
+	RemainingAmount decimal.Decimal
+	BaseAmount      decimal.Decimal
+	QuoteAmount     decimal.Decimal
+	// AveragePrice is the volume-weighted average execution price. Multi-level
+	// results use the selected decimal backend's division precision.
+	AveragePrice decimal.Decimal
+	// MarginalPrice is the price of the final consumed level, including when the
+	// execution lands exactly on a level boundary.
+	MarginalPrice decimal.Decimal
+	LevelsUsed    uint64
+	// FullLiquidityUsed reports that every level on this side was consumed.
+	FullLiquidityUsed bool
+}
 
 // WhaleBombResult returns the whale bomb result
 type WhaleBombResult struct {
@@ -265,7 +292,7 @@ func (b *Book) GetAveragePrice(buy bool, amount float64) (float64, error) {
 		aggNominalAmount, remainingAmount = b.Bids.FindNominalAmount(amount)
 	}
 	if remainingAmount != 0 {
-		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", errNotEnoughLiquidity, b.Pair, b.Exchange, amount)
+		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", ErrNotEnoughLiquidity, b.Pair, b.Exchange, amount)
 	}
 	return aggNominalAmount / amount, nil
 }
@@ -285,4 +312,93 @@ func (l Levels) FindNominalAmount(amount float64) (aggNominalAmount, remainingAm
 		remainingAmount -= l[x].Amount
 	}
 	return aggNominalAmount, remainingAmount
+}
+
+// CalculateExecution walks the levels required to execute orderAmount. The
+// multiplier converts each order unit into its base-asset amount by
+// multiplication. This supports linear contracts, including USDT-margined
+// derivatives; inverse and quanto contracts are out of scope. Use a multiplier
+// of one when level amounts are already in base units. If a non-empty side
+// cannot fill the request, the result describes the partial execution and the
+// error wraps ErrNotEnoughLiquidity. Levels beyond the fill are not read, so
+// the cost follows the levels consumed rather than the depth of the book.
+func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (ExecutionCalculation, error) {
+	if !orderAmount.IsPositive() {
+		return ExecutionCalculation{}, fmt.Errorf("%w: %s", errAmountInvalid, orderAmount)
+	}
+	if !multiplier.IsPositive() {
+		return ExecutionCalculation{}, fmt.Errorf("%w: %s", ErrInvalidContractMultiplier, multiplier)
+	}
+	if len(l) == 0 {
+		return ExecutionCalculation{}, errNoLiquidity
+	}
+
+	result := ExecutionCalculation{
+		RequestedAmount: orderAmount,
+		RemainingAmount: orderAmount,
+	}
+	var scaledQuoteAmount decimal.Decimal
+	for i := range l {
+		levelAmount, err := levelDecimal(l[i].Amount, l[i].StrAmount)
+		if err != nil {
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid amount %q: %v", ErrOrderbookInvalid, i, levelInput(l[i].Amount, l[i].StrAmount), err)
+		}
+		if !levelAmount.IsPositive() {
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid amount %q", ErrOrderbookInvalid, i, levelInput(l[i].Amount, l[i].StrAmount))
+		}
+		levelPrice, err := levelDecimal(l[i].Price, l[i].StrPrice)
+		if err != nil {
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid price %q: %v", ErrOrderbookInvalid, i, levelInput(l[i].Price, l[i].StrPrice), err)
+		}
+		if !levelPrice.IsPositive() {
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid price %q", ErrOrderbookInvalid, i, levelInput(l[i].Price, l[i].StrPrice))
+		}
+		used := result.RemainingAmount
+		if levelAmount.LessThan(used) {
+			used = levelAmount
+		}
+		result.ExecutedAmount = result.ExecutedAmount.Add(used)
+		result.RemainingAmount = result.RemainingAmount.Sub(used)
+		scaledQuoteAmount = scaledQuoteAmount.Add(scaleExecutionAmount(used).Mul(levelPrice))
+		result.MarginalPrice = levelPrice
+		result.LevelsUsed++
+		if result.RemainingAmount.IsZero() {
+			result.FullLiquidityUsed = i == len(l)-1 && used.Equal(levelAmount)
+			result.setTotals(scaledQuoteAmount, multiplier)
+			return result, nil
+		}
+	}
+	result.FullLiquidityUsed = true
+	result.setTotals(scaledQuoteAmount, multiplier)
+	return result, fmt.Errorf("%w: requested amount %s, remaining amount %s, multiplier %s", ErrNotEnoughLiquidity, orderAmount, result.RemainingAmount, multiplier)
+}
+
+func (e *ExecutionCalculation) setTotals(scaledQuoteAmount, multiplier decimal.Decimal) {
+	e.BaseAmount = e.ExecutedAmount.Mul(multiplier)
+	e.QuoteAmount = unscaleExecutionAmount(scaledQuoteAmount.Mul(multiplier))
+	if e.LevelsUsed == 1 {
+		// Avoiding division preserves the exact price supplied by the level.
+		e.AveragePrice = e.MarginalPrice
+		return
+	}
+	// The multiplier cancels out of VWAP. Scaling the divisor to match the
+	// quote applies the backend's division precision to the price itself.
+	e.AveragePrice = scaledQuoteAmount.Div(scaleExecutionAmount(e.ExecutedAmount))
+}
+
+func levelDecimal(value float64, exact string) (decimal.Decimal, error) {
+	if exact != "" {
+		return decimal.NewFromString(exact)
+	}
+	if stdmath.IsNaN(value) || stdmath.IsInf(value, 0) {
+		return decimal.Zero, errNonFiniteValue
+	}
+	return decimal.MustFromFloat(value), nil
+}
+
+func levelInput(value float64, exact string) string {
+	if exact != "" {
+		return exact
+	}
+	return strconv.FormatFloat(value, 'g', -1, 64)
 }
