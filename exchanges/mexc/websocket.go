@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -739,30 +740,32 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		// The fill's base size is quantity; amount is the quote value (price*quantity). trade.Data.Amount
+		// The fill's base size is quantity; amount is the quote value (price*quantity). fill.Data.Amount
 		// is base terms, so it must come from quantity. The trade id is tradeId - orderId identifies the
 		// order, not the individual fill, and would collide across a partially filled order's fills.
 		quantity, err := strconv.ParseFloat(body.Quantity, 64)
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, []trade.Data{
-			{
-				TID:          body.TradeId,
-				Exchange:     e.Name,
-				CurrencyPair: cp,
-				AssetType:    asset.Spot,
-				Price:        price,
-				Amount:       quantity,
-				Timestamp:    time.UnixMilli(body.Time),
-				Side: func() order.Side {
-					if body.TradeType == 1 {
-						return order.Buy
-					}
-					return order.Sell
-				}(),
-			},
-		})
+		// The account's own fills are published as fill.Data, as bybit and gateio do, so that they are not
+		// mistaken for the market's trades and keep the order they belong to.
+		side := order.Sell
+		if body.TradeType == 1 {
+			side = order.Buy
+		}
+		return e.Websocket.DataHandler.Send(ctx, []fill.Data{{
+			ID:            body.TradeId,
+			TradeID:       body.TradeId,
+			Timestamp:     time.UnixMilli(body.Time),
+			Exchange:      e.Name,
+			AssetType:     asset.Spot,
+			CurrencyPair:  cp,
+			Side:          side,
+			OrderID:       body.OrderId,
+			ClientOrderID: body.ClientOrderId,
+			Price:         price,
+			Amount:        quantity,
+		}})
 	case channelPrivateOrdersAPI:
 		var oType order.Type
 		var tif order.TimeInForce

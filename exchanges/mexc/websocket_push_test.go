@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -271,10 +272,10 @@ func TestWsHandlePrivateAccount(t *testing.T) {
 	assert.Equal(t, asset.Spot, change.AssetType, "AssetType should be correct")
 }
 
-// TestWsHandlePrivateDeals asserts a private fill is decoded with the base quantity as Amount and the
-// trade id as TID. MEXC's private deals frame carries both a base quantity and a quote amount, and
-// both a tradeId and an orderId: the fill previously used the quote amount as size and the order id
-// as TID (which collides across a partially filled order's fills).
+// TestWsHandlePrivateDeals asserts a private fill is relayed as fill.Data with the base quantity as
+// Amount, the trade id as TradeID and the order id as OrderID. MEXC's private deals frame carries both a
+// base quantity and a quote amount, and both a tradeId and an orderId: the order id identifies the
+// order, not the fill, and would collide across a partially filled order's fills.
 func TestWsHandlePrivateDeals(t *testing.T) {
 	drainData(t)
 	raw := wsPushFrame(t, "spot@"+channelPrivateDealsV3, 1736409765052,
@@ -283,13 +284,14 @@ func TestWsHandlePrivateDeals(t *testing.T) {
 		})
 	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 
-	trades := requireOneOf[[]trade.Data](t)
-	require.Len(t, trades, 1, "one trade must be relayed")
-	assert.Equal(t, "t-1", trades[0].TID, "TID should be the trade id, not the order id")
-	assert.Equal(t, 93220.00, trades[0].Price, "Price should be correct")
-	assert.Equal(t, 0.044, trades[0].Amount, "Amount should be the base quantity, not the quote amount")
-	assert.Equal(t, order.Buy, trades[0].Side, "tradeType 1 should map to Buy")
-	assert.Equal(t, int64(1736409765051), trades[0].Timestamp.UnixMilli(), "Timestamp should come from the deal time")
+	fills := requireOneOf[[]fill.Data](t)
+	require.Len(t, fills, 1, "one fill must be relayed")
+	assert.Equal(t, "t-1", fills[0].TradeID, "TradeID should be the trade id, not the order id")
+	assert.Equal(t, "o-1", fills[0].OrderID, "OrderID should name the order the fill belongs to")
+	assert.Equal(t, 93220.00, fills[0].Price, "Price should be correct")
+	assert.Equal(t, 0.044, fills[0].Amount, "Amount should be the base quantity, not the quote amount")
+	assert.Equal(t, order.Buy, fills[0].Side, "tradeType 1 should map to Buy")
+	assert.Equal(t, int64(1736409765051), fills[0].Timestamp.UnixMilli(), "Timestamp should come from the deal time")
 }
 
 // TestWsHandlePrivateOrders asserts a private order frame is routed and that the base and quote
