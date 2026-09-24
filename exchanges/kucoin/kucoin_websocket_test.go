@@ -1629,6 +1629,7 @@ func TestProcessFuturesTickerV2KeepsStoredSnapshot(t *testing.T) {
 		Low:          3400,
 		BaseVolume:   30449670,
 		QuoteVolume:  845169919063,
+		OpenInterest: 1234567,
 	}), "seeding the stored ticker must not error")
 
 	msg := []byte(`{"topic":"/contractMarket/tickerV2:ETHUSDCM","type":"message","subject":"tickerV2","data":{"symbol":"ETHUSDCM","sequence":1739524604832,"bestBidSize":795,"bestBidPrice":"3200","bestAskPrice":"3600","bestAskSize":284,"ts":1789627572494000000}}`)
@@ -1642,15 +1643,24 @@ func TestProcessFuturesTickerV2KeepsStoredSnapshot(t *testing.T) {
 
 	stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
 	require.NoError(t, err, "the ticker must remain stored")
-	assert.Equal(t, 3551.0, stored.Last, "the best bid/ask push should not clear the stored last trade")
-	assert.Equal(t, 3600.0, stored.High, "the best bid/ask push should not clear the stored high")
-	assert.Equal(t, 3400.0, stored.Low, "the best bid/ask push should not clear the stored low")
-	assert.Equal(t, 30449670.0, stored.BaseVolume, "the best bid/ask push should not clear the stored base volume")
-	assert.Equal(t, 845169919063.0, stored.QuoteVolume, "the best bid/ask push should not clear the stored quote volume")
-	assert.Equal(t, 3200.0, stored.Bid, "the push should store the best bid it reported")
-	assert.Equal(t, 795.0, stored.BidSize, "the push should store the best bid size it reported")
-	assert.Equal(t, 3600.0, stored.Ask, "the push should store the best ask it reported")
-	assert.Equal(t, 284.0, stored.AskSize, "the push should store the best ask size it reported")
+	exp := &ticker.Price{
+		Last:         3551,
+		LastSize:     12,
+		High:         3600,
+		Low:          3400,
+		Bid:          3200,
+		BidSize:      795,
+		Ask:          3600,
+		AskSize:      284,
+		BaseVolume:   30449670,
+		QuoteVolume:  845169919063,
+		OpenInterest: 1234567,
+		Pair:         pair,
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		LastUpdated:  time.Unix(0, 1789627572494000000),
+	}
+	assert.Equal(t, exp, stored, "the best bid/ask push should keep every stored field it does not report")
 }
 
 func TestProcessMarketSnapshot(t *testing.T) {
