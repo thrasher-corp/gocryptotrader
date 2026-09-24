@@ -2034,3 +2034,96 @@ func TestFlushChannelsKeepsConnectionWithPartialSubscriptions(t *testing.T) {
 	assert.NotNil(t, conn.Subscriptions().Get(accepted), "accepted subscription should remain recorded against the connection")
 	assert.NotNil(t, ws.subscriptions.Get(accepted), "accepted subscription should remain in the websocket store")
 }
+
+func TestRecordConnectionSubscriptions(t *testing.T) {
+	t.Parallel()
+	sub := &subscription.Subscription{Channel: "sub"}
+	managerStore := subscription.NewStore()
+	require.NoError(t, managerStore.Add(sub), "subscription must be added to the manager store")
+	connStore := subscription.NewStore()
+	require.NoError(t, connStore.Add(sub), "subscription must be added to the connection store")
+
+	err := recordConnectionSubscriptions(connStore, managerStore, subscription.List{nil, sub})
+	assert.ErrorIs(t, err, ErrSubscriptionFailure, "recordConnectionSubscriptions should wrap a failed add as a subscription failure")
+	assert.ErrorIs(t, err, subscription.ErrDuplicate, "recordConnectionSubscriptions should return the connection store error")
+}
+
+func TestReleaseConnectionSubscriptions(t *testing.T) {
+	t.Parallel()
+	sub := &subscription.Subscription{Channel: "sub"}
+	assert.NoError(t, releaseConnectionSubscriptions(subscription.NewStore(), nil, subscription.List{sub}), "releaseConnectionSubscriptions should do nothing without a manager store")
+	err := releaseConnectionSubscriptions(subscription.NewStore(), subscription.NewStore(), subscription.List{sub})
+	assert.ErrorIs(t, err, subscription.ErrNotFound, "releaseConnectionSubscriptions should return the connection store error")
+}
+
+func TestScaleConnectionsToSubscriptionsDuplicateAcrossBatches(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.MaxSubscriptionsPerConnection = 1
+	m.useMultiConnectionManagement = true
+	srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	ws := &websocket{
+		setup: &ConnectionSetup{
+			URL: "ws" + srv.URL[len("http"):] + "/ws",
+			Connector: func(ctx context.Context, c Connection) error {
+				return c.Dial(ctx, dialer, nil, nil)
+			},
+			Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+				return m.AddSuccessfulSubscriptions(c, s...)
+			},
+			Unsubscriber: func(_ context.Context, c Connection, s subscription.List) error {
+				return m.RemoveSubscriptions(c, s...)
+			},
+			Handler: func(context.Context, Connection, []byte) error { return nil },
+		},
+		subscriptions: subscription.NewStore(),
+	}
+	t.Cleanup(func() { cleanupManagedConnectionReaders(t, m, ws) })
+
+	a := &subscription.Subscription{Channel: "a"}
+	aDup := &subscription.Subscription{Channel: "a"}
+	err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{a, aDup})
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "a duplicate in a later batch must fail its subscriber")
+	require.ErrorIs(t, err, subscription.ErrDuplicate, "must return the duplicate subscription error")
+	require.Len(t, ws.connections, 2, "each batch must get its own connection")
+	assert.Same(t, a, ws.connections[0].Subscriptions().Get(a), "the first connection should hold the subscription it registered")
+	assert.Zero(t, ws.connections[1].Subscriptions().Len(), "the duplicate's connection should not record the first connection's subscription")
+
+	require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, nil), "removing all subscriptions must not error")
+	assert.Zero(t, ws.subscriptions.Len(), "manager store should be empty")
+	assert.Empty(t, ws.connections, "no connection should be left open once every subscription is removed")
+}
+
+func TestCreateConnectAndSubscribeRecordsEquivalentSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewManager()
+	mgr.useMultiConnectionManagement = true
+	srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+		URL: "ws" + srv.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			return conn.Dial(ctx, dialer, nil, nil)
+		},
+		Subscriber: func(_ context.Context, c Connection, subs subscription.List) error {
+			for _, s := range subs {
+				if err := mgr.AddSuccessfulSubscriptions(c, &subscription.Subscription{Channel: s.Channel}); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		Handler: func(context.Context, Connection, []byte) error { return nil },
+	}}
+	t.Cleanup(func() { cleanupManagedConnectionReaders(t, mgr, ws) })
+
+	subs := subscription.List{{Channel: "one"}, {Channel: "two"}}
+	require.NoError(t, mgr.createConnectAndSubscribe(t.Context(), ws, subs), "createConnectAndSubscribe must succeed when the subscriber registers copies")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	assert.Equal(t, len(subs), ws.connections[0].Subscriptions().Len(), "connection store should record the copies the subscriber registered")
+}

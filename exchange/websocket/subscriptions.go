@@ -658,29 +658,26 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 	return subs[availableCap:], nil
 }
 
-// unheldSubscriptions returns the subscriptions in subs that the manager's store does not hold, skipping nil entries
+// unheldSubscriptions returns the subscriptions in subs that the manager's store does not hold as the exact instance, skipping nil entries
 func unheldSubscriptions(managerStore *subscription.Store, subs subscription.List) subscription.List {
 	unheld := make(subscription.List, 0, len(subs))
 	for _, s := range subs {
-		if s != nil && managerStore.Get(s) == nil {
+		if s != nil && managerStore.Get(s) != s {
 			unheld = append(unheld, s)
 		}
 	}
 	return unheld
 }
 
-// recordConnectionSubscriptions adds the subscriptions in subs that the manager's store holds to the connection's store
+// recordConnectionSubscriptions adds the subscriptions in subs that the manager's store holds as the exact instance to the connection's store
+// An equivalent subscription held by the manager may belong to another connection, so it is not recorded here
 func recordConnectionSubscriptions(connStore, managerStore *subscription.Store, subs subscription.List) error {
 	for _, s := range subs {
-		if s == nil {
-			continue
-		}
-		held := managerStore.Get(s)
-		if held == nil {
+		if s == nil || managerStore.Get(s) != s {
 			continue
 		}
 		// Store subscription against this specific connection for tracking
-		if err := connStore.Add(held); err != nil {
+		if err := connStore.Add(s); err != nil {
 			return fmt.Errorf("%w: adding subscriptions to the specific connection subscription store: %w", ErrSubscriptionFailure, err)
 		}
 	}

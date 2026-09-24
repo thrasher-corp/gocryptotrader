@@ -705,7 +705,15 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		return common.AppendError(fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
 	}
 
-	return recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs)
+	connSubsStore := conn.Subscriptions()
+	for _, sub := range ws.subscriptions.Contained(subs) {
+		// Store subscription against this specific connection for tracking
+		if err := connSubsStore.Add(sub); err != nil {
+			return fmt.Errorf("%w: adding subscriptions to the specific connection subscription store: %w", ErrSubscriptionFailure, err)
+		}
+	}
+
+	return nil
 }
 
 // Disable disables the exchange websocket protocol
