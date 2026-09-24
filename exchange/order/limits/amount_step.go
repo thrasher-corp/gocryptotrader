@@ -131,7 +131,7 @@ func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, erro
 	denominatorGCD.GCD(nil, nil, firstRat.Denom(), secondRat.Denom())
 
 	resultRat := new(big.Rat).SetFrac(&numeratorLCM, &denominatorGCD)
-	scale := max(decimalScale(firstString), decimalScale(secondString))
+	scale := max(fractionalDigits(firstString), fractionalDigits(secondString))
 	result, err := decimal.NewFromString(resultRat.FloatString(scale))
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("cannot convert common base increment: %w", err)
@@ -145,7 +145,7 @@ func greatestCommonDivisor(first, second *big.Int) *big.Int {
 	return &result
 }
 
-func decimalScale(value string) int {
+func fractionalDigits(value string) int {
 	point := strings.IndexByte(value, '.')
 	if point == -1 {
 		return 0

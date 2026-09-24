@@ -1,12 +1,77 @@
 package limits
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
+
+func TestGreatestCommonDivisor(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		first    int64
+		second   int64
+		expected int64
+	}{
+		{name: "shared factors", first: 18, second: 24, expected: 6},
+		{name: "coprime", first: 17, second: 13, expected: 1},
+		{name: "zero operand", first: 0, second: 12, expected: 12},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := greatestCommonDivisor(big.NewInt(tc.first), big.NewInt(tc.second))
+			assert.Equal(t, tc.expected, result.Int64(), "greatestCommonDivisor should return the expected divisor")
+		})
+	}
+}
+
+func TestFractionalDigits(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		value    string
+		expected int
+	}{
+		{name: "integer", value: "12", expected: 0},
+		{name: "fraction", value: "12.34", expected: 2},
+		{name: "trailing zeroes", value: "12.3400", expected: 4},
+		{name: "small negative fraction", value: "-0.001", expected: 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, fractionalDigits(tc.value), "fractionalDigits should count digits after the decimal point")
+		})
+	}
+}
+
+func TestAmountStepOrderIncrement(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		increment   decimal.Decimal
+		expectedErr error
+	}{
+		{name: "positive", increment: decimal.MustFromString("0.25")},
+		{name: "zero", increment: decimal.Zero, expectedErr: ErrAmountStepNotPositive},
+		{name: "negative", increment: decimal.NewFromInt(-1), expectedErr: ErrAmountStepNotPositive},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := (AmountStep{Increment: tc.increment}).orderIncrement()
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr, "orderIncrement must reject a non-positive increment")
+				assert.True(t, result.IsZero(), "orderIncrement should return zero on validation failure")
+				return
+			}
+			require.NoError(t, err, "orderIncrement must accept a positive increment")
+			assert.True(t, result.Equal(tc.increment), "orderIncrement should preserve a valid increment")
+		})
+	}
+}
 
 func TestAmountStepBaseIncrement(t *testing.T) {
 	t.Parallel()
