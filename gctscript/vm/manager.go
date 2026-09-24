@@ -22,7 +22,7 @@ var ErrNilSubsystem = errors.New("gct script has not been set up")
 // GctScriptManager loads and runs GCT Tengo scripts
 type GctScriptManager struct {
 	config   *Config
-	started  int32
+	started  atomic.Bool
 	shutdown chan struct{}
 	// Optional values to override stored config ('nil' if not overridden)
 	MaxVirtualMachines *uint64
@@ -38,7 +38,7 @@ func NewManager(config *Config) (*GctScriptManager, error) {
 
 // IsRunning returns if gctscript manager subsystem is started
 func (g *GctScriptManager) IsRunning() bool {
-	return g != nil && atomic.LoadInt32(&g.started) == 1
+	return g != nil && g.started.Load()
 }
 
 // Start starts gctscript subsystem and creates shutdown channel
@@ -46,7 +46,7 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
 	}
-	if !atomic.CompareAndSwapInt32(&g.started, 0, 1) {
+	if !g.started.CompareAndSwap(false, true) {
 		return fmt.Errorf("%s %s", caseName, ErrScriptFailedValidation)
 	}
 	g.shutdown = make(chan struct{})
@@ -60,10 +60,10 @@ func (g *GctScriptManager) Stop() error {
 	if g == nil {
 		return fmt.Errorf("%s %w", caseName, ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&g.started) == 0 {
+	if !g.started.Load() {
 		return fmt.Errorf("%s not running", caseName)
 	}
-	defer atomic.CompareAndSwapInt32(&g.started, 1, 0)
+	defer g.started.CompareAndSwap(true, false)
 
 	if err := g.ShutdownAll(); err != nil {
 		return err

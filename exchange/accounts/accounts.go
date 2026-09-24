@@ -8,8 +8,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -213,6 +213,58 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", ErrNoBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
 	return b.Balance(), nil
+}
+
+// UpdateBalance atomically modifies one stored balance, stamps it with the local arrival time, and publishes the change.
+// The update callback must not call another Accounts method.
+func (a *Accounts) UpdateBalance(ctx context.Context, subAccount string, aType asset.Item, c currency.Code, update func(*Balance)) (Balance, error) {
+	if err := common.NilGuard(a); err != nil {
+		return Balance{}, fmt.Errorf("cannot update balance: %w", err)
+	}
+	if err := common.NilGuard(a.subAccounts); err != nil {
+		return Balance{}, fmt.Errorf("cannot update balance: %w", err)
+	}
+	if !aType.IsValid() {
+		return Balance{}, fmt.Errorf("cannot update balance: %w: %q", asset.ErrNotSupported, aType)
+	}
+	if c.IsEmpty() {
+		return Balance{}, fmt.Errorf("cannot update balance: %w", currency.ErrCurrencyCodeEmpty)
+	}
+	if update == nil {
+		return Balance{}, fmt.Errorf("cannot update balance callback: %w", common.ErrNilPointer)
+	}
+	creds, err := a.Exchange.GetCredentials(ctx)
+	if err != nil {
+		return Balance{}, err
+	}
+	if creds.IsEmpty() {
+		return Balance{}, fmt.Errorf("cannot update balance: %w", errCredentialsEmpty)
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	balances := a.currencyBalances(creds, subAccount, aType)
+	stored := balances.balance(c.Item)
+	balance := stored.Balance()
+	update(&balance)
+	// UpdateBalance owns arrival timestamps so callbacks cannot accidentally retain stale transport times.
+	balance.UpdatedAt = time.Now()
+	if balance.Currency.IsEmpty() {
+		balance.Currency = c
+	}
+	changed, err := stored.update(balance)
+	if err != nil {
+		return Balance{}, fmt.Errorf("%w for account ID %q [%s %s]: %w", errUpdatingBalance, subAccount, aType, c, err)
+	}
+	if changed {
+		subAcct := NewSubAccount(aType, subAccount)
+		subAcct.Balances.Set(c, balance)
+		if err := a.mux.Publish(subAcct, a.routingID); err != nil {
+			return Balance{}, fmt.Errorf("%w for %s %w", errPublish, a.Exchange, err)
+		}
+	}
+	return balance, nil
 }
 
 // Save updates the account balances.

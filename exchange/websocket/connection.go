@@ -118,7 +118,7 @@ type Response struct {
 type connection struct {
 	subscriptions        *subscription.Store
 	Verbose              bool
-	connected            int32
+	connected            atomic.Bool
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
 	RateLimit            *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
 	RateLimitDefinitions request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
@@ -215,6 +215,8 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 		if err := rl.RateLimit(ctx); err != nil {
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", c.ExchangeName, err)
 		}
+	} else if err := request.WaitForRateLimitBarrier(ctx); err != nil {
+		return fmt.Errorf("%s websocket connection: rate limit barrier error: %w", c.ExchangeName, err)
 	}
 	// This lock acts as a rolling gate to prevent WriteMessage panics. Acquire after rate limit check.
 	c.writeControl.Lock()
@@ -253,17 +255,13 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
-// TODO: Swap out these atomic switches and opt for sync.RWMutex.
 func (c *connection) setConnectedStatus(b bool) bool {
-	if b {
-		return atomic.SwapInt32(&c.connected, 1) == 0
-	}
-	return atomic.SwapInt32(&c.connected, 0) == 1
+	return c.connected.Swap(b) != b
 }
 
 // IsConnected exposes websocket connection status
 func (c *connection) IsConnected() bool {
-	return atomic.LoadInt32(&c.connected) == 1
+	return c.connected.Load()
 }
 
 // ReadMessage reads messages, can handle text, gzip and binary
@@ -391,6 +389,7 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 	start := time.Now()
 	err = c.SendRawMessage(ctx, epl, gws.TextMessage, outbound)
 	if err != nil {
+		c.Match.RemoveSignature(signature)
 		return nil, err
 	}
 

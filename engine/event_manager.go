@@ -45,7 +45,7 @@ func (m *eventManager) Start() error {
 	}
 	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", m.sleepDelay.String())
 	m.shutdown = make(chan struct{})
-	go m.run()
+	m.wg.Go(m.run)
 	return nil
 }
 
@@ -66,22 +66,27 @@ func (m *eventManager) Stop() error {
 		return fmt.Errorf("event manager %w", ErrSubSystemNotStarted)
 	}
 	close(m.shutdown)
+	m.wg.Wait()
 	return nil
 }
 
 func (m *eventManager) run() {
 	t := time.NewTicker(m.sleepDelay)
-	select {
-	case <-m.shutdown:
-		return
-	case <-t.C:
-		total, executed := m.getEventCounter()
-		if total > 0 && executed != total {
-			m.m.Lock()
-			for i := range m.events {
-				m.executeEvent(i)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-m.shutdown:
+			return
+		case <-t.C:
+			total, executed := m.getEventCounter()
+			if total > 0 && executed != total {
+				m.m.Lock()
+				for i := range m.events {
+					m.executeEvent(i)
+				}
+				m.m.Unlock()
 			}
-			m.m.Unlock()
 		}
 	}
 }
@@ -92,7 +97,9 @@ func (m *eventManager) executeEvent(i int) {
 			log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
 		}
 		if err := m.checkEventCondition(&m.events[i]); err != nil {
-			log.Debugf(log.EventMgr, "Events: Failed to check event condition: %v", err)
+			if !errors.Is(err, errEventConditionNotMet) {
+				log.Debugf(log.EventMgr, "Events: Failed to check event condition: %v", err)
+			}
 			return
 		}
 		msg := fmt.Sprintf("Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID, m.events[i].Exchange, m.events[i].String())
@@ -296,7 +303,7 @@ func (e *Event) shouldProcessEvent(actual, threshold float64) error {
 			return nil
 		}
 	}
-	return errors.New("does not meet conditions")
+	return errEventConditionNotMet
 }
 
 func (e *Event) processOrderbook() error {

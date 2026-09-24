@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/big"
 	"net"
 	"net/http"
@@ -398,12 +399,22 @@ func CreateDir(dir string) error {
 
 // ChangePermission lists all the directories and files in an array
 func ChangePermission(directory string) error {
-	return filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+	// Rooted so a symlink swapped in mid-walk cannot redirect the chmod outside the directory
+	root, err := os.OpenRoot(directory)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return fs.WalkDir(root.FS(), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
 		if err != nil {
 			return err
 		}
 		if info.Mode().Perm() != file.DefaultPermissionOctal {
-			return os.Chmod(path, file.DefaultPermissionOctal)
+			return root.Chmod(path, file.DefaultPermissionOctal)
 		}
 		return nil
 	})
@@ -652,16 +663,7 @@ func Batch[S ~[]E, E any](blobs S, batchSize int) []S {
 	if batchSize <= 0 {
 		return []S{blobs}
 	}
-	i := 0
-	batches := make([]S, (len(blobs)+batchSize-1)/batchSize)
-	for batchSize < len(blobs) {
-		blobs, batches[i] = blobs[batchSize:], blobs[:batchSize:batchSize]
-		i++
-	}
-	if len(blobs) > 0 {
-		batches[i] = blobs
-	}
-	return batches
+	return slices.Collect(slices.Chunk(blobs, batchSize))
 }
 
 // SortStrings takes a slice of fmt.Stringer implementers and returns a new ascending sorted slice

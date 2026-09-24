@@ -3,9 +3,10 @@ package trade
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -49,22 +50,7 @@ type Data struct {
 // and saving them to the database
 type Processor struct {
 	mutex                   sync.Mutex
-	started                 int32
+	started                 atomic.Bool
 	bufferProcessorInterval time.Duration
 	buffer                  []Data
-}
-
-// ByDate sorts trades by date ascending
-type ByDate []Data
-
-func (b ByDate) Len() int {
-	return len(b)
-}
-
-func (b ByDate) Less(i, j int) bool {
-	return b[i].Timestamp.Before(b[j].Timestamp)
-}
-
-func (b ByDate) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
 }

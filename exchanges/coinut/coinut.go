@@ -6,8 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
+	"maps"
+	"math/rand/v2"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -219,14 +221,14 @@ func (e *Exchange) GetOptionChain(ctx context.Context, a, secType string) (Optio
 }
 
 // GetPositionHistory returns position history
-func (e *Exchange) GetPositionHistory(ctx context.Context, secType string, start, limit int) (PositionHistory, error) {
+func (e *Exchange) GetPositionHistory(ctx context.Context, secType string, start, limit uint64) (PositionHistory, error) {
 	var result PositionHistory
 	params := make(map[string]any)
 	params["sec_type"] = secType
-	if start >= 0 {
+	if start != 0 {
 		params["start"] = start
 	}
-	if limit >= 0 {
+	if limit != 0 {
 		params["limit"] = limit
 	}
 
@@ -234,7 +236,7 @@ func (e *Exchange) GetPositionHistory(ctx context.Context, secType string, start
 }
 
 // GetOpenPositionsForInstrument returns all your current opened positions
-func (e *Exchange) GetOpenPositionsForInstrument(ctx context.Context, instrumentID int) ([]OpenPosition, error) {
+func (e *Exchange) GetOpenPositionsForInstrument(ctx context.Context, instrumentID uint64) ([]OpenPosition, error) {
 	type Response struct {
 		Positions []OpenPosition `json:"positions"`
 	}
@@ -462,13 +464,9 @@ func (i *instrumentMap) GetInstrumentIDs() []int64 {
 		return nil
 	}
 
-	instruments := make([]int64, 0, len(i.Instruments))
-	for _, x := range i.Instruments {
-		instruments = append(instruments, x)
-	}
-	return instruments
+	return slices.AppendSeq(make([]int64, 0, len(i.Instruments)), maps.Values(i.Instruments))
 }
 
 func getNonce() int64 {
-	return rand.Int63n(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypto/rand
+	return rand.Int64N(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypto/rand
 }
