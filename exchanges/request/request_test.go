@@ -183,8 +183,11 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 	}{
 		{name: "unchanged JSON", contentType: "application/json", body: `{"orderId":1234567890123456789,"note":"a&b"}`, expected: `{"orderId":1234567890123456789,"note":"a&b"}`},
 		{name: "nested credential", contentType: "application/json", body: `{"nested":[{"password":"secret"}]}`, expected: `{"nested":[{"password":"[REDACTED]"}]}`},
+		{name: "every credential in a collection", contentType: "application/json", body: `[{"secret":"a"},{"nested":{"secret":"b"},"other":{"secret":"c"}},1]`, expected: `[{"secret":"[REDACTED]"},{"nested":{"secret":"[REDACTED]"},"other":{"secret":"[REDACTED]"}},1]`},
 		{name: "declared form resembling JSON string", contentType: "application/x-www-form-urlencoded", body: `"password=secret"`, expected: `"password=[REDACTED]`},
 		{name: "declared form resembling JSON object", contentType: "application/x-www-form-urlencoded", body: `{"a":1}`, expected: `{"a":1}`},
+		{name: "declared form carrying JSON credentials", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret"}`, expected: `{"password":"[REDACTED]"}`},
+		{name: "declared form readable as both", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","note":"&key=form-secret&x="}`, expected: `{"note":"\u0026key=[REDACTED]\u0026x=","password":"[REDACTED]"}`},
 		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
 	}
 	for _, tc := range tests {
@@ -291,6 +294,24 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	assert.NotContains(t, redacted.Error(), "cycle-secret", "a non-URL cycle should not expose URL credentials")
 }
 
+func TestSendPayloadRedactsInvalidSignedURL(t *testing.T) {
+	t.Parallel()
+	r, err := New("test", &http.Client{})
+	require.NoError(t, err, "New must not error")
+	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
+		return &Item{
+			Method: http.MethodGet,
+			Path:   "https://example.com/v1/accounts/1%zz/balance?AccessKeyId=fake-key&Signature=fake-signature",
+		}, nil
+	}, AuthenticatedRequest)
+	require.ErrorIs(t, err, ErrAuthRequestFailed, "SendPayload must report the failed authenticated request")
+	assert.Contains(t, err.Error(), "invalid URL escape", "error should retain the parse failure")
+	assert.Contains(t, err.Error(), "AccessKeyId=[REDACTED]", "error should retain the redacted query field")
+	assert.Contains(t, err.Error(), "Signature=[REDACTED]", "error should retain the redacted signature field")
+	assert.NotContains(t, err.Error(), "fake-key", "error should not expose the access key")
+	assert.NotContains(t, err.Error(), "fake-signature", "error should not expose the signature")
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (r roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -334,7 +355,8 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 			Request:    req,
 		}, nil
 	})}
-	r, err := New("test", httpClient,
+	r, err := New(
+		"test", httpClient,
 		WithBackoff(func(int) time.Duration { return 0 }),
 		WithRetryPolicy(func(_ *http.Response, err error) (bool, error) { return err != nil, nil }),
 	)
@@ -387,11 +409,12 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 
 func TestExecuteRequestBadStatusRedactsCredentials(t *testing.T) {
 	t.Parallel()
+	contentType := "application/json"
 	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			Status:     "400 Bad Request",
 			StatusCode: http.StatusBadRequest,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Header:     http.Header{"Content-Type": []string{contentType}},
 			Body:       io.NopCloser(strings.NewReader(`{"password":"response-secret","reason":"invalid"}`)),
 			Request:    req,
 		}, nil
@@ -405,6 +428,12 @@ func TestExecuteRequestBadStatusRedactsCredentials(t *testing.T) {
 	require.ErrorIs(t, err, ErrBadStatus, "executeRequest must return ErrBadStatus")
 	assert.Contains(t, err.Error(), `"password":"[REDACTED]"`, "bad status error should retain redacted response structure")
 	assert.NotContains(t, err.Error(), "response-secret", "bad status error should not expose response credentials")
+
+	contentType = "application/x-www-form-urlencoded"
+	_, err = r.executeRequest(t.Context(), &Item{Method: http.MethodGet, Path: "https://example.com"}, req, 1, false)
+	require.ErrorIs(t, err, ErrBadStatus, "form-labelled JSON error must return ErrBadStatus")
+	assert.Contains(t, err.Error(), `"password":"[REDACTED]"`, "form-labelled JSON error should retain redacted response structure")
+	assert.NotContains(t, err.Error(), "response-secret", "form-labelled JSON error should not expose response credentials")
 }
 
 func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
@@ -544,7 +573,7 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		"application/x-www-form-urlencoded",
 		"",
 		"application/json",
-	}, sentContentTypes, "the transport should receive each effective content type")
+	}, sentContentTypes, "the transport must receive each effective content type")
 
 	mu.Lock()
 	out := logged.String()

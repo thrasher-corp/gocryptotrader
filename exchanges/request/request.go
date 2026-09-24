@@ -121,7 +121,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	}
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
-		return nil, err
+		return nil, urlErrorForLog(err)
 	}
 
 	applyStringHeaders(req.Header, i.Headers)
@@ -374,11 +374,20 @@ func bodyForLog(payload []byte, contentType string) []byte {
 	if len(payload) == 0 {
 		return payload
 	}
-	if strings.TrimSpace(contentType) != "" && isFormEncoded(contentType) {
-		return []byte(redactEncodedValues(string(payload)))
-	}
 	trimmed := bytes.TrimSpace(payload)
 	looksLikeJSON := len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[')
+	if strings.TrimSpace(contentType) != "" && isFormEncoded(contentType) {
+		// Redact as a form first because that is how the receiver interprets it,
+		// then as JSON when the body also has that shape.
+		redacted := []byte(redactEncodedValues(string(payload)))
+		var value any
+		if looksLikeJSON && json.Unmarshal(redacted, &value) == nil && redactJSONValue(value) {
+			if remarshalled, err := json.Marshal(value); err == nil {
+				return remarshalled
+			}
+		}
+		return redacted
+	}
 	if isJSONEncoded(contentType) || looksLikeJSON || json.Valid(payload) {
 		var value any
 		if err := json.Unmarshal(payload, &value); err == nil {
