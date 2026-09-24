@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1558,7 +1557,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 15, expected.Version, "Config.Version must use version 15")
+	require.Equal(t, 16, expected.Version, "Config.Version must use version 16")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1575,9 +1574,24 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 15")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
+}
+
+func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.json")
+	data := []byte(`{"name":"test","version":15,"encryptConfig":-1,"logging":{"subloggers":[{"name":"GCTSCRIPT","output":"console"}]}}`)
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 15 config")
+
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
+	assert.Equal(t, 16, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
+	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
+	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
+	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")
 }
 
 func TestReadConfigFromReader(t *testing.T) {
@@ -2054,23 +2068,6 @@ func TestDisableNTPCheck(t *testing.T) {
 	_, err = c.SetNTPCheck(strings.NewReader(" "))
 	if err.Error() != "EOF" {
 		t.Errorf("failed expected EOF got: %v", err)
-	}
-}
-
-func TestCheckGCTScriptConfig(t *testing.T) {
-	t.Parallel()
-
-	var c Config
-	if err := c.checkGCTScriptConfig(); err != nil {
-		t.Error(err)
-	}
-
-	if c.GCTScript.ScriptTimeout != gctscript.DefaultTimeoutValue {
-		t.Fatal("unexpected value return")
-	}
-
-	if c.GCTScript.MaxVirtualMachines != gctscript.DefaultMaxVirtualMachines {
-		t.Fatal("unexpected value return")
 	}
 }
 
