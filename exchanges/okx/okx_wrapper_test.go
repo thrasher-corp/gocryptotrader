@@ -549,6 +549,73 @@ func TestCancelBatchOrdersSpreadGuards(t *testing.T) {
 	})
 }
 
+// TestCancelBatchOrdersSpreadReplies guards spread cancel replies that confirm
+// no order: each fails the batch, with a sentinel error when the reply names no
+// order, and keeps the status of the spread order cancelled before it.
+func TestCancelBatchOrdersSpreadReplies(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		reply string
+		err   error
+	}{
+		{"no data", `{"code":"0","msg":"","data":null}`, common.ErrNoResponse},
+		{"no order ID", `{"code":"0","msg":"","data":[{"ordId":"","clOrdId":"S2","sCode":"0","sMsg":""}]}`, common.ErrInvalidResponse},
+		{"cancel failed", `{"code":"1","msg":"All operations failed","data":[{"ordId":"","clOrdId":"S2","sCode":"51400","sMsg":"Order does not exist"}]}`, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var cancels int
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/sprd/cancel-order" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				mu.Lock()
+				cancels++
+				first := cancels == 1
+				mu.Unlock()
+				w.Header().Set("Content-Type", "application/json")
+				if first {
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"SPRD-1","clOrdId":"S1","sCode":"0","sMsg":""}]}`))
+					return
+				}
+				_, _ = w.Write([]byte(tc.reply))
+			}))
+			resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+				{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "S1"},
+				{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "S2"},
+			})
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "CancelBatchOrders must return the sentinel for a reply that names no order")
+			} else {
+				require.Error(t, err, "CancelBatchOrders must return the failed cancel's error")
+			}
+			require.NotNil(t, resp, "CancelBatchOrders must return the statuses already recorded")
+			assert.Equal(t, map[string]string{"SPRD-1": order.Cancelled.String()}, resp.Status,
+				"the spread order cancelled before the failed reply should still be reported")
+		})
+	}
+}
+
+// TestCancelOrderAlgoEmptyReply guards the algo cancel reply that names no
+// order, which would otherwise index an empty result.
+func TestCancelOrderAlgoEmptyReply(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/cancel-advance-algos" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []any{})
+	}))
+	err := e.CancelOrder(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-1", Type: order.Trigger})
+	assert.ErrorIs(t, err, common.ErrNoResponse, "an algo cancel reply without results should return ErrNoResponse")
+}
+
 // TestApplyWebsocketInstrumentIDCodes guards the resolve-all-then-apply shape:
 // an uncached instrument must report failure without touching the requests, so
 // no half-applied instIdCode leaks into a REST request body.
