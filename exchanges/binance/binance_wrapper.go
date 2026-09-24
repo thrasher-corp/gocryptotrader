@@ -922,8 +922,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		default:
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
-		o, err := e.UFuturesNewOrder(
-			ctx,
+		o, err := e.UFuturesNewOrder(ctx,
 			&UFuturesNewOrderRequest{
 				Symbol:           s.Pair,
 				Side:             reqSide,

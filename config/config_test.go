@@ -514,8 +514,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Error("err should have been thrown on a non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -552,8 +551,7 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		t.Error("Expected error for non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -599,8 +597,7 @@ func TestSetPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -636,8 +633,7 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 		t.Error("Expected error with non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -689,8 +685,7 @@ func TestCheckPairConfigFormats(t *testing.T) {
 		t.Error("non-existent exchange should throw an error")
 	}
 	// Test nil pair store
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -764,8 +759,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	assert.ErrorIs(t, c.CheckPairConsistency("asdf"), ErrExchangeNotFound)
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -877,8 +871,7 @@ func TestGetPairFormat(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -976,8 +969,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
@@ -1020,8 +1012,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
@@ -1600,14 +1591,15 @@ func TestReadVersion15OrderbookBufferConfigFromFile(t *testing.T) {
 	require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must preserve saved exchanges")
 	require.GreaterOrEqual(t, len(exchanges), 2, "Config fixture must contain two exchanges")
 	for i, settings := range []string{
-		`{"websocketBufferEnabled":true,"websocketBufferLimit":0}`,
-		`{"websocketBufferEnabled":false,"websocketBufferLimit":5}`,
+		`{"verificationBypass":true,"websocketBufferEnabled":true,"websocketBufferLimit":0}`,
+		`{"verificationBypass":true,"websocketBufferEnabled":false,"websocketBufferLimit":5}`,
 	} {
 		var orderbookSettings map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(exchanges[i]["orderbook"], &orderbookSettings), "Unmarshal must preserve orderbook settings")
 		var legacySettings map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal([]byte(settings), &legacySettings), "Unmarshal must decode legacy buffer settings")
 		maps.Copy(orderbookSettings, legacySettings)
+		expected.Exchanges[i].Orderbook.VerificationBypass = true
 		exchanges[i]["orderbook"], err = json.Marshal(orderbookSettings)
 		require.NoError(t, err, "Marshal must encode legacy orderbook settings")
 	}

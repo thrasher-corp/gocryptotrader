@@ -114,7 +114,6 @@ func TestUpdatesAppliedImmediately(t *testing.T) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		})
-
 		require.NoError(t, err)
 	}
 
@@ -151,7 +150,6 @@ func TestInsertWithIDs(t *testing.T) {
 			Asset:      asset.Spot,
 			Action:     orderbook.UpdateOrInsertAction,
 		})
-
 		require.NoError(t, err)
 	}
 
@@ -169,7 +167,6 @@ func TestInsertWithIDs(t *testing.T) {
 		Asset:      asset.Spot,
 		Pair:       cp,
 	})
-
 	assert.ErrorIs(t, err, orderbook.ErrEmptyUpdate)
 }
 
@@ -216,7 +213,6 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		ExpectedChecksum: 1337,
 		GenerateChecksum: func(*orderbook.Book) uint32 { return 1336 },
 	})
-
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
 
 	cp, err = getExclusivePair()
@@ -237,7 +233,6 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 			ExpectedChecksum:           1337,
 			GenerateChecksum:           func(*orderbook.Book) uint32 { return 1337 },
 		})
-
 		require.NoError(t, err)
 	}
 
@@ -249,7 +244,6 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		Asset:                      asset.Spot,
 		SkipOutOfOrderLastUpdateID: true,
 	})
-
 	require.NoError(t, err, "Out of sequence Update must not error")
 
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
@@ -274,7 +268,6 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	})
-
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 }
 
@@ -295,7 +288,6 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	})
-
 	require.ErrorIs(t, err, orderbook.ErrEmptyUpdate)
 }
 
@@ -331,7 +323,6 @@ func TestUpdateDepth(t *testing.T) {
 				LastUpdated:  time.Now(),
 				LastUpdateID: 69420,
 			})
-
 			require.NoError(t, err, "LoadSnapshot must not error")
 			<-relay.C
 
@@ -350,7 +341,6 @@ func TestUpdateDepth(t *testing.T) {
 				UpdateID:   tc.updateID,
 				UpdateTime: time.Now(),
 			})
-
 			switch {
 			case tc.wantErr != nil:
 				require.ErrorIs(t, err, tc.wantErr, "updateDepth must return the expected error")
@@ -486,7 +476,6 @@ func TestLoadSnapshotConcurrentDepthStability(t *testing.T) {
 				LastUpdated:  time.Unix(int64(i+1), 0),
 				LastUpdateID: int64(i + 1),
 			})
-
 			obl.m.RLock()
 			depths[i] = obl.ob[bookKey]
 			obl.m.RUnlock()

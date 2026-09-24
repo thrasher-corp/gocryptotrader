@@ -250,8 +250,7 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
-	hmac, err := crypto.GetHMAC(
-		crypto.HashSHA256,
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(strconv.FormatInt(ts, 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)

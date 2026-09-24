@@ -74,7 +74,7 @@ func (o *Orderbook) LoadSnapshot(ctx context.Context, book *orderbook.Book) erro
 	return o.dataHandler.Send(ctx, depth)
 }
 
-// Update updates a stored pointer to an orderbook.Depth struct containing bid and ask Tranches.
+// Update updates a stored pointer to an orderbook.Depth struct containing bid and ask levels.
 func (o *Orderbook) Update(ctx context.Context, u *orderbook.Update) error {
 	o.m.RLock()
 	depth, ok := o.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
@@ -122,12 +122,12 @@ func (o *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
 		return 0, asset.ErrInvalidAsset
 	}
 	o.m.RLock()
-	book, ok := o.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	depth, ok := o.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	o.m.RUnlock()
 	if !ok {
 		return 0, fmt.Errorf("%s %w: %s.%s", o.exchangeName, orderbook.ErrDepthNotFound, a, p)
 	}
-	return book.LastUpdateID()
+	return depth.LastUpdateID()
 }
 
 // InvalidateOrderbook invalidates the orderbook so no trading can occur on potential corrupted data

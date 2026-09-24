@@ -799,8 +799,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		var candles OHLCResponse
-		candles, err = e.OHLC(
-			ctx,
+		candles, err = e.OHLC(ctx,
 			req.RequestFormatted.String(),
 			req.RangeHolder.Ranges[x].Start.Time,
 			req.RangeHolder.Ranges[x].End.Time,

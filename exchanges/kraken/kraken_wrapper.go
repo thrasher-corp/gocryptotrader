@@ -747,8 +747,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 	case asset.Futures:
 		var fOrder FuturesSendOrderData
-		fOrder, err = e.FuturesSendOrder(
-			ctx,
+		fOrder, err = e.FuturesSendOrder(ctx,
 			s.Type,
 			s.Pair,
 			s.Side.Lower(),

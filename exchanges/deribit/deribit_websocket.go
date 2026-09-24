@@ -796,7 +796,6 @@ func (e *Exchange) processOrderbook(ctx context.Context, respRaw []byte, channel
 				Asset:             a,
 				LastUpdateID:      orderbookData.ChangeID,
 			})
-
 		case "change":
 			return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 				Asks:       asks,

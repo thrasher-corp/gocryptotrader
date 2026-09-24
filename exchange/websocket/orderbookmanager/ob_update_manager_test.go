@@ -245,9 +245,7 @@ func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
 		Asset:        asset.Spot,
 		LastUpdated:  time.Now(),
 		LastUpdateID: 1336,
-	}),
-
-		"LoadSnapshot must not error")
+	}), "LoadSnapshot must not error")
 
 	cache, err := m.loadCache(pair, asset.Spot)
 	require.NoError(t, err, "loadCache must not error")
@@ -415,19 +413,16 @@ func TestApplyPendingUpdates(t *testing.T) {
 	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Asset: asset.Spot}},
 	}})
-
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "applyPendingUpdates must error when the currency pair is empty")
 
 	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair}},
 	}})
-
 	require.ErrorIs(t, err, asset.ErrInvalidAsset, "applyPendingUpdates must error when the asset is invalid")
 
 	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
-
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "applyPendingUpdates must error when the orderbook depth is not found")
 
 	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now()})
@@ -440,7 +435,6 @@ func TestApplyPendingUpdates(t *testing.T) {
 	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
-
 	require.ErrorIs(t, err, expectedErr, "applyPendingUpdates must return the pending-update check error")
 
 	m.checkPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
@@ -449,7 +443,6 @@ func TestApplyPendingUpdates(t *testing.T) {
 	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
-
 	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "applyPendingUpdates must error when every pending update is skipped")
 
 	m.checkPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
@@ -458,7 +451,6 @@ func TestApplyPendingUpdates(t *testing.T) {
 	err = m.applyPendingUpdates(t.Context(), &updateCache{updates: []pendingUpdate{
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
-
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "applyPendingUpdates must error when update application invalidates the orderbook")
 
 	err = m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now()})
@@ -480,7 +472,6 @@ func TestApplyPendingUpdates(t *testing.T) {
 		{firstUpdateID: 1337, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1337, AllowEmpty: true, UpdateTime: time.Now()}},
 		{firstUpdateID: 1339, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1339, AllowEmpty: true, UpdateTime: time.Now()}},
 	}})
-
 	require.ErrorIs(t, err, ErrOrderbookSnapshotOutdated, "applyPendingUpdates must error when a later pending update is out of sequence")
 }
 
@@ -598,7 +589,6 @@ func TestApplyPendingUpdatesCachedDepthInvalidated(t *testing.T) {
 		{firstUpdateID: 10, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 10, AllowEmpty: true, UpdateTime: time.Now()}},
 		{firstUpdateID: 11, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 11, AllowEmpty: true, UpdateTime: time.Now()}},
 	}})
-
 	assert.NoError(t, invalidationErr, "InvalidateOrderbook should not error")
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "applyPendingUpdates must return the cached depth invalidation error")
 }

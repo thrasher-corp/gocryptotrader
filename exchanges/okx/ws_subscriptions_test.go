@@ -244,7 +244,6 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Channel:          subscription.OrderbookChannel,
 			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
 		})
-
 		require.NoError(t, err)
 		_, err = tracked.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Margin)
 		require.ErrorIs(t, err, orderbook.ErrDepthNotFound)

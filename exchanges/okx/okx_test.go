@@ -4248,9 +4248,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 					LastUpdated:  time.UnixMilli(1659792392540),
 					Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
 					Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
-				}),
-
-					"LoadSnapshot must not error")
+				}), "LoadSnapshot must not error")
 			}
 
 			err := tracked.WsProcessUpdateOrderbook(t.Context(), &WsOrderBookData{
@@ -4258,7 +4256,6 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 				PreviousSequenceID: tc.previousSequenceID,
 				SequenceID:         tc.sequenceID,
 			}, pair, assets)
-
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError, "WsProcessUpdateOrderbook must return the expected error")
 				for _, a := range assets {
@@ -4288,16 +4285,13 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			LastUpdated:  time.UnixMilli(1659792392540),
 			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
 			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
-		}),
-
-			"LoadSnapshot must not error")
+		}), "LoadSnapshot must not error")
 
 		err := tracked.WsProcessUpdateOrderbook(t.Context(), &WsOrderBookData{
 			Timestamp:          types.Time(time.UnixMilli(1659792392640)),
 			PreviousSequenceID: 20,
 			SequenceID:         21,
 		}, pair, []asset.Item{asset.Spot, asset.Margin})
-
 		require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "WsProcessUpdateOrderbook must validate every mapped asset")
 		_, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "Spot orderbook must be invalidated on mapped asset error")
@@ -4319,9 +4313,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			LastUpdated:  time.UnixMilli(1659792392540),
 			Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
 			Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
-		}),
-
-			"LoadSnapshot must not error")
+		}), "LoadSnapshot must not error")
 		require.NoError(t, tracked.Websocket.Orderbook.InvalidateOrderbook(pair, asset.Spot), "InvalidateOrderbook must not error")
 
 		err := tracked.WsProcessUpdateOrderbook(t.Context(), &WsOrderBookData{
@@ -4329,7 +4321,6 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			PreviousSequenceID: 20,
 			SequenceID:         21,
 		}, pair, []asset.Item{asset.Spot})
-
 		require.ErrorIs(t, err, errOrderbookSnapshotPending, "WsProcessUpdateOrderbook must report that a replacement snapshot is pending")
 		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "WsProcessUpdateOrderbook must preserve the invalid orderbook error")
 	})
@@ -4351,9 +4342,7 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 				LastUpdated:  time.UnixMilli(1659792392540),
 				Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
 				Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
-			}),
-
-				"LoadSnapshot must not error")
+			}), "LoadSnapshot must not error")
 		}
 		for len(tracked.Websocket.DataHandler.C) < cap(tracked.Websocket.DataHandler.C) {
 			require.NoError(t, tracked.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
@@ -4365,7 +4354,6 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 			PreviousSequenceID: 10,
 			SequenceID:         11,
 		}, pair, assets)
-
 		require.ErrorContains(t, err, "channel buffer is full", "WsProcessUpdateOrderbook must return the dispatch failure")
 		for _, a := range assets {
 			book, bookErr := tracked.Websocket.Orderbook.GetOrderbook(pair, a)
