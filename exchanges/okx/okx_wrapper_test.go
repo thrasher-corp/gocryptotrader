@@ -6,7 +6,7 @@ import (
 	"testing"
 	"uuid"
 
-	gws "github.com/gorilla/websocket"
+	gorillaws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -49,11 +49,7 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Upgrade") == "websocket" {
-			mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
-				// The connections outlive the test, and OKX's keepalive ping is not JSON
-				if string(msg) == "ping" {
-					return nil
-				}
+			mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gorillaws.Conn) error {
 				var req struct {
 					ID        string `json:"id"`
 					Operation string `json:"op"`
@@ -66,7 +62,7 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 				mu.Unlock()
 				// The error live OKX returns when a spread operation reaches the
 				// private websocket connection.
-				return c.WriteMessage(gws.TextMessage,
+				return c.WriteMessage(gorillaws.TextMessage,
 					[]byte(`{"id":"`+req.ID+`","op":"`+req.Operation+`","code":"60028","msg":"The current operation is not supported by this URL. Please use the correct WebSocket URL for the operation."}`))
 			})
 			return
@@ -75,7 +71,7 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 		restPaths = append(restPaths, r.URL.Path)
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sCode":"0","sMsg":"","ordId":"SPRD-1","clOrdId":""}]}`))
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":{"sCode":"0","sMsg":"","ordId":"SPRD-1","clOrdId":""}}`))
 	})
 
 	e := testexch.MockWsInstance[Exchange](t, handler)
