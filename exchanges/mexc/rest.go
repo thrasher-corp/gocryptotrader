@@ -884,40 +884,6 @@ func (e *Exchange) GetInternalTransferHistory(ctx context.Context, transferID st
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getInternalTransferHistoryEPL, http.MethodGet, "capital/transfer/internal", params, nil, &resp, true)
 }
 
-// CapitalWithdrawal withdraws an asset through a network
-//
-// Deprecated: the venue lists capital/withdraw/apply as the previous withdraw endpoint, to be taken
-// offline; use WithdrawCapital.
-func (e *Exchange) CapitalWithdrawal(ctx context.Context, coin currency.Code, withdrawOrderID, network, address, memo, remark string, amount float64) ([]IDResponse, error) {
-	if coin.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if address == "" {
-		return nil, errAddressRequired
-	}
-	if amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
-	}
-	params := url.Values{}
-	params.Set("coin", coin.String())
-	params.Set("address", address)
-	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	if withdrawOrderID != "" {
-		params.Set("withdrawOrderId", withdrawOrderID)
-	}
-	if network != "" {
-		params.Set("network", network)
-	}
-	if memo != "" {
-		params.Set("memo", memo)
-	}
-	if remark != "" {
-		params.Set("remark", remark)
-	}
-	var resp []IDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, capitalWithdrawalEPL, http.MethodPost, "capital/withdraw/apply", params, nil, &resp, true)
-}
-
 // NewTestOrder creates and validates a new order but does not send it into the matching engine.
 func (e *Exchange) NewTestOrder(ctx context.Context, symbol currency.Pair, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	return e.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order/test", quantity, quoteOrderQty, price)

@@ -888,21 +888,6 @@ func TestGetInternalTransferHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCapitalWithdrawal(t *testing.T) {
-	t.Parallel()
-	_, err := e.CapitalWithdrawal(t.Context(), currency.EMPTYCODE, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 1234)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.CapitalWithdrawal(t.Context(), currency.BTC, "12345678", "TRC20", "", "", "", 1234)
-	require.ErrorIs(t, err, errAddressRequired)
-	_, err = e.CapitalWithdrawal(t.Context(), currency.BTC, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 0)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CapitalWithdrawal(t.Context(), currency.BTC, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 1234)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetRebateHistoryRecords(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := recentWindow()
