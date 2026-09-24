@@ -82,11 +82,11 @@ const (
 	setAPIKeyInfoEPL
 	offlineSymbolsEPL
 	announcementsEPL
-	createSTPGroupEPL
-	getSTPGroupEPL
-	deleteSTPGroupEPL
-	addSTPGroupUIDsEPL
-	deleteSTPGroupUIDsEPL
+	createSelfTradePreventionGroupEPL
+	getSelfTradePreventionGroupEPL
+	deleteSelfTradePreventionGroupEPL
+	addSelfTradePreventionGroupUIDsEPL
+	deleteSelfTradePreventionGroupUIDsEPL
 	listenKeyEPL
 	brokerEPL
 )
@@ -171,16 +171,16 @@ var rateLimits = func() request.RateLimitDefinitions {
 		affiliateReferralDataEPL:        request.GetRateLimiterWithWeight(ipModeRate, 1),
 		subAffiliateDataEPL:             request.GetRateLimiterWithWeight(ipModeRate, 1),
 
-		getUIDEPL:             request.GetRateLimiterWithWeight(ipModeRate, 1),
-		getAPIKeyInfoEPL:      request.GetRateLimiterWithWeight(ipModeRate, 1),
-		setAPIKeyInfoEPL:      request.GetRateLimiterWithWeight(ipModeRate, 1),
-		offlineSymbolsEPL:     request.GetRateLimiterWithWeight(ipModeRate, 10),
-		announcementsEPL:      request.GetRateLimiterWithWeight(announcementsRate, 1),
-		createSTPGroupEPL:     request.GetRateLimiterWithWeight(ipModeRate, 20),
-		getSTPGroupEPL:        request.GetRateLimiterWithWeight(ipModeRate, 20),
-		deleteSTPGroupEPL:     request.GetRateLimiterWithWeight(ipModeRate, 20),
-		addSTPGroupUIDsEPL:    request.GetRateLimiterWithWeight(ipModeRate, 20),
-		deleteSTPGroupUIDsEPL: request.GetRateLimiterWithWeight(ipModeRate, 20),
+		getUIDEPL:                             request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getAPIKeyInfoEPL:                      request.GetRateLimiterWithWeight(ipModeRate, 1),
+		setAPIKeyInfoEPL:                      request.GetRateLimiterWithWeight(ipModeRate, 1),
+		offlineSymbolsEPL:                     request.GetRateLimiterWithWeight(ipModeRate, 10),
+		announcementsEPL:                      request.GetRateLimiterWithWeight(announcementsRate, 1),
+		createSelfTradePreventionGroupEPL:     request.GetRateLimiterWithWeight(ipModeRate, 20),
+		getSelfTradePreventionGroupEPL:        request.GetRateLimiterWithWeight(ipModeRate, 20),
+		deleteSelfTradePreventionGroupEPL:     request.GetRateLimiterWithWeight(ipModeRate, 20),
+		addSelfTradePreventionGroupUIDsEPL:    request.GetRateLimiterWithWeight(ipModeRate, 20),
+		deleteSelfTradePreventionGroupUIDsEPL: request.GetRateLimiterWithWeight(ipModeRate, 20),
 
 		// The user data stream endpoints share one limit; their weight is undocumented, so they are
 		// charged at 1 on the IP pool.

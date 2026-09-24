@@ -348,8 +348,8 @@ func (a *APIKeyInfo) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// STPGroup represents a self-trade prevention group
-type STPGroup struct {
+// SelfTradePreventionGroup represents a self-trade prevention group
+type SelfTradePreventionGroup struct {
 	TradeGroupName string       `json:"tradeGroupName"`
 	TradeGroupID   types.Number `json:"tradeGroupId"`
 	// TradeGroupUID is the comma-separated list of uids in the group

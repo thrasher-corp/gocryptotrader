@@ -183,7 +183,7 @@ func TestBatchOrderCreationParamMarshalsNumbersAsStrings(t *testing.T) {
 			expected: `{"type":"LIMIT","price":"1000000000000000000000","quantity":"0.000001","symbol":"BTCUSDT"}`,
 		},
 		{
-			name:     "stp mode",
+			name:     "self-trade prevention mode",
 			param:    BatchOrderCreationParam{OrderType: "LIMIT", Price: 1, Quantity: 2, Symbol: currency.NewBTCUSDT(), Side: "SELL", SelfTradePreventionMode: "cancel_maker"},
 			expected: `{"type":"LIMIT","price":"1","quantity":"2","symbol":"BTCUSDT","side":"SELL","stpMode":"cancel_maker"}`,
 		},
@@ -1095,9 +1095,10 @@ func TestCancelAllOrdersWithoutPairCancelsAccountWide(t *testing.T) {
 	assert.Equal(t, []string{"/api/v3/order/all", "/api/v3/openOrders"}, paths, "the empty pair should cancel account-wide and the pair by symbol")
 }
 
-// TestAccountPlatformAndSTPEndpoints pins the request and the decoding of the uid, API key, offline
-// symbol, announcement, STP group and listen key endpoints against the documented examples.
-func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
+// TestAccountPlatformAndSelfTradePreventionEndpoints pins the request and the decoding of the uid, API
+// key, offline symbol, announcement, self-trade prevention group and listen key endpoints against the
+// documented examples.
+func TestAccountPlatformAndSelfTradePreventionEndpoints(t *testing.T) {
 	t.Parallel()
 	// liveChecks run instead of the recorded responses when built with -tags mock_test_off. They assert the
 	// shape of the venue's answer. An endpoint without one changes account settings, so it is exercised
@@ -1230,60 +1231,60 @@ func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 			},
 		},
 		{
-			"CreateSTPGroup", http.MethodPost, "/api/v3/strategy/group",
+			"CreateSelfTradePreventionGroup", http.MethodPost, "/api/v3/strategy/group",
 			url.Values{"tradeGroupName": {"tradeGroupOne"}},
 			`{"data":{"tradeGroupName":"tradeGroupOne","tradeGroupId":91,"createTime":1758043350000,"updateTime":1758043350000},"code":200,"msg":"success","timestamp":1758043350233}`,
 			func(ctx context.Context, t *testing.T, e *Exchange) {
 				t.Helper()
-				group, err := e.CreateSTPGroup(ctx, "tradeGroupOne")
-				require.NoError(t, err, "CreateSTPGroup must not error")
+				group, err := e.CreateSelfTradePreventionGroup(ctx, "tradeGroupOne")
+				require.NoError(t, err, "CreateSelfTradePreventionGroup must not error")
 				assert.Equal(t, int64(91), group.TradeGroupID.Int64(), "TradeGroupID should be decoded")
 			},
 		},
 		{
-			"GetSTPGroup", http.MethodGet, "/api/v3/strategy/group",
+			"GetSelfTradePreventionGroup", http.MethodGet, "/api/v3/strategy/group",
 			url.Values{"tradeGroupName": {"tradeGroupOne"}},
 			`{"data":[{"tradeGroupName":"tradeGroupOne","tradeGroupId":"91","tradeGroupUid":"1,2","createTime":1758043350000,"updateTime":1758043350000}],"code":200,"msg":"success","timestamp":1758044090972}`,
 			func(ctx context.Context, t *testing.T, e *Exchange) {
 				t.Helper()
-				groups, err := e.GetSTPGroup(ctx, "tradeGroupOne")
-				require.NoError(t, err, "GetSTPGroup must not error")
+				groups, err := e.GetSelfTradePreventionGroup(ctx, "tradeGroupOne")
+				require.NoError(t, err, "GetSelfTradePreventionGroup must not error")
 				require.Len(t, groups, 1, "the group must be decoded")
 				assert.Equal(t, int64(91), groups[0].TradeGroupID.Int64(), "a quoted TradeGroupID should be decoded")
 				assert.Equal(t, "1,2", groups[0].TradeGroupUID, "TradeGroupUID should be decoded")
 			},
 		},
 		{
-			"DeleteSTPGroup", http.MethodDelete, "/api/v3/strategy/group",
+			"DeleteSelfTradePreventionGroup", http.MethodDelete, "/api/v3/strategy/group",
 			url.Values{"tradeGroupId": {"91"}},
 			`{"data":true,"code":200,"msg":"success","timestamp":1758044399749}`,
 			func(ctx context.Context, t *testing.T, e *Exchange) {
 				t.Helper()
-				deleted, err := e.DeleteSTPGroup(ctx, "91")
-				require.NoError(t, err, "DeleteSTPGroup must not error")
-				assert.True(t, deleted, "DeleteSTPGroup should report the deletion")
+				deleted, err := e.DeleteSelfTradePreventionGroup(ctx, "91")
+				require.NoError(t, err, "DeleteSelfTradePreventionGroup must not error")
+				assert.True(t, deleted, "DeleteSelfTradePreventionGroup should report the deletion")
 			},
 		},
 		{
-			"AddSTPGroupUIDs", http.MethodPost, "/api/v3/strategy/group/uid",
+			"AddSelfTradePreventionGroupUIDs", http.MethodPost, "/api/v3/strategy/group/uid",
 			url.Values{"tradeGroupId": {"92"}, "uid": {"49910594,49910595"}},
 			`{"data":{"tradeGroupName":"1","tradeGroupId":92,"tradeGroupUid":"49910594,49910595","createTime":1758044671000,"updateTime":1758044777000},"code":200,"msg":"success","timestamp":1758044777023}`,
 			func(ctx context.Context, t *testing.T, e *Exchange) {
 				t.Helper()
-				group, err := e.AddSTPGroupUIDs(ctx, "92", []string{"49910594", "49910595"})
-				require.NoError(t, err, "AddSTPGroupUIDs must not error")
+				group, err := e.AddSelfTradePreventionGroupUIDs(ctx, "92", []string{"49910594", "49910595"})
+				require.NoError(t, err, "AddSelfTradePreventionGroupUIDs must not error")
 				assert.Equal(t, "49910594,49910595", group.TradeGroupUID, "TradeGroupUID should be decoded")
 			},
 		},
 		{
-			"DeleteSTPGroupUIDs", http.MethodDelete, "/api/v3/strategy/group/uid",
+			"DeleteSelfTradePreventionGroupUIDs", http.MethodDelete, "/api/v3/strategy/group/uid",
 			url.Values{"tradeGroupId": {"92"}, "uid": {"49910594"}},
 			`{"data":true,"code":200,"msg":"success","timestamp":1758045403352}`,
 			func(ctx context.Context, t *testing.T, e *Exchange) {
 				t.Helper()
-				deleted, err := e.DeleteSTPGroupUIDs(ctx, "92", []string{"49910594"})
-				require.NoError(t, err, "DeleteSTPGroupUIDs must not error")
-				assert.True(t, deleted, "DeleteSTPGroupUIDs should report the removal")
+				deleted, err := e.DeleteSelfTradePreventionGroupUIDs(ctx, "92", []string{"49910594"})
+				require.NoError(t, err, "DeleteSelfTradePreventionGroupUIDs must not error")
+				assert.True(t, deleted, "DeleteSelfTradePreventionGroupUIDs should report the removal")
 			},
 		},
 		{
@@ -1332,9 +1333,9 @@ func TestAccountPlatformAndSTPEndpoints(t *testing.T) {
 	}
 }
 
-// TestAccountPlatformAndSTPEndpointsRejectMissingParameters rejects a request the venue would refuse
+// TestAccountPlatformAndSelfTradePreventionEndpointsRejectMissingParameters rejects a request the venue would refuse
 // before it is sent.
-func TestAccountPlatformAndSTPEndpointsRejectMissingParameters(t *testing.T) {
+func TestAccountPlatformAndSelfTradePreventionEndpointsRejectMissingParameters(t *testing.T) {
 	t.Parallel()
 	e := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		assert.Fail(t, "no request should reach the venue")
@@ -1351,16 +1352,16 @@ func TestAccountPlatformAndSTPEndpointsRejectMissingParameters(t *testing.T) {
 		_, err = e.GetAnnouncements(t.Context(), "", 0, limit)
 		assert.ErrorIsf(t, err, errInvalidPaginationLimit, "GetAnnouncements should refuse a limit of %d", limit)
 	}
-	_, err = e.CreateSTPGroup(t.Context(), "")
-	assert.ErrorIs(t, err, errSTPGroupNameRequired, "CreateSTPGroup should require a name")
-	_, err = e.GetSTPGroup(t.Context(), "")
-	assert.ErrorIs(t, err, errSTPGroupNameRequired, "GetSTPGroup should require a name")
-	_, err = e.DeleteSTPGroup(t.Context(), "")
-	assert.ErrorIs(t, err, errSTPGroupIDRequired, "DeleteSTPGroup should require a group id")
-	_, err = e.AddSTPGroupUIDs(t.Context(), "", []string{"1"})
-	assert.ErrorIs(t, err, errSTPGroupIDRequired, "AddSTPGroupUIDs should require a group id")
-	_, err = e.DeleteSTPGroupUIDs(t.Context(), "1", nil)
-	assert.ErrorIs(t, err, errUIDRequired, "DeleteSTPGroupUIDs should require a uid")
+	_, err = e.CreateSelfTradePreventionGroup(t.Context(), "")
+	assert.ErrorIs(t, err, errSelfTradePreventionGroupNameRequired, "CreateSelfTradePreventionGroup should require a name")
+	_, err = e.GetSelfTradePreventionGroup(t.Context(), "")
+	assert.ErrorIs(t, err, errSelfTradePreventionGroupNameRequired, "GetSelfTradePreventionGroup should require a name")
+	_, err = e.DeleteSelfTradePreventionGroup(t.Context(), "")
+	assert.ErrorIs(t, err, errSelfTradePreventionGroupIDRequired, "DeleteSelfTradePreventionGroup should require a group id")
+	_, err = e.AddSelfTradePreventionGroupUIDs(t.Context(), "", []string{"1"})
+	assert.ErrorIs(t, err, errSelfTradePreventionGroupIDRequired, "AddSelfTradePreventionGroupUIDs should require a group id")
+	_, err = e.DeleteSelfTradePreventionGroupUIDs(t.Context(), "1", nil)
+	assert.ErrorIs(t, err, errUIDRequired, "DeleteSelfTradePreventionGroupUIDs should require a uid")
 	assert.ErrorIs(t, e.CloseListenKey(t.Context(), ""), errListenKeyRequired, "CloseListenKey should require a listen key")
 }
 

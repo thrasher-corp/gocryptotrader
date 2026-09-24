@@ -41,25 +41,25 @@ const (
 )
 
 var (
-	errInvalidSubAccountName      = errors.New("invalid sub-account name")
-	errAPIKeyMissing              = errors.New("api key is required")
-	errInvalidSubAccountNote      = errors.New("invalid sub-account note")
-	errUnsupportedPermissionValue = errors.New("permission is unsupported")
-	errAddressRequired            = errors.New("address is required")
-	errNetworkNameRequired        = errors.New("network name required")
-	errAccountTypeRequired        = errors.New("account type information required")
-	errTransactionIDRequired      = errors.New("missing transaction ID")
-	errPaginationLimitIsRequired  = errors.New("limit is required")
-	errBatchOrderRejected         = errors.New("batch order rejected")
-	errListenKeyRequired          = errors.New("listen key is required")
-	errCancelAllOrdersFailed      = errors.New("cancel all orders failed")
-	errAccessKeyRequired          = errors.New("access key is required")
-	errIPWhiteListRequired        = errors.New("at least one whitelisted IP address is required")
-	errTooManyIPAddresses         = errors.New("too many whitelisted IP addresses")
-	errInvalidPaginationLimit     = errors.New("invalid pagination limit")
-	errSTPGroupNameRequired       = errors.New("STP group name is required")
-	errSTPGroupIDRequired         = errors.New("STP group id is required")
-	errUIDRequired                = errors.New("at least one uid is required")
+	errInvalidSubAccountName                = errors.New("invalid sub-account name")
+	errAPIKeyMissing                        = errors.New("api key is required")
+	errInvalidSubAccountNote                = errors.New("invalid sub-account note")
+	errUnsupportedPermissionValue           = errors.New("permission is unsupported")
+	errAddressRequired                      = errors.New("address is required")
+	errNetworkNameRequired                  = errors.New("network name required")
+	errAccountTypeRequired                  = errors.New("account type information required")
+	errTransactionIDRequired                = errors.New("missing transaction ID")
+	errPaginationLimitIsRequired            = errors.New("limit is required")
+	errBatchOrderRejected                   = errors.New("batch order rejected")
+	errListenKeyRequired                    = errors.New("listen key is required")
+	errCancelAllOrdersFailed                = errors.New("cancel all orders failed")
+	errAccessKeyRequired                    = errors.New("access key is required")
+	errIPWhiteListRequired                  = errors.New("at least one whitelisted IP address is required")
+	errTooManyIPAddresses                   = errors.New("too many whitelisted IP addresses")
+	errInvalidPaginationLimit               = errors.New("invalid pagination limit")
+	errSelfTradePreventionGroupNameRequired = errors.New("self-trade prevention group name is required")
+	errSelfTradePreventionGroupIDRequired   = errors.New("self-trade prevention group id is required")
+	errUIDRequired                          = errors.New("at least one uid is required")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -1270,75 +1270,77 @@ func (e *Exchange) GetSymbolTradingFee(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSymbolTradingFeeEPL, http.MethodGet, "tradeFee", params, nil, &resp, true)
 }
 
-// CreateSTPGroup creates a self-trade prevention group. Only a master account can create one; the
-// name must be unique under it and at most 10 groups are allowed.
-func (e *Exchange) CreateSTPGroup(ctx context.Context, name string) (*STPGroup, error) {
+// CreateSelfTradePreventionGroup creates a self-trade prevention group. Only a master account can create
+// one; the name must be unique under it and at most 10 groups are allowed.
+func (e *Exchange) CreateSelfTradePreventionGroup(ctx context.Context, name string) (*SelfTradePreventionGroup, error) {
 	if name == "" {
-		return nil, errSTPGroupNameRequired
+		return nil, errSelfTradePreventionGroupNameRequired
 	}
 	params := url.Values{}
 	params.Set("tradeGroupName", name)
 	var resp struct {
-		Data *STPGroup `json:"data"`
+		Data *SelfTradePreventionGroup `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, createSTPGroupEPL, http.MethodPost, "strategy/group", params, nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, createSelfTradePreventionGroupEPL, http.MethodPost, "strategy/group", params, nil, &resp, true)
 }
 
-// GetSTPGroup retrieves the self-trade prevention groups with the given name
-func (e *Exchange) GetSTPGroup(ctx context.Context, name string) ([]*STPGroup, error) {
+// GetSelfTradePreventionGroup retrieves the self-trade prevention groups with the given name
+func (e *Exchange) GetSelfTradePreventionGroup(ctx context.Context, name string) ([]*SelfTradePreventionGroup, error) {
 	if name == "" {
-		return nil, errSTPGroupNameRequired
+		return nil, errSelfTradePreventionGroupNameRequired
 	}
 	params := url.Values{}
 	params.Set("tradeGroupName", name)
 	var resp struct {
-		Data []*STPGroup `json:"data"`
+		Data []*SelfTradePreventionGroup `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, getSTPGroupEPL, http.MethodGet, "strategy/group", params, nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, getSelfTradePreventionGroupEPL, http.MethodGet, "strategy/group", params, nil, &resp, true)
 }
 
-// DeleteSTPGroup deletes a self-trade prevention group and reports whether the venue deleted it
-func (e *Exchange) DeleteSTPGroup(ctx context.Context, groupID string) (bool, error) {
+// DeleteSelfTradePreventionGroup deletes a self-trade prevention group and reports whether the venue
+// deleted it
+func (e *Exchange) DeleteSelfTradePreventionGroup(ctx context.Context, groupID string) (bool, error) {
 	if groupID == "" {
-		return false, errSTPGroupIDRequired
+		return false, errSelfTradePreventionGroupIDRequired
 	}
 	params := url.Values{}
 	params.Set("tradeGroupId", groupID)
 	var resp struct {
 		Data bool `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSTPGroupEPL, http.MethodDelete, "strategy/group", params, nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSelfTradePreventionGroupEPL, http.MethodDelete, "strategy/group", params, nil, &resp, true)
 }
 
-// AddSTPGroupUIDs adds uids to a self-trade prevention group
-func (e *Exchange) AddSTPGroupUIDs(ctx context.Context, groupID string, uids []string) (*STPGroup, error) {
-	params, err := stpGroupUIDParams(groupID, uids)
+// AddSelfTradePreventionGroupUIDs adds uids to a self-trade prevention group
+func (e *Exchange) AddSelfTradePreventionGroupUIDs(ctx context.Context, groupID string, uids []string) (*SelfTradePreventionGroup, error) {
+	params, err := selfTradePreventionGroupUIDParams(groupID, uids)
 	if err != nil {
 		return nil, err
 	}
 	var resp struct {
-		Data *STPGroup `json:"data"`
+		Data *SelfTradePreventionGroup `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, addSTPGroupUIDsEPL, http.MethodPost, "strategy/group/uid", params, nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, addSelfTradePreventionGroupUIDsEPL, http.MethodPost, "strategy/group/uid", params, nil, &resp, true)
 }
 
-// DeleteSTPGroupUIDs removes uids from a self-trade prevention group and reports whether the venue
-// removed them
-func (e *Exchange) DeleteSTPGroupUIDs(ctx context.Context, groupID string, uids []string) (bool, error) {
-	params, err := stpGroupUIDParams(groupID, uids)
+// DeleteSelfTradePreventionGroupUIDs removes uids from a self-trade prevention group and reports whether
+// the venue removed them
+func (e *Exchange) DeleteSelfTradePreventionGroupUIDs(ctx context.Context, groupID string, uids []string) (bool, error) {
+	params, err := selfTradePreventionGroupUIDParams(groupID, uids)
 	if err != nil {
 		return false, err
 	}
 	var resp struct {
 		Data bool `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSTPGroupUIDsEPL, http.MethodDelete, "strategy/group/uid", params, nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSelfTradePreventionGroupUIDsEPL, http.MethodDelete, "strategy/group/uid", params, nil, &resp, true)
 }
 
-// stpGroupUIDParams builds the group id and comma-separated uid list the STP group uid endpoints take
-func stpGroupUIDParams(groupID string, uids []string) (url.Values, error) {
+// selfTradePreventionGroupUIDParams builds the group id and comma-separated uid list the self-trade
+// prevention group uid endpoints take
+func selfTradePreventionGroupUIDParams(groupID string, uids []string) (url.Values, error) {
 	if groupID == "" {
-		return nil, errSTPGroupIDRequired
+		return nil, errSelfTradePreventionGroupIDRequired
 	}
 	if len(uids) == 0 {
 		return nil, errUIDRequired
