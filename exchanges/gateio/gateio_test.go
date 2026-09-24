@@ -1206,39 +1206,58 @@ func TestSubAccountTransfer(t *testing.T) {
 
 func TestGetSubAccountTransferHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if _, err := e.GetSubAccountTransferHistory(t.Context(), "", time.Time{}, time.Time{}, 0, 0); err != nil {
-		t.Errorf("%s GetSubAccountTransferHistory() error %v", e.Name, err)
-	}
-}
-
-func TestGetSubAccountTransferHistoryTimeRange(t *testing.T) {
-	t.Parallel()
 
 	from := time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC)
 	to := from.Add(24 * time.Hour)
+	earliest := time.Date(2020, time.April, 10, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
-		name         string
-		from         time.Time
-		to           time.Time
-		expectedFrom string
-		expectedTo   string
-		expectedErr  error
+		name          string
+		from          time.Time
+		to            time.Time
+		offset        uint64
+		limit         uint64
+		allAccounts   bool
+		expectedQuery url.Values
+		expectedErr   error
 	}{
 		{
-			name: "unset range keeps the exchange default window",
+			name:          "unset range keeps the exchange default window",
+			expectedQuery: url.Values{"sub_uid": {"1337"}},
 		},
 		{
-			name:         "full range is forwarded",
-			from:         from,
-			to:           to,
-			expectedFrom: strconv.FormatInt(from.Unix(), 10),
-			expectedTo:   strconv.FormatInt(to.Unix(), 10),
+			name:          "unset sub-account includes all accounts",
+			allAccounts:   true,
+			expectedQuery: url.Values{},
 		},
 		{
-			name:       "end without start is forwarded",
-			to:         to,
-			expectedTo: strconv.FormatInt(to.Unix(), 10),
+			name:          "full range and pagination are forwarded",
+			from:          from,
+			to:            to,
+			offset:        5,
+			limit:         10,
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(to.Unix(), 10)}, "offset": {"5"}, "limit": {"10"}},
+		},
+		{
+			name:          "start without end is forwarded",
+			from:          from,
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}},
+		},
+		{
+			name:          "end without start is forwarded",
+			to:            to,
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "to": {strconv.FormatInt(to.Unix(), 10)}},
+		},
+		{
+			name:          "earliest time is accepted",
+			from:          earliest,
+			to:            earliest.Add(time.Hour),
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(earliest.Unix(), 10)}, "to": {strconv.FormatInt(earliest.Add(time.Hour).Unix(), 10)}},
+		},
+		{
+			name:          "30 day range is accepted",
+			from:          from,
+			to:            from.Add(30 * 24 * time.Hour),
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Add(30*24*time.Hour).Unix(), 10)}},
 		},
 		{
 			name:        "start after end is rejected",
@@ -1247,8 +1266,14 @@ func TestGetSubAccountTransferHistoryTimeRange(t *testing.T) {
 			expectedErr: common.ErrStartAfterEnd,
 		},
 		{
+			name:        "range over 30 days is rejected",
+			from:        from,
+			to:          from.Add(30*24*time.Hour + time.Second),
+			expectedErr: errSubAccountTransferHistoryRange,
+		},
+		{
 			name:        "start before the earliest available record is rejected",
-			from:        time.Date(2019, time.January, 1, 0, 0, 0, 0, time.UTC),
+			from:        earliest.Add(-time.Second),
 			to:          to,
 			expectedErr: errSubAccountTransferHistoryStart,
 		},
@@ -1259,9 +1284,7 @@ func TestGetSubAccountTransferHistoryTimeRange(t *testing.T) {
 			var requests atomic.Int64
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests.Add(1)
-				assert.Equal(t, "1337", r.URL.Query().Get("sub_uid"), "sub-account user id should be forwarded")
-				assert.Equal(t, tc.expectedFrom, r.URL.Query().Get("from"), "from should match the requested time range")
-				assert.Equal(t, tc.expectedTo, r.URL.Query().Get("to"), "to should match the requested time range")
+				assert.Equal(t, tc.expectedQuery, r.URL.Query(), "query parameters should match the requested transfer history")
 				_, err := w.Write([]byte(`[]`))
 				assert.NoError(t, err, "Mocked transfer history response should be written")
 			}))
@@ -1273,7 +1296,11 @@ func TestGetSubAccountTransferHistoryTimeRange(t *testing.T) {
 			ex.API.AuthenticatedSupport = true
 			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
-			_, err := ex.GetSubAccountTransferHistory(t.Context(), "1337", tc.from, tc.to, 0, 0)
+			subAccountUserID := "1337"
+			if tc.allAccounts {
+				subAccountUserID = ""
+			}
+			_, err := ex.GetSubAccountTransferHistory(t.Context(), subAccountUserID, tc.from, tc.to, tc.offset, tc.limit)
 			if tc.expectedErr != nil {
 				require.ErrorIs(t, err, tc.expectedErr, "an unusable time range must be reported to the caller")
 				assert.Zero(t, requests.Load(), "a request with an unusable time range should not be sent")
@@ -1283,6 +1310,12 @@ func TestGetSubAccountTransferHistoryTimeRange(t *testing.T) {
 			assert.Equal(t, int64(1), requests.Load(), "a valid request should reach the exchange once")
 		})
 	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		_, err := e.GetSubAccountTransferHistory(t.Context(), "", time.Time{}, time.Time{}, 0, 0)
+		require.NoError(t, err, "GetSubAccountTransferHistory must not error")
+	})
 }
 
 func TestSubAccountTransferToSubAccount(t *testing.T) {
