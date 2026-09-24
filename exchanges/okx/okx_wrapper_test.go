@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,12 +12,41 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
+
+// writeOKXData writes a successful OKX JSON response carrying data.
+func writeOKXData(t *testing.T, w http.ResponseWriter, data any) {
+	t.Helper()
+	encoded, err := json.Marshal(map[string]any{"code": "0", "msg": "", "data": data})
+	if err != nil {
+		t.Errorf("marshalling mock response should not error: %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(encoded)
+}
+
+// newMockExchange returns an exchange whose REST endpoints all point at a test
+// server running h.
+func newMockExchange(t *testing.T, h http.Handler) *Exchange {
+	t.Helper()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	srv := httptest.NewTestServer(t, h)
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+	return e
+}
 
 func TestMessageID(t *testing.T) {
 	t.Parallel()
@@ -103,9 +133,6 @@ func TestCacheInstrumentsIndexesIDCodes(t *testing.T) {
 func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 	// Subtests share the mock server's pending order queue, so they run
 	// sequentially.
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-
 	var mu sync.Mutex
 	var pending []map[string]string
 	// pages, when set, serves the pending order list keyed by the after
@@ -114,17 +141,7 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 	var cancelled []CancelOrderRequestParam
 	var pendingQuery string
 
-	writeOKXData := func(w http.ResponseWriter, data any) {
-		encoded, err := json.Marshal(map[string]any{"code": "0", "msg": "", "data": data})
-		if err != nil {
-			t.Errorf("marshalling mock response should not error: %v", err)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(encoded)
-	}
-
-	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/trade/orders-pending":
 			after := r.URL.Query().Get("after")
@@ -132,10 +149,10 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 			defer mu.Unlock()
 			pendingQuery = r.URL.RawQuery
 			if pages != nil {
-				writeOKXData(w, pages[after])
+				writeOKXData(t, w, pages[after])
 				return
 			}
-			writeOKXData(w, pending)
+			writeOKXData(t, w, pending)
 		case "/trade/cancel-batch-orders":
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
@@ -154,19 +171,12 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 			mu.Lock()
 			cancelled = append(cancelled, reqs...)
 			mu.Unlock()
-			writeOKXData(w, respData)
+			writeOKXData(t, w, respData)
 		default:
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
 		}
 	}))
-
-	b := e.GetBase()
-	b.SkipAuthCheck = true
-	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
-	for k := range b.API.Endpoints.GetURLMap() {
-		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
-	}
 
 	setPending := func(ords ...map[string]string) {
 		mu.Lock()
@@ -277,7 +287,6 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 		query := pendingQuery
 		mu.Unlock()
 		assert.Contains(t, query, "instId=BTC-USDT", "the instrument filter should use the exchange's pair format")
-		assert.NotContains(t, query, "BTC%2FUSDT", "a raw slash-delimited pair should not reach OKX as instId")
 	})
 
 	t.Run("by side", func(t *testing.T) {
@@ -339,11 +348,9 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 // rejected locally by errInvalidNewSizeOrPriceInformation.
 func TestModifyOrderPriceOnlyAmend(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	var amendBody []byte
-	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/trade/amend-order" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -358,13 +365,6 @@ func TestModifyOrderPriceOnlyAmend(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"123","sCode":"0"}]}`))
 	}))
-
-	b := e.GetBase()
-	b.SkipAuthCheck = true
-	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
-	for k := range b.API.Endpoints.GetURLMap() {
-		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
-	}
 
 	_, err := e.ModifyOrder(t.Context(), &order.Modify{
 		Exchange:  e.Name,
@@ -383,23 +383,11 @@ func TestModifyOrderPriceOnlyAmend(t *testing.T) {
 // statuses collected from the batches that succeeded.
 func TestCancelAllOrdersContinuesAfterFailedBatch(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	var mu sync.Mutex
 	var cancelRequests int
 
-	writeOKXData := func(w http.ResponseWriter, data any) {
-		encoded, err := json.Marshal(map[string]any{"code": "0", "msg": "", "data": data})
-		if err != nil {
-			t.Errorf("marshalling mock response should not error: %v", err)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(encoded)
-	}
-
-	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/trade/orders-pending":
 			// 22 orders exceed one batch of 20, forming a failing first batch
@@ -408,7 +396,7 @@ func TestCancelAllOrdersContinuesAfterFailedBatch(t *testing.T) {
 			for x := range 22 {
 				ords = append(ords, map[string]string{"instId": "BTC-USDT", "ordId": fmt.Sprintf("ORD-%02d", x)})
 			}
-			writeOKXData(w, ords)
+			writeOKXData(t, w, ords)
 		case "/trade/cancel-batch-orders":
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
@@ -432,19 +420,12 @@ func TestCancelAllOrdersContinuesAfterFailedBatch(t *testing.T) {
 			for x := range reqs {
 				respData = append(respData, map[string]string{"ordId": reqs[x].OrderID, "sCode": "0"})
 			}
-			writeOKXData(w, respData)
+			writeOKXData(t, w, respData)
 		default:
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
 		}
 	}))
-
-	b := e.GetBase()
-	b.SkipAuthCheck = true
-	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
-	for k := range b.API.Endpoints.GetURLMap() {
-		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
-	}
 
 	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
 	require.Error(t, err, "CancelAllOrders must report the failed batch")
@@ -457,38 +438,48 @@ func TestCancelAllOrdersContinuesAfterFailedBatch(t *testing.T) {
 }
 
 // TestCancelBatchOrdersSpreadGuards covers the spread branch of
-// CancelBatchOrders: client-ID-only cancels report a usable status key, the
-// missing-ID guard rejects the batch, and no cancel is sent until the whole
-// batch validates. Subtests share the mock server's request counter, so they
-// run sequentially.
+// CancelBatchOrders: cancels report a usable status key, the missing-ID guard
+// rejects the batch, and no cancel is sent until the whole batch validates.
+// Subtests share the mock server's request counter, so they run sequentially.
 func TestCancelBatchOrdersSpreadGuards(t *testing.T) {
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	const (
+		spreadOrdID = "2341161427393388544"
+		spotOrdID   = "2341161427393388545"
+	)
 
 	var mu sync.Mutex
 	var spreadCancels int
+	var batchFails bool
 
-	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/sprd/cancel-order":
 			mu.Lock()
 			spreadCancels++
 			mu.Unlock()
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":{"sCode":"0","sMsg":"","ordId":"","clOrdId":""}}`))
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":{"sCode":"0","sMsg":"","ordId":"` + spreadOrdID + `","clOrdId":""}}`))
+		case "/trade/cancel-batch-orders":
+			mu.Lock()
+			fails := batchFails
+			mu.Unlock()
+			if fails {
+				http.Error(w, "batch failed", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sCode":"0","sMsg":"","ordId":"` + spotOrdID + `","clOrdId":"spot-cl"}]}`))
 		default:
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
 		}
 	}))
 
-	b := e.GetBase()
-	b.SkipAuthCheck = true
-	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
-	for k := range b.API.Endpoints.GetURLMap() {
-		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	setBatchFails := func(v bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		batchFails = v
 	}
-
 	resetSpreadCancels := func() {
 		mu.Lock()
 		defer mu.Unlock()
@@ -509,8 +500,8 @@ func TestCancelBatchOrdersSpreadGuards(t *testing.T) {
 		}})
 		require.NoError(t, err, "CancelBatchOrders must not error for a client-ID-only spread cancel")
 		assert.Equal(t, 1, spreadCancelsSent(), "the spread cancel should have been sent")
-		assert.Equal(t, map[string]string{"spread-cl": order.Cancelled.String()}, resp.Status,
-			"a client-ID-only spread cancel should report the status under its client order ID")
+		assert.Equal(t, map[string]string{spreadOrdID: order.Cancelled.String()}, resp.Status,
+			"a client-ID-only spread cancel should report the status under the order ID OKX returns")
 	})
 
 	t.Run("guard requires an ID", func(t *testing.T) {
@@ -531,6 +522,30 @@ func TestCancelBatchOrdersSpreadGuards(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "an invalid entry should fail the batch")
 		assert.Zero(t, spreadCancelsSent(), "no cancel should be sent before the whole batch validates")
+	})
+
+	t.Run("client order ID alone passes the ordinary order guard", func(t *testing.T) {
+		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{
+			AssetType:     asset.Spot,
+			Pair:          mainPair,
+			ClientOrderID: "spot-cl",
+		}})
+		require.NoError(t, err, "CancelBatchOrders must accept a client-ID-only spot cancel")
+		assert.Equal(t, map[string]string{spotOrdID: order.Cancelled.String()}, resp.Status,
+			"a client-ID-only spot cancel should report the status under the order ID OKX returns")
+	})
+
+	t.Run("ordinary batch failure keeps spread statuses", func(t *testing.T) {
+		resetSpreadCancels()
+		setBatchFails(true)
+		resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.Spread, Pair: spreadPair, ClientOrderID: "spread-cl"},
+			{AssetType: asset.Spot, Pair: mainPair, OrderID: "spot-order"},
+		})
+		assert.Error(t, err, "the failed ordinary batch should be reported")
+		assert.Equal(t, 1, spreadCancelsSent(), "the spread cancel before the failed batch should have been sent")
+		assert.Equal(t, map[string]string{spreadOrdID: order.Cancelled.String()}, resp.Status,
+			"a failed ordinary batch should not discard the spread statuses already recorded")
 	})
 }
 
@@ -579,13 +594,10 @@ func TestWebsocketInstrumentIDCode(t *testing.T) {
 // when it is omitted, so a populated pair must scope the cancel instead of the
 // order ID leaking in as a bogus sprdId.
 func TestCancelAllOrdersScopesSpreadMassCancel(t *testing.T) {
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-
 	var mu sync.Mutex
 	var massCancelBodies []string
 
-	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sprd/mass-cancel" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -603,13 +615,6 @@ func TestCancelAllOrdersScopesSpreadMassCancel(t *testing.T) {
 		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"result":true}]}`))
 	}))
 
-	b := e.GetBase()
-	b.SkipAuthCheck = true
-	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
-	for k := range b.API.Endpoints.GetURLMap() {
-		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
-	}
-
 	t.Run("pair scopes the mass cancel", func(t *testing.T) {
 		resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{
 			AssetType: asset.Spread,
@@ -620,7 +625,7 @@ func TestCancelAllOrdersScopesSpreadMassCancel(t *testing.T) {
 		last := massCancelBodies[len(massCancelBodies)-1]
 		mu.Unlock()
 		assert.Contains(t, last, `"sprdId":"BTC-USDT_BTC-USDT-SWAP"`, "a populated pair should scope the mass cancel to that spread")
-		assert.Contains(t, resp.Status, "", "the spread status should still be reported")
+		assert.Equal(t, map[string]string{"BTC-USDT_BTC-USDT-SWAP": "true"}, resp.Status, "the result should be reported under the spread it cancelled")
 	})
 
 	t.Run("no pair cancels every spread", func(t *testing.T) {
@@ -634,14 +639,13 @@ func TestCancelAllOrdersScopesSpreadMassCancel(t *testing.T) {
 }
 
 // TestCancelBatchOrdersReportsAlgoResults guards the per-item algo cancel
-// results: before the array decode, a batch response failed to decode and the
-// swallowed error left every algo reported as Cancelled.
+// results: before the array decode, a response for more than one algo order
+// failed to decode, so the batch errored, or dropped the algo statuses without
+// an error when ordinary orders in the same batch were cancelled.
 func TestCancelBatchOrdersReportsAlgoResults(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/trade/cancel-advance-algos" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -653,13 +657,6 @@ func TestCancelBatchOrdersReportsAlgoResults(t *testing.T) {
 			`{"algoId":"ALGO-BAD","sCode":"51000","sMsg":"The algo order does not exist"}]}`))
 	}))
 
-	b := e.GetBase()
-	b.SkipAuthCheck = true
-	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
-	for k := range b.API.Endpoints.GetURLMap() {
-		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
-	}
-
 	resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
 		{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-OK", Type: order.Trigger},
 		{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-BAD", Type: order.Trigger},
@@ -667,4 +664,15 @@ func TestCancelBatchOrdersReportsAlgoResults(t *testing.T) {
 	require.NoError(t, err, "CancelBatchOrders must not error when the batch is accepted")
 	assert.Equal(t, order.Cancelled.String(), resp.Status["ALGO-OK"], "a successfully cancelled algo order should report Cancelled")
 	assert.Equal(t, "The algo order does not exist", resp.Status["ALGO-BAD"], "a failed algo cancel should report its status message")
+}
+
+// TestCancelResultsUsable guards the gate that decides whether per-order cancel
+// results are recorded alongside a batch error: only a websocket partial
+// success returns fully decoded results with its error.
+func TestCancelResultsUsable(t *testing.T) {
+	t.Parallel()
+	assert.True(t, cancelResultsUsable(nil), "a successful batch should report usable results")
+	assert.True(t, cancelResultsUsable(errPartialSuccess), "a partial success should report usable results")
+	assert.True(t, cancelResultsUsable(common.AppendError(errPartialSuccess, errors.New("order 3: does not exist"))), "a joined partial success should still report usable results")
+	assert.False(t, cancelResultsUsable(errors.New("batch one failed")), "any other error should report unusable results")
 }

@@ -1395,21 +1395,28 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, o[x].Type)
 		}
 	}
+	// Cancels from here on execute, so a failure returns resp with the
+	// statuses already recorded rather than discarding them.
 	for x := range cancelSpreadOrderParams {
 		ord := cancelSpreadOrderParams[x]
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
-		} else {
-			_, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		// OKX accepts spread operations only on its business websocket, and
+		// WSCancelSpreadOrder sends on the private one, so spread cancels use REST.
+		var cancelled *SpreadOrderResponse
+		cancelled, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		switch {
+		case err != nil:
+			return resp, err
+		case cancelled == nil:
+			return resp, fmt.Errorf("%w cancelling spread order ID %q client order ID %q", common.ErrNoResponse, ord.OrderID, ord.ClientOrderID)
+		case cancelled.StatusCode != 0:
+			return resp, getStatusError(cancelled.StatusCode, cancelled.StatusMessage)
+		case cancelled.OrderID == "":
+			return resp, fmt.Errorf("%w: no order ID cancelling spread order ID %q client order ID %q", common.ErrInvalidResponse, ord.OrderID, ord.ClientOrderID)
 		}
-		if err != nil {
-			return nil, err
-		}
-		statusKey := ord.OrderID
-		if statusKey == "" {
-			statusKey = ord.ClientOrderID
-		}
-		resp.Status[statusKey] = order.Cancelled.String()
+		// Status keys are exchange order IDs, as on the ordinary path below, so
+		// each cancel is keyed by the ordId OKX returns, even one sent by client
+		// order ID.
+		resp.Status[cancelled.OrderID] = order.Cancelled.String()
 	}
 	if len(cancelOrderParams) > 0 {
 		var canceledOrders []*OrderData
@@ -1418,16 +1425,20 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		} else {
 			canceledOrders, err = e.CancelMultipleOrders(ctx, cancelOrderParams)
 		}
-		if err != nil {
-			return nil, err
-		}
-		for x := range canceledOrders {
-			resp.Status[canceledOrders[x].OrderID] = func() string {
-				if canceledOrders[x].StatusCode != 0 {
-					return ""
+		if cancelResultsUsable(err) {
+			for x := range canceledOrders {
+				if canceledOrders[x] == nil || canceledOrders[x].OrderID == "" {
+					continue
 				}
-				return order.Cancelled.String()
-			}()
+				if canceledOrders[x].StatusCode == 0 {
+					resp.Status[canceledOrders[x].OrderID] = order.Cancelled.String()
+				} else {
+					resp.Status[canceledOrders[x].OrderID] = canceledOrders[x].StatusMessage
+				}
+			}
+		}
+		if err != nil {
+			return resp, err
 		}
 	}
 	if len(cancelAlgoOrderParams) > 0 {
@@ -1475,11 +1486,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if err != nil {
 			return cancelAllResponse, err
 		}
-		statusKey := orderCancellation.OrderID
-		if statusKey == "" {
-			statusKey = orderCancellation.ClientOrderID
-		}
-		cancelAllResponse.Status[statusKey] = strconv.FormatBool(success)
+		// The result is keyed by the scope the request sent, since the order ID
+		// and client order ID scope nothing on a mass cancel.
+		cancelAllResponse.Status[spreadID] = strconv.FormatBool(success)
 		return cancelAllResponse, nil
 	}
 
@@ -1578,10 +1587,14 @@ ordersLoop:
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	var errs error
 	for range loop {
-		if err := ctx.Err(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
 			// A dead context stops the loop; the statuses and errors collected
 			// so far are still returned so the caller sees what was cancelled.
-			errs = common.AppendError(errs, err)
+			// The failed batch's error already carries the context error, so
+			// append it only once.
+			if !errors.Is(errs, ctxErr) {
+				errs = common.AppendError(errs, ctxErr)
+			}
 			break
 		}
 		batch := remaining
@@ -1597,13 +1610,16 @@ ordersLoop:
 		} else {
 			response, err = e.CancelMultipleOrders(ctx, batch)
 		}
-		if err != nil {
-			// A failed batch does not stop later batches; the errors are
-			// joined so a cancel-all still reaches every remaining order.
-			errs = common.AppendError(errs, err)
+		// A failed batch does not stop later batches; the errors are joined so
+		// a cancel-all still reaches every remaining order.
+		errs = common.AppendError(errs, err)
+		if !cancelResultsUsable(err) {
 			continue
 		}
 		for y := range response {
+			if response[y] == nil || response[y].OrderID == "" {
+				continue
+			}
 			if response[y].StatusCode == 0 {
 				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
 			} else {
@@ -1615,6 +1631,14 @@ ordersLoop:
 		return cancelAllResponse, errs
 	}
 	return cancelAllResponse, nil
+}
+
+// cancelResultsUsable reports whether per-order cancel results can be recorded
+// alongside err. A websocket partial success returns fully decoded results with
+// its error; any other error, a decode error included, can leave them half
+// populated.
+func cancelResultsUsable(err error) bool {
+	return err == nil || errors.Is(err, errPartialSuccess)
 }
 
 // GetOrderInfo returns order information based on order ID
