@@ -2,7 +2,10 @@ package btse
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"sync"
 	"testing"
@@ -21,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -320,6 +324,66 @@ func TestCreateWalletAddress(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.CreateWalletAddress(t.Context(), "XRP")
 	assert.NoError(t, err, "CreateWalletAddress should not error")
+}
+
+func TestCreateWalletAddressErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ordinary BTSE error", func(t *testing.T) {
+		t.Parallel()
+		ex := newCreateWalletAddressTestExchange(t, `{"errorCode":1234,"message":"BADREQUEST: invalid currency","status":400}`)
+		resp, err := ex.CreateWalletAddress(t.Context(), "INVALID")
+		assert.Empty(t, resp, "CreateWalletAddress response should be empty")
+		assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWalletAddress should preserve the request error")
+		assert.ErrorContains(t, err, `"errorCode":1234`, "CreateWalletAddress should preserve the BTSE response")
+	})
+
+	t.Run("missing raw response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		resp, err := ex.CreateWalletAddress(ctx, "BTC")
+		assert.Empty(t, resp, "CreateWalletAddress response should be empty")
+		assert.ErrorIs(t, err, context.Canceled, "CreateWalletAddress should preserve the context error")
+	})
+
+	t.Run("malformed existing address message", func(t *testing.T) {
+		t.Parallel()
+		ex := newCreateWalletAddressTestExchange(t, `{"errorCode":3528,"message":"unexpected format","status":400}`)
+		resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
+		assert.Empty(t, resp, "CreateWalletAddress response should be empty")
+		assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWalletAddress should preserve the request error")
+	})
+
+	t.Run("existing address", func(t *testing.T) {
+		t.Parallel()
+		ex := newCreateWalletAddressTestExchange(t, `{"errorCode":3528,"message":"BADREQUEST: existing-address","status":400}`)
+		resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
+		require.NoError(t, err, "CreateWalletAddress must accept BTSE's existing address response")
+		require.Len(t, resp, 1, "CreateWalletAddress must return one address")
+		assert.Equal(t, "existing-address", resp[0].Address, "CreateWalletAddress should return the existing address")
+	})
+}
+
+func newCreateWalletAddressTestExchange(t *testing.T, response string) *Exchange {
+	t.Helper()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method, "CreateWalletAddress should use POST")
+		assert.Equal(t, "/spot/api/v3.2/user/wallet/address", r.URL.Path, "CreateWalletAddress should use the wallet address endpoint")
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := fmt.Fprint(w, response)
+		assert.NoError(t, err, "writing the wallet address response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	return ex
 }
 
 func TestWalletAddressUnmarshalJSON(t *testing.T) {
