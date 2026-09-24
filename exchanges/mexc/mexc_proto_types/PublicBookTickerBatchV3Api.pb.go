@@ -24,10 +24,12 @@ const (
 )
 
 type PublicBookTickerBatchV3Api struct {
-	state         protoimpl.MessageState   `protogen:"open.v1"`
-	Items         []*PublicBookTickerV3Api `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState   `protogen:"open.v1"`
+	Items               []*PublicBookTickerV3Api `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Version             string                   `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	LastOrderCreateTime int64                    `protobuf:"varint,3,opt,name=lastOrderCreateTime,proto3" json:"lastOrderCreateTime,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PublicBookTickerBatchV3Api) Reset() {
@@ -67,13 +69,30 @@ func (x *PublicBookTickerBatchV3Api) GetItems() []*PublicBookTickerV3Api {
 	return nil
 }
 
+func (x *PublicBookTickerBatchV3Api) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *PublicBookTickerBatchV3Api) GetLastOrderCreateTime() int64 {
+	if x != nil {
+		return x.LastOrderCreateTime
+	}
+	return 0
+}
+
 var File_PublicBookTickerBatchV3Api_proto protoreflect.FileDescriptor
 
 const file_PublicBookTickerBatchV3Api_proto_rawDesc = "" +
 	"\n" +
-	" PublicBookTickerBatchV3Api.proto\x1a\x1bPublicBookTickerV3Api.proto\"J\n" +
+	" PublicBookTickerBatchV3Api.proto\x1a\x1bPublicBookTickerV3Api.proto\"\x96\x01\n" +
 	"\x1aPublicBookTickerBatchV3Api\x12,\n" +
-	"\x05items\x18\x01 \x03(\v2\x16.PublicBookTickerV3ApiR\x05itemsB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\x05items\x18\x01 \x03(\v2\x16.PublicBookTickerV3ApiR\x05items\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x120\n" +
+	"\x13lastOrderCreateTime\x18\x03 \x01(\x03R\x13lastOrderCreateTimeB\x8c\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x1fPublicBookTickerBatchV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicBookTickerBatchV3Api_proto_rawDescOnce sync.Once

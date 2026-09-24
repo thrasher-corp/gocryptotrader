@@ -185,7 +185,8 @@ const file_PublicMiniTickerV3Api_proto_rawDesc = "" +
 	"\x12lastCloseZonedRate\x18\n" +
 	" \x01(\tR\x12lastCloseZonedRate\x12$\n" +
 	"\rlastCloseHigh\x18\v \x01(\tR\rlastCloseHigh\x12\"\n" +
-	"\flastCloseLow\x18\f \x01(\tR\flastCloseLowB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\flastCloseLow\x18\f \x01(\tR\flastCloseLowB\x87\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x1aPublicMiniTickerV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicMiniTickerV3Api_proto_rawDescOnce sync.Once

@@ -1,0 +1,36 @@
+// spot@public.miniTicker.v3.api
+
+syntax = "proto3";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PublicMiniTickerV3ApiProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PublicMiniTickerV3Api {
+  // 交易对名
+  string symbol = 1;
+  // 最新价格
+  string price = 2;
+  // utc+8时区涨跌幅
+  string rate = 3;
+  // 时区涨跌幅
+  string zonedRate = 4;
+  // 滚动最高价
+  string high = 5;
+  // 滚动最低价
+  string low = 6;
+  // 滚动成交额
+  string volume = 7;
+  // 滚动成交量
+  string quantity = 8;
+  // utc+8时区上期收盘价模式涨跌幅
+  string lastCloseRate = 9;
+  // 上期收盘价模式时区涨跌幅
+  string lastCloseZonedRate = 10;
+  // 上期收盘价模式滚动最高价
+  string lastCloseHigh = 11;
+  // 上期收盘价模式滚动最低价
+  string lastCloseLow = 12;
+}

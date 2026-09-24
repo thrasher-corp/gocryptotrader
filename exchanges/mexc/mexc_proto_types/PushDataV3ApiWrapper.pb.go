@@ -23,10 +23,10 @@ const (
 
 type PushDataV3ApiWrapper struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// *
+	//*
 	// 频道
 	Channel string `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
-	// *
+	//*
 	// 数据，NOTE：因为不能重复，所以类型和变量名尽量使用全名
 	//
 	// Types that are valid to be assigned to Body:
@@ -47,16 +47,16 @@ type PushDataV3ApiWrapper struct {
 	//	*PushDataV3ApiWrapper_PublicAggreDeals
 	//	*PushDataV3ApiWrapper_PublicAggreBookTicker
 	Body isPushDataV3ApiWrapper_Body `protobuf_oneof:"body"`
-	// *
+	//*
 	// 交易对
 	Symbol *string `protobuf:"bytes,3,opt,name=symbol,proto3,oneof" json:"symbol,omitempty"`
-	// *
+	//*
 	// 交易对ID
 	SymbolId *string `protobuf:"bytes,4,opt,name=symbolId,proto3,oneof" json:"symbolId,omitempty"`
-	// *
+	//*
 	// 消息生成时间
 	CreateTime *int64 `protobuf:"varint,5,opt,name=createTime,proto3,oneof" json:"createTime,omitempty"`
-	// *
+	//*
 	// 消息推送时间
 	SendTime      *int64 `protobuf:"varint,6,opt,name=sendTime,proto3,oneof" json:"sendTime,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -368,7 +368,7 @@ var File_PushDataV3ApiWrapper_proto protoreflect.FileDescriptor
 
 const file_PushDataV3ApiWrapper_proto_rawDesc = "" +
 	"\n" +
-	"\x1aPushDataV3ApiWrapper.proto\x1a\x16PublicDealsV3Api.proto\x1a\x1fPublicIncreaseDepthsV3Api.proto\x1a\x1cPublicLimitDepthsV3Api.proto\x1a\x18PrivateOrdersV3Api.proto\x1a\x1bPublicBookTickerV3Api.proto\x1a\x17PrivateDealsV3Api.proto\x1a\x19PrivateAccountV3Api.proto\x1a\x1aPublicSpotKlineV3Api.proto\x1a\x1bPublicMiniTickerV3Api.proto\x1a\x1cPublicMiniTickersV3Api.proto\x1a PublicBookTickerBatchV3Api.proto\x1a$PublicIncreaseDepthsBatchV3Api.proto\x1a\x1cPublicAggreDepthsV3Api.proto\x1a\x1bPublicAggreDealsV3Api.proto\x1a PublicAggreBookTickerV3Api.proto\"\xba\n" +
+	"\x1aPushDataV3ApiWrapper.proto\x1a\x19PrivateAccountV3Api.proto\x1a\x17PrivateDealsV3Api.proto\x1a\x18PrivateOrdersV3Api.proto\x1a PublicAggreBookTickerV3Api.proto\x1a\x1bPublicAggreDealsV3Api.proto\x1a\x1cPublicAggreDepthsV3Api.proto\x1a PublicBookTickerBatchV3Api.proto\x1a\x1bPublicBookTickerV3Api.proto\x1a\x16PublicDealsV3Api.proto\x1a$PublicIncreaseDepthsBatchV3Api.proto\x1a\x1fPublicIncreaseDepthsV3Api.proto\x1a\x1cPublicLimitDepthsV3Api.proto\x1a\x1bPublicMiniTickerV3Api.proto\x1a\x1cPublicMiniTickersV3Api.proto\x1a\x1aPublicSpotKlineV3Api.proto\"\xba\n" +
 	"\n" +
 	"\x14PushDataV3ApiWrapper\x12\x18\n" +
 	"\achannel\x18\x01 \x01(\tR\achannel\x126\n" +
@@ -397,7 +397,8 @@ const file_PushDataV3ApiWrapper_proto_rawDesc = "" +
 	"\a_symbolB\v\n" +
 	"\t_symbolIdB\r\n" +
 	"\v_createTimeB\v\n" +
-	"\t_sendTimeB;H\x01Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\t_sendTimeB\x86\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x19PushDataV3ApiWrapperProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PushDataV3ApiWrapper_proto_rawDescOnce sync.Once
@@ -458,21 +459,21 @@ func file_PushDataV3ApiWrapper_proto_init() {
 	if File_PushDataV3ApiWrapper_proto != nil {
 		return
 	}
+	file_PrivateAccountV3Api_proto_init()
+	file_PrivateDealsV3Api_proto_init()
+	file_PrivateOrdersV3Api_proto_init()
+	file_PublicAggreBookTickerV3Api_proto_init()
+	file_PublicAggreDealsV3Api_proto_init()
+	file_PublicAggreDepthsV3Api_proto_init()
+	file_PublicBookTickerBatchV3Api_proto_init()
+	file_PublicBookTickerV3Api_proto_init()
 	file_PublicDealsV3Api_proto_init()
+	file_PublicIncreaseDepthsBatchV3Api_proto_init()
 	file_PublicIncreaseDepthsV3Api_proto_init()
 	file_PublicLimitDepthsV3Api_proto_init()
-	file_PrivateOrdersV3Api_proto_init()
-	file_PublicBookTickerV3Api_proto_init()
-	file_PrivateDealsV3Api_proto_init()
-	file_PrivateAccountV3Api_proto_init()
-	file_PublicSpotKlineV3Api_proto_init()
 	file_PublicMiniTickerV3Api_proto_init()
 	file_PublicMiniTickersV3Api_proto_init()
-	file_PublicBookTickerBatchV3Api_proto_init()
-	file_PublicIncreaseDepthsBatchV3Api_proto_init()
-	file_PublicAggreDepthsV3Api_proto_init()
-	file_PublicAggreDealsV3Api_proto_init()
-	file_PublicAggreBookTickerV3Api_proto_init()
+	file_PublicSpotKlineV3Api_proto_init()
 	file_PushDataV3ApiWrapper_proto_msgTypes[0].OneofWrappers = []any{
 		(*PushDataV3ApiWrapper_PublicDeals)(nil),
 		(*PushDataV3ApiWrapper_PublicIncreaseDepths)(nil),

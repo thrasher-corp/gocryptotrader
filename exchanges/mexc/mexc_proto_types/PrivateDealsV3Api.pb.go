@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -174,7 +173,8 @@ const file_PrivateDealsV3Api_proto_rawDesc = "" +
 	"\tfeeAmount\x18\n" +
 	" \x01(\tR\tfeeAmount\x12 \n" +
 	"\vfeeCurrency\x18\v \x01(\tR\vfeeCurrency\x12\x12\n" +
-	"\x04time\x18\f \x01(\x03R\x04timeB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\x04time\x18\f \x01(\x03R\x04timeB\x83\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x16PrivateDealsV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PrivateDealsV3Api_proto_rawDescOnce sync.Once

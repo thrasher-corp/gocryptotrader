@@ -1,0 +1,30 @@
+// spot@public.kline.v3.api.pb@<symbol>@<interval>
+
+syntax = "proto3";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PublicSpotKlineV3ApiProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PublicSpotKlineV3Api {
+  //K线周期(Min1,Min5,Min15,Min30,Min60,Hour4,Hour8,Day1,Week1,Month1)
+  string interval = 1;
+  // 窗口开始时间戳(秒时间戳)
+  int64 windowStart = 2;
+  // 开盘价
+  string openingPrice = 3;
+  // 收盘价
+  string closingPrice = 4;
+  // 最高价
+  string highestPrice = 5;
+  // 最低价
+  string lowestPrice = 6;
+  // 成交量
+  string volume = 7;
+  // 成交额
+  string amount = 8;
+  // 窗口结束时间戳(秒时间戳)
+  int64 windowEnd = 9;
+}

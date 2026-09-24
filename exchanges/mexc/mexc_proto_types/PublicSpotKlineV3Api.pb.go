@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -26,7 +25,7 @@ const (
 
 type PublicSpotKlineV3Api struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// K线周期(Min1,Min5,Min15,Min30,Min60,Hour4,Hour8,Day1,Week1,Month1)
+	//K线周期(Min1,Min5,Min15,Min30,Min60,Hour4,Hour8,Day1,Week1,Month1)
 	Interval string `protobuf:"bytes,1,opt,name=interval,proto3" json:"interval,omitempty"`
 	// 窗口开始时间戳(秒时间戳)
 	WindowStart int64 `protobuf:"varint,2,opt,name=windowStart,proto3" json:"windowStart,omitempty"`
@@ -155,7 +154,8 @@ const file_PublicSpotKlineV3Api_proto_rawDesc = "" +
 	"\vlowestPrice\x18\x06 \x01(\tR\vlowestPrice\x12\x16\n" +
 	"\x06volume\x18\a \x01(\tR\x06volume\x12\x16\n" +
 	"\x06amount\x18\b \x01(\tR\x06amount\x12\x1c\n" +
-	"\twindowEnd\x18\t \x01(\x03R\twindowEndB;H\x01Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\twindowEnd\x18\t \x01(\x03R\twindowEndB\x86\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x19PublicSpotKlineV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicSpotKlineV3Api_proto_rawDescOnce sync.Once

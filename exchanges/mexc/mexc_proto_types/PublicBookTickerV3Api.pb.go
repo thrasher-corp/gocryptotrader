@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -101,7 +100,8 @@ const file_PublicBookTickerV3Api_proto_rawDesc = "" +
 	"\bbidPrice\x18\x01 \x01(\tR\bbidPrice\x12 \n" +
 	"\vbidQuantity\x18\x02 \x01(\tR\vbidQuantity\x12\x1a\n" +
 	"\baskPrice\x18\x03 \x01(\tR\baskPrice\x12 \n" +
-	"\vaskQuantity\x18\x04 \x01(\tR\vaskQuantityB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\vaskQuantity\x18\x04 \x01(\tR\vaskQuantityB\x87\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x1aPublicBookTickerV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicBookTickerV3Api_proto_rawDescOnce sync.Once

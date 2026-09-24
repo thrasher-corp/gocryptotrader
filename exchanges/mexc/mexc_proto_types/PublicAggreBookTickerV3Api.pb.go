@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -25,13 +24,15 @@ const (
 )
 
 type PublicAggreBookTickerV3Api struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BidPrice      string                 `protobuf:"bytes,1,opt,name=bidPrice,proto3" json:"bidPrice,omitempty"`
-	BidQuantity   string                 `protobuf:"bytes,2,opt,name=bidQuantity,proto3" json:"bidQuantity,omitempty"`
-	AskPrice      string                 `protobuf:"bytes,3,opt,name=askPrice,proto3" json:"askPrice,omitempty"`
-	AskQuantity   string                 `protobuf:"bytes,4,opt,name=askQuantity,proto3" json:"askQuantity,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	BidPrice            string                 `protobuf:"bytes,1,opt,name=bidPrice,proto3" json:"bidPrice,omitempty"`
+	BidQuantity         string                 `protobuf:"bytes,2,opt,name=bidQuantity,proto3" json:"bidQuantity,omitempty"`
+	AskPrice            string                 `protobuf:"bytes,3,opt,name=askPrice,proto3" json:"askPrice,omitempty"`
+	AskQuantity         string                 `protobuf:"bytes,4,opt,name=askQuantity,proto3" json:"askQuantity,omitempty"`
+	Version             string                 `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
+	LastOrderCreateTime int64                  `protobuf:"varint,6,opt,name=lastOrderCreateTime,proto3" json:"lastOrderCreateTime,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PublicAggreBookTickerV3Api) Reset() {
@@ -92,16 +93,33 @@ func (x *PublicAggreBookTickerV3Api) GetAskQuantity() string {
 	return ""
 }
 
+func (x *PublicAggreBookTickerV3Api) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *PublicAggreBookTickerV3Api) GetLastOrderCreateTime() int64 {
+	if x != nil {
+		return x.LastOrderCreateTime
+	}
+	return 0
+}
+
 var File_PublicAggreBookTickerV3Api_proto protoreflect.FileDescriptor
 
 const file_PublicAggreBookTickerV3Api_proto_rawDesc = "" +
 	"\n" +
-	" PublicAggreBookTickerV3Api.proto\"\x98\x01\n" +
+	" PublicAggreBookTickerV3Api.proto\"\xe4\x01\n" +
 	"\x1aPublicAggreBookTickerV3Api\x12\x1a\n" +
 	"\bbidPrice\x18\x01 \x01(\tR\bbidPrice\x12 \n" +
 	"\vbidQuantity\x18\x02 \x01(\tR\vbidQuantity\x12\x1a\n" +
 	"\baskPrice\x18\x03 \x01(\tR\baskPrice\x12 \n" +
-	"\vaskQuantity\x18\x04 \x01(\tR\vaskQuantityB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\vaskQuantity\x18\x04 \x01(\tR\vaskQuantity\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\tR\aversion\x120\n" +
+	"\x13lastOrderCreateTime\x18\x06 \x01(\x03R\x13lastOrderCreateTimeB\x8c\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x1fPublicAggreBookTickerV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicAggreBookTickerV3Api_proto_rawDescOnce sync.Once

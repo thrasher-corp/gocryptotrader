@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -316,7 +315,8 @@ const file_PrivateOrdersV3Api_proto_rawDesc = "" +
 	"\t_symbolIdB\v\n" +
 	"\t_marketIdB\x13\n" +
 	"\x11_marketCurrencyIdB\r\n" +
-	"\v_currencyIdB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\v_currencyIdB\x84\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x17PrivateOrdersV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PrivateOrdersV3Api_proto_rawDescOnce sync.Once

@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -82,6 +81,7 @@ type PublicAggreDealsV3ApiItem struct {
 	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	TradeType     int32                  `protobuf:"varint,3,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
 	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
+	TradeId       string                 `protobuf:"bytes,5,opt,name=tradeId,proto3" json:"tradeId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -144,6 +144,13 @@ func (x *PublicAggreDealsV3ApiItem) GetTime() int64 {
 	return 0
 }
 
+func (x *PublicAggreDealsV3ApiItem) GetTradeId() string {
+	if x != nil {
+		return x.TradeId
+	}
+	return ""
+}
+
 var File_PublicAggreDealsV3Api_proto protoreflect.FileDescriptor
 
 const file_PublicAggreDealsV3Api_proto_rawDesc = "" +
@@ -151,12 +158,14 @@ const file_PublicAggreDealsV3Api_proto_rawDesc = "" +
 	"\x1bPublicAggreDealsV3Api.proto\"g\n" +
 	"\x15PublicAggreDealsV3Api\x120\n" +
 	"\x05deals\x18\x01 \x03(\v2\x1a.PublicAggreDealsV3ApiItemR\x05deals\x12\x1c\n" +
-	"\teventType\x18\x02 \x01(\tR\teventType\"\x7f\n" +
+	"\teventType\x18\x02 \x01(\tR\teventType\"\x99\x01\n" +
 	"\x19PublicAggreDealsV3ApiItem\x12\x14\n" +
 	"\x05price\x18\x01 \x01(\tR\x05price\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\tR\bquantity\x12\x1c\n" +
 	"\ttradeType\x18\x03 \x01(\x05R\ttradeType\x12\x12\n" +
-	"\x04time\x18\x04 \x01(\x03R\x04timeB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\x04time\x18\x04 \x01(\x03R\x04time\x12\x18\n" +
+	"\atradeId\x18\x05 \x01(\tR\atradeIdB\x87\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x1aPublicAggreDealsV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicAggreDealsV3Api_proto_rawDescOnce sync.Once

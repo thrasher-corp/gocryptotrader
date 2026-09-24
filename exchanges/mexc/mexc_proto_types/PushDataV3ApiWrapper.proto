@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+import "PrivateAccountV3Api.proto";
+import "PrivateDealsV3Api.proto";
+import "PrivateOrdersV3Api.proto";
+import "PublicAggreBookTickerV3Api.proto";
+import "PublicAggreDealsV3Api.proto";
+import "PublicAggreDepthsV3Api.proto";
+import "PublicBookTickerBatchV3Api.proto";
+import "PublicBookTickerV3Api.proto";
+import "PublicDealsV3Api.proto";
+import "PublicIncreaseDepthsBatchV3Api.proto";
+import "PublicIncreaseDepthsV3Api.proto";
+import "PublicLimitDepthsV3Api.proto";
+import "PublicMiniTickerV3Api.proto";
+import "PublicMiniTickersV3Api.proto";
+import "PublicSpotKlineV3Api.proto";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PushDataV3ApiWrapperProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PushDataV3ApiWrapper {
+  /**
+   * 频道
+   */
+  string channel = 1;
+
+  /**
+   * 数据，NOTE：因为不能重复，所以类型和变量名尽量使用全名
+   */
+  oneof body {
+    PublicDealsV3Api publicDeals = 301;
+    PublicIncreaseDepthsV3Api publicIncreaseDepths = 302;
+    PublicLimitDepthsV3Api publicLimitDepths = 303;
+    PrivateOrdersV3Api privateOrders = 304;
+    PublicBookTickerV3Api publicBookTicker = 305;
+    PrivateDealsV3Api privateDeals = 306;
+    PrivateAccountV3Api privateAccount = 307;
+    PublicSpotKlineV3Api publicSpotKline = 308;
+    PublicMiniTickerV3Api publicMiniTicker = 309;
+    PublicMiniTickersV3Api publicMiniTickers = 310;
+    PublicBookTickerBatchV3Api publicBookTickerBatch = 311;
+    PublicIncreaseDepthsBatchV3Api publicIncreaseDepthsBatch = 312;
+    PublicAggreDepthsV3Api publicAggreDepths = 313;
+    PublicAggreDealsV3Api publicAggreDeals = 314;
+    PublicAggreBookTickerV3Api publicAggreBookTicker = 315;
+  }
+
+  /**
+   * 交易对
+   */
+  optional string symbol = 3;
+
+  /**
+   * 交易对ID
+   */
+  optional string symbolId = 4;
+
+  /**
+   * 消息生成时间
+   */
+  optional int64 createTime = 5;
+
+  /**
+   * 消息推送时间
+   */
+  optional int64 sendTime = 6;
+}

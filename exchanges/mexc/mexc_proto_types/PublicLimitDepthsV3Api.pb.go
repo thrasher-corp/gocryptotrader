@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -25,13 +24,14 @@ const (
 )
 
 type PublicLimitDepthsV3Api struct {
-	state         protoimpl.MessageState       `protogen:"open.v1"`
-	Asks          []*PublicLimitDepthV3ApiItem `protobuf:"bytes,1,rep,name=asks,proto3" json:"asks,omitempty"`
-	Bids          []*PublicLimitDepthV3ApiItem `protobuf:"bytes,2,rep,name=bids,proto3" json:"bids,omitempty"`
-	EventType     string                       `protobuf:"bytes,3,opt,name=eventType,proto3" json:"eventType,omitempty"`
-	Version       string                       `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState       `protogen:"open.v1"`
+	Asks                []*PublicLimitDepthV3ApiItem `protobuf:"bytes,1,rep,name=asks,proto3" json:"asks,omitempty"`
+	Bids                []*PublicLimitDepthV3ApiItem `protobuf:"bytes,2,rep,name=bids,proto3" json:"bids,omitempty"`
+	EventType           string                       `protobuf:"bytes,3,opt,name=eventType,proto3" json:"eventType,omitempty"`
+	Version             string                       `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	LastOrderCreateTime int64                        `protobuf:"varint,5,opt,name=lastOrderCreateTime,proto3" json:"lastOrderCreateTime,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PublicLimitDepthsV3Api) Reset() {
@@ -92,6 +92,13 @@ func (x *PublicLimitDepthsV3Api) GetVersion() string {
 	return ""
 }
 
+func (x *PublicLimitDepthsV3Api) GetLastOrderCreateTime() int64 {
+	if x != nil {
+		return x.LastOrderCreateTime
+	}
+	return 0
+}
+
 type PublicLimitDepthV3ApiItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
@@ -148,15 +155,17 @@ var File_PublicLimitDepthsV3Api_proto protoreflect.FileDescriptor
 
 const file_PublicLimitDepthsV3Api_proto_rawDesc = "" +
 	"\n" +
-	"\x1cPublicLimitDepthsV3Api.proto\"\xb0\x01\n" +
+	"\x1cPublicLimitDepthsV3Api.proto\"\xe2\x01\n" +
 	"\x16PublicLimitDepthsV3Api\x12.\n" +
 	"\x04asks\x18\x01 \x03(\v2\x1a.PublicLimitDepthV3ApiItemR\x04asks\x12.\n" +
 	"\x04bids\x18\x02 \x03(\v2\x1a.PublicLimitDepthV3ApiItemR\x04bids\x12\x1c\n" +
 	"\teventType\x18\x03 \x01(\tR\teventType\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\tR\aversion\"M\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x120\n" +
+	"\x13lastOrderCreateTime\x18\x05 \x01(\x03R\x13lastOrderCreateTime\"M\n" +
 	"\x19PublicLimitDepthV3ApiItem\x12\x14\n" +
 	"\x05price\x18\x01 \x01(\tR\x05price\x12\x1a\n" +
-	"\bquantity\x18\x02 \x01(\tR\bquantityB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\bquantity\x18\x02 \x01(\tR\bquantityB\x88\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x1bPublicLimitDepthsV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicLimitDepthsV3Api_proto_rawDescOnce sync.Once

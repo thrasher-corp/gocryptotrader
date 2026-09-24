@@ -9,12 +9,11 @@
 package mexc_proto_types
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -96,6 +95,7 @@ type PublicIncreaseDepthV3ApiItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
 	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Time          int64                  `protobuf:"varint,3,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -144,6 +144,13 @@ func (x *PublicIncreaseDepthV3ApiItem) GetQuantity() string {
 	return ""
 }
 
+func (x *PublicIncreaseDepthV3ApiItem) GetTime() int64 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
 var File_PublicIncreaseDepthsV3Api_proto protoreflect.FileDescriptor
 
 const file_PublicIncreaseDepthsV3Api_proto_rawDesc = "" +
@@ -153,10 +160,12 @@ const file_PublicIncreaseDepthsV3Api_proto_rawDesc = "" +
 	"\x04asks\x18\x01 \x03(\v2\x1d.PublicIncreaseDepthV3ApiItemR\x04asks\x121\n" +
 	"\x04bids\x18\x02 \x03(\v2\x1d.PublicIncreaseDepthV3ApiItemR\x04bids\x12\x1c\n" +
 	"\teventType\x18\x03 \x01(\tR\teventType\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\tR\aversion\"P\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\"d\n" +
 	"\x1cPublicIncreaseDepthV3ApiItem\x12\x14\n" +
 	"\x05price\x18\x01 \x01(\tR\x05price\x12\x1a\n" +
-	"\bquantity\x18\x02 \x01(\tR\bquantityB9Z7github.com/thrasher-/gocryptotrader/exchanges/mexc;mexcb\x06proto3"
+	"\bquantity\x18\x02 \x01(\tR\bquantity\x12\x12\n" +
+	"\x04time\x18\x03 \x01(\x03R\x04timeB\x8b\x01\n" +
+	"\x1ccom.mxc.push.common.protobufB\x1ePublicIncreaseDepthsV3ApiProtoH\x01P\x01ZGgithub.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_typesb\x06proto3"
 
 var (
 	file_PublicIncreaseDepthsV3Api_proto_rawDescOnce sync.Once
