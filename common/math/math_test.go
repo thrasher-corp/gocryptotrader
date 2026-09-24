@@ -81,6 +81,100 @@ func BenchmarkDecimalPercentageDifference(b *testing.B) {
 	}
 }
 
+func TestSignedPercentageDifferenceDecimal(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		x        string
+		y        string
+		expected string
+	}{
+		{name: "positive difference", x: "110", y: "100", expected: expectedDecimalSignedPercentageDifferenceLarge},
+		{name: "negative difference", x: "100", y: "110", expected: "-" + expectedDecimalSignedPercentageDifferenceLarge},
+		{name: "matching values", x: "42.5", y: "42.5", expected: "0"},
+		{name: "zero sum", x: "0", y: "0", expected: "0"},
+		{name: "cancelling values", x: "5", y: "-5", expected: "0"},
+		{name: "negative sum and difference", x: "-3", y: "-1", expected: "-100"},
+		{name: "negative sum and positive difference", x: "-1", y: "-3", expected: "100"},
+		{name: "precision boundary", x: "1.471", y: "1.469", expected: expectedDecimalSignedPercentageDifferenceSmall},
+	}
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			t.Parallel()
+			result := SignedPercentageDifferenceDecimal(
+				decimal.MustFromString(tests[i].x),
+				decimal.MustFromString(tests[i].y))
+			assert.Equal(t, tests[i].expected, result.String(),
+				"SignedPercentageDifferenceDecimal should use the selected implementation's precision")
+		})
+	}
+}
+
+func TestCompareSignedPercentageDifferenceDecimal(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		x        string
+		y        string
+		target   string
+		expected int
+	}{
+		{name: "above target", x: "3", y: "1", target: "99", expected: 1},
+		{name: "equal target", x: "3", y: "1", target: "100", expected: 0},
+		{name: "below target", x: "3", y: "1", target: "101", expected: -1},
+		{name: "negative difference", x: "1", y: "3", target: "-99", expected: -1},
+		{name: "above zero target", x: "3", y: "1", target: "0", expected: 1},
+		{name: "matching values below target", x: "42.5", y: "42.5", target: "1", expected: -1},
+		{name: "zero sum", x: "0", y: "0", target: "1", expected: -1},
+		{name: "cancelling values", x: "5", y: "-5", target: "1", expected: -1},
+		{name: "cancelling values above negative target", x: "5", y: "-5", target: "-1", expected: 1},
+		{name: "cancelling values equal zero target", x: "5", y: "-5", target: "0", expected: 0},
+		{name: "negative sum and difference", x: "-3", y: "-1", target: "-100", expected: 0},
+		{name: "negative sum and positive difference", x: "-1", y: "-3", target: "100", expected: 0},
+		{name: "boundary above target", x: "1.471", y: "1.469", target: "0.13605442176870748", expected: 1},
+		{name: "boundary above target udecimal", x: "2", y: "1", target: "66.6666666666666666666", expected: 1},
+		{name: "negative sum boundary above target udecimal", x: "-1", y: "-2", target: "66.6666666666666666666", expected: 1},
+		{name: "rounded value differs from comparator", x: "20.000000000000000001", y: "19.999999999999999999", target: "0.00000000000000001", expected: 0},
+		{name: "negative sum rounded value differs from comparator", x: "-19.999999999999999999", y: "-20.000000000000000001", target: "0.00000000000000001", expected: 0},
+		{name: "cross-product precision below target", x: "1.0000000000000000001", y: "1", target: "0.00000000000000001", expected: -1},
+		{name: "negative difference above negative target", x: "1", y: "1.0000000000000000001", target: "-0.00000000000000001", expected: 1},
+		{name: "negative sum cross-product precision", x: "-1", y: "-1.0000000000000000001", target: "0.00000000000000001", expected: -1},
+		{name: "negative 19-place target just beyond combined limit", x: "-0.8", y: "1.2", target: "-1000.0000000000000000001", expected: 1},
+		{name: "opposite signs cross-product precision equal target", x: "-0.0000000000000000001", y: "0.0000000000000000126", target: "-203.2", expected: 0},
+	}
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			t.Parallel()
+			result := CompareSignedPercentageDifferenceDecimal(
+				decimal.MustFromString(tests[i].x),
+				decimal.MustFromString(tests[i].y),
+				decimal.MustFromString(tests[i].target))
+			assert.Equal(t, tests[i].expected, result,
+				"CompareSignedPercentageDifferenceDecimal should use standard comparison semantics")
+		})
+	}
+}
+
+func BenchmarkCompareSignedPercentageDifferenceDecimal(b *testing.B) {
+	x := decimal.MustFromFloat(1.471)
+	y := decimal.MustFromFloat(1.469)
+	target := decimal.MustFromFloat(0.1)
+	b.ReportAllocs()
+	for b.Loop() {
+		CompareSignedPercentageDifferenceDecimal(x, y, target)
+	}
+}
+
+func BenchmarkCompareSignedPercentageDifferenceDecimalPrecisionFallback(b *testing.B) {
+	x := decimal.MustFromString("1.0000000000000000001")
+	y := decimal.NewFromInt(1)
+	target := decimal.MustFromString("0.00000000000000001")
+	b.ReportAllocs()
+	for b.Loop() {
+		CompareSignedPercentageDifferenceDecimal(x, y, target)
+	}
+}
+
 func TestCalculateNetProfit(t *testing.T) {
 	t.Parallel()
 	amount := float64(5)
