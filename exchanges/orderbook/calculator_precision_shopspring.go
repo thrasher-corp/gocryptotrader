@@ -2,4 +2,12 @@
 
 package orderbook
 
-const executionFractionalDigits = 0
+import "github.com/thrasher-corp/gocryptotrader/types/decimal"
+
+func scaleExecutionAmount(amount decimal.Decimal) decimal.Decimal {
+	return amount
+}
+
+func unscaleExecutionAmount(amount decimal.Decimal) decimal.Decimal {
+	return amount
+}

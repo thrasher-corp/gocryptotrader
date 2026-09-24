@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 	stdmath "math"
-	"math/big"
 	"strconv"
-	"strings"
 
 	math "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -322,7 +320,8 @@ func (l Levels) FindNominalAmount(amount float64) (aggNominalAmount, remainingAm
 // derivatives; inverse and quanto contracts are out of scope. Use a multiplier
 // of one when level amounts are already in base units. If a non-empty side
 // cannot fill the request, the result describes the partial execution and the
-// error wraps ErrNotEnoughLiquidity.
+// error wraps ErrNotEnoughLiquidity. Levels beyond the fill are not read, so
+// the cost follows the levels consumed rather than the depth of the book.
 func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (ExecutionCalculation, error) {
 	if !orderAmount.IsPositive() {
 		return ExecutionCalculation{}, fmt.Errorf("%w: %s", errAmountInvalid, orderAmount)
@@ -338,12 +337,7 @@ func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (Exe
 		RequestedAmount: orderAmount,
 		RemainingAmount: orderAmount,
 	}
-	var unscaledQuoteAmount decimal.Decimal
-	var exactQuoteAmount *big.Rat
-	if executionFractionalDigits > 0 {
-		exactQuoteAmount = new(big.Rat)
-	}
-	filled := false
+	var scaledQuoteAmount decimal.Decimal
 	for i := range l {
 		levelAmount, err := levelDecimal(l[i].Amount, l[i].StrAmount)
 		if err != nil {
@@ -359,101 +353,37 @@ func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (Exe
 		if !levelPrice.IsPositive() {
 			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid price %q", ErrOrderbookInvalid, i, levelInput(l[i].Price, l[i].StrPrice))
 		}
-		if filled {
-			continue
-		}
-
 		used := result.RemainingAmount
 		if levelAmount.LessThan(used) {
 			used = levelAmount
 		}
 		result.ExecutedAmount = result.ExecutedAmount.Add(used)
 		result.RemainingAmount = result.RemainingAmount.Sub(used)
-		if exactQuoteAmount != nil {
-			usedRat, err := executionDecimalRat(used)
-			if err != nil {
-				return ExecutionCalculation{}, err
-			}
-			priceRat, err := executionDecimalRat(levelPrice)
-			if err != nil {
-				return ExecutionCalculation{}, err
-			}
-			exactQuoteAmount.Add(exactQuoteAmount, new(big.Rat).Mul(usedRat, priceRat))
-		} else {
-			unscaledQuoteAmount = unscaledQuoteAmount.Add(used.Mul(levelPrice))
-		}
+		scaledQuoteAmount = scaledQuoteAmount.Add(scaleExecutionAmount(used).Mul(levelPrice))
 		result.MarginalPrice = levelPrice
 		result.LevelsUsed++
 		if result.RemainingAmount.IsZero() {
-			filled = true
 			result.FullLiquidityUsed = i == len(l)-1 && used.Equal(levelAmount)
+			result.setTotals(scaledQuoteAmount, multiplier)
+			return result, nil
 		}
 	}
-	if !filled {
-		result.FullLiquidityUsed = true
-	}
-	if err := result.setTotals(unscaledQuoteAmount, exactQuoteAmount, multiplier); err != nil {
-		return ExecutionCalculation{}, err
-	}
-	if filled {
-		return result, nil
-	}
+	result.FullLiquidityUsed = true
+	result.setTotals(scaledQuoteAmount, multiplier)
 	return result, fmt.Errorf("%w: requested amount %s, remaining amount %s, multiplier %s", ErrNotEnoughLiquidity, orderAmount, result.RemainingAmount, multiplier)
 }
 
-func (e *ExecutionCalculation) setTotals(unscaledQuoteAmount decimal.Decimal, exactQuoteAmount *big.Rat, multiplier decimal.Decimal) error {
+func (e *ExecutionCalculation) setTotals(scaledQuoteAmount, multiplier decimal.Decimal) {
 	e.BaseAmount = e.ExecutedAmount.Mul(multiplier)
-	if exactQuoteAmount != nil {
-		multiplierRat, err := executionDecimalRat(multiplier)
-		if err != nil {
-			return err
-		}
-		e.QuoteAmount, err = truncatedExecutionDecimal(new(big.Rat).Mul(exactQuoteAmount, multiplierRat))
-		if err != nil {
-			return fmt.Errorf("cannot convert quote amount: %w", err)
-		}
-	} else {
-		e.QuoteAmount = unscaledQuoteAmount.Mul(multiplier)
-	}
+	e.QuoteAmount = unscaleExecutionAmount(scaledQuoteAmount.Mul(multiplier))
 	if e.LevelsUsed == 1 {
 		// Avoiding division preserves the exact price supplied by the level.
 		e.AveragePrice = e.MarginalPrice
-		return nil
+		return
 	}
-	if exactQuoteAmount != nil {
-		executedRat, err := executionDecimalRat(e.ExecutedAmount)
-		if err != nil {
-			return err
-		}
-		e.AveragePrice, err = truncatedExecutionDecimal(new(big.Rat).Quo(exactQuoteAmount, executedRat))
-		if err != nil {
-			return fmt.Errorf("cannot convert average price: %w", err)
-		}
-		return nil
-	}
-	// The multiplier cancels out of VWAP; unscaled totals avoid backend truncation.
-	e.AveragePrice = unscaledQuoteAmount.Div(e.ExecutedAmount)
-	return nil
-}
-
-func executionDecimalRat(value decimal.Decimal) (*big.Rat, error) {
-	result, ok := new(big.Rat).SetString(value.String())
-	if !ok {
-		return nil, fmt.Errorf("cannot parse execution decimal %q", value.String())
-	}
-	return result, nil
-}
-
-func truncatedExecutionDecimal(value *big.Rat) (decimal.Decimal, error) {
-	precision := executionFractionalDigits
-	scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(precision)), nil)
-	scaled := new(big.Int).Mul(value.Num(), scale)
-	scaled.Quo(scaled, value.Denom())
-	digits := scaled.String()
-	if len(digits) <= precision {
-		digits = strings.Repeat("0", precision-len(digits)+1) + digits
-	}
-	return decimal.NewFromString(digits[:len(digits)-precision] + "." + digits[len(digits)-precision:])
+	// The multiplier cancels out of VWAP. Scaling the divisor to match the
+	// quote applies the backend's division precision to the price itself.
+	e.AveragePrice = scaledQuoteAmount.Div(scaleExecutionAmount(e.ExecutedAmount))
 }
 
 func levelDecimal(value float64, exact string) (decimal.Decimal, error) {

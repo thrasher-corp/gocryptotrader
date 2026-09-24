@@ -567,6 +567,27 @@ func TestLevelsCalculateExecutionRetainsSubPrecisionLevelValues(t *testing.T) {
 	result, err = levels[:1].CalculateExecution(decimal.MustFromString("0.0000000000000000001"), decimal.NewFromInt(10))
 	require.NoError(t, err, "CalculateExecution must apply the multiplier before truncating the quote amount")
 	assert.Equal(t, "0.0000000000000000001", result.QuoteAmount.String(), "quote amount should retain a scaled sub-precision value")
+
+	levels = Levels{
+		{StrAmount: "0.0000000000000000001", StrPrice: "0.1"},
+		{StrAmount: "0.0000000000000000001", StrPrice: "0.2"},
+	}
+	result, err = levels.CalculateExecution(decimal.MustFromString("0.0000000000000000002"), decimal.NewFromInt(1))
+	require.NoError(t, err, "CalculateExecution must average an aggregate beyond the backend precision")
+	assert.Equal(t, "0.15", result.AveragePrice.String(), "average price should use the untruncated aggregate")
+
+	levels = Levels{{StrAmount: "0.0000000000000000001", StrPrice: "0.0000000000000000001"}}
+	result, err = levels.CalculateExecution(decimal.MustFromString("0.0000000000000000001"), decimal.MustFromString("10000000000000000000"))
+	require.NoError(t, err, "CalculateExecution must apply a large multiplier before truncating the quote amount")
+	assert.Equal(t, "0.0000000000000000001", result.QuoteAmount.String(), "quote amount should retain a product below the backend precision")
+}
+
+func TestLevelsCalculateExecutionStopsAtFill(t *testing.T) {
+	t.Parallel()
+	levels := Levels{{Price: 100, Amount: 1}, {Price: 0, Amount: 0}}
+	result, err := levels.CalculateExecution(decimal.NewFromInt(1), decimal.NewFromInt(1))
+	require.NoError(t, err, "CalculateExecution must not read levels beyond the fill")
+	assert.Equal(t, uint64(1), result.LevelsUsed, "only the first level should be consumed")
 }
 
 func TestLevelsCalculateExecutionAveragePriceWithTruncatedQuote(t *testing.T) {
@@ -613,6 +634,7 @@ func TestLevelsCalculateExecutionInsufficientLiquidity(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotEnoughLiquidity, "CalculateExecution must report insufficient liquidity")
 	assert.True(t, result.ExecutedAmount.Equal(decimal.NewFromInt(5)), "executed amount should describe the partial fill")
 	assert.True(t, result.RemainingAmount.Equal(decimal.NewFromInt(1)), "remaining amount should describe the shortfall")
+	assert.True(t, result.BaseAmount.Equal(decimal.NewFromInt(5)), "base amount should describe the partial fill")
 	assert.True(t, result.QuoteAmount.Equal(decimal.NewFromInt(530)), "quote amount should describe consumed liquidity")
 	assert.True(t, result.AveragePrice.Equal(decimal.NewFromInt(106)), "average price should describe consumed liquidity")
 	assert.True(t, result.MarginalPrice.Equal(decimal.NewFromInt(110)), "marginal price should describe the final consumed level")
@@ -739,22 +761,6 @@ func TestLevelsCalculateExecutionValidation(t *testing.T) {
 			multiplier: decimal.NewFromInt(1),
 			expected:   ErrOrderbookInvalid,
 			contains:   `amount "invalid":`,
-		},
-		{
-			name:       "invalid amount after fill",
-			levels:     Levels{{Amount: 1, Price: 1}, {Amount: 0, Price: 2}},
-			amount:     decimal.NewFromInt(1),
-			multiplier: decimal.NewFromInt(1),
-			expected:   ErrOrderbookInvalid,
-			contains:   `level 1 has invalid amount`,
-		},
-		{
-			name:       "invalid price after fill",
-			levels:     Levels{{Amount: 1, Price: 1}, {Amount: 1, Price: 0}},
-			amount:     decimal.NewFromInt(1),
-			multiplier: decimal.NewFromInt(1),
-			expected:   ErrOrderbookInvalid,
-			contains:   `level 1 has invalid price`,
 		},
 	}
 	for i := range tests {
