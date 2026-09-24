@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 15,
+ "version": 16,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -1982,7 +1982,8 @@
     },
     "urlEndpoints": {
      "RestSpotURL": "https://api.gemini.com",
-     "WebsocketSpotURL": "wss://api.gemini.com"
+     "WebsocketSpotURL": "wss://api.gemini.com/v2/marketdata",
+     "WebsocketSpotSupplementaryURL": "wss://api.gemini.com/v1/order/events"
     }
    },
    "features": {

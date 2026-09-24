@@ -218,7 +218,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,
-		MessageFilter:         wsConnection,
+		MessageFilter:         asset.All,
 	})
 }
 
