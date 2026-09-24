@@ -2620,7 +2620,8 @@
      "requiresSecret": true
     },
     "urlEndpoints": {
-     "RestSpotURL": "https://api.lbkex.com"
+     "RestSpotURL": "https://api.lbkex.com",
+     "WebsocketSpotURL": "wss://api.lbank.info/ws/V2/"
     }
    },
    "features": {
@@ -2631,11 +2632,11 @@
       "autoPairUpdates": true,
       "fundingRateFetching": false
      },
-     "websocketAPI": false
+     "websocketAPI": true
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false,
+     "websocketAPI": true,
      "saveTradeData": false,
      "tradeFeed": false,
      "fillsFeed": false

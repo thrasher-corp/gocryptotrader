@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -44,7 +45,8 @@ func (e *Exchange) SetDefaults() {
 
 	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
-			REST: true,
+			REST:      true,
+			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,
@@ -63,6 +65,18 @@ func (e *Exchange) SetDefaults() {
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
 			},
+			WebsocketCapabilities: protocol.Features{
+				TradeFetching:          true,
+				OrderbookFetching:      true,
+				TickerFetching:         true,
+				KlineFetching:          true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				GetOrders:              true,
+			},
+
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,
 		},
@@ -90,6 +104,7 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 2000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
@@ -97,8 +112,14 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.API.Endpoints = e.NewEndpoints()
+	e.Websocket = websocket.NewManager()
+	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: lbankAPIURL,
+		exchange.RestSpot:      lbankAPIURL,
+		exchange.WebsocketSpot: lbankWSURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -127,7 +148,31 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", e.Name)
 		}
 	}
-	return nil
+
+	wsURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
+	err = e.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            lbankWSURL,
+		RunningURL:            wsURL,
+		Connector:             e.WsConnect,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Features:              &e.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                  e.Websocket.GetWebsocketURL(),
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -846,27 +891,11 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 
 // GetStatus returns the order.Status from the int representation.
 func (e *Exchange) GetStatus(status int64) order.Status {
-	var oStatus order.Status
-	switch status {
-	case -1:
-		// "cancelled"
-		oStatus = order.Cancelled
-	case 0:
-		// "on trading"
-		oStatus = order.Active
-	case 1:
-		// "filled partially"
-		oStatus = order.PartiallyFilled
-	case 2:
-		// "filled totally"
-		oStatus = order.Filled
-	case 4:
-		// "Cancelling"
-		oStatus = order.Cancelling
-	default:
-		log.Errorf(log.Global, "%s Unhandled Order Status '%v'", e.GetName(), status)
+	s, err := lbankOrderStatusToOrderStatus(status)
+	if err != nil {
+		log.Errorf(log.Global, "%s %v", e.GetName(), err)
 	}
-	return oStatus
+	return s
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
