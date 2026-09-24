@@ -552,6 +552,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 				return err
 			}
 			tradesDetail[t] = trade.Data{
+				TID:          body.Deals[t].TradeId,
 				Exchange:     e.Name,
 				CurrencyPair: cp,
 				AssetType:    asset.Spot,

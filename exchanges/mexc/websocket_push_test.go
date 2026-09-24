@@ -46,14 +46,14 @@ func requireOneOf[T any](tb testing.TB) T {
 	return typed
 }
 
-// TestWsHandleAggreDeals asserts public trades are decoded with the side derived from tradeType:
-// MEXC uses 1 for a buy and anything else for a sell.
+// TestWsHandleAggreDeals asserts public trades are decoded with the side derived from tradeType, MEXC
+// using 1 for a buy and anything else for a sell, and with the trade id the venue sends.
 func TestWsHandleAggreDeals(t *testing.T) {
 	drainData(t)
 	raw := wsPushFrame(t, "spot@"+channelAggreDealsV3+"@100ms@BTCUSDT", 1736409765052,
 		&mexc_proto_types.PublicAggreDealsV3Api{
 			Deals: []*mexc_proto_types.PublicAggreDealsV3ApiItem{
-				{Price: "93220.00", Quantity: "0.04438243", TradeType: 1, Time: 1736409765051},
+				{Price: "93220.00", Quantity: "0.04438243", TradeType: 1, Time: 1736409765051, TradeId: "731579883561406466X0_731579883561406467X0"},
 				{Price: "93221.50", Quantity: "1.5", TradeType: 2, Time: 1736409765099},
 			},
 		})
@@ -61,6 +61,7 @@ func TestWsHandleAggreDeals(t *testing.T) {
 
 	trades := requireOneOf[[]trade.Data](t)
 	require.Len(t, trades, 2, "both deals must be relayed")
+	assert.Equal(t, "731579883561406466X0_731579883561406467X0", trades[0].TID, "TID should be the deal's trade id")
 	assert.Equal(t, 93220.00, trades[0].Price, "Price should be correct")
 	assert.Equal(t, 0.04438243, trades[0].Amount, "Amount should be correct")
 	assert.Equal(t, order.Buy, trades[0].Side, "tradeType 1 should map to Buy")
