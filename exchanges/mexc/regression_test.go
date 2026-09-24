@@ -504,6 +504,34 @@ func TestTradeSideIsTakerSide(t *testing.T) {
 	assert.Equal(t, order.Sell, historic[1].Side, "a buyer-maker aggregate trade should be a taker sell")
 }
 
+// TestGetHistoricTradesRejectsAnOverfullSecond errors rather than return a partial window when more
+// trades share one second inside the window than one request returns.
+func TestGetHistoricTradesRejectsAnOverfullSecond(t *testing.T) {
+	t.Parallel()
+	second := time.Date(2026, 9, 23, 20, 0, 30, 0, time.UTC)
+	// The venue holds 1001 trades in that second and answers newest first, at most limit of them, for
+	// windows whose bounds it reads to the second.
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		from, _ := strconv.ParseInt(q.Get("startTime"), 10, 64)
+		to, _ := strconv.ParseInt(q.Get("endTime"), 10, 64)
+		limit, err := strconv.Atoi(q.Get("limit"))
+		if err != nil {
+			limit = 500
+		}
+		var rows []string
+		if ms := second.UnixMilli(); ms >= from/1000*1000 && ms <= to/1000*1000 {
+			rows = make([]string, min(limit, 1001))
+			for i := range rows {
+				rows[i] = `{"p":"1","q":"1","T":` + strconv.FormatInt(ms, 10) + `,"m":false,"M":true}`
+			}
+		}
+		_, _ = w.Write([]byte("[" + strings.Join(rows, ",") + "]"))
+	}))
+	_, err := ex.GetHistoricTrades(t.Context(), currency.NewBTCUSDT(), asset.Spot, second.Add(-time.Minute), second.Add(time.Minute))
+	assert.ErrorIs(t, err, errTradesExceedPage, "a second holding more trades than a page should be rejected")
+}
+
 // TestGetHistoricTradesPagesTheWindow reads windows holding more trades than one request returns. The
 // venue answers at most 1000 aggregated trades per request, newest first and stamped to the second, from
 // a window of at most an hour whose bounds it reads to the second.

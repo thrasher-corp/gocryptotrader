@@ -281,14 +281,16 @@ func TestWsHandlePrivateDeals(t *testing.T) {
 	drainData(t)
 	raw := wsPushFrame(t, "spot@"+channelPrivateDealsV3, 1736409765052,
 		&mexc_proto_types.PrivateDealsV3Api{
-			Price: "93220.00", Quantity: "0.044", Amount: "4101.68", TradeId: "t-1", OrderId: "o-1", TradeType: 1, Time: 1736409765051,
+			Price: "93220.00", Quantity: "0.044", Amount: "4101.68", TradeId: "t-1", OrderId: "o-1", ClientOrderId: "c-1", TradeType: 1, Time: 1736409765051,
 		})
 	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 
 	fills := requireOneOf[[]fill.Data](t)
 	require.Len(t, fills, 1, "one fill must be relayed")
 	assert.Equal(t, "t-1", fills[0].TradeID, "TradeID should be the trade id, not the order id")
+	assert.Equal(t, "t-1", fills[0].ID, "ID should be the trade id")
 	assert.Equal(t, "o-1", fills[0].OrderID, "OrderID should name the order the fill belongs to")
+	assert.Equal(t, "c-1", fills[0].ClientOrderID, "ClientOrderID should carry the order's client id")
 	assert.Equal(t, 93220.00, fills[0].Price, "Price should be correct")
 	assert.Equal(t, 0.044, fills[0].Amount, "Amount should be the base quantity, not the quote amount")
 	assert.Equal(t, order.Buy, fills[0].Side, "tradeType 1 should map to Buy")
