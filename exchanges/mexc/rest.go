@@ -156,7 +156,8 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol currency.Pair
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
+	// The venue takes startTime and endTime together or not at all.
+	if !startTime.IsZero() || !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}

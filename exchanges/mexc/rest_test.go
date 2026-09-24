@@ -137,6 +137,10 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 	_, err = e.GetAggregatedTrades(t.Context(), spotTradablePair, endTime, startTime, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+	_, err = e.GetAggregatedTrades(t.Context(), spotTradablePair, startTime, time.Time{}, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset, "a start time without an end time should be rejected")
+	_, err = e.GetAggregatedTrades(t.Context(), spotTradablePair, time.Time{}, endTime, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset, "an end time without a start time should be rejected")
 
 	result, err := e.GetAggregatedTrades(t.Context(), spotTradablePair, startTime, endTime, 0)
 	require.NoError(t, err)
