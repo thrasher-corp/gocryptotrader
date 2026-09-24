@@ -4878,12 +4878,12 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 	var resp *WebsocketFuturesOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","stp_id":"123456","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`), &resp), "unmarshal must not error")
 
-	got, err := e.deriveFuturesWebsocketOrderResponse(resp)
+	got, err := e.deriveFuturesWebsocketOrderResponse(resp, asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	assert.Equal(t, &order.SubmitResponse{
 		Exchange:             e.Name,
 		OrderID:              "596729318437",
-		AssetType:            asset.Futures,
+		AssetType:            asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.NewCode("CWIF"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 		ClientOrderID:        "t-1337",
 		Date:                 time.UnixMilli(1735787107449),
@@ -4897,6 +4897,12 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 		TimeInForce:          order.ImmediateOrCancel,
 		ReduceOnly:           true,
 	}, got)
+
+	// Pairing a USDT contract with a coin-margined caller proves the asset comes from the caller, not the contract.
+	got, err = e.deriveFuturesWebsocketOrderResponse(resp, asset.CoinMarginedFutures)
+	require.NoError(t, err, "deriveFuturesWebsocketOrderResponse must not error")
+	require.NotNil(t, got, "response must not be nil")
+	assert.Equal(t, asset.CoinMarginedFutures, got.AssetType, "AssetType should follow the caller")
 }
 
 func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
@@ -4929,7 +4935,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "596729318437",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewPair(currency.NewCode("CWIF"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:        "t-1337",
 					Date:                 time.UnixMilli(1735787107449),
@@ -4946,7 +4952,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "596662040388",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewPair(currency.NewCode("REX"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:        "t-1336",
 					Date:                 time.UnixMilli(1735778597374),
@@ -4962,7 +4968,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:        e.Name,
 					OrderID:         "596746193678",
-					AssetType:       asset.Futures,
+					AssetType:       asset.USDTMarginedFutures,
 					Pair:            currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:            time.UnixMilli(1735789790476),
 					LastUpdated:     time.UnixMilli(1735789790476),
@@ -4977,7 +4983,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:        e.Name,
 					OrderID:         "596748780649",
-					AssetType:       asset.Futures,
+					AssetType:       asset.USDTMarginedFutures,
 					Pair:            currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:            time.UnixMilli(1735790222185),
 					LastUpdated:     time.UnixMilli(1735790222185),
@@ -4992,7 +4998,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "36028797827161124",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740108860761),
 					LastUpdated:          time.UnixMilli(1740108860761),
@@ -5007,7 +5013,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:             e.Name,
 					OrderID:              "36028797827225781",
-					AssetType:            asset.Futures,
+					AssetType:            asset.USDTMarginedFutures,
 					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740109172060),
 					LastUpdated:          time.UnixMilli(1740109172060),
@@ -5066,7 +5072,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 			var resp []*WebsocketFuturesOrderResponse
 			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
 
-			got, err := e.deriveFuturesWebsocketOrderResponses(resp)
+			got, err := e.deriveFuturesWebsocketOrderResponses(resp, asset.USDTMarginedFutures)
 			require.ErrorIs(t, err, tc.error)
 
 			require.Len(t, got, len(tc.expected))
