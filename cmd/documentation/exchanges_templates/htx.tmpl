@@ -1,18 +1,33 @@
-{{define "exchanges huobi" -}}
+{{define "exchanges htx" -}}
 {{template "header" .}}
 
-## Huobi Exchange
+## HTX Exchange
 
 ### Current Features
 
-+ REST Support
-+ Websocket Support
+- Spot REST and public/private websocket support
+- Delivery futures and coin-margined perpetual REST and public/private websocket support
+- USDT-margined V5 account, order, position and strategy REST endpoints
+- USDT-margined public/private notifications and a dedicated authenticated V5 trading websocket
+- Latest and historical perpetual funding rates, open interest and leverage management
+- Single-asset and multi-asset collateral modes, and one-way and hedge position modes
+
+Position mode is fetched using each order call's credentials. Avoid changing account
+position mode concurrently with order submission, including through other clients.
+
+Configuration version 16 renames Huobi to HTX and adds derivative pairs and subscriptions.
+Private derivative subscriptions default to disabled and require authenticated access.
+
+The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),
+[delivery futures](https://huobiapi.github.io/docs/dm/v1/en/),
+[coin-margined perpetual](https://huobiapi.github.io/docs/coin_margined_swap/v1/en/) and
+[V5 API](https://www.htx.com/en-us/opend/newApiPages/) references.
 
 ### How to enable
 
-+ [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-exchange-via-config-example)
+- [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-exchange-via-config-example)
 
-+ Individual package example below:
+- Individual package example below:
 
 ```go
     // Exchanges will be abstracted out in further updates and examples will be
@@ -21,7 +36,7 @@
 
 ### How to do REST public/private calls
 
-+ If enabled via "configuration".json file the exchange will be added to the
+- If enabled via "configuration".json file the exchange will be added to the
 IBotExchange array in the ```go var bot Bot``` and you will only be able to use
 the wrapper interface functions for accessing exchange data. View routines.go
 for an example of integration usage with GoCryptoTrader. Rudimentary example
@@ -33,7 +48,7 @@ main.go
 var h exchange.IBotExchange
 
 for i := range bot.Exchanges {
-    if bot.Exchanges[i].GetName() == "Huobi" {
+    if bot.Exchanges[i].GetName() == "HTX" {
         h = bot.Exchanges[i]
     }
 }
@@ -62,7 +77,7 @@ if err != nil {
 }
 ```
 
-+ If enabled via individually importing package, rudimentary example below:
+- If enabled via individually importing package, rudimentary example below:
 
 ```go
 // Public calls
@@ -101,22 +116,22 @@ All subscriptions are for spot only.
 
 Default Public Subscriptions:
 
-+ Ticker
-+ Candles ( Interval: 1min )
-+ Orderbook ( Level: 0 - No aggregation )
-  + Configure Level: 1-5 for depth aggregation, for example:
+- Ticker
+- Candles ( Interval: 1min )
+- Orderbook ( Level: 0 - No aggregation )
+  - Configure Level: 1-5 for depth aggregation, for example:
 
 ```json
  {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
 ```
 
-+ Trades
+- Trades
 
 Default Authenticated Subscriptions:
 
-+ Account Trades
-+ Account Orders
-+ Account Updates
+- Account Trades
+- Account Orders
+- Account Updates
 
 {{template "donations" .}}
 {{end}}

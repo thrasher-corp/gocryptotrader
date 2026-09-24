@@ -1,13 +1,13 @@
-# GoCryptoTrader package Huobi
+# GoCryptoTrader package HTX
 
 <img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/huobi)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/htx)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
 
-This huobi package is part of the GoCryptoTrader codebase.
+This HTX package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -15,18 +15,33 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
-## Huobi Exchange
+## HTX Exchange
 
 ### Current Features
 
-+ REST Support
-+ Websocket Support
+- Spot REST and public/private websocket support
+- Delivery futures and coin-margined perpetual REST and public/private websocket support
+- USDT-margined V5 account, order, position and strategy REST endpoints
+- USDT-margined public/private notifications and a dedicated authenticated V5 trading websocket
+- Latest and historical perpetual funding rates, open interest and leverage management
+- Single-asset and multi-asset collateral modes, and one-way and hedge position modes
+
+Position mode is fetched using each order call's credentials. Avoid changing account
+position mode concurrently with order submission, including through other clients.
+
+Configuration version 16 renames Huobi to HTX and adds derivative pairs and subscriptions.
+Private derivative subscriptions default to disabled and require authenticated access.
+
+The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),
+[delivery futures](https://huobiapi.github.io/docs/dm/v1/en/),
+[coin-margined perpetual](https://huobiapi.github.io/docs/coin_margined_swap/v1/en/) and
+[V5 API](https://www.htx.com/en-us/opend/newApiPages/) references.
 
 ### How to enable
 
-+ [Enable via configuration](../../config/README.md#enable-exchange-via-config-example)
+- [Enable via configuration](../../config/README.md#enable-exchange-via-config-example)
 
-+ Individual package example below:
+- Individual package example below:
 
 ```go
     // Exchanges will be abstracted out in further updates and examples will be
@@ -35,7 +50,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### How to do REST public/private calls
 
-+ If enabled via "configuration".json file the exchange will be added to the
+- If enabled via "configuration".json file the exchange will be added to the
 IBotExchange array in the ```go var bot Bot``` and you will only be able to use
 the wrapper interface functions for accessing exchange data. View routines.go
 for an example of integration usage with GoCryptoTrader. Rudimentary example
@@ -47,7 +62,7 @@ main.go
 var h exchange.IBotExchange
 
 for i := range bot.Exchanges {
-    if bot.Exchanges[i].GetName() == "Huobi" {
+    if bot.Exchanges[i].GetName() == "HTX" {
         h = bot.Exchanges[i]
     }
 }
@@ -76,7 +91,7 @@ if err != nil {
 }
 ```
 
-+ If enabled via individually importing package, rudimentary example below:
+- If enabled via individually importing package, rudimentary example below:
 
 ```go
 // Public calls
@@ -111,26 +126,27 @@ if err != nil {
 
 ### Subscriptions
 
-All subscriptions are for spot only.
-
 Default Public Subscriptions:
 
-+ Ticker
-+ Candles ( Interval: 1min )
-+ Orderbook ( Level: 0 - No aggregation )
-  + Configure Level: 1-5 for depth aggregation, for example:
+- Spot, delivery futures, coin-margined perpetuals and USDT-margined perpetuals:
+  - Ticker
+  - Candles (interval: 1min)
+  - Orderbook
+  - Trades
+- Coin-margined and USDT-margined perpetuals:
+  - Funding rates
+- Spot orderbooks default to level 0 (no aggregation).
+  - Configure Level: 1-5 for depth aggregation, for example:
 
 ```json
  {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
 ```
 
-+ Trades
+Default Authenticated Spot Subscriptions:
 
-Default Authenticated Subscriptions:
-
-+ Account Trades
-+ Account Orders
-+ Account Updates
+- Account trades
+- Account orders
+- Account updates
 
 ## Donations
 

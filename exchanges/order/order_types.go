@@ -54,10 +54,10 @@ type Submit struct {
 	TimeInForce TimeInForce
 
 	// ReduceOnly reduces a position instead of opening an opposing
-	// position; this also equates to closing the position in huobi_wrapper.go
+	// position; this also equates to closing the position in wrapper.go
 	// swaps.
 	ReduceOnly bool
-	// Leverage is the amount of leverage that will be used: see huobi_wrapper.go
+	// Leverage is the amount of leverage that will be used: see wrapper.go
 	Leverage float64
 	Price    float64
 	// Amount in base terms
