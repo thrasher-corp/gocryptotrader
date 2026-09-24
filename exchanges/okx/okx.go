@@ -346,8 +346,11 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	if arg.InstrumentID != "" {
-		params.Set("instId", arg.InstrumentID)
+	if arg.OrderID != "" {
+		params.Set("ordId", arg.OrderID)
+	}
+	if arg.SubType != "" {
+		params.Set("subType", arg.SubType)
 	}
 	if arg.After != "" {
 		params.Set("after", arg.After)
