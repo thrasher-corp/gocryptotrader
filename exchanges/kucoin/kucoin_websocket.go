@@ -543,10 +543,10 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 			return err
 		}
 		tickPrice = new(ticker.Price)
+		tickPrice.ExchangeName = e.Name
+		tickPrice.AssetType = asset.Futures
+		tickPrice.Pair = pair
 	}
-	tickPrice.ExchangeName = e.Name
-	tickPrice.AssetType = asset.Futures
-	tickPrice.Pair = pair
 	// Only the fill carrying channel reports a trade, so a zero price here means
 	// the stored last trade is still the most recent one.
 	if resp.FilledPrice.Float64() != 0 {
