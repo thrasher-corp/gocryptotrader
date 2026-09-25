@@ -333,13 +333,13 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 }
 
 // Shutdown shuts down and closes specific connection
+// It does not take writeControl, since a write blocked on a peer which has stopped reading holds it indefinitely and
+// closing the socket, which is safe alongside a write, is what unblocks that write
 func (c *connection) Shutdown() error {
 	if c == nil || c.Connection == nil {
 		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)
-	c.writeControl.Lock()
-	defer c.writeControl.Unlock()
 	return c.Connection.NetConn().Close()
 }
 

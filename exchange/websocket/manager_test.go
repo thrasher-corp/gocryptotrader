@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1658,6 +1659,73 @@ func TestConnectionShutdown(t *testing.T) {
 
 	err = wc.Shutdown()
 	require.NoError(t, err, "Shutdown must not error")
+}
+
+// stalledWriteConn simulates a peer which has stopped reading; once stalled, writes block until the connection is
+// closed, as they do once the socket send buffer is full
+type stalledWriteConn struct {
+	net.Conn
+	stalled   atomic.Bool
+	blocked   chan struct{}
+	closed    chan struct{}
+	closeOnce sync.Once
+}
+
+func (c *stalledWriteConn) Write(b []byte) (int, error) {
+	if !c.stalled.Load() {
+		return c.Conn.Write(b)
+	}
+	select {
+	case c.blocked <- struct{}{}:
+	default:
+	}
+	<-c.closed
+	return 0, net.ErrClosed
+}
+
+func (c *stalledWriteConn) Close() error {
+	err := net.ErrClosed
+	c.closeOnce.Do(func() {
+		close(c.closed)
+		err = c.Conn.Close()
+	})
+	return err
+}
+
+func TestConnectionShutdownWithStalledWrite(t *testing.T) {
+	t.Parallel()
+
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	conn := &stalledWriteConn{blocked: make(chan struct{}, 1), closed: make(chan struct{})}
+	dialContext := dialer.NetDialContext
+	dialer.NetDialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		var err error
+		conn.Conn, err = dialContext(ctx, network, addr)
+		return conn, err
+	}
+
+	wc := &connection{URL: "ws" + mock.URL[len("http"):] + "/ws"}
+	require.NoError(t, wc.Dial(t.Context(), dialer, nil, nil), "Dial must not error")
+	t.Cleanup(func() { _ = conn.Close() }) // Releases the write and Shutdown if Shutdown fails to close the connection
+
+	conn.stalled.Store(true)
+	writeErr := make(chan error, 1)
+	go func() { writeErr <- wc.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test")) }()
+	select {
+	case <-conn.blocked:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "SendRawMessage must reach the stalled write")
+	}
+
+	shutdownErr := make(chan error, 1)
+	go func() { shutdownErr <- wc.Shutdown() }()
+	select {
+	case err := <-shutdownErr:
+		require.NoError(t, err, "Shutdown must not error")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "Shutdown must not wait for a stalled write")
+	}
+	assert.ErrorIs(t, <-writeErr, net.ErrClosed, "stalled write should error once the connection is closed")
 }
 
 // TestLatency logic test
