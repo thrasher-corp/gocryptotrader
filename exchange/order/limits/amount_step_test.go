@@ -84,57 +84,42 @@ func TestAmountStepBaseIncrement(t *testing.T) {
 	assert.Equal(t, "0.025", result.String(), "BaseIncrement should combine the amount step and multiplier")
 }
 
-func TestAmountStepBaseIncrementUnderflow(t *testing.T) {
+func TestAmountStepBaseIncrementInexactProduct(t *testing.T) {
 	t.Parallel()
-	step := AmountStep{
-		Increment:          decimal.MustFromString("0.0000000001"),
-		ContractMultiplier: decimal.MustFromString("0.0000000001"),
-	}
 	unit := AmountStep{Increment: decimal.NewFromInt(1), ContractMultiplier: decimal.NewFromInt(1)}
-	expectedProduct := step.Increment.Mul(step.ContractMultiplier)
-
-	result, err := step.BaseIncrement()
-	if expectedProduct.IsZero() {
-		require.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "BaseIncrement must reject an underflowed product")
-		assert.True(t, result.IsZero(), "BaseIncrement should return zero on product underflow")
-		_, err = step.FloorBaseAmount(decimal.NewFromInt(1))
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "FloorBaseAmount should reject an underflowed increment")
-		_, err = step.CeilBaseAmount(decimal.NewFromInt(1))
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CeilBaseAmount should reject an underflowed increment")
-		_, err = step.CommonBaseIncrement(unit)
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject an underflowed first increment")
-		_, err = unit.CommonBaseIncrement(step)
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject an underflowed second increment")
-		return
+	for _, tc := range []struct {
+		name       string
+		increment  string
+		multiplier string
+		exact      string
+	}{
+		{name: "underflow", increment: "0.0000000001", multiplier: "0.0000000001", exact: "0.00000000000000000001"},
+		{name: "truncation", increment: "0.0000000003", multiplier: "0.0000000005", exact: "0.00000000000000000015"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			step := AmountStep{
+				Increment:          decimal.MustFromString(tc.increment),
+				ContractMultiplier: decimal.MustFromString(tc.multiplier),
+			}
+			result, err := step.BaseIncrement()
+			if decimal.MaxFractionalDigits == 0 {
+				require.NoError(t, err, "BaseIncrement must accept an exactly representable product")
+				assert.Equal(t, tc.exact, result.String(), "BaseIncrement should retain the exact product")
+				return
+			}
+			require.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "BaseIncrement must reject an inexact product")
+			assert.True(t, result.IsZero(), "BaseIncrement should return zero for an inexact product")
+			_, err = step.FloorBaseAmount(decimal.NewFromInt(1))
+			assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "FloorBaseAmount should reject an inexact increment")
+			_, err = step.CeilBaseAmount(decimal.NewFromInt(1))
+			assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CeilBaseAmount should reject an inexact increment")
+			_, err = step.CommonBaseIncrement(unit)
+			assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject an inexact first increment")
+			_, err = unit.CommonBaseIncrement(step)
+			assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject an inexact second increment")
+		})
 	}
-	require.NoError(t, err, "BaseIncrement must accept a representable positive product")
-	assert.Equal(t, expectedProduct.String(), result.String(), "BaseIncrement should return the representable product")
-}
-
-func TestAmountStepBaseIncrementTruncation(t *testing.T) {
-	t.Parallel()
-	step := AmountStep{
-		Increment:          decimal.MustFromString("0.0000000003"),
-		ContractMultiplier: decimal.MustFromString("0.0000000005"),
-	}
-	unit := AmountStep{Increment: decimal.NewFromInt(1), ContractMultiplier: decimal.NewFromInt(1)}
-
-	result, err := step.BaseIncrement()
-	if decimal.MaxFractionalDigits > 0 {
-		require.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "BaseIncrement must reject a truncated positive product")
-		assert.True(t, result.IsZero(), "BaseIncrement should return zero for a truncated product")
-		_, err = step.FloorBaseAmount(decimal.NewFromInt(1))
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "FloorBaseAmount should reject a truncated increment")
-		_, err = step.CeilBaseAmount(decimal.NewFromInt(1))
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CeilBaseAmount should reject a truncated increment")
-		_, err = step.CommonBaseIncrement(unit)
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject a truncated first increment")
-		_, err = unit.CommonBaseIncrement(step)
-		assert.ErrorIs(t, err, ErrBaseIncrementNotRepresentable, "CommonBaseIncrement should reject a truncated second increment")
-		return
-	}
-	require.NoError(t, err, "BaseIncrement must accept an exactly representable product")
-	assert.Equal(t, "0.00000000000000000015", result.String(), "BaseIncrement should retain the exact product")
 }
 
 func TestAmountStepBaseIncrementHighScaleExactProduct(t *testing.T) {
@@ -340,6 +325,19 @@ func TestAmountStepCommonBaseIncrement(t *testing.T) {
 			assert.True(t, result.Equal(reverse), "CommonBaseIncrement should be symmetric")
 		})
 	}
+}
+
+func TestAmountStepCommonBaseIncrementUnparsable(t *testing.T) {
+	t.Parallel()
+	if decimal.MaxFractionalDigits > 0 {
+		t.Skip("big.Rat rejects more than 1e6 fractional digits, which udecimal cannot represent")
+	}
+	parseable := AmountStep{Increment: decimal.MustFromString("0.2"), ContractMultiplier: decimal.NewFromInt(1)}
+	unparsable := AmountStep{Increment: decimal.MustFromString("3e-1000001"), ContractMultiplier: decimal.NewFromInt(1)}
+	_, err := unparsable.CommonBaseIncrement(parseable)
+	assert.ErrorIs(t, err, errCannotParseBaseIncrement, "CommonBaseIncrement should reject a first increment big.Rat cannot parse")
+	_, err = parseable.CommonBaseIncrement(unparsable)
+	assert.ErrorIs(t, err, errCannotParseBaseIncrement, "CommonBaseIncrement should reject a second increment big.Rat cannot parse")
 }
 
 func BenchmarkAmountStepCommonBaseIncrement(b *testing.B) {
