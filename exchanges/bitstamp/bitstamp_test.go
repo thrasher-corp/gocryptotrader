@@ -181,7 +181,7 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, tick.Last, "Last should be positive")
 	assert.Positive(t, tick.Open, "Open should be positive")
 	assert.Positive(t, tick.Volume, "Volume should be positive")
-	assert.Positive(t, tick.Vwap, "Vwap should be positive")
+	assert.Positive(t, tick.VolumeWeightedAveragePrice, "volume weighted average price should be positive")
 	assert.Positive(t, tick.Open24, "Open24 should be positive")
 	assert.NotEmpty(t, tick.PercentChange24, "PercentChange24 should be positive")
 	assert.NotEmpty(t, tick.Timestamp, "Timestamp should not be empty")
@@ -193,7 +193,7 @@ func TestAllCurrencyPairTickers(t *testing.T) {
 	result, err := e.AllCurrencyPairTickers(t.Context())
 	require.NoError(t, err, "AllCurrencyPairTickers must not error")
 	require.NotEmpty(t, result, "AllCurrencyPairTickers must return tickers")
-	assert.NotEmpty(t, result[0].Pair, "ticker pair should be set")
+	assert.False(t, result[0].Pair.IsEmpty(), "ticker pair should be set")
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -206,7 +206,11 @@ func TestUpdateTickers(t *testing.T) {
 			require.NoError(t, e.UpdateTickers(t.Context(), a), "UpdateTickers must not error")
 			got, err := ticker.GetTicker(e.Name, currency.NewBTCUSD(), a)
 			require.NoError(t, err, "BTC/USD ticker must be stored")
-			assert.Positive(t, got.Last, "BTC/USD last price should be positive")
+			assert.Equal(t, 2200.0, got.Last, "BTC/USD last price should match the batch response")
+			assert.Equal(t, 213.268011, got.BaseVolume, "BTC/USD base volume should match the batch response")
+			assert.Equal(t, 2190.0, got.Open, "BTC/USD open price should match the batch response")
+			assert.Equal(t, 2189.8, got.VolumeWeightedAveragePrice, "BTC/USD volume weighted average price should match the batch response")
+			assert.Equal(t, time.Unix(1643640186, 0), got.LastUpdated, "BTC/USD timestamp should match the batch response")
 		})
 	}
 }

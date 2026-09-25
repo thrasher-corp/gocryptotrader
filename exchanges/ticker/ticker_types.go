@@ -33,26 +33,27 @@ type Service struct {
 
 // Price struct stores the currency pair and pricing information
 type Price struct {
-	Last         float64       `json:"Last"`
-	LastSize     float64       `json:"LastSize"`
-	High         float64       `json:"High"`
-	Low          float64       `json:"Low"`
-	Bid          float64       `json:"Bid"`
-	BidSize      float64       `json:"BidSize"`
-	Ask          float64       `json:"Ask"`
-	AskSize      float64       `json:"AskSize"`
-	BaseVolume   float64       `json:"BaseVolume"`
-	QuoteVolume  float64       `json:"QuoteVolume"`
-	PriceATH     float64       `json:"PriceATH"`
-	Open         float64       `json:"Open"`
-	Close        float64       `json:"Close"`
-	OpenInterest float64       `json:"OpenInterest"`
-	MarkPrice    float64       `json:"MarkPrice"`
-	IndexPrice   float64       `json:"IndexPrice"`
-	Pair         currency.Pair `json:"Pair"`
-	ExchangeName string        `json:"exchangeName"`
-	AssetType    asset.Item    `json:"assetType"`
-	LastUpdated  time.Time
+	Last                       float64       `json:"Last"`
+	LastSize                   float64       `json:"LastSize"`
+	VolumeWeightedAveragePrice float64       `json:"VolumeWeightedAveragePrice"`
+	High                       float64       `json:"High"`
+	Low                        float64       `json:"Low"`
+	Bid                        float64       `json:"Bid"`
+	BidSize                    float64       `json:"BidSize"`
+	Ask                        float64       `json:"Ask"`
+	AskSize                    float64       `json:"AskSize"`
+	BaseVolume                 float64       `json:"BaseVolume"`
+	QuoteVolume                float64       `json:"QuoteVolume"`
+	PriceATH                   float64       `json:"PriceATH"`
+	Open                       float64       `json:"Open"`
+	Close                      float64       `json:"Close"`
+	OpenInterest               float64       `json:"OpenInterest"`
+	MarkPrice                  float64       `json:"MarkPrice"`
+	IndexPrice                 float64       `json:"IndexPrice"`
+	Pair                       currency.Pair `json:"Pair"`
+	ExchangeName               string        `json:"exchangeName"`
+	AssetType                  asset.Item    `json:"assetType"`
+	LastUpdated                time.Time
 
 	// Funding rate field variables
 	FlashReturnRate       float64

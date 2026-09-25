@@ -243,26 +243,23 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for i := range result {
-		cp, err := currency.NewPairFromString(result[i].Pair)
-		if err != nil {
-			return err
-		}
-		cp, err = e.FormatExchangeCurrency(cp, a)
+		cp, err := e.FormatExchangeCurrency(result[i].Pair, a)
 		if err != nil {
 			return err
 		}
 		if err := ticker.ProcessTicker(&ticker.Price{
-			Last:         result[i].Last.Float64(),
-			High:         result[i].High.Float64(),
-			Low:          result[i].Low.Float64(),
-			Bid:          result[i].Bid.Float64(),
-			Ask:          result[i].Ask.Float64(),
-			BaseVolume:   result[i].Volume.Float64(),
-			Open:         result[i].Open.Float64(),
-			Pair:         cp,
-			ExchangeName: e.Name,
-			AssetType:    a,
-			LastUpdated:  time.Unix(result[i].Timestamp, 0),
+			Last:                       result[i].Last.Float64(),
+			VolumeWeightedAveragePrice: result[i].VolumeWeightedAveragePrice.Float64(),
+			High:                       result[i].High.Float64(),
+			Low:                        result[i].Low.Float64(),
+			Bid:                        result[i].Bid.Float64(),
+			Ask:                        result[i].Ask.Float64(),
+			BaseVolume:                 result[i].Volume.Float64(),
+			Open:                       result[i].Open.Float64(),
+			Pair:                       cp,
+			ExchangeName:               e.Name,
+			AssetType:                  a,
+			LastUpdated:                result[i].Timestamp.Time(),
 		}); err != nil {
 			return err
 		}
@@ -283,17 +280,18 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}
 
 	err = ticker.ProcessTicker(&ticker.Price{
-		Last:         tick.Last,
-		High:         tick.High,
-		Low:          tick.Low,
-		Bid:          tick.Bid,
-		Ask:          tick.Ask,
-		BaseVolume:   tick.Volume,
-		Open:         tick.Open,
-		Pair:         fPair,
-		LastUpdated:  tick.Timestamp.Time(),
-		ExchangeName: e.Name,
-		AssetType:    a,
+		Last:                       tick.Last,
+		VolumeWeightedAveragePrice: tick.VolumeWeightedAveragePrice,
+		High:                       tick.High,
+		Low:                        tick.Low,
+		Bid:                        tick.Bid,
+		Ask:                        tick.Ask,
+		BaseVolume:                 tick.Volume,
+		Open:                       tick.Open,
+		Pair:                       fPair,
+		LastUpdated:                tick.Timestamp.Time(),
+		ExchangeName:               e.Name,
+		AssetType:                  a,
 	})
 	if err != nil {
 		return nil, err
