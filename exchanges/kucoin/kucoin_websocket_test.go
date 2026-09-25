@@ -1584,6 +1584,7 @@ func TestProcessTicker(t *testing.T) {
 func TestProcessFuturesTickerV2(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	ku.Name = t.Name()
 	pair := currency.NewPairWithDelimiter("SOL", "USDTM", "_")
 	for _, tc := range []struct {
 		name    string
@@ -1625,6 +1626,9 @@ func TestProcessFuturesTickerV2(t *testing.T) {
 		require.NoErrorf(t, ku.wsHandleData(t.Context(), nil, []byte(tc.message)), "wsHandleData must not error for %s", tc.name)
 		require.Lenf(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for %s", tc.name)
 		assert.Equalf(t, tc.exp, (<-ku.Websocket.DataHandler.C).Data, "processFuturesTickerV2 should map %s with any fill size in LastSize rather than a volume", tc.name)
+		stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
+		require.NoErrorf(t, err, "processFuturesTickerV2 must store %s before dispatch", tc.name)
+		assert.Equalf(t, tc.exp, stored, "the stored ticker should match the dispatched %s ticker", tc.name)
 	}
 }
 

@@ -138,7 +138,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 	}
 	processed, processErr := ticker.ProcessBatch(allTickers)
 	errs = common.AppendError(errs, processErr)
-	if errs != nil && len(processed) == 0 {
+	if len(processed) == 0 {
 		return errs
 	}
 	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, processed))

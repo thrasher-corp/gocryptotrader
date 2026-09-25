@@ -23,6 +23,8 @@ var (
 var (
 	errInvalidTicker     = errors.New("invalid ticker")
 	errNilTickerPrice    = errors.New("ticker price is nil")
+	errPairNotSet        = errors.New("ticker currency pair not set")
+	errAssetTypeNotSet   = errors.New("ticker asset type not set")
 	errBidGreaterThanAsk = errors.New("bid greater than ask this is a crossed or locked market")
 	errExchangeNotFound  = errors.New("exchange not found")
 )
@@ -146,7 +148,7 @@ func validateTicker(p *Price) error {
 	}
 
 	if p.Pair.IsEmpty() {
-		return fmt.Errorf("%s %s", p.ExchangeName, errPairNotSet)
+		return fmt.Errorf("%s %w", p.ExchangeName, errPairNotSet)
 	}
 
 	if p.Bid != 0 && p.Ask != 0 {
@@ -171,7 +173,7 @@ func validateTicker(p *Price) error {
 	}
 
 	if p.AssetType == asset.Empty {
-		return fmt.Errorf("%s %s %s",
+		return fmt.Errorf("%s %s %w",
 			p.ExchangeName,
 			p.Pair,
 			errAssetTypeNotSet)

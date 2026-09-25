@@ -750,7 +750,7 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 		}
 	}
 	processed, err := ticker.ProcessBatch(tickers)
-	if err != nil && len(processed) == 0 {
+	if len(processed) == 0 {
 		return err
 	}
 	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
@@ -1325,11 +1325,8 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 			})
 		}
 	}
-	if len(tickerPrices) == 0 {
-		return nil
-	}
 	processed, err := ticker.ProcessBatch(tickerPrices)
-	if err != nil && len(processed) == 0 {
+	if len(processed) == 0 {
 		return err
 	}
 	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))

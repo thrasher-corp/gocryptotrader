@@ -30,8 +30,8 @@ Refer to the [ADD_NEW_EXCHANGE.md](../docs/ADD_NEW_EXCHANGE.md) document for com
 
 Websocket ticker handlers must process tickers into the shared store before
 relaying them to `DataHandler`. Do not relay a ticker that fails processing.
-For batches, relay the successfully processed entries and report any failures;
-skip empty batches from feeds that can include untracked markets.
+For batches, relay the successfully processed entries and report any failures.
+Never relay an empty batch.
 
 ### Endpoint Organisation
 

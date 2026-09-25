@@ -771,11 +771,8 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 			BidSize:      response.BestBidSize,
 		})
 	}
-	if len(tickerPrices) == 0 {
-		return nil
-	}
 	processed, err := ticker.ProcessBatch(tickerPrices)
-	if err != nil && len(processed) == 0 {
+	if len(processed) == 0 {
 		return err
 	}
 	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
@@ -952,11 +949,8 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 			LastUpdated:  response.Data.Datetime.Time(),
 		})
 	}
-	if len(tickerPrices) == 0 {
-		return nil
-	}
 	processed, err := ticker.ProcessBatch(tickerPrices)
-	if err != nil && len(processed) == 0 {
+	if len(processed) == 0 {
 		return err
 	}
 	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))

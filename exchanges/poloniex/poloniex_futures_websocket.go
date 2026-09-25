@@ -442,7 +442,7 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 		tickerPrices[i] = *e.futuresTicker(r)
 	}
 	processed, err := ticker.ProcessBatch(tickerPrices)
-	if err != nil && len(processed) == 0 {
+	if len(processed) == 0 {
 		return err
 	}
 	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))

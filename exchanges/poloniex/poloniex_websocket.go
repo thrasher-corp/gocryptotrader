@@ -336,7 +336,7 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 		}
 	}
 	processed, err := ticker.ProcessBatch(tickerData)
-	if err != nil && len(processed) == 0 {
+	if len(processed) == 0 {
 		return err
 	}
 	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))

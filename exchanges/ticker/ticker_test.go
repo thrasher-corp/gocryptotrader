@@ -529,17 +529,16 @@ func TestProcessBatch(t *testing.T) {
 func TestValidateTicker(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name     string
-		price    *Price
-		wantErr  error
-		wantText string
+		name    string
+		price   *Price
+		wantErr error
 	}{
 		{name: "nil", wantErr: errNilTickerPrice},
 		{name: "missing exchange", price: &Price{Pair: currency.NewBTCUSD(), AssetType: asset.Spot}, wantErr: common.ErrExchangeNameNotSet},
-		{name: "missing pair", price: &Price{ExchangeName: "test", AssetType: asset.Spot}, wantText: errPairNotSet},
+		{name: "missing pair", price: &Price{ExchangeName: "test", AssetType: asset.Spot}, wantErr: errPairNotSet},
 		{name: "locked book", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Bid: 1, Ask: 1}, wantErr: ErrBidEqualsAsk},
 		{name: "crossed book", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Bid: 2, Ask: 1}, wantErr: errBidGreaterThanAsk},
-		{name: "missing asset", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD()}, wantText: errAssetTypeNotSet},
+		{name: "missing asset", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD()}, wantErr: errAssetTypeNotSet},
 		{name: "Bitfinex funding exception", price: &Price{ExchangeName: "Bitfinex", Pair: currency.NewBTCUSD(), AssetType: asset.MarginFunding, Bid: 2, Ask: 1}},
 		{name: "valid", price: &Price{ExchangeName: "test", Pair: currency.NewBTCUSD(), AssetType: asset.Spot}},
 	} {
@@ -548,10 +547,6 @@ func TestValidateTicker(t *testing.T) {
 			err := validateTicker(tc.price)
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr, "validation must return the expected error")
-				return
-			}
-			if tc.wantText != "" {
-				require.ErrorContains(t, err, tc.wantText, "validation must describe the invalid field")
 				return
 			}
 			require.NoError(t, err, "a valid ticker must pass validation")
@@ -587,7 +582,7 @@ func TestServiceStore(t *testing.T) {
 	failed.mu.Lock()
 	_, err = failed.store(p)
 	failed.mu.Unlock()
-	assert.Error(t, err, "store should report an ID allocation failure")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "store should report an ID allocation failure")
 }
 
 func TestGetAssociation(t *testing.T) {
