@@ -121,9 +121,10 @@ var (
 )
 
 var technicalAnalysisCommand = &cli.Command{
-	Name:    "technicalanalysis",
-	Usage:   "get technical analysis command",
-	Aliases: []string{"ta"},
+	Name:      "technicalanalysis",
+	Usage:     "get technical analysis command",
+	Aliases:   []string{"ta"},
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "twap",

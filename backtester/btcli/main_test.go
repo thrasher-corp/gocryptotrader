@@ -20,6 +20,7 @@ func TestRejectPositionalArguments(t *testing.T) {
 	}{
 		{name: "named flag", args: []string{"btcli", "parent", "child", "--value", "set"}},
 		{name: "global flag", args: []string{"btcli", "--host", "localhost", "parent", "child", "--value", "set"}},
+		{name: "child before hook", args: []string{"btcli", "parent", "child", "--value", "before"}, wantErr: errBefore},
 		{name: "parent positional", args: []string{"btcli", "parent", "unexpected"}, wantErr: errPositionalArgument},
 		{name: "child positional", args: []string{"btcli", "parent", "child", "unexpected"}, wantErr: errPositionalArgument},
 		{name: "trailing positional", args: []string{"btcli", "parent", "child", "--value", "set", "unexpected"}, wantErr: errPositionalArgument},
@@ -45,10 +46,10 @@ func TestRejectPositionalArguments(t *testing.T) {
 			app := &cli.App{Flags: []cli.Flag{&cli.StringFlag{Name: "host"}}, Commands: []*cli.Command{command}}
 			err := app.Run(tc.args)
 			if tc.wantErr != nil {
-				require.ErrorIs(t, err, tc.wantErr)
+				assert.ErrorIs(t, err, tc.wantErr, "command should return the expected error")
 				return
 			}
-			require.NoError(t, err)
+			assert.NoError(t, err, "valid flags should run without error")
 		})
 	}
 
@@ -56,7 +57,7 @@ func TestRejectPositionalArguments(t *testing.T) {
 		command := &cli.Command{Name: "test", Flags: []cli.Flag{&cli.StringFlag{Name: "value"}}, Before: func(*cli.Context) error { return errBefore }}
 		rejectPositionalArguments([]*cli.Command{command})
 		app := &cli.App{Commands: []*cli.Command{command}}
-		require.ErrorIs(t, app.Run([]string{"btcli", "test", "--value", "set"}), errBefore)
+		assert.ErrorIs(t, app.Run([]string{"btcli", "test", "--value", "set"}), errBefore, "original before hook should be preserved")
 	})
 }
 

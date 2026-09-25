@@ -20,6 +20,7 @@ func TestRejectPositionalArguments(t *testing.T) {
 	}{
 		{name: "named flag", args: []string{"gctcli", "parent", "child", "--value", "set"}},
 		{name: "global flag", args: []string{"gctcli", "--host", "localhost", "parent", "child", "--value", "set"}},
+		{name: "child before hook", args: []string{"gctcli", "parent", "child", "--value", "before"}, wantErr: errBefore},
 		{name: "parent positional", args: []string{"gctcli", "parent", "unexpected"}, wantErr: errPositionalArgument},
 		{name: "child positional", args: []string{"gctcli", "parent", "child", "unexpected"}, wantErr: errPositionalArgument},
 		{name: "trailing positional", args: []string{"gctcli", "parent", "child", "--value", "set", "unexpected"}, wantErr: errPositionalArgument},
@@ -45,10 +46,10 @@ func TestRejectPositionalArguments(t *testing.T) {
 			app := &cli.App{Flags: []cli.Flag{&cli.StringFlag{Name: "host"}}, Commands: []*cli.Command{command}}
 			err := app.Run(tc.args)
 			if tc.wantErr != nil {
-				require.ErrorIs(t, err, tc.wantErr)
+				assert.ErrorIs(t, err, tc.wantErr, "command should return the expected error")
 				return
 			}
-			require.NoError(t, err)
+			assert.NoError(t, err, "valid flags should run without error")
 		})
 	}
 
@@ -56,7 +57,7 @@ func TestRejectPositionalArguments(t *testing.T) {
 		command := &cli.Command{Name: "test", Flags: []cli.Flag{&cli.StringFlag{Name: "value"}}, Before: func(*cli.Context) error { return errBefore }}
 		rejectPositionalArguments([]*cli.Command{command})
 		app := &cli.App{Commands: []*cli.Command{command}}
-		require.ErrorIs(t, app.Run([]string{"gctcli", "test", "--value", "set"}), errBefore)
+		assert.ErrorIs(t, app.Run([]string{"gctcli", "test", "--value", "set"}), errBefore, "original before hook should be preserved")
 	})
 }
 
@@ -134,6 +135,20 @@ func TestRequiredCommandFlags(t *testing.T) {
 			t.Fatalf("flag %q missing from %s", tc.flagName, tc.command.Name)
 		})
 	}
+}
+
+func TestMainShowsParentCommandPlaceholder(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("GCTCLI_TEST_PARENT_HELP") == "1" {
+		os.Args = []string{"gctcli", "futures", "--help"}
+		main()
+		return
+	}
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestMainShowsParentCommandPlaceholder$") //nolint:gosec // re-runs this test binary to exercise main
+	cmd.Env = append(os.Environ(), "GCTCLI_TEST_PARENT_HELP=1")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "main must show parent command help")
+	assert.Contains(t, string(out), "gctcli futures [command options] <command>", "parent help should show a command placeholder")
 }
 
 func TestWithdrawalRequestByExchangeID(t *testing.T) {

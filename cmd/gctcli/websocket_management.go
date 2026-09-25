@@ -6,8 +6,9 @@ import (
 )
 
 var websocketManagerCommand = &cli.Command{
-	Name:  "websocket",
-	Usage: "execute websocket management command",
+	Name:      "websocket",
+	Usage:     "execute websocket management command",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:  "getinfo",

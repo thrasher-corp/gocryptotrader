@@ -34,7 +34,10 @@ var (
 	ignoreTimeout bool
 )
 
-const defaultTimeout = time.Second * 30
+const (
+	defaultTimeout   = time.Second * 30
+	commandArgsUsage = "<command>"
+)
 
 var errPositionalArgument = errors.New("unexpected positional argument; use named flags")
 

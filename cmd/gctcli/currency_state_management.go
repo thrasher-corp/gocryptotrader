@@ -6,8 +6,9 @@ import (
 )
 
 var currencyStateManagementCommand = &cli.Command{
-	Name:  "currencystate",
-	Usage: "execute exchange currency state management command",
+	Name:      "currencystate",
+	Usage:     "execute exchange currency state management command",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:  "getall",

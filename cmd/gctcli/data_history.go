@@ -13,8 +13,9 @@ import (
 )
 
 var dataHistoryCommands = &cli.Command{
-	Name:  "datahistory",
-	Usage: "manage data history jobs to retrieve historic trade or candle data over time",
+	Name:      "datahistory",
+	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "getactivejobs",
@@ -105,8 +106,9 @@ var (
 )
 
 var dataHistoryJobCommands = &cli.Command{
-	Name:  "addjob",
-	Usage: "add or update data history jobs",
+	Name:      "addjob",
+	Usage:     "add or update data history jobs",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "savecandles",
@@ -316,23 +318,9 @@ func getDataHistoryJob(c *cli.Context) error {
 }
 
 func dataHistoryJobRequest(c *cli.Context) (*gctrpc.GetDataHistoryJobDetailsRequest, error) {
-	idSet := c.IsSet("id")
-	nicknameSet := c.IsSet("nickname")
-	if idSet && nicknameSet {
-		return nil, errDataHistoryJobIdentifiersConflict
-	}
-
-	var id string
-	if idSet {
-		id = c.String("id")
-	}
-	var nickname string
-	if nicknameSet {
-		nickname = c.String("nickname")
-	}
-
-	if nickname == "" && id == "" {
-		return nil, errDataHistoryJobIdentifierRequired
+	id, nickname, err := dataHistoryJobIdentifier(c)
+	if err != nil {
+		return nil, err
 	}
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Id:       id,
@@ -343,6 +331,18 @@ func dataHistoryJobRequest(c *cli.Context) (*gctrpc.GetDataHistoryJobDetailsRequ
 	}
 
 	return request, nil
+}
+
+// dataHistoryJobIdentifier selects one job identifier for commands that accept an ID or nickname.
+func dataHistoryJobIdentifier(c *cli.Context) (id, nickname string, err error) {
+	if c.IsSet("id") && c.IsSet("nickname") {
+		return "", "", errDataHistoryJobIdentifiersConflict
+	}
+	id, nickname = c.String("id"), c.String("nickname")
+	if id == "" && nickname == "" {
+		return "", "", errDataHistoryJobIdentifierRequired
+	}
+	return id, nickname, nil
 }
 
 func getActiveDataHistoryJobs(c *cli.Context) error {
@@ -584,19 +584,9 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	}
-
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	}
-
-	if nickname != "" && id != "" {
-		return errors.New("can only set 'id' OR 'nickname'")
+	id, nickname, err := dataHistoryJobIdentifier(c)
+	if err != nil {
+		return err
 	}
 
 	var status int64

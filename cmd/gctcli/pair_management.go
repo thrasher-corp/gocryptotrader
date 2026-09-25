@@ -9,8 +9,9 @@ import (
 )
 
 var exchangePairManagerCommand = &cli.Command{
-	Name:  pairFlag,
-	Usage: "execute exchange pair management command",
+	Name:      pairFlag,
+	Usage:     "execute exchange pair management command",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:  "get",

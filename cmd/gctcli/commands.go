@@ -2556,8 +2556,9 @@ func withdrawFiatFunds(c *cli.Context) error {
 }
 
 var withdrawalRequestCommand = &cli.Command{
-	Name:  "withdrawalrequesthistory",
-	Usage: "retrieve previous withdrawal request details",
+	Name:      "withdrawalrequesthistory",
+	Usage:     "retrieve previous withdrawal request details",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:  "byid",
@@ -3156,8 +3157,9 @@ func getAuditEvent(c *cli.Context) error {
 var (
 	uuid, filename, path string
 	gctScriptCommand     = &cli.Command{
-		Name:  "script",
-		Usage: "execute scripting management command",
+		Name:      "script",
+		Usage:     "execute scripting management command",
+		ArgsUsage: commandArgsUsage,
 		Subcommands: []*cli.Command{
 			{
 				Name:  "execute",

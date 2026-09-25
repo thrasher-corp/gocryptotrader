@@ -67,3 +67,65 @@ func TestDataHistoryJobRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestDataHistoryJobIdentifier(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantID       string
+		wantNickname string
+		wantErr      error
+	}{
+		{name: "ID", args: []string{"--id", "job-id"}, wantID: "job-id"},
+		{name: "nickname", args: []string{"--nickname", "job-name"}, wantNickname: "job-name"},
+		{name: "missing", wantErr: errDataHistoryJobIdentifierRequired},
+		{name: "empty ID", args: []string{"--id", ""}, wantErr: errDataHistoryJobIdentifierRequired},
+		{name: "empty nickname", args: []string{"--nickname", ""}, wantErr: errDataHistoryJobIdentifierRequired},
+		{name: "both", args: []string{"--id", "job-id", "--nickname", "job-name"}, wantErr: errDataHistoryJobIdentifiersConflict},
+		{name: "ID and empty nickname", args: []string{"--id", "job-id", "--nickname", ""}, wantErr: errDataHistoryJobIdentifiersConflict},
+		{name: "empty ID and nickname", args: []string{"--id", "", "--nickname", "job-name"}, wantErr: errDataHistoryJobIdentifiersConflict},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			command := &cli.Command{Name: "selectjob", Flags: specificJobSubCommands, Action: func(c *cli.Context) error {
+				id, nickname, err := dataHistoryJobIdentifier(c)
+				if err != nil {
+					return err
+				}
+				assert.Equal(t, tc.wantID, id, "job ID should match selected value")
+				assert.Equal(t, tc.wantNickname, nickname, "nickname should match selected value")
+				return nil
+			}}
+			app := &cli.App{Commands: []*cli.Command{command}}
+			err := app.Run(append([]string{"gctcli", "selectjob"}, tc.args...))
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr, "invalid identifiers should return the expected error")
+				return
+			}
+			require.NoError(t, err, "valid identifier must be accepted")
+		})
+	}
+}
+
+func TestSetDataHistoryJobStatus(t *testing.T) {
+	for _, name := range []string{"deletejob", "pausejob", "unpausejob"} {
+		t.Run(name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name    string
+				args    []string
+				wantErr error
+			}{
+				{name: "empty ID", args: []string{"--id", ""}, wantErr: errDataHistoryJobIdentifierRequired},
+				{name: "both", args: []string{"--id", "job-id", "--nickname", "job-name"}, wantErr: errDataHistoryJobIdentifiersConflict},
+				{name: "ID and empty nickname", args: []string{"--id", "job-id", "--nickname", ""}, wantErr: errDataHistoryJobIdentifiersConflict},
+				{name: "valid ID", args: []string{"--id", "job-id"}, wantErr: os.ErrNotExist},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					app := &cli.App{Commands: []*cli.Command{dataHistoryCommands}}
+					err := app.Run(append([]string{"gctcli", "datahistory", name}, tc.args...))
+					assert.ErrorIs(t, err, tc.wantErr, "status command should validate the selected identifier")
+				})
+			}
+		})
+	}
+}

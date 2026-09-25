@@ -31,18 +31,21 @@ var orderbookCommonFlags = []cli.Flag{
 }
 
 var orderbookCommand = &cli.Command{
-	Name:  "orderbook",
-	Usage: "orderbook system simulations and analytics command",
+	Name:      "orderbook",
+	Usage:     "orderbook system simulations and analytics command",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:        "sell",
 			Usage:       "simulates sell to derive orderbook liquidity impact information",
+			ArgsUsage:   commandArgsUsage,
 			Subcommands: []*cli.Command{nominal, impact, base, quoteRequired},
 			Flags:       []cli.Flag{&cli.BoolFlag{Name: "sell", Hidden: true, Value: true}},
 		},
 		{
 			Name:        "buy",
 			Usage:       "simulates buy to derive orderbook liquidity impact information",
+			ArgsUsage:   commandArgsUsage,
 			Subcommands: []*cli.Command{nominal, impact, quote, baseRequired},
 		},
 		getOrderbookCommand,

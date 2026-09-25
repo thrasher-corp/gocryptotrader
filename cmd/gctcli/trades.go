@@ -12,8 +12,9 @@ import (
 )
 
 var tradeCommand = &cli.Command{
-	Name:  "trade",
-	Usage: "execute trade related commands",
+	Name:      "trade",
+	Usage:     "execute trade related commands",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:   "setexchangetradeprocessing",

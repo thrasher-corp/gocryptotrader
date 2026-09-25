@@ -17,9 +17,10 @@ import (
 // futuresCommands contains all commands related to futures
 // position data, funding rates, collateral, pnl etc
 var futuresCommands = &cli.Command{
-	Name:    "futures",
-	Aliases: []string{"f"},
-	Usage:   "contains all futures based rpc commands",
+	Name:      "futures",
+	Aliases:   []string{"f"},
+	Usage:     "contains all futures based rpc commands",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:    "getmanagedposition",
