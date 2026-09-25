@@ -717,17 +717,20 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, accounts.Change{
-			AssetType: asset.Spot,
-			Balance: accounts.Balance{
-				Currency: currency.NewCode(body.VcoinName),
-				// balanceAmount is available and frozenAmount is frozen; total is their sum. This
-				// matches UpdateAccountBalances over REST (Total = free + locked).
-				Total: balanceAmount + frozenAmount,
-				Hold:  frozenAmount,
-				Free:  balanceAmount,
-			},
+		code := currency.NewCode(body.VcoinName)
+		// balanceAmount is available and frozenAmount is frozen; total is their sum. This matches
+		// UpdateAccountBalances over REST (Total = free + locked).
+		balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, code, func(b *accounts.Balance) {
+			b.Total = balanceAmount + frozenAmount
+			b.Hold = frozenAmount
+			b.Free = balanceAmount
 		})
+		if err != nil {
+			return err
+		}
+		subAccount := accounts.NewSubAccount(asset.Spot, "")
+		subAccount.Balances.Set(code, balance)
+		return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount})
 	case channelPrivateDealsV3:
 		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
 		if err != nil {

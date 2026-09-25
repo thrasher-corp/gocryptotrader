@@ -255,22 +255,40 @@ func TestWsChannelName(t *testing.T) {
 	}
 }
 
-// TestWsHandlePrivateAccount asserts a private account frame is routed and decoded. The private
+// TestWsHandlePrivateAccount asserts a private account frame is routed, stored and relayed. The private
 // channels carry no symbol after the channel name, so routing on the raw bytes never reached them.
 func TestWsHandlePrivateAccount(t *testing.T) {
-	drainData(t)
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.Websocket.DataHandler = stream.NewRelay(10)
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{
+		AssetType: asset.Spot,
+		Balances:  accounts.CurrencyBalances{currency.USDT: {Currency: currency.USDT, Total: 50, Free: 50}},
+	}}, true), "seeding the account store must not error")
 	raw := wsPushFrame(t, "spot@"+channelAccountV3, 1736409765052,
 		&mexc_proto_types.PrivateAccountV3Api{VcoinName: "USDT", BalanceAmount: "100.5", FrozenAmount: "0.5"})
-	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
+	require.NoError(t, ex.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 
-	change := requireOneOf[accounts.Change](t)
 	// balanceAmount is the available balance and frozenAmount is the frozen part, so total is their
 	// sum, free is balanceAmount and hold is frozenAmount - matching UpdateAccountBalances over REST.
-	assert.Equal(t, currency.USDT, change.Balance.Currency, "Currency should be correct")
-	assert.Equal(t, 101.0, change.Balance.Total, "Total should be available plus frozen")
-	assert.Equal(t, 0.5, change.Balance.Hold, "Hold should be the frozen amount")
-	assert.Equal(t, 100.5, change.Balance.Free, "Free should be the available balance amount")
-	assert.Equal(t, asset.Spot, change.AssetType, "AssetType should be correct")
+	balances, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "GetCachedCurrencyBalances must not error")
+	stored := balances[currency.USDT]
+	assert.Equal(t, 101.0, stored.Total, "the stored total should be available plus frozen")
+	assert.Equal(t, 0.5, stored.Hold, "the stored hold should be the frozen amount")
+	assert.Equal(t, 100.5, stored.Free, "the stored free balance should be the available amount")
+
+	payload := <-ex.Websocket.DataHandler.C
+	subAccounts, ok := payload.Data.(accounts.SubAccounts)
+	require.Truef(t, ok, "payload must be accounts.SubAccounts, got %T", payload.Data)
+	require.Len(t, subAccounts, 1, "one sub-account must be relayed")
+	assert.Equal(t, asset.Spot, subAccounts[0].AssetType, "AssetType should be correct")
+	assert.Equal(t, stored, subAccounts[0].Balances[currency.USDT], "the relayed balance should be the stored one")
 }
 
 // TestWsHandlePrivateDeals asserts a private fill is relayed as fill.Data with the base quantity as
