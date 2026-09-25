@@ -482,6 +482,13 @@ func (m *Manager) connect(ctx context.Context) error {
 		if m.connector == nil {
 			return fmt.Errorf("%v %w", m.exchangeName, errNoConnectFunc)
 		}
+
+		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
+			// This oversees all connections and does not need to be part of wait group management. It is started before
+			// the connector so that a failed initial connection is retried.
+			go m.monitorFrame(ctx, nil, m.monitorConnection)
+		}
+
 		err := m.connector()
 		if err != nil {
 			// The connector may have dialled and started readers before failing. Release them so the next attempt does
@@ -496,11 +503,6 @@ func (m *Manager) connect(ctx context.Context) error {
 
 		m.Wg.Add(1)
 		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
-
-		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-			// This oversees all connections and does not need to be part of wait group management.
-			go m.monitorFrame(ctx, nil, m.monitorConnection)
-		}
 
 		subs, err := m.GenerateSubs() // regenerate state on new connection
 		if err != nil {
@@ -522,6 +524,12 @@ func (m *Manager) connect(ctx context.Context) error {
 	if len(connectionManager) == 0 {
 		m.setState(disconnectedState)
 		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
+	}
+
+	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
+		// This oversees all connections and does not need to be part of wait group management. It is started before
+		// connecting so that a failed initial connection is retried.
+		go m.monitorFrame(ctx, nil, m.monitorConnection)
 	}
 
 	// multiConnectFatalError is a fatal error that will cause all connections to
@@ -662,11 +670,6 @@ func (m *Manager) connect(ctx context.Context) error {
 
 	m.Wg.Add(1)
 	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
-
-	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-		// This oversees all connections and does not need to be part of wait group management.
-		go m.monitorFrame(ctx, nil, m.monitorConnection)
-	}
 
 	return subscriptionError
 }
