@@ -963,6 +963,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			Amount:        resp[x].Amount,
 			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
 			Fee:           resp[x].Fee,
+			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
 		}
@@ -1052,6 +1053,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			Amount:        resp[x].Amount,
 			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
 			Fee:           resp[x].Fee,
+			FeeCurrency:   resp[x].FeeAsset.String(),
 			Cost:          resp[x].Cost,
 			Trades:        trades,
 		}
@@ -1140,6 +1142,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		Amount:        result.Amount,
 		OpenVolume:    result.RemainingAmount,
 		Fee:           result.Fee,
+		FeeCurrency:   result.FeeAsset.String(),
 		Trades:        trades,
 		Cost:          result.Cost,
 		UpdateTime:    updateTime,
@@ -4152,6 +4155,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 				Amount:        position.Orders[i].Cost,
 				OpenVolume:    position.Orders[i].RemainingAmount,
 				Fee:           position.Orders[i].Fee,
+				FeeCurrency:   position.Orders[i].FeeAsset.String(),
 				Cost:          position.Orders[i].Cost,
 			}
 			if !position.Orders[i].LastUpdated.IsZero() {
@@ -4492,6 +4496,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 				Amount:         positionDetails[i].Orders[j].Amount,
 				OpenVolume:     positionDetails[i].Orders[j].RemainingAmount,
 				Fee:            positionDetails[i].Orders[j].Fee,
+				FeeCurrency:    positionDetails[i].Orders[j].FeeAsset.String(),
 				Cost:           positionDetails[i].Orders[j].Cost,
 				ContractAmount: positionDetails[i].Orders[j].ContractAmount,
 			}

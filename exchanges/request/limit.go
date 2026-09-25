@@ -93,6 +93,26 @@ func (r *RateLimiterWithWeight) Weight() Weight {
 	return r.weight
 }
 
+// Limit returns the limiter's budget in actions per second, which is otherwise only observable by
+// timing admissions. Exposed so an exchange's tests can pin the budget its endpoints draw on. A nil
+// receiver is the RateLimitNotRequired sentinel and reports 0; an unrestricted limiter reports rate.Inf.
+func (r *RateLimiterWithWeight) Limit() rate.Limit {
+	if r == nil {
+		return 0
+	}
+	return r.limiter.Limit()
+}
+
+// SharesBudgetWith reports whether both endpoints draw on the same underlying limiter, which is how a
+// venue's shared budget is modelled here. Two endpoints given identical but separate limiters admit
+// twice the documented rate between them, which comparing rates alone cannot detect.
+func (r *RateLimiterWithWeight) SharesBudgetWith(other *RateLimiterWithWeight) bool {
+	if r == nil || other == nil {
+		return r == other
+	}
+	return r.limiter == other.limiter
+}
+
 // NewBasicRateLimit returns an object that implements the limiter interface for basic rate limit.
 func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateLimitDefinitions {
 	rl := NewRateLimitWithWeight(interval, actions, weight)
