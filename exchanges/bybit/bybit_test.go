@@ -3293,7 +3293,7 @@ func TestWsWalletCurrentUnifiedPayload(t *testing.T) {
 
 	ex := testInstance()
 	seed := accounts.NewSubAccount(asset.Spot, "")
-	seed.Balances.Set(currency.USDT, accounts.Balance{Total: 100, Hold: 25, Free: 75, Borrowed: 10})
+	seed.Balances.Set(currency.USDT, accounts.Balance{Total: 100, Hold: 25, Free: 75, Borrowed: 10, AvailableWithoutBorrow: 80})
 	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{seed}, true),
 		"Accounts.Save must seed fields absent from the websocket mapping")
 	startedAt := time.Now()
@@ -3309,9 +3309,35 @@ func TestWsWalletCurrentUnifiedPayload(t *testing.T) {
 	assert.Equal(t, 75.0, balance.Free, "wallet update should preserve spendable funds from the REST snapshot")
 	assert.Equal(t, 25.0, balance.Hold, "wallet update should preserve held funds from the REST snapshot")
 	assert.Equal(t, 10.0, balance.Borrowed, "wallet update should preserve borrowed funds from the REST snapshot")
+	assert.Equal(t, 80.0, balance.AvailableWithoutBorrow,
+		"wallet update should preserve account availability instead of mapping deprecated availableToWithdraw")
 	assert.False(t, balance.UpdatedAt.Before(startedAt), "wallet update should use local arrival order")
-	assert.Zero(t, balance.AvailableWithoutBorrow,
-		"coin availability should remain zero when the deprecated field is empty")
+}
+
+func TestWsWalletNormalAccountAvailability(t *testing.T) {
+	t.Parallel()
+
+	for _, accountType := range []string{"SPOT", "CONTRACT"} {
+		t.Run(accountType, func(t *testing.T) {
+			t.Parallel()
+
+			ex := testInstance()
+			seed := accounts.NewSubAccount(asset.Spot, "")
+			seed.Balances.Set(currency.USDT, accounts.Balance{AvailableWithoutBorrow: 80})
+			require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{seed}, true),
+				"Accounts.Save must seed the previous availability")
+			payload := []byte(fmt.Sprintf(`{"topic":"wallet","data":[{"coin":[{"coin":"USDT","walletBalance":"100","availableToWithdraw":"65"}],"accountType":%q}]}`, accountType))
+			require.NoError(t, ex.wsProcessWalletPushData(t.Context(), payload),
+				"wsProcessWalletPushData must process a normal account wallet payload")
+			message := <-ex.Websocket.DataHandler.C
+			subAccounts, ok := message.Data.(accounts.SubAccounts)
+			require.True(t, ok, "wallet handler must emit canonical subaccounts")
+			balance, ok := subAccounts[0].Balances[currency.USDT]
+			require.True(t, ok, "wallet handler must emit the USDT balance")
+			assert.Equal(t, 65.0, balance.AvailableWithoutBorrow,
+				"normal wallet update should apply availableToWithdraw")
+		})
+	}
 }
 
 func TestWSHandleAuthenticatedData(t *testing.T) {
