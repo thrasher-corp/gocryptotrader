@@ -1727,6 +1727,8 @@ func TestBrokerSubAccountDepositDetailDecodesDocumentedExample(t *testing.T) {
 	assert.Equal(t, int64(1779361732000), d.InsertTime.Time().UnixMilli(), "InsertTime should carry the deposit's time")
 	assert.Empty(t, d.Memo, "Memo should carry the memo")
 	assert.Equal(t, 4.99, d.Amount.Float64(), "Amount should be decoded")
+	assert.Equal(t, "BNB Smart Chain(BEP20)", d.Network, "Network should carry the network's display name")
+	assert.Equal(t, "BSC", d.NetWork, "NetWork should carry the network's identifier")
 }
 
 // TestCampaignDataClickCount decodes clickTime as the click count MEXC documents it to be
