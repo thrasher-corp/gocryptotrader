@@ -54,6 +54,7 @@ func (e *Exchange) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:    true,
 				TickerFetching:    true,
 				TradeFetching:     true,
 				OrderbookFetching: true,
@@ -235,8 +236,41 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
+	result, err := e.AllCurrencyPairTickers(ctx)
+	if err != nil {
+		return err
+	}
+
+	for i := range result {
+		cp, err := e.FormatExchangeCurrency(result[i].Pair, a)
+		if err != nil {
+			return err
+		}
+		if err := ticker.ProcessTicker(&ticker.Price{
+			Last:                       result[i].Last.Float64(),
+			VolumeWeightedAveragePrice: result[i].VolumeWeightedAveragePrice.Float64(),
+			High:                       result[i].High.Float64(),
+			Low:                        result[i].Low.Float64(),
+			Bid:                        result[i].BestBid.Float64(),
+			Ask:                        result[i].BestAsk.Float64(),
+			BaseVolume:                 result[i].Volume.Float64(),
+			Open:                       result[i].Open.Float64(),
+			Open24Hour:                 result[i].Open24Hour.Float64(),
+			PercentChange24Hour:        result[i].PercentChange24Hour.Float64(),
+			MarkPrice:                  result[i].MarkPrice.Float64(),
+			IndexPrice:                 result[i].IndexPrice.Float64(),
+			OpenInterest:               result[i].OpenInterest.Float64(),
+			OpenInterestValue:          result[i].OpenInterestValue.Float64(),
+			Pair:                       cp,
+			ExchangeName:               e.Name,
+			AssetType:                  a,
+			LastUpdated:                result[i].Timestamp.Time(),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -252,17 +286,24 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}
 
 	err = ticker.ProcessTicker(&ticker.Price{
-		Last:         tick.Last,
-		High:         tick.High,
-		Low:          tick.Low,
-		Bid:          tick.Bid,
-		Ask:          tick.Ask,
-		BaseVolume:   tick.Volume,
-		Open:         tick.Open,
-		Pair:         fPair,
-		LastUpdated:  tick.Timestamp.Time(),
-		ExchangeName: e.Name,
-		AssetType:    a,
+		Last:                       tick.Last.Float64(),
+		VolumeWeightedAveragePrice: tick.VolumeWeightedAveragePrice.Float64(),
+		High:                       tick.High.Float64(),
+		Low:                        tick.Low.Float64(),
+		Bid:                        tick.BestBid.Float64(),
+		Ask:                        tick.BestAsk.Float64(),
+		BaseVolume:                 tick.Volume.Float64(),
+		Open:                       tick.Open.Float64(),
+		Open24Hour:                 tick.Open24Hour.Float64(),
+		PercentChange24Hour:        tick.PercentChange24Hour.Float64(),
+		MarkPrice:                  tick.MarkPrice.Float64(),
+		IndexPrice:                 tick.IndexPrice.Float64(),
+		OpenInterest:               tick.OpenInterest.Float64(),
+		OpenInterestValue:          tick.OpenInterestValue.Float64(),
+		Pair:                       fPair,
+		LastUpdated:                tick.Timestamp.Time(),
+		ExchangeName:               e.Name,
+		AssetType:                  a,
 	})
 	if err != nil {
 		return nil, err

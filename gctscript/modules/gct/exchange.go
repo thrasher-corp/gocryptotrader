@@ -167,7 +167,6 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 	data["ask"] = &objects.Float{Value: tx.Ask}
 	data["volume"] = &objects.Float{Value: tx.BaseVolume}
 	data["quotevolume"] = &objects.Float{Value: tx.QuoteVolume}
-	data["priceath"] = &objects.Float{Value: tx.PriceATH}
 	data["open"] = &objects.Float{Value: tx.Open}
 	data["close"] = &objects.Float{Value: tx.Close}
 	data["pair"] = &objects.String{Value: tx.Pair.String()}

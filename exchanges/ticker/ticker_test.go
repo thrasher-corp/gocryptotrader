@@ -135,7 +135,6 @@ func TestGetTicker(t *testing.T) {
 		Bid:          1195,
 		Ask:          1220,
 		BaseVolume:   5,
-		PriceATH:     1337,
 		ExchangeName: "bitfinex",
 		AssetType:    asset.Spot,
 	}
@@ -174,7 +173,6 @@ func TestGetTicker(t *testing.T) {
 		t.Fatal("TestGetTicker returned ticker for invalid second currency")
 	}
 
-	priceStruct.PriceATH = 9001
 	priceStruct.Pair.Base = currency.ETH
 	priceStruct.AssetType = asset.DownsideProfitContract
 	err = ProcessTicker(&priceStruct)
@@ -182,13 +180,9 @@ func TestGetTicker(t *testing.T) {
 		t.Fatal("ProcessTicker error", err)
 	}
 
-	tickerPrice, err = GetTicker("bitfinex", newPair, asset.DownsideProfitContract)
+	_, err = GetTicker("bitfinex", newPair, asset.DownsideProfitContract)
 	if err != nil {
 		t.Errorf("Ticker GetTicker init error: %s", err)
-	}
-
-	if tickerPrice.PriceATH != 9001 {
-		t.Error("ticker tickerPrice.PriceATH value is incorrect")
 	}
 
 	_, err = GetTicker("bitfinex", newPair, asset.UpsideProfitContract)
@@ -242,7 +236,6 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		Bid:        1195,
 		Ask:        1220,
 		BaseVolume: 5,
-		PriceATH:   1337,
 	}
 
 	err = ProcessTicker(&priceStruct)

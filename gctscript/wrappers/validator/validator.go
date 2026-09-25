@@ -83,7 +83,6 @@ func (w Wrapper) Ticker(_ context.Context, exch string, pair currency.Pair, item
 		Ask:          5,
 		BaseVolume:   6,
 		QuoteVolume:  7,
-		PriceATH:     8,
 		Open:         9,
 		Close:        10,
 		Pair:         pair,
