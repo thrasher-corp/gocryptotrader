@@ -1164,9 +1164,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
-	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
 		amendSpreadOrder := &AmendSpreadOrderParam{
@@ -1634,9 +1631,9 @@ ordersLoop:
 }
 
 // cancelResultsUsable reports whether per-order cancel results can be recorded
-// alongside err. A websocket partial success returns fully decoded results with
-// its error; any other error, a decode error included, can leave them half
-// populated.
+// alongside err. A partial success on the websocket or over REST returns fully
+// decoded results with its error; any other error, a decode error included,
+// can leave them half populated.
 func cancelResultsUsable(err error) bool {
 	return err == nil || errors.Is(err, errPartialSuccess)
 }
@@ -2357,9 +2354,11 @@ func (e *Exchange) cacheInstrumentIDCodes(instruments []Instrument) {
 
 func (e *Exchange) cacheInstrumentIDCodesLocked(instruments []Instrument) {
 	for x := range instruments {
-		// A push that omits instIdCode decodes to zero; keep the cached code
-		// rather than clobbering it with the zero value.
+		// OKX sends a null instIdCode until it generates one, including for a
+		// relisted instrument, whose code changes. Dropping the cached code
+		// sends its orders over REST rather than with a replaced code.
 		if instruments[x].InstrumentIDCode == 0 {
+			delete(e.instrumentIDCodeMap, instruments[x].InstrumentID.String())
 			continue
 		}
 		e.instrumentIDCodeMap[instruments[x].InstrumentID.String()] = instruments[x].InstrumentIDCode

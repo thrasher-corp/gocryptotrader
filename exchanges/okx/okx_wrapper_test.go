@@ -118,13 +118,14 @@ func TestCacheInstrumentsIndexesIDCodes(t *testing.T) {
 	assert.EqualValues(t, 11111, fresh.getInstrumentIDCode("SOL-USDT"), "a pushed SOL-USDT should upsert its instrument ID code")
 	assert.Len(t, fresh.instrumentsInfoMap[instTypeSpot], 2, "an instruments push should not replace the cached instrument list")
 
-	// A push omitting instIdCode decodes to zero and must not clobber the
-	// cached code for an instrument that already has one.
+	// A push omitting instIdCode decodes to zero and drops the cached code, so
+	// a relisted instrument's orders go over REST rather than with its replaced
+	// code.
 	fresh.cacheInstrumentIDCodes([]Instrument{
 		{InstrumentID: mainPair},
 		{InstrumentID: solUSDT, InstrumentIDCode: 22222},
 	})
-	assert.EqualValues(t, 12345, fresh.getInstrumentIDCode("BTC-USDT"), "a push without a code should keep the cached instrument ID code")
+	assert.Zero(t, fresh.getInstrumentIDCode("BTC-USDT"), "a push without a code should drop the cached instrument ID code")
 	assert.EqualValues(t, 22222, fresh.getInstrumentIDCode("SOL-USDT"), "a push with a code should still upsert it")
 
 	assert.Zero(t, fresh.getInstrumentIDCode("DOGE-USDT"), "an uncached instrument ID should resolve a zero code")
@@ -378,6 +379,42 @@ func TestModifyOrderPriceOnlyAmend(t *testing.T) {
 	assert.Contains(t, string(amendBody), `"newPx":"42000"`, "a price-only amend should serialise the new price")
 }
 
+// TestModifyOrderFractionalAmount guards fractional amend sizes: OKX allows
+// them on most instruments, and OrderManager.Modify sends the stored size with
+// every price-only amend.
+func TestModifyOrderFractionalAmount(t *testing.T) {
+	t.Parallel()
+
+	var amendBody []byte
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/amend-order" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		var err error
+		amendBody, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading amend request body should not error: %v", err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"123","sCode":"0"}]}`))
+	}))
+
+	_, err := e.ModifyOrder(t.Context(), &order.Modify{
+		Exchange:  e.Name,
+		AssetType: asset.Spot,
+		Pair:      mainPair,
+		OrderID:   "123",
+		Type:      order.Limit,
+		Amount:    0.001,
+		Price:     42000,
+	})
+	require.NoError(t, err, "ModifyOrder must accept a fractional amount")
+	assert.JSONEq(t, `{"instId":"BTC-USDT","ordId":"123","newSz":"0.001","newPx":"42000"}`, string(amendBody), "a fractional amend should reach OKX with its new size and price")
+}
+
 // TestCancelAllOrdersContinuesAfterFailedBatch guards the batch loop: a failed
 // batch must not stop later batches, and the joined error is returned with the
 // statuses collected from the batches that succeeded.
@@ -435,6 +472,60 @@ func TestCancelAllOrdersContinuesAfterFailedBatch(t *testing.T) {
 	assert.Equal(t, 2, requests, "a failed batch should not stop later batches from being sent")
 	assert.Contains(t, resp.Status, "ORD-21", "orders from the later successful batch should still be cancelled")
 	assert.NotContains(t, resp.Status, "ORD-00", "orders from the failed batch should not be reported as cancelled")
+}
+
+// TestCancelBatchOrdersRESTPartialSuccess guards the REST partial-success
+// path: OKX answers a partly failed batch with code 2 and per-order results,
+// which must be decoded and reported alongside the error.
+func TestCancelBatchOrdersRESTPartialSuccess(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/cancel-batch-orders" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"2","msg":"","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`))
+	}))
+	resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+		{AssetType: asset.Spot, Pair: mainPair, OrderID: "OK-1"},
+		{AssetType: asset.Spot, Pair: mainPair, OrderID: "FAIL-1"},
+	})
+	require.ErrorIs(t, err, errPartialSuccess, "a partially successful REST batch must report its error")
+	require.NotNil(t, resp, "CancelBatchOrders must return the partial results")
+	assert.Equal(t, map[string]string{
+		"OK-1":   order.Cancelled.String(),
+		"FAIL-1": "Order does not exist",
+	}, resp.Status, "a partially successful REST batch should report every per-order result")
+}
+
+// TestCancelAllOrdersRESTPartialSuccess guards the REST partial-success path
+// through CancelAllOrders: the per-order results of a code 2 batch reply must
+// reach the status map alongside the error.
+func TestCancelAllOrdersRESTPartialSuccess(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trade/orders-pending":
+			writeOKXData(t, w, []map[string]string{
+				{"instId": "BTC-USDT", "ordId": "OK-1"},
+				{"instId": "BTC-USDT", "ordId": "FAIL-1"},
+			})
+		case "/trade/cancel-batch-orders":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"code":"2","msg":"","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`))
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
+	require.ErrorIs(t, err, errPartialSuccess, "a partially successful REST batch must report its error")
+	assert.Equal(t, map[string]string{
+		"OK-1":   order.Cancelled.String(),
+		"FAIL-1": "Order does not exist",
+	}, resp.Status, "a partially successful REST batch should report every per-order result")
 }
 
 // TestCancelBatchOrdersSpreadGuards covers the spread branch of

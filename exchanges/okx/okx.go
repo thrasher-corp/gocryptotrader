@@ -143,7 +143,10 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 				errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 			}
 		}
-		return nil, common.AppendError(err, errs)
+		// A partially successful batch returns its per-order results alongside
+		// the error, as the websocket variant does, so callers can report the
+		// cancellations that succeeded.
+		return resp, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -5936,6 +5939,9 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		return err
 	}
 	if resp.Code.Int64() != 0 {
+		// A failed batch reply can still carry per-order results for the parts
+		// that succeeded; decode best-effort so callers can report them.
+		_ = unmarshalResponseData(resp.Data, result)
 		if requestType == request.AuthenticatedRequest {
 			err = request.ErrAuthRequestFailed
 		}
@@ -5947,16 +5953,22 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		}
 		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
+	return unmarshalResponseData(resp.Data, result)
+}
 
+// unmarshalResponseData decodes response data into result, which is usually
+// the data itself; some endpoints wrap a single item in an array for a
+// non-slice result.
+func unmarshalResponseData(data json.RawMessage, result any) error {
 	// Most endpoints can be unmarshalled directly (objects and full arrays).
-	directErr := json.Unmarshal(resp.Data, result)
+	directErr := json.Unmarshal(data, result)
 	if directErr == nil {
 		return nil
 	}
 
 	// Some endpoints return a single item wrapped in data:[{...}] for a non-slice result.
 	var dataSlice []json.RawMessage
-	if sliceErr := json.Unmarshal(resp.Data, &dataSlice); sliceErr != nil {
+	if sliceErr := json.Unmarshal(data, &dataSlice); sliceErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
 	}
 	if len(dataSlice) != 1 {
