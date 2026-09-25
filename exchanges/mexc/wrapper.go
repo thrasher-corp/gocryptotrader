@@ -1280,7 +1280,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		var details []order.Detail
 		for p := range getOrdersRequest.Pairs {
 			pair := getOrdersRequest.Pairs[p].Format(pairFormat)
-			result, err := e.GetAllOrders(ctx, pair, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
+			result, err := e.GetAllOrders(ctx, pair, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 1000)
 			if err != nil {
 				return nil, err
 			}

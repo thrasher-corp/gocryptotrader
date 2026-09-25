@@ -1880,3 +1880,20 @@ func TestGetOrderInfoReadsEveryFillPage(t *testing.T) {
 		})
 	}
 }
+
+// TestGetOrderHistoryAsksForAFullPage asks the venue for its largest page of orders: All Orders returns
+// 500 orders unless asked for up to 1000, and a pair's orders beyond the page are dropped without an error.
+func TestGetOrderHistoryAsksForAFullPage(t *testing.T) {
+	t.Parallel()
+	var pageSizes []string
+	var mu sync.Mutex
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		pageSizes = append(pageSizes, r.URL.Query().Get("limit"))
+		mu.Unlock()
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Side: order.AnySide, Type: order.AnyType})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	assert.Equal(t, []string{"1000"}, pageSizes, "GetOrderHistory should ask for the venue's largest page")
+}
