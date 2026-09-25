@@ -182,7 +182,7 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, tick.Open, "Open should be positive")
 	assert.Positive(t, tick.Volume, "Volume should be positive")
 	assert.Positive(t, tick.VolumeWeightedAveragePrice, "volume weighted average price should be positive")
-	assert.Positive(t, tick.Open24, "Open24 should be positive")
+	assert.Positive(t, tick.Open24Hour, "Open24Hour should be positive")
 	assert.NotEmpty(t, tick.PercentChange24, "PercentChange24 should be positive")
 	assert.NotEmpty(t, tick.Timestamp, "Timestamp should not be empty")
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "Side should be either Buy or Sell")
@@ -194,6 +194,7 @@ func TestAllCurrencyPairTickers(t *testing.T) {
 	require.NoError(t, err, "AllCurrencyPairTickers must not error")
 	require.NotEmpty(t, result, "AllCurrencyPairTickers must return tickers")
 	assert.False(t, result[0].Pair.IsEmpty(), "ticker pair should be set")
+	assert.Contains(t, []order.Side{order.Buy, order.Sell}, result[0].Side.Side(), "ticker side should decode")
 }
 
 func TestUpdateTickers(t *testing.T) {

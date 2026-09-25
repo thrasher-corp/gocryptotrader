@@ -280,14 +280,14 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}
 
 	err = ticker.ProcessTicker(&ticker.Price{
-		Last:                       tick.Last,
-		VolumeWeightedAveragePrice: tick.VolumeWeightedAveragePrice,
-		High:                       tick.High,
-		Low:                        tick.Low,
-		Bid:                        tick.Bid,
-		Ask:                        tick.Ask,
-		BaseVolume:                 tick.Volume,
-		Open:                       tick.Open,
+		Last:                       tick.Last.Float64(),
+		VolumeWeightedAveragePrice: tick.VolumeWeightedAveragePrice.Float64(),
+		High:                       tick.High.Float64(),
+		Low:                        tick.Low.Float64(),
+		Bid:                        tick.Bid.Float64(),
+		Ask:                        tick.Ask.Float64(),
+		BaseVolume:                 tick.Volume.Float64(),
+		Open:                       tick.Open.Float64(),
 		Pair:                       fPair,
 		LastUpdated:                tick.Timestamp.Time(),
 		ExchangeName:               e.Name,
