@@ -455,9 +455,10 @@ type AccountTrade struct {
 	IsBestMatch     bool          `json:"isBestMatch"`
 	IsSelfTrade     bool          `json:"isSelfTrade"`
 	Price           types.Number  `json:"price"`
-	Quantity        types.Number  `json:"qty"`
-	QuoteQuantity   types.Number  `json:"quoteQty"`
-	Time            types.Time    `json:"time"`
+	// Quantity keeps the venue's decimal so that the fills of an order sum exactly
+	Quantity      types.PreciseNumber `json:"qty"`
+	QuoteQuantity types.Number        `json:"quoteQty"`
+	Time          types.Time          `json:"time"`
 }
 
 // MXDeductResponse represents an MX deduct response from spot commissions.

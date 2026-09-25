@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets the basic defaults for Mexc
@@ -863,27 +864,42 @@ func averageExecutedPrice(o *OrderDetail) float64 {
 	return o.CummulativeQuoteQty.Float64() / executed
 }
 
+// accountTradesPageLimit is the most fills the venue returns for one myTrades request
+const accountTradesPageLimit = 1000
+
+// accountTradesMaxPages bounds the myTrades requests made to read the fills of one order
+const accountTradesMaxPages = 20
+
 // tradesForOrder fetches the fills of a spot order and maps them to domain trade records plus the
 // aggregated commission. MEXC charges commission per fill in an asset the venue chooses (base,
 // quote, or the MX discount token), so the fee currency is read from the fill and never assumed;
 // when fills disagree on the asset the aggregate currency is left unset. It is best-effort: a
 // myTrades failure must not sink the order lookup, so callers pass through the base order.
-func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, orderID string) (trades []order.TradeHistory, totalFee float64, feeAsset currency.Code) {
+//
+// myTrades returns at most 1000 fills per request, newest first and stamped to the second, with no
+// cursor, and its fill ids do not follow the fills' order. When a page comes back full, the fills
+// are read on in windows from the order's creation to the end of the oldest second of the page,
+// which a full page can stop part-way through, dropping fills already read by id. The reads stop
+// when a page is not full, after accountTradesMaxPages requests, or when a full page does not reach
+// back past its oldest second, as when more fills share one second than a page holds; the fills read
+// so far are then reported with a warning. executed is the order's executed quantity: when the
+// fills read sum to less, they are reported with a warning. It is read before the fills, so an order
+// still filling can have more fills than it counts, and a sum at or above it is not proof that none
+// is missing.
+func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, orderID string, created time.Time, executed decimal.Decimal) (trades []order.TradeHistory, totalFee float64, feeAsset currency.Code) {
 	// MEXC can report an order as filled a moment before its fills surface in myTrades, so a single
 	// immediate lookup sometimes finds nothing for a just-completed order. Retry once with a short
 	// gap rather than polling repeatedly. Best-effort throughout: the order lookup still returns
-	// without commission on failure, but the reason is named rather than dropped silently. The limit
-	// is set to the documented maximum (1000) so an order with more than the default page of fills
-	// does not undercount its commission.
-	var fills []*AccountTrade
+	// without commission on failure, but the reason is named rather than dropped silently.
+	var page []*AccountTrade
 	for attempt := 0; ; attempt++ {
 		var err error
-		fills, err = e.GetAccountTradeList(ctx, pair, orderID, time.Time{}, time.Time{}, 1000)
+		page, err = e.GetAccountTradeList(ctx, pair, orderID, time.Time{}, time.Time{}, accountTradesPageLimit)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%s: myTrades lookup failed for order %s (%s): %v", e.Name, orderID, pair, err)
 			return nil, 0, currency.EMPTYCODE
 		}
-		if len(fills) > 0 || attempt >= 1 {
+		if len(page) > 0 || attempt >= 1 {
 			break
 		}
 		select {
@@ -892,9 +908,63 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 		case <-time.After(time.Second):
 		}
 	}
-	if len(fills) == 0 {
+	if len(page) == 0 {
 		log.Warnf(log.ExchangeSys, "%s: myTrades returned no fills for order %s (%s); commission not materialised", e.Name, orderID, pair)
 		return nil, 0, currency.EMPTYCODE
+	}
+	fills := make([]*AccountTrade, 0, len(page))
+	seen := make(map[string]struct{}, len(page))
+	for requests := 1; ; requests++ {
+		for _, f := range page {
+			if _, ok := seen[f.ID]; !ok {
+				seen[f.ID] = struct{}{}
+				fills = append(fills, f)
+			}
+		}
+		if len(page) < accountTradesPageLimit {
+			break
+		}
+		if requests >= accountTradesMaxPages {
+			log.Warnf(log.ExchangeSys, "%s: order %s (%s) has more fills than %d myTrades pages read; commission covers %d fills", e.Name, orderID, pair, accountTradesMaxPages, len(fills))
+			break
+		}
+		oldest := page[0].Time.Time()
+		for _, f := range page {
+			if f.Time.Time().Before(oldest) {
+				oldest = f.Time.Time()
+			}
+		}
+		end := oldest.Truncate(time.Second).Add(time.Second - time.Millisecond)
+		start := created
+		if !start.Before(end) {
+			start = time.Time{}
+		}
+		next, err := e.GetAccountTradeList(ctx, pair, orderID, start, end, accountTradesPageLimit)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "%s: myTrades lookup failed for order %s (%s) after %d fills: %v", e.Name, orderID, pair, len(fills), err)
+			break
+		}
+		if len(next) >= accountTradesPageLimit {
+			reached := false
+			for _, f := range next {
+				if f.Time.Time().Before(oldest.Truncate(time.Second)) {
+					reached = true
+					break
+				}
+			}
+			if !reached {
+				log.Warnf(log.ExchangeSys, "%s: order %s (%s) has more fills in the second at %s than a myTrades page holds; commission covers %d fills", e.Name, orderID, pair, oldest.Truncate(time.Second), len(fills))
+				break
+			}
+		}
+		page = next
+	}
+	var filled decimal.Decimal
+	for _, f := range fills {
+		filled = filled.Add(f.Quantity.Decimal())
+	}
+	if filled.LessThan(executed) {
+		log.Warnf(log.ExchangeSys, "%s: fills incomplete for order %s (%s): myTrades fills sum to %s of %s executed; commission covers the fills read", e.Name, orderID, pair, filled, executed)
 	}
 	trades = make([]order.TradeHistory, 0, len(fills))
 	uniformFee := true
@@ -1001,7 +1071,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		// Order response carries no commission, so the fee and its currency come from myTrades keyed
 		// by this order.
 		if result.ExecutedQty.Float64() > 0 {
-			if trades, fee, feeAsset := e.tradesForOrder(ctx, pair.Format(pairFormat), orderID); len(trades) > 0 {
+			if trades, fee, feeAsset := e.tradesForOrder(ctx, pair.Format(pairFormat), orderID, result.Time.Time(), result.ExecutedQty.Decimal()); len(trades) > 0 {
 				detail.Trades = trades
 				detail.Fee = fee
 				detail.FeeAsset = feeAsset

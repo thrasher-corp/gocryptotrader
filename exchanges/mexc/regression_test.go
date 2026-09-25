@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1803,4 +1804,77 @@ func TestDustConvertJoinsAssets(t *testing.T) {
 		want = append(want, tc.want)
 	}
 	assert.Equal(t, want, got, "the assets should be sent as one comma separated list")
+}
+
+// TestGetOrderInfoReadsEveryFillPage reads the commission of an order with more fills than one myTrades
+// request returns. The venue answers myTrades with at most limit fills, newest first, stamped to the
+// second and with string ids that do not follow the fills' order, and reads startTime and endTime to
+// the millisecond.
+func TestGetOrderInfoReadsEveryFillPage(t *testing.T) {
+	t.Parallel()
+	created := time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name      string
+		fills     int
+		perSecond int
+		// wantFee is the commission read when the fills can all be read, or zero when they can't
+		wantFee float64
+		// maxCalls is the most myTrades requests the read should take
+		maxCalls int64
+	}{
+		{"1001 fills", 1001, 3, 1001, accountTradesMaxPages},
+		{"2500 fills", 2500, 3, 2500, accountTradesMaxPages},
+		{"pages meeting part-way through a second", 1500, 600, 1500, accountTradesMaxPages},
+		// Reading the second again returns the same page, so the read stops there.
+		{"more fills in one second than a page", 1500, 1500, 0, 2},
+		{"more pages than are read", 30000, 10, 0, accountTradesMaxPages},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// Fill i is stamped perSecond fills to a second from the order's creation, charged 1 USDT for
+			// 1 KAS, and its id is scrambled so that it does not follow the fills' order.
+			stamp := func(i int) int64 { return created.Add(time.Duration(i/tc.perSecond+1) * time.Second).UnixMilli() }
+			id := func(i int) string { return strconv.Itoa(i*7919%100003) + "X" + strconv.Itoa(i%3) }
+			var calls atomic.Int64
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !strings.Contains(r.URL.Path, "myTrades") {
+					_, _ = w.Write([]byte(`{"symbol":"KASUSDT","orderId":"1","price":"0.035","origQty":"` + strconv.Itoa(tc.fills) + `","executedQty":"` + strconv.Itoa(tc.fills) + `","cummulativeQuoteQty":"1","type":"LIMIT","side":"SELL","status":"FILLED","time":` + strconv.FormatInt(created.UnixMilli(), 10) + `}`))
+					return
+				}
+				calls.Add(1)
+				q := r.URL.Query()
+				assert.Equal(t, "1", q.Get("orderId"), "every myTrades request should name the order")
+				from, err := strconv.ParseInt(q.Get("startTime"), 10, 64)
+				if err != nil {
+					from = 0
+				}
+				to, err := strconv.ParseInt(q.Get("endTime"), 10, 64)
+				if err != nil {
+					to = math.MaxInt64
+				}
+				limit, err := strconv.Atoi(q.Get("limit"))
+				if err != nil {
+					limit = 10
+				}
+				var rows []string
+				for i := tc.fills - 1; i >= 0 && len(rows) < limit; i-- {
+					if ms := stamp(i); ms >= from && ms <= to {
+						rows = append(rows, `{"symbol":"KASUSDT","id":"`+id(i)+`","orderId":"1","commission":"1","commissionAsset":"USDT","price":"0.035","qty":"1","quoteQty":"0.035","time":`+strconv.FormatInt(ms, 10)+`}`)
+					}
+				}
+				_, _ = w.Write([]byte("[" + strings.Join(rows, ",") + "]"))
+			}))
+			detail, err := ex.GetOrderInfo(t.Context(), "1", currency.NewPair(currency.NewCode("KAS"), currency.USDT), asset.Spot)
+			require.NoError(t, err, "GetOrderInfo must not error")
+			assert.LessOrEqual(t, calls.Load(), tc.maxCalls, "the fills should be read in a bounded number of requests")
+			if tc.wantFee == 0 {
+				assert.Less(t, len(detail.Trades), tc.fills, "fills that cannot all be read should be reported as far as they were read")
+				assert.Equal(t, float64(len(detail.Trades)), detail.Fee, "the fee should be the commission of the fills that were read, each once")
+				return
+			}
+			require.Len(t, detail.Trades, tc.fills, "every fill must be read once")
+			assert.Equal(t, tc.wantFee, detail.Fee, "Fee should be the commission of every fill")
+			assert.Equal(t, currency.USDT, detail.FeeAsset, "FeeAsset should be the fills' commission asset")
+		})
+	}
 }
