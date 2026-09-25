@@ -663,6 +663,8 @@ func (m *Manager) connect(ctx context.Context) error {
 	return subscriptionError
 }
 
+// createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
+// The connection's store also records subscriptions accepted before the subscriber fails, because flushing uses it to decide whether the connection is still in use
 func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
@@ -697,10 +699,10 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	}
 
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
-		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
+		return common.AppendError(fmt.Errorf("%w: %w", ErrSubscriptionFailure, err), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
 	}
 	if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
-		return fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing)
+		return common.AppendError(fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
 	}
 
 	connSubsStore := conn.Subscriptions()
