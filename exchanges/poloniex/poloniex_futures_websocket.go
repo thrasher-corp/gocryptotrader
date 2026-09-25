@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -440,7 +441,11 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 	for i, r := range resp {
 		tickerPrices[i] = *e.futuresTicker(r)
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // processFuturesTrades handles latest trading data for this product, including the latest price, trading volume, trading direction, etc.

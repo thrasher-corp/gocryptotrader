@@ -4723,15 +4723,17 @@ func TestWsProcessTickers(t *testing.T) {
 	for len(e.Websocket.DataHandler.C) > 0 {
 		resp := <-e.Websocket.DataHandler.C
 		switch v := resp.Data.(type) {
-		case *ticker.Price:
-			want, ok := exp[v.AssetType]
-			require.Truef(t, ok, "ticker stream must not carry an unexpected asset, got %s", v.AssetType)
-			assert.Equalf(t, want.BaseVolume, v.BaseVolume, "BaseVolume should map correctly for %s", v.AssetType)
-			assert.Equalf(t, want.QuoteVolume, v.QuoteVolume, "QuoteVolume should map correctly for %s", v.AssetType)
-			assert.Equalf(t, 77000.0, v.Open, "Open should come from open24h for %s", v.AssetType)
-			assert.Equalf(t, 79000.0, v.High, "High should come from high24h for %s", v.AssetType)
-			assert.Equalf(t, 76000.0, v.Low, "Low should come from low24h for %s", v.AssetType)
-			seen[v.AssetType] = true
+		case []ticker.Price:
+			for i := range v {
+				want, ok := exp[v[i].AssetType]
+				require.Truef(t, ok, "ticker stream must not carry an unexpected asset, got %s", v[i].AssetType)
+				assert.Equalf(t, want.BaseVolume, v[i].BaseVolume, "BaseVolume should map correctly for %s", v[i].AssetType)
+				assert.Equalf(t, want.QuoteVolume, v[i].QuoteVolume, "QuoteVolume should map correctly for %s", v[i].AssetType)
+				assert.Equalf(t, 77000.0, v[i].Open, "Open should come from open24h for %s", v[i].AssetType)
+				assert.Equalf(t, 79000.0, v[i].High, "High should come from high24h for %s", v[i].AssetType)
+				assert.Equalf(t, 76000.0, v[i].Low, "Low should come from low24h for %s", v[i].AssetType)
+				seen[v[i].AssetType] = true
+			}
 		default:
 			assert.Failf(t, "unexpected type in the data handler", "got %T (%v)", v, v)
 		}
@@ -4739,6 +4741,20 @@ func TestWsProcessTickers(t *testing.T) {
 	for a := range exp {
 		assert.Truef(t, seen[a], "a %s ticker should reach the data handler", a)
 	}
+
+	for _, data := range []string{`[]`, `null`} {
+		err := e.wsProcessTickers(t.Context(), []byte(`{"arg":{"channel":"tickers","instType":"SPOT"},"data":`+data+`}`))
+		require.NoError(t, err, "empty ticker data must not error")
+		assert.Empty(t, e.Websocket.DataHandler.C, "empty ticker data should not be dispatched")
+	}
+
+	err := e.wsProcessTickers(t.Context(), []byte(`{"arg":{"channel":"tickers","instType":"SPOT"},"data":[{"instId":"BTC-USDT","askPx":"2","bidPx":"1"},{"instId":"ETH-USDT","askPx":"1","bidPx":"2"}]}`))
+	require.Error(t, err, "wsProcessTickers must reject a batch containing an invalid ticker")
+	require.Len(t, e.Websocket.DataHandler.C, 1, "wsProcessTickers must dispatch valid tickers from a partial batch")
+	processed, ok := (<-e.Websocket.DataHandler.C).Data.([]ticker.Price)
+	require.True(t, ok, "wsProcessTickers must dispatch a ticker batch")
+	require.Len(t, processed, 1, "wsProcessTickers must exclude invalid tickers")
+	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), processed[0].Pair, "wsProcessTickers should dispatch the valid pair")
 }
 
 func TestWSProcessTrades(t *testing.T) {

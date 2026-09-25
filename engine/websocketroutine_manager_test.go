@@ -172,6 +172,15 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		AssetType:    asset.Spot,
 	})
 	assert.NoError(t, err)
+	testPair := currency.NewPair(currency.NewCode("AAA"), currency.NewCode("BBB"))
+	err = m.websocketDataHandler(exchName, &ticker.Price{
+		ExchangeName: exchName,
+		Pair:         testPair,
+		AssetType:    asset.Spot,
+	})
+	assert.NoError(t, err)
+	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 
 	err = m.websocketDataHandler(exchName, kline.Item{})
 	require.NoError(t, err)

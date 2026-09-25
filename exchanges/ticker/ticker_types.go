@@ -11,13 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// const values for the ticker package
-const (
-	errPairNotSet       = "ticker currency pair not set"
-	errAssetTypeNotSet  = "ticker asset type not set"
-	errTickerPriceIsNil = "ticker price is nil"
-)
-
 // Vars for the ticker package
 var (
 	service *Service

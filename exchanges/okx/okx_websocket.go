@@ -749,7 +749,11 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickers)
+	processed, err := ticker.ProcessBatch(tickers)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // wsProcessPublicSpreadTrades retrieve the recent trades data from sprd-public-trades.
@@ -1286,6 +1290,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
+	tickerPrices := make([]ticker.Price, 0, len(response.Data))
 	for i := range response.Data {
 		var assets []asset.Item
 		if response.Argument.InstrumentType != "" {
@@ -1302,7 +1307,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 		}
 		for j := range assets {
 			baseVolume, quoteVolume := tickerVolumes(&response.Data[i], assets[j])
-			tickData := &ticker.Price{
+			tickerPrices = append(tickerPrices, ticker.Price{
 				ExchangeName: e.Name,
 				Open:         response.Data[i].OpenPrice24Hour.Float64(),
 				BaseVolume:   baseVolume,
@@ -1317,13 +1322,14 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 				AssetType:    assets[j],
 				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
-			}
-			if err := e.Websocket.DataHandler.Send(ctx, tickData); err != nil {
-				return err
-			}
+			})
 		}
 	}
-	return nil
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
