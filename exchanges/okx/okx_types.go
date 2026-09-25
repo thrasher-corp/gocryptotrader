@@ -121,7 +121,6 @@ var (
 	errMissingQuantity                      = errors.New("invalid quantity to buy or sell")
 	errAddressRequired                      = errors.New("address is required")
 	errMaxRFQOrdersToCancel                 = errors.New("no more than 100 RFQ cancel order parameter is allowed")
-	errInvalidUnderlying                    = errors.New("invalid underlying")
 	errInstrumentFamilyOrUnderlyingRequired = errors.New("either underlying or instrument family is required")
 	errMissingRequiredParameter             = errors.New("missing required parameter")
 	errMissingMakerInstrumentSettings       = errors.New("missing maker instrument settings")
@@ -501,16 +500,16 @@ type DiscountRateInfoItem struct {
 
 // LiquidationOrderRequestParams holds information to request liquidation orders
 type LiquidationOrderRequestParams struct {
-	InstrumentType string
-	MarginMode     string // values are either isolated or crossed
-	InstrumentID   string
-	Currency       currency.Code
-	Underlying     string
-	Alias          string
-	State          string
-	Before         time.Time
-	After          time.Time
-	Limit          int64
+	InstrumentType   string
+	MarginMode       string // values are either isolated or crossed
+	InstrumentID     string
+	Currency         currency.Code
+	InstrumentFamily string
+	Alias            string
+	State            string
+	Before           time.Time
+	After            time.Time
+	Limit            int64
 }
 
 // LiquidationOrder represents liquidation order item detailed information
@@ -982,16 +981,16 @@ type OrderDetail struct {
 
 // OrderListRequestParams represents order list requesting parameters
 type OrderListRequestParams struct {
-	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
-	Underlying     string    `json:"uly"`
-	InstrumentID   string    `json:"instId"`
-	OrderType      string    `json:"orderType"`
-	State          string    `json:"state"`            // live, partially_filled
-	Before         string    `json:"before,omitempty"` // used for order IDs
-	After          string    `json:"after,omitempty"`  // used for order IDs
-	Start          time.Time `json:"begin"`
-	End            time.Time `json:"end"`
-	Limit          int64     `json:"limit,omitempty"`
+	InstrumentType   string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
+	InstrumentFamily string    `json:"instFamily"`
+	InstrumentID     string    `json:"instId"`
+	OrderType        string    `json:"orderType"`
+	State            string    `json:"state"`            // live, partially_filled
+	Before           string    `json:"before,omitempty"` // used for order IDs
+	After            string    `json:"after,omitempty"`  // used for order IDs
+	Start            time.Time `json:"begin"`
+	End              time.Time `json:"end"`
+	Limit            int64     `json:"limit,omitempty"`
 }
 
 // OrderHistoryRequestParams holds parameters to request order data history of last 7 days
@@ -1042,17 +1041,17 @@ type PendingOrderItem struct {
 
 // TransactionDetailRequestParams retrieve recently-filled transaction details in the last 3 day
 type TransactionDetailRequestParams struct {
-	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , option
-	Underlying     string    `json:"uly"`
-	InstrumentID   string    `json:"instId"`
-	OrderID        string    `json:"ordId"`
-	OrderType      string    `json:"orderType"`
-	SubType        string    `json:"subType,omitempty"`
-	After          string    `json:"after"`  // after billid
-	Before         string    `json:"before"` // before billid
-	Begin          time.Time `json:"begin"`
-	End            time.Time `json:"end"`
-	Limit          int64     `json:"limit"`
+	InstrumentType   string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , option
+	InstrumentFamily string    `json:"instFamily"`
+	InstrumentID     string    `json:"instId"`
+	OrderID          string    `json:"ordId"`
+	OrderType        string    `json:"orderType"`
+	SubType          string    `json:"subType,omitempty"`
+	After            string    `json:"after"`  // after billid
+	Before           string    `json:"before"` // before billid
+	Begin            time.Time `json:"begin"`
+	End              time.Time `json:"end"`
+	Limit            int64     `json:"limit"`
 }
 
 // TransactionDetail holds recently-filled transaction detail data
@@ -3727,10 +3726,10 @@ type SetQuoteProductParam struct {
 
 // MakerInstrumentSetting represents set quote product setting info
 type MakerInstrumentSetting struct {
-	Underlying     string       `json:"uly"`
-	InstrumentID   string       `json:"instId"`
-	MaxBlockSize   types.Number `json:"maxBlockSz"`
-	MakerPriceBand types.Number `json:"makerPxBand"`
+	InstrumentFamily string       `json:"instFamily"`
+	InstrumentID     string       `json:"instId"`
+	MaxBlockSize     types.Number `json:"maxBlockSz"`
+	MakerPriceBand   types.Number `json:"makerPxBand"`
 }
 
 // SetQuoteProductsResult represents set quote products result

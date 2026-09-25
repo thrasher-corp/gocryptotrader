@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -475,11 +479,11 @@ func TestGetDeliveryHistory(t *testing.T) {
 
 func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterestData(contextGenerate(), "", mainPair.String(), "")
+	_, err := e.GetOpenInterestData(contextGenerate(), "", mainPair.String(), "", "")
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetOpenInterestData(contextGenerate(), instTypeOption, "", "")
-	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+	_, err = e.GetOpenInterestData(contextGenerate(), instTypeOption, "", "", "")
+	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
 	testexch.UpdatePairsOnce(t, e)
 	p, err := e.GetAvailablePairs(asset.Options)
@@ -487,12 +491,12 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
 	instrumentID := p[0].String()
-	// Option queries only resolve the plain underlying, without the _UM/_CM
+	// Option queries only resolve the plain underlying, without the _UM
 	// family suffix the instrument family carries.
 	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instrumentID)
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, "", instrumentID)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -570,11 +574,29 @@ func TestGetSystemTime(t *testing.T) {
 func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
 
+	_, err := e.GetLiquidationOrders(contextGenerate(), &LiquidationOrderRequestParams{
+		InstrumentType: instTypeMargin,
+	})
+	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
+
+	_, err = e.GetLiquidationOrders(contextGenerate(), &LiquidationOrderRequestParams{
+		InstrumentType: instTypeSwap,
+	})
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+
 	result, err := e.GetLiquidationOrders(contextGenerate(), &LiquidationOrderRequestParams{
 		InstrumentType: instTypeMargin,
-		Underlying:     mainPair.String(),
 		Currency:       currency.BTC,
 		Limit:          2,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetLiquidationOrders(contextGenerate(), &LiquidationOrderRequestParams{
+		InstrumentType:   instTypeSwap,
+		InstrumentFamily: "BTC-USDT",
+		State:            "FILLED",
+		Limit:            2,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1604,10 +1626,10 @@ func TestSetQuoteProducts(t *testing.T) {
 	data := MakerInstrumentSetting{MaxBlockSize: 10000, MakerPriceBand: 5}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
-	require.ErrorIs(t, err, errInvalidUnderlying)
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	arg.InstrumentType = "SPOT"
-	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: 10000, MakerPriceBand: 5}
+	data = MakerInstrumentSetting{InstrumentFamily: "BTC-USD", MaxBlockSize: 10000, MakerPriceBand: 5}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -1618,12 +1640,12 @@ func TestSetQuoteProducts(t *testing.T) {
 			InstrumentType: "SWAP",
 			Data: []MakerInstrumentSetting{
 				{
-					Underlying:     "BTC-USD",
-					MaxBlockSize:   10000,
-					MakerPriceBand: 5,
+					InstrumentFamily: "BTC-USD",
+					MaxBlockSize:     10000,
+					MakerPriceBand:   5,
 				},
 				{
-					Underlying: mainPair.String(),
+					InstrumentFamily: mainPair.String(),
 				},
 			},
 		},
@@ -6468,6 +6490,9 @@ func TestGetAccountInstruments(t *testing.T) {
 	_, err := e.GetAccountInstruments(contextGenerate(), asset.Empty, "", mainPair.String())
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
+	_, err = e.GetAccountInstruments(contextGenerate(), asset.Options, "", mainPair.String())
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAccountInstruments(contextGenerate(), asset.Spot, "", mainPair.String())
 	assert.NoError(t, err)
@@ -7031,4 +7056,312 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
+}
+
+// TestDeprecatedUlyReplacedByInstFamily pins the uly to instFamily migration
+// across the affected endpoints: OKX removed uly from their documented
+// parameters in favour of instFamily, so every migrated case asserts
+// instFamily carries the filter and uly stays absent. Where the filter is an
+// underlying rather than a family — an underlying such as BTC-USD spans
+// several families (BTC-USD and BTC-USD_UM) — OKX still honours the
+// undocumented uly, so those cases assert the filter keeps travelling as uly
+// and instFamily stays absent.
+func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	var gotPath string
+	var gotQuery url.Values
+	var gotBody []byte
+
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotPath = r.URL.Path
+		gotQuery = r.URL.Query()
+		gotBody, _ = io.ReadAll(r.Body)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		data := `{"code":"0","msg":"","data":[]}`
+		if r.URL.Path == "/public/insurance-fund" || r.URL.Path == "/rfq/maker-instrument-settings" {
+			// Single-pointer responses need a one-item array
+			data = `{"code":"0","msg":"","data":[{}]}`
+		}
+		_, _ = w.Write([]byte(data))
+	}))
+
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	for _, tc := range []struct {
+		name  string
+		call  func() error
+		path  string
+		param string
+		value string
+		body  bool
+	}{
+		{
+			name: "tickers",
+			call: func() error {
+				_, err := e.GetTickers(t.Context(), instTypeSwap, "BTC-USDT")
+				return err
+			},
+			path:  "/market/tickers",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "block tickers",
+			call: func() error {
+				_, err := e.GetBlockTickers(t.Context(), instTypeSwap, "BTC-USDT")
+				return err
+			},
+			path:  "/market/block-tickers",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "mark price",
+			call: func() error {
+				_, err := e.GetMarkPrice(t.Context(), instTypeSwap, "BTC-USDT", "")
+				return err
+			},
+			path:  "/public/mark-price",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			// An underlying such as BTC-USD spans several families (BTC-USD
+			// and BTC-USD_UM), so querying by underlying still needs the
+			// undocumented uly, which OKX continues to honour; pinned here so
+			// the migration does not sweep it up.
+			name: "public instruments keeps uly",
+			call: func() error {
+				_, err := e.GetInstruments(t.Context(), &InstrumentsFetchParams{
+					InstrumentType: instTypeSwap,
+					Underlying:     "BTC-USDT",
+				})
+				return err
+			},
+			path:  "/public/instruments",
+			param: "uly",
+			value: "BTC-USDT",
+		},
+		{
+			name: "pending order list",
+			call: func() error {
+				_, err := e.GetOrderList(t.Context(), &OrderListRequestParams{
+					InstrumentType:   instTypeSwap,
+					InstrumentFamily: "BTC-USDT",
+				})
+				return err
+			},
+			path:  "/trade/orders-pending",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "7 day order history",
+			call: func() error {
+				_, err := e.Get7DayOrderHistory(t.Context(), &OrderHistoryRequestParams{
+					OrderListRequestParams: OrderListRequestParams{
+						InstrumentType:   instTypeSwap,
+						InstrumentFamily: "BTC-USDT",
+					},
+				})
+				return err
+			},
+			path:  "/trade/orders-history",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "3 month order history",
+			call: func() error {
+				_, err := e.Get3MonthOrderHistory(t.Context(), &OrderHistoryRequestParams{
+					OrderListRequestParams: OrderListRequestParams{
+						InstrumentType:   instTypeSwap,
+						InstrumentFamily: "BTC-USDT",
+					},
+				})
+				return err
+			},
+			path:  "/trade/orders-history-archive",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "transaction details last 3 days",
+			call: func() error {
+				_, err := e.GetTransactionDetailsLast3Days(t.Context(), &TransactionDetailRequestParams{
+					InstrumentType:   instTypeSwap,
+					InstrumentFamily: "BTC-USDT",
+				})
+				return err
+			},
+			path:  "/trade/fills",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "transaction details last 3 months",
+			call: func() error {
+				_, err := e.GetTransactionDetailsLast3Months(t.Context(), &TransactionDetailRequestParams{
+					InstrumentType:   instTypeSwap,
+					InstrumentFamily: "BTC-USDT",
+				})
+				return err
+			},
+			path:  "/trade/fills-history",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "account instruments",
+			call: func() error {
+				_, err := e.GetAccountInstruments(t.Context(), asset.PerpetualSwap, "BTC-USDT", "")
+				return err
+			},
+			path:  "/account/instruments",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "portfolio margin position tiers",
+			call: func() error {
+				_, err := e.GetPMPositionLimitation(t.Context(), instTypeSwap, "BTC-USDT")
+				return err
+			},
+			path:  "/account/position-tiers",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "trade fee",
+			call: func() error {
+				_, err := e.GetTradeFee(t.Context(), instTypeSwap, "", "BTC-USDT", "")
+				return err
+			},
+			path:  "/account/trade-fee",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "open interest swap family",
+			call: func() error {
+				_, err := e.GetOpenInterestData(t.Context(), instTypeSwap, "", "BTC-USDT", "")
+				return err
+			},
+			path:  "/public/open-interest",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			// An underlying such as SOL-USD spans several families, so
+			// querying open interest by underlying still needs the
+			// undocumented uly, which OKX continues to honour.
+			name: "open interest option underlying keeps uly",
+			call: func() error {
+				_, err := e.GetOpenInterestData(t.Context(), instTypeOption, "SOL-USD", "", "")
+				return err
+			},
+			path:  "/public/open-interest",
+			param: "uly",
+			value: "SOL-USD",
+		},
+		{
+			name: "option market data",
+			call: func() error {
+				_, err := e.GetOptionMarketData(t.Context(), "BTC-USD", time.Time{})
+				return err
+			},
+			path:  "/public/opt-summary",
+			param: "instFamily",
+			value: "BTC-USD",
+		},
+		{
+			name: "delivery history",
+			call: func() error {
+				_, err := e.GetDeliveryHistory(t.Context(), instTypeFutures, "BTC-USD", time.Time{}, time.Time{}, 0)
+				return err
+			},
+			path:  "/public/delivery-exercise-history",
+			param: "instFamily",
+			value: "BTC-USD",
+		},
+		{
+			name: "position tiers",
+			call: func() error {
+				_, err := e.GetPositionTiers(t.Context(), instTypeSwap, TradeModeCross, "BTC-USDT", "BTC-USDT-SWAP", "", currency.EMPTYCODE)
+				return err
+			},
+			path:  "/public/position-tiers",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "insurance fund",
+			call: func() error {
+				_, err := e.GetInsuranceFundInformation(t.Context(), &InsuranceFundInformationRequestParams{
+					InstrumentType:   instTypeSwap,
+					InstrumentFamily: "BTC-USDT",
+				})
+				return err
+			},
+			path:  "/public/insurance-fund",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "liquidation orders",
+			call: func() error {
+				_, err := e.GetLiquidationOrders(t.Context(), &LiquidationOrderRequestParams{
+					InstrumentType:   instTypeSwap,
+					InstrumentFamily: "BTC-USDT",
+				})
+				return err
+			},
+			path:  "/public/liquidation-orders",
+			param: "instFamily",
+			value: "BTC-USDT",
+		},
+		{
+			name: "set quote products",
+			call: func() error {
+				_, err := e.SetQuoteProducts(t.Context(), []SetQuoteProductParam{{
+					InstrumentType: instTypeSwap,
+					Data:           []MakerInstrumentSetting{{InstrumentFamily: "BTC-USDT"}},
+				}})
+				return err
+			},
+			path:  "/rfq/maker-instrument-settings",
+			param: "instFamily",
+			value: "BTC-USDT",
+			body:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, tc.call(), "request must not error")
+			mu.Lock()
+			path, query, body := gotPath, gotQuery, gotBody
+			mu.Unlock()
+			assert.Equal(t, tc.path, path, "the documented endpoint should be requested")
+			if tc.body {
+				assert.Contains(t, string(body), `"`+tc.param+`":"`+tc.value+`"`, "the filter should travel under the expected parameter in the posted body")
+				assert.NotContains(t, string(body), `"uly"`, "only one of uly and instFamily should be sent")
+				return
+			}
+			assert.Equal(t, tc.value, query.Get(tc.param), "the filter should travel under the expected parameter")
+			other := "uly"
+			if tc.param == "uly" {
+				other = "instFamily"
+			}
+			assert.NotContains(t, query, other, "only one of uly and instFamily should be sent")
+		})
+	}
 }

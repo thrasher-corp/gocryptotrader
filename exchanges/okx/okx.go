@@ -234,8 +234,8 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
 	}
-	if arg.Underlying != "" {
-		params.Set("instFamily", arg.Underlying)
+	if arg.InstrumentFamily != "" {
+		params.Set("instFamily", arg.InstrumentFamily)
 	}
 	if arg.OrderType != "" {
 		params.Set("orderType", strings.ToLower(arg.OrderType))
@@ -279,8 +279,8 @@ func (e *Exchange) getOrderHistory(ctx context.Context, arg *OrderHistoryRequest
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
 	}
-	if arg.Underlying != "" {
-		params.Set("instFamily", arg.Underlying)
+	if arg.InstrumentFamily != "" {
+		params.Set("instFamily", arg.InstrumentFamily)
 	}
 	if arg.OrderType != "" {
 		params.Set("orderType", strings.ToLower(arg.OrderType))
@@ -334,8 +334,8 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
 	}
-	if arg.Underlying != "" {
-		params.Set("instFamily", arg.Underlying)
+	if arg.InstrumentFamily != "" {
+		params.Set("instFamily", arg.InstrumentFamily)
 	}
 	if !arg.Begin.IsZero() {
 		params.Set("begin", strconv.FormatInt(arg.Begin.UnixMilli(), 10))
@@ -888,11 +888,11 @@ func (e *Exchange) SetQuoteProducts(ctx context.Context, args []SetQuoteProductP
 			return nil, errMissingMakerInstrumentSettings
 		}
 		for y := range args[x].Data {
-			if slices.Contains([]string{instTypeSwap, instTypeFutures, instTypeOption}, args[x].InstrumentType) && args[x].Data[y].Underlying == "" {
-				return nil, fmt.Errorf("%w, for instrument type %s and %s", errInvalidUnderlying, args[x].InstrumentType, args[x].Data[x].Underlying)
+			if slices.Contains([]string{instTypeSwap, instTypeFutures, instTypeOption}, args[x].InstrumentType) && args[x].Data[y].InstrumentFamily == "" {
+				return nil, fmt.Errorf("%w, for instrument type %s", errInstrumentFamilyRequired, args[x].InstrumentType)
 			}
-			if (args[x].InstrumentType == instTypeSpot) && args[x].Data[x].InstrumentID == "" {
-				return nil, fmt.Errorf("%w, for instrument type %s and %s", errMissingInstrumentID, args[x].InstrumentType, args[x].Data[x].InstrumentID)
+			if (args[x].InstrumentType == instTypeSpot) && args[x].Data[y].InstrumentID == "" {
+				return nil, fmt.Errorf("%w, for instrument type %s", errMissingInstrumentID, args[x].InstrumentType)
 			}
 		}
 	}
@@ -1591,6 +1591,9 @@ func (e *Exchange) GetConvertHistory(ctx context.Context, before, after time.Tim
 func (e *Exchange) GetAccountInstruments(ctx context.Context, instrumentType asset.Item, instrumentFamily, instrumentID string) ([]AccountInstrument, error) {
 	if instrumentType == asset.Empty {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
+	}
+	if instrumentType == asset.Options && instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
 	}
 	params := url.Values{}
 	if instrumentFamily != "" {
@@ -4535,7 +4538,7 @@ func (e *Exchange) GetIndexComponents(ctx context.Context, index string) (*Index
 }
 
 // GetBlockTickers retrieves the latest block trading volume in the last 24 hours.
-// Instrument Type Is Mandatory, and Underlying is Optional
+// Instrument Type Is Mandatory, and Instrument Family is Optional
 func (e *Exchange) GetBlockTickers(ctx context.Context, instrumentType, instrumentFamily string) ([]BlockTicker, error) {
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
@@ -4887,10 +4890,9 @@ func (e *Exchange) GetInstruments(ctx context.Context, arg *InstrumentsFetchPara
 	params := url.Values{}
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	params.Set("instType", arg.InstrumentType)
-	// The live public/instruments endpoint rejects instFamily for most
-	// option families (error 51000 for SOL-USD and friends) while accepting
-	// the deprecated uly for all of them, so the underlying filter keeps
-	// travelling as uly here despite the documentation.
+	// OKX documents only instFamily, but an underlying such as BTC-USD spans
+	// several families (BTC-USD and BTC-USD_UM), so querying by underlying
+	// still needs the undocumented uly, which OKX continues to honour.
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
 	}
@@ -4939,26 +4941,25 @@ func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, instr
 }
 
 // GetOpenInterestData retrieves the total open interest for contracts on OKX
-func (e *Exchange) GetOpenInterestData(ctx context.Context, instType, instrumentFamily, instID string) ([]OpenInterest, error) {
+func (e *Exchange) GetOpenInterestData(ctx context.Context, instType, underlying, instrumentFamily, instID string) ([]OpenInterest, error) {
 	if instType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if instType == instTypeOption && instrumentFamily == "" {
-		return nil, errInstrumentFamilyRequired
+	if instType == instTypeOption && underlying == "" && instrumentFamily == "" {
+		return nil, errInstrumentFamilyOrUnderlyingRequired
 	}
 	params := url.Values{}
 	instType = strings.ToUpper(instType)
 	params.Set("instType", instType)
+	// An underlying such as BTC-USD spans several families (BTC-USD and
+	// BTC-USD_UM), so underlying and instrument family are not
+	// interchangeable: the underlying travels as uly, which OKX continues
+	// to honour, and the family as instFamily.
+	if underlying != "" {
+		params.Set("uly", underlying)
+	}
 	if instrumentFamily != "" {
-		// The live endpoint rejects instFamily for option families (error
-		// 51000 for SOL-USD and friends) while accepting the deprecated uly,
-		// so option underlyings keep travelling as uly; other instrument
-		// types take instFamily.
-		familyParam := "instFamily"
-		if instType == instTypeOption {
-			familyParam = "uly"
-		}
-		params.Set(familyParam, instrumentFamily)
+		params.Set("instFamily", instrumentFamily)
 	}
 	if instID != "" {
 		params.Set("instId", instID)
@@ -5054,7 +5055,7 @@ func (e *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
 }
 
 // GetLiquidationOrders retrieves information on liquidation orders in the last day
-func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
+func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) ([]LiquidationOrder, error) {
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -5070,11 +5071,16 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 		params.Set("instId", arg.InstrumentID)
 	case arg.InstrumentType == instTypeMargin && arg.Currency.String() != "":
 		params.Set("ccy", arg.Currency.String())
-	default:
+	case arg.InstrumentType == instTypeMargin:
 		return nil, errEitherInstIDOrCcyIsRequired
+	case arg.InstrumentFamily == "":
+		return nil, errInstrumentFamilyRequired
+	default:
+		params.Set("instFamily", arg.InstrumentFamily)
 	}
-	if arg.InstrumentType != instTypeMargin && arg.Underlying != "" {
-		params.Set("instFamily", arg.Underlying)
+	// OKX requires state for SWAP and rejects it upper-cased
+	if arg.State != "" {
+		params.Set("state", strings.ToLower(arg.State))
 	}
 	if arg.InstrumentType == instTypeFutures && arg.Alias != "" {
 		params.Set("alias", arg.Alias)
@@ -5088,7 +5094,7 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 	if arg.Limit > 0 && arg.Limit < 100 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	var resp *LiquidationOrder
+	var resp []LiquidationOrder
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, common.EncodeURLValues("public/liquidation-orders", params), nil, &resp, request.UnauthenticatedRequest)
 }
 

@@ -2949,7 +2949,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				}
 				for u := range underlyings {
 					var incOID []OpenInterest
-					incOID, err = e.GetOpenInterestData(ctx, instType, underlyings[u], "")
+					incOID, err = e.GetOpenInterestData(ctx, instType, underlyings[u], "", "")
 					if err != nil {
 						return nil, err
 					}
@@ -2957,7 +2957,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				}
 			case instTypeSwap,
 				instTypeFutures:
-				oid, err = e.GetOpenInterestData(ctx, instType, "", "")
+				oid, err = e.GetOpenInterestData(ctx, instType, "", "", "")
 				if err != nil {
 					return nil, err
 				}
@@ -3009,14 +3009,14 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 		for u := range underlyings {
 			var incOID []OpenInterest
-			incOID, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], underlyings[u], "")
+			incOID, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], underlyings[u], "", "")
 			if err != nil {
 				return nil, err
 			}
 			oid = append(oid, incOID...)
 		}
 	case instTypeSwap, instTypeFutures:
-		oid, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
+		oid, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", "", pFmt)
 		if err != nil {
 			return nil, err
 		}
