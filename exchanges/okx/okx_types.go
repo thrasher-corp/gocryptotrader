@@ -2497,7 +2497,6 @@ type RFQTradesRequestParams struct {
 	QuoteID       string
 	BlockTradeID  string
 	ClientQuoteID string
-	State         string
 	BeginID       string
 	EndID         string
 	Limit         int64
