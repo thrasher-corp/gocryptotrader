@@ -1883,16 +1883,17 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			return nil, err
 		}
 	}
-	endTime := req.EndTime
+	// OKX pages the pending order list with the after order ID cursor; the End
+	// timestamp is not a documented parameter, so paginating with it re-fetched
+	// the first page, losing every order past the first hundred.
 allOrders:
-	for {
-		requestParam := &OrderListRequestParams{
-			OrderType:      orderType,
-			End:            endTime,
-			InstrumentType: instrumentType,
-		}
+	for after := ""; ; {
 		var orderList []OrderDetail
-		orderList, err = e.GetOrderList(ctx, requestParam)
+		orderList, err = e.GetOrderList(ctx, &OrderListRequestParams{
+			OrderType:      orderType,
+			InstrumentType: instrumentType,
+			After:          after,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1901,8 +1902,7 @@ allOrders:
 		}
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
-				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime.Equal(orderList[i].CreationTime.Time()) {
+				orderList[i].CreationTime.Time().Before(req.StartTime) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -1950,13 +1950,10 @@ allOrders:
 				TimeInForce:     tif,
 			})
 		}
-		if len(orderList) < 100 {
-			// Since the we passed a limit of 0 to the method GetOrderList,
-			// we expect 100 orders to be retrieved if the number of orders are more that 100.
-			// If not, break out of the loop to not send another request.
+		if len(orderList) < orderListPageSize {
 			break
 		}
-		endTime = orderList[len(orderList)-1].CreationTime.Time()
+		after = orderList[len(orderList)-1].OrderID
 	}
 	return req.Filter(e.Name, resp), nil
 }

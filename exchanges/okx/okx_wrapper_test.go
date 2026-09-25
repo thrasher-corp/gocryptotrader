@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"testing"
 	"uuid"
@@ -526,6 +527,75 @@ func TestCancelAllOrdersRESTPartialSuccess(t *testing.T) {
 		"OK-1":   order.Cancelled.String(),
 		"FAIL-1": "Order does not exist",
 	}, resp.Status, "a partially successful REST batch should report every per-order result")
+}
+
+// TestGetActiveOrdersPaginatesWithOrderIDCursor guards the pending order crawl:
+// OKX pages /trade/orders-pending with the after order ID cursor, so paginating
+// by a timestamp instead re-fetched the first page, losing every order past the
+// first hundred.
+func TestGetActiveOrdersPaginatesWithOrderIDCursor(t *testing.T) {
+	t.Parallel()
+
+	fillPage := func(first, count int) []map[string]string {
+		ords := make([]map[string]string, 0, count)
+		for x := range count {
+			ords = append(ords, map[string]string{
+				"instId":    "BTC-USDT",
+				"ordId":     fmt.Sprintf("ORD-%03d", first+x),
+				"cTime":     strconv.Itoa(1700000000000 + first + x),
+				"uTime":     strconv.Itoa(1700000000000 + first + x),
+				"state":     "live",
+				"ordType":   "limit",
+				"side":      "buy",
+				"sz":        "1",
+				"px":        "42000",
+				"accFillSz": "0",
+				"feeCcy":    "USDT",
+				"fee":       "0",
+			})
+		}
+		return ords
+	}
+	pages := map[string][]map[string]string{
+		"":        fillPage(0, orderListPageSize),
+		"ORD-099": fillPage(orderListPageSize, 50),
+	}
+
+	var mu sync.Mutex
+	var afterCursors []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/orders-pending" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		after := r.URL.Query().Get("after")
+		mu.Lock()
+		afterCursors = append(afterCursors, after)
+		page := pages[after]
+		mu.Unlock()
+		writeOKXData(t, w, page)
+	}))
+
+	resp, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error when the pending order list spans pages")
+
+	mu.Lock()
+	cursors := make([]string, len(afterCursors))
+	copy(cursors, afterCursors)
+	mu.Unlock()
+	assert.Equal(t, []string{"", "ORD-099"}, cursors, "the second page should be requested with the first page's last order ID")
+	assert.Len(t, resp, orderListPageSize+50, "a paginated crawl should return every open order")
+	ids := make(map[string]struct{}, len(resp))
+	for x := range resp {
+		ids[resp[x].OrderID] = struct{}{}
+	}
+	assert.Len(t, ids, orderListPageSize+50, "a paginated crawl should not duplicate orders")
+	assert.Contains(t, ids, "ORD-149", "orders past the first page should be returned")
 }
 
 // TestCancelBatchOrdersSpreadGuards covers the spread branch of
