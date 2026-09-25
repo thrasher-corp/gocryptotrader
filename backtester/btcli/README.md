@@ -27,7 +27,7 @@ go run .
 ```
 
 Run `btcli <command> --help` to see its flags. Required flags are marked in
-the help output. Set boolean flags with `=`, for example `--archived=false`.
+the help output. Set boolean flags with `=`, for example `--donotstore=false`.
 
 Supply command parameters as named flags. Positional arguments are rejected.
 For example:

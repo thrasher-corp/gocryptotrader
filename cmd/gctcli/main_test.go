@@ -137,21 +137,37 @@ func TestRequiredCommandFlags(t *testing.T) {
 }
 
 func TestWithdrawalRequestByExchangeID(t *testing.T) {
-	for _, limit := range []string{"2147483648", "-2147483649"} {
-		t.Run(limit, func(t *testing.T) {
+	for _, tc := range []struct {
+		limit   string
+		wantErr error
+	}{
+		{limit: "2147483648", wantErr: errWithdrawalLimitOutOfRange},
+		{limit: "-2147483649", wantErr: errWithdrawalLimitOutOfRange},
+		{limit: "2147483647", wantErr: os.ErrNotExist},
+		{limit: "-2147483648", wantErr: os.ErrNotExist},
+	} {
+		t.Run(tc.limit, func(t *testing.T) {
 			app := &cli.App{Commands: []*cli.Command{withdrawalRequestCommand}}
-			err := app.Run([]string{"gctcli", "withdrawalrequesthistory", "byexchange", "--exchange", "Binance", "--asset", "spot", "--limit", limit})
-			assert.ErrorIs(t, err, errWithdrawalLimitOutOfRange, "out-of-range limit should be rejected before RPC setup")
+			err := app.Run([]string{"gctcli", "withdrawalrequesthistory", "byexchange", "--exchange", "Binance", "--asset", "spot", "--limit", tc.limit})
+			assert.ErrorIs(t, err, tc.wantErr, "limit should be rejected only outside the int32 range")
 		})
 	}
 }
 
 func TestWithdrawalRequestByDate(t *testing.T) {
-	for _, limit := range []string{"2147483648", "-2147483649"} {
-		t.Run(limit, func(t *testing.T) {
+	for _, tc := range []struct {
+		limit   string
+		wantErr error
+	}{
+		{limit: "2147483648", wantErr: errWithdrawalLimitOutOfRange},
+		{limit: "-2147483649", wantErr: errWithdrawalLimitOutOfRange},
+		{limit: "2147483647", wantErr: os.ErrNotExist},
+		{limit: "-2147483648", wantErr: os.ErrNotExist},
+	} {
+		t.Run(tc.limit, func(t *testing.T) {
 			app := &cli.App{Commands: []*cli.Command{withdrawalRequestCommand}}
-			err := app.Run([]string{"gctcli", "withdrawalrequesthistory", "bydate", "--exchange", "Binance", "--limit", limit})
-			assert.ErrorIs(t, err, errWithdrawalLimitOutOfRange, "out-of-range limit should be rejected before RPC setup")
+			err := app.Run([]string{"gctcli", "withdrawalrequesthistory", "bydate", "--exchange", "Binance", "--limit", tc.limit})
+			assert.ErrorIs(t, err, tc.wantErr, "limit should be rejected only outside the int32 range")
 		})
 	}
 }
