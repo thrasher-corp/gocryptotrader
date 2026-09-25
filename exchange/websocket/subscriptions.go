@@ -644,7 +644,10 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 
 	toSubscribe := subs[:availableCap]
 	managerStore := m.subscriptionStore(conn)
-	pending := unheldSubscriptions(managerStore, toSubscribe)
+	pending, err := unheldSubscriptions(managerStore, toSubscribe)
+	if err != nil {
+		return nil, err
+	}
 	if err := m.SubscribeToChannels(ctx, conn, toSubscribe); err != nil {
 		return nil, common.AppendError(err, recordConnectionSubscriptions(store, managerStore, pending))
 	}
@@ -658,22 +661,37 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 	return subs[availableCap:], nil
 }
 
-// unheldSubscriptions returns the subscriptions in subs that the manager's store does not hold as the exact instance, skipping nil entries
-func unheldSubscriptions(managerStore *subscription.Store, subs subscription.List) subscription.List {
+// unheldSubscriptions returns the subscriptions in subs that the manager's store does not hold as the exact instance
+func unheldSubscriptions(managerStore *subscription.Store, subs subscription.List) (subscription.List, error) {
+	if err := common.NilGuard(managerStore); err != nil {
+		return nil, fmt.Errorf("websocket manager %w", err)
+	}
+	if slices.Contains(subs, nil) {
+		return nil, fmt.Errorf("%w: List parameter contains a nil element", common.ErrNilPointer)
+	}
 	unheld := make(subscription.List, 0, len(subs))
 	for _, s := range subs {
-		if s != nil && managerStore.Get(s) != s {
+		if managerStore.Get(s) != s {
 			unheld = append(unheld, s)
 		}
 	}
-	return unheld
+	return unheld, nil
 }
 
 // recordConnectionSubscriptions adds the subscriptions in subs that the manager's store holds as the exact instance to the connection's store
 // An equivalent subscription held by the manager may belong to another connection, so it is not recorded here
 func recordConnectionSubscriptions(connStore, managerStore *subscription.Store, subs subscription.List) error {
+	if err := common.NilGuard(connStore); err != nil {
+		return fmt.Errorf("websocket connection %w", err)
+	}
+	if err := common.NilGuard(managerStore); err != nil {
+		return fmt.Errorf("websocket manager %w", err)
+	}
+	if slices.Contains(subs, nil) {
+		return fmt.Errorf("%w: List parameter contains a nil element", common.ErrNilPointer)
+	}
 	for _, s := range subs {
-		if s == nil || managerStore.Get(s) != s {
+		if managerStore.Get(s) != s {
 			continue
 		}
 		// Store subscription against this specific connection for tracking
@@ -686,11 +704,17 @@ func recordConnectionSubscriptions(connStore, managerStore *subscription.Store, 
 
 // releaseConnectionSubscriptions removes the subscriptions in subs that the manager's store no longer holds from the connection's store
 func releaseConnectionSubscriptions(connStore, managerStore *subscription.Store, subs subscription.List) error {
-	if managerStore == nil {
-		return nil
+	if err := common.NilGuard(connStore); err != nil {
+		return fmt.Errorf("websocket connection %w", err)
+	}
+	if err := common.NilGuard(managerStore); err != nil {
+		return fmt.Errorf("websocket manager %w", err)
+	}
+	if slices.Contains(subs, nil) {
+		return fmt.Errorf("%w: List parameter contains a nil element", common.ErrNilPointer)
 	}
 	for _, s := range subs {
-		if s == nil || managerStore.Get(s) != nil {
+		if managerStore.Get(s) != nil {
 			continue
 		}
 		if err := connStore.Remove(s); err != nil {

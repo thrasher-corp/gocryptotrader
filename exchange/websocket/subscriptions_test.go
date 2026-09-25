@@ -2035,6 +2035,25 @@ func TestFlushChannelsKeepsConnectionWithPartialSubscriptions(t *testing.T) {
 	assert.NotNil(t, ws.subscriptions.Get(accepted), "accepted subscription should remain in the websocket store")
 }
 
+func TestUnheldSubscriptions(t *testing.T) {
+	t.Parallel()
+	sub := &subscription.Subscription{Channel: "sub"}
+
+	_, err := unheldSubscriptions(nil, subscription.List{sub})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "unheldSubscriptions should error without a manager store")
+
+	_, err = unheldSubscriptions(subscription.NewStore(), subscription.List{sub, nil})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "unheldSubscriptions should error on a nil subscription")
+
+	managerStore := subscription.NewStore()
+	require.NoError(t, managerStore.Add(sub), "subscription must be added to the manager store")
+	equivalent := &subscription.Subscription{Channel: "sub"}
+	other := &subscription.Subscription{Channel: "other"}
+	unheld, err := unheldSubscriptions(managerStore, subscription.List{sub, equivalent, other})
+	require.NoError(t, err, "unheldSubscriptions must not error")
+	assert.Equal(t, subscription.List{equivalent, other}, unheld, "unheldSubscriptions should return everything but the exact instance held")
+}
+
 func TestRecordConnectionSubscriptions(t *testing.T) {
 	t.Parallel()
 	sub := &subscription.Subscription{Channel: "sub"}
@@ -2043,7 +2062,16 @@ func TestRecordConnectionSubscriptions(t *testing.T) {
 	connStore := subscription.NewStore()
 	require.NoError(t, connStore.Add(sub), "subscription must be added to the connection store")
 
-	err := recordConnectionSubscriptions(connStore, managerStore, subscription.List{nil, sub})
+	err := recordConnectionSubscriptions(nil, managerStore, nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "recordConnectionSubscriptions should error without a connection store")
+
+	err = recordConnectionSubscriptions(connStore, nil, subscription.List{sub})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "recordConnectionSubscriptions should error without a manager store")
+
+	err = recordConnectionSubscriptions(connStore, managerStore, subscription.List{nil, sub})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "recordConnectionSubscriptions should error on a nil subscription")
+
+	err = recordConnectionSubscriptions(connStore, managerStore, subscription.List{sub})
 	assert.ErrorIs(t, err, ErrSubscriptionFailure, "recordConnectionSubscriptions should wrap a failed add as a subscription failure")
 	assert.ErrorIs(t, err, subscription.ErrDuplicate, "recordConnectionSubscriptions should return the connection store error")
 }
@@ -2051,8 +2079,17 @@ func TestRecordConnectionSubscriptions(t *testing.T) {
 func TestReleaseConnectionSubscriptions(t *testing.T) {
 	t.Parallel()
 	sub := &subscription.Subscription{Channel: "sub"}
-	assert.NoError(t, releaseConnectionSubscriptions(subscription.NewStore(), nil, subscription.List{sub}), "releaseConnectionSubscriptions should do nothing without a manager store")
-	err := releaseConnectionSubscriptions(subscription.NewStore(), subscription.NewStore(), subscription.List{sub})
+
+	err := releaseConnectionSubscriptions(nil, subscription.NewStore(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "releaseConnectionSubscriptions should error without a connection store")
+
+	err = releaseConnectionSubscriptions(subscription.NewStore(), nil, subscription.List{sub})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "releaseConnectionSubscriptions should error without a manager store")
+
+	err = releaseConnectionSubscriptions(subscription.NewStore(), subscription.NewStore(), subscription.List{nil, sub})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "releaseConnectionSubscriptions should error on a nil subscription")
+
+	err = releaseConnectionSubscriptions(subscription.NewStore(), subscription.NewStore(), subscription.List{sub})
 	assert.ErrorIs(t, err, subscription.ErrNotFound, "releaseConnectionSubscriptions should return the connection store error")
 }
 
