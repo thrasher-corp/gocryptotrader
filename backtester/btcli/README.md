@@ -33,7 +33,7 @@ Supply command parameters as named flags. Positional arguments are rejected.
 For example:
 
 ```console
-btcli starttask --id task-1
+btcli starttask --id 3f8b1d52-8c2e-4c56-9f25-2a7d0d6f1b11
 btcli executestrategyfromfile --path strategy.json
 ```
 
