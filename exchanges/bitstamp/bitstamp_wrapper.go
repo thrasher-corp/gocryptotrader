@@ -54,6 +54,7 @@ func (e *Exchange) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:    true,
 				TickerFetching:    true,
 				TradeFetching:     true,
 				OrderbookFetching: true,
@@ -235,8 +236,38 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
+	result, err := e.AllCurrencyPairTickers(ctx)
+	if err != nil {
+		return err
+	}
+
+	for i := range result {
+		cp, err := currency.NewPairFromString(result[i].Pair)
+		if err != nil {
+			return err
+		}
+		cp, err = e.FormatExchangeCurrency(cp, a)
+		if err != nil {
+			return err
+		}
+		if err := ticker.ProcessTicker(&ticker.Price{
+			Last:         result[i].Last.Float64(),
+			High:         result[i].High.Float64(),
+			Low:          result[i].Low.Float64(),
+			Bid:          result[i].Bid.Float64(),
+			Ask:          result[i].Ask.Float64(),
+			BaseVolume:   result[i].Volume.Float64(),
+			Open:         result[i].Open.Float64(),
+			Pair:         cp,
+			ExchangeName: e.Name,
+			AssetType:    a,
+			LastUpdated:  time.Unix(result[i].Timestamp, 0),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

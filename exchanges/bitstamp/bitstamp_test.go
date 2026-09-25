@@ -1,6 +1,8 @@
 package bitstamp
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -185,6 +188,78 @@ func TestGetTicker(t *testing.T) {
 	assert.NotEmpty(t, tick.PercentChange24, "PercentChange24 should be positive")
 	assert.NotEmpty(t, tick.Timestamp, "Timestamp should not be empty")
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "Side should be either Buy or Sell")
+}
+
+func TestAllCurrencyPairTickers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("mock", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, "/v2/ticker/", r.URL.Path)
+			_, err := w.Write([]byte(`[{"pair":"BTC/USD","last":"10.5","bid":"10","ask":"11","timestamp":"1700000000"}]`))
+			assert.NoError(t, err)
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()))
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL))
+		result, err := ex.AllCurrencyPairTickers(t.Context())
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "BTC/USD", result[0].Pair)
+		assert.Equal(t, 10.5, result[0].Last.Float64())
+		assert.Equal(t, int64(1700000000), result[0].Timestamp)
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("live endpoint runs with the live test build")
+		}
+		result, err := e.AllCurrencyPairTickers(t.Context())
+		require.NoError(t, err)
+		assert.NotEmpty(t, result)
+	})
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("mock", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		ex.Name = t.Name()
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/v2/ticker/", r.URL.Path)
+			_, err := w.Write([]byte(`[{"pair":"BTC/USD","last":"10.5","high":"12","low":"9","bid":"10","ask":"11","volume":"8","open":"9.5","timestamp":"1700000000"}]`))
+			assert.NoError(t, err)
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()))
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL))
+		require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot))
+		got, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err)
+		assert.Equal(t, 10.5, got.Last)
+		assert.Equal(t, 8.0, got.BaseVolume)
+		assert.Equal(t, time.Unix(1700000000, 0), got.LastUpdated)
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("live endpoint runs with the live test build")
+		}
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		ex.Name = t.Name()
+		require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot))
+		got, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err)
+		assert.Positive(t, got.Last)
+	})
 }
 
 func TestGetOrderbook(t *testing.T) {
