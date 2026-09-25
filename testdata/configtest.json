@@ -2685,7 +2685,7 @@
    }
   },
   {
-   "name": "Mexc",
+   "name": "MEXC",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
