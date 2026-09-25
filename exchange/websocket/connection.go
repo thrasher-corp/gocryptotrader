@@ -23,6 +23,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// defaultHandshakeTimeout bounds the websocket handshake when the dialer does not set its own HandshakeTimeout, matching
+// gorilla's DefaultDialer. gorilla only bounds the handshake by a context deadline and connectors commonly dial without
+// one, so a server that accepts the connection but never answers the upgrade would otherwise block Dial indefinitely
+const defaultHandshakeTimeout = 45 * time.Second
+
 var (
 	// errConnectionFault is a connection fault error which alerts the system that a connection cycle needs to take place.
 	errConnectionFault         = errors.New("connection fault")
@@ -136,17 +141,26 @@ type connection struct {
 }
 
 // Dial sets proxy urls and then connects to the websocket
+// The dialer is copied so the caller's dialer is left unmodified, and the handshake is bounded by defaultHandshakeTimeout
+// when the dialer does not set a HandshakeTimeout
 func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header, values url.Values) error {
+	if err := common.NilGuard(dialer); err != nil {
+		return err
+	}
+	d := *dialer
 	if c.ProxyURL != "" {
 		proxy, err := url.Parse(c.ProxyURL)
 		if err != nil {
 			return err
 		}
-		dialer.Proxy = http.ProxyURL(proxy)
+		d.Proxy = http.ProxyURL(proxy)
+	}
+	if d.HandshakeTimeout == 0 {
+		d.HandshakeTimeout = defaultHandshakeTimeout
 	}
 
 	path := common.EncodeURLValues(c.URL, values)
-	conn, resp, err := dialer.DialContext(ctx, path, headers)
+	conn, resp, err := d.DialContext(ctx, path, headers)
 	if err != nil {
 		if resp != nil {
 			_ = resp.Body.Close()
