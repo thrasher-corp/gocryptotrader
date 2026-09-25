@@ -796,6 +796,159 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	mgr.Wg.Wait()
 }
 
+// newConnectionCountingServer returns a mock server URL and dialer, along with the number of websocket connections the
+// server currently holds open, so that tests can tell whether a client socket was released
+func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int64) {
+	t.Helper()
+	var open atomic.Int64
+	server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		open.Add(1)
+		defer open.Add(-1)
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	return "ws" + server.URL[len("http"):] + "/ws", dialer, &open
+}
+
+func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
+	t.Parallel()
+
+	wsURL, dialer, openConnections := newConnectionCountingServer(t)
+	ws := NewManager()
+	t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+	setup := newDefaultSetup()
+	setup.RunningURL = wsURL
+	require.NoError(t, ws.Setup(setup), "Setup must not error")
+	require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+
+	readerDone := make(chan struct{})
+	// Mirrors an exchange whose login fails after the public socket and its reader are already running
+	ws.connector = func() error {
+		if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+			return err
+		}
+		ws.Wg.Go(func() {
+			defer close(readerDone)
+			for {
+				if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
+					return
+				}
+			}
+		})
+		return errDastardlyReason
+	}
+
+	require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+	assert.False(t, ws.IsConnected(), "IsConnected should return false after a failed connect")
+	assert.False(t, ws.IsConnecting(), "IsConnecting should return false after a failed connect")
+	select {
+	case <-readerDone:
+	default:
+		assert.Fail(t, "reader should be stopped by the time Connect returns")
+	}
+	assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see the socket closed")
+}
+
+func TestCreateConnectAndSubscribeClosesUntrackedConnection(t *testing.T) {
+	t.Parallel()
+
+	newWebsocket := func(t *testing.T, connector func(context.Context, Connection, *gws.Dialer) error) (*websocket, *atomic.Int64) {
+		t.Helper()
+		wsURL, dialer, openConnections := newConnectionCountingServer(t)
+		return &websocket{
+			subscriptions: subscription.NewStore(),
+			setup: &ConnectionSetup{
+				URL: wsURL,
+				Connector: func(ctx context.Context, conn Connection) error {
+					return connector(ctx, conn, dialer)
+				},
+			},
+		}, openConnections
+	}
+
+	t.Run("connector error after dial", func(t *testing.T) {
+		t.Parallel()
+		ws, openConnections := newWebsocket(t, func(ctx context.Context, conn Connection, dialer *gws.Dialer) error {
+			require.NoError(t, conn.Dial(ctx, dialer, nil, nil), "Dial must not error")
+			return errDastardlyReason
+		})
+
+		err := NewManager().createConnectAndSubscribe(t.Context(), ws, nil)
+		require.ErrorIs(t, err, common.ErrFatal, "createConnectAndSubscribe must return a fatal error")
+		assert.ErrorIs(t, err, errDastardlyReason, "createConnectAndSubscribe should return the connector error")
+		assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see the socket closed")
+	})
+
+	t.Run("dialled connection no longer connected", func(t *testing.T) {
+		t.Parallel()
+		ws, openConnections := newWebsocket(t, func(ctx context.Context, conn Connection, dialer *gws.Dialer) error {
+			require.NoError(t, conn.Dial(ctx, dialer, nil, nil), "Dial must not error")
+			c, ok := conn.(*connection)
+			require.True(t, ok, "connection must be a *connection")
+			c.setConnectedStatus(false) // As if a read error was seen before the connector returned
+			return nil
+		})
+
+		err := NewManager().createConnectAndSubscribe(t.Context(), ws, nil)
+		require.ErrorIs(t, err, common.ErrFatal, "createConnectAndSubscribe must return a fatal error")
+		assert.ErrorIs(t, err, ErrNotConnected, "createConnectAndSubscribe should return ErrNotConnected")
+		assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see the socket closed")
+	})
+}
+
+func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+
+		connectorErr := errDastardlyReason
+		var dials atomic.Int64
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL: "ws" + mock.URL[len("http"):] + "/ws",
+			Connector: func(ctx context.Context, conn Connection) error {
+				if connectorErr != nil {
+					return connectorErr
+				}
+				dials.Add(1)
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return subscription.List{{Channel: "test"}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:      func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+
+		for range 5 {
+			require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the connector error")
+		}
+		connectorErr = nil
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+
+		// Traffic arrives well inside the timeout, which a single traffic monitor accepts indefinitely
+		for range 5 {
+			time.Sleep(ws.trafficTimeout * 6 / 10)
+			select {
+			case ws.TrafficAlert <- struct{}{}:
+			default:
+			}
+		}
+		synctest.Wait()
+		assert.True(t, ws.IsConnected(), "IsConnected should return true while traffic keeps arriving after failed connection attempts")
+		assert.Equal(t, int64(1), dials.Load(), "connection should not be dropped and dialled again")
+	})
+}
+
 func TestTrackConnection(t *testing.T) {
 	t.Parallel()
 
