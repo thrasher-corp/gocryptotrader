@@ -15,8 +15,9 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "returns all exchange websocket information",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 			},
 			Action: getwebsocketInfo,
@@ -26,8 +27,9 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "disables websocket connection for an exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 			},
 			Action: enableDisableWebsocket,
@@ -37,8 +39,9 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "enables websocket connection for an exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 				&cli.BoolFlag{
 					Name:   enableFlag,
@@ -53,8 +56,9 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "returns current subscriptions for an exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 			},
 			Action: getSubscriptions,
@@ -64,8 +68,9 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "sets exchange websocket proxy, flushes and reroutes connection",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 				&cli.StringFlag{
 					Name:  "proxy",
@@ -79,8 +84,9 @@ var websocketManagerCommand = &cli.Command{
 			Usage: "sets exchange websocket endpoint URL and resets the websocket connection",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 				&cli.StringFlag{
 					Name:  "url",
@@ -93,15 +99,13 @@ var websocketManagerCommand = &cli.Command{
 }
 
 func getwebsocketInfo(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -122,15 +126,13 @@ func getwebsocketInfo(c *cli.Context) error {
 
 func enableDisableWebsocket(c *cli.Context) error {
 	enable := c.Bool(enableFlag)
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -150,15 +152,13 @@ func enableDisableWebsocket(c *cli.Context) error {
 }
 
 func getSubscriptions(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -178,22 +178,18 @@ func getSubscriptions(c *cli.Context) error {
 }
 
 func setProxy(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	var proxy string
 	if c.IsSet("proxy") {
 		proxy = c.String("proxy")
-	} else {
-		proxy = c.Args().Get(1)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -213,22 +209,18 @@ func setProxy(c *cli.Context) error {
 }
 
 func setURL(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	var url string
 	if c.IsSet("url") {
 		url = c.String("url")
-	} else {
-		url = c.Args().Get(1)
 	}
 
 	conn, cancel, err := setupClient(c)
