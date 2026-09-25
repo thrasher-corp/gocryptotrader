@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,7 +18,7 @@ import (
 // TestDocsPinnedRequestParameters pins the wire parameter names and endpoint
 // routes against the OKX v5 documentation. OKX silently ignores unknown query
 // parameters, so a misnamed filter fails quietly: every case asserts the
-// documented name is sent and the broken name this PR replaces stays absent.
+// documented name is sent and the previously sent name stays absent.
 func TestDocsPinnedRequestParameters(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
@@ -29,12 +28,6 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	var gotQuery url.Values
 
 	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Errorf("reading request body should not error: %v", err)
-			return
-		}
-		_ = body
 		mu.Lock()
 		gotPath = r.URL.Path
 		gotQuery = r.URL.Query()
@@ -62,12 +55,11 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name     string
-		call     func() error
-		path     string
-		params   map[string]string
-		absent   []string
-		absentOk bool
+		name   string
+		call   func() error
+		path   string
+		params map[string]string
+		absent []string
 	}{
 		{
 			name: "RFQs send clRfqId",
@@ -230,14 +222,14 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.NoError(t, tc.call(), "the pinned request should not error")
+			require.NoError(t, tc.call(), "the pinned request must not error")
 			path, query := lastRequest()
 			assert.Equal(t, tc.path, path, "the documented endpoint should be requested")
 			for name, want := range tc.params {
 				assert.Equalf(t, want, query.Get(name), "parameter %s should carry the documented value", name)
 			}
 			for _, name := range tc.absent {
-				assert.NotContains(t, query, name, "OKX ignores an undocumented %s parameter, so it must not be sent", name)
+				assert.NotContainsf(t, query, name, "OKX ignores an undocumented %s parameter, so it should not be sent", name)
 			}
 		})
 	}
