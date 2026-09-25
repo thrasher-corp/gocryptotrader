@@ -29,13 +29,17 @@ type Ticker struct {
 	Low                        types.Number  `json:"low"`
 	VolumeWeightedAveragePrice types.Number  `json:"vwap"`
 	Volume                     types.Number  `json:"volume"`
-	Bid                        types.Number  `json:"bid"`
-	Ask                        types.Number  `json:"ask"`
+	BestBid                    types.Number  `json:"bid"`
+	BestAsk                    types.Number  `json:"ask"`
 	Timestamp                  types.Time    `json:"timestamp"`
 	Open                       types.Number  `json:"open"`
 	Open24Hour                 types.Number  `json:"open_24"`
 	Side                       orderSide     `json:"side"`
-	PercentChange24            types.Number  `json:"percent_change_24"`
+	PercentChange24Hour        types.Number  `json:"percent_change_24"`
+	MarkPrice                  types.Number  `json:"mark_price"`
+	IndexPrice                 types.Number  `json:"index_price"`
+	OpenInterest               types.Number  `json:"open_interest"`
+	OpenInterestValue          types.Number  `json:"open_interest_value"`
 	Pair                       currency.Pair `json:"pair"`
 }
 

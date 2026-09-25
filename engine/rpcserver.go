@@ -421,8 +421,46 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	return resp, nil
 }
 
-// GetTicker returns the ticker for a specified exchange, currency pair and
-// asset type
+// tickerResponse maps the stored ticker fields to their RPC representation.
+func (s *RPCServer) tickerResponse(p *ticker.Price) *gctrpc.TickerResponse {
+	return &gctrpc.TickerResponse{
+		Pair: &gctrpc.CurrencyPair{
+			Base:      p.Pair.Base.String(),
+			Quote:     p.Pair.Quote.String(),
+			Delimiter: p.Pair.Delimiter,
+		},
+		LastUpdated:                s.unixTimestamp(p.LastUpdated),
+		CurrencyPair:               p.Pair.String(),
+		Last:                       p.Last,
+		LastSize:                   p.LastSize,
+		VolumeWeightedAveragePrice: p.VolumeWeightedAveragePrice,
+		High:                       p.High,
+		Low:                        p.Low,
+		Bid:                        p.Bid,
+		BidSize:                    p.BidSize,
+		Ask:                        p.Ask,
+		AskSize:                    p.AskSize,
+		Volume:                     p.BaseVolume,
+		BaseVolume:                 p.BaseVolume,
+		QuoteVolume:                p.QuoteVolume,
+		Open:                       p.Open,
+		Open24Hour:                 p.Open24Hour,
+		PercentChange24Hour:        p.PercentChange24Hour,
+		Close:                      p.Close,
+		OpenInterest:               p.OpenInterest,
+		OpenInterestValue:          p.OpenInterestValue,
+		MarkPrice:                  p.MarkPrice,
+		IndexPrice:                 p.IndexPrice,
+		ExchangeName:               p.ExchangeName,
+		AssetType:                  p.AssetType.String(),
+		FlashReturnRate:            p.FlashReturnRate,
+		BidPeriod:                  p.BidPeriod,
+		AskPeriod:                  p.AskPeriod,
+		FlashReturnRateAmount:      p.FlashReturnRateAmount,
+	}
+}
+
+// GetTicker returns the cached ticker for an exchange, pair and asset type.
 func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -446,19 +484,7 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		return nil, err
 	}
 
-	resp := &gctrpc.TickerResponse{
-		Pair:        r.Pair,
-		LastUpdated: s.unixTimestamp(t.LastUpdated),
-		Last:        t.Last,
-		High:        t.High,
-		Low:         t.Low,
-		Bid:         t.Bid,
-		Ask:         t.Ask,
-		Volume:      t.BaseVolume,
-		PriceAth:    t.PriceATH,
-	}
-
-	return resp, nil
+	return s.tickerResponse(t), nil
 }
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
@@ -469,21 +495,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 	for x := range activeTickers {
 		ticks := make([]*gctrpc.TickerResponse, len(activeTickers[x].ExchangeValues))
 		for y, val := range activeTickers[x].ExchangeValues {
-			ticks[y] = &gctrpc.TickerResponse{
-				Pair: &gctrpc.CurrencyPair{
-					Delimiter: val.Pair.Delimiter,
-					Base:      val.Pair.Base.String(),
-					Quote:     val.Pair.Quote.String(),
-				},
-				LastUpdated: s.unixTimestamp(val.LastUpdated),
-				Last:        val.Last,
-				High:        val.High,
-				Low:         val.Low,
-				Bid:         val.Bid,
-				Ask:         val.Ask,
-				Volume:      val.BaseVolume,
-				PriceAth:    val.PriceATH,
-			}
+			ticks[y] = s.tickerResponse(val)
 		}
 		tickers[x] = &gctrpc.Tickers{Exchange: activeTickers[x].ExchangeName, Tickers: ticks}
 	}
@@ -2212,21 +2224,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
-		err := stream.Send(&gctrpc.TickerResponse{
-			Pair: &gctrpc.CurrencyPair{
-				Base:      t.Pair.Base.String(),
-				Quote:     t.Pair.Quote.String(),
-				Delimiter: t.Pair.Delimiter,
-			},
-			LastUpdated: s.unixTimestamp(t.LastUpdated),
-			Last:        t.Last,
-			High:        t.High,
-			Low:         t.Low,
-			Bid:         t.Bid,
-			Ask:         t.Ask,
-			Volume:      t.BaseVolume,
-			PriceAth:    t.PriceATH,
-		})
+		err := stream.Send(s.tickerResponse(t))
 		if err != nil {
 			return err
 		}
@@ -2266,21 +2264,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
-		err := stream.Send(&gctrpc.TickerResponse{
-			Pair: &gctrpc.CurrencyPair{
-				Base:      t.Pair.Base.String(),
-				Quote:     t.Pair.Quote.String(),
-				Delimiter: t.Pair.Delimiter,
-			},
-			LastUpdated: s.unixTimestamp(t.LastUpdated),
-			Last:        t.Last,
-			High:        t.High,
-			Low:         t.Low,
-			Bid:         t.Bid,
-			Ask:         t.Ask,
-			Volume:      t.BaseVolume,
-			PriceAth:    t.PriceATH,
-		})
+		err := stream.Send(s.tickerResponse(t))
 		if err != nil {
 			return err
 		}

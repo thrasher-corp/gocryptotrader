@@ -7423,7 +7423,81 @@
           "type": "number",
           "format": "double"
         },
-        "priceAth": {
+        "lastSize": {
+          "type": "number",
+          "format": "double"
+        },
+        "volumeWeightedAveragePrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "bidSize": {
+          "type": "number",
+          "format": "double"
+        },
+        "askSize": {
+          "type": "number",
+          "format": "double"
+        },
+        "baseVolume": {
+          "type": "number",
+          "format": "double"
+        },
+        "quoteVolume": {
+          "type": "number",
+          "format": "double"
+        },
+        "open": {
+          "type": "number",
+          "format": "double"
+        },
+        "open24Hour": {
+          "type": "number",
+          "format": "double"
+        },
+        "percentChange24Hour": {
+          "type": "number",
+          "format": "double"
+        },
+        "close": {
+          "type": "number",
+          "format": "double"
+        },
+        "openInterest": {
+          "type": "number",
+          "format": "double"
+        },
+        "openInterestValue": {
+          "type": "number",
+          "format": "double"
+        },
+        "markPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "indexPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "exchangeName": {
+          "type": "string"
+        },
+        "assetType": {
+          "type": "string"
+        },
+        "flashReturnRate": {
+          "type": "number",
+          "format": "double"
+        },
+        "bidPeriod": {
+          "type": "number",
+          "format": "double"
+        },
+        "askPeriod": {
+          "type": "number",
+          "format": "double"
+        },
+        "flashReturnRateAmount": {
           "type": "number",
           "format": "double"
         }

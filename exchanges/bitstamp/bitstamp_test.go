@@ -174,8 +174,8 @@ func TestGetTicker(t *testing.T) {
 	tick, err := e.GetTicker(t.Context(),
 		currency.BTC.String()+currency.USD.String(), false)
 	require.NoError(t, err, "GetTicker must not error")
-	assert.Positive(t, tick.Ask, "Ask should be positive")
-	assert.Positive(t, tick.Bid, "Bid should be positive")
+	assert.Positive(t, tick.BestAsk, "BestAsk should be positive")
+	assert.Positive(t, tick.BestBid, "BestBid should be positive")
 	assert.Positive(t, tick.High, "High should be positive")
 	assert.Positive(t, tick.Low, "Low should be positive")
 	assert.Positive(t, tick.Last, "Last should be positive")
@@ -183,7 +183,13 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, tick.Volume, "Volume should be positive")
 	assert.Positive(t, tick.VolumeWeightedAveragePrice, "volume weighted average price should be positive")
 	assert.Positive(t, tick.Open24Hour, "Open24Hour should be positive")
-	assert.NotEmpty(t, tick.PercentChange24, "PercentChange24 should be positive")
+	assert.NotEmpty(t, tick.PercentChange24Hour, "PercentChange24Hour should be positive")
+	if mockTests {
+		assert.Positive(t, tick.MarkPrice, "MarkPrice should be positive")
+		assert.Positive(t, tick.IndexPrice, "IndexPrice should be positive")
+		assert.Positive(t, tick.OpenInterest, "OpenInterest should be positive")
+		assert.Positive(t, tick.OpenInterestValue, "OpenInterestValue should be positive")
+	}
 	assert.NotEmpty(t, tick.Timestamp, "Timestamp should not be empty")
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "Side should be either Buy or Sell")
 }
@@ -197,6 +203,26 @@ func TestAllCurrencyPairTickers(t *testing.T) {
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, result[0].Side.Side(), "ticker side should decode")
 }
 
+func TestUpdateTicker(t *testing.T) {
+	// The ticker store is shared with the parallel batch test.
+	got, err := e.UpdateTicker(t.Context(), currency.NewBTCUSD(), asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+	require.NotNil(t, got, "UpdateTicker must return the stored price")
+	assert.Positive(t, got.Bid, "best bid should be positive")
+	assert.Positive(t, got.Ask, "best ask should be positive")
+	assert.Positive(t, got.Open24Hour, "24-hour open should be positive")
+	if mockTests {
+		assert.Equal(t, 2211.0, got.Ask, "best ask should match the single-market response")
+		assert.Equal(t, 2188.97, got.Bid, "best bid should match the single-market response")
+		assert.Equal(t, 2211.0, got.Open24Hour, "24-hour open should match the single-market response")
+		assert.Equal(t, 13.57, got.PercentChange24Hour, "24-hour percentage change should match the single-market response")
+		assert.Equal(t, 2812.0, got.MarkPrice, "mark price should match the single-market response")
+		assert.Equal(t, 2814.0, got.IndexPrice, "index price should match the single-market response")
+		assert.Equal(t, 10.1, got.OpenInterest, "open interest should match the single-market response")
+		assert.Equal(t, 10234.0, got.OpenInterestValue, "open interest value should match the single-market response")
+	}
+}
+
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	assets := e.GetAssetTypes(false)
@@ -207,11 +233,26 @@ func TestUpdateTickers(t *testing.T) {
 			require.NoError(t, e.UpdateTickers(t.Context(), a), "UpdateTickers must not error")
 			got, err := ticker.GetTicker(e.Name, currency.NewBTCUSD(), a)
 			require.NoError(t, err, "BTC/USD ticker must be stored")
-			assert.Equal(t, 2200.0, got.Last, "BTC/USD last price should match the batch response")
-			assert.Equal(t, 213.268011, got.BaseVolume, "BTC/USD base volume should match the batch response")
-			assert.Equal(t, 2190.0, got.Open, "BTC/USD open price should match the batch response")
-			assert.Equal(t, 2189.8, got.VolumeWeightedAveragePrice, "BTC/USD volume weighted average price should match the batch response")
-			assert.Equal(t, time.Unix(1643640186, 0), got.LastUpdated, "BTC/USD timestamp should match the batch response")
+			if mockTests {
+				assert.Equal(t, 2200.0, got.Last, "BTC/USD last price should match the batch response")
+				assert.Equal(t, 213.268011, got.BaseVolume, "BTC/USD base volume should match the batch response")
+				assert.Equal(t, 2190.0, got.Open, "BTC/USD open price should match the batch response")
+				assert.Equal(t, 2189.8, got.VolumeWeightedAveragePrice, "BTC/USD volume weighted average price should match the batch response")
+				assert.Equal(t, 2188.97, got.Bid, "BTC/USD best bid should match the batch response")
+				assert.Equal(t, 2211.0, got.Ask, "BTC/USD best ask should match the batch response")
+				assert.Equal(t, 2190.0, got.Open24Hour, "BTC/USD 24-hour open should match the batch response")
+				assert.Equal(t, 13.57, got.PercentChange24Hour, "BTC/USD 24-hour percentage change should match the batch response")
+				assert.Equal(t, 2812.0, got.MarkPrice, "BTC/USD mark price should match the batch response")
+				assert.Equal(t, 2814.0, got.IndexPrice, "BTC/USD index price should match the batch response")
+				assert.Equal(t, 10.1, got.OpenInterest, "BTC/USD open interest should match the batch response")
+				assert.Equal(t, 10234.0, got.OpenInterestValue, "BTC/USD open interest value should match the batch response")
+				assert.Equal(t, time.Unix(1643640186, 0), got.LastUpdated, "BTC/USD timestamp should match the batch response")
+			} else {
+				assert.Positive(t, got.Last, "BTC/USD last price should be positive")
+				assert.Positive(t, got.Bid, "BTC/USD best bid should be positive")
+				assert.Positive(t, got.Ask, "BTC/USD best ask should be positive")
+				assert.False(t, got.LastUpdated.IsZero(), "BTC/USD timestamp should be set")
+			}
 		})
 	}
 }

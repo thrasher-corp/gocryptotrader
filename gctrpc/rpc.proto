@@ -108,6 +108,9 @@ message CurrencyPair {
 }
 
 message TickerResponse {
+  reserved 10;
+  reserved "price_ath";
+
   CurrencyPair pair = 1;
   int64 last_updated = 2;
   string currency_pair = 3;
@@ -117,7 +120,26 @@ message TickerResponse {
   double bid = 7;
   double ask = 8;
   double volume = 9;
-  double price_ath = 10;
+  double last_size = 11;
+  double volume_weighted_average_price = 12;
+  double bid_size = 13;
+  double ask_size = 14;
+  double base_volume = 15;
+  double quote_volume = 16;
+  double open = 17;
+  double open24_hour = 18;
+  double percent_change24_hour = 19;
+  double close = 20;
+  double open_interest = 21;
+  double open_interest_value = 22;
+  double mark_price = 23;
+  double index_price = 24;
+  string exchange_name = 25;
+  string asset_type = 26;
+  double flash_return_rate = 27;
+  double bid_period = 28;
+  double ask_period = 29;
+  double flash_return_rate_amount = 30;
 }
 
 message GetTickersRequest {}
