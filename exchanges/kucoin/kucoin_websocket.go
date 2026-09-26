@@ -553,9 +553,7 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 		tickPrice.Last = resp.FilledPrice.Float64()
 		tickPrice.LastSize = resp.FilledSize.Float64()
 	}
-	if !resp.FilledTime.Time().IsZero() {
-		tickPrice.LastUpdated = resp.FilledTime.Time()
-	}
+	tickPrice.LastUpdated = resp.FilledTime.Time()
 	tickPrice.Bid = resp.BestBidPrice.Float64()
 	tickPrice.BidSize = resp.BestBidSize.Float64()
 	tickPrice.Ask = resp.BestAskPrice.Float64()
