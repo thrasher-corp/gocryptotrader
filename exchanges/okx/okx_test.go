@@ -7169,10 +7169,8 @@ func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
 			name: "7 day order history",
 			call: func() error {
 				_, err := e.Get7DayOrderHistory(t.Context(), &OrderHistoryRequestParams{
-					OrderListRequestParams: OrderListRequestParams{
-						InstrumentType:   instTypeSwap,
-						InstrumentFamily: "BTC-USDT",
-					},
+					InstrumentType:   instTypeSwap,
+					InstrumentFamily: "BTC-USDT",
 				})
 				return err
 			},
@@ -7184,10 +7182,8 @@ func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
 			name: "3 month order history",
 			call: func() error {
 				_, err := e.Get3MonthOrderHistory(t.Context(), &OrderHistoryRequestParams{
-					OrderListRequestParams: OrderListRequestParams{
-						InstrumentType:   instTypeSwap,
-						InstrumentFamily: "BTC-USDT",
-					},
+					InstrumentType:   instTypeSwap,
+					InstrumentFamily: "BTC-USDT",
 				})
 				return err
 			},
