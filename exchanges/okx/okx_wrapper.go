@@ -1440,17 +1440,22 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	if len(cancelAlgoOrderParams) > 0 {
 		algoResults, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
+		if cancelResultsUsable(err) {
+			// OKX reports one result per requested algo order; failed cancels are
+			// reported with their status message instead of a false Cancelled.
+			for x := range algoResults {
+				if algoResults[x].AlgoID == "" {
+					continue
+				}
+				if algoResults[x].StatusCode == 0 {
+					resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
+				} else {
+					resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
+				}
+			}
+		}
 		if err != nil {
 			return resp, err
-		}
-		// OKX reports one result per requested algo order; failed cancels are
-		// reported with their status message instead of a false Cancelled.
-		for x := range algoResults {
-			if algoResults[x].StatusCode == 0 {
-				resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
-			} else {
-				resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
-			}
 		}
 	}
 	return resp, nil

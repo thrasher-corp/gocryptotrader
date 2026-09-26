@@ -476,29 +476,61 @@ func TestCancelAllOrdersContinuesAfterFailedBatch(t *testing.T) {
 }
 
 // TestCancelBatchOrdersRESTPartialSuccess guards the REST partial-success
-// path: OKX answers a partly failed batch with code 2 and per-order results,
-// which must be decoded and reported alongside the error.
+// path: OKX answers a partly failed batch with code 2, a message and per-order
+// results, which are reported alongside the error only when they decode,
+// whatever the message.
 func TestCancelBatchOrdersRESTPartialSuccess(t *testing.T) {
 	t.Parallel()
-	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/trade/cancel-batch-orders" {
-			t.Errorf("unexpected request path %s", r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":"2","msg":"","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`))
-	}))
-	resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
-		{AssetType: asset.Spot, Pair: mainPair, OrderID: "OK-1"},
-		{AssetType: asset.Spot, Pair: mainPair, OrderID: "FAIL-1"},
-	})
-	require.ErrorIs(t, err, errPartialSuccess, "a partially successful REST batch must report its error")
-	require.NotNil(t, resp, "CancelBatchOrders must return the partial results")
-	assert.Equal(t, map[string]string{
-		"OK-1":   order.Cancelled.String(),
-		"FAIL-1": "Order does not exist",
-	}, resp.Status, "a partially successful REST batch should report every per-order result")
+	for _, tc := range []struct {
+		name    string
+		reply   string
+		partial bool
+		status  map[string]string
+	}{
+		{
+			name:    "per-order results",
+			reply:   `{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`,
+			partial: true,
+			status:  map[string]string{"OK-1": order.Cancelled.String(), "FAIL-1": "Order does not exist"},
+		},
+		{
+			name:    "null result",
+			reply:   `{"code":"2","msg":"Bulk operation partially succeeded.","data":[null,{"ordId":"OK-1","sCode":"0","sMsg":""}]}`,
+			partial: true,
+			status:  map[string]string{"OK-1": order.Cancelled.String()},
+		},
+		{
+			name:   "undecodable result",
+			reply:  `{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"bad","sMsg":"Order does not exist"}]}`,
+			status: map[string]string{},
+		},
+		{
+			name:   "undecodable result without a message",
+			reply:  `{"code":"2","msg":"","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"bad","sMsg":"Order does not exist"}]}`,
+			status: map[string]string{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/trade/cancel-batch-orders" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.reply))
+			}))
+			resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+				{AssetType: asset.Spot, Pair: mainPair, OrderID: "OK-1"},
+				{AssetType: asset.Spot, Pair: mainPair, OrderID: "FAIL-1"},
+			})
+			require.Error(t, err, "a partially successful REST batch must report its error")
+			assert.Equal(t, tc.partial, errors.Is(err, errPartialSuccess), "only results that decode should be marked as a partial success")
+			require.NotNil(t, resp, "CancelBatchOrders must return the partial results")
+			assert.Equal(t, tc.status, resp.Status, "a partially successful REST batch should report every decoded per-order result")
+		})
+	}
 }
 
 // TestCancelAllOrdersRESTPartialSuccess guards the REST partial-success path
@@ -515,7 +547,7 @@ func TestCancelAllOrdersRESTPartialSuccess(t *testing.T) {
 			})
 		case "/trade/cancel-batch-orders":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"code":"2","msg":"","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`))
+			_, _ = w.Write([]byte(`{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"OK-1","sCode":"0","sMsg":""},{"ordId":"FAIL-1","sCode":"51400","sMsg":"Order does not exist"}]}`))
 		default:
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -542,8 +574,8 @@ func TestGetActiveOrdersPaginatesWithOrderIDCursor(t *testing.T) {
 			ords = append(ords, map[string]string{
 				"instId":    "BTC-USDT",
 				"ordId":     fmt.Sprintf("ORD-%03d", first+x),
-				"cTime":     strconv.Itoa(1700000000000 + first + x),
-				"uTime":     strconv.Itoa(1700000000000 + first + x),
+				"cTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"uTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
 				"state":     "live",
 				"ordType":   "limit",
 				"side":      "buy",
@@ -894,9 +926,38 @@ func TestCancelBatchOrdersReportsAlgoResults(t *testing.T) {
 	assert.Equal(t, "The algo order does not exist", resp.Status["ALGO-BAD"], "a failed algo cancel should report its status message")
 }
 
+// TestCancelBatchOrdersAlgoPartialSuccess guards the algo partial-success
+// path: OKX answers a partly failed algo batch with code 2 and per-order
+// results, which must be reported alongside the error, skipping any row that
+// names no algo order.
+func TestCancelBatchOrdersAlgoPartialSuccess(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/cancel-advance-algos" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"2","msg":"Bulk operation partially succeeded.","data":[null,` +
+			`{"algoId":"ALGO-OK","sCode":"0","sMsg":""},` +
+			`{"algoId":"ALGO-BAD","sCode":"51000","sMsg":"The algo order does not exist"}]}`))
+	}))
+	resp, err := e.CancelBatchOrders(t.Context(), []order.Cancel{
+		{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-OK", Type: order.Trigger},
+		{AssetType: asset.Spot, Pair: mainPair, OrderID: "ALGO-BAD", Type: order.Trigger},
+	})
+	require.ErrorIs(t, err, errPartialSuccess, "a partially successful algo batch must report its error")
+	require.NotNil(t, resp, "CancelBatchOrders must return the partial results")
+	assert.Equal(t, map[string]string{
+		"ALGO-OK":  order.Cancelled.String(),
+		"ALGO-BAD": "The algo order does not exist",
+	}, resp.Status, "a partially successful algo batch should report every per-order result")
+}
+
 // TestCancelResultsUsable guards the gate that decides whether per-order cancel
-// results are recorded alongside a batch error: only a websocket partial
-// success returns fully decoded results with its error.
+// results are recorded alongside a batch error: only a partial success returns
+// fully decoded results with its error.
 func TestCancelResultsUsable(t *testing.T) {
 	t.Parallel()
 	assert.True(t, cancelResultsUsable(nil), "a successful batch should report usable results")

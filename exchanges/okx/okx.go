@@ -139,7 +139,7 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 		}
 		var errs error
 		for x := range resp {
-			if resp[x].StatusCode != 0 {
+			if resp[x] != nil && resp[x].StatusCode != 0 {
 				errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 			}
 		}
@@ -551,10 +551,13 @@ func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelPa
 	}
 	var resp []AlgoOrder
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
-	if err != nil {
+	if err != nil && !errors.Is(err, errPartialSuccess) {
 		return nil, err
 	}
-	return resp, nil
+	// A partially successful batch returns its per-order results alongside the
+	// error, as CancelMultipleOrders does, so callers can report the
+	// cancellations that succeeded.
+	return resp, err
 }
 
 // AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
@@ -5941,9 +5944,19 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 	if resp.Code.Int64() != 0 {
 		// A failed batch reply can still carry per-order results for the parts
 		// that succeeded; decode best-effort so callers can report them.
-		_ = unmarshalResponseData(resp.Data, result)
+		decodeErr := unmarshalResponseData(resp.Data, result)
 		if requestType == request.AuthenticatedRequest {
 			err = request.ErrAuthRequestFailed
+		}
+		// OKX sends a partial success with a message, which would return below
+		// without the sentinel callers match to record the per-order results.
+		// Rows that failed to decode can be half populated, so they are not
+		// vouched for.
+		if resp.Code.Int64() == 2 {
+			if decodeErr != nil {
+				return common.AppendError(err, fmt.Errorf("error code: `2`; message: %q: %w", resp.Msg, decodeErr))
+			}
+			return common.AppendError(err, errPartialSuccess)
 		}
 		if resp.Msg != "" {
 			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: %q", resp.Code.Int64(), resp.Msg))
