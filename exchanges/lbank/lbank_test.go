@@ -11,9 +11,14 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -376,6 +381,191 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 	})
 	assert.NoError(t, err, "GetOrderHistory should not error")
+}
+
+// TestGetOrderHistoryPagination ensures order history is crawled page by page.
+// orders_info_history.do paginates through the current_page body parameter, so
+// the page counter must advance once per page and not once per order.
+func TestGetOrderHistoryPagination(t *testing.T) {
+	t.Parallel()
+	var (
+		pagesMu sync.Mutex
+		pages   []string
+	)
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, r.ParseForm(), "the request body should parse as a form")
+		assert.True(t, strings.HasSuffix(r.URL.Path, lbankQueryHistoryOrder), "GetOrderHistory should only request order history")
+
+		page := r.Form.Get("current_page")
+		pagesMu.Lock()
+		pages = append(pages, page)
+		pagesMu.Unlock()
+
+		body := `{"result":"true","error_code":0,"current_page":3,"orders":[]}`
+		switch page {
+		case "1":
+			body = `{"result":"true","error_code":0,"current_page":1,"orders":[` + orderHistoryEntry(orderHistoryFixture[0][0]) + "," + orderHistoryEntry(orderHistoryFixture[0][1]) + `]}`
+		case "2":
+			body = `{"result":"true","error_code":0,"current_page":2,"orders":[` + orderHistoryEntry(orderHistoryFixture[1][0]) + `]}`
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the order history response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+	var err error
+	ex.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err, "the RSA test key must generate")
+	require.NoError(t, ex.SetHTTPClient(orderHistoryClient(server)), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+
+	pagesMu.Lock()
+	gotPages := append([]string(nil), pages...)
+	pagesMu.Unlock()
+	assert.Equal(t, []string{"1", "2", "3"}, gotPages, "GetOrderHistory should request each page once, in order")
+	assert.Equal(t, expectedOrderHistory(t, ex.Name), got, "GetOrderHistory should return the orders the exchange sent, mapped order for order")
+}
+
+// TestGetOrderHistoryPageLimit ensures a server that never serves an empty page
+// cannot spin GetOrderHistory forever.
+func TestGetOrderHistoryPageLimit(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, r.ParseForm(), "the request body should parse as a form")
+		_, err := fmt.Fprintf(w, `{"result":"true","error_code":0,"current_page":1,"orders":[%s]}`, orderHistoryEntry(orderHistoryFixture[0][0]))
+		assert.NoError(t, err, "writing the order history response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+	var err error
+	ex.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err, "the RSA test key must generate")
+	require.NoError(t, ex.SetHTTPClient(orderHistoryClient(server)), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	_, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	assert.ErrorIs(t, err, errOrderHistoryPageLimit, "GetOrderHistory should stop once the page limit is reached")
+}
+
+// orderHistoryClient returns the test server's client with the relative URL
+// adapter installed.
+func orderHistoryClient(server *httptest.Server) *http.Client {
+	client := server.Client()
+	client.Transport = &relativeURLTransport{base: client.Transport, serverURL: server.URL}
+	return client
+}
+
+// relativeURLTransport resolves the relative request URLs SendAuthHTTPRequest
+// builds against the test server, so this test exercises a real http.Client
+// against a real server rather than a transport that answers on its behalf.
+//
+// SendAuthHTTPRequest assigns the caller's path straight to request.Item.Path
+// without prefixing the configured endpoint URL, so a relative request never
+// leaves the client at all:
+//
+//	Post "/v2/orders_info_history.do": unsupported protocol scheme ""
+//
+// That pre-existing bug is being fixed separately in #2272. Requests that
+// already carry a host are passed through untouched, so this adapter turns into
+// a no-op once #2272 lands and can be deleted with it.
+type relativeURLTransport struct {
+	base      http.RoundTripper
+	serverURL string
+}
+
+func (r *relativeURLTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Host != "" {
+		return r.base.RoundTrip(req)
+	}
+	server, err := url.Parse(r.serverURL)
+	if err != nil {
+		return nil, err
+	}
+	clone := req.Clone(req.Context())
+	clone.URL = &url.URL{Scheme: server.Scheme, Host: server.Host, Path: req.URL.Path, RawQuery: req.URL.RawQuery}
+	return r.base.RoundTrip(clone)
+}
+
+// orderHistoryOrder describes one order the mocked LBank server serves. Every
+// entry differs so a mapping that returns the wrong order, or that carries
+// fields over from the previous one, cannot pass.
+type orderHistoryOrder struct {
+	OrderID    string
+	Price      float64
+	Amount     float64
+	DealAmount float64
+}
+
+// orderHistoryFixture is the two page order history the mocked server serves.
+// The third page, and every page after it, is empty.
+var orderHistoryFixture = [][]orderHistoryOrder{
+	{{"1", 10, 2, 1}, {"2", 20, 3, 2}},
+	{{"3", 30, 4, 3}},
+}
+
+// orderHistoryTimestamp is the 2025-09-22T00:00:00Z created_time every fixture
+// order carries. It is typed int64 so the millisecond value stays representable
+// where the fixtures format it on 32-bit platforms.
+const orderHistoryTimestamp int64 = 1758499200000
+
+// orderHistoryEntry returns the JSON of a single LBank order history entry
+func orderHistoryEntry(o orderHistoryOrder) string {
+	return fmt.Sprintf(`{"order_id":%q,"symbol":"btc_usdt","type":"buy","price":%v,"amount":%v,"deal_amount":%v,"avg_price":%v,"status":0,"created_time":%d}`,
+		o.OrderID, o.Price, o.Amount, o.DealAmount, o.Price, orderHistoryTimestamp)
+}
+
+// expectedOrderHistory returns the order.Detail values the fixture is expected
+// to map onto, so the assertion pins content and not just the row count.
+func expectedOrderHistory(t *testing.T, name string) order.FilteredOrders {
+	t.Helper()
+	pair, err := currency.NewPairFromString("btc_usdt")
+	require.NoError(t, err, "the fixture symbol must parse")
+	date := time.UnixMilli(orderHistoryTimestamp)
+	var exp order.FilteredOrders
+	for x := range orderHistoryFixture {
+		for y := range orderHistoryFixture[x] {
+			o := orderHistoryFixture[x][y]
+			exp = append(exp, order.Detail{
+				Price:                o.Price,
+				Amount:               o.Amount,
+				AverageExecutedPrice: o.Price,
+				ExecutedAmount:       o.DealAmount,
+				RemainingAmount:      o.Amount - o.DealAmount,
+				Cost:                 o.Price * o.DealAmount,
+				CostAsset:            pair.Quote,
+				Fee:                  o.Amount * o.Price * 0.002,
+				Exchange:             name,
+				OrderID:              o.OrderID,
+				Side:                 order.Buy,
+				Status:               order.Active,
+				Date:                 date,
+				LastUpdated:          date,
+				Pair:                 pair,
+			})
+		}
+	}
+	return exp
 }
 
 func TestGetHistoricCandles(t *testing.T) {

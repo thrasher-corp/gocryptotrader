@@ -620,7 +620,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	}
 
 	var finalResp []order.Detail
-	var resp order.Detail
 	var tempCurr currency.Pairs
 	if len(getOrdersRequest.Pairs) == 0 {
 		var err error
@@ -637,20 +636,24 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			return nil, err
 		}
 
-		b := int64(1)
-		tempResp, err := e.QueryOrderHistory(ctx,
-			fPair.String(), strconv.FormatInt(b, 10), "200")
-		if err != nil {
-			return finalResp, err
-		}
-		for len(tempResp.Orders) != 0 {
-			tempResp, err = e.QueryOrderHistory(ctx,
+		for b := int64(1); ; b++ {
+			if b > lbankOrderHistoryMaxPages {
+				return finalResp, fmt.Errorf("%w: %d pages read for %s", errOrderHistoryPageLimit, b-1, fPair)
+			}
+			tempResp, err := e.QueryOrderHistory(ctx,
 				fPair.String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return finalResp, err
 			}
+			if len(tempResp.Orders) == 0 {
+				break
+			}
+
 			for x := range tempResp.Orders {
-				resp.Exchange = e.Name
+				resp := order.Detail{
+					Exchange: e.Name,
+					OrderID:  tempResp.Orders[x].OrderID,
+				}
 				resp.Pair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
 				if err != nil {
 					return nil, err
@@ -679,7 +682,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				}
 				resp.InferCostsAndTimes()
 				finalResp = append(finalResp, resp)
-				b++
 			}
 		}
 	}
