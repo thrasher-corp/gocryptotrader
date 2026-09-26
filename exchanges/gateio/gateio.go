@@ -162,6 +162,8 @@ var (
 	errMultipleOrders                   = errors.New("multiple orders passed")
 	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
 	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
+	errSubAccountTransferHistoryStart   = errors.New("sub-account transfer history starts on 2020-04-10")
+	errSubAccountTransferHistoryRange   = errors.New("sub-account transfer history range exceeds 30 days")
 	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
@@ -1183,23 +1185,22 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg SubAccountTransfe
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }
 
-// GetSubAccountTransferHistory retrieve transfer records between main and sub accounts.
-// retrieve transfer records between main and sub accounts. Record time range cannot exceed 30 days
-// Note: only records after 2020-04-10 can be retrieved
+// GetSubAccountTransferHistory retrieves transfer records between main and sub accounts.
+// Records begin on 2020-04-10 and the query range cannot exceed 30 days.
 func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit uint64) ([]SubAccountTransferResponse, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	startingTime, err := time.Parse("2006-Jan-02", "2020-Apr-10")
-	if err != nil {
+	if !from.IsZero() && from.Before(time.Date(2020, time.April, 10, 0, 0, 0, 0, time.UTC)) {
+		return nil, errSubAccountTransferHistoryStart
+	}
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
-	if err := common.StartEndTimeCheck(startingTime, from); err == nil {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if err := common.StartEndTimeCheck(from, to); err == nil {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	// Only whole seconds are sent, so the limit applies to those
+	if !from.IsZero() && !to.IsZero() && to.Truncate(time.Second).Sub(from.Truncate(time.Second)) > 30*24*time.Hour {
+		return nil, errSubAccountTransferHistoryRange
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
