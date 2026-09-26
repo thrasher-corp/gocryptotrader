@@ -1562,6 +1562,9 @@ func TestProcessTicker(t *testing.T) {
 func TestProcessFuturesTickerV2(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	// The ticker store is shared by the whole test process and UpdateTickers leaves a
+	// snapshot behind, so a scoped name keeps those values out of these cases.
+	ku.Name = t.Name()
 	pair := currency.NewPairWithDelimiter("SOL", "USDTM", "_")
 	for _, tc := range []struct {
 		name    string
@@ -1604,6 +1607,98 @@ func TestProcessFuturesTickerV2(t *testing.T) {
 		require.Lenf(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for %s", tc.name)
 		assert.Equalf(t, tc.exp, (<-ku.Websocket.DataHandler.C).Data, "processFuturesTickerV2 should map %s with any fill size in LastSize rather than a volume", tc.name)
 	}
+}
+
+// TestProcessFuturesTickerV2KeepsStoredSnapshot covers the tickerV2 channel reporting only
+// the best bid and ask, where replacing the stored ticker would clear the snapshot the REST
+// ticker request left behind.
+func TestProcessFuturesTickerV2KeepsStoredSnapshot(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	// The ticker store is shared by the whole test process, so a scoped name keeps the
+	// seeded snapshot below away from every other case.
+	ku.Name = t.Name()
+	pair := currency.NewPairWithDelimiter("ETH", "USDCM", "_")
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		Pair:         pair,
+		Last:         3551,
+		LastSize:     12,
+		High:         3600,
+		Low:          3400,
+		BaseVolume:   30449670,
+		QuoteVolume:  845169919063,
+		OpenInterest: 1234567,
+	}), "seeding the stored ticker must not error")
+
+	msg := []byte(`{"topic":"/contractMarket/tickerV2:ETHUSDCM","type":"message","subject":"tickerV2","data":{"symbol":"ETHUSDCM","sequence":1739524604832,"bestBidSize":795,"bestBidPrice":"3200","bestAskPrice":"3600","bestAskSize":284,"ts":1789627572494000000}}`)
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "the push must emit a single ticker")
+
+	got, ok := (<-ku.Websocket.DataHandler.C).Data.(*ticker.Price)
+	require.True(t, ok, "the push must emit a ticker price")
+	// The engine stores whatever the exchange emits, which is where the wipe used to happen.
+	require.NoError(t, ticker.ProcessTicker(got), "storing the emitted ticker must not error")
+
+	stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
+	require.NoError(t, err, "the ticker must remain stored")
+	exp := &ticker.Price{
+		Last:         3551,
+		LastSize:     12,
+		High:         3600,
+		Low:          3400,
+		Bid:          3200,
+		BidSize:      795,
+		Ask:          3600,
+		AskSize:      284,
+		BaseVolume:   30449670,
+		QuoteVolume:  845169919063,
+		OpenInterest: 1234567,
+		Pair:         pair,
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		LastUpdated:  time.Unix(0, 1789627572494000000),
+	}
+	assert.Equal(t, exp, stored, "the best bid/ask push should keep every stored field it does not report")
+}
+
+// TestProcessFuturesTickerV2WithoutTimestamp covers a tickerV2 frame that carries no ts. The
+// stored snapshot's timestamp must not be carried onto the fresh bid and ask, which would make
+// the engine store them under a stale time.
+func TestProcessFuturesTickerV2WithoutTimestamp(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	// The ticker store is shared by the whole test process, so a scoped name keeps the
+	// seeded snapshot below away from every other case.
+	ku.Name = t.Name()
+	pair := currency.NewPairWithDelimiter("ETH", "USDCM", "_")
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		Pair:         pair,
+		Last:         3551,
+		High:         3600,
+		Low:          3400,
+		LastUpdated:  time.Now().Add(-time.Hour),
+	}), "seeding the stored ticker must not error")
+
+	msg := []byte(`{"topic":"/contractMarket/tickerV2:ETHUSDCM","type":"message","subject":"tickerV2","data":{"symbol":"ETHUSDCM","sequence":1739524604832,"bestBidSize":795,"bestBidPrice":"3200","bestAskPrice":"3600","bestAskSize":284}}`)
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "the push must emit a single ticker")
+
+	got, ok := (<-ku.Websocket.DataHandler.C).Data.(*ticker.Price)
+	require.True(t, ok, "the push must emit a ticker price")
+	assert.True(t, got.LastUpdated.IsZero(), "a frame without ts must not carry the stored snapshot's timestamp")
+
+	// The engine stores whatever the exchange emits, which is where the store time is stamped.
+	before := time.Now()
+	require.NoError(t, ticker.ProcessTicker(got), "storing the emitted ticker must not error")
+	stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
+	require.NoError(t, err, "the ticker must remain stored")
+	assert.False(t, stored.LastUpdated.Before(before), "the untimestamped push must be stored under its own store time")
+	assert.Equal(t, 3200.0, stored.Bid, "the push should store the best bid it reported")
+	assert.Equal(t, 3600.0, stored.Ask, "the push should store the best ask it reported")
 }
 
 func TestProcessMarketSnapshot(t *testing.T) {
