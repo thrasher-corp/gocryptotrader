@@ -441,6 +441,39 @@ func TestLoadExchangeEnabledRaceIsProtected(t *testing.T) {
 	wg.Wait()
 }
 
+// TestLoadExchangeRollbackRaceIsProtected checks that LoadExchange's rollback after a failed Setup is synchronised
+// with the config's readers
+func TestLoadExchangeRollbackRaceIsProtected(t *testing.T) {
+	t.Parallel()
+	// Should Setup ever pass, the cancelled context stops Bootstrap before it sends a request
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	// Setup rejects a config without websocket timeouts, so every load takes LoadExchange's rollback path
+	e := &Engine{ExchangeManager: NewExchangeManager(), Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}}, runtimeCtx: ctx}
+	loaded := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		defer close(loaded)
+		for range 20 {
+			assert.ErrorContains(t, e.LoadExchange(testExchange), "invalid traffic timeout", "LoadExchange should fail Setup without websocket timeouts")
+		}
+	})
+	wg.Go(func() {
+		for {
+			select {
+			case <-loaded:
+				return
+			default:
+				_ = e.Config.CountEnabledExchanges()
+				_ = e.Config.GetEnabledExchanges()
+				_ = e.Config.GetDisabledExchanges()
+			}
+		}
+	})
+	wg.Wait()
+	assert.Zero(t, e.Config.CountEnabledExchanges(), "LoadExchange should roll the exchange config back to disabled when Setup fails")
+}
+
 // onlyCancelled reports whether err consists solely of context cancellations, however they are wrapped or joined
 func onlyCancelled(err error) bool {
 	switch e := err.(type) {
