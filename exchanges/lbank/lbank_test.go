@@ -468,14 +468,16 @@ func TestGetOrderInfoUnknownSide(t *testing.T) {
 }
 
 // TestGetOrderInfoCompoundOrderType ensures a compound order type LBank
-// documents, such as sell_market, is mapped to its side instead of erroring.
+// documents, such as buy_market, is mapped to its side instead of erroring.
+// A buy-side compound type is used so a regression to the old "not buy is
+// sell" rule fails here.
 func TestGetOrderInfoCompoundOrderType(t *testing.T) {
 	t.Parallel()
-	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("sell_market")))
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy_market")))
 
 	got, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
 	require.NoError(t, err, "GetOrderInfo must not error for a compound order type")
-	assert.Equal(t, order.Sell, got.Side, "GetOrderInfo should map sell_market to the sell side")
+	assert.Equal(t, order.Buy, got.Side, "GetOrderInfo should map buy_market to the buy side")
 }
 
 // TestGetOrderInfoOrderIDNotFound ensures an order ID the exchange does not
@@ -488,10 +490,12 @@ func TestGetOrderInfoOrderIDNotFound(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order ID the exchange does not return")
 }
 
-// TestGetOrderHistoryCompoundOrderType ensures a compound order type LBank
-// documents, such as sell_market, is mapped to its side instead of erroring.
-// The compound order is served after a plain one so the history crawl only
-// reaches it through the indexed order it reads, tempResp.Orders[x].
+// TestGetOrderHistoryCompoundOrderType ensures compound order types LBank
+// documents, such as buy_market and sell_market, are mapped to their side
+// instead of erroring. The compound orders are served after a plain one so the
+// history crawl only reaches them through the indexed order it reads,
+// tempResp.Orders[x]. The buy-side compound order is included so a regression
+// to the old "not buy is sell" rule fails here.
 func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
 	t.Parallel()
 	ex := setupOrderGuard(t, orderGuardHistoryHandler(t, orderGuardHistoryCompoundOrder))
@@ -503,9 +507,10 @@ func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
 		Type:      order.AnyType,
 	})
 	require.NoError(t, err, "GetOrderHistory must not error for a compound order type")
-	require.Len(t, got, 2, "GetOrderHistory must keep every order on the page")
+	require.Len(t, got, 3, "GetOrderHistory must keep every order on the page")
 	assert.Equal(t, order.Buy, got[0].Side, "GetOrderHistory should map the leading plain order to the buy side")
-	assert.Equal(t, order.Sell, got[1].Side, "GetOrderHistory should map sell_market to the sell side")
+	assert.Equal(t, order.Buy, got[1].Side, "GetOrderHistory should map buy_market to the buy side")
+	assert.Equal(t, order.Sell, got[2].Side, "GetOrderHistory should map sell_market to the sell side")
 }
 
 // orderGuardNoOrders is an empty LBank order query response.
@@ -523,9 +528,9 @@ func orderGuardSingleOrder(orderType string) string {
 }
 
 // orderGuardHistoryCompoundOrder is an order history page carrying a plain
-// order followed by a compound one, so the compound order sits where the
-// history crawl reads it, at an index after the first.
-const orderGuardHistoryCompoundOrder = `{"result":"true","error_code":0,"page_length":200,"current_page":1,"orders":[{"order_id":"1","symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000},{"order_id":"2","symbol":"btc_usdt","type":"sell_market","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`
+// order followed by compound ones, so the compound orders sit where the
+// history crawl reads them, at indexes after the first.
+const orderGuardHistoryCompoundOrder = `{"result":"true","error_code":0,"page_length":200,"current_page":1,"orders":[{"order_id":"1","symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000},{"order_id":"2","symbol":"btc_usdt","type":"buy_market","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000},{"order_id":"3","symbol":"btc_usdt","type":"sell_market","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`
 
 // orderGuardHistoryHandler answers the order history crawl with firstPage on
 // the first page and nothing after it.
