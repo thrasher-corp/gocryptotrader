@@ -513,6 +513,40 @@ func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
 	assert.Equal(t, order.Sell, got[2].Side, "GetOrderHistory should map sell_market to the sell side")
 }
 
+// TestOrderSideFromType ensures the order side is taken from the leading token
+// of an LBank order type, and that everything LBank does not send is rejected
+// rather than mapped by a looser rule.
+func TestOrderSideFromType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		orderType string
+		want      order.Side
+		wantErr   error
+	}{
+		{name: "buy", orderType: "buy", want: order.Buy},
+		{name: "sell", orderType: "sell", want: order.Sell},
+		{name: "buy_maker", orderType: "buy_maker", want: order.Buy},
+		{name: "sell_market", orderType: "sell_market", want: order.Sell},
+		{name: "sell_fok", orderType: "sell_fok", want: order.Sell},
+		{name: "empty", orderType: "", wantErr: order.ErrSideIsInvalid},
+		{name: "undocumented", orderType: "hold", wantErr: order.ErrSideIsInvalid},
+		{name: "alias prefix", orderType: "any_maker", wantErr: order.ErrSideIsInvalid},
+		{name: "alias prefix again", orderType: "long_maker", wantErr: order.ErrSideIsInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := orderSideFromType(tc.orderType)
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr, "orderSideFromType should reject %q", tc.orderType)
+				return
+			}
+			require.NoError(t, err, "orderSideFromType should map %q", tc.orderType)
+			assert.Equal(t, tc.want, got, "orderSideFromType should map %q to %s", tc.orderType, tc.want)
+		})
+	}
+}
+
 // orderGuardNoOrders is an empty LBank order query response.
 const orderGuardNoOrders = `{"result":"true","error_code":0,"orders":[]}`
 
