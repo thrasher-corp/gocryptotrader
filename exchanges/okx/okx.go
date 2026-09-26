@@ -35,6 +35,9 @@ type Exchange struct {
 
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
+	// instrumentIDCodeMap caches instrument ID codes by instrument ID for
+	// websocket order operations which identify instruments by code.
+	instrumentIDCodeMap map[string]uint64
 }
 
 const (
@@ -136,11 +139,14 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 		}
 		var errs error
 		for x := range resp {
-			if resp[x].StatusCode != 0 {
+			if resp[x] != nil && resp[x].StatusCode != 0 {
 				errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 			}
 		}
-		return nil, common.AppendError(err, errs)
+		// A partially successful batch returns its per-order results alongside
+		// the error, as the websocket variant does, so callers can report the
+		// cancellations that succeeded.
+		return resp, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -238,7 +244,7 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 		params.Set("uly", arg.Underlying)
 	}
 	if arg.OrderType != "" {
-		params.Set("orderType", strings.ToLower(arg.OrderType))
+		params.Set("ordType", strings.ToLower(arg.OrderType))
 	}
 	if arg.State != "" {
 		params.Set("state", arg.State)
@@ -283,7 +289,7 @@ func (e *Exchange) getOrderHistory(ctx context.Context, arg *OrderHistoryRequest
 		params.Set("uly", arg.Underlying)
 	}
 	if arg.OrderType != "" {
-		params.Set("orderType", strings.ToLower(arg.OrderType))
+		params.Set("ordType", strings.ToLower(arg.OrderType))
 	}
 	if arg.State != "" {
 		params.Set("state", arg.State)
@@ -513,7 +519,7 @@ func (e *Exchange) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderPara
 // CancelAdvanceAlgoOrder Cancel unfilled algo orders
 // A maximum of 10 orders can be cancelled at a time.
 // Request parameters should be passed in the form of an array
-func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
+func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -523,15 +529,16 @@ func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderC
 // CancelAlgoOrder to cancel unfilled algo orders (not including Iceberg order, TWAP order, Trailing Stop order).
 // A maximum of 10 orders can be cancelled at a time.
 // Request parameters should be passed in the form of an array
-func (e *Exchange) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
+func (e *Exchange) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
 	return e.cancelAlgoOrder(ctx, args, "trade/cancel-algos", cancelAlgoOrderEPL)
 }
 
-// cancelAlgoOrder to cancel unfilled algo orders
-func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string, rateLimit request.EndpointLimit) (*AlgoOrder, error) {
+// cancelAlgoOrder to cancel unfilled algo orders. OKX returns one result per
+// requested algo order, and a batch can partially succeed.
+func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string, rateLimit request.EndpointLimit) ([]AlgoOrder, error) {
 	for x := range args {
 		if args[x] == (AlgoOrderCancelParams{}) {
 			return nil, common.ErrEmptyParams
@@ -542,15 +549,15 @@ func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelPa
 			return nil, errMissingInstrumentID
 		}
 	}
-	var resp *AlgoOrder
+	var resp []AlgoOrder
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
-	if err != nil {
-		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
-		}
+	if err != nil && !errors.Is(err, errPartialSuccess) {
 		return nil, err
 	}
-	return resp, nil
+	// A partially successful batch returns its per-order results alongside the
+	// error, as CancelMultipleOrders does, so callers can report the
+	// cancellations that succeeded.
+	return resp, err
 }
 
 // AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
@@ -4652,9 +4659,10 @@ func (e *Exchange) CancelSpreadOrder(ctx context.Context, orderID, clientOrderID
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllSpreadOrders cancels all spread orders and return success message
-// spreadID is optional
-// the function returns success status and error message
+// CancelAllSpreadOrders cancels all spread orders and returns whether OKX
+// accepted the request. spreadID is the spread pair, such as
+// BTC-USDT_BTC-USDT-SWAP, and is optional: omitting it cancels every spread
+// order on the account.
 func (e *Exchange) CancelAllSpreadOrders(ctx context.Context, spreadID string) (bool, error) {
 	arg := make(map[string]string, 1)
 	if spreadID != "" {
@@ -5934,8 +5942,21 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		return err
 	}
 	if resp.Code.Int64() != 0 {
+		// A failed batch reply can still carry per-order results for the parts
+		// that succeeded; decode best-effort so callers can report them.
+		decodeErr := unmarshalResponseData(resp.Data, result)
 		if requestType == request.AuthenticatedRequest {
 			err = request.ErrAuthRequestFailed
+		}
+		// OKX sends a partial success with a message, which would return below
+		// without the sentinel callers match to record the per-order results.
+		// Rows that failed to decode can be half populated, so they are not
+		// vouched for.
+		if resp.Code.Int64() == 2 {
+			if decodeErr != nil {
+				return common.AppendError(err, fmt.Errorf("error code: `2`; message: %q: %w", resp.Msg, decodeErr))
+			}
+			return common.AppendError(err, errPartialSuccess)
 		}
 		if resp.Msg != "" {
 			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: %q", resp.Code.Int64(), resp.Msg))
@@ -5945,16 +5966,22 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		}
 		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
+	return unmarshalResponseData(resp.Data, result)
+}
 
+// unmarshalResponseData decodes response data into result, which is usually
+// the data itself; some endpoints wrap a single item in an array for a
+// non-slice result.
+func unmarshalResponseData(data json.RawMessage, result any) error {
 	// Most endpoints can be unmarshalled directly (objects and full arrays).
-	directErr := json.Unmarshal(resp.Data, result)
+	directErr := json.Unmarshal(data, result)
 	if directErr == nil {
 		return nil
 	}
 
 	// Some endpoints return a single item wrapped in data:[{...}] for a non-slice result.
 	var dataSlice []json.RawMessage
-	if sliceErr := json.Unmarshal(resp.Data, &dataSlice); sliceErr != nil {
+	if sliceErr := json.Unmarshal(data, &dataSlice); sliceErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
 	}
 	if len(dataSlice) != 1 {

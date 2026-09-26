@@ -54,6 +54,7 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresClientID = true
 
 	e.instrumentsInfoMap = make(map[string][]Instrument)
+	e.instrumentIDCodeMap = make(map[string]uint64)
 
 	cpf := &currency.PairFormat{
 		Delimiter: currency.DashDelimiter,
@@ -998,7 +999,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				orderRequest.PositionSide = positionSideShort
 			}
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if code, ok := e.websocketInstrumentIDCode(pairString); ok && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			orderRequest.InstrumentIDCode = code
 			placeOrderResponse, err = e.WSPlaceOrder(ctx, orderRequest)
 		} else {
 			placeOrderResponse, err = e.PlaceOrder(ctx, orderRequest)
@@ -1162,9 +1164,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
-	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
 		amendSpreadOrder := &AmendSpreadOrderParam{
@@ -1192,15 +1191,18 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if action.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	instrumentID := pairFormat.Format(action.Pair)
 	switch action.Type {
 	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
-			InstrumentID:  pairFormat.Format(action.Pair),
+			InstrumentID:  instrumentID,
 			NewQuantity:   action.Amount,
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
+			NewPrice:      action.Price,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if code, ok := e.websocketInstrumentIDCode(instrumentID); ok && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			amendRequest.InstrumentIDCode = code
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
 		} else {
 			_, err = e.AmendOrder(ctx, &amendRequest)
@@ -1226,7 +1228,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			}
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
-			InstrumentID:              pairFormat.Format(action.Pair),
+			InstrumentID:              instrumentID,
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
 			NewSize:                   action.Amount,
@@ -1251,7 +1253,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", limits.ErrPriceBelowMin)
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
-			InstrumentID:              pairFormat.Format(action.Pair),
+			InstrumentID:              instrumentID,
 			AlgoID:                    action.OrderID,
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
 			NewSize:                   action.Amount,
@@ -1306,13 +1308,14 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			OrderID:       ord.OrderID,
 			ClientOrderID: ord.ClientOrderID,
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if code, ok := e.websocketInstrumentIDCode(instrumentID); ok && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			req.InstrumentIDCode = code
 			_, err = e.WSCancelOrder(ctx, &req)
 		} else {
 			_, err = e.CancelSingleOrder(ctx, &req)
 		}
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
-		var response *AlgoOrder
+		var response []AlgoOrder
 		response, err = e.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
 			{
 				AlgoOrderID:  ord.OrderID,
@@ -1322,7 +1325,10 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		if err != nil {
 			return err
 		}
-		return getStatusError(response.StatusCode, response.StatusMessage)
+		if len(response) == 0 {
+			return fmt.Errorf("%w for algo order %s", common.ErrNoResponse, ord.OrderID)
+		}
+		return getStatusError(response[0].StatusCode, response[0].StatusMessage)
 	default:
 		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
 	}
@@ -1338,7 +1344,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	cancelOrderParams := make([]CancelOrderRequestParam, 0, len(o))
 	cancelAlgoOrderParams := make([]AlgoOrderCancelParams, 0, len(o))
+	cancelSpreadOrderParams := make([]order.Cancel, 0, len(o))
+	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	var err error
+	// The whole batch is validated before any cancel is sent, so an invalid
+	// entry cannot leave a partially executed batch behind.
 	for x := range o {
 		ord := o[x]
 		if !e.SupportsAsset(ord.AssetType) {
@@ -1352,9 +1362,16 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if !ord.Pair.IsPopulated() {
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
+		if ord.AssetType == asset.Spread {
+			if ord.OrderID == "" && ord.ClientOrderID == "" {
+				return nil, fmt.Errorf("%w, order ID required for spread order cancel", order.ErrOrderIDNotSet)
+			}
+			cancelSpreadOrderParams = append(cancelSpreadOrderParams, ord)
+			continue
+		}
 		switch ord.Type {
 		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
-			if o[x].ClientID == "" && o[x].OrderID == "" {
+			if o[x].ClientOrderID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
 			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
@@ -1375,41 +1392,70 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w order of type %v not supported", order.ErrUnsupportedOrderType, o[x].Type)
 		}
 	}
-	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
+	// Cancels from here on execute, so a failure returns resp with the
+	// statuses already recorded rather than discarding them.
+	for x := range cancelSpreadOrderParams {
+		ord := cancelSpreadOrderParams[x]
+		// OKX accepts spread operations only on its business websocket, and
+		// WSCancelSpreadOrder sends on the private one, so spread cancels use REST.
+		var cancelled *SpreadOrderResponse
+		cancelled, err = e.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		switch {
+		case err != nil:
+			return resp, err
+		case cancelled == nil:
+			return resp, fmt.Errorf("%w cancelling spread order ID %q client order ID %q", common.ErrNoResponse, ord.OrderID, ord.ClientOrderID)
+		case cancelled.StatusCode != 0:
+			return resp, getStatusError(cancelled.StatusCode, cancelled.StatusMessage)
+		case cancelled.OrderID == "":
+			return resp, fmt.Errorf("%w: no order ID cancelling spread order ID %q client order ID %q", common.ErrInvalidResponse, ord.OrderID, ord.ClientOrderID)
+		}
+		// Status keys are exchange order IDs, as on the ordinary path below, so
+		// each cancel is keyed by the ordId OKX returns, even one sent by client
+		// order ID.
+		resp.Status[cancelled.OrderID] = order.Cancelled.String()
+	}
 	if len(cancelOrderParams) > 0 {
 		var canceledOrders []*OrderData
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && e.applyWebsocketInstrumentIDCodes(cancelOrderParams) {
 			canceledOrders, err = e.WSCancelMultipleOrders(ctx, cancelOrderParams)
 		} else {
 			canceledOrders, err = e.CancelMultipleOrders(ctx, cancelOrderParams)
 		}
-		if err != nil {
-			return nil, err
-		}
-		for x := range canceledOrders {
-			resp.Status[canceledOrders[x].OrderID] = func() string {
-				if canceledOrders[x].StatusCode != 0 {
-					return ""
+		if cancelResultsUsable(err) {
+			for x := range canceledOrders {
+				if canceledOrders[x] == nil || canceledOrders[x].OrderID == "" {
+					continue
 				}
-				return order.Cancelled.String()
-			}()
+				if canceledOrders[x].StatusCode == 0 {
+					resp.Status[canceledOrders[x].OrderID] = order.Cancelled.String()
+				} else {
+					resp.Status[canceledOrders[x].OrderID] = canceledOrders[x].StatusMessage
+				}
+			}
+		}
+		if err != nil {
+			return resp, err
 		}
 	}
 	if len(cancelAlgoOrderParams) > 0 {
-		cancelationResponse, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
-		if err != nil {
-			if len(resp.Status) > 0 {
-				return resp, nil
+		algoResults, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
+		if cancelResultsUsable(err) {
+			// OKX reports one result per requested algo order; failed cancels are
+			// reported with their status message instead of a false Cancelled.
+			for x := range algoResults {
+				if algoResults[x].AlgoID == "" {
+					continue
+				}
+				if algoResults[x].StatusCode == 0 {
+					resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
+				} else {
+					resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
+				}
 			}
-			return nil, err
-		} else if cancelationResponse.StatusCode != 0 {
-			if len(resp.Status) > 0 {
-				return resp, nil
-			}
-			return resp, getStatusError(cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
 		}
-		for x := range cancelAlgoOrderParams {
-			resp.Status[cancelAlgoOrderParams[x].AlgoOrderID] = order.Cancelled.String()
+		if err != nil {
+			return resp, err
 		}
 	}
 	return resp, nil
@@ -1425,14 +1471,26 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		Status: map[string]string{},
 	}
 
-	// For asset.Spread asset orders cancellation
+	// For asset.Spread asset orders cancellation. OKX's mass-cancel scopes to
+	// one spread instrument via its sprdId, the spread pair itself such as
+	// BTC-USDT_BTC-USDT-SWAP, and cancels every spread order when sprdId is
+	// omitted, so a populated pair scopes the cancel instead of the order ID,
+	// which names a single order rather than a spread. The pair's own
+	// underscore-delimited form is used as-is: the configured spread pair
+	// format's dash delimiter would mangle the legs.
 	if orderCancellation.AssetType == asset.Spread {
+		var spreadID string
+		if orderCancellation.Pair.IsPopulated() {
+			spreadID = orderCancellation.Pair.Upper().String()
+		}
 		var success bool
-		success, err = e.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
+		success, err = e.CancelAllSpreadOrders(ctx, spreadID)
 		if err != nil {
 			return cancelAllResponse, err
 		}
-		cancelAllResponse.Status[orderCancellation.OrderID] = strconv.FormatBool(success)
+		// The result is keyed by the scope the request sent, since the order ID
+		// and client order ID scope nothing on a mass cancel.
+		cancelAllResponse.Status[spreadID] = strconv.FormatBool(success)
 		return cancelAllResponse, nil
 	}
 
@@ -1453,68 +1511,117 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 	var curr string
 	if orderCancellation.Pair.IsPopulated() {
-		curr = orderCancellation.Pair.Upper().String()
+		if orderCancellation.AssetType.IsValid() {
+			// Format through the exchange's pair format so callers passing a
+			// differently delimited pair still resolve their instrument; OKX
+			// rejects an unmatched instId with error 51001.
+			var pairFormat currency.PairFormat
+			pairFormat, err = e.GetPairFormat(orderCancellation.AssetType, true)
+			if err != nil {
+				return order.CancelAllResponse{}, err
+			}
+			curr = pairFormat.Format(orderCancellation.Pair)
+		} else {
+			curr = orderCancellation.Pair.Upper().String()
+		}
 	}
-	myOrders, err := e.GetOrderList(ctx, &OrderListRequestParams{
-		InstrumentType: instrumentType,
-		OrderType:      oType,
-		InstrumentID:   curr,
-	})
-	if err != nil {
-		return cancelAllResponse, err
+	// OKX caps the pending order list at 100 records per request, so page
+	// through the full list before cancelling to reach accounts holding more
+	// open orders than a single page.
+	var myOrders []OrderDetail
+	for after := ""; ; {
+		var page []OrderDetail
+		page, err = e.GetOrderList(ctx, &OrderListRequestParams{
+			InstrumentType: instrumentType,
+			OrderType:      oType,
+			InstrumentID:   curr,
+			After:          after,
+		})
+		if err != nil {
+			return cancelAllResponse, err
+		}
+		myOrders = append(myOrders, page...)
+		if len(page) < orderListPageSize {
+			break
+		}
+		after = page[len(page)-1].OrderID
 	}
-	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))
+	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
 ordersLoop:
 	for x := range myOrders {
 		switch {
 		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
-			if myOrders[x].OrderID == orderCancellation.OrderID ||
-				myOrders[x].ClientOrderID == orderCancellation.ClientOrderID {
-				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+			// Every supplied discriminator must match, so supplying both IDs
+			// cannot cancel an order matching only one of them.
+			if (orderCancellation.OrderID == "" || myOrders[x].OrderID == orderCancellation.OrderID) &&
+				(orderCancellation.ClientOrderID == "" || myOrders[x].ClientOrderID == orderCancellation.ClientOrderID) {
+				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
 					OrderID:       myOrders[x].OrderID,
 					ClientOrderID: myOrders[x].ClientOrderID,
-				}
+				})
 				break ordersLoop
 			}
 		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
-			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
-				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+			if myOrders[x].Side == orderCancellation.Side {
+				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
 					OrderID:       myOrders[x].OrderID,
 					ClientOrderID: myOrders[x].ClientOrderID,
-				}
-				continue
+				})
 			}
 		default:
-			cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+			cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+				InstrumentID:  myOrders[x].InstrumentID,
 				OrderID:       myOrders[x].OrderID,
 				ClientOrderID: myOrders[x].ClientOrderID,
-			}
+			})
 		}
+	}
+	useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper()
+	if useWebsocket && !e.applyWebsocketInstrumentIDCodes(cancelAllOrdersRequestParams) {
+		// OKX documents instIdCode for websocket operations only, so an
+		// uncached instrument falls back to REST, which identifies orders by
+		// instId alone.
+		useWebsocket = false
 	}
 	remaining := cancelAllOrdersRequestParams
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
+	var errs error
 	for range loop {
-		var response []*OrderData
-		if len(remaining) > 20 {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining[:20])
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining[:20])
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			// A dead context stops the loop; the statuses and errors collected
+			// so far are still returned so the caller sees what was cancelled.
+			// The failed batch's error already carries the context error, so
+			// append it only once.
+			if !errors.Is(errs, ctxErr) {
+				errs = common.AppendError(errs, ctxErr)
 			}
+			break
+		}
+		batch := remaining
+		if len(batch) > 20 {
+			batch = batch[:20]
 			remaining = remaining[20:]
 		} else {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = e.WSCancelMultipleOrders(ctx, remaining)
-			} else {
-				response, err = e.CancelMultipleOrders(ctx, remaining)
-			}
+			remaining = nil
 		}
-		if err != nil {
-			if len(cancelAllResponse.Status) == 0 {
-				return cancelAllResponse, err
-			}
+		var response []*OrderData
+		if useWebsocket {
+			response, err = e.WSCancelMultipleOrders(ctx, batch)
+		} else {
+			response, err = e.CancelMultipleOrders(ctx, batch)
+		}
+		// A failed batch does not stop later batches; the errors are joined so
+		// a cancel-all still reaches every remaining order.
+		errs = common.AppendError(errs, err)
+		if !cancelResultsUsable(err) {
+			continue
 		}
 		for y := range response {
+			if response[y] == nil || response[y].OrderID == "" {
+				continue
+			}
 			if response[y].StatusCode == 0 {
 				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
 			} else {
@@ -1522,7 +1629,18 @@ ordersLoop:
 			}
 		}
 	}
+	if errs != nil {
+		return cancelAllResponse, errs
+	}
 	return cancelAllResponse, nil
+}
+
+// cancelResultsUsable reports whether per-order cancel results can be recorded
+// alongside err. A partial success on the websocket or over REST returns fully
+// decoded results with its error; any other error, a decode error included,
+// can leave them half populated.
+func cancelResultsUsable(err error) bool {
+	return err == nil || errors.Is(err, errPartialSuccess)
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1770,16 +1888,17 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			return nil, err
 		}
 	}
-	endTime := req.EndTime
+	// OKX pages the pending order list with the after order ID cursor; the End
+	// timestamp is not a documented parameter, so paginating with it re-fetched
+	// the first page, losing every order past the first hundred.
 allOrders:
-	for {
-		requestParam := &OrderListRequestParams{
-			OrderType:      orderType,
-			End:            endTime,
-			InstrumentType: instrumentType,
-		}
+	for after := ""; ; {
 		var orderList []OrderDetail
-		orderList, err = e.GetOrderList(ctx, requestParam)
+		orderList, err = e.GetOrderList(ctx, &OrderListRequestParams{
+			OrderType:      orderType,
+			InstrumentType: instrumentType,
+			After:          after,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1788,8 +1907,7 @@ allOrders:
 		}
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
-				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime.Equal(orderList[i].CreationTime.Time()) {
+				orderList[i].CreationTime.Time().Before(req.StartTime) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -1837,13 +1955,10 @@ allOrders:
 				TimeInForce:     tif,
 			})
 		}
-		if len(orderList) < 100 {
-			// Since the we passed a limit of 0 to the method GetOrderList,
-			// we expect 100 orders to be retrieved if the number of orders are more that 100.
-			// If not, break out of the loop to not send another request.
+		if len(orderList) < orderListPageSize {
 			break
 		}
-		endTime = orderList[len(orderList)-1].CreationTime.Time()
+		after = orderList[len(orderList)-1].OrderID
 	}
 	return req.Filter(e.Name, resp), nil
 }
@@ -2196,9 +2311,7 @@ func (e *Exchange) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]
 		if err != nil {
 			return nil, err
 		}
-		e.instrumentsInfoMapLock.Lock()
-		e.instrumentsInfoMap[instTypeOption] = instruments
-		e.instrumentsInfoMapLock.Unlock()
+		e.cacheInstruments(instTypeOption, instruments)
 		return instruments, nil
 	case asset.Spot:
 		instType = instTypeSpot
@@ -2216,10 +2329,42 @@ func (e *Exchange) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]
 	if err != nil {
 		return nil, err
 	}
-	e.instrumentsInfoMapLock.Lock()
-	e.instrumentsInfoMap[instType] = instruments
-	e.instrumentsInfoMapLock.Unlock()
+	e.cacheInstruments(instType, instruments)
 	return instruments, nil
+}
+
+// cacheInstruments stores instruments by instrument type and indexes their
+// instrument ID codes by instrument ID for getInstrumentIDCode lookups
+func (e *Exchange) cacheInstruments(instType string, instruments []Instrument) {
+	e.instrumentsInfoMapLock.Lock()
+	defer e.instrumentsInfoMapLock.Unlock()
+	e.instrumentsInfoMap[instType] = instruments
+	e.cacheInstrumentIDCodesLocked(instruments)
+}
+
+// cacheInstrumentIDCodes upserts instrument ID codes from instruments channel
+// pushes, so instruments listed after the startup fetch resolve codes in a
+// running process. The instruments channel is not part of
+// defaultSubscriptions, so this only runs when it is subscribed explicitly.
+// The instruments list itself is left alone because the channel pushes deltas,
+// not full snapshots.
+func (e *Exchange) cacheInstrumentIDCodes(instruments []Instrument) {
+	e.instrumentsInfoMapLock.Lock()
+	defer e.instrumentsInfoMapLock.Unlock()
+	e.cacheInstrumentIDCodesLocked(instruments)
+}
+
+func (e *Exchange) cacheInstrumentIDCodesLocked(instruments []Instrument) {
+	for x := range instruments {
+		// OKX sends a null instIdCode until it generates one, including for a
+		// relisted instrument, whose code changes. Dropping the cached code
+		// sends its orders over REST rather than with a replaced code.
+		if instruments[x].InstrumentIDCode == 0 {
+			delete(e.instrumentIDCodeMap, instruments[x].InstrumentID.String())
+			continue
+		}
+		e.instrumentIDCodeMap[instruments[x].InstrumentID.String()] = instruments[x].InstrumentIDCode
+	}
 }
 
 // GetLatestFundingRates returns the latest funding rates data
@@ -3097,4 +3242,44 @@ func (e *Exchange) MessageID() string {
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])
+}
+
+// getInstrumentIDCode returns the OKX instrument ID code for an instrument
+// ID, or zero if it is not cached. Websocket order, amend and cancel
+// operations resolve codes here because OKX ignores instId on those frames,
+// while no REST order endpoint documents instIdCode, so REST request bodies
+// must stay free of the field.
+func (e *Exchange) getInstrumentIDCode(instID string) uint64 {
+	e.instrumentsInfoMapLock.Lock()
+	defer e.instrumentsInfoMapLock.Unlock()
+	return e.instrumentIDCodeMap[instID]
+}
+
+// websocketInstrumentIDCode returns the cached instrument ID code for an
+// instrument and whether it is available. An uncached instrument reports ok as
+// false so the caller falls back to REST: OKX requires the code on websocket
+// operations, and newly listed instruments carry a null code until OKX
+// generates one.
+func (e *Exchange) websocketInstrumentIDCode(instID string) (uint64, bool) {
+	code := e.getInstrumentIDCode(instID)
+	return code, code != 0
+}
+
+// applyWebsocketInstrumentIDCodes resolves and applies cached instrument ID
+// codes for websocket batch operations. It reports false without modifying the
+// requests when any instrument is uncached, so the caller falls back to REST
+// and no half-applied instIdCode leaks into a REST request body.
+func (e *Exchange) applyWebsocketInstrumentIDCodes(args []CancelOrderRequestParam) bool {
+	codes := make([]uint64, len(args))
+	for x := range args {
+		code := e.getInstrumentIDCode(args[x].InstrumentID)
+		if code == 0 {
+			return false
+		}
+		codes[x] = code
+	}
+	for x := range args {
+		args[x].InstrumentIDCode = codes[x]
+	}
+	return true
 }
