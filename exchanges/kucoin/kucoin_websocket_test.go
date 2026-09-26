@@ -1663,6 +1663,44 @@ func TestProcessFuturesTickerV2KeepsStoredSnapshot(t *testing.T) {
 	assert.Equal(t, exp, stored, "the best bid/ask push should keep every stored field it does not report")
 }
 
+// TestProcessFuturesTickerV2WithoutTimestamp covers a tickerV2 frame that carries no ts. The
+// stored snapshot's timestamp must not be carried onto the fresh bid and ask, which would make
+// the engine store them under a stale time.
+func TestProcessFuturesTickerV2WithoutTimestamp(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	// The ticker store is shared by the whole test process, so a scoped name keeps the
+	// seeded snapshot below away from every other case.
+	ku.Name = t.Name()
+	pair := currency.NewPairWithDelimiter("ETH", "USDCM", "_")
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		Pair:         pair,
+		Last:         3551,
+		High:         3600,
+		Low:          3400,
+		LastUpdated:  time.Now().Add(-time.Hour),
+	}), "seeding the stored ticker must not error")
+
+	msg := []byte(`{"topic":"/contractMarket/tickerV2:ETHUSDCM","type":"message","subject":"tickerV2","data":{"symbol":"ETHUSDCM","sequence":1739524604832,"bestBidSize":795,"bestBidPrice":"3200","bestAskPrice":"3600","bestAskSize":284}}`)
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "the push must emit a single ticker")
+
+	got, ok := (<-ku.Websocket.DataHandler.C).Data.(*ticker.Price)
+	require.True(t, ok, "the push must emit a ticker price")
+	assert.True(t, got.LastUpdated.IsZero(), "a frame without ts must not carry the stored snapshot's timestamp")
+
+	// The engine stores whatever the exchange emits, which is where the store time is stamped.
+	before := time.Now()
+	require.NoError(t, ticker.ProcessTicker(got), "storing the emitted ticker must not error")
+	stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
+	require.NoError(t, err, "the ticker must remain stored")
+	assert.False(t, stored.LastUpdated.Before(before), "the untimestamped push must be stored under its own store time")
+	assert.Equal(t, 3200.0, stored.Bid, "the push should store the best bid it reported")
+	assert.Equal(t, 3600.0, stored.Ask, "the push should store the best ask it reported")
+}
+
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
