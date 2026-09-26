@@ -1296,6 +1296,8 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 			var requests atomic.Int64
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests.Add(1)
+				assert.Equal(t, http.MethodGet, r.Method, "transfer history request method should be GET")
+				assert.Equal(t, "/api/v4/wallet/sub_account_transfers", r.URL.Path, "transfer history request path should match the endpoint")
 				assert.Equal(t, tc.expectedQuery, r.URL.Query(), "query parameters should match the requested transfer history")
 				_, err := w.Write([]byte(`[]`))
 				assert.NoError(t, err, "Mocked transfer history response should be written")
