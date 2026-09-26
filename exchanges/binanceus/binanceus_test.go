@@ -1215,6 +1215,7 @@ func TestFiatHistoryForwardsOrderID(t *testing.T) {
 			})
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, tc.path, r.URL.Path, "the fiat history request should target the documented endpoint")
+				assert.Equal(t, tc.wantOrderID != "", r.URL.Query().Has("orderId"), "orderId should only be sent when set")
 				assert.Equal(t, tc.wantOrderID, r.URL.Query().Get("orderId"), "the orderId query parameter should be forwarded only when set")
 				_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
 				assert.NoError(t, err, "writing the fiat history response should not error")
