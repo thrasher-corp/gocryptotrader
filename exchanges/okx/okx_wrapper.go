@@ -529,7 +529,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		if assetType == asset.Margin {
 			instrumentType = instTypeSpot
 		}
-		ticks, err := e.GetTickers(ctx, instrumentType, "", "")
+		ticks, err := e.GetTickers(ctx, instrumentType, "")
 		if err != nil {
 			return err
 		}
