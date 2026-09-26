@@ -1299,7 +1299,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 				assert.Equal(t, http.MethodGet, r.Method, "transfer history request method should be GET")
 				assert.Equal(t, "/api/v4/wallet/sub_account_transfers", r.URL.Path, "transfer history request path should match the endpoint")
 				assert.Equal(t, tc.expectedQuery, r.URL.Query(), "query parameters should match the requested transfer history")
-				_, err := w.Write([]byte(`[]`))
+				_, err := w.Write([]byte(`[{"timest":"1709251200","uid":"10001","sub_account":"1337","sub_account_type":"spot","currency":"BTC","amount":"1.5","direction":"to","source":"web"}]`))
 				assert.NoError(t, err, "Mocked transfer history response should be written")
 			}))
 
@@ -1314,7 +1314,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 			if tc.allAccounts {
 				subAccountUserID = ""
 			}
-			_, err := ex.GetSubAccountTransferHistory(t.Context(), subAccountUserID, tc.from, tc.to, tc.offset, tc.limit)
+			got, err := ex.GetSubAccountTransferHistory(t.Context(), subAccountUserID, tc.from, tc.to, tc.offset, tc.limit)
 			if tc.expectedErr != nil {
 				require.ErrorIs(t, err, tc.expectedErr, "an unusable time range must be reported to the caller")
 				assert.Zero(t, requests.Load(), "a request with an unusable time range should not be sent")
@@ -1322,6 +1322,16 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 			}
 			require.NoError(t, err, "GetSubAccountTransferHistory must not error")
 			assert.Equal(t, int64(1), requests.Load(), "a valid request should reach the exchange once")
+			assert.Equal(t, []SubAccountTransferResponse{{
+				MainAccountUserID: "10001",
+				Timestamp:         types.Time(time.Unix(1709251200, 0)),
+				Source:            "web",
+				Currency:          "BTC",
+				SubAccount:        "1337",
+				TransferDirection: "to",
+				Amount:            1.5,
+				SubAccountType:    "spot",
+			}}, got, "transfer history should decode the mocked record")
 		})
 	}
 	t.Run("live", func(t *testing.T) {
