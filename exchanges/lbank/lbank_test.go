@@ -11,7 +11,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -376,6 +380,290 @@ func TestGetOrderHistory(t *testing.T) {
 		Type:      order.AnyType,
 	})
 	assert.NoError(t, err, "GetOrderHistory should not error")
+}
+
+// TestGetActiveOrdersEmptyResponse ensures an order the exchange no longer
+// reports is skipped instead of panicking on an empty order slice.
+func TestGetActiveOrdersEmptyResponse(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardNoOrders))
+
+	got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	assert.Empty(t, got, "GetActiveOrders should skip orders the exchange no longer reports")
+}
+
+// TestGetActiveOrdersCompoundOrderType ensures a compound order type LBank
+// documents, such as buy_maker, is mapped to its side instead of aborting the
+// rest of the open order listing, and that a side-filtered request keeps it.
+func TestGetActiveOrdersCompoundOrderType(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy_maker")))
+
+	for _, tc := range []struct {
+		name string
+		side order.Side
+		want int
+	}{
+		{name: "any side", side: order.AnySide, want: 1},
+		{name: "mapped side", side: order.Buy, want: 1},
+		{name: "other side", side: order.Sell, want: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+				Pairs:     currency.Pairs{testPair},
+				Side:      tc.side,
+				AssetType: asset.Spot,
+				Type:      order.AnyType,
+			})
+			require.NoError(t, err, "GetActiveOrders must not error for a compound order type")
+			require.Len(t, got, tc.want, "GetActiveOrders must keep the orders the request asks for")
+			if tc.want == 0 {
+				return
+			}
+			assert.Equal(t, order.Buy, got[0].Side, "GetActiveOrders should map buy_maker to the buy side")
+		})
+	}
+}
+
+// TestGetActiveOrdersUnknownSide ensures an order type LBank does not document
+// surfaces as an error instead of being reported as a sell.
+func TestGetActiveOrdersUnknownSide(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("hold")))
+
+	_, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetActiveOrders should reject an order type it cannot map")
+}
+
+// TestGetOrderInfoEmptyResponse ensures an order the exchange no longer reports
+// is reported as missing instead of panicking on an empty order slice.
+func TestGetOrderInfoEmptyResponse(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardNoOrders))
+
+	_, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order the exchange no longer holds")
+}
+
+// TestGetOrderInfoUnknownSide ensures an order type LBank does not document
+// surfaces as an error instead of being reported as a sell.
+func TestGetOrderInfoUnknownSide(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("hold")))
+
+	_, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetOrderInfo should reject an order type it cannot map")
+}
+
+// TestGetOrderInfoCompoundOrderType ensures a compound order type LBank
+// documents, such as buy_market, is mapped to its side instead of erroring.
+// A buy-side compound type is used so a regression to the old "not buy is
+// sell" rule fails here.
+func TestGetOrderInfoCompoundOrderType(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy_market")))
+
+	got, err := ex.GetOrderInfo(t.Context(), "1", testPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for a compound order type")
+	assert.Equal(t, order.Buy, got.Side, "GetOrderInfo should map buy_market to the buy side")
+}
+
+// TestGetOrderInfoOrderIDNotFound ensures an order ID the exchange does not
+// report is reported as missing instead of as a zero-valued order.
+func TestGetOrderInfoOrderIDNotFound(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy")))
+
+	_, err := ex.GetOrderInfo(t.Context(), "2", testPair, asset.Spot)
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order ID the exchange does not return")
+}
+
+// TestGetOrderHistoryCompoundOrderType ensures compound order types LBank
+// documents, such as buy_market and sell_market, are mapped to their side
+// instead of erroring. The compound orders are served after a plain one so the
+// history crawl only reaches them through the indexed order it reads,
+// tempResp.Orders[x]. The buy-side compound order is included so a regression
+// to the old "not buy is sell" rule fails here.
+func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHistoryHandler(t, orderGuardHistoryCompoundOrder))
+
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error for a compound order type")
+	require.Len(t, got, 3, "GetOrderHistory must keep every order on the page")
+	assert.Equal(t, order.Buy, got[0].Side, "GetOrderHistory should map the leading plain order to the buy side")
+	assert.Equal(t, order.Buy, got[1].Side, "GetOrderHistory should map buy_market to the buy side")
+	assert.Equal(t, order.Sell, got[2].Side, "GetOrderHistory should map sell_market to the sell side")
+}
+
+// TestOrderSideFromType ensures the order side is taken from the leading token
+// of an LBank order type, and that everything LBank does not send is rejected
+// rather than mapped by a looser rule.
+func TestOrderSideFromType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		orderType string
+		want      order.Side
+		wantErr   error
+	}{
+		{name: "buy", orderType: "buy", want: order.Buy},
+		{name: "sell", orderType: "sell", want: order.Sell},
+		{name: "buy_maker", orderType: "buy_maker", want: order.Buy},
+		{name: "sell_market", orderType: "sell_market", want: order.Sell},
+		{name: "sell_fok", orderType: "sell_fok", want: order.Sell},
+		{name: "empty", orderType: "", wantErr: order.ErrSideIsInvalid},
+		{name: "undocumented", orderType: "hold", wantErr: order.ErrSideIsInvalid},
+		{name: "alias prefix", orderType: "any_maker", wantErr: order.ErrSideIsInvalid},
+		{name: "alias prefix again", orderType: "long_maker", wantErr: order.ErrSideIsInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := orderSideFromType(tc.orderType)
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr, "orderSideFromType should reject %q", tc.orderType)
+				return
+			}
+			require.NoError(t, err, "orderSideFromType should map %q", tc.orderType)
+			assert.Equal(t, tc.want, got, "orderSideFromType should map %q to %s", tc.orderType, tc.want)
+		})
+	}
+}
+
+// orderGuardNoOrders is an empty LBank order query response.
+const orderGuardNoOrders = `{"result":"true","error_code":0,"orders":[]}`
+
+// orderGuardOpenOrder returns an open order listing carrying a single order.
+func orderGuardOpenOrder(orderID string) string {
+	return fmt.Sprintf(`{"result":"true","error_code":0,"orders":[{"order_id":%q,"symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`, orderID)
+}
+
+// orderGuardSingleOrder returns an order query response carrying one order of
+// the supplied type.
+func orderGuardSingleOrder(orderType string) string {
+	return fmt.Sprintf(`{"result":"true","error_code":0,"orders":[{"order_id":"1","symbol":"btc_usdt","type":%q,"price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`, orderType)
+}
+
+// orderGuardHistoryCompoundOrder is an order history page carrying a plain
+// order followed by compound ones, so the compound orders sit where the
+// history crawl reads them, at indexes after the first.
+const orderGuardHistoryCompoundOrder = `{"result":"true","error_code":0,"page_length":200,"current_page":1,"orders":[{"order_id":"1","symbol":"btc_usdt","type":"buy","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000},{"order_id":"2","symbol":"btc_usdt","type":"buy_market","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000},{"order_id":"3","symbol":"btc_usdt","type":"sell_market","price":10,"amount":2,"deal_amount":1,"avg_price":10,"status":0,"created_time":1758499200000}]}`
+
+// orderGuardHistoryHandler answers the order history crawl with firstPage on
+// the first page and nothing after it.
+func orderGuardHistoryHandler(t *testing.T, firstPage string) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, r.ParseForm(), "the request body should parse as a form")
+		assert.Truef(t, strings.HasSuffix(r.URL.Path, lbankQueryHistoryOrder), "the wrapper should only request order history, got %s", r.URL.Path)
+		body := orderGuardNoOrders
+		if r.Form.Get("current_page") == "1" {
+			body = firstPage
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the response should not error")
+	}
+}
+
+// orderGuardHandler answers the open order listing with a single order on the
+// first page and nothing after it, and every order query with queryResponse.
+func orderGuardHandler(t *testing.T, queryResponse string) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, r.ParseForm(), "the request body should parse as a form")
+		var body string
+		switch {
+		case strings.HasSuffix(r.URL.Path, lbankOpeningOrders):
+			if r.Form.Get("current_page") == "1" {
+				body = orderGuardOpenOrder("1")
+			} else {
+				body = orderGuardNoOrders
+			}
+		case strings.HasSuffix(r.URL.Path, lbankQueryOrder):
+			body = queryResponse
+		default:
+			assert.Failf(t, "unexpected endpoint", "the wrapper should only request open orders and order queries, got %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, err := fmt.Fprint(w, body)
+		assert.NoError(t, err, "writing the response should not error")
+	}
+}
+
+// setupOrderGuard returns an exchange served by handler, with a single enabled
+// spot pair so the open order crawl only asks about the pair under test.
+func setupOrderGuard(t *testing.T, handler http.Handler) *Exchange {
+	t.Helper()
+	server := httptest.NewTestServer(t, handler)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+	var err error
+	ex.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err, "the RSA test key must generate")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, false), "StorePairs must not error for available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{testPair}, true), "StorePairs must not error for enabled pairs")
+	require.NoError(t, ex.SetHTTPClient(orderGuardClient(server)), "SetHTTPClient must not error")
+	return ex
+}
+
+// orderGuardClient returns the test server's client with the relative URL
+// adapter installed.
+func orderGuardClient(server *httptest.Server) *http.Client {
+	client := server.Client()
+	client.Transport = &orderGuardTransport{base: client.Transport, serverURL: server.URL}
+	return client
+}
+
+// orderGuardTransport resolves the relative request URLs SendAuthHTTPRequest
+// builds against the test server, so these tests exercise a real http.Client
+// against a real server rather than a transport answering on its behalf.
+//
+// SendAuthHTTPRequest assigns the caller's path straight to request.Item.Path
+// without prefixing the configured endpoint URL, so a relative request never
+// leaves the client at all:
+//
+//	Post "/v2/orders_info.do": unsupported protocol scheme ""
+//
+// That pre-existing bug is being fixed separately in #2272. Requests that
+// already carry a host are passed through untouched, so this adapter turns into
+// a no-op once #2272 lands and can be deleted with it.
+type orderGuardTransport struct {
+	base      http.RoundTripper
+	serverURL string
+}
+
+func (r *orderGuardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Host != "" {
+		return r.base.RoundTrip(req)
+	}
+	server, err := url.Parse(r.serverURL)
+	if err != nil {
+		return nil, err
+	}
+	clone := req.Clone(req.Context())
+	clone.URL = &url.URL{Scheme: server.Scheme, Host: server.Host, Path: req.URL.Path, RawQuery: req.URL.RawQuery}
+	return r.base.RoundTrip(clone)
 }
 
 func TestGetHistoricCandles(t *testing.T) {

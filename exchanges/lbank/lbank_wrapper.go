@@ -462,6 +462,23 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 	return resp, nil
 }
 
+// orderSideFromType returns the side an LBank order type names. The order
+// endpoints echo the type back in its compound form, e.g. buy_maker or
+// sell_market (orders_info.do and orders_info_history.do alike), so only the
+// token before the "_" names the side. LBank sends buy and sell there, so
+// anything else is rejected instead of being mapped by a looser rule.
+func orderSideFromType(orderType string) (order.Side, error) {
+	side, _, _ := strings.Cut(orderType, "_")
+	switch {
+	case strings.EqualFold(side, order.Buy.String()):
+		return order.Buy, nil
+	case strings.EqualFold(side, order.Sell.String()):
+		return order.Sell, nil
+	default:
+		return order.UnknownSide, fmt.Errorf("%q %w", side, order.ErrSideIsInvalid)
+	}
+}
+
 // GetOrderInfo returns order information based on order ID
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	var resp order.Detail
@@ -479,16 +496,19 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			if err != nil {
 				return nil, err
 			}
+			if len(tempResp.Orders) == 0 {
+				// The exchange returned no order for this ID.
+				return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
+			}
 			resp.Exchange = e.Name
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err
 			}
 
-			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
-				resp.Side = order.Buy
-			} else {
-				resp.Side = order.Sell
+			resp.Side, err = orderSideFromType(tempResp.Orders[0].Type)
+			if err != nil {
+				return nil, err
 			}
 
 			resp.Status = e.GetStatus(tempResp.Orders[0].Status)
@@ -504,9 +524,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
+			return &resp, nil
 		}
 	}
-	return &resp, nil
+	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -567,16 +588,19 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			if err != nil {
 				return finalResp, err
 			}
+			if len(tempResp.Orders) == 0 {
+				// The exchange returned no order for this ID, so it is not active.
+				continue
+			}
 			resp.Exchange = e.Name
 			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err
 			}
 
-			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
-				resp.Side = order.Buy
-			} else {
-				resp.Side = order.Sell
+			resp.Side, err = orderSideFromType(tempResp.Orders[0].Type)
+			if err != nil {
+				return finalResp, err
 			}
 			resp.Status = e.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
@@ -593,18 +617,13 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
+			// The request's side is applied by getOrdersRequest.Filter below,
+			// against the side mapped above rather than the raw order type.
 			for y := range getOrdersRequest.Pairs {
 				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}
-				if getOrdersRequest.Side == order.AnySide {
-					finalResp = append(finalResp, resp)
-					continue
-				}
-				if strings.EqualFold(getOrdersRequest.Side.String(),
-					tempResp.Orders[0].Type) {
-					finalResp = append(finalResp, resp)
-				}
+				finalResp = append(finalResp, resp)
 			}
 		}
 	}
@@ -656,10 +675,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 					return nil, err
 				}
 
-				if strings.EqualFold(tempResp.Orders[x].Type, order.Buy.String()) {
-					resp.Side = order.Buy
-				} else {
-					resp.Side = order.Sell
+				resp.Side, err = orderSideFromType(tempResp.Orders[x].Type)
+				if err != nil {
+					return nil, err
 				}
 				resp.Status = e.GetStatus(tempResp.Orders[x].Status)
 				resp.Price = tempResp.Orders[x].Price
