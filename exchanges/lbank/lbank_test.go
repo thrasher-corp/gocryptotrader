@@ -400,20 +400,36 @@ func TestGetActiveOrdersEmptyResponse(t *testing.T) {
 
 // TestGetActiveOrdersCompoundOrderType ensures a compound order type LBank
 // documents, such as buy_maker, is mapped to its side instead of aborting the
-// rest of the open order listing.
+// rest of the open order listing, and that a side-filtered request keeps it.
 func TestGetActiveOrdersCompoundOrderType(t *testing.T) {
 	t.Parallel()
 	ex := setupOrderGuard(t, orderGuardHandler(t, orderGuardSingleOrder("buy_maker")))
 
-	got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
-		Pairs:     currency.Pairs{testPair},
-		Side:      order.AnySide,
-		AssetType: asset.Spot,
-		Type:      order.AnyType,
-	})
-	require.NoError(t, err, "GetActiveOrders must not error for a compound order type")
-	require.Len(t, got, 1, "GetActiveOrders must keep the resting order")
-	assert.Equal(t, order.Buy, got[0].Side, "GetActiveOrders should map buy_maker to the buy side")
+	for _, tc := range []struct {
+		name string
+		side order.Side
+		want int
+	}{
+		{name: "any side", side: order.AnySide, want: 1},
+		{name: "mapped side", side: order.Buy, want: 1},
+		{name: "other side", side: order.Sell, want: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+				Pairs:     currency.Pairs{testPair},
+				Side:      tc.side,
+				AssetType: asset.Spot,
+				Type:      order.AnyType,
+			})
+			require.NoError(t, err, "GetActiveOrders must not error for a compound order type")
+			require.Len(t, got, tc.want, "GetActiveOrders must keep the orders the request asks for")
+			if tc.want == 0 {
+				return
+			}
+			assert.Equal(t, order.Buy, got[0].Side, "GetActiveOrders should map buy_maker to the buy side")
+		})
+	}
 }
 
 // TestGetActiveOrdersUnknownSide ensures an order type LBank does not document

@@ -606,18 +606,13 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
+			// The request's side is applied by getOrdersRequest.Filter below,
+			// against the side mapped above rather than the raw order type.
 			for y := range getOrdersRequest.Pairs {
 				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}
-				if getOrdersRequest.Side == order.AnySide {
-					finalResp = append(finalResp, resp)
-					continue
-				}
-				if strings.EqualFold(getOrdersRequest.Side.String(),
-					tempResp.Orders[0].Type) {
-					finalResp = append(finalResp, resp)
-				}
+				finalResp = append(finalResp, resp)
 			}
 		}
 	}
