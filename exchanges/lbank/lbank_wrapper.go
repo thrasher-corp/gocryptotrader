@@ -664,8 +664,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 					return nil, err
 				}
 
-				// orders_info.do echoes the order type back in its compound form, e.g.
-				// sell_market, so only the leading token names the side.
+				// orders_info_history.do echoes the order type back in its compound
+				// form, e.g. sell_market, so only the leading token names the side.
 				side, _, _ := strings.Cut(tempResp.Orders[x].Type, "_")
 				resp.Side, err = order.StringToOrderSide(side)
 				if err != nil {
