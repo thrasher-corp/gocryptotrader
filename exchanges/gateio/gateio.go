@@ -1198,7 +1198,8 @@ func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountU
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
-	if !from.IsZero() && !to.IsZero() && to.Sub(from) > 30*24*time.Hour {
+	// Only whole seconds are sent, so the limit applies to those
+	if !from.IsZero() && !to.IsZero() && to.Truncate(time.Second).Sub(from.Truncate(time.Second)) > 30*24*time.Hour {
 		return nil, errSubAccountTransferHistoryRange
 	}
 	if offset > 0 {

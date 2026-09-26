@@ -1260,6 +1260,12 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Add(30*24*time.Hour).Unix(), 10)}},
 		},
 		{
+			name:          "30 day range with fractional seconds is accepted",
+			from:          from.Add(100 * time.Millisecond),
+			to:            from.Add(30*24*time.Hour + 500*time.Millisecond),
+			expectedQuery: url.Values{"sub_uid": {"1337"}, "from": {strconv.FormatInt(from.Unix(), 10)}, "to": {strconv.FormatInt(from.Add(30*24*time.Hour).Unix(), 10)}},
+		},
+		{
 			name:        "start after end is rejected",
 			from:        to,
 			to:          from,
@@ -1269,6 +1275,12 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 			name:        "range over 30 days is rejected",
 			from:        from,
 			to:          from.Add(30*24*time.Hour + time.Second),
+			expectedErr: errSubAccountTransferHistoryRange,
+		},
+		{
+			name:        "range over 30 days with fractional seconds is rejected",
+			from:        from.Add(900 * time.Millisecond),
+			to:          from.Add(30*24*time.Hour + 1100*time.Millisecond),
 			expectedErr: errSubAccountTransferHistoryRange,
 		},
 		{
