@@ -419,12 +419,12 @@ func TestLoadExchangeEnabledRaceIsProtected(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for _, name := range testExchanges {
-		// Load and unload flip the config's Enabled flag even when the cancelled context stops the surrounding work, so
-		// the errors are irrelevant here: this test only needs the writes and the reads to overlap
+		// The cancelled context stops Bootstrap after Setup, so each load still enables the config and each unload disables it
 		wg.Go(func() {
 			for range 20 {
-				_ = e.LoadExchange(name)
-				_ = e.UnloadExchange(name)
+				err := e.LoadExchange(name)
+				assert.Truef(t, onlyCancelled(err), "LoadExchange should fail only on Bootstrap's cancelled context for %s, got: %v", name, err)
+				assert.NoErrorf(t, e.UnloadExchange(name), "UnloadExchange should not error for %s", name)
 			}
 		})
 	}
@@ -439,6 +439,7 @@ func TestLoadExchangeEnabledRaceIsProtected(t *testing.T) {
 		})
 	}
 	wg.Wait()
+	assert.Zero(t, e.Config.CountEnabledExchanges(), "UnloadExchange should leave every exchange config disabled")
 }
 
 // TestLoadExchangeRollbackRaceIsProtected checks that LoadExchange's rollback after a failed Setup is synchronised
