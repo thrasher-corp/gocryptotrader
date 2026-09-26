@@ -657,12 +657,14 @@ func TestGetLiquidationOrdersInstrumentTypes(t *testing.T) {
 			arg: &LiquidationOrderRequestParams{
 				InstrumentType:   instTypeFutures,
 				InstrumentFamily: "BTC-USD",
+				Alias:            "quarter",
 				Underlying:       mainPair.String(),
 				State:            "filled",
 			},
 			expected: url.Values{
 				"instType":   {instTypeFutures},
 				"instFamily": {"BTC-USD"},
+				"alias":      {"quarter"},
 				"state":      {"filled"},
 			},
 		},
