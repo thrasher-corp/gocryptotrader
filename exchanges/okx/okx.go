@@ -5103,7 +5103,7 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 		return nil, errEitherInstIDOrCcyIsRequired
 	}
 	if arg.InstrumentType != instTypeMargin {
-		// instFamily is the only filter FUTURES honours, uly is ignored there.
+		// OKX rejects uly for FUTURES, so instFamily takes precedence.
 		if arg.InstrumentFamily != "" {
 			params.Set("instFamily", arg.InstrumentFamily)
 		} else if arg.Underlying != "" {
