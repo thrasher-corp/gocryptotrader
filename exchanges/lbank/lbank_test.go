@@ -517,8 +517,8 @@ type orderHistoryOrder struct {
 	DealAmount float64
 }
 
-// orderHistoryFixture is the three page order history the mocked server serves.
-// The fourth page, and every page after it, is empty.
+// orderHistoryFixture is the two page order history the mocked server serves.
+// The third page, and every page after it, is empty.
 var orderHistoryFixture = [][]orderHistoryOrder{
 	{{"1", 10, 2, 1}, {"2", 20, 3, 2}},
 	{{"3", 30, 4, 3}},
