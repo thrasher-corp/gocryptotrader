@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -603,6 +606,189 @@ func TestGetLiquidationOrders(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+// TestGetLiquidationOrdersInstrumentTypes covers the request parameters built for
+// every supported instrument type. Before the fix the instId/ccy switch rejected
+// each instrument type other than MARGIN, so a SWAP, FUTURES or OPTION request
+// could never be built and the instFamily, uly, state and alias handling further
+// below was unreachable. Every case asserts the complete encoded query, so a
+// filter that stops being forwarded fails the test instead of slipping through.
+func TestGetLiquidationOrdersInstrumentTypes(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name        string
+		arg         *LiquidationOrderRequestParams
+		expected    url.Values
+		expectedErr error
+	}{
+		{
+			name: "swap is filtered by underlying and state",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeSwap,
+				Underlying:     mainPair.String(),
+				State:          "filled",
+				Limit:          2,
+			},
+			expected: url.Values{
+				"instType": {instTypeSwap},
+				"uly":      {mainPair.String()},
+				"state":    {"filled"},
+				"limit":    {"2"},
+			},
+		},
+		{
+			name: "futures is filtered by instrument family, alias and state",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType:   instTypeFutures,
+				InstrumentFamily: "BTC-USD",
+				Alias:            "quarter",
+				State:            "filled",
+			},
+			expected: url.Values{
+				"instType":   {instTypeFutures},
+				"instFamily": {"BTC-USD"},
+				"alias":      {"quarter"},
+				"state":      {"filled"},
+			},
+		},
+		{
+			name: "futures prefers the instrument family over the underlying",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType:   instTypeFutures,
+				InstrumentFamily: "BTC-USD",
+				Alias:            "quarter",
+				Underlying:       mainPair.String(),
+				State:            "filled",
+			},
+			expected: url.Values{
+				"instType":   {instTypeFutures},
+				"instFamily": {"BTC-USD"},
+				"alias":      {"quarter"},
+				"state":      {"filled"},
+			},
+		},
+		{
+			name: "option is filtered by underlying",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeOption,
+				Underlying:     "BTC-USD",
+			},
+			expected: url.Values{
+				"instType": {instTypeOption},
+				"uly":      {"BTC-USD"},
+			},
+		},
+		{
+			name: "derivative instrument types drop the margin only filters",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeSwap,
+				InstrumentID:   mainPair.String(),
+				Currency:       currency.BTC,
+				Underlying:     mainPair.String(),
+				State:          "filled",
+			},
+			expected: url.Values{
+				"instType": {instTypeSwap},
+				"uly":      {mainPair.String()},
+				"state":    {"filled"},
+			},
+		},
+		{
+			name: "margin is filtered by instrument ID",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeMargin,
+				InstrumentID:   mainPair.String(),
+			},
+			expected: url.Values{
+				"instType": {instTypeMargin},
+				"instId":   {mainPair.String()},
+			},
+		},
+		{
+			name: "margin is filtered by currency",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeMargin,
+				Currency:       currency.BTC,
+			},
+			expected: url.Values{
+				"instType": {instTypeMargin},
+				"ccy":      {"BTC"},
+			},
+		},
+		{
+			name: "margin does not forward the derivative state filter",
+			arg: &LiquidationOrderRequestParams{
+				InstrumentType: instTypeMargin,
+				Currency:       currency.BTC,
+				State:          "filled",
+			},
+			expected: url.Values{
+				"instType": {instTypeMargin},
+				"ccy":      {"BTC"},
+			},
+		},
+		{
+			name:        "margin without instrument ID or currency is rejected",
+			arg:         &LiquidationOrderRequestParams{InstrumentType: instTypeMargin},
+			expectedErr: errEitherInstIDOrCcyIsRequired,
+		},
+		{
+			name:        "empty instrument type is rejected",
+			arg:         &LiquidationOrderRequestParams{},
+			expectedErr: errInvalidInstrumentType,
+		},
+		{
+			name:        "unsupported instrument type is rejected",
+			arg:         &LiquidationOrderRequestParams{InstrumentType: "SPOT"},
+			expectedErr: errInvalidInstrumentType,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var (
+				mutex sync.Mutex
+				query url.Values
+			)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mutex.Lock()
+				query = r.URL.Query()
+				mutex.Unlock()
+				w.Header().Set("Content-Type", "application/json")
+				// OKX always answers with an array here and its length is data
+				// dependent, so the stub carries the two element shape captured
+				// from a live OPTION response rather than a single object.
+				_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"instType":"OPTION","uly":"BTC-USD","totalLoss":"-8.8193","details":[]},{"instType":"OPTION","uly":"BTC-USD","totalLoss":"0","details":[{"bkLoss":"-36.13","ts":"1790064000278"}]}]}`))
+			}))
+			defer server.Close()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
+
+			result, err := ex.GetLiquidationOrders(t.Context(), tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr, "GetLiquidationOrders should reject unsupported parameters")
+				assert.Nil(t, query, "GetLiquidationOrders should not send a request for rejected parameters")
+				return
+			}
+			require.NoError(t, err, "GetLiquidationOrders must not error")
+			require.Len(t, result, 2, "GetLiquidationOrders must decode every element of the data array")
+			assert.Equal(t, instTypeOption, result[0].InstrumentType, "GetLiquidationOrders should decode the first response element")
+			assert.Equal(t, "BTC-USD", result[0].Underlying, "GetLiquidationOrders should decode the response underlying")
+			require.Len(t, result[1].Details, 1, "GetLiquidationOrders must decode the nested detail items")
+			assert.Equal(t, "-36.13", result[1].Details[0].BankruptcyLoss, "GetLiquidationOrders should decode the nested bankruptcy loss")
+			mutex.Lock()
+			defer mutex.Unlock()
+			require.NotNil(t, query, "a request must have been sent")
+			assert.Equal(t, tc.expected, query, "GetLiquidationOrders should send exactly the expected query")
+			if tc.arg.InstrumentType != instTypeMargin {
+				assert.Empty(t, query.Get("instId"), "GetLiquidationOrders should not send instId for a derivative instrument type")
+				assert.Empty(t, query.Get("ccy"), "GetLiquidationOrders should not send ccy for a derivative instrument type")
+			}
+		})
+	}
 }
 
 func TestGetMarkPrice(t *testing.T) {
