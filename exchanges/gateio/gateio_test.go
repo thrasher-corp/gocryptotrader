@@ -1289,6 +1289,17 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 			to:          to,
 			expectedErr: errSubAccountTransferHistoryStart,
 		},
+		{
+			name:        "start before the earliest available record without an end is rejected",
+			from:        earliest.Add(-time.Second),
+			expectedErr: errSubAccountTransferHistoryStart,
+		},
+		{
+			name:        "start before the earliest available record is reported before start after end",
+			from:        earliest.Add(-time.Hour),
+			to:          earliest.Add(-2 * time.Hour),
+			expectedErr: errSubAccountTransferHistoryStart,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
