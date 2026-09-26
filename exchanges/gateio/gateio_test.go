@@ -1336,7 +1336,7 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 	}
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		_, err := e.GetSubAccountTransferHistory(t.Context(), "", time.Time{}, time.Time{}, 0, 0)
 		require.NoError(t, err, "GetSubAccountTransferHistory must not error")
 	})
