@@ -1,10 +1,13 @@
 package csv
 
 import (
+	stdcsv "encoding/csv"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -66,4 +69,43 @@ func TestLoadDataInvalid(t *testing.T) {
 		a,
 		true)
 	assert.ErrorIs(t, err, errNoUSDData)
+}
+
+func TestLoadDataInvalidFieldCount(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		dataType int64
+		contents string
+	}{
+		{
+			name:     "candle",
+			dataType: common.DataCandle,
+			contents: "1546300800,1,2,3,4\n",
+		},
+		{
+			name:     "trade",
+			dataType: common.DataTrade,
+			contents: "1546300800,1,2\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "malformed.csv")
+			err := os.WriteFile(path, []byte(tt.contents), 0o600)
+			require.NoError(t, err, "writing test CSV must not error")
+
+			_, err = LoadData(
+				tt.dataType,
+				path,
+				testExchange,
+				gctkline.FifteenMin.Duration(),
+				currency.NewBTCUSDT(),
+				asset.Spot,
+				false)
+			assert.ErrorIs(t, err, stdcsv.ErrFieldCount, "malformed CSV should return a field count error")
+		})
+	}
 }
