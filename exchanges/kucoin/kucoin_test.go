@@ -2345,11 +2345,11 @@ func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/1") {
-			_, err := w.Write([]byte(`{"code":"200000","data":{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","tradeType":"TRADE","price":"61000","size":"0.01","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}}`))
+			_, err := w.Write([]byte(`{"code":"200000","data":{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","tradeType":"TRADE","price":"61000","size":"0.02","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}}`))
 			assert.NoError(t, err, "mock order detail response should be written")
 			return
 		}
-		_, err := w.Write([]byte(`{"code":"200000","data":{"currentPage":1,"pageSize":1,"totalNum":1,"totalPage":1,"items":[{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","price":"61000","size":"0.01","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}]}}`))
+		_, err := w.Write([]byte(`{"code":"200000","data":{"currentPage":1,"pageSize":1,"totalNum":1,"totalPage":1,"items":[{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","price":"61000","size":"0.02","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}]}}`))
 		assert.NoError(t, err, "mock order history response should be written")
 	}))
 	t.Cleanup(server.Close)
