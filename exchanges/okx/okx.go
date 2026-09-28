@@ -250,7 +250,7 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 		params.Set("after", arg.After)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
@@ -301,7 +301,7 @@ func (e *Exchange) getOrderHistory(ctx context.Context, arg *OrderHistoryRequest
 		params.Set("end", strconv.FormatInt(arg.End.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if arg.Category != "" {
 		params.Set("category", strings.ToLower(arg.Category))
@@ -344,7 +344,7 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 		params.Set("end", strconv.FormatInt(arg.End.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if arg.InstrumentID != "" {
 		params.Set("instId", arg.InstrumentID)
@@ -4908,7 +4908,7 @@ func (e *Exchange) GetInstruments(ctx context.Context, arg *InstrumentsFetchPara
 }
 
 // GetDeliveryHistory retrieves the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise
-func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, instrumentFamily string, after, before time.Time, limit int64) ([]DeliveryHistory, error) {
+func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, instrumentFamily string, after, before time.Time, limit uint64) ([]DeliveryHistory, error) {
 	if instrumentType == "" {
 		return nil, errInvalidInstrumentType
 	}
@@ -4933,7 +4933,7 @@ func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, instr
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []DeliveryHistory
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDeliveryExerciseHistoryEPL, http.MethodGet,
@@ -5092,7 +5092,7 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 && arg.Limit < 100 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []LiquidationOrder
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, common.EncodeURLValues("public/liquidation-orders", params), nil, &resp, request.UnauthenticatedRequest)
@@ -5213,7 +5213,7 @@ func (e *Exchange) GetInsuranceFundInformation(ctx context.Context, arg *Insuran
 		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp *InsuranceFundInformation
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getInsuranceFundEPL, http.MethodGet, common.EncodeURLValues("public/insurance-fund", params), nil, &resp, request.UnauthenticatedRequest)

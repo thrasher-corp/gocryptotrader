@@ -509,7 +509,7 @@ type LiquidationOrderRequestParams struct {
 	State            string
 	Before           time.Time
 	After            time.Time
-	Limit            int64
+	Limit            uint64
 }
 
 // LiquidationOrder represents liquidation order item detailed information
@@ -594,7 +594,7 @@ type InsuranceFundInformationRequestParams struct {
 	Currency         currency.Code `json:"ccy"`
 	Before           time.Time     `json:"before"`
 	After            time.Time     `json:"after"`
-	Limit            int64         `json:"limit"`
+	Limit            uint64        `json:"limit"`
 }
 
 // InsuranceFundInformation holds insurance fund information data
@@ -990,7 +990,7 @@ type OrderListRequestParams struct {
 	After            string    `json:"after,omitempty"`  // used for order IDs
 	Start            time.Time `json:"begin"`
 	End              time.Time `json:"end"`
-	Limit            int64     `json:"limit,omitempty"`
+	Limit            uint64    `json:"limit,omitempty"`
 }
 
 // OrderHistoryRequestParams holds parameters to request order data history of last 7 days
@@ -1051,7 +1051,7 @@ type TransactionDetailRequestParams struct {
 	Before           string    `json:"before"` // before billid
 	Begin            time.Time `json:"begin"`
 	End              time.Time `json:"end"`
-	Limit            int64     `json:"limit"`
+	Limit            uint64    `json:"limit"`
 }
 
 // TransactionDetail holds recently-filled transaction detail data

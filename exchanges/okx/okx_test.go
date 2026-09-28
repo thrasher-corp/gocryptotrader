@@ -491,8 +491,8 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
 	instrumentID := p[0].String()
-	// Option queries only resolve the plain underlying, without the _UM
-	// family suffix the instrument family carries.
+	// uly takes the plain underlying (BTC-USD), not a family such as
+	// BTC-USD_UM, so resolve the option's underlying.
 	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
 
@@ -6507,12 +6507,10 @@ func TestGetAccountInstruments(t *testing.T) {
 	require.NoError(t, err, "GetEnabledPairs must not error")
 	require.NotEmpty(t, p, "GetEnabledPairs must not return empty pairs")
 
-	uly := p[0].Base.String()
-	quoteBase, _, ok := strings.Cut(p[0].Quote.String(), "-")
-	require.True(t, ok, "Quote must contain a hyphen")
-	uly += "-" + quoteBase
+	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, p[0].String())
+	require.NoError(t, err, "instrumentFamilyFromInstID must not error")
 
-	result, err = e.GetAccountInstruments(contextGenerate(), asset.Options, uly, p[0].String())
+	result, err = e.GetAccountInstruments(contextGenerate(), asset.Options, instFamily, p[0].String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -7258,9 +7256,10 @@ func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
 			value: "BTC-USDT",
 		},
 		{
-			// An underlying such as SOL-USD spans several families, so
-			// querying open interest by underlying still needs the
-			// undocumented uly, which OKX continues to honour.
+			// SOL-USD is an underlying, not a family: its only option family
+			// is SOL-USD_UM and instFamily=SOL-USD answers 51000, so querying
+			// by underlying still needs the undocumented uly, which OKX
+			// continues to honour.
 			name: "open interest option underlying keeps uly",
 			call: func() error {
 				_, err := e.GetOpenInterestData(t.Context(), instTypeOption, "SOL-USD", "", "")
