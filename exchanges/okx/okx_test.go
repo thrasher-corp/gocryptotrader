@@ -6908,8 +6908,19 @@ func TestWsProcessPublicSpreadTrades(t *testing.T) {
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessPublicSpreadTicker(t.Context(), []byte(okxSpreadPublicTickerJSON))
-	assert.NoError(t, err)
+	t.Run("ticker", func(t *testing.T) {
+		t.Parallel()
+		err := e.wsProcessPublicSpreadTicker(t.Context(), []byte(okxSpreadPublicTickerJSON))
+		assert.NoError(t, err, "wsProcessPublicSpreadTicker should accept ticker data")
+	})
+	t.Run("empty data", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = t.Name()
+		require.NoError(t, ex.wsProcessPublicSpreadTicker(t.Context(), []byte(`{"arg":{"channel":"sprd-tickers","sprdId":"BTC-USDT_BTC-USDT-SWAP"},"data":[]}`)), "wsProcessPublicSpreadTicker must not error for empty data")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "wsProcessPublicSpreadTicker should not relay an empty batch")
+	})
 }
 
 func TestWsProcessSpreadOrders(t *testing.T) {

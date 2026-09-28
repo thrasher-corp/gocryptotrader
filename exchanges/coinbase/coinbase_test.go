@@ -106,6 +106,16 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestWsProcessTicker(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	resp := &StandardWebsocketResponse{Events: []byte(`[{"type":"update","tickers":[{"type":"ticker","product_id":"UNTRACKED-USD","price":"1"}]}]`)}
+	require.NoError(t, ex.wsProcessTicker(t.Context(), resp), "wsProcessTicker must not error for a product with no alias")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "wsProcessTicker should not relay an empty batch")
+}
+
 func TestSetup(t *testing.T) {
 	cfg, err := e.GetStandardConfig()
 	assert.NoError(t, err)

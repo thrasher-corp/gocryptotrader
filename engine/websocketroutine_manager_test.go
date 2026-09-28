@@ -181,6 +181,14 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
+	err = m.websocketDataHandler(exchName, []ticker.Price{{
+		ExchangeName: exchName,
+		Pair:         testPair,
+		AssetType:    asset.Spot,
+	}})
+	assert.NoError(t, err, "websocketDataHandler should accept a ticker batch")
+	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "websocketDataHandler should not store a ticker batch")
 
 	err = m.websocketDataHandler(exchName, kline.Item{})
 	require.NoError(t, err)

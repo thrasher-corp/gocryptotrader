@@ -146,7 +146,7 @@ func TestPushData(t *testing.T) {
 		for len(e.Websocket.DataHandler.C) > 0 {
 			response := <-e.Websocket.DataHandler.C
 			if prices, ok := response.Data.([]ticker.Price); ok {
-				require.NotEmpty(t, prices, "ticker batch must contain at least one price")
+				assert.NotEmpty(t, prices, "ticker batch should contain at least one price")
 				messageCount += len(prices)
 				continue
 			}

@@ -2660,6 +2660,16 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 
 const wsTickerPushDataJSON = `{"time": 1606291803,	"channel": "spot.tickers",	"event": "update",	"result": {	  "currency_pair": "BTC_USDT",	  "last": "19106.55",	  "lowest_ask": "19108.71",	  "highest_bid": "19106.55",	  "change_percentage": "3.66",	  "base_volume": "2811.3042155865",	  "quote_volume": "53441606.52411221454674732293",	  "high_24h": "19417.74",	  "low_24h": "18434.21"	}}`
 
+func TestTickerHandlersSkipEmptyBatches(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.processTicker(t.Context(), []byte(`{"currency_pair":"UNTRACKED_USDT","last":"1"}`), time.Now()), "processTicker must not error for an untracked pair")
+	require.NoError(t, ex.processFuturesTickers(t.Context(), []byte(`{"time":1541659086,"channel":"futures.tickers","event":"update","result":[]}`), asset.USDTMarginedFutures), "processFuturesTickers must not error for an empty result")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "ticker handlers should not relay an empty batch")
+}
+
 func TestWsTickerPushData(t *testing.T) {
 	t.Parallel()
 	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsTickerPushDataJSON)); err != nil {
