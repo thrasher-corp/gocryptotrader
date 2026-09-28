@@ -26,7 +26,8 @@ var (
 
 const (
 	// requestRateLimit is the documented per-minute allowance for Trial and
-	// Individual keys, which is also what anonymous USD access is held to.
+	// Individual keys. Anonymous USD access has its own daily allowance, which
+	// this limiter does not track.
 	requestRateLimit = 300
 )
 
@@ -147,22 +148,20 @@ func (f *FXMacroData) Forex(ctx context.Context, baseCurrency, quoteCurrency str
 
 // GetLatestForexRate returns the latest available FXMacroData rate for a pair.
 func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quoteCurrency string) (float64, error) {
-	response, err := f.Forex(ctx, baseCurrency, quoteCurrency, url.Values{"limit": {"1"}})
+	response, err := f.Forex(ctx, baseCurrency, quoteCurrency, url.Values{"limit": {"5"}})
 	if err != nil {
 		return 0, err
 	}
-	if len(response.Data) == 0 {
-		return 0, fmt.Errorf("%w for %s/%s", errNoRateAvailable, baseCurrency, quoteCurrency)
+	// val is documented as anyOf[number, null], so the newest row can carry no
+	// value. It decodes to 0 and ConversionRates.Update stores 1/rate, while a
+	// skipped pair drops the currency from the table until it has a value
+	// again. Rows arrive most recent first, so take the newest usable one.
+	for i := range response.Data {
+		if response.Data[i].Val > 0 {
+			return response.Data[i].Val, nil
+		}
 	}
-	// val is documented as anyOf[number, null] and date is the only required
-	// field, so a row can legitimately carry no value. It decodes to 0 here,
-	// and ConversionRates.Update stores 1/rate, which turns a missing value
-	// into +Inf on every pair that touches this currency. Guard the value, not
-	// just the row count.
-	if response.Data[0].Val <= 0 {
-		return 0, fmt.Errorf("%w for %s/%s: %v", errNoRateAvailable, baseCurrency, quoteCurrency, response.Data[0].Val)
-	}
-	return response.Data[0].Val, nil
+	return 0, fmt.Errorf("%w for %s/%s", errNoRateAvailable, baseCurrency, quoteCurrency)
 }
 
 // Ping returns the public FXMacroData service liveness status.
@@ -310,7 +309,7 @@ func (f *FXMacroData) sendHTTPPublicRequest(ctx context.Context, endpoint string
 
 func (f *FXMacroData) send(ctx context.Context, endpoint string, values url.Values, result any, auth request.AuthType) error {
 	baseURL := strings.TrimRight(f.APIURL, "/") + "/"
-	path := common.EncodeURLValues(baseURL+strings.TrimLeft(endpoint, "/"), values)
+	path := common.EncodeURLValues(baseURL+endpoint, values)
 	headers := map[string]string{
 		"Accept": "application/json",
 	}

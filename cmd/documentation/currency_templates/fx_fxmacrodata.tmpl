@@ -1,5 +1,6 @@
 {{define "currency forexprovider fxmacrodata" -}}
 {{template "header" .}}
+
 ## Current Features for {{.Name}}
 
 + Fetches up to date currency data from [FXMacroData](https://fxmacrodata.com/)
@@ -7,9 +8,10 @@
 
 ### How to enable
 
-+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-currency-via-config-example)
++ [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-currency-via-config-example)
 
 + Individual package example below:
+
 ```go
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"

@@ -17,18 +17,17 @@ const (
 
 	// supportedCurrencies lists the currencies the forex endpoint serves. KRW is
 	// accepted by the endpoint's enum but no public reference source serves it
-	// yet, and a pair with no rows fails the whole rate batch, so it is left out
-	// until the endpoint returns rows for it.
+	// yet, so it is left out until the endpoint returns rows for it.
 	supportedCurrencies = "AUD,BRL,CAD,CHF,CNH,CNY,DKK,EUR,GBP,HUF,ILS,JPY,MYR,NGN,NOK,NZD,PEN,SEK,THB,TWD,USD"
 )
 
-// Six response fields are declared as free-form objects by the FXMacroData
-// OpenAPI contract, with additionalProperties and no named properties, because
-// their keys vary with the requested indicator set, view or factor
-// decomposition: Indicators, DailyOHLCBasis, TechnicalIndicatorBasis and
-// Coverage on ForexResponse, Data on CurveAnalyticsResponse, and Components and
-// SourceObservations on FactorDataPoint. Those stay map[string]any. Every field
-// with a documented shape is strongly typed.
+// Seven response fields are free-form in the FXMacroData OpenAPI contract, with
+// additionalProperties and no named properties, because their keys vary with
+// the requested indicator set, view or factor decomposition: Indicators,
+// DailyOHLCBasis, TechnicalIndicatorBasis and Coverage on ForexResponse, the
+// Data rows on CurveAnalyticsResponse, and Components and SourceObservations on
+// FactorDataPoint. Those stay map[string]any. Every field with a documented
+// shape is strongly typed.
 
 // Date represents an ISO 8601 calendar date without a time or timezone.
 type Date time.Time
@@ -607,12 +606,13 @@ type AnnouncementDataPoint struct {
 
 // LatestAnnouncementsResponse contains the latest observation for each indicator.
 type LatestAnnouncementsResponse struct {
-	Currency   string                   `json:"currency"`
-	Source     string                   `json:"source"`
-	Provenance Provenance               `json:"provenance"`
-	AsOf       Date                     `json:"as_of"`
-	Count      uint64                   `json:"count"`
-	Data       []LatestAnnouncementItem `json:"data"`
+	Currency      string                   `json:"currency"`
+	Source        string                   `json:"source"`
+	Provenance    Provenance               `json:"provenance"`
+	AsOf          Date                     `json:"as_of"`
+	Count         uint64                   `json:"count"`
+	Data          []LatestAnnouncementItem `json:"data"`
+	FreemiumDelay FreemiumDelayNotice      `json:"freemium_delay"`
 }
 
 // LatestAnnouncementItem describes the latest available row for an indicator.
@@ -666,6 +666,22 @@ type AnnouncementChangesScope struct {
 	Payload    string   `json:"payload"`
 }
 
+// FreemiumDelayNotice reports how far a keyless response lags real time. It is
+// sent whether or not anything was withheld, so that a delayed response cannot
+// be mistaken for a current one.
+type FreemiumDelayNotice struct {
+	Applied            bool        `json:"applied"`
+	DelaySeconds       uint64      `json:"delay_seconds"`
+	DelayMinutes       uint64      `json:"delay_minutes"`
+	Cutoff             UnixSeconds `json:"cutoff"`
+	CutoffISO          time.Time   `json:"cutoff_iso"`
+	WithheldCount      uint64      `json:"withheld_count"`
+	Message            string      `json:"message"`
+	SubscribeURL       string      `json:"subscribe_url"`
+	NextAvailableAt    UnixSeconds `json:"next_available_at"`
+	NextAvailableAtISO time.Time   `json:"next_available_at_iso"`
+}
+
 // AnnouncementChangesResponse contains changed announcement events.
 type AnnouncementChangesResponse struct {
 	Data             []AnnouncementChangeEvent `json:"data"`
@@ -674,6 +690,7 @@ type AnnouncementChangesResponse struct {
 	HasMore          bool                      `json:"has_more"`
 	RetentionSeconds uint64                    `json:"retention_seconds"`
 	Scope            AnnouncementChangesScope  `json:"scope"`
+	FreemiumDelay    FreemiumDelayNotice       `json:"freemium_delay"`
 }
 
 // ReleaseDeliveryAnnouncement is the announcement row carried by a delivery
@@ -736,9 +753,9 @@ type AnnouncementChangeEvent struct {
 	SourceFreshnessObservationWindowMS        float64                     `json:"source_freshness_observation_window_ms"`
 	SourceFreshnessObservationBasis           string                      `json:"source_freshness_observation_basis"`
 	SourceDelayAttribution                    string                      `json:"source_delay_attribution"`
-	FXMDDeliveryAttribution                   string                      `json:"fxmd_delivery_attribution"`
-	FXMDAfterSourceMS                         float64                     `json:"fxmd_after_source_ms"`
-	FXMDAfterSourceSLOMet                     bool                        `json:"fxmd_after_source_slo_met"`
+	FXMacroDataDeliveryAttribution            string                      `json:"fxmd_delivery_attribution"`
+	FXMacroDataAfterSourceMS                  float64                     `json:"fxmd_after_source_ms"`
+	FXMacroDataAfterSourceSLOMet              bool                        `json:"fxmd_after_source_slo_met"`
 	CatchupSource                             string                      `json:"catchup_source"`
 	CatchupDelayMS                            float64                     `json:"catchup_delay_ms"`
 	RecoveryClass                             string                      `json:"recovery_class"`

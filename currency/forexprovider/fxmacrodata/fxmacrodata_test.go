@@ -235,6 +235,21 @@ func TestGetLatestForexRateRejectsRowWithoutAValue(t *testing.T) {
 	}
 }
 
+func TestGetLatestForexRateReadsPastARowWithoutAValue(t *testing.T) {
+	// Rows arrive most recent first. A newest row with no value must not drop
+	// the pair when an older row still carries one, since a skipped pair takes
+	// its currency out of the conversion table.
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "5", r.URL.Query().Get("limit"), "GetLatestForexRate should request enough rows to read past a valueless one")
+		_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-10","val":null},{"date":"2026-09-09","val":1.5}]}`))
+	}))
+	defer closeServer()
+
+	rate, err := provider.GetLatestForexRate(t.Context(), usd, "AUD")
+	require.NoError(t, err, "GetLatestForexRate must fall back to the newest row carrying a value")
+	assert.Equal(t, 1.5, rate, "GetLatestForexRate should return the newest usable value")
+}
+
 func TestGetRatesRejectsRowWithoutAValue(t *testing.T) {
 	// GetRates is the only method the conversion engine calls, so the guard has
 	// to hold through it rather than only on the lower-level accessor.
