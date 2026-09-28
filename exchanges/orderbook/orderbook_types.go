@@ -25,6 +25,10 @@ var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
 	ErrPriceZero         = errors.New("price cannot be zero")
 	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
+	// ErrInvalidContractMultiplier is returned when a linear contract multiplier is not positive.
+	ErrInvalidContractMultiplier = errors.New("contract multiplier must be greater than zero")
+	// ErrNotEnoughLiquidity indicates that an orderbook side cannot fill the requested amount.
+	ErrNotEnoughLiquidity = errors.New("not enough liquidity")
 )
 
 var (
@@ -36,7 +40,6 @@ var (
 	errDuplication          = errors.New("price duplication")
 	errIDDuplication        = errors.New("id duplication")
 	errPeriodUnset          = errors.New("funding rate period is unset")
-	errNotEnoughLiquidity   = errors.New("not enough liquidity")
 	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
