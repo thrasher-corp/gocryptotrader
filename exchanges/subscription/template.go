@@ -41,10 +41,16 @@ type tplCtx struct {
 // Filters out Authenticated subscriptions if !e.CanUseAuthenticatedEndpoints
 // See README.md for more details
 // The exchange can optionally implement ListValidator to have custom validation on subscriptions
+//
+// Ownership: no returned Subscription is the same value as, or shares its mutable state with, an
+// input Subscription, so callers may modify the result freely. Entries which pass through unexpanded
+// are copied along with their Key so that they still reconcile against a Store, whereas freshly
+// expanded entries are new and unkeyed. Keys are opaque handles and are not deep copied; values
+// nested inside Params remain shared with the input Subscription
 func (l List) ExpandTemplates(e IExchange) (List, error) {
 	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
 		// Empty list, or already processed
-		return slices.Clone(l), nil
+		return l.cloneWithKeys(), nil
 	}
 
 	if !e.CanUseAuthenticatedWebsocketEndpoints() {
@@ -92,7 +98,8 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 
 func expandTemplate(e IExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
 	if s.QualifiedChannel != "" {
-		return List{s}, nil
+		// Already qualified: hand back a copy which keeps the Key so the caller can still reconcile it
+		return List{s.cloneWithKey()}, nil
 	}
 
 	t, err := e.GetSubscriptionTemplate(s)
