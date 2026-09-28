@@ -28,12 +28,14 @@ var dataHistoryCommands = &cli.Command{
 			Usage: "returns all jobs with creation dates between the two provided dates",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "start_date",
-					Usage: "formatted as: " + time.DateTime,
+					Name:     "start_date",
+					Required: true,
+					Usage:    "formatted as: " + time.DateTime,
 				},
 				&cli.StringFlag{
-					Name:  "end_date",
-					Usage: "formatted as: " + time.DateTime,
+					Name:     "end_date",
+					Required: true,
+					Usage:    "formatted as: " + time.DateTime,
 				},
 			},
 			Action: getDataHistoryJobsBetween,
@@ -42,7 +44,6 @@ var dataHistoryCommands = &cli.Command{
 			Name:        "getajob",
 			Usage:       "returns a job by either its id or nickname",
 			Description: "na-na, why don't you get a job?",
-			ArgsUsage:   "<id> or <nickname>",
 			Action:      getDataHistoryJob,
 			Flags:       specificJobSubCommands,
 		},
@@ -50,54 +51,47 @@ var dataHistoryCommands = &cli.Command{
 			Name:        "getjobwithdetailedresults",
 			Usage:       "returns a job by either its nickname along with all its data retrieval results",
 			Description: "results may be large",
-			ArgsUsage:   "<nickname>",
 			Action:      getDataHistoryJob,
 			Flags: []cli.Flag{
 				nicknameFlag,
 			},
 		},
 		{
-			Name:      "getjobstatussummary",
-			Usage:     "returns a job with human readable summary of its status",
-			ArgsUsage: "<nickname>",
-			Action:    getDataHistoryJobSummary,
+			Name:   "getjobstatussummary",
+			Usage:  "returns a job with human readable summary of its status",
+			Action: getDataHistoryJobSummary,
 			Flags: []cli.Flag{
 				nicknameFlag,
 			},
 		},
 		dataHistoryJobCommands,
 		{
-			Name:      "deletejob",
-			Usage:     "sets a jobs status to deleted so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
+			Name:   "deletejob",
+			Usage:  "sets a jobs status to deleted so it no longer is processed",
+			Flags:  specificJobSubCommands,
+			Action: setDataHistoryJobStatus,
 		},
 		{
-			Name:      "pausejob",
-			Usage:     "sets a jobs status to paused so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
+			Name:   "pausejob",
+			Usage:  "sets a jobs status to paused so it no longer is processed",
+			Flags:  specificJobSubCommands,
+			Action: setDataHistoryJobStatus,
 		},
 		{
-			Name:      "unpausejob",
-			Usage:     "sets a jobs status to active so it can be processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
+			Name:   "unpausejob",
+			Usage:  "sets a jobs status to active so it can be processed",
+			Flags:  specificJobSubCommands,
+			Action: setDataHistoryJobStatus,
 		},
 		{
-			Name:      "updateprerequisite",
-			Usage:     "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
-			ArgsUsage: "<prerequisite> <nickname>",
-			Flags:     prerequisiteJobSubCommands,
-			Action:    setPrerequisiteJob,
+			Name:   "updateprerequisite",
+			Usage:  "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
+			Flags:  prerequisiteJobSubCommands,
+			Action: setPrerequisiteJob,
 		},
 		{
-			Name:      "removeprerequisite",
-			Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
-			ArgsUsage: "<nickname>",
+			Name:  "removeprerequisite",
+			Usage: "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
 			Flags: []cli.Flag{
 				nicknameFlag,
 			},
@@ -105,6 +99,11 @@ var dataHistoryCommands = &cli.Command{
 		},
 	},
 }
+
+var (
+	errDataHistoryJobIdentifierRequired  = errors.New("a job ID or nickname must be set")
+	errDataHistoryJobIdentifiersConflict = errors.New("set a job ID or nickname, not both")
+)
 
 var dataHistoryJobCommands = &cli.Command{
 	Name:      "addjob",
@@ -201,6 +200,7 @@ var (
 			Name:  "id",
 			Usage: guidExample,
 		},
+		nicknameFlag,
 	}
 	baseJobSubCommands = []cli.Flag{
 		nicknameFlag,
@@ -295,25 +295,13 @@ var (
 )
 
 func getDataHistoryJob(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
+	request, err := dataHistoryJobRequest(c)
+	if err != nil {
+		return err
 	}
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	}
-
-	if nickname != "" && id != "" {
-		return errors.New("can only set 'id' OR 'nickname'")
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -321,6 +309,19 @@ func getDataHistoryJob(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetDataHistoryJobDetails(c.Context, request)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func dataHistoryJobRequest(c *cli.Context) (*gctrpc.GetDataHistoryJobDetailsRequest, error) {
+	id, nickname, err := dataHistoryJobIdentifier(c)
+	if err != nil {
+		return nil, err
+	}
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Id:       id,
 		Nickname: nickname,
@@ -329,12 +330,19 @@ func getDataHistoryJob(c *cli.Context) error {
 		request.FullDetails = true
 	}
 
-	result, err := client.GetDataHistoryJobDetails(c.Context, request)
-	if err != nil {
-		return err
+	return request, nil
+}
+
+// dataHistoryJobIdentifier selects one job identifier for commands that accept an ID or nickname.
+func dataHistoryJobIdentifier(c *cli.Context) (id, nickname string, err error) {
+	if c.IsSet("id") && c.IsSet("nickname") {
+		return "", "", errDataHistoryJobIdentifiersConflict
 	}
-	jsonOutput(result)
-	return nil
+	id, nickname = c.String("id"), c.String("nickname")
+	if id == "" && nickname == "" {
+		return "", "", errDataHistoryJobIdentifierRequired
+	}
+	return id, nickname, nil
 }
 
 func getActiveDataHistoryJobs(c *cli.Context) error {
@@ -356,7 +364,7 @@ func getActiveDataHistoryJobs(c *cli.Context) error {
 }
 
 func upsertDataHistoryJob(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
@@ -530,19 +538,15 @@ func upsertDataHistoryJob(c *cli.Context) error {
 }
 
 func getDataHistoryJobsBetween(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	if c.IsSet("start_date") {
 		startTime = c.String("start_date")
-	} else {
-		startTime = c.Args().First()
 	}
 	if c.IsSet("end_date") {
 		endTime = c.String("end_date")
-	} else {
-		endTime = c.Args().Get(1)
 	}
 	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
@@ -577,24 +581,12 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 }
 
 func setDataHistoryJobStatus(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var id string
-	if c.IsSet("id") {
-		id = c.String("id")
-	} else {
-		id = c.Args().First()
-	}
-
-	var nickname string
-	if c.IsSet("nickname") {
-		nickname = c.String("nickname")
-	}
-
-	if nickname != "" && id != "" {
-		return errors.New("can only set 'id' OR 'nickname'")
+	id, nickname, err := dataHistoryJobIdentifier(c)
+	if err != nil {
+		return err
 	}
 
 	var status int64
@@ -631,15 +623,13 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 }
 
 func getDataHistoryJobSummary(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var nickname string
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")
-	} else {
-		nickname = c.Args().First()
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -662,22 +652,18 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 }
 
 func setPrerequisiteJob(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var nickname string
 	if c.IsSet("nickname") {
 		nickname = c.String("nickname")
-	} else {
-		nickname = c.Args().First()
 	}
 
 	var prerequisite string
 	if c.IsSet("prerequisite_job_nickname") {
 		prerequisite = c.String("prerequisite_job_nickname")
-	} else {
-		prerequisite = c.Args().Get(1)
 	}
 
 	if c.Command.Name == "updateprerequisite" && prerequisite == "" {
