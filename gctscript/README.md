@@ -80,15 +80,14 @@ With an example configuration being:
   + Enable/Disable GCTScript:
 
    ```shell script
-    gctcli enablesubsystem "gctscript"
-    gctcli disablesubsystem "gctscript"
+    gctcli enablesubsystem --subsystem gctscript
+    gctcli disablesubsystem --subsystem gctscript
   ```
 
   + Start/Execute:
 
   ```shell script
-    gctcli script execute <scriptname> <pathoverride>
-    gctcli script execute "timer.gct" "~/gctscript"
+    gctcli script execute --filename timer.gct --path ~/gctscript
   
     {
       "status": "ok",
@@ -99,8 +98,7 @@ With an example configuration being:
   + Stop:
 
   ```shell script
-    gctcli script stop <uuid>
-    gctcli script stop 821bd73e-02b1-4974-9463-874cb49f130d
+    gctcli script stop --uuid 821bd73e-02b1-4974-9463-874cb49f130d
   
     {
       "status": "ok",
@@ -128,8 +126,7 @@ With an example configuration being:
   + Read file:
 
   ```shell script
-    gctcli script read <filename>
-    gctcli script read "timer.gct"
+    gctcli script read --name timer.gct
   
     {
       "status": "ok",
@@ -144,8 +141,7 @@ With an example configuration being:
   + Query running script:
 
     ```shell script
-      gctcli script query <uuid>
-      gctcli script query 821bd73e-02b1-4974-9463-874cb49f130d
+      gctcli script query --uuid 821bd73e-02b1-4974-9463-874cb49f130d
       {
         "status": "ok",
         "script": {
@@ -162,7 +158,7 @@ With an example configuration being:
   + Add script to autoload:
 
     ```shell script
-    gctcli script autoload add timer
+    gctcli script autoload --command add --script timer
     {
       "status": "success",
       "data": "script timer added to autoload list"
@@ -172,7 +168,7 @@ With an example configuration being:
   + Remove script from autoload:
 
     ```shell script
-      gctcli script autoload remove timer
+      gctcli script autoload --command remove --script timer
       {
         "status": "success",
         "data": "script timer removed from autoload list"
