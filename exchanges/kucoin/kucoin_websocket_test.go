@@ -1689,16 +1689,28 @@ func TestProcessFuturesTickerV2WithoutTimestamp(t *testing.T) {
 
 	got, ok := (<-ku.Websocket.DataHandler.C).Data.(*ticker.Price)
 	require.True(t, ok, "the push must emit a ticker price")
-	assert.True(t, got.LastUpdated.IsZero(), "a frame without ts must not carry the stored snapshot's timestamp")
+	assert.True(t, got.LastUpdated.IsZero(), "a frame without ts should not carry the stored snapshot's timestamp")
 
 	// The engine stores whatever the exchange emits, which is where the store time is stamped.
 	before := time.Now()
 	require.NoError(t, ticker.ProcessTicker(got), "storing the emitted ticker must not error")
 	stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
 	require.NoError(t, err, "the ticker must remain stored")
-	assert.False(t, stored.LastUpdated.Before(before), "the untimestamped push must be stored under its own store time")
-	assert.Equal(t, 3200.0, stored.Bid, "the push should store the best bid it reported")
-	assert.Equal(t, 3600.0, stored.Ask, "the push should store the best ask it reported")
+	assert.False(t, stored.LastUpdated.Before(before), "the untimestamped push should be stored under its own store time")
+	exp := &ticker.Price{
+		Last:         3551,
+		High:         3600,
+		Low:          3400,
+		Bid:          3200,
+		BidSize:      795,
+		Ask:          3600,
+		AskSize:      284,
+		Pair:         pair,
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		LastUpdated:  stored.LastUpdated,
+	}
+	assert.Equal(t, exp, stored, "the untimestamped push should keep every stored field it does not report")
 }
 
 func TestProcessMarketSnapshot(t *testing.T) {
