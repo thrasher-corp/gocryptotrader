@@ -1725,7 +1725,12 @@ func TestConnectionShutdownWithStalledWrite(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "Shutdown must not wait for a stalled write")
 	}
-	assert.ErrorIs(t, <-writeErr, net.ErrClosed, "stalled write should error once the connection is closed")
+	select {
+	case err := <-writeErr:
+		assert.ErrorIs(t, err, net.ErrClosed, "stalled write should error once the connection is closed")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "stalled write must return once the connection is closed")
+	}
 }
 
 // TestLatency logic test
