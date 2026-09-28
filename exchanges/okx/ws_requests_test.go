@@ -323,7 +323,8 @@ func TestParseWSResponseErrors(t *testing.T) {
 
 	err1 := errors.New("error 1")
 	err2 := errors.New("error 2")
-	mockSlice := []*mockHasError{{err: nil}, {err: err1}, {err: err2}}
+	// A null row in a batch reply decodes to a nil element and is skipped.
+	mockSlice := []*mockHasError{nil, {err: nil}, {err: err1}, {err: err2}}
 	err := parseWSResponseErrors(&mockSlice, errPartialSuccess)
 	require.ErrorIs(t, err, errPartialSuccess)
 	require.ErrorIs(t, err, err1)

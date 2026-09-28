@@ -329,6 +329,11 @@ func parseWSResponseErrors(result any, err error) error {
 	s := reflect.ValueOf(result).Elem()
 	for i := range s.Len() {
 		v := s.Index(i)
+		// A null row in a batch reply decodes to a nil element, which has no
+		// error to collect.
+		if v.Kind() == reflect.Pointer && v.IsNil() {
+			continue
+		}
 		if subErr, ok := reflect.TypeAssert[interface{ Error() error }](v); ok && subErr.Error() != nil {
 			err = common.AppendError(err, fmt.Errorf("%s[%d]: %w", v.Type(), i+1, subErr.Error()))
 		}
