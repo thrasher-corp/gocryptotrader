@@ -2332,12 +2332,57 @@ func TestProcessOrders(t *testing.T) {
 			TID:       "68561300",
 			Type:      order.Limit,
 			Side:      order.Buy,
-			Timestamp: time.UnixMilli(1757800060010),
+			Timestamp: time.UnixMilli(1757800060000),
+			IsMaker:   true,
 			FeeAsset:  "BTC",
 			Total:     12000,
 		}},
 	}}
 	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should map the order update")
+}
+
+// TestProcessOrdersPlaceEventNoTrade asserts a place event does not fabricate a
+// zero-value trade and does not leave LastUpdated zero.
+func TestProcessOrdersPlaceEventNoTrade(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+
+	resp := &SubscriptionResponse{
+		Channel: "orders",
+		Data:    json.RawMessage(`[{"symbol":"BTC_USDC","type":"LIMIT","quantity":"1","orderId":"32471407854219264","tradeFee":"0","clientOrderId":"","accountType":"SPOT","feeCurrency":"","eventType":"place","source":"API","side":"BUY","filledQuantity":"0","filledAmount":"0","matchRole":"MAKER","state":"NEW","tradeTime":0,"tradeAmount":"0","orderAmount":"0","createTime":1648708186922,"price":"47112.1","tradeQty":"0","tradePrice":"0","tradeId":"0","ts":1648708187469}]`),
+	}
+	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error for a place event")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
+	details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+	require.True(t, ok, "Data must be a []order.Detail")
+	require.Len(t, details, 1, "Must see exactly one order detail")
+	assert.Empty(t, details[0].Trades, "a place event should not fabricate a trade")
+	assert.Equal(t, time.UnixMilli(1648708187469), details[0].LastUpdated, "LastUpdated should fall back to the event timestamp when tradeTime is unset")
+	assert.Equal(t, 1.0, details[0].RemainingAmount, "RemainingAmount should be the unfilled base amount")
+}
+
+// TestProcessOrdersPartiallyCanceledBatch asserts that a PARTIALLY_CANCELED
+// state, as documented by Poloniex, no longer discards the whole websocket batch.
+func TestProcessOrdersPartiallyCanceledBatch(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+
+	resp := &SubscriptionResponse{
+		Channel: "orders",
+		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"1","tradeFee":"0.0001","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","side":"BUY","filledQuantity":"0.3","matchRole":"TAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"12000","createTime":1757800000000,"price":"60000","tradeQty":"0.3","tradePrice":"60000","tradeId":"68561300","ts":1757800060010},{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"2","tradeFee":"0","accountType":"SPOT","feeCurrency":"","eventType":"cancel","side":"SELL","filledQuantity":"0.25","state":"PARTIALLY_CANCELED","tradeTime":0,"createTime":1757800000000,"price":"61000","tradeId":"0","ts":1757800090000}]`),
+	}
+	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error for a PARTIALLY_CANCELED state")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
+	details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+	require.True(t, ok, "Data must be a []order.Detail")
+	require.Len(t, details, 2, "both orders in the batch must be delivered")
+	assert.Equal(t, order.PartiallyFilled, details[0].Status)
+	assert.Equal(t, order.PartiallyCancelled, details[1].Status)
+	require.Len(t, details[0].Trades, 1, "the fill event must carry a trade")
+	assert.False(t, details[0].Trades[0].IsMaker, "a TAKER role should not be reported as maker")
+	assert.Empty(t, details[1].Trades, "a cancel event should not fabricate a trade")
 }
 
 func TestProcessCandlestickDataIntervalMapping(t *testing.T) {
