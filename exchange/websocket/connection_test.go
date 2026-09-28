@@ -1,6 +1,8 @@
 package websocket
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"os"
 	"testing"
@@ -99,10 +101,17 @@ func TestDialHandshakeTimeout(t *testing.T) {
 
 		wc.ProxyURL = "http://proxy.invalid"
 		dialer.HandshakeTimeout = time.Second
+		var dialled []string
+		dial := dialer.NetDialContext
+		dialer.NetDialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialled = append(dialled, addr)
+			return dial(ctx, network, addr)
+		}
 		start = time.Now()
 		err = wc.Dial(t.Context(), dialer, nil, nil)
 		require.ErrorIs(t, err, os.ErrDeadlineExceeded, "Dial must time out when the proxy never answers")
 		assert.Equal(t, time.Second, time.Since(start), "Dial should use the handshake timeout set on the dialer")
 		assert.Nil(t, dialer.Proxy, "Dial should not set a proxy on the caller's dialer")
+		assert.Equal(t, []string{"proxy.invalid:80"}, dialled, "Dial should connect through the configured proxy")
 	})
 }

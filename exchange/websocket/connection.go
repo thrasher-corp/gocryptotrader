@@ -140,9 +140,9 @@ type connection struct {
 	readMessageErrors    chan error
 }
 
-// Dial sets proxy urls and then connects to the websocket
+// Dial sets proxy URLs and then connects to the websocket.
 // The dialer is copied so the caller's dialer is left unmodified, and the handshake is bounded by defaultHandshakeTimeout
-// when the dialer does not set a HandshakeTimeout
+// when the dialer does not set a HandshakeTimeout.
 func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header, values url.Values) error {
 	if err := common.NilGuard(dialer); err != nil {
 		return err
