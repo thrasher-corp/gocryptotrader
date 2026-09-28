@@ -939,31 +939,6 @@ func TestCancelOrderAlgoEmptyReply(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "an algo cancel reply without results should return ErrNoResponse")
 }
 
-// TestApplyWebsocketInstrumentIDCodes guards the resolve-all-then-apply shape:
-// an uncached instrument must report failure without touching the requests, so
-// no half-applied instIdCode leaks into a REST request body.
-func TestApplyWebsocketInstrumentIDCodes(t *testing.T) {
-	t.Parallel()
-	fresh := new(Exchange)
-	fresh.instrumentsInfoMap = make(map[string][]Instrument)
-	fresh.instrumentIDCodeMap = map[string]uint64{"BTC-USDT": 12345}
-
-	args := []CancelOrderRequestParam{
-		{InstrumentID: "BTC-USDT"},
-		{InstrumentID: "ETH-USDT"},
-	}
-	assert.False(t, fresh.applyWebsocketInstrumentIDCodes(args), "an uncached instrument should report failure")
-	assert.Zero(t, args[0].InstrumentIDCode, "a failed apply should leave the resolved requests untouched")
-
-	args = []CancelOrderRequestParam{
-		{InstrumentID: "BTC-USDT"},
-		{InstrumentID: "BTC-USDT"},
-	}
-	assert.True(t, fresh.applyWebsocketInstrumentIDCodes(args), "cached instruments should report success")
-	assert.EqualValues(t, 12345, args[0].InstrumentIDCode, "a successful apply should assign the cached code")
-	assert.EqualValues(t, 12345, args[1].InstrumentIDCode, "a successful apply should assign the cached code")
-}
-
 func TestWebsocketInstrumentIDCode(t *testing.T) {
 	t.Parallel()
 	fresh := new(Exchange)
@@ -977,6 +952,222 @@ func TestWebsocketInstrumentIDCode(t *testing.T) {
 	code, ok = fresh.websocketInstrumentIDCode("ETH-USDT")
 	assert.False(t, ok, "an uncached instrument should report unavailability")
 	assert.Zero(t, code, "an uncached instrument should report a zero code")
+}
+
+// TestSubmitOrderUsesREST guards the transport contract of the standard order
+// methods: submission goes over REST only. The mock exchange speaks REST only,
+// so any non-REST transport fails this test; a websocket branch gated behind
+// CanUseAuthenticatedWebsocketForWrapper is not exercised because the mock
+// exchange never enables authenticated websockets.
+func TestSubmitOrderUsesREST(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	var paths []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"2341161427393388544","clOrdId":"","tag":"","sCode":"0","sMsg":"","ts":"1700000000000"}]}`))
+	}))
+
+	resp, err := e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  e.Name,
+		Pair:      mainPair,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+		AssetType: asset.Spot,
+	})
+	require.NoError(t, err, "SubmitOrder must not error against the mock REST server")
+	require.NotNil(t, resp, "SubmitOrder must return a response against the mock REST server")
+	assert.Equal(t, []string{"/trade/order"}, paths, "SubmitOrder should send exactly one REST place order request")
+}
+
+// TestWebsocketOrderMethodsGuards covers the validation and unsupported-path
+// behaviour of the explicit websocket order methods. Every check here must
+// trigger before any websocket request transmits.
+func TestWebsocketOrderMethodsGuards(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	t.Run("submit order guards", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.WebsocketSubmitOrder(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrSubmissionIsNil, "WebsocketSubmitOrder must error for a nil submission")
+
+		_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			Side:      order.Buy,
+			Type:      order.Trigger,
+			Amount:    1,
+			Price:     1,
+			AssetType: asset.Spot,
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an algo order type should not transmit over the websocket")
+
+		_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
+			Pair:      spreadPair,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+			AssetType: asset.Spread,
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread order should not transmit on the private connection")
+
+		_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+			AssetType: asset.Spot,
+		})
+		assert.ErrorIs(t, err, errMissingInstrumentIDCode, "an uncached instrument code should fail before any request transmits")
+	})
+
+	t.Run("submit orders batch guards", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.WebsocketSubmitOrders(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrSubmissionIsNil, "WebsocketSubmitOrders must error for an empty batch")
+
+		_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			Side:      order.Buy,
+			Type:      order.Trigger,
+			Amount:    1,
+			Price:     1,
+			AssetType: asset.Spot,
+		}})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an algo order in the batch should stop the batch before transmission")
+	})
+
+	t.Run("modify order guards", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.WebsocketModifyOrder(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrModifyOrderIsNil, "WebsocketModifyOrder must error for a nil modification")
+
+		_, err = e.WebsocketModifyOrder(t.Context(), &order.Modify{
+			Exchange:  e.Name,
+			Pair:      spreadPair,
+			AssetType: asset.Spread,
+			OrderID:   "1234",
+			Amount:    1,
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread amend should not transmit on the private connection")
+
+		_, err = e.WebsocketModifyOrder(t.Context(), &order.Modify{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			OrderID:   "1234",
+			Amount:    1,
+		})
+		assert.ErrorIs(t, err, errMissingInstrumentIDCode, "an uncached instrument code should fail before any request transmits")
+	})
+
+	t.Run("cancel order guards", func(t *testing.T) {
+		t.Parallel()
+		err := e.WebsocketCancelOrder(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "WebsocketCancelOrder must error for a nil cancellation")
+
+		err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			Exchange:  e.Name,
+			Pair:      spreadPair,
+			AssetType: asset.Spread,
+			OrderID:   "1234",
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread cancel should not transmit on the private connection")
+
+		err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Type:      order.Trigger,
+			OrderID:   "1234",
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an algo cancel should not transmit over the websocket")
+
+		err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			OrderID:   "1234",
+		})
+		assert.ErrorIs(t, err, errMissingInstrumentIDCode, "an uncached instrument code should fail before any request transmits")
+	})
+
+	t.Run("cached instrument code reaches the websocket transport", func(t *testing.T) {
+		t.Parallel()
+		// The mock exchange below speaks REST only and fails the test on any
+		// request, so a pass proves the explicit websocket path neither falls
+		// back to REST nor stops at instrument code resolution.
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected REST request %s for an explicit websocket operation", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		e.instrumentsInfoMap = make(map[string][]Instrument)
+		e.instrumentIDCodeMap = map[string]uint64{mainPair.String(): 12345}
+
+		_, err := e.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+			AssetType: asset.Spot,
+		})
+		require.Error(t, err, "WebsocketSubmitOrder must fail without a websocket connection")
+		assert.NotErrorIs(t, err, errMissingInstrumentIDCode, "a cached instrument code should get past code resolution and fail at the connection")
+
+		err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			OrderID:   "1234",
+		})
+		require.Error(t, err, "WebsocketCancelOrder must fail without a websocket connection")
+		assert.NotErrorIs(t, err, errMissingInstrumentIDCode, "a cached instrument code should get past code resolution and fail at the connection")
+	})
+
+	t.Run("mixed batch sends nothing", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected REST request %s for an explicit websocket operation", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		e.instrumentsInfoMap = make(map[string][]Instrument)
+		e.instrumentIDCodeMap = map[string]uint64{mainPair.String(): 12345}
+
+		_, err := e.WebsocketSubmitOrders(t.Context(), []*order.Submit{{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+			AssetType: asset.Spot,
+		}, {
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			Side:      order.Buy,
+			Type:      order.Trigger,
+			Amount:    1,
+			Price:     1,
+			AssetType: asset.Spot,
+		}})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an invalid second order should fail the whole batch before transmission")
+	})
 }
 
 // TestCancelAllOrdersScopesSpreadMassCancel guards the spread branch: OKX's
