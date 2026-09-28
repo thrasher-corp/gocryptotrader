@@ -106,6 +106,7 @@ func TestSendHTTPRequest(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name       string
+		path       string
 		statusCode int
 		body       string
 		nilResult  bool
@@ -135,11 +136,40 @@ func TestSendHTTPRequest(t *testing.T) {
 			nilResult:  true,
 			expected:   errUnexpectedResponseBody,
 		},
+		{
+			name:       "API response error",
+			statusCode: http.StatusOK,
+			body:       `{"status":"error","err-code":"bad-request","err-msg":"invalid request"}`,
+			expected:   errAPIResponse,
+		},
+		{
+			name:       "API error without message",
+			statusCode: http.StatusOK,
+			body:       `{"status":"error","err-code":"bad-request"}`,
+			expected:   errAPIResponse,
+		},
+		{
+			name:       "V5 API response error",
+			path:       "/v5/public",
+			statusCode: http.StatusOK,
+			body:       `{"code":400,"message":"invalid request"}`,
+			expected:   errAPIResponse,
+		},
+		{
+			name:       "HTTP forbidden",
+			statusCode: http.StatusForbidden,
+			body:       `{"status":"error","err-msg":"forbidden"}`,
+			expected:   request.ErrBadStatus,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			path := tc.path
+			if path == "" {
+				path = "/public"
+			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/public", r.URL.Path, "request path should match")
+				assert.Equal(t, path, r.URL.Path, "request path should match")
 				if tc.body != "" {
 					w.Header().Set("Content-Type", "application/json")
 				}
@@ -159,9 +189,13 @@ func TestSendHTTPRequest(t *testing.T) {
 			if tc.nilResult {
 				result = nil
 			}
-			err := h.SendHTTPRequest(t.Context(), exchange.RestSpot, "/public", result)
+			err := h.SendHTTPRequest(t.Context(), exchange.RestSpot, path, result)
 			if tc.expected != nil {
 				require.ErrorIs(t, err, tc.expected, "SendHTTPRequest must return the expected error")
+				if tc.statusCode == http.StatusForbidden {
+					assert.NotErrorIs(t, err, errAPIResponse, "HTTP status errors should not gain a message-derived API sentinel")
+					assert.ErrorContains(t, err, "403", "HTTP status errors should retain the status code")
+				}
 				return
 			}
 			require.NoError(t, err, "SendHTTPRequest must not error")
@@ -177,6 +211,7 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 		statusCode   int
 		body         string
 		authenticate bool
+		version2     bool
 		nilResult    bool
 		expected     []error
 		expectedID   uint64
@@ -221,11 +256,37 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 			nilResult:    true,
 			expected:     []error{request.ErrAuthRequestFailed},
 		},
+		{
+			name:         "API error without message",
+			statusCode:   http.StatusOK,
+			body:         `{"status":"error","err-code":"bad-request"}`,
+			authenticate: true,
+			expected:     []error{request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "V2 API error without message",
+			statusCode:   http.StatusOK,
+			body:         `{"code":400}`,
+			authenticate: true,
+			version2:     true,
+			expected:     []error{request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "HTTP forbidden",
+			statusCode:   http.StatusForbidden,
+			body:         `{"status":"error","err-msg":"forbidden"}`,
+			authenticate: true,
+			expected:     []error{request.ErrBadStatus, request.ErrAuthRequestFailed},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/v1/private", r.URL.Path, "request path should match")
+				path := "/v1/private"
+				if tc.version2 {
+					path = "/v2/private"
+				}
+				assert.Equal(t, path, r.URL.Path, "request path should match")
 				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "request content type should match")
 				if tc.body != "" {
 					w.Header().Set("Content-Type", "application/json")
@@ -250,7 +311,7 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 			if tc.nilResult {
 				result = nil
 			}
-			err := h.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, "/private", nil, nil, result, false)
+			err := h.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, "/private", nil, nil, result, tc.version2)
 			for _, expected := range tc.expected {
 				assert.ErrorIs(t, err, expected, "SendAuthenticatedHTTPRequest should return the expected error")
 			}
@@ -366,8 +427,19 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTradeHistory(t.Context(), btcusdtPair, 50)
-	require.NoError(t, err)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetTradeHistory(t.Context(), btcusdtPair, 50)
+		require.NoError(t, err)
+	})
+	t.Run("response data", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, htxMarketTradeHistory, `{"status":"ok","data":[{"id":123}]}`, nil)
+		got, err := h.GetTradeHistory(t.Context(), btcusdtPair, 50)
+		require.NoError(t, err, "GetTradeHistory must not error")
+		require.Len(t, got, 1, "GetTradeHistory must return the decoded trade history")
+		assert.Equal(t, int64(123), got[0].ID, "trade history ID should match")
+	})
 }
 
 func TestGetMarketDetail(t *testing.T) {
@@ -435,8 +507,9 @@ func TestSpotNewOrder(t *testing.T) {
 		Type:      SpotNewOrderRequestTypeBuyLimit,
 	}
 
-	_, err := h.SpotNewOrder(t.Context(), &arg)
+	orderID, err := h.SpotNewOrder(t.Context(), &arg)
 	require.NoError(t, err, "SpotNewOrder must not error")
+	assert.Equal(t, int64(123), orderID, "SpotNewOrder should return the decoded order ID")
 }
 
 func TestCancelExistingOrder(t *testing.T) {
@@ -444,8 +517,9 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Run("mock", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf(htxOrderCancel, "123"), `{"status":"ok","data":"123"}`, nil)
-		_, err := h.CancelExistingOrder(t.Context(), 123)
+		orderID, err := h.CancelExistingOrder(t.Context(), 123)
 		require.NoError(t, err, "CancelExistingOrder must not error")
+		assert.Equal(t, int64(123), orderID, "CancelExistingOrder should return the decoded order ID")
 	})
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
@@ -638,7 +712,6 @@ func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 	}{
 		{name: "success"},
 		{name: "failed orders", failedCount: 2, want: errOrderCancellationFailed},
-		{name: "API error", status: htxStatusError, errorMsg: "rejected", want: errAPIResponse},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -651,9 +724,6 @@ func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 			}
 			assert.ErrorIs(t, err, errOrderCancellationFailed, "failed response should return the cancellation error")
 			assert.ErrorIs(t, err, tc.want, "failed response should retain its underlying error")
-			if tc.errorMsg != "" {
-				assert.ErrorIs(t, err, htxError(tc.errorMsg), "failed response should retain the exchange error")
-			}
 		})
 	}
 }

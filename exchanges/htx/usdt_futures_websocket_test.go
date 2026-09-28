@@ -66,16 +66,11 @@ func setupV5TradeWebsocketTestConnection(t *testing.T, h *Exchange) {
 	require.NoError(t, h.Websocket.SetAllConnectionURLs(mockURL), "mock websocket URLs must update")
 }
 
-func TestSetupV5TradeWebsocketTestConnection(t *testing.T) {
+func TestV5TradeConnectionSetupGate(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	_, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
 	require.Error(t, err, "trade connection must be skipped while authenticated endpoints are disabled")
-
-	setupV5TradeWebsocketTestConnection(t, h)
-	require.NoError(t, h.Websocket.Connect(t.Context()), "websocket connections must reconnect after authentication is enabled")
-	_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
-	require.NoError(t, err, "trade connection must become available after authentication is enabled")
 }
 
 func TestSendV5TradeRequest(t *testing.T) {

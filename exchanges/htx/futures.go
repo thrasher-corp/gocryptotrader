@@ -346,9 +346,10 @@ func (e *Exchange) FQueryHisOpenInterest(ctx context.Context, symbol, contractTy
 		return resp, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
-	if size > 0 || size <= 200 {
-		params.Set("size", strconv.FormatInt(size, 10))
+	if size <= 0 || size > 200 {
+		return resp, errInvalidSize
 	}
+	params.Set("size", strconv.FormatInt(size, 10))
 	validAmount, ok := validAmountType[amountType]
 	if !ok {
 		return resp, errInvalidAmountType
@@ -1378,6 +1379,9 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		}
 		if errCap.ErrMsgType2 != "" {
 			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType2, errCap.ErrMsgType2)
+		}
+		if errCap.Status == htxStatusError {
+			return fmt.Errorf("%w: status %s", request.ErrAuthRequestFailed, errCap.Status)
 		}
 	}
 	if strings.HasPrefix(endpoint, "/v5/") {

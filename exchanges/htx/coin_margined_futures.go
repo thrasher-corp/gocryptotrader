@@ -2,7 +2,6 @@ package htx
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1086,11 +1085,7 @@ func (e *Exchange) GetSwapMarkets(ctx context.Context, contract currency.Pair) (
 		Data []SwapMarketsData `json:"data"`
 	}
 	var result response
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_contract_info"+"?"+vals.Encode(), &result)
-	if result.ErrorMessage != "" {
-		return nil, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
-	}
-	return result.Data, err
+	return result.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_contract_info"+"?"+vals.Encode(), &result)
 }
 
 // GetSwapFundingRate gets funding rate data for one currency
@@ -1106,16 +1101,11 @@ func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pai
 		Data FundingRatesData `json:"data"`
 	}
 	var result response
-	err = e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_funding_rate"+"?"+vals.Encode(), &result)
-	if result.ErrorMessage != "" {
-		return FundingRatesData{}, fmt.Errorf("%w: %w", errAPIResponse, htxError(result.ErrorMessage))
-	}
-	return result.Data, err
+	return result.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_funding_rate"+"?"+vals.Encode(), &result)
 }
 
 // GetSwapFundingRates gets funding rates data
 func (e *Exchange) GetSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
 	var result SwapFundingRatesResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_batch_funding_rate", &result)
-	return result, err
+	return result, e.SendHTTPRequest(ctx, exchange.RestFutures, "/swap-api/v1/swap_batch_funding_rate", &result)
 }

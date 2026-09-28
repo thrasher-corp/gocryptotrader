@@ -112,26 +112,27 @@ if err != nil {
 
 ### Subscriptions
 
-All subscriptions are for spot only.
-
 Default Public Subscriptions:
 
-- Ticker
-- Candles ( Interval: 1min )
-- Orderbook ( Level: 0 - No aggregation )
+- Spot, delivery futures, coin-margined perpetuals and USDT-margined perpetuals:
+  - Ticker
+  - Candles (interval: 1min)
+  - Orderbook
+  - Trades
+- Coin-margined and USDT-margined perpetuals:
+  - Funding rates
+- Spot orderbooks default to level 0 (no aggregation).
   - Configure Level: 1-5 for depth aggregation, for example:
 
 ```json
  {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
 ```
 
-- Trades
+Default Authenticated Spot Subscriptions:
 
-Default Authenticated Subscriptions:
-
-- Account Trades
-- Account Orders
-- Account Updates
+- Account trades
+- Account orders
+- Account updates
 
 {{template "donations" .}}
 {{end}}

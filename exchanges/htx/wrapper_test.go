@@ -881,7 +881,7 @@ func TestCancelOrder(t *testing.T) {
 			cancel:        order.Cancel{ClientOrderID: "client-42", Pair: btcusdtPair, AssetType: asset.Spot},
 			expectedField: "client-order-ids", expectedValue: []any{"client-42"},
 			response:    `{"status":"ok","data":{"success":[],"failed":[{"client-order-id":"client-42","err-code":"order-orderstate-error","err-msg":"Incorrect order state"}]}}`,
-			expectedErr: htxError("Incorrect order state"),
+			expectedErr: errAPIResponse,
 		},
 		{
 			name: "coin margined client order ID", endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancel",
@@ -918,6 +918,9 @@ func TestCancelOrder(t *testing.T) {
 			err := h.CancelOrder(t.Context(), &tt.cancel)
 			if tt.expectedErr != nil {
 				require.ErrorIs(t, err, tt.expectedErr, "CancelOrder must return the expected error")
+				if tt.name == "spot client order ID failure" {
+					assert.ErrorContains(t, err, "Incorrect order state", "CancelOrder should include the exchange reason")
+				}
 			} else {
 				require.NoError(t, err, "CancelOrder must not error")
 			}
@@ -1591,7 +1594,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 			assert.Equal(t, h.Name, responses[i].Exchange, "each response should identify the exchange")
 			if i == 1 {
 				assert.ErrorIs(t, responses[i].SubmissionError, errAPIResponse, "rejection should identify an HTX API response error")
-				assert.ErrorIs(t, responses[i].SubmissionError, htxError("insufficient margin"), "rejection should preserve the exchange error")
+				assert.ErrorContains(t, responses[i].SubmissionError, "insufficient margin", "rejection should include the exchange reason")
 				assert.EqualError(t, responses[i].SubmissionError, "400: HTX API response error: insufficient margin", "rejection should include its code and reason")
 				assert.NotEqual(t, order.New, responses[i].Status, "rejected order should not be marked as accepted")
 				continue

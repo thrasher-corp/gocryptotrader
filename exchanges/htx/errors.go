@@ -1,60 +1,53 @@
 package htx
 
-// htxError provides comparable package errors without allocating errors at declaration sites.
-type htxError string
+import "errors"
 
-// Error implements the error interface.
-func (e htxError) Error() string {
-	return string(e)
-}
-
-const (
-	errWithdrawDetailsUnset          htxError = "currency, address and amount must be set"
-	errInvalidEndpoint               htxError = "invalid endpoint"
-	errInvalidContractType           htxError = "invalid contract type"
-	errInconsistentContractExpiry    htxError = "inconsistent contract expiry date codes"
-	errInvalidSize                   htxError = "invalid size"
-	errInvalidTradeType              htxError = "invalid trade type"
-	errInvalidTradeID                htxError = "invalid trade ID"
-	errInvalidAmountType             htxError = "invalid amount type"
-	errInvalidBasisPriceType         htxError = "invalid basis price type"
-	errInvalidRecordType             htxError = "invalid record type"
-	errInvalidOrderType              htxError = "invalid order type"
-	errInvalidTransferType           htxError = "invalid transfer type"
-	errInvalidCreateDate             htxError = "invalid create date"
-	errInvalidLookbackDays           htxError = "invalid lookback days"
-	errHistoryTimeRangeExceeded      htxError = "history time range cannot exceed 48 hours"
-	errInvalidOffsetAmounts          htxError = "invalid offset amounts"
-	errInvalidLeverage               htxError = "invalid leverage"
-	errBatchAssetMismatch            htxError = "batch orders must use one asset type"
-	errBatchPairMismatch             htxError = "batch orders must use one currency pair"
-	errUnexpectedBatchResponseCount  htxError = "unexpected batch response count"
-	errInvalidOrderPriceType         htxError = "invalid order price type"
-	errBatchOrderLimitExceeded       htxError = "a maximum of 10 batch orders is supported"
-	errContractCodeLimitExceeded     htxError = "between 1 and 10 contract codes must be supplied"
-	errInvalidRequestType            htxError = "invalid request type"
-	errInvalidOrderStatus            htxError = "invalid order status"
-	errInvalidPositionMode           htxError = "invalid position mode"
-	errInvalidTriggerType            htxError = "invalid trigger type"
-	errInvalidOffset                 htxError = "invalid offset"
-	errExpectedResponseBody          htxError = "expected response body"
-	errUnexpectedResponseBody        htxError = "expected no response body"
-	errEmptyResult                   htxError = "result contains no data"
-	errDepositAddressMissing         htxError = "deposit address data is not populated"
-	errBidPriceTypeAssertion         htxError = "unable to type assert bid price"
-	errBidAmountTypeAssertion        htxError = "unable to type assert bid amount"
-	errAskPriceTypeAssertion         htxError = "unable to type assert ask price"
-	errAskAmountTypeAssertion        htxError = "unable to type assert ask amount"
-	errUnrecognisedOrderStatus       htxError = "unrecognised order status"
-	errUnrecognisedOrderSide         htxError = "unrecognised order side"
-	errUnrecognisedOrderType         htxError = "unrecognised order type"
-	errInvalidBidData                htxError = "invalid bid data"
-	errInvalidAskData                htxError = "invalid ask data"
-	errNoAccountReturned             htxError = "no account returned"
-	errDepositAddressNotFound        htxError = "unable to match deposit address currency or chain"
-	errCurrencyNotSupplied           htxError = "currency must be supplied"
-	errNoTransferChains              htxError = "no chains returned from currencies API"
-	errUnhandledMockWebsocketMessage htxError = "unhandled mock websocket message"
-	errAPIResponse                   htxError = "HTX API response error"
-	errOrderCancellationFailed       htxError = "order cancellation failed"
+var (
+	errWithdrawDetailsUnset          = errors.New("currency, address and amount must be set")
+	errInvalidEndpoint               = errors.New("invalid endpoint")
+	errInvalidContractType           = errors.New("invalid contract type")
+	errInconsistentContractExpiry    = errors.New("inconsistent contract expiry date codes")
+	errInvalidSize                   = errors.New("invalid size")
+	errInvalidTradeType              = errors.New("invalid trade type")
+	errInvalidTradeID                = errors.New("invalid trade ID")
+	errInvalidAmountType             = errors.New("invalid amount type")
+	errInvalidBasisPriceType         = errors.New("invalid basis price type")
+	errInvalidRecordType             = errors.New("invalid record type")
+	errInvalidOrderType              = errors.New("invalid order type")
+	errInvalidTransferType           = errors.New("invalid transfer type")
+	errInvalidCreateDate             = errors.New("invalid create date")
+	errInvalidLookbackDays           = errors.New("invalid lookback days")
+	errHistoryTimeRangeExceeded      = errors.New("history time range cannot exceed 48 hours")
+	errInvalidOffsetAmounts          = errors.New("invalid offset amounts")
+	errInvalidLeverage               = errors.New("invalid leverage")
+	errBatchAssetMismatch            = errors.New("batch orders must use one asset type")
+	errBatchPairMismatch             = errors.New("batch orders must use one currency pair")
+	errUnexpectedBatchResponseCount  = errors.New("unexpected batch response count")
+	errInvalidOrderPriceType         = errors.New("invalid order price type")
+	errBatchOrderLimitExceeded       = errors.New("a maximum of 10 batch orders is supported")
+	errContractCodeLimitExceeded     = errors.New("between 1 and 10 contract codes must be supplied")
+	errInvalidRequestType            = errors.New("invalid request type")
+	errInvalidOrderStatus            = errors.New("invalid order status")
+	errInvalidPositionMode           = errors.New("invalid position mode")
+	errInvalidTriggerType            = errors.New("invalid trigger type")
+	errInvalidOffset                 = errors.New("invalid offset")
+	errExpectedResponseBody          = errors.New("expected response body")
+	errUnexpectedResponseBody        = errors.New("expected no response body")
+	errEmptyResult                   = errors.New("result contains no data")
+	errDepositAddressMissing         = errors.New("deposit address data is not populated")
+	errBidPriceTypeAssertion         = errors.New("unable to type assert bid price")
+	errBidAmountTypeAssertion        = errors.New("unable to type assert bid amount")
+	errAskPriceTypeAssertion         = errors.New("unable to type assert ask price")
+	errAskAmountTypeAssertion        = errors.New("unable to type assert ask amount")
+	errUnrecognisedOrderSide         = errors.New("unrecognised order side")
+	errUnrecognisedOrderType         = errors.New("unrecognised order type")
+	errInvalidBidData                = errors.New("invalid bid data")
+	errInvalidAskData                = errors.New("invalid ask data")
+	errNoAccountReturned             = errors.New("no account returned")
+	errDepositAddressNotFound        = errors.New("unable to match deposit address currency or chain")
+	errCurrencyNotSupplied           = errors.New("currency must be supplied")
+	errNoTransferChains              = errors.New("no chains returned from currencies API")
+	errUnhandledMockWebsocketMessage = errors.New("unhandled mock websocket message")
+	errAPIResponse                   = errors.New("HTX API response error")
+	errOrderCancellationFailed       = errors.New("order cancellation failed")
 )

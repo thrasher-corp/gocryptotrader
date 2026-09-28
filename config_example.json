@@ -2228,7 +2228,7 @@
      },
      {
       "enabled": true,
-      "channel": "public.%s.funding_rate",
+      "channel": "fundingRate",
       "asset": "coinmarginedfutures"
      },
      {
@@ -2284,7 +2284,7 @@
      },
      {
       "enabled": true,
-      "channel": "public.%s.funding_rate",
+      "channel": "fundingRate",
       "asset": "usdtmarginedfutures"
      },
      {

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -75,6 +76,20 @@ func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 			authenticate: true,
 			nilResult:    true,
 			expected:     []error{request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "API error without message",
+			statusCode:   http.StatusOK,
+			body:         `{"status":"error","err_code":1001}`,
+			authenticate: true,
+			expected:     []error{request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "HTTP forbidden",
+			statusCode:   http.StatusForbidden,
+			body:         `{"status":"error","err_msg":"forbidden"}`,
+			authenticate: true,
+			expected:     []error{request.ErrBadStatus, request.ErrAuthRequestFailed},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -240,6 +255,13 @@ func TestFQueryHisOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := e.FQueryHisOpenInterest(t.Context(), "BTC", "this_week", "60min", "cont", 3)
 	require.NoError(t, err)
+	for _, size := range []int64{-1, 0, 201} {
+		t.Run(strconv.FormatInt(size, 10), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.FQueryHisOpenInterest(t.Context(), "BTC", "this_week", "60min", "cont", size)
+			require.ErrorIs(t, err, errInvalidSize, "FQueryHisOpenInterest must reject an invalid size")
+		})
+	}
 }
 
 func TestFQuerySystemStatus(t *testing.T) {

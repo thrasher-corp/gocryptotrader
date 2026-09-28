@@ -1528,7 +1528,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 			responses[i] = &order.SubmitResponse{
 				Exchange:        e.Name,
 				ClientOrderID:   orderResp.Data[i].ClientOrderID,
-				SubmissionError: fmt.Errorf("%d: %w: %w", orderResp.Data[i].Code, errAPIResponse, htxError(orderResp.Data[i].Message)),
+				SubmissionError: fmt.Errorf("%d: %w: %s", orderResp.Data[i].Code, errAPIResponse, orderResp.Data[i].Message),
 			}
 			continue
 		}
@@ -1572,7 +1572,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 		return errEmptyResult
 	}
 	if resp.Data.Code != 0 && resp.Data.Code != 200 {
-		return fmt.Errorf("%d: %w: %w", resp.Data.Code, errAPIResponse, htxError(resp.Data.Message))
+		return fmt.Errorf("%d: %w: %s", resp.Data.Code, errAPIResponse, resp.Data.Message)
 	}
 	return nil
 }
@@ -1602,7 +1602,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			}
 			for i := range cancelledOrders.Failed {
 				if cancelledOrders.Failed[i].ClientOrderID == o.ClientOrderID {
-					return fmt.Errorf("failed to cancel client order %s: %w: %w", o.ClientOrderID, errAPIResponse, htxError(cancelledOrders.Failed[i].ErrorMessage))
+					return fmt.Errorf("failed to cancel client order %s: %w: %s", o.ClientOrderID, errAPIResponse, cancelledOrders.Failed[i].ErrorMessage)
 				}
 			}
 			if !slices.Contains(cancelledOrders.Success, o.ClientOrderID) {

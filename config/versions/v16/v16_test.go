@@ -70,13 +70,18 @@ func TestUpgradeExchange(t *testing.T) {
 		assert.Len(t, config.Features.Subscriptions, 32, "spot account and all derivative subscriptions should be retained")
 		assert.Equal(t, "spot", config.Features.Subscriptions[0].Asset, "spot account subscription should retain its asset")
 		privateCount := 0
+		fundingRateCount := 0
 		for _, sub := range config.Features.Subscriptions {
+			if sub.Channel == "fundingRate" {
+				fundingRateCount++
+			}
 			if sub.Authenticated && sub.Asset != "spot" {
 				privateCount++
 				assert.False(t, sub.Enabled, "private derivative subscriptions should default to disabled")
 			}
 		}
 		assert.Equal(t, 17, privateCount, "all private derivative subscriptions should be added")
+		assert.Equal(t, 2, fundingRateCount, "both perpetual assets should receive a plain funding-rate channel")
 
 		second, err := new(v16.Version).UpgradeExchange(t.Context(), out)
 		require.NoError(t, err, "repeated UpgradeExchange must not error")

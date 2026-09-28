@@ -1,4 +1,4 @@
-# GoCryptoTrader package HTX
+# GoCryptoTrader package Htx
 
 <img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
 
@@ -7,7 +7,7 @@
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/htx)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
 
-This HTX package is part of the GoCryptoTrader codebase.
+This htx package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 

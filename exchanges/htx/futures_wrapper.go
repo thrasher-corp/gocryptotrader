@@ -240,7 +240,7 @@ func (e *Exchange) SetCollateralMode(ctx context.Context, item asset.Item, mode 
 	if resp == nil {
 		return errEmptyResult
 	}
-	if resp.Data.AssetMode != assetMode {
+	if resp.Data.AssetMode != assetMode && (mode != collateral.SingleMode || resp.Data.AssetMode != 0) {
 		return fmt.Errorf("%w: requested %d, received %d", collateral.ErrInvalidCollateralMode, assetMode, resp.Data.AssetMode)
 	}
 	return nil

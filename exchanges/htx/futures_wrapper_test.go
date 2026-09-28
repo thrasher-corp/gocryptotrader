@@ -208,16 +208,18 @@ func TestSetCollateralMode(t *testing.T) {
 		name         string
 		mode         collateral.Mode
 		expectedMode uint64
+		requestMode  uint64
 	}{
-		{name: "multi asset", mode: collateral.MultiMode, expectedMode: 1},
-		{name: "single asset", mode: collateral.SingleMode, expectedMode: 2},
+		{name: "multi asset", mode: collateral.MultiMode, expectedMode: 1, requestMode: 1},
+		{name: "single asset", mode: collateral.SingleMode, expectedMode: 2, requestMode: 2},
+		{name: "legacy single asset", mode: collateral.SingleMode, expectedMode: 0, requestMode: 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"assets_mode":`+strconv.FormatUint(tc.expectedMode, 10)+`}}`, func(r *http.Request) {
 				var req map[string]uint64
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&req), "asset-mode request must decode")
-				assert.Equal(t, tc.expectedMode, req["assets_mode"], "HTX asset mode should match")
+				assert.Equal(t, tc.requestMode, req["assets_mode"], "HTX asset mode should match")
 			})
 			require.NoError(t, h.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, tc.mode), "SetCollateralMode must not error")
 		})

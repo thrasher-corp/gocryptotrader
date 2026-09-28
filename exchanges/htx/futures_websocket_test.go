@@ -7,10 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -318,18 +321,83 @@ func TestWSFuturesLogin(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsFuturesLogin must reject nil connections")
 }
 
+func TestWSFuturesTimestampUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input, want string
+		wantErr           bool
+	}{
+		{name: "numeric", input: `1492420473027`, want: `1492420473027`},
+		{name: "quoted", input: `"1492420473027"`, want: `"1492420473027"`},
+		{name: "invalid", input: `1`, wantErr: true},
+		{name: "zero", input: `null`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var timestamp wsFuturesTimestamp
+			err := timestamp.UnmarshalJSON([]byte(tc.input))
+			if tc.wantErr {
+				require.Error(t, err, "malformed futures timestamp must be rejected")
+				return
+			}
+			require.NoError(t, err, "valid futures timestamp must decode")
+			assert.Equal(t, wsFuturesTimestamp(tc.want), timestamp, "timestamp should preserve its JSON representation")
+		})
+	}
+}
+
+func TestWSFuturesTimestampMarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, input := range []string{`1492420473027`, `"1492420473027"`} {
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := json.Marshal(wsFuturesTimestamp(input))
+			require.NoError(t, err, "futures timestamp must encode")
+			assert.Equal(t, input, string(encoded), "futures timestamp should retain its JSON type")
+		})
+	}
+}
+
 func TestWSHandleFuturesPing(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, input, expected string
+	}{
+		{name: "string", input: `{"op":"ping","ts":"1492420473058"}`, expected: `{"op":"pong","ts":"1492420473058"}`},
+		{name: "number", input: `{"op":"ping","ts":1492420473027}`, expected: `{"op":"pong","ts":1492420473027}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			messages := make(chan []byte, 1)
+			h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, conn *gws.Conn) error {
+				tb.Helper()
+				operation, _ := jsonparser.GetString(msg, "op")
+				if operation == "pong" {
+					messages <- msg
+					return nil
+				}
+				return wsFixture(tb, msg, conn)
+			}))
+			conn, err := h.Websocket.GetConnection(exchange.WebsocketFuturesPrivate)
+			require.NoError(t, err, "delivery private websocket connection must be available")
+			require.NoError(t, h.wsHandleFuturesPing(t.Context(), conn, []byte(tc.input)), "wsHandleFuturesPing must respond to valid timestamps")
+			select {
+			case msg := <-messages:
+				assert.JSONEq(t, tc.expected, string(msg), "futures pong should echo the timestamp representation")
+			case <-time.After(time.Second):
+				require.Fail(t, "futures pong must be sent")
+			}
+		})
+	}
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketFuturesPrivate)
 	require.NoError(t, err, "delivery private websocket connection must be available")
-	require.NoError(t, h.wsHandleFuturesPing(t.Context(), conn, []byte(`{"op":"ping","ts":"1492420473058"}`)), "wsHandleFuturesPing must respond to string timestamps")
 	err = h.wsHandleFuturesPing(t.Context(), conn, []byte(`{"op":"ping"}`))
 	require.ErrorIs(t, err, common.ErrParsingWSField, "wsHandleFuturesPing must require a timestamp")
 	err = h.wsHandleFuturesPing(t.Context(), conn, []byte(`{`))
 	require.Error(t, err, "wsHandleFuturesPing must reject malformed messages")
 	err = h.wsHandleFuturesPing(t.Context(), conn, []byte(`{"op":"ping","ts":1}`))
-	require.Error(t, err, "wsHandleFuturesPing must reject a numeric timestamp")
+	require.ErrorContains(t, err, "invalid timestamp format", "wsHandleFuturesPing must reject a malformed timestamp")
 	err = h.wsHandleFuturesPing(t.Context(), nil, []byte(`{"op":"ping","ts":1}`))
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsHandleFuturesPing must reject nil connections")
 }

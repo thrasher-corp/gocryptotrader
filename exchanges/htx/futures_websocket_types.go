@@ -1,7 +1,11 @@
 package htx
 
 import (
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -27,9 +31,30 @@ type wsV5FuturesSubscriptionRequest struct {
 	ContractCode string `json:"contract_code,omitempty"`
 }
 
+// wsFuturesTimestamp validates the heartbeat while preserving its JSON representation for the reply.
+type wsFuturesTimestamp string
+
+// UnmarshalJSON accepts HTX's numeric and quoted Unix timestamps.
+func (t *wsFuturesTimestamp) UnmarshalJSON(data []byte) error {
+	var parsed types.Time
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return err
+	}
+	if parsed.Time().IsZero() {
+		return fmt.Errorf("%w: missing futures websocket timestamp", common.ErrParsingWSField)
+	}
+	*t = wsFuturesTimestamp(data)
+	return nil
+}
+
+// MarshalJSON echoes the validated timestamp without converting its JSON type.
+func (t wsFuturesTimestamp) MarshalJSON() ([]byte, error) {
+	return []byte(t), nil
+}
+
 type wsFuturesPong struct {
-	Operation string     `json:"op"`
-	Timestamp types.Time `json:"ts"`
+	Operation string             `json:"op"`
+	Timestamp wsFuturesTimestamp `json:"ts"`
 }
 
 // WsFundingRate contains a public derivative funding-rate update.

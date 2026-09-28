@@ -48,7 +48,7 @@ func TestWSHandleCandleMsg(t *testing.T) {
 		Pair:     btcusdtPair,
 		Interval: 0,
 		Candles: []kline.Candle{{
-			Time:   time.UnixMilli(1489474082831),
+			Time:   time.Unix(1489464480, 0).UTC(),
 			Open:   7962.62,
 			Close:  8014.56,
 			High:   14962.77,
@@ -673,6 +673,8 @@ func TestAuthSubscribe(t *testing.T) {
 func TestChannelName(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "market.BTC-USD.kline", channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, btcusdPair))
+	assert.Equal(t, "public.BTC-USD.funding_rate", channelName(&subscription.Subscription{Channel: wsFundingRateChannel}, btcusdPair), "funding-rate channel should expand to the HTX topic")
+	assert.Equal(t, "public.BTC-USD.funding_rate", channelName(&subscription.Subscription{Channel: wsFundingRateTopic}, btcusdPair), "saved funding-rate subscriptions should still expand")
 	assert.Equal(t, "trade.clearing#*#1", channelName(&subscription.Subscription{Channel: subscription.MyTradesChannel}, btcusdPair))
 	for _, tt := range []struct {
 		channel string
@@ -710,12 +712,15 @@ func TestIsWildcardChannel(t *testing.T) {
 }
 
 func TestGetErrResp(t *testing.T) {
+	t.Parallel()
 	err := getErrResp([]byte(`{"status":"error","err-code":"bad-request","err-msg":"invalid topic promiscuous.drop🐻s.nearby"}`))
+	assert.ErrorIs(t, err, errAPIResponse, "V1 API errors should wrap the API sentinel")
 	assert.ErrorContains(t, err, "invalid topic promiscuous.drop🐻s.nearby (bad-request)", "V1 errors should return correctly")
 	err = getErrResp([]byte(`{"status":"ok","subbed":"market.btcusdt.trade.detail"}`))
 	assert.NoError(t, err, "V1 success should not error")
 
 	err = getErrResp([]byte(`{"action":"sub","code":2001,"ch":"naughty.drop🐻s.locally","message":"invalid.ch"}`))
+	assert.ErrorIs(t, err, errAPIResponse, "V2 API errors should wrap the API sentinel")
 	assert.ErrorContains(t, err, "invalid.ch (2001)", "V2 errors should return correctly")
 
 	err = getErrResp([]byte(`{"action":"sub","code":200,"ch":"orders#btcusdt","data":{}}`))
@@ -724,5 +729,6 @@ func TestGetErrResp(t *testing.T) {
 	err = getErrResp([]byte(`{"op":"auth","err-code":0}`))
 	assert.NoError(t, err, "derivative websocket success should not error")
 	err = getErrResp([]byte(`{"op":"auth","err-code":2001,"err-msg":"invalid authentication"}`))
+	assert.ErrorIs(t, err, errAPIResponse, "derivative API errors should wrap the API sentinel")
 	assert.ErrorContains(t, err, "invalid authentication (2001)", "derivative websocket errors should include their numeric code")
 }

@@ -40,7 +40,8 @@ const (
 	wsOrderbookChannel    = "market.%s.depth"
 	wsTradesChannel       = "market.%s.trade.detail"
 	wsMarketDetailChannel = "market.%s.detail"
-	wsFundingRateChannel  = "public.%s.funding_rate"
+	wsFundingRateChannel  = "fundingRate"
+	wsFundingRateTopic    = "public.%s.funding_rate"
 	wsMyOrdersChannel     = "orders#*"
 	wsMyTradesChannel     = "trade.clearing#*#1" // 0=Only trade events, 1=Trade and Cancellation events
 	wsMyAccountChannel    = "accounts.update#2"  // 0=Only balance, 1=Balance or Available, 2=Balance and Available when either change
@@ -72,7 +73,8 @@ var subscriptionNames = map[string]string{
 	subscription.MyTradesChannel:  wsMyTradesChannel,
 	subscription.MyOrdersChannel:  wsMyOrdersChannel,
 	subscription.MyAccountChannel: wsMyAccountChannel,
-	wsFundingRateChannel:          wsFundingRateChannel,
+	wsFundingRateChannel:          wsFundingRateTopic,
+	wsFundingRateTopic:            wsFundingRateTopic,
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
@@ -198,7 +200,7 @@ func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subs
 		return e.wsHandleCandleMsg(ctx, s, respRaw)
 	case subscription.AllTradesChannel:
 		return e.wsHandleAllTradesMsg(ctx, s, respRaw)
-	case wsFundingRateChannel:
+	case wsFundingRateChannel, wsFundingRateTopic:
 		return e.wsHandleFundingRateMsg(ctx, s, respRaw)
 	case subscription.MyAccountChannel:
 		return e.wsHandleMyAccountMsg(ctx, respRaw)
@@ -224,7 +226,7 @@ func (e *Exchange) wsHandleCandleMsg(ctx context.Context, s *subscription.Subscr
 		Pair:     s.Pairs[0],
 		Interval: s.Interval,
 		Candles: []kline.Candle{{
-			Time:   c.Timestamp.Time(),
+			Time:   time.Unix(c.Tick.ID, 0).UTC(),
 			Open:   c.Tick.Open,
 			Close:  c.Tick.Close,
 			High:   c.Tick.High,
@@ -424,7 +426,7 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 		return err
 	}
 	if o.ErrCode != 0 {
-		return fmt.Errorf("error with order %q: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
+		return fmt.Errorf("%w: error with order %q: %s (%v)", errAPIResponse, o.ClientOrderID, o.ErrMessage, o.ErrCode)
 	}
 	return nil
 }
@@ -697,7 +699,7 @@ func getErrResp(msg []byte) error {
 		errMsg, _ = jsonparser.GetString(msg, "message")
 	}
 	if errCode != "" && errCode != "0" {
-		return fmt.Errorf("%s (%v)", errMsg, errCode)
+		return fmt.Errorf("%w: %s (%s)", errAPIResponse, errMsg, errCode)
 	}
 	return nil
 }

@@ -123,12 +123,12 @@ func addDerivativeSubscriptions(config map[string]any) {
 		},
 		{
 			asset:           "coinmarginedfutures",
-			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades", "public.%s.funding_rate"},
+			publicChannels:  []string{"ticker", "candles", "orderbook", "allTrades", "fundingRate"},
 			privateChannels: []string{"myOrders", "myTrades", "myAccount", "positions", "triggerOrders"},
 		},
 		{
 			asset:          "usdtmarginedfutures",
-			publicChannels: []string{"ticker", "candles", "orderbook", "allTrades", "public.%s.funding_rate"},
+			publicChannels: []string{"ticker", "candles", "orderbook", "allTrades", "fundingRate"},
 			privateChannels: []string{
 				"myOrders",
 				"tradeUpdates",
