@@ -85,6 +85,24 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	}
 }
 
+// orderTypeFilter returns the ordType filter for the OKX order types that
+// orderTypeFromString reads back as orderType, and as tif when one is set, as
+// the comma-separated list OKX accepts: a limit order without a time in force
+// spans limit, post_only, fok and ioc. A pair no OKX order type reads back as,
+// such as a limit order with GoodTillCancel, falls back to orderTypeString.
+func orderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	var oTypes []string
+	for _, oType := range []string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, orderMarketMakerProtection, orderMarketMakerProtectionAndPostOnly} {
+		if t, f, _ := orderTypeFromString(oType); t == orderType && (tif == order.UnknownTIF || f == tif) {
+			oTypes = append(oTypes, oType)
+		}
+	}
+	if len(oTypes) > 0 {
+		return strings.Join(oTypes, ","), nil
+	}
+	return orderTypeString(orderType, tif)
+}
+
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
 // that the instrument is associated with
 func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {

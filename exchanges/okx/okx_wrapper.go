@@ -1504,7 +1504,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 	var oType string
 	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
-		oType, err = orderTypeString(orderCancellation.Type, orderCancellation.TimeInForce)
+		oType, err = orderTypeFilter(orderCancellation.Type, orderCancellation.TimeInForce)
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
@@ -1883,7 +1883,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	var orderType string
 	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = orderTypeString(req.Type, req.TimeInForce)
+		orderType, err = orderTypeFilter(req.Type, req.TimeInForce)
 		if err != nil {
 			return nil, err
 		}

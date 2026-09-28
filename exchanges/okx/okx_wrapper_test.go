@@ -6,7 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"uuid"
@@ -628,6 +630,134 @@ func TestGetActiveOrdersPaginatesWithOrderIDCursor(t *testing.T) {
 	}
 	assert.Len(t, ids, orderListPageSize+50, "a paginated crawl should not duplicate orders")
 	assert.Contains(t, ids, "ORD-149", "orders past the first page should be returned")
+}
+
+// TestOrderTypeFilter guards the ordType filter a type selects: every OKX order
+// type orderTypeFromString reads back as the requested type and time in force,
+// or orderTypeString's when none does.
+func TestOrderTypeFilter(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       string
+	}{
+		{order.Limit, order.UnknownTIF, "limit,post_only,fok,ioc"},
+		{order.Limit, order.PostOnly, orderPostOnly},
+		{order.Limit, order.FillOrKill, orderFOK},
+		{order.Limit, order.ImmediateOrCancel, orderIOC},
+		{order.Limit, order.GoodTillCancel, orderLimit},
+		{order.MarketMakerProtection, order.UnknownTIF, "mmp,mmp_and_post_only"},
+		{order.MarketMakerProtection, order.PostOnly, orderMarketMakerProtectionAndPostOnly},
+		{order.Market, order.UnknownTIF, orderMarket},
+		{order.Trigger, order.UnknownTIF, "trigger"},
+	} {
+		got, err := orderTypeFilter(tc.orderType, tc.tif)
+		require.NoErrorf(t, err, "orderTypeFilter must not error for %s %s", tc.orderType, tc.tif)
+		assert.Equalf(t, tc.exp, got, "orderTypeFilter should select the OKX order types for %s %s", tc.orderType, tc.tif)
+	}
+	_, err := orderTypeFilter(order.Stop, order.UnknownTIF)
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "orderTypeFilter should reject an order type OKX does not list")
+}
+
+// TestPendingOrderTypeFilter guards the pending order type filter through both
+// wrappers: OKX returns the order types listed in ordType, which must cover
+// every OKX order type read back as the requested type and time in force.
+func TestPendingOrderTypeFilter(t *testing.T) {
+	t.Parallel()
+	pending := []map[string]string{
+		{"instId": "BTC-USDT", "ordId": "LIMIT-1", "ordType": orderLimit, "side": "buy", "state": "live", "cTime": "1700000000008"},
+		{"instId": "BTC-USDT", "ordId": "POST-1", "ordType": orderPostOnly, "side": "buy", "state": "live", "cTime": "1700000000007"},
+		{"instId": "BTC-USDT", "ordId": "FOK-1", "ordType": orderFOK, "side": "buy", "state": "live", "cTime": "1700000000006"},
+		{"instId": "BTC-USDT", "ordId": "IOC-1", "ordType": orderIOC, "side": "buy", "state": "live", "cTime": "1700000000005"},
+		{"instId": "BTC-USDT", "ordId": "MMP-1", "ordType": orderMarketMakerProtection, "side": "buy", "state": "live", "cTime": "1700000000004"},
+		{"instId": "BTC-USDT", "ordId": "MMP-PO-1", "ordType": orderMarketMakerProtectionAndPostOnly, "side": "buy", "state": "live", "cTime": "1700000000003"},
+		{"instId": "BTC-USDT", "ordId": "OPTIMAL-1", "ordType": orderOptimalLimitIOC, "side": "buy", "state": "live", "cTime": "1700000000002"},
+		{"instId": "BTC-USDT", "ordId": "RPI-1", "ordType": "rpi", "side": "buy", "state": "live", "cTime": "1700000000001"},
+	}
+	var mu sync.Mutex
+	var cancelled []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trade/orders-pending":
+			ordTypes := strings.Split(r.URL.Query().Get("ordType"), ",")
+			ords := make([]map[string]string, 0, len(pending))
+			for _, o := range pending {
+				if ordTypes[0] == "" || slices.Contains(ordTypes, o["ordType"]) {
+					ords = append(ords, o)
+				}
+			}
+			writeOKXData(t, w, ords)
+		case "/trade/cancel-batch-orders":
+			var reqs []CancelOrderRequestParam
+			if err := json.NewDecoder(r.Body).Decode(&reqs); err != nil {
+				t.Errorf("decoding cancel request body should not error: %v", err)
+				return
+			}
+			respData := make([]map[string]string, 0, len(reqs))
+			mu.Lock()
+			for x := range reqs {
+				cancelled = append(cancelled, reqs[x].OrderID)
+				respData = append(respData, map[string]string{"ordId": reqs[x].OrderID, "sCode": "0"})
+			}
+			mu.Unlock()
+			writeOKXData(t, w, respData)
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	cancelAll := func(c *order.Cancel) ([]string, error) {
+		mu.Lock()
+		cancelled = nil
+		mu.Unlock()
+		_, err := e.CancelAllOrders(t.Context(), c)
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(cancelled), err
+	}
+
+	for _, tc := range []struct {
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       []string
+	}{
+		{order.Limit, order.UnknownTIF, []string{"LIMIT-1", "POST-1", "FOK-1", "IOC-1"}},
+		{order.Limit, order.PostOnly, []string{"POST-1"}},
+		{order.Limit, order.FillOrKill, []string{"FOK-1"}},
+		{order.Limit, order.ImmediateOrCancel, []string{"IOC-1"}},
+		{order.MarketMakerProtection, order.UnknownTIF, []string{"MMP-1", "MMP-PO-1"}},
+		{order.MarketMakerProtection, order.PostOnly, []string{"MMP-PO-1"}},
+	} {
+		resp, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: tc.orderType, TimeInForce: tc.tif, Side: order.AnySide})
+		require.NoErrorf(t, err, "GetActiveOrders must not error for %s %s", tc.orderType, tc.tif)
+		ids := make([]string, 0, len(resp))
+		for x := range resp {
+			ids = append(ids, resp[x].OrderID)
+		}
+		assert.ElementsMatchf(t, tc.exp, ids, "GetActiveOrders should return every order read back as %s %s", tc.orderType, tc.tif)
+
+		got, err := cancelAll(&order.Cancel{AssetType: asset.Spot, Pair: mainPair, Type: tc.orderType, TimeInForce: tc.tif})
+		require.NoErrorf(t, err, "CancelAllOrders must not error for %s %s", tc.orderType, tc.tif)
+		assert.ElementsMatchf(t, tc.exp, got, "CancelAllOrders should cancel every order read back as %s %s, and nothing else", tc.orderType, tc.tif)
+	}
+
+	got, err := cancelAll(&order.Cancel{Type: order.Limit})
+	require.NoError(t, err, "CancelAllOrders must not error for a cancel scoped by type alone")
+	assert.ElementsMatch(t, []string{"LIMIT-1", "POST-1", "FOK-1", "IOC-1"}, got, "a cancel scoped by type alone should cancel every limit order")
+
+	got, err = cancelAll(&order.Cancel{Type: order.Limit, OrderID: "POST-1"})
+	require.NoError(t, err, "CancelAllOrders must not error for an order ID within the requested type")
+	assert.Equal(t, []string{"POST-1"}, got, "an order ID within the requested type should be cancelled")
+
+	got, err = cancelAll(&order.Cancel{Type: order.Limit, OrderID: "OPTIMAL-1"})
+	require.NoError(t, err, "CancelAllOrders must not error for an order ID outside the requested type")
+	assert.Empty(t, got, "an order ID outside the requested type should not be cancelled")
+
+	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Stop, Side: order.AnySide})
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "GetActiveOrders should reject an order type OKX does not list")
+	_, err = cancelAll(&order.Cancel{AssetType: asset.Spot, Pair: mainPair, Type: order.Stop})
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should reject an order type OKX does not list")
 }
 
 // TestCancelBatchOrdersSpreadGuards covers the spread branch of
