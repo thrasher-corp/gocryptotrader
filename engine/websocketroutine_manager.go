@@ -243,6 +243,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		m.syncer.PrintTickerSummary(d, "websocket", nil)
 	case []ticker.Price:
+		var errs error
 		for x := range d {
 			if m.syncer.IsRunning() {
 				if err := m.syncer.WebsocketUpdate(exchName,
@@ -250,11 +251,13 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 					d[x].AssetType,
 					SyncItemTicker,
 					nil); err != nil {
-					return err
+					errs = common.AppendError(errs, err)
+					continue
 				}
 			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", nil)
 		}
+		return errs
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
 	case kline.Item:

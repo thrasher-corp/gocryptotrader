@@ -1655,41 +1655,13 @@ func TestProcessMarketSnapshot(t *testing.T) {
 		require.NoError(t, err, "processMarketSnapshot must store each ticker before dispatch")
 		assert.Equal(t, tickers[i].Last, stored.Last, "stored ticker should contain the dispatched price")
 	}
-	seenAssetTypes := map[asset.Item]int{}
-	for i := range tickers {
-		v := &tickers[i]
-		switch i {
-		case 0:
-			assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-			assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
-			assert.Equal(t, 0.004445, v.High, "high")
-			assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
-			assert.Equal(t, 0.004191, v.Low, "low")
-			assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-			assert.Equal(t, 13097.3357, v.BaseVolume, "BaseVolume should decode from vol")
-			assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
-		case 1, 2:
-			assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
-			assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
-			seenAssetTypes[v.AssetType]++
-			assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
-			assert.Equal(t, 0.054846, v.High, "high")
-			assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
-			assert.Equal(t, 0.05364, v.Low, "low")
-			assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-			assert.Equal(t, 2958.3139116, v.BaseVolume, "BaseVolume should decode from vol")
-			assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
-		case 3:
-			assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-			assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
-			assert.Equal(t, 37750.0, v.High, "high")
-			assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
-			assert.Equal(t, 36700.0, v.Low, "low")
-			assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-			assert.Equal(t, 2900.37846402, v.BaseVolume, "BaseVolume should decode from vol")
-			assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
-		}
+	exp := []ticker.Price{
+		{ExchangeName: ku.Name, AssetType: asset.Margin, Pair: currency.NewPairWithDelimiter("TRX", "BTC", "-"), Last: 0.004415, High: 0.004445, Low: 0.004191, Open: 0.004415, Close: 0.004415, BaseVolume: 13097.3357, QuoteVolume: 57.44552981, LastUpdated: time.UnixMilli(1700555342007)},
+		{ExchangeName: ku.Name, AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("ETH", "BTC", "-"), Last: 0.053778, High: 0.054846, Low: 0.05364, Open: 0.054236, Close: 0.053778, BaseVolume: 2958.3139116, QuoteVolume: 160.7847672784213, LastUpdated: time.UnixMilli(1700555340197)},
+		{ExchangeName: ku.Name, AssetType: asset.Margin, Pair: currency.NewPairWithDelimiter("ETH", "BTC", "-"), Last: 0.053778, High: 0.054846, Low: 0.05364, Open: 0.054236, Close: 0.053778, BaseVolume: 2958.3139116, QuoteVolume: 160.7847672784213, LastUpdated: time.UnixMilli(1700555340197)},
+		{ExchangeName: ku.Name, AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USDT", "-"), Last: 37366.8, High: 37750, Low: 36700, Open: 37195.3, Close: 37366.8, BaseVolume: 2900.37846402, QuoteVolume: 108210331.34015164, LastUpdated: time.UnixMilli(1700555342151)},
 	}
+	assert.Equal(t, exp, tickers, "processMarketSnapshot should send a ticker per enabled asset with every snapshot field mapped")
 
 	ku = testInstance(t)
 	msg := []byte(`{"data":{"symbol":"UNTRACKED-USDT"}}`)
