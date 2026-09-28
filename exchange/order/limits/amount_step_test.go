@@ -1,33 +1,12 @@
 package limits
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
-
-func TestGreatestCommonDivisor(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name     string
-		first    int64
-		second   int64
-		expected int64
-	}{
-		{name: "shared factors", first: 18, second: 24, expected: 6},
-		{name: "coprime", first: 17, second: 13, expected: 1},
-		{name: "zero operand", first: 0, second: 12, expected: 12},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := greatestCommonDivisor(big.NewInt(tc.first), big.NewInt(tc.second))
-			assert.Equal(t, tc.expected, result.Int64(), "greatestCommonDivisor should return the expected divisor")
-		})
-	}
-}
 
 func TestFractionalDigits(t *testing.T) {
 	t.Parallel()

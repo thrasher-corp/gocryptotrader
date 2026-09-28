@@ -21,7 +21,7 @@ var (
 	errCannotParseBaseIncrement      = errors.New("cannot parse base increment")
 )
 
-// AmountStep describes the executable order increment and the base amount
+// AmountStep describes a defined order increment and the base amount
 // represented by each order unit. Spot markets conventionally use a contract
 // multiplier of one. The base-amount methods require ContractMultiplier to be
 // a fixed base-asset amount per order unit; a quote-denominated contract value,
@@ -32,7 +32,7 @@ type AmountStep struct {
 	ContractMultiplier decimal.Decimal
 }
 
-// BaseIncrement returns the smallest base-asset quantity executable under the
+// BaseIncrement returns the smallest base-asset quantity defined under the
 // amount step.
 func (a AmountStep) BaseIncrement() (decimal.Decimal, error) {
 	increment, err := a.orderIncrement()
@@ -52,7 +52,7 @@ func (a AmountStep) BaseIncrement() (decimal.Decimal, error) {
 	return baseIncrement, nil
 }
 
-// FloorBaseAmount rounds a base-asset amount down to an executable increment.
+// FloorBaseAmount rounds a base-asset amount down to its defined increment.
 // A positive amount smaller than the increment rounds to zero without error.
 func (a AmountStep) FloorBaseAmount(amount decimal.Decimal) (decimal.Decimal, error) {
 	if !amount.IsPositive() {
@@ -65,7 +65,7 @@ func (a AmountStep) FloorBaseAmount(amount decimal.Decimal) (decimal.Decimal, er
 	return amount.Sub(amount.Mod(increment)), nil
 }
 
-// CeilBaseAmount rounds a base-asset amount up to an executable increment.
+// CeilBaseAmount rounds a base-asset amount up to its defined increment.
 func (a AmountStep) CeilBaseAmount(amount decimal.Decimal) (decimal.Decimal, error) {
 	if !amount.IsPositive() {
 		return decimal.Zero, fmt.Errorf("%w: %s", ErrAmountNotPositive, amount)
@@ -82,7 +82,7 @@ func (a AmountStep) CeilBaseAmount(amount decimal.Decimal) (decimal.Decimal, err
 }
 
 // FloorOrderAmount rounds an amount in exchange order units down to its
-// executable increment. A contract multiplier is not required because both
+// defined increment. A contract multiplier is not required because both
 // the amount and increment are already expressed in order units. A positive
 // amount smaller than the increment rounds to zero without error.
 func (a AmountStep) FloorOrderAmount(amount decimal.Decimal) (decimal.Decimal, error) {
@@ -96,7 +96,7 @@ func (a AmountStep) FloorOrderAmount(amount decimal.Decimal) (decimal.Decimal, e
 	return amount.Sub(amount.Mod(increment)), nil
 }
 
-// CommonBaseIncrement returns the smallest base-asset amount executable by
+// CommonBaseIncrement returns the smallest base-asset amount defined by
 // both amount steps.
 func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, error) {
 	first, err := a.BaseIncrement()
@@ -127,7 +127,8 @@ func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, erro
 
 	var numeratorProduct, numeratorLCM, denominatorGCD big.Int
 	numeratorProduct.Mul(firstRat.Num(), secondRat.Num())
-	numeratorLCM.Div(&numeratorProduct, greatestCommonDivisor(firstRat.Num(), secondRat.Num()))
+	numeratorGCD := new(big.Int).GCD(nil, nil, firstRat.Num(), secondRat.Num())
+	numeratorLCM.Div(&numeratorProduct, numeratorGCD)
 	denominatorGCD.GCD(nil, nil, firstRat.Denom(), secondRat.Denom())
 
 	resultRat := new(big.Rat).SetFrac(&numeratorLCM, &denominatorGCD)
@@ -137,12 +138,6 @@ func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, erro
 		return decimal.Zero, fmt.Errorf("cannot convert common base increment: %w", err)
 	}
 	return result, nil
-}
-
-func greatestCommonDivisor(first, second *big.Int) *big.Int {
-	var result big.Int
-	result.GCD(nil, nil, first, second)
-	return &result
 }
 
 func fractionalDigits(value string) int {
