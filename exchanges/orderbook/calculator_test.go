@@ -795,6 +795,7 @@ func TestLevelDecimalNonFinite(t *testing.T) {
 
 			_, err = (Levels{tests[i].level}).CalculateExecution(decimal.NewFromInt(1), decimal.NewFromInt(1))
 			require.ErrorIs(t, err, ErrOrderbookInvalid, "CalculateExecution must report an invalid orderbook level")
+			assert.ErrorIs(t, err, errNonFiniteValue, "CalculateExecution should preserve the underlying level validation error")
 			assert.ErrorContains(t, err, errNonFiniteValue.Error(), "CalculateExecution should identify the non-finite value")
 			assert.Equal(t, 1, strings.Count(err.Error(), ErrOrderbookInvalid.Error()), "CalculateExecution should report the orderbook sentinel only once")
 		})

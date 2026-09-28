@@ -341,14 +341,14 @@ func (l Levels) CalculateExecution(orderAmount, multiplier decimal.Decimal) (Exe
 	for i := range l {
 		levelAmount, err := levelDecimal(l[i].Amount, l[i].StrAmount)
 		if err != nil {
-			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid amount %q: %v", ErrOrderbookInvalid, i, levelInput(l[i].Amount, l[i].StrAmount), err)
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid amount %q: %w", ErrOrderbookInvalid, i, levelInput(l[i].Amount, l[i].StrAmount), err)
 		}
 		if !levelAmount.IsPositive() {
 			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid amount %q", ErrOrderbookInvalid, i, levelInput(l[i].Amount, l[i].StrAmount))
 		}
 		levelPrice, err := levelDecimal(l[i].Price, l[i].StrPrice)
 		if err != nil {
-			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid price %q: %v", ErrOrderbookInvalid, i, levelInput(l[i].Price, l[i].StrPrice), err)
+			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid price %q: %w", ErrOrderbookInvalid, i, levelInput(l[i].Price, l[i].StrPrice), err)
 		}
 		if !levelPrice.IsPositive() {
 			return ExecutionCalculation{}, fmt.Errorf("%w: level %d has invalid price %q", ErrOrderbookInvalid, i, levelInput(l[i].Price, l[i].StrPrice))
