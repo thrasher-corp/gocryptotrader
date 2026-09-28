@@ -242,7 +242,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	if p.HTTPRecording {
 		// This dumps http responses for future mocking implementations
 		if err := mock.HTTPRecord(resp, r.name, contents, p.HTTPMockDataSliceLimit); err != nil {
-			return false, fmt.Errorf("mock recording failure %w, request %v: resp: %v", err, req, resp)
+			return false, fmt.Errorf("mock recording failure %w, request %s %s: resp: %s", err, req.Method, pathForLog(p.Path), resp.Status)
 		}
 	}
 

@@ -186,6 +186,7 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 		{name: "every credential in a collection", contentType: "application/json", body: `[{"secret":"a"},{"nested":{"secret":"b"},"other":{"secret":"c"}},1]`, expected: `[{"secret":"[REDACTED]"},{"nested":{"secret":"[REDACTED]"},"other":{"secret":"[REDACTED]"}},1]`},
 		{name: "declared form resembling JSON string", contentType: "application/x-www-form-urlencoded", body: `"password=secret"`, expected: `"password=[REDACTED]`},
 		{name: "declared form resembling JSON object", contentType: "application/x-www-form-urlencoded", body: `{"a":1}`, expected: `{"a":1}`},
+		{name: "declared form carrying unchanged JSON", contentType: "application/x-www-form-urlencoded", body: `{"orderId":1234567890123456789,"note":"a\u0026b"}`, expected: `{"orderId":1234567890123456789,"note":"a\u0026b"}`},
 		{name: "declared form carrying JSON credentials", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret"}`, expected: `{"password":"[REDACTED]"}`},
 		{name: "declared form readable as both", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","note":"&key=form-secret&x="}`, expected: `{"note":"\u0026key=[REDACTED]\u0026x=","password":"[REDACTED]"}`},
 		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
@@ -434,6 +435,33 @@ func TestExecuteRequestBadStatusRedactsCredentials(t *testing.T) {
 	require.ErrorIs(t, err, ErrBadStatus, "form-labelled JSON error must return ErrBadStatus")
 	assert.Contains(t, err.Error(), `"password":"[REDACTED]"`, "form-labelled JSON error should retain redacted response structure")
 	assert.NotContains(t, err.Error(), "response-secret", "form-labelled JSON error should not expose response credentials")
+}
+
+func TestExecuteRequestRecordingFailureRedactsCredentials(t *testing.T) {
+	t.Parallel()
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Status:     "200 OK",
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Set-Cookie": []string{"session=secret-cookie"}},
+			Body:       io.NopCloser(strings.NewReader(`{}`)),
+			Request:    req,
+		}, nil
+	})}
+	// No mock file exists for this service, so recording fails.
+	r, err := New("recordingfailure", httpClient)
+	require.NoError(t, err, "New must not error")
+	const path = "https://example.com/api?timestamp=1&signature=secret-signature"
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error")
+	req.Header.Set("OK-ACCESS-KEY", "secret-header")
+
+	_, err = r.executeRequest(t.Context(), &Item{Method: http.MethodGet, Path: path, HTTPRecording: true}, req, 1, false)
+	require.ErrorContains(t, err, "mock recording failure", "executeRequest must return the recording failure")
+	assert.Contains(t, err.Error(), "GET https://example.com/api?timestamp=1&signature=[REDACTED]", "recording failure should name the redacted request")
+	for _, secret := range []string{"secret-signature", "secret-header", "secret-cookie"} {
+		assert.NotContainsf(t, err.Error(), secret, "recording failure should not contain %s", secret)
+	}
 }
 
 func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
