@@ -821,9 +821,11 @@ func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 	setup.RunningURL = wsURL
 	require.NoError(t, ws.Setup(setup), "Setup must not error")
 	require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+	require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL, Authenticated: true}), "SetupNewConnection must not error for the authenticated connection")
 
 	readerDone := make(chan struct{})
-	// Mirrors an exchange whose login fails after the public socket and its reader are already running
+	// Mirrors an exchange whose login on the authenticated socket fails after the public socket and its reader are
+	// already running
 	ws.connector = func() error {
 		if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
 			return err
@@ -836,6 +838,9 @@ func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 				}
 			}
 		})
+		if err := ws.AuthConn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+			return err
+		}
 		return errDastardlyReason
 	}
 
@@ -847,7 +852,7 @@ func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 	default:
 		assert.Fail(t, "reader should be stopped by the time Connect returns")
 	}
-	assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see the socket closed")
+	assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
 }
 
 func TestCreateConnectAndSubscribeClosesUntrackedConnection(t *testing.T) {
@@ -908,6 +913,8 @@ func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
 		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
 		setup := newDefaultSetup()
 		setup.UseMultiConnectionManagement = true
+		// Cleanup gives the connection monitor five seconds to stop, so its cycle must not follow the default
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
 		require.NoError(t, ws.Setup(setup), "Setup must not error")
 
 		connectorErr := errDastardlyReason
@@ -948,6 +955,53 @@ func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
 		synctest.Wait()
 		assert.True(t, ws.IsConnected(), "IsConnected should return true while traffic keeps arriving after failed connection attempts")
 		assert.Equal(t, int64(1), dials.Load(), "connection should not be dropped and dialled again")
+
+		// Once traffic stops, the traffic monitor must drop the connection so that it is dialled again
+		time.Sleep(3*ws.trafficTimeout + ws.connectionMonitorDelay)
+		synctest.Wait()
+		assert.Greater(t, dials.Load(), int64(1), "connection should be dropped and dialled again once traffic stops")
+	})
+}
+
+func TestConnectSingleConnectionTrafficMonitorDropsSilentConnection(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.RunningURL = wsURL
+		// Cleanup gives the connection monitor five seconds to stop, so its cycle must not follow the default
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+
+		var dials atomic.Int64
+		ws.connector = func() error {
+			dials.Add(1)
+			if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+				return err
+			}
+			ws.Wg.Go(func() {
+				for {
+					if resp := ws.Conn.ReadMessage(); resp.Raw == nil {
+						return
+					}
+				}
+			})
+			return nil
+		}
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+
+		// No traffic arrives, so the traffic monitor must drop the connection and the connection monitor dial it again
+		time.Sleep(3*ws.trafficTimeout + ws.connectionMonitorDelay)
+		synctest.Wait()
+		assert.Greater(t, dials.Load(), int64(1), "connection should be dropped and dialled again when no traffic arrives")
 	})
 }
 
