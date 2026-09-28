@@ -283,6 +283,7 @@ func TestWsHandlePrivateAccount(t *testing.T) {
 	assert.Equal(t, 0.5, stored.Hold, "the stored hold should be the frozen amount")
 	assert.Equal(t, 100.5, stored.Free, "the stored free balance should be the available amount")
 
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "one payload must be relayed")
 	payload := <-ex.Websocket.DataHandler.C
 	subAccounts, ok := payload.Data.(accounts.SubAccounts)
 	require.Truef(t, ok, "payload must be accounts.SubAccounts, got %T", payload.Data)
