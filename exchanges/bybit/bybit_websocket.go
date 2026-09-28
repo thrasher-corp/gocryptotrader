@@ -322,11 +322,11 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 			coin := result.Data[x].Coin[y]
 			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, coin.Coin, func(balance *accounts.Balance) {
 				balance.Total = coin.WalletBalance.Float64()
+				// Only non-UNIFIED wallets use availableToWithdraw; it is deprecated for
+				// UNIFIED wallets, whose REST-derived availability must be preserved.
 				if !strings.EqualFold(result.Data[x].AccountType, "UNIFIED") {
 					balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
 				}
-				// Unified wallet pushes preserve REST-derived availability because
-				// availableToWithdraw is deprecated for that account type.
 			})
 			if err != nil {
 				return err
