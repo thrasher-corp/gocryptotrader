@@ -170,7 +170,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}); err != nil {
 		return err
 	}
-	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   spotWSURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      time.Second * 3,
@@ -178,9 +178,26 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:             e.WsConnect,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
 		Handler:               e.WsHandleData,
 		MessageFilter:         asset.Spot,
+	}); err != nil {
+		return err
+	}
+	// Only the private channels need a listen key, so they have a connection of their own, set up last so
+	// that a public connection failing to connect ends the connect before a key is minted.
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   spotWSURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      time.Second * 3,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		Authenticated:         true,
+		Connector:             e.wsConnectPrivate,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.generatePrivateSubscriptions,
+		Handler:               e.WsHandleData,
+		MessageFilter:         privateConnection,
 	})
 }
 

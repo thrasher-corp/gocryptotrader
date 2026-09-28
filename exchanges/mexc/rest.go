@@ -1607,8 +1607,8 @@ func (e *Exchange) GenerateListenKey(ctx context.Context) (string, error) {
 }
 
 // ExtendListenKey renews the user data stream so it stays open past its 60-minute expiry. The stream
-// closes 60 minutes after creation unless a keepalive PUT is sent; WsConnect creates the key once, so
-// without this the private stream silently dies after an hour.
+// closes 60 minutes after creation unless a keepalive PUT is sent; wsConnectPrivate creates the key once,
+// so without this the private stream silently dies after an hour.
 func (e *Exchange) ExtendListenKey(ctx context.Context, listenKey string) error {
 	if listenKey == "" {
 		return errListenKeyRequired

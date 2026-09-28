@@ -54,13 +54,25 @@ const (
 	wsPongMessage = "PONG"
 )
 
-// WsConnect initiates a websocket connection
+// privateConnection filters the connection carrying the private channels
+const privateConnection = "private"
+
+// WsConnect initiates a public websocket connection
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
+	return e.wsDial(ctx, conn, false)
+}
+
+// wsConnectPrivate initiates the websocket connection carrying the private channels
+func (e *Exchange) wsConnectPrivate(ctx context.Context, conn websocket.Connection) error {
+	return e.wsDial(ctx, conn, true)
+}
+
+func (e *Exchange) wsDial(ctx context.Context, conn websocket.Connection, private bool) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var listenKey string
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if private && e.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
 		if listenKey, err = e.GenerateListenKey(ctx); err != nil {
 			return err
@@ -202,6 +214,33 @@ var defaultSubscriptions = subscription.List{
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
+}
+
+// isPrivateChannel reports whether an expanded subscription is to a private channel, which is only served
+// over a connection dialled with a listen key. It goes by the qualified channel rather than the
+// Authenticated flag, which a configured subscription can leave out.
+func isPrivateChannel(s *subscription.Subscription) bool {
+	switch wsChannelName(s.QualifiedChannel) {
+	case channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI:
+		return true
+	}
+	return false
+}
+
+// generatePublicSubscriptions returns the configured subscriptions to the public channels
+func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+	subs, err := e.generateSubscriptions()
+	return slices.DeleteFunc(subs, isPrivateChannel), err
+}
+
+// generatePrivateSubscriptions returns the configured subscriptions to the private channels, none unless the
+// authenticated websocket can be used
+func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, nil
+	}
+	subs, err := e.generateSubscriptions()
+	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return !isPrivateChannel(s) }), err
 }
 
 // GetSubscriptionTemplate returns a subscription channel template

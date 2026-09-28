@@ -1002,10 +1002,9 @@ func TestGenerateBrokerSubAccountDepositAddressRequestBody(t *testing.T) {
 	assert.JSONEq(t, `{"coin":"USDT","network":"TRC20"}`, string(body), "the body should carry coin and network")
 }
 
-// TestKeepListenKeyAliveRenewsEachConnectionsOwnKey asserts that when subscriptions span more than one
-// connection each connection's renewer renews its own listen key, not a shared last-minted slot, so no
-// stream's key is left to expire. Reverting the renewer to a single shared key renews only one of the
-// two here.
+// TestKeepListenKeyAliveRenewsEachConnectionsOwnKey asserts that each keyed connection's renewer renews its
+// own listen key, not a shared last-minted slot, so no stream's key is left to expire. Reverting the
+// renewer to a single shared key renews only one of the two here.
 func TestKeepListenKeyAliveRenewsEachConnectionsOwnKey(t *testing.T) {
 	prev := listenKeyKeepAliveInterval
 	listenKeyKeepAliveInterval = 5 * time.Millisecond
@@ -1032,7 +1031,7 @@ func TestKeepListenKeyAliveRenewsEachConnectionsOwnKey(t *testing.T) {
 	ex.Websocket.Wg.Wait()
 }
 
-// listenKeyTestConn stands in for a manager connection: WsConnect dials it, and its renewer asks whether
+// listenKeyTestConn stands in for a manager connection: a connector dials it, and its renewer asks whether
 // it is still connected.
 type listenKeyTestConn struct {
 	websocket.Connection
@@ -1067,7 +1066,7 @@ func TestKeepListenKeyAliveStopsWithItsConnection(t *testing.T) {
 	}))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	conn := &listenKeyTestConn{url: "wss://one"}
-	require.NoError(t, ex.WsConnect(t.Context(), conn), "WsConnect must not error")
+	require.NoError(t, ex.wsConnectPrivate(t.Context(), conn), "wsConnectPrivate must not error")
 	assert.Equal(t, "wss://one?listenKey=key-1", conn.url, "the connection should dial with its listen key")
 	require.Eventually(t, func() bool { return renewed.Load() > 0 }, time.Second, 5*time.Millisecond, "the key must be renewed while its connection is open")
 
@@ -1531,9 +1530,9 @@ func (c *failingDialConn) Dial(context.Context, *gws.Dialer, http.Header, url.Va
 	return errors.New("dial refused")
 }
 
-// TestWsConnectReleasesListenKeyOnFailedDial releases the listen key minted for a connection whose dial
-// fails: no renewer owns it yet, and the monitor retries a failed connect every few seconds.
-func TestWsConnectReleasesListenKeyOnFailedDial(t *testing.T) {
+// TestWsConnectPrivateReleasesListenKeyOnFailedDial releases the listen key minted for a connection whose
+// dial fails: no renewer owns it yet, and the monitor retries a failed connect every few seconds.
+func TestWsConnectPrivateReleasesListenKeyOnFailedDial(t *testing.T) {
 	t.Parallel()
 	keys := []string{"KEY_A", "KEY_B", "KEY_C"}
 	var mu sync.Mutex
@@ -1553,12 +1552,150 @@ func TestWsConnectReleasesListenKeyOnFailedDial(t *testing.T) {
 	}))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	for range 3 {
-		assert.Error(t, ex.WsConnect(t.Context(), &failingDialConn{url: spotWebsocketURL}), "WsConnect should report the failed dial")
+		assert.Error(t, ex.wsConnectPrivate(t.Context(), &failingDialConn{url: spotWebsocketURL}), "wsConnectPrivate should report the failed dial")
 	}
 	mu.Lock()
 	defer mu.Unlock()
 	require.Len(t, minted, 3, "each attempt must mint a listen key")
 	assert.Equal(t, minted, closed, "each minted listen key should be released when its dial fails")
+}
+
+// TestWsConnectPublicConnectionsTakeNoListenKey dials a public connection without a listen key. The venue
+// holds 60 keys per account, so a key minted for every connection ran out once the subscriptions needed
+// more than 60 connections, and no connection could then be made.
+func TestWsConnectPublicConnectionsTakeNoListenKey(t *testing.T) {
+	t.Parallel()
+	var minted atomic.Int64
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			minted.Add(1)
+		}
+		_, _ = w.Write([]byte(`{"listenKey":"key-1"}`))
+	}))
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	conn := &listenKeyTestConn{url: "wss://one"}
+	require.NoError(t, ex.WsConnect(t.Context(), conn), "WsConnect must not error")
+	assert.Equal(t, "wss://one", conn.url, "a public connection should dial without a listen key")
+	assert.Zero(t, minted.Load(), "a public connection should not mint a listen key")
+}
+
+// TestGenerateSubscriptionsSplitsPrivateChannels puts the private channels on the connection that takes
+// the listen key and the public ones on the connections that take none.
+func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
+	t.Parallel()
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	all, err := ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	public, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	private, err := ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	require.NotEmpty(t, public, "the public channels must be subscribed")
+	require.NotEmpty(t, private, "the private channels must be subscribed")
+	assert.Len(t, all, len(public)+len(private), "every channel should be on one connection or the other")
+	for _, s := range public {
+		assert.Falsef(t, isPrivateChannel(s), "%s should be public to go on a public connection", s.QualifiedChannel)
+	}
+	for _, s := range private {
+		assert.Truef(t, isPrivateChannel(s), "%s should be private to go on the private connection", s.QualifiedChannel)
+	}
+
+	// A configured private channel need not carry the Authenticated flag, and is only served with the key
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel}}
+	private, err = ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	require.Len(t, private, 1, "a private channel configured without the Authenticated flag must still be subscribed")
+	assert.Equal(t, "spot@"+channelPrivateOrdersAPI, private[0].QualifiedChannel, "the private orders channel should be on the private connection")
+
+	// An already expanded subscription is passed through as it is, so it is placed by its qualified channel
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, QualifiedChannel: "spot@" + channelPrivateDealsV3}}
+	private, err = ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	assert.Len(t, private, 1, "an expanded private subscription should be on the private connection")
+
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	private, err = ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	assert.Empty(t, private, "no private channel should be subscribed without the authenticated websocket")
+}
+
+// TestWebsocketTakesOneListenKeyForThePrivateChannels connects through the websocket manager to a local
+// venue: the private channels must go over the one connection dialled with a listen key, and the public
+// channels over connections dialled without one.
+func TestWebsocketTakesOneListenKeyForThePrivateChannels(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var minted int
+	// keyed records, for each channel subscribed, whether each subscription went over a connection with a key
+	keyed := make(map[string][]bool)
+	var upgrader gws.Upgrader
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "userDataStream") {
+			mu.Lock()
+			if r.Method == http.MethodPost {
+				minted++
+			}
+			mu.Unlock()
+			_, _ = w.Write([]byte(`{"listenKey":"key-1"}`))
+			return
+		}
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		withKey := r.URL.Query().Get("listenKey") != ""
+		go func() {
+			defer c.Close()
+			for {
+				_, msg, err := c.ReadMessage()
+				if err != nil {
+					return
+				}
+				var req WsSubscriptionPayload
+				if json.Unmarshal(msg, &req) != nil || req.Method != "SUBSCRIPTION" || len(req.Params) != 1 {
+					continue
+				}
+				mu.Lock()
+				keyed[req.Params[0]] = append(keyed[req.Params[0]], withKey)
+				mu.Unlock()
+				resp, err := json.Marshal(&WsSubscriptionResponse{ID: req.ID, Message: req.Params[0]})
+				if err != nil || c.WriteMessage(gws.TextMessage, resp) != nil {
+					return
+				}
+			}
+		}()
+	}))
+	t.Cleanup(srv.Close)
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.SetCredentials(&accounts.Credentials{Key: testCredentialKey, Secret: testCredentialSecret})
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(srv.URL, "http")), "SetAllConnectionURLs must not error")
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	}
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error") })
+
+	subs, err := ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	want := make(map[string][]bool, len(subs))
+	for _, s := range subs {
+		want[s.QualifiedChannel] = []bool{strings.Contains(s.QualifiedChannel, "@private.")}
+	}
+	require.Contains(t, want, "spot@"+channelPrivateOrdersAPI, "the private orders channel must be configured")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, 1, minted, "one listen key should be minted, for the private connection")
+	assert.Equal(t, want, keyed, "each channel should be subscribed once, over a connection with a listen key only if it is private")
 }
 
 // TestCreateBatchOrderMarketParameters applies the single-order market rules to each batch entry: no

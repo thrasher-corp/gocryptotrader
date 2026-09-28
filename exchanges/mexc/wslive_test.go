@@ -222,7 +222,7 @@ func TestLiveSpotPrivateSubscriptions(t *testing.T) {
 
 	testexch.SetupWs(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "the authenticated path must be enabled")
-	conn, err := e.Websocket.GetConnection(asset.Spot)
+	conn, err := e.Websocket.GetConnection(privateConnection)
 	require.NoError(t, err, "GetConnection must not error")
 
 	all, err := defaultSubscriptions.Clone().ExpandTemplates(e)
