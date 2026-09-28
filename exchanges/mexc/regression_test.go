@@ -19,6 +19,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -687,6 +688,27 @@ func TestGetOrderInfoAverageExecutedPrice(t *testing.T) {
 	require.NoError(t, err, "GetOrderInfo must not error")
 	assert.InDelta(t, 0.175137, detail.AverageExecutedPrice, 1e-6, "AverageExecutedPrice should be the average fill, not the price field")
 	assert.Equal(t, 0.183503, detail.Price, "Price should still carry the reported price field")
+}
+
+// TestGetFeeByTypeWithoutCredentials estimates a trade fee offline when there are no credentials to read the
+// account's own rates with, rather than failing on the authenticated request.
+func TestGetFeeByTypeWithoutCredentials(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int64
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls.Add(1) }))
+	ex.SetCredentials(&accounts.Credentials{})
+	fee, err := ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.NewPair(currency.NewCode("KAS"), currency.USDT),
+		PurchasePrice: 50000,
+		Amount:        0.5,
+	})
+	require.NoError(t, err, "GetFeeByType must not error without credentials")
+	assert.InDelta(t, 12.5, fee, 1e-9, "Fee should be the offline taker estimate")
+	assert.Zero(t, calls.Load(), "no request should be made without credentials")
+
+	_, err = ex.GetFeeByType(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType should error on a nil fee builder")
 }
 
 // TestGetOrderInfoEnrichesVenueFee asserts GetOrderInfo reads the commission facts from myTrades for a

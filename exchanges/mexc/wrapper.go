@@ -1340,6 +1340,13 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	// returning the bare rate reported e.g. 0.0005 as if it were the fee. The offline branch is the
 	// same calculation against a fixed worst-case rate, used when no credentials are available to ask
 	// the exchange for the account's own schedule.
+	if err := common.NilGuard(feeBuilder); err != nil {
+		return 0, err
+	}
+	// The account's own rates need credentials; without them the offline estimate is the best answer.
+	if feeBuilder.FeeType == exchange.CryptocurrencyTradeFee && !e.AreCredentialsValid(ctx) {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
 		if feeBuilder.IsMaker {
