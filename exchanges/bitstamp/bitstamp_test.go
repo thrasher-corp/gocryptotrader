@@ -202,15 +202,16 @@ func TestAllCurrencyPairTickers(t *testing.T) {
 	assert.False(t, result[0].Market.IsEmpty(), "ticker market should be set")
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, result[0].Side.Side(), "ticker side should decode")
 	if mockTests {
-		require.Len(t, result, 3, "fixture must include enabled, perpetual and disabled markets")
-		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"), result[1].Market, "perpetual market should decode")
-		assert.Equal(t, currency.NewPairWithDelimiter("ZRX", "USD", "/"), result[2].Market, "disabled spot market should decode")
-		assert.Zero(t, result[2].PercentChange24Hour, "empty percentage change should decode as zero")
+		require.Len(t, result, 4, "fixture must include locked, enabled, perpetual and disabled markets")
+		assert.Equal(t, currency.NewPairWithDelimiter("XRP", "EUR", "/"), result[0].Market, "locked market should decode")
+		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD-PERP", "/"), result[2].Market, "perpetual market should decode")
+		assert.Equal(t, currency.NewPairWithDelimiter("ZRX", "USD", "/"), result[3].Market, "disabled spot market should decode")
+		assert.Zero(t, result[3].PercentChange24Hour, "empty percentage change should decode as zero")
 	}
 }
 
 func TestUpdateTicker(t *testing.T) {
-	// The ticker store is shared with the parallel batch test.
+	t.Parallel()
 	got, err := e.UpdateTicker(t.Context(), currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err, "UpdateTicker must not error")
 	require.NotNil(t, got, "UpdateTicker must return the stored price")
@@ -244,6 +245,12 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	if mockTests {
+		require.NoError(t, testexch.MockHTTPInstance(e, "api"), "Test instance MockHTTPInstance must not error")
+	}
+	e.Name = t.Name()
 	assert.ErrorIs(t, e.UpdateTickers(t.Context(), asset.Empty), asset.ErrNotSupported, "UpdateTickers should reject an empty asset")
 	assert.ErrorIs(t, e.UpdateTickers(t.Context(), asset.Futures), asset.ErrNotSupported, "UpdateTickers should reject a non-spot asset")
 	assets := e.GetAssetTypes(false)
@@ -251,7 +258,12 @@ func TestUpdateTickers(t *testing.T) {
 	for _, a := range assets {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			require.NoError(t, e.UpdateTickers(t.Context(), a), "UpdateTickers must not error")
+			err := e.UpdateTickers(t.Context(), a)
+			if mockTests {
+				require.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "locked XRP/EUR must report an error")
+			} else {
+				require.NoError(t, err, "UpdateTickers must not error")
+			}
 			got, err := ticker.GetTicker(e.Name, currency.NewBTCUSD(), a)
 			require.NoError(t, err, "BTC/USD ticker must be stored")
 			if mockTests {

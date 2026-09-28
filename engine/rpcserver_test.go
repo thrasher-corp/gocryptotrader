@@ -2024,7 +2024,7 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	request := &gctrpc.GetTickerRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: pair.Delimiter,
+			Delimiter: "-",
 			Base:      pair.Base.String(),
 			Quote:     pair.Quote.String(),
 		},
@@ -2034,22 +2034,19 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	// Check if timestamp returned is in seconds if !TimeInNanoSeconds.
 	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = false
 	one, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
-	if want := now.Unix(); one.LastUpdated != want {
-		t.Errorf("have %d, want %d", one.LastUpdated, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, now.Unix(), one.LastUpdated)
+	assert.Equal(t, request.Pair, one.Pair, "GetTicker should echo the requested pair")
+	assert.Equal(t, "XXXXX-YYYYY", one.CurrencyPair, "GetTicker should echo the requested pair format")
 
 	// Check if timestamp returned is in nanoseconds if TimeInNanoSeconds.
 	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
 	two, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
-	if want := now.UnixNano(); two.LastUpdated != want {
-		t.Errorf("have %d, want %d", two.LastUpdated, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, now.UnixNano(), two.LastUpdated)
+	request.Pair.Base = "changed"
+	assert.Equal(t, "XXXXX", one.Pair.Base, "response pair should not alias the request")
+	assert.Equal(t, "XXXXX", two.Pair.Base, "response pair should not alias the request")
 }
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {

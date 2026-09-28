@@ -63857,6 +63857,15 @@
     {
      "data": [
       {
+       "ask": "0.50",
+       "bid": "0.50",
+       "last": "0.50",
+       "market": "XRP/EUR",
+       "market_type": "SPOT",
+       "side": "0",
+       "timestamp": "1790338043"
+      },
+      {
        "ask": "2211.00",
        "bid": "2188.97",
        "high": "2811.00",

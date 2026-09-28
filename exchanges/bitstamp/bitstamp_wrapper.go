@@ -247,6 +247,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
+	var errs error
 	for i := range result {
 		if !pairs.Contains(result[i].Market, true) {
 			continue
@@ -275,10 +276,11 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			AssetType:                  a,
 			LastUpdated:                result[i].Timestamp.Time(),
 		}); err != nil {
-			return err
+			// A locked market must not prevent later enabled markets from refreshing.
+			errs = common.AppendError(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

@@ -484,7 +484,15 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		return nil, err
 	}
 
-	return s.tickerResponse(t), nil
+	resp := s.tickerResponse(t)
+	// GetTicker echoes the caller's pair format even when the cache uses another format.
+	resp.Pair = &gctrpc.CurrencyPair{
+		Base:      r.Pair.Base,
+		Quote:     r.Pair.Quote,
+		Delimiter: r.Pair.Delimiter,
+	}
+	resp.CurrencyPair = r.Pair.Base + r.Pair.Delimiter + r.Pair.Quote
+	return resp, nil
 }
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
