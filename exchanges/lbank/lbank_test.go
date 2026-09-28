@@ -529,8 +529,8 @@ func TestGetOrderHistoryUnknownSide(t *testing.T) {
 }
 
 // TestOrderSideFromType ensures the order side is taken from the leading token
-// of an LBank order type, and that everything LBank does not send is rejected
-// rather than mapped by a looser rule.
+// of an LBank order type, and that a leading token other than buy or sell is
+// rejected rather than mapped by a looser rule.
 func TestOrderSideFromType(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
