@@ -873,8 +873,9 @@ const accountTradesMaxPages = 20
 // tradesForOrder fetches the fills of a spot order and maps them to domain trade records plus the
 // aggregated commission. MEXC charges commission per fill in an asset the venue chooses (base,
 // quote, or the MX discount token), so the fee currency is read from the fill and never assumed;
-// when fills disagree on the asset the aggregate currency is left unset. It is best-effort: a
-// myTrades failure must not sink the order lookup, so callers pass through the base order.
+// when the fills charged a commission disagree on its asset, the aggregate is left unset. It is
+// best-effort: a myTrades failure must not sink the order lookup, so callers pass through the base
+// order.
 //
 // myTrades returns at most 1000 fills per request, newest first and stamped to the second, with no
 // cursor, and its fill ids do not follow the fills' order. When a page comes back full, the fills
@@ -975,6 +976,10 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 	}
 	trades = make([]order.TradeHistory, 0, len(fills))
 	uniformFee := true
+	// charged records whether any fill was charged a commission, and unchargedAsset is the asset the fills
+	// name when none was, unless they name different ones
+	var charged, unchargedMixed bool
+	var unchargedAsset currency.Code
 	for _, f := range fills {
 		side := order.Buy
 		if !f.IsBuyer {
@@ -983,7 +988,15 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 		fillAsset := f.CommissionAsset
 		totalFee += f.Commission.Float64()
 		switch {
-		case feeAsset.IsEmpty():
+		case f.Commission.Float64() == 0:
+			// A fill charged nothing adds nothing in any asset, so it only names the fee asset when no fill was charged
+			if unchargedAsset.IsEmpty() {
+				unchargedAsset = fillAsset
+			} else if !fillAsset.IsEmpty() && !unchargedAsset.Equal(fillAsset) {
+				unchargedMixed = true
+			}
+		case !charged:
+			charged = true
 			feeAsset = fillAsset
 		case !feeAsset.Equal(fillAsset):
 			uniformFee = false
@@ -1000,6 +1013,9 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 			FeeAsset:  f.CommissionAsset.String(),
 			Total:     f.QuoteQuantity.Float64(),
 		})
+	}
+	if !charged && !unchargedMixed {
+		feeAsset = unchargedAsset
 	}
 	if !uniformFee {
 		// Commissions charged in different assets cannot be summed into a single figure: the total

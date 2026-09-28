@@ -692,7 +692,7 @@ func TestGetOrderInfoAverageExecutedPrice(t *testing.T) {
 // TestGetOrderInfoEnrichesVenueFee asserts GetOrderInfo reads the commission facts from myTrades for a
 // filled order: the Query Order response carries no commission, so the fee amount and its currency come
 // from the fills. The fee currency is taken from the fill (MEXC may charge in base, quote, or the MX
-// token), never assumed, and is left unset when fills disagree.
+// token), never assumed, and is left unset when the fills charged a commission disagree on it.
 func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 	t.Parallel()
 	kas := currency.NewPair(currency.NewCode("KAS"), currency.USDT)
@@ -737,6 +737,26 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 		assert.InDelta(t, 0.0035, detail.Trades[0].Fee, 1e-9, "the per-fill commission should still be reported")
 		assert.Equal(t, "USDT", detail.Trades[0].FeeAsset, "the per-fill commission asset should still be reported")
 		assert.Equal(t, "MX", detail.Trades[1].FeeAsset, "the per-fill commission asset should still be reported")
+	})
+
+	t.Run("a fill charged nothing has no say in the fee asset", func(t *testing.T) {
+		t.Parallel()
+		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0.0035","commissionAsset":"USDT","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","commission":"0","commissionAsset":"MX","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
+		e := newSignedTestExchange(t, routeVenue(filledSpotOrderBody, tradesBody))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.InDelta(t, 0.0035, detail.Fee, 1e-9, "Fee should be the commission of the fill charged")
+		assert.Equal(t, currency.USDT, detail.FeeAsset, "FeeAsset should be the asset of the fill charged")
+	})
+
+	t.Run("fills charged nothing keep their asset", func(t *testing.T) {
+		t.Parallel()
+		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","commission":"0","commissionAsset":"USDT","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","commission":"0","commissionAsset":"USDT","price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
+		e := newSignedTestExchange(t, routeVenue(filledSpotOrderBody, tradesBody))
+		detail, err := e.GetOrderInfo(t.Context(), "1", kas, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Zero(t, detail.Fee, "Fee should be zero when no fill was charged")
+		assert.Equal(t, currency.USDT, detail.FeeAsset, "FeeAsset should be the asset the fills name")
 	})
 
 	t.Run("no fills leaves fee unenriched without a trade call", func(t *testing.T) {
