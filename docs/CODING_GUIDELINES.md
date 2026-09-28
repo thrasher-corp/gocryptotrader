@@ -15,6 +15,11 @@ This document outlines the coding, formatting, and testing standards for impleme
     reports an American spelling, use the replacement in the
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
+- Treat review feedback as a standards-gap audit. Cross-reference each reusable
+    expectation against these guidelines and update this document when the rule
+    is missing or ambiguous. Keep domain-specific behaviour in the relevant
+    implementation and its tests rather than promoting one-off details into a
+    project-wide rule.
 
 ## Security
 
@@ -249,11 +254,6 @@ Use `require` and `assert` appropriately:
 - When resolving review feedback, fix the underlying source of truth, add
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
-- Treat review feedback as a standards-gap audit. Cross-reference each reusable
-    expectation against these guidelines and update this document when the rule
-    is missing or ambiguous. Keep exchange-specific API behaviour in the
-    implementation and its tests rather than promoting one-off details into a
-    project-wide rule.
 - Test changed REST and websocket mappings at their direct conversion boundary.
     When fields have similar meanings, use deliberately different fixture values
     that prove the intended source was selected, such as cumulative execution
