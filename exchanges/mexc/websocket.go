@@ -46,7 +46,7 @@ const (
 	channelPrivateOrdersAPI = "private.orders.v3.api.pb"
 
 	// miniTickerTimezone is a mandatory suffix of the spot miniTicker and miniTickers channels: MEXC
-	// rejects the subscription without it ("Not Subscribed successfully! ... Reason: Blocked!" — measured
+	// rejects the subscription without it ("Not Subscribed successfully! ... Reason: Blocked!", measured
 	// live).
 	// It only shifts the rate fields we do not consume; price/high/low/volume are timezone-agnostic.
 	miniTickerTimezone = "UTC+8"
@@ -267,7 +267,7 @@ func wsIntervalString(s *subscription.Subscription) string {
 
 // wsChannelName returns the channel name of a qualified push channel. MEXC qualifies a channel as
 // "spot@<name>[@<extra>...]": a public channel carries an interval and/or a symbol after the name,
-// a private channel carries nothing. The name must be read from the decoded frame — splitting the
+// a private channel carries nothing. The name must be read from the decoded frame: splitting the
 // raw protobuf bytes on "@" returns the name glued to the binary body whenever nothing follows it,
 // which matched no case and made every private channel unroutable.
 func wsChannelName(qualifiedChannel string) string {
@@ -302,7 +302,7 @@ func channelSuffix(channel string) string {
 
 // subscriptionAccepted reports whether MEXC actually accepted the subscription. MEXC answers a
 // rejected subscription with code 0 and an error text in msg (measured live:
-// `code=0 msg="Not Subscribed successfully! [<channel>]. Reason： Blocked!"`), so the code alone
+// `code=0 msg="Not Subscribed successfully! [<channel>]. Reason: Blocked!"`), so the code alone
 // cannot distinguish success from failure and a rejected channel would be registered as live.
 // An accepted request echoes the qualified channel back verbatim.
 func subscriptionAccepted(method, qualifiedChannel, msg string) bool {
@@ -337,7 +337,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 		// A confirmed unsubscription removes the channel from the active set; a rejected one is left
 		// registered because it is still live. The previous code added every confirmed channel via
 		// AddSuccessfulSubscriptions, so an accepted unsubscribe (MEXC replies code 0 echoing the
-		// channel — measured live) re-registered the channel it had just cancelled.
+		// channel, measured live) re-registered the channel it had just cancelled.
 		return e.Websocket.RemoveSubscriptions(conn, confirmed...)
 	}
 	// A rejected subscription was never stored, so there is nothing to remove: register the confirmed
@@ -350,8 +350,8 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 }
 
 // wsUpdateSpotTicker merges a partial spot ticker update into the cached ticker and publishes it.
-// MEXC splits the spot ticker over two channels — bookTicker carries the best bid/offer only and
-// miniTicker carries last/high/low/volume — so each update must be applied on top of the current
+// MEXC splits the spot ticker over two channels, bookTicker carrying the best bid/offer only and
+// miniTicker carrying last/high/low/volume, so each update must be applied on top of the current
 // ticker instead of replacing it, otherwise every channel would blank the other one's fields.
 func (e *Exchange) wsUpdateSpotTicker(ctx context.Context, cp currency.Pair, updated time.Time, apply func(*ticker.Price)) error {
 	// bookTicker and miniTicker for one pair can land on different connections once subscriptions span
@@ -388,7 +388,7 @@ func (e *Exchange) wsUpdateSpotMiniTicker(ctx context.Context, cp currency.Pair,
 		return err
 	}
 	// Measured against GET /api/v3/ticker/24hr for KASUSDT: miniTicker `quantity` is the base
-	// asset volume and `volume` is the quote volume — the opposite of the REST field naming.
+	// asset volume and `volume` is the quote volume, the opposite of the REST field naming.
 	baseVolume, err := parseOptionalFloat(body.Quantity)
 	if err != nil {
 		return err

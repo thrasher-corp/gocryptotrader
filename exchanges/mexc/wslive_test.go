@@ -22,7 +22,7 @@ import (
 )
 
 // TestLiveSpotTickerFlow subscribes to the public spot channels against the live exchange and counts
-// what actually arrives. The spot ticker defect was silent — no errors, simply no ticker — so only a
+// what actually arrives. The spot ticker defect was silent, with no errors and simply no ticker, so only a
 // live count can show the ticker flowing and the orderbook path still intact.
 // Public channels only, no credentials, no orders.
 func TestLiveSpotTickerFlow(t *testing.T) {

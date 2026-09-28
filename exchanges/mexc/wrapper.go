@@ -771,7 +771,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		case result.OrderID != "":
 			// MEXC's create-order ACK omits status; a populated OrderID from a successful NewOrder
 			// means the order was placed, so report New to keep WasOrderPlaced() true instead of
-			// UnknownStatus. The sweep resolves the real lifecycle status (FILLED/PARTIALLY_FILLED/…)
+			// UnknownStatus. The sweep resolves the real lifecycle status (FILLED, PARTIALLY_FILLED and so on)
 			// from GetOrderInfo afterwards.
 			ordStatus = order.New
 		}

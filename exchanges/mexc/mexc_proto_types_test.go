@@ -14,8 +14,8 @@ import (
 
 // TestProtoTypesAreUsable asserts every generated MEXC message can be handled by the protobuf
 // runtime. The runtime resolves a message's fields lazily, on first use, and panics when a struct
-// field's Go type contradicts its descriptor. Editing the generated code by hand — swapping a
-// descriptor's string for a float64 wrapper, or its int64 for a string — therefore compiles, links
+// field's Go type contradicts its descriptor. Editing the generated code by hand, such as swapping a
+// descriptor's string for a float64 wrapper or its int64 for a string, therefore compiles, links
 // and passes every test that never touches that message, and only fails at runtime on the live
 // feed. Three of these messages carried such an edit and none of them had a test: the defect was
 // invisible until a real frame arrived.

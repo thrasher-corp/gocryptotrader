@@ -240,7 +240,7 @@ func TestSubmitOrderPairFromRequest(t *testing.T) {
 
 // TestSubmitOrderPlacedWhenStatusAbsent covers MEXC's create-order ACK, which carries an orderId but
 // no status field (unlike Binance). A populated OrderID from a successful NewOrder means the order was
-// placed, so the response must report a placed status and WasOrderPlaced() must be true — otherwise a
+// placed, so the response must report a placed status and WasOrderPlaced() must be true; otherwise a
 // filled market order is mis-read as never placed.
 func TestSubmitOrderPlacedWhenStatusAbsent(t *testing.T) {
 	t.Parallel()
@@ -712,7 +712,7 @@ func TestGetOrderInfoEnrichesVenueFee(t *testing.T) {
 	t.Run("uniform commission asset aggregates fee and currency", func(t *testing.T) {
 		t.Parallel()
 		orderBody := filledSpotOrderBody
-		// clientOrderId is a string on MEXC (e.g. "C02__…"), not a number — the fixture pins the
+		// clientOrderId is a string on MEXC (e.g. "C02__1"), not a number; the fixture pins the
 		// decode contract so a numeric field type would fail here.
 		tradesBody := `[{"symbol":"KASUSDT","id":"t1","orderId":"1","clientOrderId":"C02__1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":true,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770000},{"symbol":"KASUSDT","id":"t2","orderId":"1","clientOrderId":"C02__1","commission":"0.0035","commissionAsset":"USDT","isBuyer":false,"isMaker":false,"price":"0.035","qty":"100","quoteQty":"3.5","time":1736409770500}]`
 		e := newSignedTestExchange(t, routeVenue(orderBody, tradesBody))
@@ -1771,7 +1771,7 @@ func TestHandleSubscriptionKeepsAcceptedWhenOneIsRejected(t *testing.T) {
 	refused := &subscription.Subscription{Channel: channelLimitDepthV3, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}, Levels: 50, QualifiedChannel: "spot@public.limit.depth.v3.api.pb@ETHUSDT@50"}
 	conn := &subscriptionTestConn{replies: map[string]string{
 		accepted.QualifiedChannel: `{"id":0,"code":0,"msg":"` + accepted.QualifiedChannel + `"}`,
-		refused.QualifiedChannel:  `{"id":0,"code":0,"msg":"Not Subscribed successfully! [` + refused.QualifiedChannel + `]. Reason： Blocked!"}`,
+		refused.QualifiedChannel:  `{"id":0,"code":0,"msg":"Not Subscribed successfully! [` + refused.QualifiedChannel + `]. Reason: Blocked!"}`,
 	}}
 	err := ex.handleSubscription(t.Context(), conn, "SUBSCRIPTION", subscription.List{accepted, refused})
 	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "a rejected subscription must be reported")
