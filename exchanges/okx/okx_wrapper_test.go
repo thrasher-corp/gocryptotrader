@@ -1106,6 +1106,51 @@ func TestWebsocketOrderMethodsGuards(t *testing.T) {
 		assert.ErrorIs(t, err, errMissingInstrumentIDCode, "an uncached instrument code should fail before any request transmits")
 	})
 
+	t.Run("cancel batch orders guards", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.WebsocketCancelBatchOrders(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "WebsocketCancelBatchOrders must error for an empty batch")
+
+		_, err = e.WebsocketCancelBatchOrders(t.Context(), make([]order.Cancel, 21))
+		require.ErrorIs(t, err, errExceedLimit, "WebsocketCancelBatchOrders must error for more than 20 orders")
+
+		_, err = e.WebsocketCancelBatchOrders(t.Context(), []order.Cancel{{
+			Exchange:  e.Name,
+			Pair:      spreadPair,
+			AssetType: asset.Spread,
+			OrderID:   "1234",
+		}})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread cancel should not transmit on the private connection")
+
+		_, err = e.WebsocketCancelBatchOrders(t.Context(), []order.Cancel{{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Type:      order.Trigger,
+			OrderID:   "1234",
+		}})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an algo cancel should not transmit over the websocket")
+
+		_, err = e.WebsocketCancelBatchOrders(t.Context(), []order.Cancel{{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			OrderID:   "1234",
+		}})
+		assert.ErrorIs(t, err, errMissingInstrumentIDCode, "an uncached instrument code should fail before any request transmits")
+	})
+
+	t.Run("cancel all orders guards", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.WebsocketCancelAllOrders(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrCancelOrderIsNil, "WebsocketCancelAllOrders must error for a nil cancellation")
+
+		_, err = e.WebsocketCancelAllOrders(t.Context(), &order.Cancel{
+			AssetType: asset.Spread,
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread cancel-all should not transmit on the private connection")
+	})
+
 	t.Run("cached instrument code reaches the websocket transport", func(t *testing.T) {
 		t.Parallel()
 		// The mock exchange below speaks REST only and fails the test on any
@@ -1138,6 +1183,15 @@ func TestWebsocketOrderMethodsGuards(t *testing.T) {
 		})
 		require.Error(t, err, "WebsocketCancelOrder must fail without a websocket connection")
 		assert.NotErrorIs(t, err, errMissingInstrumentIDCode, "a cached instrument code should get past code resolution and fail at the connection")
+
+		_, err = e.WebsocketCancelBatchOrders(t.Context(), []order.Cancel{{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			OrderID:   "1234",
+		}})
+		require.Error(t, err, "WebsocketCancelBatchOrders must fail without a websocket connection")
+		assert.NotErrorIs(t, err, errMissingInstrumentIDCode, "a cached instrument code should get past code resolution and fail at the connection")
 	})
 
 	t.Run("mixed batch sends nothing", func(t *testing.T) {
@@ -1165,6 +1219,30 @@ func TestWebsocketOrderMethodsGuards(t *testing.T) {
 			Amount:    1,
 			Price:     1,
 			AssetType: asset.Spot,
+		}})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an invalid second order should fail the whole batch before transmission")
+	})
+
+	t.Run("mixed cancel batch sends nothing", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected REST request %s for an explicit websocket operation", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		e.instrumentsInfoMap = make(map[string][]Instrument)
+		e.instrumentIDCodeMap = map[string]uint64{mainPair.String(): 12345}
+
+		_, err := e.WebsocketCancelBatchOrders(t.Context(), []order.Cancel{{
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			OrderID:   "1234",
+		}, {
+			Exchange:  e.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Type:      order.Trigger,
+			OrderID:   "5678",
 		}})
 		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an invalid second order should fail the whole batch before transmission")
 	})

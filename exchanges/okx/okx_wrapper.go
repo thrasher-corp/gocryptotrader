@@ -1797,6 +1797,231 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	}
 }
 
+// WebsocketCancelBatchOrders cancels a batch of orders through the
+// authenticated private websocket connection. Every order is validated and
+// converted before the batch transmits, so an invalid order cannot leave a
+// partially executed batch behind. Algo order types and spread orders return
+// common.ErrFunctionNotSupported before any request is transmitted.
+func (e *Exchange) WebsocketCancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) > 20 {
+		return nil, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
+	}
+	if len(o) == 0 {
+		return nil, fmt.Errorf("%w, must have at least 1 cancel order", order.ErrCancelOrderIsNil)
+	}
+	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
+	args := make([]CancelOrderRequestParam, 0, len(o))
+	for x := range o {
+		ord := o[x]
+		if !e.SupportsAsset(ord.AssetType) {
+			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
+		}
+		if ord.AssetType == asset.Spread {
+			return nil, errSpreadWebsocketUnsupported
+		}
+		pairFormat, err := e.GetPairFormat(ord.AssetType, true)
+		if err != nil {
+			return nil, err
+		}
+		if !ord.Pair.IsPopulated() {
+			return nil, currency.ErrCurrencyPairsEmpty
+		}
+		switch ord.Type {
+		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+			if ord.OrderID == "" && ord.ClientOrderID == "" {
+				return nil, fmt.Errorf("%w: order ID required for order of type %v", order.ErrOrderIDNotSet, ord.Type)
+			}
+			instrumentID := pairFormat.Format(ord.Pair)
+			code, err := e.requireWebsocketInstrumentIDCode(instrumentID)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, CancelOrderRequestParam{
+				InstrumentID:     instrumentID,
+				InstrumentIDCode: code,
+				OrderID:          ord.OrderID,
+				ClientOrderID:    ord.ClientOrderID,
+			})
+		case order.Trigger, order.OCO, order.ConditionalStop,
+			order.TWAP, order.TrailingStop, order.Chase:
+			return nil, fmt.Errorf("%w: cancel of algo order type %v", common.ErrFunctionNotSupported, ord.Type)
+		default:
+			return nil, fmt.Errorf("%w: order of type %v not supported", order.ErrUnsupportedOrderType, ord.Type)
+		}
+	}
+	cancelled, err := e.WSCancelMultipleOrders(ctx, args)
+	if cancelResultsUsable(err) {
+		for x := range cancelled {
+			if cancelled[x] == nil || cancelled[x].OrderID == "" {
+				continue
+			}
+			if cancelled[x].StatusCode == 0 {
+				resp.Status[cancelled[x].OrderID] = order.Cancelled.String()
+			} else {
+				resp.Status[cancelled[x].OrderID] = cancelled[x].StatusMessage
+			}
+		}
+	}
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// WebsocketCancelAllOrders cancels all orders associated with a currency pair
+// through the authenticated private websocket connection. Spread orders return
+// common.ErrFunctionNotSupported before any request is transmitted, as they
+// require the business websocket connection.
+func (e *Exchange) WebsocketCancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	cancelAllResponse := order.CancelAllResponse{
+		Status: map[string]string{},
+	}
+	if orderCancellation == nil {
+		return cancelAllResponse, order.ErrCancelOrderIsNil
+	}
+	if orderCancellation.AssetType == asset.Spread {
+		return cancelAllResponse, errSpreadWebsocketUnsupported
+	}
+	err := orderCancellation.Validate()
+	if err != nil {
+		return cancelAllResponse, err
+	}
+
+	var instrumentType string
+	if orderCancellation.AssetType.IsValid() {
+		err = e.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType)
+		if err != nil {
+			return cancelAllResponse, err
+		}
+		instrumentType = GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
+	}
+	var oType string
+	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
+		oType, err = orderTypeFilter(orderCancellation.Type, orderCancellation.TimeInForce)
+		if err != nil {
+			return cancelAllResponse, err
+		}
+	}
+	var curr string
+	if orderCancellation.Pair.IsPopulated() {
+		if orderCancellation.AssetType.IsValid() {
+			var pairFormat currency.PairFormat
+			pairFormat, err = e.GetPairFormat(orderCancellation.AssetType, true)
+			if err != nil {
+				return cancelAllResponse, err
+			}
+			curr = pairFormat.Format(orderCancellation.Pair)
+		} else {
+			curr = orderCancellation.Pair.Upper().String()
+		}
+	}
+	// OKX caps the pending order list at 100 records per request, so page
+	// through the full list before cancelling to reach accounts holding more
+	// open orders than a single page.
+	var myOrders []OrderDetail
+	for after := ""; ; {
+		var page []OrderDetail
+		page, err = e.GetOrderList(ctx, &OrderListRequestParams{
+			InstrumentType: instrumentType,
+			OrderType:      oType,
+			InstrumentID:   curr,
+			After:          after,
+		})
+		if err != nil {
+			return cancelAllResponse, err
+		}
+		myOrders = append(myOrders, page...)
+		if len(page) < orderListPageSize {
+			break
+		}
+		after = page[len(page)-1].OrderID
+	}
+	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
+ordersLoop:
+	for x := range myOrders {
+		switch {
+		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
+			// Every supplied discriminator must match, so supplying both IDs
+			// cannot cancel an order matching only one of them.
+			if (orderCancellation.OrderID == "" || myOrders[x].OrderID == orderCancellation.OrderID) &&
+				(orderCancellation.ClientOrderID == "" || myOrders[x].ClientOrderID == orderCancellation.ClientOrderID) {
+				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
+				})
+				break ordersLoop
+			}
+		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
+			if myOrders[x].Side == orderCancellation.Side {
+				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
+				})
+			}
+		default:
+			cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+				InstrumentID:  myOrders[x].InstrumentID,
+				OrderID:       myOrders[x].OrderID,
+				ClientOrderID: myOrders[x].ClientOrderID,
+			})
+		}
+	}
+	// Resolve instrument ID codes for all orders before any cancel transmits,
+	// so an uncached instrument fails before a partial batch is sent.
+	for i := range cancelAllOrdersRequestParams {
+		code, codeErr := e.requireWebsocketInstrumentIDCode(cancelAllOrdersRequestParams[i].InstrumentID)
+		if codeErr != nil {
+			return cancelAllResponse, codeErr
+		}
+		cancelAllOrdersRequestParams[i].InstrumentIDCode = code
+	}
+	remaining := cancelAllOrdersRequestParams
+	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
+	var errs error
+	for range loop {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			// A dead context stops the loop; the statuses and errors collected
+			// so far are still returned so the caller sees what was cancelled.
+			// The failed batch's error already carries the context error, so
+			// append it only once.
+			if !errors.Is(errs, ctxErr) {
+				errs = common.AppendError(errs, ctxErr)
+			}
+			break
+		}
+		batch := remaining
+		if len(batch) > 20 {
+			batch = batch[:20]
+			remaining = remaining[20:]
+		} else {
+			remaining = nil
+		}
+		response, err := e.WSCancelMultipleOrders(ctx, batch)
+		// A failed batch does not stop later batches; the errors are joined so
+		// a cancel-all still reaches every remaining order.
+		errs = common.AppendError(errs, err)
+		if !cancelResultsUsable(err) {
+			continue
+		}
+		for y := range response {
+			if response[y] == nil || response[y].OrderID == "" {
+				continue
+			}
+			if response[y].StatusCode == 0 {
+				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
+			} else {
+				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
+			}
+		}
+	}
+	if errs != nil {
+		return cancelAllResponse, errs
+	}
+	return cancelAllResponse, nil
+}
+
 // cancelResultsUsable reports whether per-order cancel results can be recorded
 // alongside err. A partial success on the websocket or over REST returns fully
 // decoded results with its error; any other error, a decode error included,
