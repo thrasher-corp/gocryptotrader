@@ -120,6 +120,7 @@ func (e *Exchange) SetDefaults() {
 				KlineFetching:          true,
 				GetOrder:               true,
 				SubmitOrder:            true,
+				SubmitOrders:           true,
 				CancelOrder:            true,
 				CancelOrders:           true,
 				ModifyOrder:            true,

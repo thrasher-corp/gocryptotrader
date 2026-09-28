@@ -986,6 +986,20 @@ func TestSubmitOrderUsesREST(t *testing.T) {
 	assert.Equal(t, []string{"/trade/order"}, paths, "SubmitOrder should send exactly one REST place order request")
 }
 
+func TestWebsocketTradingCapabilitiesDeclared(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	ws := e.Features.Supports.WebsocketCapabilities
+	assert.True(t, ws.SubmitOrder, "WebsocketCapabilities must declare SubmitOrder")
+	assert.True(t, ws.SubmitOrders, "WebsocketCapabilities must declare SubmitOrders")
+	assert.True(t, ws.CancelOrder, "WebsocketCapabilities must declare CancelOrder")
+	assert.True(t, ws.CancelOrders, "WebsocketCapabilities must declare CancelOrders")
+	assert.True(t, ws.ModifyOrder, "WebsocketCapabilities must declare ModifyOrder")
+}
+
 // TestWebsocketOrderMethodsGuards covers the validation and unsupported-path
 // behaviour of the explicit websocket order methods. Every check here must
 // trigger before any websocket request transmits.
