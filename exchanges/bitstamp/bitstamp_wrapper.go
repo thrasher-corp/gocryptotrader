@@ -237,13 +237,21 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
+	pairs, err := e.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
 	result, err := e.AllCurrencyPairTickers(ctx)
 	if err != nil {
 		return err
 	}
 
 	for i := range result {
-		cp, err := e.FormatExchangeCurrency(result[i].Pair, a)
+		if !pairs.Contains(result[i].Market, true) {
+			continue
+		}
+		cp, err := e.FormatExchangeCurrency(result[i].Market, a)
 		if err != nil {
 			return err
 		}

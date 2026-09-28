@@ -40,7 +40,7 @@ type Ticker struct {
 	IndexPrice                 types.Number  `json:"index_price"`
 	OpenInterest               types.Number  `json:"open_interest"`
 	OpenInterestValue          types.Number  `json:"open_interest_value"`
-	Pair                       currency.Pair `json:"pair"`
+	Market                     currency.Pair `json:"market"`
 }
 
 // Orderbook holds orderbook information

@@ -168,8 +168,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string, hourly bool) (*
 // AllCurrencyPairTickers returns the latest ticker for every available market.
 func (e *Exchange) AllCurrencyPairTickers(ctx context.Context) ([]Ticker, error) {
 	var response []Ticker
-	path := "/v" + bitstampAPIVersion + "/" + bitstampAPITicker + "/"
-	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
+	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, "/v2/ticker/", &response)
 }
 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
