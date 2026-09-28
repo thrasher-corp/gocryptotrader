@@ -3050,18 +3050,18 @@ func TestGetAllManagedPositions(t *testing.T) {
 		LastUpdated:          time.Now(),
 		Pair:                 cp2,
 	})
-	assert.NoError(t, err)
+	assert.NoError(t, err, "TrackNewOrder should not error")
 
 	request.IncludePredictedRate = true
 	request.GetFundingPayments = true
 	request.IncludeFullFundingRates = true
 	request.IncludeFullOrderData = true
 	response, err := s.GetAllManagedPositions(t.Context(), request)
-	require.NoError(t, err)
-	require.Len(t, response.Positions, 1)
-	require.Len(t, response.Positions[0].Orders, 1)
-	assert.Equal(t, 7331.0, response.Positions[0].Orders[0].Amount)
-	assert.Equal(t, 1337.0, response.Positions[0].Orders[0].ExecutedQuoteAmount)
+	require.NoError(t, err, "GetAllManagedPositions must not error")
+	require.Len(t, response.Positions, 1, "response must contain one position")
+	require.Len(t, response.Positions[0].Orders, 1, "position must contain one order")
+	assert.Equal(t, 7331.0, response.Positions[0].Orders[0].Amount, "Amount should retain the managed order value")
+	assert.Equal(t, 1337.0, response.Positions[0].Orders[0].ExecutedQuoteAmount, "ExecutedQuoteAmount should retain the managed order value")
 }
 
 func TestGetOrderbookMovement(t *testing.T) {

@@ -1214,6 +1214,17 @@ func TestUpdateOrderFromDetailClearsRemainingWhenFilled(t *testing.T) {
 	}), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, 1.5, od.RemainingAmount, "an update that does not report the order filled should not clear RemainingAmount")
 
+	od = &Detail{Exchange: "test", OrderID: "1", Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:        "test",
+		OrderID:         "1",
+		Status:          Cancelled,
+		Amount:          2,
+		ExecutedAmount:  0.5,
+		RemainingAmount: 0,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 1.5, od.RemainingAmount, "a cancelled partial fill with an omitted remainder should retain RemainingAmount")
+
 	od = &Detail{Exchange: "test", OrderID: "1", QuoteAmount: 60}
 	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
 		Exchange:        "test",
@@ -1234,6 +1245,26 @@ func TestUpdateOrderFromDetailClearsRemainingWhenFilled(t *testing.T) {
 		RemainingAmount: 0,
 	}), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, 30.0, od.RemainingAmount, "an active mixed-unit update should not clear RemainingAmount")
+}
+
+func TestUpdateOrderFromDetailExecutedQuoteAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		update   Detail
+		expected float64
+	}{
+		{name: "new fill without a quote total", update: Detail{ExecutedAmount: 0.02}, expected: 0},
+		{name: "new fill with a quote total", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210}, expected: 1210},
+		{name: "no new fill", update: Detail{ExecutedAmount: 0.01, Status: Open}, expected: 600},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			od := &Detail{Exchange: "test", OrderID: "1", Amount: 0.02, ExecutedAmount: 0.01, ExecutedQuoteAmount: 600}
+			require.NoError(t, od.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
+			assert.Equal(t, tc.expected, od.ExecutedQuoteAmount, "ExecutedQuoteAmount should describe the stored executed amount")
+		})
+	}
 }
 
 // TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report

@@ -2460,7 +2460,7 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 		AssetType:   asset.Spot,
 		TimeInForce: order.GoodTillCancel,
 	})
-	require.NoError(t, err)
+	require.NoError(t, err, "SubmitOrder must not error")
 	require.Equal(t, 2.0, response.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
 	require.Equal(t, 1.0, response.RemainingAmount, "remaining amount must be copied from the exchange response")
 	require.Equal(t, 10.0, response.AverageExecutedPrice, "average execution price must be copied from the exchange response")
@@ -2469,7 +2469,7 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 	require.Equal(t, currency.USDT, response.FeeAsset, "fee asset must be copied from the exchange response")
 
 	detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), asset.Spot)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetOrderInfo must not error")
 	require.Equal(t, 2.0, detail.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
 	require.Equal(t, 1.0, detail.RemainingAmount, "remaining amount must be copied from the exchange response")
 	require.Equal(t, 10.0, detail.AverageExecutedPrice, "average execution price must be copied from the exchange response")
@@ -2611,12 +2611,12 @@ func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
 
 			got, err := e.deriveSpotWebsocketOrderResponse(response)
 			require.NoError(t, err, "deriveSpotWebsocketOrderResponse must not error")
-			assert.Equal(t, tc.assetType, got.AssetType)
-			assert.Zero(t, got.Amount)
-			assert.Equal(t, 10.0, got.QuoteAmount)
-			assert.Equal(t, 0.000199, got.ExecutedAmount)
-			assert.Zero(t, got.RemainingAmount)
-			assert.Equal(t, 9.95, got.ExecutedQuoteAmount)
+			assert.Equal(t, tc.assetType, got.AssetType, "AssetType should match the websocket account")
+			assert.Zero(t, got.Amount, "Amount should be unset for a quote-sized market buy")
+			assert.Equal(t, 10.0, got.QuoteAmount, "QuoteAmount should retain the submitted quote size")
+			assert.Equal(t, 0.000199, got.ExecutedAmount, "ExecutedAmount should retain the filled base quantity")
+			assert.Zero(t, got.RemainingAmount, "RemainingAmount should be unset when base and quote units differ")
+			assert.Equal(t, 9.95, got.ExecutedQuoteAmount, "ExecutedQuoteAmount should retain the filled quote total")
 
 			submittedAmount := 10.0
 			submittedQuoteAmount := 0.0
@@ -2631,9 +2631,9 @@ func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
 				Amount:      submittedAmount,
 				QuoteAmount: submittedQuoteAmount,
 			})
-			assert.Zero(t, got.Amount)
-			assert.Equal(t, 10.0, got.QuoteAmount)
-			assert.Zero(t, got.RemainingAmount)
+			assert.Zero(t, got.Amount, "Amount should remain unset for a quote-sized market buy")
+			assert.Equal(t, 10.0, got.QuoteAmount, "QuoteAmount should retain the submitted quote size")
+			assert.Zero(t, got.RemainingAmount, "RemainingAmount should remain unset when base and quote units differ")
 		})
 	}
 }
@@ -2678,25 +2678,25 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 				TimeInForce: order.ImmediateOrCancel,
 			})
 			require.NoError(t, err, "SubmitOrder must not error")
-			assert.Zero(t, response.Amount)
-			assert.Equal(t, 10.0, response.QuoteAmount)
-			assert.Equal(t, 0.000199, response.ExecutedAmount)
-			assert.Zero(t, response.RemainingAmount)
-			assert.Equal(t, 9.95, response.ExecutedQuoteAmount)
-			assert.Equal(t, 50000.0, response.AverageExecutedPrice)
-			assert.Equal(t, 0.000000398, response.Fee)
-			assert.Equal(t, currency.BTC, response.FeeAsset)
+			assert.Zero(t, response.Amount, "Amount should be unset for a quote-sized market buy")
+			assert.Equal(t, 10.0, response.QuoteAmount, "QuoteAmount should retain the submitted quote size")
+			assert.Equal(t, 0.000199, response.ExecutedAmount, "ExecutedAmount should retain the filled base quantity")
+			assert.Zero(t, response.RemainingAmount, "RemainingAmount should be unset when base and quote units differ")
+			assert.Equal(t, 9.95, response.ExecutedQuoteAmount, "ExecutedQuoteAmount should retain the filled quote total")
+			assert.Equal(t, 50000.0, response.AverageExecutedPrice, "AverageExecutedPrice should retain the exchange value")
+			assert.Equal(t, 0.000000398, response.Fee, "Fee should retain the exchange value")
+			assert.Equal(t, currency.BTC, response.FeeAsset, "FeeAsset should retain the exchange value")
 
 			detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), a)
 			require.NoError(t, err, "GetOrderInfo must not error")
-			assert.Zero(t, detail.Amount)
-			assert.Equal(t, 10.0, detail.QuoteAmount)
-			assert.Equal(t, 0.000199, detail.ExecutedAmount)
-			assert.Zero(t, detail.RemainingAmount)
-			assert.Equal(t, 9.95, detail.ExecutedQuoteAmount)
-			assert.Equal(t, 50000.0, detail.AverageExecutedPrice)
-			assert.Equal(t, 0.000000398, detail.Fee)
-			assert.Equal(t, currency.BTC, detail.FeeAsset)
+			assert.Zero(t, detail.Amount, "Amount should be unset for a quote-sized market buy")
+			assert.Equal(t, 10.0, detail.QuoteAmount, "QuoteAmount should retain the submitted quote size")
+			assert.Equal(t, 0.000199, detail.ExecutedAmount, "ExecutedAmount should retain the filled base quantity")
+			assert.Zero(t, detail.RemainingAmount, "RemainingAmount should be unset when base and quote units differ")
+			assert.Equal(t, 9.95, detail.ExecutedQuoteAmount, "ExecutedQuoteAmount should retain the filled quote total")
+			assert.Equal(t, 50000.0, detail.AverageExecutedPrice, "AverageExecutedPrice should retain the exchange value")
+			assert.Equal(t, 0.000000398, detail.Fee, "Fee should retain the exchange value")
+			assert.Equal(t, currency.BTC, detail.FeeAsset, "FeeAsset should retain the exchange value")
 		})
 	}
 }
@@ -3057,22 +3057,22 @@ func TestWsPushSpotMarketBuyOrder(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 			payload := fmt.Appendf(nil, `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`, tc.account)
-			require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload))
+			require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload), "WsHandleSpotData must not error")
 
 			select {
 			case msg := <-ex.Websocket.DataHandler.C:
 				details, ok := msg.Data.([]order.Detail)
 				require.True(t, ok, "websocket payload must contain order details")
-				require.Len(t, details, 1)
-				assert.Equal(t, tc.assetType, details[0].AssetType)
-				assert.Zero(t, details[0].Amount)
-				assert.Equal(t, 10.0, details[0].QuoteAmount)
-				assert.Equal(t, 0.000199, details[0].ExecutedAmount)
-				assert.Zero(t, details[0].RemainingAmount)
-				assert.Equal(t, 9.95, details[0].ExecutedQuoteAmount)
-				assert.Equal(t, 50000.0, details[0].AverageExecutedPrice)
-				assert.Equal(t, 0.000000398, details[0].Fee)
-				assert.Equal(t, currency.BTC, details[0].FeeAsset)
+				require.Len(t, details, 1, "websocket payload must contain one order detail")
+				assert.Equal(t, tc.assetType, details[0].AssetType, "AssetType should match the websocket account")
+				assert.Zero(t, details[0].Amount, "Amount should be unset for a quote-sized market buy")
+				assert.Equal(t, 10.0, details[0].QuoteAmount, "QuoteAmount should retain the submitted quote size")
+				assert.Equal(t, 0.000199, details[0].ExecutedAmount, "ExecutedAmount should retain the filled base quantity")
+				assert.Zero(t, details[0].RemainingAmount, "RemainingAmount should be unset when base and quote units differ")
+				assert.Equal(t, 9.95, details[0].ExecutedQuoteAmount, "ExecutedQuoteAmount should retain the filled quote total")
+				assert.Equal(t, 50000.0, details[0].AverageExecutedPrice, "AverageExecutedPrice should retain the exchange value")
+				assert.Equal(t, 0.000000398, details[0].Fee, "Fee should retain the exchange value")
+				assert.Equal(t, currency.BTC, details[0].FeeAsset, "FeeAsset should retain the exchange value")
 			default:
 				require.Fail(t, "expected websocket spot market-buy order payload")
 			}

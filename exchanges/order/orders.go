@@ -194,6 +194,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
 		d.ExecutedAmount = m.ExecutedAmount
+		// A stored quote total may not match the new executed amount, so drop it unless the update restates it.
+		if m.ExecutedQuoteAmount == 0 {
+			d.ExecutedQuoteAmount = 0
+		}
 		updated = true
 	}
 	if m.AverageExecutedPrice > 0 && m.AverageExecutedPrice != d.AverageExecutedPrice {
