@@ -470,6 +470,67 @@ func TestCancelAll(t *testing.T) {
 	require.Equal(t, 1.0, r.TokensAt(tn), "must have 1 token remaining after cancellation")
 }
 
+func TestRateLimitRejectedRequestRestoresCapacity(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		actions int
+		weight  Weight
+	}{
+		{name: "sixty per second", actions: 60, weight: 3},
+		{name: "large weight", actions: 60, weight: 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			limiter := NewRateLimit(time.Second, tc.actions)
+			weighted := GetRateLimiterWithWeight(limiter, tc.weight)
+			single := GetRateLimiterWithWeight(limiter, 1)
+			ctx := WithDelayNotAllowed(t.Context())
+			at := time.Now()
+
+			require.ErrorIs(t, weighted.RateLimit(ctx), ErrDelayNotAllowed,
+				"a request that needs a delay must be refused when delays are not allowed")
+			assert.InDelta(t, 1, limiter.TokensAt(at), 1e-9,
+				"a refused request must leave the limiter's capacity untouched")
+			require.NoError(t, single.RateLimit(ctx),
+				"an unrelated weight-1 request must still be admitted without delay")
+		})
+	}
+}
+
+func TestRateLimitAdmittedRequestConsumesCapacity(t *testing.T) {
+	t.Parallel()
+
+	limiter := NewRateLimit(time.Second, 60)
+	weighted := GetRateLimiterWithWeight(limiter, 1)
+	ctx := WithDelayNotAllowed(t.Context())
+	require.NoError(t, weighted.RateLimit(ctx), "first request must be admitted without delay")
+	require.ErrorIs(t, weighted.RateLimit(ctx), ErrDelayNotAllowed,
+		"an admitted request must retain its reservation")
+}
+
+func TestRateLimitBarrierRejectedAdmissionRestoresCapacity(t *testing.T) {
+	t.Parallel()
+
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err, "barrier contexts must be created")
+
+	// Weight exceeds the burst, so the group cannot be admitted and the peer's reservation must be
+	// fully restored instead of leaving its capacity consumed.
+	peer := NewRateLimitWithWeight(time.Second, 60, 1)
+	weighted := NewRateLimitWithWeight(time.Second, 60, 3)
+	at := time.Now()
+	errs := make(chan error, 2)
+	go func() { errs <- peer.RateLimit(contexts[0]) }()
+	go func() { errs <- weighted.RateLimit(contexts[1]) }()
+	require.ErrorIs(t, <-errs, ErrDelayNotAllowed, "group admission must be refused")
+	require.ErrorIs(t, <-errs, ErrDelayNotAllowed, "group admission must be refused")
+	assert.InDelta(t, 1, peer.limiter.TokensAt(at), 1e-9,
+		"a refused group admission must leave the peer's capacity untouched")
+}
+
 func TestInitiateRateLimit(t *testing.T) {
 	t.Parallel()
 

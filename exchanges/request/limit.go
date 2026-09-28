@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sync"
 	"time"
@@ -146,29 +147,28 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	rateLimitReservationMu.Lock()
 	r.m.Lock()
 	tn := time.Now()
-	reserved, finalDelay := r.reserveLocked(tn)
-
-	if finalDelay == 0 {
-		r.m.Unlock()
-		rateLimitReservationMu.Unlock()
-		return nil
-	}
-
-	if hasDelayNotAllowed(ctx) {
-		cancelAll(reserved, tn)
+	// Derive the delay before reserving so a refusal never consumes capacity. Cancelling
+	// reservations afterwards cannot restore it exactly because rate.Reservation.CancelAt
+	// rewinds through truncated timestamps.
+	requiredDelay := r.pendingDelayLocked(tn)
+	if requiredDelay != 0 && hasDelayNotAllowed(ctx) {
 		r.m.Unlock()
 		rateLimitReservationMu.Unlock()
 		return ErrDelayNotAllowed
 	}
 
-	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
-		cancelAll(reserved, tn)
+	if dl, ok := ctx.Deadline(); ok && requiredDelay != 0 && dl.Before(tn.Add(requiredDelay)) {
 		r.m.Unlock()
 		rateLimitReservationMu.Unlock()
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
+		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", requiredDelay, context.DeadlineExceeded)
 	}
+	_, finalDelay := r.reserveLocked(tn)
 	r.m.Unlock()
 	rateLimitReservationMu.Unlock()
+
+	if finalDelay == 0 {
+		return nil
+	}
 
 	select {
 	case <-ctx.Done():
@@ -176,6 +176,30 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	case <-time.After(finalDelay):
 		return nil
 	}
+}
+
+// pendingDelayLocked returns the delay a reservation of the limiter's weight would incur at the
+// given time, without consuming any of the limiter's capacity.
+// Does not provide locking protection, so callers can maintain a single lock throughout.
+func (r *RateLimiterWithWeight) pendingDelayLocked(at time.Time) time.Duration {
+	missing := float64(r.weight) - r.limiter.TokensAt(at)
+	if missing <= 0 {
+		return 0
+	}
+	return durationFromTokens(missing, r.limiter.Limit())
+}
+
+// durationFromTokens converts a token deficit into the delay it takes to accumulate, mirroring
+// rate.Limit.durationFromTokens so a delay can be derived without holding a reservation.
+func durationFromTokens(tokens float64, limit rate.Limit) time.Duration {
+	if limit <= 0 {
+		return time.Duration(math.MaxInt64)
+	}
+	duration := (tokens / float64(limit)) * float64(time.Second)
+	if duration > float64(math.MaxInt64) {
+		return time.Duration(math.MaxInt64)
+	}
+	return time.Duration(duration)
 }
 
 func (r *RateLimiterWithWeight) reserveLocked(at time.Time) ([]*rate.Reservation, time.Duration) {
@@ -203,10 +227,16 @@ func (b *rateLimitBarrier) admitLocked() error {
 			continue
 		}
 		participant.limiter.m.Lock()
+		if participant.limiter.pendingDelayLocked(at) != 0 {
+			participant.limiter.m.Unlock()
+			cancelAll(reservations, at)
+			return ErrDelayNotAllowed
+		}
 		reserved, delay := participant.limiter.reserveLocked(at)
 		participant.limiter.m.Unlock()
 		reservations = append(reservations, reserved...)
 		if delay != 0 {
+			// A participant sharing its limiter can need a delay the check above cannot see.
 			cancelAll(reservations, at)
 			return ErrDelayNotAllowed
 		}
