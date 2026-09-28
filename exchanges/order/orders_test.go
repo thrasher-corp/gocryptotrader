@@ -1250,21 +1250,56 @@ func TestUpdateOrderFromDetailClearsRemainingWhenFilled(t *testing.T) {
 func TestUpdateOrderFromDetailExecutedQuoteAmount(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name     string
-		update   Detail
-		expected float64
+		name                 string
+		update               Detail
+		executedQuoteAmount  float64
+		averageExecutedPrice float64
 	}{
-		{name: "new fill without a quote total", update: Detail{ExecutedAmount: 0.02}, expected: 0},
-		{name: "new fill with a quote total", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210}, expected: 1210},
-		{name: "no new fill", update: Detail{ExecutedAmount: 0.01, Status: Open}, expected: 600},
+		{name: "new fill without a quote total", update: Detail{ExecutedAmount: 0.02}, executedQuoteAmount: 0, averageExecutedPrice: 0},
+		{name: "new fill with a quote total", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210}, executedQuoteAmount: 1210, averageExecutedPrice: 60500},
+		{name: "quote total correction", update: Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 610}, executedQuoteAmount: 610, averageExecutedPrice: 61000},
+		{name: "explicit average takes precedence", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210, AverageExecutedPrice: 60001}, executedQuoteAmount: 1210, averageExecutedPrice: 60001},
+		{name: "no new fill", update: Detail{ExecutedAmount: 0.01, Status: Open}, executedQuoteAmount: 600, averageExecutedPrice: 60000},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			od := &Detail{Exchange: "test", OrderID: "1", Amount: 0.02, ExecutedAmount: 0.01, ExecutedQuoteAmount: 600}
+			od := &Detail{
+				Exchange:             "test",
+				OrderID:              "1",
+				Amount:               0.02,
+				ExecutedAmount:       0.01,
+				ExecutedQuoteAmount:  600,
+				AverageExecutedPrice: 60000,
+				Fee:                  0.6,
+				FeeAsset:             currency.USDT,
+				RemainingAmount:      0.01,
+				AssetType:            asset.Spot,
+			}
 			require.NoError(t, od.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
-			assert.Equal(t, tc.expected, od.ExecutedQuoteAmount, "ExecutedQuoteAmount should describe the stored executed amount")
+			assert.Equal(t, tc.executedQuoteAmount, od.ExecutedQuoteAmount, "ExecutedQuoteAmount should describe the stored executed amount")
+			assert.Equal(t, tc.averageExecutedPrice, od.AverageExecutedPrice, "AverageExecutedPrice should describe the stored execution totals")
+			assert.Equal(t, 0.6, od.Fee, "Fee should remain until an update establishes a different fee")
+			assert.Equal(t, currency.USDT, od.FeeAsset, "FeeAsset should remain associated with the stored fee")
+			assert.Equal(t, 0.01, od.RemainingAmount, "RemainingAmount should remain until an update establishes a different remainder")
 		})
 	}
+
+	od := &Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 20, AverageExecutedPrice: 10, AssetType: asset.Futures}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 22}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.AverageExecutedPrice, "AverageExecutedPrice should clear when derivative execution units do not permit safe inference")
+}
+
+func TestUpdateOrderFromDetailFeeAsset(t *testing.T) {
+	t.Parallel()
+
+	od := &Detail{Fee: 0.6, FeeAsset: currency.USDT}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{FeeAsset: currency.BTC}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 0.6, od.Fee, "an omitted fee should retain the stored fee")
+	assert.Equal(t, currency.USDT, od.FeeAsset, "an omitted fee should not relabel the stored fee")
+
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{Fee: -0.2, FeeAsset: currency.BTC}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, -0.2, od.Fee, "a negative fee should update the stored fee")
+	assert.Equal(t, currency.BTC, od.FeeAsset, "a non-zero fee should update its fee asset")
 }
 
 // TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report

@@ -192,7 +192,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.QuoteAmount = m.QuoteAmount
 		updated = true
 	}
-	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
+	executedAmountChanged := m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount
+	if executedAmountChanged {
 		d.ExecutedAmount = m.ExecutedAmount
 		// A stored quote total may not match the new executed amount, so drop it unless the update restates it.
 		if m.ExecutedQuoteAmount == 0 {
@@ -200,19 +201,33 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 		updated = true
 	}
-	if m.AverageExecutedPrice > 0 && m.AverageExecutedPrice != d.AverageExecutedPrice {
-		d.AverageExecutedPrice = m.AverageExecutedPrice
-		updated = true
-	}
-	if m.ExecutedQuoteAmount > 0 && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount {
+	executedQuoteAmountChanged := m.ExecutedQuoteAmount > 0 && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount
+	if executedQuoteAmountChanged {
 		d.ExecutedQuoteAmount = m.ExecutedQuoteAmount
 		updated = true
 	}
-	if m.Fee > 0 && m.Fee != d.Fee {
+	if m.AverageExecutedPrice > 0 {
+		if m.AverageExecutedPrice != d.AverageExecutedPrice {
+			d.AverageExecutedPrice = m.AverageExecutedPrice
+			updated = true
+		}
+	} else if executedAmountChanged || executedQuoteAmountChanged {
+		effectiveAssetType := m.AssetType
+		if effectiveAssetType == asset.Empty {
+			effectiveAssetType = d.AssetType
+		}
+		if m.ExecutedQuoteAmount > 0 && effectiveAssetType.IsValid() && !effectiveAssetType.IsDerivative() {
+			d.AverageExecutedPrice = m.ExecutedQuoteAmount / d.ExecutedAmount
+		} else {
+			d.AverageExecutedPrice = 0
+		}
+		updated = true
+	}
+	if m.Fee != 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
 		updated = true
 	}
-	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+	if m.Fee != 0 && !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
 		d.FeeAsset = m.FeeAsset
 		updated = true
 	}

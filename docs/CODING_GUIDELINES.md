@@ -261,9 +261,11 @@ Use `require` and `assert` appropriately:
     that would continue to pass if the mapping were removed.
 - For merge and upsert logic, preserve consistency between authoritative fields
     and their dependent aggregates. When an authoritative component changes and
-    an update omits a previously stored dependent value, clear the dependent
-    value unless it can be recomputed without inventing data. Cover advancement
-    with and without the dependent value, and an update where the authoritative
+    an update omits a previously stored dependent value, recompute it from
+    values the update supplies, or clear it if its zero reads as unknown. Keep
+    values whose zero is itself meaningful, such as a fee or a remaining
+    quantity, until an update establishes them. Cover advancement with and
+    without the dependent value, and an update where the authoritative
     component does not change.
 - When an external API deprecates a mapped field, verify the replacement against
     current authoritative documentation and, where credentials are required,
