@@ -698,13 +698,21 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 				return err
 			}
 		}
+		// version is the book's update id, the same sequence the REST depth snapshot reports as lastUpdateId
+		var lastUpdateID int64
+		if body.Version != "" {
+			if lastUpdateID, err = strconv.ParseInt(body.Version, 10, 64); err != nil {
+				return err
+			}
+		}
 		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Exchange:    e.Name,
-			Asset:       asset.Spot,
-			Bids:        bids,
-			Asks:        asks,
-			Pair:        cp,
-			LastUpdated: wsSendTime(result),
+			Exchange:     e.Name,
+			Asset:        asset.Spot,
+			Bids:         bids,
+			Asks:         asks,
+			Pair:         cp,
+			LastUpdated:  wsSendTime(result),
+			LastUpdateID: lastUpdateID,
 		})
 	case channelBookTickerBatch:
 		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)

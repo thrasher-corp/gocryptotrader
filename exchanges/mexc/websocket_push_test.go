@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -122,19 +123,34 @@ func TestWsHandleLimitDepth(t *testing.T) {
 	drainData(t)
 	raw := wsPushFrame(t, "spot@"+channelLimitDepthV3+"@BTCUSDT@5", 1736411838730,
 		&mexc_proto_types.PublicLimitDepthsV3Api{
-			Asks: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93180.18", Quantity: "0.21976424"}},
-			Bids: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93179.98", Quantity: "2.82651000"}},
+			Asks:    []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93180.18", Quantity: "0.21976424"}},
+			Bids:    []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93179.98", Quantity: "2.82651000"}},
+			Version: "36913293511",
 		})
 	require.NoError(t, e.WsHandleData(t.Context(), nil, raw), "WsHandleData must not error")
 
 	book, err := orderbook.Get(e.Name, spotTradablePair, asset.Spot)
 	require.NoError(t, err, "the snapshot must be retrievable")
+	assert.Equal(t, int64(36913293511), book.LastUpdateID, "LastUpdateID should be the pushed version")
 	require.Len(t, book.Asks, 1, "the ask side must hold the pushed level")
 	require.Len(t, book.Bids, 1, "the bid side must hold the pushed level")
 	assert.Equal(t, 93180.18, book.Asks[0].Price, "ask price should be correct")
 	assert.Equal(t, 0.21976424, book.Asks[0].Amount, "ask amount should be correct")
 	assert.Equal(t, 93179.98, book.Bids[0].Price, "bid price should be correct")
 	assert.Equal(t, 2.82651, book.Bids[0].Amount, "bid amount should be correct")
+}
+
+// TestWsHandleLimitDepthRejectsBadVersion errors on a limit depth push whose version is not a number rather
+// than loading the book with a made-up update id.
+func TestWsHandleLimitDepthRejectsBadVersion(t *testing.T) {
+	drainData(t)
+	raw := wsPushFrame(t, "spot@"+channelLimitDepthV3+"@BTCUSDT@5", 1736411838730,
+		&mexc_proto_types.PublicLimitDepthsV3Api{
+			Asks:    []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93180.18", Quantity: "0.21976424"}},
+			Bids:    []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93179.98", Quantity: "2.82651000"}},
+			Version: "v1",
+		})
+	assert.ErrorIs(t, e.WsHandleData(t.Context(), nil, raw), strconv.ErrSyntax, "WsHandleData should error on a version that is not a number")
 }
 
 // TestWsHandleLimitDepthUsesExchangeTime asserts the orderbook snapshot is stamped with the frame's
