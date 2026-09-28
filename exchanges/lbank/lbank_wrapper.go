@@ -475,7 +475,7 @@ func orderSideFromType(orderType string) (order.Side, error) {
 	case strings.EqualFold(side, order.Sell.String()):
 		return order.Sell, nil
 	default:
-		return order.UnknownSide, fmt.Errorf("%q %w", side, order.ErrSideIsInvalid)
+		return order.UnknownSide, fmt.Errorf("%q %w", orderType, order.ErrSideIsInvalid)
 	}
 }
 
