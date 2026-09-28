@@ -513,6 +513,21 @@ func TestGetOrderHistoryCompoundOrderType(t *testing.T) {
 	assert.Equal(t, order.Sell, got[2].Side, "GetOrderHistory should map sell_market to the sell side")
 }
 
+// TestGetOrderHistoryUnknownSide ensures an order type LBank does not document
+// surfaces as an error instead of being reported as a sell.
+func TestGetOrderHistoryUnknownSide(t *testing.T) {
+	t.Parallel()
+	ex := setupOrderGuard(t, orderGuardHistoryHandler(t, orderGuardSingleOrder("hold")))
+
+	_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Pairs:     currency.Pairs{testPair},
+		Side:      order.AnySide,
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+	})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "GetOrderHistory should reject an order type it cannot map")
+}
+
 // TestOrderSideFromType ensures the order side is taken from the leading token
 // of an LBank order type, and that everything LBank does not send is rejected
 // rather than mapped by a looser rule.
