@@ -46,6 +46,7 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 	var mu sync.Mutex
 	var wsOps []string
 	var restPaths []string
+	var spreadIDs []string
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Upgrade") == "websocket" {
@@ -74,6 +75,17 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 		mu.Lock()
 		restPaths = append(restPaths, r.URL.Path)
 		mu.Unlock()
+		if r.URL.Path == "/sprd/order" {
+			var body struct {
+				SpreadID string `json:"sprdId"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Errorf("decoding spread order request: %v", err)
+			}
+			mu.Lock()
+			spreadIDs = append(spreadIDs, body.SpreadID)
+			mu.Unlock()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sCode":"0","sMsg":"","ordId":"SPRD-1","clOrdId":""}]}`))
 	})
@@ -125,5 +137,7 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 	defer mu.Unlock()
 	assert.Equal(t, []string{"/sprd/order", "/sprd/amend-order", "/sprd/cancel-order"}, restPaths,
 		"spread submit, amend and cancel should reach their REST endpoints")
+	assert.Equal(t, []string{"BTC-USDT_BTC-USDT-SWAP"}, spreadIDs,
+		"SubmitOrder should send the spread ID OKX lists")
 	assert.Empty(t, wsOps, "no spread operation should be sent over the websocket")
 }
