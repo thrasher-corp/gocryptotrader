@@ -249,6 +249,27 @@ Use `require` and `assert` appropriately:
 - When resolving review feedback, fix the underlying source of truth, add
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
+- Treat review feedback as a standards-gap audit. Cross-reference each reusable
+    expectation against these guidelines and update this document when the rule
+    is missing or ambiguous. Keep exchange-specific API behaviour in the
+    implementation and its tests rather than promoting one-off details into a
+    project-wide rule.
+- Test changed REST and websocket mappings at their direct conversion boundary.
+    When fields have similar meanings, use deliberately different fixture values
+    that prove the intended source was selected, such as cumulative execution
+    value versus the latest fill value. Do not rely solely on downstream tests
+    that would continue to pass if the mapping were removed.
+- For merge and upsert logic, preserve consistency between authoritative fields
+    and their dependent aggregates. When an authoritative component changes and
+    an update omits a previously stored dependent value, clear the dependent
+    value unless it can be recomputed without inventing data. Cover advancement
+    with and without the dependent value, and an update where the authoritative
+    component does not change.
+- When an external API deprecates a mapped field, verify the replacement against
+    current authoritative documentation and, where credentials are required,
+    distinguish documented behaviour from live verification. If the replacement
+    is richer than the common model, define an explicit lossless or documented
+    reduction policy before mapping it; do not silently select or combine values.
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
