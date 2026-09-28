@@ -42,6 +42,7 @@ var (
 		"OK-ACCESS-PASSPHRASE",
 		"X-BAPI-SIGN",
 		"Btse-Api",
+		"X-Auth",
 		"Btse-Sign",
 		"Kc-Api-Sign",
 		"Api-Sign",
@@ -61,7 +62,7 @@ func TestHeaderValuesForLog(t *testing.T) {
 	for _, header := range sensitiveLogKeys {
 		assert.Equalf(t, []string{"[REDACTED]"}, headerValuesForLog(header, values), "%s should be redacted", header)
 	}
-	for _, header := range []string{"Content-Type", "KC-API-KEY-VERSION", "SignatureMethod", "signTimestamp"} {
+	for _, header := range []string{"Content-Type", "KC-API-KEY-VERSION", "SignatureMethod", "signTimestamp", "X-Auth-Nonce", "gAuth"} {
 		assert.Equalf(t, values, headerValuesForLog(header, values), "%s should remain available for diagnostics", header)
 	}
 }

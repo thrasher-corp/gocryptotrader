@@ -318,10 +318,11 @@ func applyHeaders(destination, headers http.Header) {
 }
 
 // isSensitiveLogKey matches name suffixes rather than substrings, so OK-ACCESS-KEY, X-BAPI-SIGN and listenKey are
-// caught while KC-API-KEY-VERSION, SignatureMethod and signTimestamp stay readable. BTSE sends its API key as btse-api.
+// caught while KC-API-KEY-VERSION, SignatureMethod and signTimestamp stay readable. BTSE sends its API key as btse-api,
+// and Bitstamp's v2 authentication sends it as X-Auth.
 func isSensitiveLogKey(name string) bool {
 	name = strings.ToLower(name)
-	if i := strings.LastIndexAny(name, "-_"); i >= 0 && name[i+1:] == "api" {
+	if i := strings.LastIndexAny(name, "-_"); i >= 0 && (name[i+1:] == "api" || name[i+1:] == "auth") {
 		return true
 	}
 	for _, suffix := range sensitiveLogKeySuffixes {
