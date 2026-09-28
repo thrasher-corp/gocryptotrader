@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
@@ -28,6 +30,7 @@ var (
 	one        = decimal.NewFromInt(1)
 	two        = decimal.NewFromInt(2)
 	oneHundred = decimal.NewFromInt(100)
+	twoHundred = decimal.NewFromInt(200)
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -56,6 +59,59 @@ func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 		return decimal.Zero
 	}
 	return x.Sub(y).Abs().Div(x.Add(y).Div(two)).Mul(oneHundred)
+}
+
+// SignedPercentageDifferenceDecimal returns the difference between two decimal
+// values as a percentage of the absolute value of their average. A positive or
+// negative result indicates whether x is greater than or less than y. Zero may
+// also mean the difference is below the selected backend's precision. A zero
+// sum returns zero to avoid division by zero.
+func SignedPercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
+	sum := x.Add(y)
+	if sum.IsZero() {
+		return decimal.Zero
+	}
+	return x.Sub(y).Mul(twoHundred).Div(sum.Abs())
+}
+
+// CompareSignedPercentageDifferenceDecimal compares the signed percentage
+// difference between x and y with target, returning standard Cmp semantics. It
+// avoids division and compares exact cross-products so backend multiplication
+// cannot round away a difference near the target boundary. Its result may
+// differ from comparing SignedPercentageDifferenceDecimal's rounded value with
+// target.
+func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int {
+	sum := x.Add(y)
+	if sum.IsZero() {
+		return decimal.Zero.Cmp(target)
+	}
+	result := x.Sub(y).Mul(twoHundred).Cmp(target.Mul(sum.Abs()))
+	// A truncated product differs from the exact product by less than one unit
+	// in the backend's last fractional place. The scaled difference is a whole
+	// number of those units, so only an equal result can hide discarded digits.
+	if result != 0 || decimal.MaxFractionalDigits == 0 ||
+		fractionalDigits(target)+fractionalDigits(sum) <= decimal.MaxFractionalDigits {
+		return result
+	}
+
+	// Decimal.String returns a valid, canonical decimal representation in both backends.
+	xRat, _ := new(big.Rat).SetString(x.String())
+	yRat, _ := new(big.Rat).SetString(y.String())
+	sumRat := new(big.Rat).Add(xRat, yRat)
+	targetRat, _ := new(big.Rat).SetString(target.String())
+	difference := new(big.Rat).Sub(xRat, yRat)
+	difference.Mul(difference, big.NewRat(200, 1))
+	targetRat.Mul(targetRat, sumRat.Abs(sumRat))
+	return difference.Cmp(targetRat)
+}
+
+func fractionalDigits(value decimal.Decimal) int {
+	text := value.String()
+	point := strings.IndexByte(text, '.')
+	if point == -1 {
+		return 0
+	}
+	return len(text) - point - 1
 }
 
 // CalculateNetProfit returns net profit
