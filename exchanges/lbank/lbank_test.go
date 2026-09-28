@@ -538,11 +538,11 @@ func TestOrderSideFromType(t *testing.T) {
 			t.Parallel()
 			got, err := orderSideFromType(tc.orderType)
 			if tc.wantErr != nil {
-				assert.ErrorIs(t, err, tc.wantErr, "orderSideFromType should reject %q", tc.orderType)
+				assert.ErrorIsf(t, err, tc.wantErr, "orderSideFromType should reject %q", tc.orderType)
 				return
 			}
-			require.NoError(t, err, "orderSideFromType should map %q", tc.orderType)
-			assert.Equal(t, tc.want, got, "orderSideFromType should map %q to %s", tc.orderType, tc.want)
+			require.NoErrorf(t, err, "orderSideFromType must map %q", tc.orderType)
+			assert.Equalf(t, tc.want, got, "orderSideFromType should map %q to %s", tc.orderType, tc.want)
 		})
 	}
 }
