@@ -338,6 +338,8 @@ func TestWsHandlePrivateOrders(t *testing.T) {
 	assert.Equal(t, 10.0, detail.Amount, "Amount should be the base quantity")
 	assert.Equal(t, 1000.0, detail.QuoteAmount, "QuoteAmount should be the quote amount")
 	assert.Equal(t, 404.0, detail.Cost, "Cost should be the cumulative quote amount")
+	assert.Equal(t, detail.Pair.Quote, detail.CostAsset, "CostAsset should be the quote currency")
+	assert.False(t, detail.CostAsset.IsEmpty(), "CostAsset should be set")
 	assert.Equal(t, 4.0, detail.ExecutedAmount, "ExecutedAmount should be the base cumulative quantity")
 	assert.Equal(t, 6.0, detail.RemainingAmount, "RemainingAmount should be the base remaining quantity")
 	assert.Equal(t, order.Limit, detail.Type, "orderType 1 should map to a limit order")

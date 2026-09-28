@@ -284,6 +284,7 @@ func TestGetOrderInfoPairAndTimestamps(t *testing.T) {
 		assert.Equal(t, int64(1736409765000), detail.Date.UnixMilli(), "Date should come from the order time")
 		assert.Equal(t, int64(1736409770000), detail.LastUpdated.UnixMilli(), "LastUpdated should come from updateTime")
 		assert.Equal(t, 10.0, detail.Cost, "Cost should carry the cumulative quote spent, not a zero")
+		assert.Equal(t, currency.USDT, detail.CostAsset, "CostAsset should be the quote currency")
 	})
 
 	t.Run("updateTime absent falls back to time", func(t *testing.T) {
@@ -356,6 +357,7 @@ func TestGetActiveOrdersToleratesUncatalogedSymbol(t *testing.T) {
 		if orders[i].OrderID == "b1" {
 			found = true
 			assert.Equal(t, 20000.0, orders[i].Cost, "Cost should carry the cumulative quote spent from the REST order")
+			assert.Equal(t, currency.USDT, orders[i].CostAsset, "CostAsset should be the quote currency")
 		}
 	}
 	assert.True(t, found, "the catalogued BTCUSDT order should be present in the listing")

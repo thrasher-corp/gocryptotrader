@@ -1083,6 +1083,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			// Detail.Cost to the proto cost field, so a market order's real executed cost reaches
 			// the caller instead of a zero. Price alone is the protective limit, not the average.
 			Cost:                 result.CummulativeQuoteQty.Float64(),
+			CostAsset:            pair.Quote,
 			AverageExecutedPrice: averageExecutedPrice(result),
 			TriggerPrice:         result.StopPrice.Float64(),
 			ExecutedAmount:       result.ExecutedQty.Float64(),
@@ -1243,6 +1244,7 @@ func (e *Exchange) orderDetailFromRESTOrder(o *OrderDetail, fallbackPair currenc
 		// Cost is the quote actually spent (cumulative filled value), mapped to the proto cost
 		// field by the rpc server; without it a market order reports a zero cost to the caller.
 		Cost:            o.CummulativeQuoteQty.Float64(),
+		CostAsset:       pair.Quote,
 		ExecutedAmount:  o.ExecutedQty.Float64(),
 		RemainingAmount: o.OrigQty.Float64() - o.ExecutedQty.Float64(),
 		Exchange:        e.Name,

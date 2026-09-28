@@ -879,6 +879,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			QuoteAmount:          nums.amount,
 			// cumulativeAmount is the quote actually spent; without it a filled order reports a zero cost.
 			Cost:            nums.cumulativeAmount,
+			CostAsset:       cp.Quote,
 			ExecutedAmount:  nums.cumulativeQuantity,
 			RemainingAmount: nums.remainQuantity,
 			OrderID:         body.Id,
