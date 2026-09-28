@@ -11,54 +11,53 @@ var currencyStateManagementCommand = &cli.Command{
 	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
-			Name:      "getall",
-			Usage:     "fetch all currency states associated with an exchange",
-			ArgsUsage: exchangeArgsUsage,
+			Name:  "getall",
+			Usage: "fetch all currency states associated with an exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 			},
 			Action: stateGetAll,
 		},
 		{
-			Name:      "withdraw",
-			Usage:     "returns if the currency can be withdrawn from the exchange",
-			ArgsUsage: "<exchange> <code> <asset>",
-			Flags:     stateFlags,
-			Action:    stateGetWithdrawal,
+			Name:   "withdraw",
+			Usage:  "returns if the currency can be withdrawn from the exchange",
+			Flags:  stateFlags,
+			Action: stateGetWithdrawal,
 		},
 		{
-			Name:      "deposit",
-			Usage:     "returns if the currency can be deposited onto an exchange",
-			ArgsUsage: "<exchange> <code> <asset>",
-			Flags:     stateFlags,
-			Action:    stateGetDeposit,
+			Name:   "deposit",
+			Usage:  "returns if the currency can be deposited onto an exchange",
+			Flags:  stateFlags,
+			Action: stateGetDeposit,
 		},
 		{
-			Name:      "trade",
-			Usage:     "returns if the currency can be traded on the exchange",
-			ArgsUsage: "<exchange> <code> <asset>",
-			Flags:     stateFlags,
-			Action:    stateGetTrading,
+			Name:   "trade",
+			Usage:  "returns if the currency can be traded on the exchange",
+			Flags:  stateFlags,
+			Action: stateGetTrading,
 		},
 		{
-			Name:      "tradepair",
-			Usage:     "returns if the currency pair can be traded on the exchange",
-			ArgsUsage: "<exchange> <pair> <asset>",
+			Name:  "tradepair",
+			Usage: "returns if the currency pair can be traded on the exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  exchangeFlag,
-					Usage: exchangeUsage,
+					Name:     exchangeFlag,
+					Required: true,
+					Usage:    exchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:  pairFlag,
-					Usage: "the currency pair e.g. btc-usd",
+					Name:     pairFlag,
+					Required: true,
+					Usage:    "the currency pair e.g. btc-usd",
 				},
 				&cli.StringFlag{
-					Name:  assetFlag,
-					Usage: "the asset type",
+					Name:     assetFlag,
+					Required: true,
+					Usage:    "the asset type",
 				},
 			},
 			Action: stateGetPairTrading,
@@ -68,29 +67,30 @@ var currencyStateManagementCommand = &cli.Command{
 
 var stateFlags = []cli.Flag{
 	&cli.StringFlag{
-		Name:  exchangeFlag,
-		Usage: exchangeUsage,
+		Name:     exchangeFlag,
+		Required: true,
+		Usage:    exchangeUsage,
 	},
 	&cli.StringFlag{
-		Name:  "code",
-		Usage: "the currency code",
+		Name:     "code",
+		Required: true,
+		Usage:    "the currency code",
 	},
 	&cli.StringFlag{
-		Name:  assetFlag,
-		Usage: "the asset type",
+		Name:     assetFlag,
+		Required: true,
+		Usage:    "the asset type",
 	},
 }
 
 func stateGetAll(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -112,29 +112,23 @@ func stateGetAll(c *cli.Context) error {
 }
 
 func stateGetDeposit(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	var code string
 	if c.IsSet("code") {
 		code = c.String("code")
-	} else {
-		code = c.Args().Get(1)
 	}
 
 	var a string
 	if c.IsSet(assetFlag) {
 		a = c.String(assetFlag)
-	} else {
-		a = c.Args().Get(2)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -160,29 +154,23 @@ func stateGetDeposit(c *cli.Context) error {
 }
 
 func stateGetWithdrawal(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	var code string
 	if c.IsSet("code") {
 		code = c.String("code")
-	} else {
-		code = c.Args().Get(1)
 	}
 
 	var a string
 	if c.IsSet(assetFlag) {
 		a = c.String(assetFlag)
-	} else {
-		a = c.Args().Get(2)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -208,29 +196,23 @@ func stateGetWithdrawal(c *cli.Context) error {
 }
 
 func stateGetTrading(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	var code string
 	if c.IsSet("code") {
 		code = c.String("code")
-	} else {
-		code = c.Args().Get(1)
 	}
 
 	var a string
 	if c.IsSet(assetFlag) {
 		a = c.String(assetFlag)
-	} else {
-		a = c.Args().Get(2)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -256,29 +238,23 @@ func stateGetTrading(c *cli.Context) error {
 }
 
 func stateGetPairTrading(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
 	if c.IsSet(exchangeFlag) {
 		exchange = c.String(exchangeFlag)
-	} else {
-		exchange = c.Args().First()
 	}
 
 	var pair string
 	if c.IsSet(pairFlag) {
 		pair = c.String(pairFlag)
-	} else {
-		pair = c.Args().Get(1)
 	}
 
 	var a string
 	if c.IsSet(assetFlag) {
 		a = c.String(assetFlag)
-	} else {
-		a = c.Args().Get(2)
 	}
 
 	conn, cancel, err := setupClient(c)
