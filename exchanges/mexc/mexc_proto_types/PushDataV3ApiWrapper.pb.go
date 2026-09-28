@@ -24,10 +24,10 @@ const (
 type PushDataV3ApiWrapper struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	//*
-	// 频道
+	// Channel
 	Channel string `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
 	//*
-	// 数据，NOTE：因为不能重复，所以类型和变量名尽量使用全名
+	// Data. Types and field names are spelled out in full, since they must not repeat
 	//
 	// Types that are valid to be assigned to Body:
 	//
@@ -48,16 +48,16 @@ type PushDataV3ApiWrapper struct {
 	//	*PushDataV3ApiWrapper_PublicAggreBookTicker
 	Body isPushDataV3ApiWrapper_Body `protobuf_oneof:"body"`
 	//*
-	// 交易对
+	// Symbol
 	Symbol *string `protobuf:"bytes,3,opt,name=symbol,proto3,oneof" json:"symbol,omitempty"`
 	//*
-	// 交易对ID
+	// Symbol ID
 	SymbolId *string `protobuf:"bytes,4,opt,name=symbolId,proto3,oneof" json:"symbolId,omitempty"`
 	//*
-	// 消息生成时间
+	// Message creation time
 	CreateTime *int64 `protobuf:"varint,5,opt,name=createTime,proto3,oneof" json:"createTime,omitempty"`
 	//*
-	// 消息推送时间
+	// Message push time
 	SendTime      *int64 `protobuf:"varint,6,opt,name=sendTime,proto3,oneof" json:"sendTime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

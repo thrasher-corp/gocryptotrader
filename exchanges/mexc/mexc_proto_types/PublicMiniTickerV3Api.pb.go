@@ -25,29 +25,29 @@ const (
 
 type PublicMiniTickerV3Api struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// 交易对名
+	// Symbol
 	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// 最新价格
+	// Last price
 	Price string `protobuf:"bytes,2,opt,name=price,proto3" json:"price,omitempty"`
-	// utc+8时区涨跌幅
+	// Price change rate in UTC+8
 	Rate string `protobuf:"bytes,3,opt,name=rate,proto3" json:"rate,omitempty"`
-	// 时区涨跌幅
+	// Price change rate in the requested time zone
 	ZonedRate string `protobuf:"bytes,4,opt,name=zonedRate,proto3" json:"zonedRate,omitempty"`
-	// 滚动最高价
+	// Rolling high price
 	High string `protobuf:"bytes,5,opt,name=high,proto3" json:"high,omitempty"`
-	// 滚动最低价
+	// Rolling low price
 	Low string `protobuf:"bytes,6,opt,name=low,proto3" json:"low,omitempty"`
-	// 滚动成交额
+	// Rolling quote volume
 	Volume string `protobuf:"bytes,7,opt,name=volume,proto3" json:"volume,omitempty"`
-	// 滚动成交量
+	// Rolling base volume
 	Quantity string `protobuf:"bytes,8,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	// utc+8时区上期收盘价模式涨跌幅
+	// Price change rate in UTC+8 against the previous close
 	LastCloseRate string `protobuf:"bytes,9,opt,name=lastCloseRate,proto3" json:"lastCloseRate,omitempty"`
-	// 上期收盘价模式时区涨跌幅
+	// Price change rate in the requested time zone against the previous close
 	LastCloseZonedRate string `protobuf:"bytes,10,opt,name=lastCloseZonedRate,proto3" json:"lastCloseZonedRate,omitempty"`
-	// 上期收盘价模式滚动最高价
+	// Rolling high price against the previous close
 	LastCloseHigh string `protobuf:"bytes,11,opt,name=lastCloseHigh,proto3" json:"lastCloseHigh,omitempty"`
-	// 上期收盘价模式滚动最低价
+	// Rolling low price against the previous close
 	LastCloseLow  string `protobuf:"bytes,12,opt,name=lastCloseLow,proto3" json:"lastCloseLow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

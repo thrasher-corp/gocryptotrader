@@ -9,28 +9,28 @@ option java_package = "com.mxc.push.common.protobuf";
 option optimize_for = SPEED;
 
 message PublicMiniTickerV3Api {
-  // 交易对名
+  // Symbol
   string symbol = 1;
-  // 最新价格
+  // Last price
   string price = 2;
-  // utc+8时区涨跌幅
+  // Price change rate in UTC+8
   string rate = 3;
-  // 时区涨跌幅
+  // Price change rate in the requested time zone
   string zonedRate = 4;
-  // 滚动最高价
+  // Rolling high price
   string high = 5;
-  // 滚动最低价
+  // Rolling low price
   string low = 6;
-  // 滚动成交额
+  // Rolling quote volume
   string volume = 7;
-  // 滚动成交量
+  // Rolling base volume
   string quantity = 8;
-  // utc+8时区上期收盘价模式涨跌幅
+  // Price change rate in UTC+8 against the previous close
   string lastCloseRate = 9;
-  // 上期收盘价模式时区涨跌幅
+  // Price change rate in the requested time zone against the previous close
   string lastCloseZonedRate = 10;
-  // 上期收盘价模式滚动最高价
+  // Rolling high price against the previous close
   string lastCloseHigh = 11;
-  // 上期收盘价模式滚动最低价
+  // Rolling low price against the previous close
   string lastCloseLow = 12;
 }

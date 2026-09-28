@@ -1,7 +1,8 @@
 // Package mexc_proto_types holds the protobuf types of MEXC's spot websocket push data.
 //
 // The .proto files beside this one are MEXC's, from github.com/mexcdevelop/websocket-proto at commit
-// 0c9c4f35dd0fadc3a46a350e909a93379d81e811, with a go_package option added and formatted by buf format.
+// 0c9c4f35dd0fadc3a46a350e909a93379d81e811, with a go_package option added, their comments translated into English
+// and formatted by buf format.
 // The Go code is generated from them with protoc v29.3 and protoc-gen-go v1.36.6; to update the types,
 // replace the .proto files and run go generate in this directory.
 //

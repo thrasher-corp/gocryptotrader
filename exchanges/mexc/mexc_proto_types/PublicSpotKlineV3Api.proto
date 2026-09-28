@@ -9,22 +9,22 @@ option java_package = "com.mxc.push.common.protobuf";
 option optimize_for = SPEED;
 
 message PublicSpotKlineV3Api {
-  //K线周期(Min1,Min5,Min15,Min30,Min60,Hour4,Hour8,Day1,Week1,Month1)
+  // Kline interval (Min1, Min5, Min15, Min30, Min60, Hour4, Hour8, Day1, Week1, Month1)
   string interval = 1;
-  // 窗口开始时间戳(秒时间戳)
+  // Window start time, in seconds
   int64 windowStart = 2;
-  // 开盘价
+  // Open price
   string openingPrice = 3;
-  // 收盘价
+  // Close price
   string closingPrice = 4;
-  // 最高价
+  // High price
   string highestPrice = 5;
-  // 最低价
+  // Low price
   string lowestPrice = 6;
-  // 成交量
+  // Base volume
   string volume = 7;
-  // 成交额
+  // Quote volume
   string amount = 8;
-  // 窗口结束时间戳(秒时间戳)
+  // Window end time, in seconds
   int64 windowEnd = 9;
 }

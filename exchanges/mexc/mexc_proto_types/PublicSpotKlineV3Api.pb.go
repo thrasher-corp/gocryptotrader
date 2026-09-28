@@ -25,23 +25,23 @@ const (
 
 type PublicSpotKlineV3Api struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	//K线周期(Min1,Min5,Min15,Min30,Min60,Hour4,Hour8,Day1,Week1,Month1)
+	// Kline interval (Min1, Min5, Min15, Min30, Min60, Hour4, Hour8, Day1, Week1, Month1)
 	Interval string `protobuf:"bytes,1,opt,name=interval,proto3" json:"interval,omitempty"`
-	// 窗口开始时间戳(秒时间戳)
+	// Window start time, in seconds
 	WindowStart int64 `protobuf:"varint,2,opt,name=windowStart,proto3" json:"windowStart,omitempty"`
-	// 开盘价
+	// Open price
 	OpeningPrice string `protobuf:"bytes,3,opt,name=openingPrice,proto3" json:"openingPrice,omitempty"`
-	// 收盘价
+	// Close price
 	ClosingPrice string `protobuf:"bytes,4,opt,name=closingPrice,proto3" json:"closingPrice,omitempty"`
-	// 最高价
+	// High price
 	HighestPrice string `protobuf:"bytes,5,opt,name=highestPrice,proto3" json:"highestPrice,omitempty"`
-	// 最低价
+	// Low price
 	LowestPrice string `protobuf:"bytes,6,opt,name=lowestPrice,proto3" json:"lowestPrice,omitempty"`
-	// 成交量
+	// Base volume
 	Volume string `protobuf:"bytes,7,opt,name=volume,proto3" json:"volume,omitempty"`
-	// 成交额
+	// Quote volume
 	Amount string `protobuf:"bytes,8,opt,name=amount,proto3" json:"amount,omitempty"`
-	// 窗口结束时间戳(秒时间戳)
+	// Window end time, in seconds
 	WindowEnd     int64 `protobuf:"varint,9,opt,name=windowEnd,proto3" json:"windowEnd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
