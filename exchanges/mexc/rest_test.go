@@ -800,7 +800,7 @@ func TestUserUniversalTransfer(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetUnversalTransferHistory(t *testing.T) {
+func TestGetUniversalTransferHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := recentWindow()
 	_, err := e.GetUniversalTransferHistory(t.Context(), asset.Empty, asset.Futures, startTime, endTime, 0, 10)

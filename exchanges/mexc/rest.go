@@ -485,7 +485,7 @@ func (e *Exchange) GetSubAccountUniversalTransferHistory(ctx context.Context, fr
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *UniversalTransferHistoryData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubaccUnversalTransfersEPL, http.MethodGet, "capital/sub-account/universalTransfer", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountUniversalTransfersEPL, http.MethodGet, "capital/sub-account/universalTransfer", params, nil, &resp, true)
 }
 
 // GetSubAccountAsset represents a sub-account asset balance detail
@@ -766,7 +766,7 @@ func (e *Exchange) GetUniversalTransferHistory(ctx context.Context, fromAccountT
 	}
 
 	var resp *UniversalTransferHistoryResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUniversalTransferhistoryEPL, http.MethodGet, "capital/transfer", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUniversalTransferHistoryEPL, http.MethodGet, "capital/transfer", params, nil, &resp, true)
 }
 
 // GetUniversalTransferDetailByID retrieves a universal asset transfer history item detail
@@ -1454,7 +1454,7 @@ func (e *Exchange) GetAffiliateCommissionRecord(ctx context.Context, startTime, 
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateCommissionRecord
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateCommissionRecordEPL, http.MethodGet, "rebate/affiliate/commission", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateCommissionRecordEPL, http.MethodGet, "rebate/affiliate/commission", params, nil, &resp, true)
 }
 
 // GetAffiliateWithdrawRecord retrieves affiliate withdrawal records
@@ -1479,7 +1479,7 @@ func (e *Exchange) GetAffiliateWithdrawRecord(ctx context.Context, startTime, en
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateWithdrawRecords
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateWithdrawRecordEPL, http.MethodGet, "rebate/affiliate/withdraw", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateWithdrawRecordEPL, http.MethodGet, "rebate/affiliate/withdraw", params, nil, &resp, true)
 }
 
 // GetAffiliateCommissionDetailRecord retrieves an affiliate commission detail record
@@ -1511,7 +1511,7 @@ func (e *Exchange) GetAffiliateCommissionDetailRecord(ctx context.Context, start
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *RebateAffiliateCommissionDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateConnissionDetailEPL, http.MethodGet, "rebate/affiliate/commission/detail", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateCommissionDetailEPL, http.MethodGet, "rebate/affiliate/commission/detail", params, nil, &resp, true)
 }
 
 // GetAffiliateCampaignData retrieves an affiliate campaign data
