@@ -124,7 +124,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Position tiers filter uses singular tier",
 			call: func() error {
-				_, err := e.GetPositionTiers(t.Context(), instTypeSpot, "cross", "", "", "", "1", currency.EMPTYCODE)
+				_, err := e.GetPositionTiers(t.Context(), instTypeMargin, "cross", "", "", "BTC-USDT", "1", currency.EMPTYCODE)
 				return err
 			},
 			path:   "/public/position-tiers",

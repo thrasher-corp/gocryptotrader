@@ -2499,7 +2499,7 @@ type RFQTradesRequestParams struct {
 	ClientQuoteID string
 	BeginID       string
 	EndID         string
-	Limit         int64
+	Limit         uint64
 }
 
 // RFQTradeResponse RFQ trade response
@@ -4018,8 +4018,8 @@ type RecurringOrderItem struct {
 	UpdateTime         types.Time          `json:"uTime"`
 }
 
-// RecurringOrderDeail holds detailed information about recurring order
-type RecurringOrderDeail struct {
+// RecurringOrderDetailResponse holds detailed information about recurring order
+type RecurringOrderDetailResponse struct {
 	RecurringListItem
 	RecurringList []RecurringListItemDetailed `json:"recurringList"`
 }

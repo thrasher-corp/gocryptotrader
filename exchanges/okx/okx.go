@@ -582,7 +582,7 @@ func (e *Exchange) GetAlgoOrderDetail(ctx context.Context, algoID, clientSupplie
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account
-func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
+func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit uint64) ([]AlgoOrderResponse, error) {
 	orderType = strings.ToLower(orderType)
 	if orderType == "" {
 		return nil, order.ErrTypeIsInvalid
@@ -606,7 +606,7 @@ func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID,
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []AlgoOrderResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
@@ -1051,7 +1051,7 @@ func (e *Exchange) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams
 		params.Set("endId", arg.EndID)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []RFQTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
@@ -3480,7 +3480,7 @@ func (e *Exchange) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurrin
 }
 
 // GetRecurringBuyOrderList retrieves recurring buy order list
-func (e *Exchange) GetRecurringBuyOrderList(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
+func (e *Exchange) GetRecurringBuyOrderList(ctx context.Context, algoID string, after, before time.Time, limit uint64) ([]RecurringOrderItem, error) {
 	params := url.Values{}
 	if algoID != "" {
 		params.Set("algoId", algoID)
@@ -3492,7 +3492,7 @@ func (e *Exchange) GetRecurringBuyOrderList(ctx context.Context, algoID string, 
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []RecurringOrderItem
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderListEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
@@ -3518,13 +3518,13 @@ func (e *Exchange) GetRecurringBuyOrderHistory(ctx context.Context, algoID strin
 }
 
 // GetRecurringOrderDetails retrieves a single recurring order detail
-func (e *Exchange) GetRecurringOrderDetails(ctx context.Context, algoID string) (*RecurringOrderDeail, error) {
+func (e *Exchange) GetRecurringOrderDetails(ctx context.Context, algoID string) (*RecurringOrderDetailResponse, error) {
 	if algoID == "" {
 		return nil, errAlgoIDRequired
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
-	var resp *RecurringOrderDeail
+	var resp *RecurringOrderDetailResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderDetailEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
 }
 
