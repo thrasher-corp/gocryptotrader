@@ -879,13 +879,14 @@ const accountTradesMaxPages = 20
 // myTrades returns at most 1000 fills per request, newest first and stamped to the second, with no
 // cursor, and its fill ids do not follow the fills' order. When a page comes back full, the fills
 // are read on in windows from the order's creation to the end of the oldest second of the page,
-// which a full page can stop part-way through, dropping fills already read by id. The reads stop
-// when a page is not full, after accountTradesMaxPages requests, or when a full page does not reach
-// back past its oldest second, as when more fills share one second than a page holds; the fills read
-// so far are then reported with a warning. executed is the order's executed quantity: when the
-// fills read sum to less, they are reported with a warning. It is read before the fills, so an order
-// still filling can have more fills than it counts, and a sum at or above it is not proof that none
-// is missing.
+// which a full page can stop part-way through, dropping fills already read by id. A second holding
+// a page of fills or more is passed over with a warning, since the rest of its fills cannot be read,
+// and the reads go on from the second before it unless the order was created in that second or later.
+// The reads stop when a page is not full, or with a warning when a page holds fills after the end of its
+// window or after accountTradesMaxPages requests; the fills read so far are then reported. executed is
+// the order's executed quantity: when the fills read sum to less, they are reported with a warning. It
+// is read before the fills, so an order still filling can have more fills than it counts, and a sum at
+// or above it is not proof that none is missing.
 func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, orderID string, created time.Time, executed decimal.Decimal) (trades []order.TradeHistory, totalFee float64, feeAsset currency.Code) {
 	// MEXC can report an order as filled a moment before its fills surface in myTrades, so a single
 	// immediate lookup sometimes finds nothing for a just-completed order. Retry once with a short
@@ -914,12 +915,21 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 	}
 	fills := make([]*AccountTrade, 0, len(page))
 	seen := make(map[string]struct{}, len(page))
+	// The order's time carries milliseconds but its fills are stamped to the second, so the windows start at
+	// the second the order was created in; starting at its time would leave out the fills of that second.
+	start := created.Truncate(time.Second)
+	// end is the end of the window the page was read from; the first page is read without one
+	var end time.Time
 	for requests := 1; ; requests++ {
 		for _, f := range page {
 			if _, ok := seen[f.ID]; !ok {
 				seen[f.ID] = struct{}{}
 				fills = append(fills, f)
 			}
+		}
+		if !end.IsZero() && slices.ContainsFunc(page, func(f *AccountTrade) bool { return f.Time.Time().After(end) }) {
+			log.Warnf(log.ExchangeSys, "%s: myTrades answered for order %s (%s) outside the window read; commission covers %d fills", e.Name, orderID, pair, len(fills))
+			break
 		}
 		if len(page) < accountTradesPageLimit {
 			break
@@ -934,30 +944,27 @@ func (e *Exchange) tradesForOrder(ctx context.Context, pair currency.Pair, order
 				oldest = f.Time.Time()
 			}
 		}
-		end := oldest.Truncate(time.Second).Add(time.Second - time.Millisecond)
-		start := created
-		if !start.Before(end) {
-			start = time.Time{}
+		second := oldest.Truncate(time.Second)
+		if end.Equal(second.Add(time.Second - time.Millisecond)) {
+			// A full page read up to the end of its oldest second never left that second, so the second holds a
+			// page of fills or more: the rest of them cannot be read, but the seconds before it can.
+			log.Warnf(log.ExchangeSys, "%s: order %s (%s) has a myTrades page or more of fills in the second at %s; commission may not cover all of them", e.Name, orderID, pair, second)
+			if !start.Before(second) {
+				break
+			}
+			end = second.Add(-time.Millisecond)
+		} else {
+			end = second.Add(time.Second - time.Millisecond)
 		}
-		next, err := e.GetAccountTradeList(ctx, pair, orderID, start, end, accountTradesPageLimit)
-		if err != nil {
+		from := start
+		if !from.Before(end) {
+			from = time.Time{}
+		}
+		var err error
+		if page, err = e.GetAccountTradeList(ctx, pair, orderID, from, end, accountTradesPageLimit); err != nil {
 			log.Warnf(log.ExchangeSys, "%s: myTrades lookup failed for order %s (%s) after %d fills: %v", e.Name, orderID, pair, len(fills), err)
 			break
 		}
-		if len(next) >= accountTradesPageLimit {
-			reached := false
-			for _, f := range next {
-				if f.Time.Time().Before(oldest.Truncate(time.Second)) {
-					reached = true
-					break
-				}
-			}
-			if !reached {
-				log.Warnf(log.ExchangeSys, "%s: order %s (%s) has more fills in the second at %s than a myTrades page holds; commission covers %d fills", e.Name, orderID, pair, oldest.Truncate(time.Second), len(fills))
-				break
-			}
-		}
-		page = next
 	}
 	var filled decimal.Decimal
 	for _, f := range fills {

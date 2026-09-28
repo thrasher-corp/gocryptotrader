@@ -1811,15 +1811,15 @@ func TestDustConvertJoinsAssets(t *testing.T) {
 // TestGetOrderInfoReadsEveryFillPage reads the commission of an order with more fills than one myTrades
 // request returns. The venue answers myTrades with at most limit fills, newest first, stamped to the
 // second and with string ids that do not follow the fills' order, and reads startTime and endTime to
-// the millisecond.
+// the millisecond. The order's time carries milliseconds.
 func TestGetOrderInfoReadsEveryFillPage(t *testing.T) {
 	t.Parallel()
-	created := time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
+	created := time.Date(2026, 9, 25, 10, 0, 0, 366*int(time.Millisecond), time.UTC)
 	for _, tc := range []struct {
 		name      string
 		fills     int
 		perSecond int
-		// wantFee is the commission read when the fills can all be read, or zero when they can't
+		// wantFee is the commission of the fills that can be read, or zero when the page cap stops the read
 		wantFee float64
 		// maxCalls is the most myTrades requests the read should take
 		maxCalls int64
@@ -1827,15 +1827,19 @@ func TestGetOrderInfoReadsEveryFillPage(t *testing.T) {
 		{"1001 fills", 1001, 3, 1001, accountTradesMaxPages},
 		{"2500 fills", 2500, 3, 2500, accountTradesMaxPages},
 		{"pages meeting part-way through a second", 1500, 600, 1500, accountTradesMaxPages},
-		// Reading the second again returns the same page, so the read stops there.
-		{"more fills in one second than a page", 1500, 1500, 0, 2},
+		// Only a page of the fills in a second holding more than a page can be read.
+		{"more fills in one second than a page", 1500, 1500, 1000, 2},
+		{"seconds holding a page each", 2500, 1000, 2500, accountTradesMaxPages},
+		{"seconds holding more than a page each", 2500, 1200, 2100, accountTradesMaxPages},
 		{"more pages than are read", 30000, 10, 0, accountTradesMaxPages},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			// Fill i is stamped perSecond fills to a second from the order's creation, charged 1 USDT for
-			// 1 KAS, and its id is scrambled so that it does not follow the fills' order.
-			stamp := func(i int) int64 { return created.Add(time.Duration(i/tc.perSecond+1) * time.Second).UnixMilli() }
+			// Fill i is stamped perSecond fills to a second from the second the order was created in, charged
+			// 1 USDT for 1 KAS, and its id is scrambled so that it does not follow the fills' order.
+			stamp := func(i int) int64 {
+				return created.Truncate(time.Second).Add(time.Duration(i/tc.perSecond) * time.Second).UnixMilli()
+			}
 			id := func(i int) string { return strconv.Itoa(i*7919%100003) + "X" + strconv.Itoa(i%3) }
 			var calls atomic.Int64
 			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1874,11 +1878,34 @@ func TestGetOrderInfoReadsEveryFillPage(t *testing.T) {
 				assert.Equal(t, float64(len(detail.Trades)), detail.Fee, "the fee should be the commission of the fills that were read, each once")
 				return
 			}
-			require.Len(t, detail.Trades, tc.fills, "every fill must be read once")
-			assert.Equal(t, tc.wantFee, detail.Fee, "Fee should be the commission of every fill")
+			require.Len(t, detail.Trades, int(tc.wantFee), "every fill that can be read must be read once")
+			assert.Equal(t, tc.wantFee, detail.Fee, "Fee should be the commission of every fill read")
 			assert.Equal(t, currency.USDT, detail.FeeAsset, "FeeAsset should be the fills' commission asset")
 		})
 	}
+}
+
+// TestGetOrderInfoStopsWhenTheWindowIsIgnored stops reading an order's fills when myTrades answers a
+// windowed read with fills outside the window, rather than reading the same page up to the request bound.
+func TestGetOrderInfoStopsWhenTheWindowIsIgnored(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int64
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "myTrades") {
+			_, _ = w.Write([]byte(`{"symbol":"KASUSDT","orderId":"1","origQty":"3000","executedQty":"3000","type":"LIMIT","side":"SELL","status":"FILLED","time":1790330400366}`))
+			return
+		}
+		calls.Add(1)
+		rows := make([]string, 0, accountTradesPageLimit)
+		for i := 2999; i >= 2000; i-- {
+			rows = append(rows, `{"id":"`+strconv.Itoa(i)+`","orderId":"1","commission":"1","commissionAsset":"USDT","qty":"1","time":`+strconv.FormatInt(1790330400000+int64(i/3)*1000, 10)+`}`)
+		}
+		_, _ = w.Write([]byte("[" + strings.Join(rows, ",") + "]"))
+	}))
+	detail, err := ex.GetOrderInfo(t.Context(), "1", currency.NewPair(currency.NewCode("KAS"), currency.USDT), asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Len(t, detail.Trades, accountTradesPageLimit, "the fills read before the window was ignored should be kept")
+	assert.Equal(t, int64(2), calls.Load(), "a page answered outside its window should end the reads")
 }
 
 // TestGetOrderHistoryAsksForAFullPage asks the venue for its largest page of orders: All Orders returns
