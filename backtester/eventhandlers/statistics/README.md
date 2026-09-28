@@ -1,13 +1,11 @@
 # GoCryptoTrader Backtester: Statistics package
 
-<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This statistics package is part of the GoCryptoTrader codebase.
 
@@ -23,6 +21,7 @@ The statistics package is used for storing all relevant data over the course of 
 When multiple currencies are included in your strategy, the statistics package will be able to calculate which exchange asset currency pair has performed the best, along with the biggest drop downs in the market.
 
 It can calculate the following:
+
 - Calmar ratio
 - Information ratio
 - Sharpe ratio
@@ -43,6 +42,7 @@ It can calculate the following:
 | Compound annual growth rate | Compound annual growth rate is the rate of return that would be required for an investment to grow from its beginning balance to its ending balance, assuming the profits were reinvested at the end of each year of the investment’s lifespan | Any positive number |
 
 ## Arithmetic or versus geometric?
+
 Both! We calculate ratios where an average is required using both types. The reasoning for using either is debated by finance and mathematicians. [This](https://www.investopedia.com/ask/answers/06/geometricmean.asp) is a good breakdown of both, but here is an extra simple table
 
 | Average type | A reason to use it |
@@ -51,12 +51,13 @@ Both! We calculate ratios where an average is required using both types. The rea
 | Geometric | The geometric mean differs from the arithmetic average, or arithmetic mean, in how it is calculated because it takes into account the compounding that occurs from period to period. Because of this, investors usually consider the geometric mean a more accurate measure of returns than the arithmetic mean |
 
 ## USD total tracking
+
 If the strategy config setting `DisableUSDTracking` is `false`, then the GoCryptoTrader Backtester will automatically retrieve USD data that matches your backtesting currencies, eg pair BTC/LTC will track BTC/USD and LTC/USD as well. This allows for tracking overall strategic performance against one currency. This can allow for much easier performance calculations and comparisons
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

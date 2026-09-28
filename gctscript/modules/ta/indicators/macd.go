@@ -13,7 +13,7 @@ import (
 
 // MACDModule MACD indicator commands
 var MACDModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: macd},
+	calculate: &objects.UserFunction{Name: calculate, Value: macd},
 }
 
 // MovingAverageConvergenceDivergence is the string constant
@@ -37,7 +37,7 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(MACD)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 

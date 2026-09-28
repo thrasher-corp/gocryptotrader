@@ -44,7 +44,7 @@ var (
 // promptForConfigEncryption asks for encryption confirmation
 // returns true if encryption was desired, false otherwise
 func promptForConfigEncryption(r io.Reader) (bool, error) {
-	fmt.Println("Would you like to encrypt your config file (y/n)?")
+	fmt.Println("Would you like to encrypt your config file (y/n)?") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
 
 	input := ""
 	if _, err := fmt.Fscanln(r, &input); err != nil {
@@ -78,15 +78,15 @@ func PromptForConfigKey(confirmKey bool) ([]byte, error) {
 		if bytes.Equal(key, conf) {
 			return key, nil
 		}
-		fmt.Println("Keys did not match, please try again.")
+		fmt.Println("Keys did not match, please try again.") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
 	}
 	return nil, fmt.Errorf("%w: %w", errUserInput, io.EOF)
 }
 
 // getSensitiveInput reads input from stdin, with echo off if stdin is a terminal
 func getSensitiveInput(prompt string) (resp []byte, err error) {
-	fmt.Print(prompt)
-	defer fmt.Println()
+	fmt.Print(prompt)   //nolint:forbidigo // interactive prompt; the operator reads this on stdout
+	defer fmt.Println() //nolint:forbidigo // terminates the interactive prompt line above
 	if term.IsTerminal(int(os.Stdin.Fd())) {
 		return term.ReadPassword(int(os.Stdin.Fd()))
 	}

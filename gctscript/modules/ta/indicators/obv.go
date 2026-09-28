@@ -13,7 +13,7 @@ import (
 
 // ObvModule volume indicator commands
 var ObvModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: obv},
+	calculate: &objects.UserFunction{Name: calculate, Value: obv},
 }
 
 // OnBalanceVolume is the string constant
@@ -35,7 +35,7 @@ func obv(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(OBV)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 

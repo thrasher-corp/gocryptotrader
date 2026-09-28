@@ -148,7 +148,7 @@ func (e *Exchange) FuturesEditOrder(ctx context.Context, orderID, clientOrderID 
 		params.Set("orderId", orderID)
 	}
 	if clientOrderID != "" {
-		params.Set("cliOrderId", clientOrderID)
+		params.Set("cliOrdId", clientOrderID)
 	}
 	params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
 	params.Set("limitPrice", strconv.FormatFloat(limitPrice, 'f', -1, 64))

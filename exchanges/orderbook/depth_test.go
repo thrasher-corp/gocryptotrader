@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	id           = uuid.Must(uuid.NewV4())
+	id           = uuid.NewV4()
 	accuracy10dp = 1 / math.Pow10(10)
 )
 
@@ -238,15 +238,17 @@ func TestAssignOptions(t *testing.T) {
 
 func TestGetName(t *testing.T) {
 	t.Parallel()
-	d := Depth{}
-	d.exchange = "test"
+	d := Depth{
+		exchange: "test",
+	}
 	assert.Equal(t, "test", d.GetName(), "GetName should return correct value")
 }
 
 func TestIsRestSnapshot(t *testing.T) {
 	t.Parallel()
-	d := Depth{}
-	d.restSnapshot = true
+	d := Depth{
+		restSnapshot: true,
+	}
 	err := d.Invalidate(nil)
 	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 	_, err = d.IsRESTSnapshot()
@@ -277,8 +279,9 @@ func TestLastUpdateID(t *testing.T) {
 
 func TestIsFundingRate(t *testing.T) {
 	t.Parallel()
-	d := Depth{}
-	d.isFundingRate = true
+	d := Depth{
+		isFundingRate: true,
+	}
 	assert.True(t, d.IsFundingRate(), "IsFundingRate should return true")
 }
 
@@ -482,9 +485,9 @@ func TestMovementMethods(t *testing.T) {
 			valueArgs[i] = reflect.ValueOf(v)
 		}
 		r := m.Call(valueArgs)
-		movement, ok := r[0].Interface().(*Movement)
+		movement, ok := reflect.TypeAssert[*Movement](r[0])
 		assert.True(t, ok, "Should return an Movement type")
-		if err, ok := r[1].Interface().(error); ok {
+		if err, ok := reflect.TypeAssert[error](r[1]); ok {
 			return movement, err
 		}
 		return movement, nil
@@ -494,7 +497,7 @@ func TestMovementMethods(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			methodName := strings.Split(tt.name, "_")[0]
+			methodName, _, _ := strings.Cut(tt.name, "_")
 
 			_, err := callMethod(getInvalidDepth(), methodName, tt.tests[0].inputs)
 			assert.ErrorIsf(t, err, ErrOrderbookInvalid, "should error correctly with an invalid orderbook")

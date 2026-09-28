@@ -1,13 +1,11 @@
 # GoCryptoTrader Backtester: Portfolio package
 
-<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This portfolio package is part of the GoCryptoTrader codebase.
 
@@ -23,6 +21,7 @@ The portfolio is one of the most critical packages in the GoCryptoTrader Backtes
 The portfolio receives three kinds of events to be processed: `OnSignal`, `OnFill` and `Update`
 
 The following steps are taken for the `OnSignal` function:
+
 - Retrieve previous iteration's holdings data
 - If a buy order signal is received, ensure there are enough funds
 - If a sell order signal is received, ensure there are any holdings to sell
@@ -36,17 +35,19 @@ The following steps are taken for the `OnSignal` function:
 - If the order is deemed appropriate, the order event will be returned and appended to the event queue for the exchange event handler to run and place the order
 
 The following steps are taken for the `OnFill` function:
+
 - Previous holdings are retrieved and amended with new order information.
   - The stats for the exchange asset currency pair will be updated to reflect the order and pricing
 - The order will be added to the compliance manager for analysis in future events or the statistics package
 
 The following steps are taken for the `Update` function:
+
 - The `Update` function is called when orders are not placed, this allows for the portfolio manager to still keep track of pricing and holding statistics, while not needing to process any orders
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

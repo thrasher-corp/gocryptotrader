@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -742,8 +740,7 @@ func TestFlushChannels(t *testing.T) {
 
 	// Multi connection management
 	w.useMultiConnectionManagement = true
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	t.Cleanup(mock.Close)
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	t.Cleanup(cleanupW)
 
 	w.subscriptions = subscription.NewStore()
@@ -751,7 +748,7 @@ func TestFlushChannels(t *testing.T) {
 	amazingCandidate := &ConnectionSetup{
 		URL: "ws" + mock.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+			return conn.Dial(ctx, dialer, nil, nil)
 		},
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
@@ -1015,16 +1012,15 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		m.useMultiConnectionManagement = isMultiConn
 
 		// Mock server for dialing
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 		}))
-		t.Cleanup(srv.Close)
 
 		ws := &websocket{
 			setup: &ConnectionSetup{
 				URL: "ws" + srv.URL[len("http"):] + "/ws",
 				Connector: func(ctx context.Context, c Connection) error {
-					return c.Dial(ctx, gws.DefaultDialer, nil, nil)
+					return c.Dial(ctx, dialer, nil, nil)
 				},
 				Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
 					return m.AddSuccessfulSubscriptions(c, s...)
@@ -1419,10 +1415,9 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 	m.trafficTimeout = time.Minute
 	m.setEnabled(true)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
-	t.Cleanup(srv.Close)
 	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
 	subA := &subscription.Subscription{Channel: "A"}
@@ -1433,7 +1428,7 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 		URL: "ws" + srv.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
 			connectorCalls++
-			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+			return conn.Dial(ctx, dialer, nil, nil)
 		},
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return subscription.List{subA, subB}, nil
@@ -1470,10 +1465,9 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 	m.trafficTimeout = time.Minute
 	m.setEnabled(true)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
-	t.Cleanup(srv.Close)
 	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
 	realA := &subscription.Subscription{Channel: "real-A"}
@@ -1491,7 +1485,7 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 		URL: "ws" + srv.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
 			connectorCalls++
-			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+			return conn.Dial(ctx, dialer, nil, nil)
 		},
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return subscription.List{realA, trackedA, realB, trackedB}, nil
@@ -1542,10 +1536,9 @@ func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 	m.trafficTimeout = time.Minute
 	m.setEnabled(true)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
-	t.Cleanup(srv.Close)
 	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
 	realSub := &subscription.Subscription{Channel: "real"}
@@ -1553,7 +1546,7 @@ func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
 		URL: "ws" + srv.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+			return conn.Dial(ctx, dialer, nil, nil)
 		},
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return subscription.List{realSub, trackedSub}, nil

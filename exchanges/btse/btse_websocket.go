@@ -78,7 +78,7 @@ func (e *Exchange) WsAuthenticate(ctx context.Context) error {
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/ws/spot" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte((path)), []byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(path), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				Amount: amount,
 			})
 		}
-		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, currency.UnderscoreDelimiter)])
+		_, symbol, _ := strings.Cut(t.Topic, ":")
+		symbol, _, _ = strings.Cut(symbol, currency.UnderscoreDelimiter)
+		p, err := currency.NewPairFromString(symbol)
 		if err != nil {
 			return err
 		}

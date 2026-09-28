@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 	"errors"
-	"sort"
 	"strconv"
 	"time"
 
@@ -229,10 +228,7 @@ func (e Exchange) OHLCV(ctx context.Context, exch string, pair currency.Pair, it
 		return nil, err
 	}
 
-	sort.Slice(ret.Candles, func(i, j int) bool {
-		return ret.Candles[i].Time.Before(ret.Candles[j].Time)
-	})
-
+	ret.SortCandlesByTimestamp(false)
 	ret.FormatDates()
 	return ret, nil
 }

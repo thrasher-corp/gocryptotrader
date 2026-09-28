@@ -46,11 +46,11 @@ Vulnerabilities in this repository's code are in scope. Areas of particular inte
 
 - Leakage of API keys, secrets or client IDs — including via logs, error messages, RPC responses or
   crash output.
-- Weaknesses in configuration encryption or credential storage (see [config](/config/README.md)).
+- Weaknesses in configuration encryption or credential storage (see [config](./config/README.md)).
 - Flaws in exchange request signing or authentication.
 - Authentication, authorisation or input handling flaws in the gRPC/REST server (see
-  [gctrpc](/gctrpc/README.md)) or the websocket server.
-- Sandbox escapes or unintended host access from [gctscript](/gctscript/README.md).
+  [gctrpc](./gctrpc/README.md)) or the websocket server.
+- Sandbox escapes or unintended host access from [gctscript](./gctscript/README.md).
 - Parsing or state-handling flaws that let untrusted exchange responses cause memory corruption,
   unbounded resource use or incorrect order placement.
 - Dependency vulnerabilities that are actually reachable from GoCryptoTrader code.

@@ -2,10 +2,11 @@ package vm
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
+	"uuid"
 
 	"github.com/d5/tengo/v2"
-	"github.com/gofrs/uuid"
 )
 
 const (
@@ -31,7 +32,8 @@ const (
 	StatusFailure = "failure"
 )
 
-type vmscount uint64
+// vmscount wraps the counter so it can only be reached through its atomic accessors
+type vmscount struct{ n atomic.Uint64 }
 
 var (
 	pool = &sync.Pool{New: func() any { return new(tengo.Script) }}

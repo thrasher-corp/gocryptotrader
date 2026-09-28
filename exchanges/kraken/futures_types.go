@@ -101,9 +101,10 @@ type FuturesTicker struct {
 	BidSize               float64       `json:"bidSize"`
 	Ask                   float64       `json:"ask"`
 	AskSize               float64       `json:"askSize"`
-	Vol24h                float64       `json:"vol24h"`
+	Volume24Hour          float64       `json:"vol24h"`
+	VolumeQuote           float64       `json:"volumeQuote"`
 	OpenInterest          float64       `json:"openInterest"`
-	Open24H               float64       `json:"open24h"`
+	Open24Hour            float64       `json:"open24h"`
 	Last                  float64       `json:"last"`
 	LastTime              time.Time     `json:"lastTime"`
 	LastSize              float64       `json:"lastSize"`
@@ -112,29 +113,40 @@ type FuturesTicker struct {
 	FundingRatePrediction float64       `json:"fundingRatePrediction"`
 	IndexPrice            float64       `json:"indexPrice"`
 	PostOnly              bool          `json:"postOnly"`
-	Change24H             float64       `json:"change24h"`
+	Change24Hour          float64       `json:"change24h"`
 }
 
 // FuturesSendOrderData stores send order data
 type FuturesSendOrderData struct {
-	SendStatus struct {
-		OrderID      string    `json:"order_id"`
-		Status       string    `json:"status"`
-		ReceivedTime time.Time `json:"receivedTime"`
-		OrderEvents  []struct {
-			UID      string           `json:"uid"`
-			Order    FuturesOrderData `json:"order"`
-			Reason   string           `json:"reason"`
-			DataType string           `json:"type"`
-		} `json:"orderEvents"`
-	} `json:"sendStatus"`
-	ServerTime time.Time `json:"serverTime"`
+	SendStatus FuturesSendOrderStatus `json:"sendStatus"`
+	ServerTime time.Time              `json:"serverTime"`
+}
+
+// FuturesSendOrderStatus holds the outcome of a send order request
+type FuturesSendOrderStatus struct {
+	OrderID      string              `json:"order_id"`
+	Status       string              `json:"status"`
+	ReceivedTime time.Time           `json:"receivedTime"`
+	OrderEvents  []FuturesOrderEvent `json:"orderEvents"`
+}
+
+// FuturesOrderEvent holds one event from an order request. The send, cancel, cancel all and batch
+// endpoints serve the same event objects: a place, cancel or reject event carries "order", an edit
+// event "old" and "new", and a reject event its "reason"
+type FuturesOrderEvent struct {
+	DataType        string           `json:"type"`
+	UID             string           `json:"uid"`
+	Order           FuturesOrderData `json:"order"`
+	OldEditedOrder  FuturesOrderData `json:"old"`
+	NewEditedOrder  FuturesOrderData `json:"new"`
+	Reason          string           `json:"reason"`
+	ReducedQuantity float64          `json:"reducedQuantity"`
 }
 
 // FuturesOrderData stores order data
 type FuturesOrderData struct {
 	OrderID             string    `json:"orderId"`
-	ClientOrderID       string    `json:"cliOrderId"`
+	ClientOrderID       string    `json:"cliOrdId"`
 	OrderType           string    `json:"type"`
 	Symbol              string    `json:"symbol"`
 	Side                string    `json:"side"`
@@ -148,17 +160,16 @@ type FuturesOrderData struct {
 
 // FuturesCancelOrderData stores cancel order data for futures
 type FuturesCancelOrderData struct {
-	CancelStatus struct {
-		Status       string    `json:"status"`
-		OrderID      string    `json:"order_id"`
-		ReceivedTime time.Time `json:"receivedTime"`
-		OrderEvents  []struct {
-			UID      string           `json:"uid"`
-			Order    FuturesOrderData `json:"order"`
-			DataType string           `json:"type"`
-		} `json:"orderEvents"`
-	} `json:"cancelStatus"`
-	ServerTime time.Time `json:"serverTime"`
+	CancelStatus FuturesCancelOrderStatus `json:"cancelStatus"`
+	ServerTime   time.Time                `json:"serverTime"`
+}
+
+// FuturesCancelOrderStatus holds the outcome of a cancel order request
+type FuturesCancelOrderStatus struct {
+	Status       string              `json:"status"`
+	OrderID      string              `json:"order_id"`
+	ReceivedTime time.Time           `json:"receivedTime"`
+	OrderEvents  []FuturesOrderEvent `json:"orderEvents"`
 }
 
 // FuturesFillsData stores fills data
@@ -238,20 +249,23 @@ type AccountsData struct {
 
 // CancelAllOrdersData stores order data for all cancelled orders
 type CancelAllOrdersData struct {
-	CancelStatus struct {
-		ReceivedTime    time.Time `json:"receivedTime"`
-		CancelOnly      string    `json:"cancelOnly"`
-		Status          string    `json:"status"`
-		CancelledOrders []struct {
-			OrderID string `json:"order_id"`
-		} `json:"cancelledOrders"`
-		OrderEvents []struct {
-			UID string `json:"uid"`
-		} `json:"uid"`
-		Order    FuturesOrderData `json:"order"`
-		DataType string           `json:"type"`
-	} `json:"cancelStatus"`
-	ServerTime time.Time `json:"serverTime"`
+	CancelStatus CancelAllOrdersStatus `json:"cancelStatus"`
+	ServerTime   time.Time             `json:"serverTime"`
+}
+
+// CancelAllOrdersStatus stores the outcome of a cancel all orders request
+type CancelAllOrdersStatus struct {
+	ReceivedTime    time.Time           `json:"receivedTime"`
+	CancelOnly      string              `json:"cancelOnly"`
+	Status          string              `json:"status"`
+	CancelledOrders []CancelledOrder    `json:"cancelledOrders"`
+	OrderEvents     []FuturesOrderEvent `json:"orderEvents"`
+}
+
+// CancelledOrder holds the identifiers of an order that was cancelled
+type CancelledOrder struct {
+	OrderID       string `json:"order_id"`
+	ClientOrderID string `json:"cliOrdId"`
 }
 
 // CancelOrdersAfterData stores data of all orders after a certain time that are cancelled
@@ -330,23 +344,19 @@ type FuturesRecentOrdersData struct {
 
 // BatchOrderData stores batch order data
 type BatchOrderData struct {
-	Result      string    `json:"result"`
-	ServerTime  time.Time `json:"serverTime"`
-	BatchStatus []struct {
-		Status           string    `json:"status"`
-		OrderTag         string    `json:"order_tag"`
-		OrderID          string    `json:"order_id"`
-		DateTimeReceived time.Time `json:"dateTimeReceived"`
-		OrderEvents      []struct {
-			OrderPlaced    FuturesOrderData `json:"orderPlaced"`
-			ReduceOnly     bool             `json:"reduceOnly"`
-			Timestamp      time.Time        `json:"timestamp"`
-			OldEditedOrder FuturesOrderData `json:"old"`
-			NewEditedOrder FuturesOrderData `json:"new"`
-			UID            string           `json:"uid"`
-			RequestType    string           `json:"requestType"`
-		} `json:"orderEvents"`
-	} `json:"batchStatus"`
+	Result      string                 `json:"result"`
+	ServerTime  time.Time              `json:"serverTime"`
+	BatchStatus []BatchInstructionData `json:"batchStatus"`
+}
+
+// BatchInstructionData holds the outcome of one instruction in a batch order request
+type BatchInstructionData struct {
+	Status           string              `json:"status"`
+	OrderTag         string              `json:"order_tag"`
+	OrderID          string              `json:"order_id"`
+	ClientOrderID    string              `json:"cliOrdId"`
+	DateTimeReceived time.Time           `json:"dateTimeReceived"`
+	OrderEvents      []FuturesOrderEvent `json:"orderEvents"`
 }
 
 // PlaceBatchOrderData stores data required to place a batch order
@@ -396,10 +406,10 @@ type FuturesPublicTrades struct {
 					TakerOrderData FuturesTradeOrderData `json:"takerOrderData"`
 					Timestamp      types.Time            `json:"timestamp"`
 					UID            string                `json:"uid"`
-					UsdValue       float64               `json:"usdValue,string"`
+					USDValue       float64               `json:"usdValue,string"`
 				} `json:"execution"`
 				TakerReducedQuantity string `json:"takerReducedQuantity"`
-			} `json:"execution"`
+			} `json:"Execution"`
 		} `json:"event"`
 		Timestamp types.Time `json:"timestamp"`
 		UID       string     `json:"uid"`

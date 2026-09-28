@@ -140,7 +140,7 @@ func (e *Exchange) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReque
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(rtr.Limit))
+	params.Set("limit", strconv.FormatUint(rtr.Limit, 10))
 
 	path := recentTrades + "?" + params.Encode()
 
@@ -154,12 +154,12 @@ func (e *Exchange) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReque
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
 // fromID:
-func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
+func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol string, limit uint64, fromID int64) ([]HistoricalTrade, error) {
 	var resp []HistoricalTrade
 	params := url.Values{}
 
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(limit))
+	params.Set("limit", strconv.FormatUint(limit, 10))
 	// else return most recent trades
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
@@ -217,7 +217,7 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, arg *AggregatedTrade
 	needBatch := true // Need to batch unless user has specified a limit
 	if arg.Limit > 0 && arg.Limit <= 1000 {
 		needBatch = false
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if arg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
@@ -291,7 +291,7 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, args *AggregatedTra
 	params.Del("startTime")
 	params.Del("endTime")
 outer:
-	for ; args.Limit == 0 || len(resp) < args.Limit; fromID = resp[len(resp)-1].ATradeID {
+	for ; args.Limit == 0 || uint64(len(resp)) < args.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 		path := aggregatedTrades + "?" + params.Encode()
@@ -316,7 +316,7 @@ outer:
 		}
 		resp = append(resp, additionalTrades...)
 	}
-	if args.Limit > 0 && len(resp) > args.Limit {
+	if args.Limit > 0 && uint64(len(resp)) > args.Limit {
 		resp = resp[:args.Limit]
 	}
 	return resp, nil
@@ -903,7 +903,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrde
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
+func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit uint64) ([]DepositHistory, error) {
 	var response []DepositHistory
 
 	params := url.Values{}
@@ -935,11 +935,11 @@ func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status s
 	}
 
 	if offset != 0 {
-		params.Set("offset", strconv.Itoa(offset))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 
 	if limit != 0 {
-		params.Set("limit", strconv.Itoa(limit))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 
 	if err := e.SendAuthHTTPRequest(ctx,
@@ -957,7 +957,7 @@ func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status s
 
 // WithdrawHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
+func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit uint64) ([]WithdrawStatusResponse, error) {
 	params := url.Values{}
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
@@ -987,11 +987,11 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status 
 	}
 
 	if offset != 0 {
-		params.Set("offset", strconv.Itoa(offset))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 
 	if limit != 0 {
-		params.Set("limit", strconv.Itoa(limit))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 
 	var withdrawStatus []WithdrawStatusResponse

@@ -557,7 +557,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			case map[string]any:
 				var details strings.Builder
 				for k, v := range data {
-					details.WriteString(fmt.Sprintf("%s: %v", k, v))
+					fmt.Fprintf(&details, "%s: %v", k, v)
 				}
 				return errors.New(details.String())
 			case string:

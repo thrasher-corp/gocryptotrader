@@ -1145,7 +1145,7 @@ func TestGetDirection(t *testing.T) {
 			IsLiquidated:          true,
 		},
 	}
-	if p.GetDirection() != (p.Result.Direction) {
+	if p.GetDirection() != p.Result.Direction {
 		t.Errorf("received '%v' expected '%v'", p.GetDirection(), p.Result.Direction)
 	}
 }

@@ -2,6 +2,8 @@ package gct
 
 import (
 	"context"
+	"maps"
+	"slices"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -22,11 +24,7 @@ var globalModules = map[string]objects.Object{
 
 // AllModuleNames returns a list of all default module names.
 func AllModuleNames() []string {
-	names := make([]string, 0, len(Modules))
-	for name := range Modules {
-		names = append(names, name)
-	}
-	return names
+	return slices.AppendSeq(make([]string, 0, len(Modules)), maps.Keys(Modules))
 }
 
 // setVerbose specifically sets verbosity for http rest requests for this script

@@ -410,7 +410,7 @@ type FeeInfo struct {
 	TransactionDiscount bool              `json:"trxDiscount"`
 	MakerRate           types.Number      `json:"makerRate"`
 	TakerRate           types.Number      `json:"takerRate"`
-	Volume30D           types.Number      `json:"volume30D"`
+	Volume30Day         types.Number      `json:"volume30D"`
 	SpecialFeeRates     []*SpecialFeeRate `json:"specialFeeRates"`
 }
 
@@ -615,7 +615,7 @@ type CancelReplaceOrderRequest struct {
 	Price             float64     `json:"price,omitempty,string"`
 	BaseAmount        float64     `json:"quantity,omitempty,string"`
 	QuoteAmount       float64     `json:"amount,omitempty,string"`
-	AmendedType       string      `json:"type,omitempty,string"`
+	AmendedType       string      `json:"type,omitempty"`
 	TimeInForce       TimeInForce `json:"timeInForce,omitempty"`
 	AllowBorrow       bool        `json:"allowBorrow,omitempty"`
 	ProceedOnFailure  bool        `json:"proceedOnFailure,omitempty,string"`

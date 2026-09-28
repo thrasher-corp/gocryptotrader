@@ -165,7 +165,7 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 	data["Low"] = &objects.Float{Value: tx.Low}
 	data["bid"] = &objects.Float{Value: tx.Bid}
 	data["ask"] = &objects.Float{Value: tx.Ask}
-	data["volume"] = &objects.Float{Value: tx.Volume}
+	data["volume"] = &objects.Float{Value: tx.BaseVolume}
 	data["quotevolume"] = &objects.Float{Value: tx.QuoteVolume}
 	data["priceath"] = &objects.Float{Value: tx.PriceATH}
 	data["open"] = &objects.Float{Value: tx.Open}

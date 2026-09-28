@@ -226,7 +226,7 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 			Price:           r.Price.Float64(),
 			Amount:          r.BaseAmount.Float64(),
 			QuoteAmount:     r.OrderAmount.Float64(),
-			ExecutedAmount:  r.FilledAmount.Float64(),
+			ExecutedAmount:  r.FilledQuantity.Float64(),
 			RemainingAmount: r.BaseAmount.Float64() - r.FilledQuantity.Float64(),
 			Fee:             r.TradeFee.Float64(),
 			FeeAsset:        r.FeeCurrency,
@@ -251,7 +251,7 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 					Side:      r.Side,
 					Timestamp: r.Timestamp.Time(),
 					FeeAsset:  r.FeeCurrency.String(),
-					Total:     r.BaseAmount.Float64(),
+					Total:     r.TradeAmount.Float64(),
 				},
 			},
 		}
@@ -321,10 +321,11 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 	tickerData := make([]ticker.Price, len(resp))
 	for x, r := range resp {
 		tickerData[x] = ticker.Price{
+			Last:         r.Close.Float64(),
 			MarkPrice:    r.MarkPrice.Float64(),
 			High:         r.High.Float64(),
 			Low:          r.Low.Float64(),
-			Volume:       r.BaseAmount.Float64(),
+			BaseVolume:   r.BaseAmount.Float64(),
 			QuoteVolume:  r.QuoteAmount.Float64(),
 			Open:         r.Open.Float64(),
 			Close:        r.Close.Float64(),

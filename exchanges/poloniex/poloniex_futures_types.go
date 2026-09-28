@@ -312,7 +312,7 @@ type WsFuturesPosition struct {
 	UpdateTime                 types.Time    `json:"uTime"`
 	Timestamp                  types.Time    `json:"ts"`
 	ProfitAndLoss              types.Number  `json:"pnl"`
-	FundingFee                 types.Number  `json:"ffee"`
+	FundingFee                 types.Number  `json:"ffee"` // the websocket feed sends lowercase, unlike REST position history
 }
 
 // AdjustFuturesMarginResponse represents a response data after adjusting futures margin positions
@@ -434,20 +434,22 @@ type FuturesTickerDetails struct {
 	LowPrice     types.Number  `json:"l"`
 	HighPrice    types.Number  `json:"h"`
 	ClosingPrice types.Number  `json:"c"`
-	BaseAmount   types.Number  `json:"qty"`
-	QuoteAmount  types.Number  `json:"amt"`
-	TradeCount   int64         `json:"tC"`
-	StartTime    types.Time    `json:"sT"`
-	EndTime      types.Time    `json:"cT"`
-	DailyPrice   types.Number  `json:"dC"`
-	DisplayName  string        `json:"dN"`
-	BestBidPrice types.Number  `json:"bPx"`
-	BestBidSize  types.Number  `json:"bSz"`
-	BestAskPrice types.Number  `json:"aPx"`
-	BestAskSize  types.Number  `json:"aSz"`
-	MarkPrice    types.Number  `json:"mPx"`
-	IndexPrice   types.Number  `json:"iPx"`
-	Timestamp    types.Time    `json:"ts"`
+	// ContractAmount counts contracts rather than base currency: BTC_USDT_PERP reported 77,706
+	// against 77.706 BTC, its contract being worth 0.001 BTC
+	ContractAmount types.Number `json:"qty"`
+	QuoteAmount    types.Number `json:"amt"`
+	TradeCount     int64        `json:"tC"`
+	StartTime      types.Time   `json:"sT"`
+	EndTime        types.Time   `json:"cT"`
+	DailyPrice     types.Number `json:"dC"`
+	DisplayName    string       `json:"dN"`
+	BestBidPrice   types.Number `json:"bPx"`
+	BestBidSize    types.Number `json:"bSz"`
+	BestAskPrice   types.Number `json:"aPx"`
+	BestAskSize    types.Number `json:"aSz"`
+	MarkPrice      types.Number `json:"mPx"`
+	IndexPrice     types.Number `json:"iPx"`
+	Timestamp      types.Time   `json:"ts"`
 }
 
 // InstrumentIndexPrice represents a symbols index price

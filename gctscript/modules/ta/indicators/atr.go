@@ -13,7 +13,7 @@ import (
 
 // AtrModule range indicator commands
 var AtrModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: atr},
+	calculate: &objects.UserFunction{Name: calculate, Value: atr},
 }
 
 // AverageTrueRange is the string constant
@@ -35,7 +35,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 	r := new(ATR)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 

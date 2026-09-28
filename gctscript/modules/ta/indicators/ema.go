@@ -13,7 +13,7 @@ import (
 
 // EMAModule EMA indicator commands
 var EMAModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: ema},
+	calculate: &objects.UserFunction{Name: calculate, Value: ema},
 }
 
 // ExponentialMovingAverage is the string constant
@@ -36,7 +36,7 @@ func ema(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := new(EMA)
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return r, nil
 	}
 

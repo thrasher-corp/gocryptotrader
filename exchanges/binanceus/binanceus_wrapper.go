@@ -3,7 +3,6 @@ package binanceus
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -250,7 +249,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Low:          tick.LowPrice,
 		Bid:          tick.BidPrice,
 		Ask:          tick.AskPrice,
-		Volume:       tick.Volume,
+		BaseVolume:   tick.Volume,
 		QuoteVolume:  tick.QuoteVolume,
 		Open:         tick.OpenPrice,
 		Close:        tick.PrevClosePrice,
@@ -293,7 +292,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          tick[y].LowPrice,
 				Bid:          tick[y].BidPrice,
 				Ask:          tick[y].AskPrice,
-				Volume:       tick[y].Volume,
+				BaseVolume:   tick[y].Volume,
 				QuoteVolume:  tick[y].QuoteVolume,
 				Open:         tick[y].OpenPrice,
 				Close:        tick[y].PrevClosePrice,
@@ -420,7 +419,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			return nil, err
 		}
 	}
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

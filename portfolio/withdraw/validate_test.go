@@ -6,9 +6,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -101,6 +104,7 @@ var (
 	}
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var p portfolio.Base
 	err := p.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
@@ -118,22 +122,23 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	p.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
-	banking.AppendAccounts(banking.Account{
-		Enabled:             true,
-		ID:                  "test-bank-01",
-		BankName:            "Test Bank",
-		BankAddress:         "42 Bank Street",
-		BankPostalCode:      "13337",
-		BankPostalCity:      "Satoshiville",
-		BankCountry:         "Japan",
-		AccountName:         "Satoshi Nakamoto",
-		AccountNumber:       "0234",
-		BSBNumber:           "123456",
-		SWIFTCode:           "91272837",
-		IBAN:                "98218738671897",
-		SupportedCurrencies: "AUD,USD",
-		SupportedExchanges:  "test-exchange",
-	},
+	banking.AppendAccounts(
+		banking.Account{
+			Enabled:             true,
+			ID:                  "test-bank-01",
+			BankName:            "Test Bank",
+			BankAddress:         "42 Bank Street",
+			BankPostalCode:      "13337",
+			BankPostalCity:      "Satoshiville",
+			BankCountry:         "Japan",
+			AccountName:         "Satoshi Nakamoto",
+			AccountNumber:       "0234",
+			BSBNumber:           "123456",
+			SWIFTCode:           "91272837",
+			IBAN:                "98218738671897",
+			SupportedCurrencies: "AUD,USD",
+			SupportedExchanges:  "test-exchange",
+		},
 	)
 
 	os.Exit(m.Run())
@@ -295,7 +300,8 @@ func TestValidateCrypto(t *testing.T) {
 			"NoAddress",
 			invalidCryptoNoAddressRequest,
 			errors.New(
-				ErrStrAddressNotSet),
+				ErrStrAddressNotSet,
+			),
 		},
 		{
 			"NegativeFee",
@@ -317,5 +323,20 @@ func TestValidateCrypto(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRequestDoesNotMarshalSecrets(t *testing.T) {
+	t.Parallel()
+	out, err := json.Marshal(&Request{
+		Exchange:        "test",
+		TradePassword:   "hunter2",
+		OneTimePassword: 123456,
+		PIN:             9999,
+	})
+	require.NoError(t, err, "Marshal must not error")
+
+	for _, secret := range []string{"hunter2", "123456", "9999", "TradePassword", "OneTimePassword", "PIN"} {
+		assert.NotContainsf(t, string(out), secret, "the encoded request should not carry %s", secret)
 	}
 }

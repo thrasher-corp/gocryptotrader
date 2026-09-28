@@ -1,14 +1,13 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 )
 
-const (
-	// ErrNoVMFound error returned when no virtual machine is found
-	ErrNoVMFound = "VM %v not found"
-)
+// ErrNoVMFound is returned when no virtual machine is registered for the given ID
+var ErrNoVMFound = errors.New("no virtual machine found")
 
 func (e Error) Error() string {
 	var scriptName, action string

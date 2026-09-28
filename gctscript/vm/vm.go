@@ -8,11 +8,10 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 	"time"
+	"uuid"
 
 	"github.com/d5/tengo/v2"
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
@@ -31,11 +30,7 @@ func (g *GctScriptManager) NewVM() *VM {
 		})
 		return nil
 	}
-	newUUID, err := uuid.NewV4()
-	if err != nil {
-		log.Errorln(log.GCTScriptMgr, Error{Action: "New: UUID", Cause: err})
-		return nil
-	}
+	newUUID := uuid.NewV4()
 
 	if g.config.Verbose {
 		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
@@ -222,7 +217,7 @@ func (vm *VM) ShortName() string {
 }
 
 func (vm *VM) event(status, executionType string) {
-	if validator.IsTestExecution.Load() == true {
+	if validator.IsTestExecution.Load() {
 		return
 	}
 
@@ -273,14 +268,14 @@ func (vm *VM) getHash() string {
 }
 
 func (vmc *vmscount) add() {
-	atomic.AddUint64((*uint64)(vmc), 1)
+	vmc.n.Add(1)
 }
 
 func (vmc *vmscount) remove() {
-	atomic.AddUint64((*uint64)(vmc), ^uint64(0))
+	vmc.n.Add(^uint64(0))
 }
 
 // Len() returns current length vmscount
 func (vmc *vmscount) Len() uint64 {
-	return atomic.LoadUint64((*uint64)(vmc))
+	return vmc.n.Load()
 }

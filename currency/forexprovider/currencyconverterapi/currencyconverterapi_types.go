@@ -32,7 +32,7 @@ type CurrencyConverter struct {
 
 // Error stores the error message
 type Error struct {
-	Status int    `json:"status"`
+	Status int64  `json:"status"` // Signed because the error format is undocumented
 	Error  string `json:"error"`
 }
 
@@ -45,7 +45,7 @@ type CurrencyItem struct {
 
 // Currencies stores the currency result data
 type Currencies struct {
-	Results map[string]CurrencyItem
+	Results map[string]CurrencyItem `json:"results"`
 }
 
 // CountryItem stores variables related to the country response
@@ -60,5 +60,5 @@ type CountryItem struct {
 
 // Countries stores the country result data
 type Countries struct {
-	Results map[string]CountryItem
+	Results map[string]CountryItem `json:"results"`
 }

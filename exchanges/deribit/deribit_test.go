@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -27,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -50,7 +53,7 @@ var apiCredentials = &accounts.Credentials{
 var (
 	e                                                                     *Exchange
 	optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
-	spotTradablePair                                                      = currency.NewPairWithDelimiter(currencyBTC, "USDC", "_")
+	spotTradablePair                                                      = currency.NewPairWithDelimiter(currencyETH, currencyBTC, "_")
 	futuresTradablePair                                                   = currency.NewPairWithDelimiter(currencyBTC, perpString, "-")
 	assetTypeToPairsMap                                                   map[asset.Item]currency.Pair
 )
@@ -646,7 +649,7 @@ func TestGetLastTradesByCurrencyAndTime(t *testing.T) {
 	_, err := e.GetLastTradesByCurrencyAndTime(t.Context(), currency.EMPTYCODE, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	result, err := e.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "future", "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	result, err = e.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "option", "asc", 25, time.Now().Add(-8*time.Hour), time.Now())
@@ -659,7 +662,7 @@ func TestWSRetrieveLastTradesByCurrencyAndTime(t *testing.T) {
 	_, err := e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.EMPTYCODE, "", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
+	result, err := e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "future", "", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	result, err = e.WSRetrieveLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "option", "asc", 25, false, time.Now().Add(-8*time.Hour), time.Now())
@@ -4393,6 +4396,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	assert.ErrorIs(t, e.CancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "CancelOrder should error for a nil cancellation")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",
@@ -4869,10 +4873,16 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 	// specific test to ensure options with dates work
-	cp = currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C"))
-	resp, err = e.GetCurrencyTradeURL(t.Context(), asset.Options, cp)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	for quote, exp := range map[string]string{
+		"14JUN24-62000-C": tradeBaseURL + tradeOptions + "BTC/BTC-14JUN24",
+		"14jun24-62000-p": tradeBaseURL + tradeOptions + "BTC/BTC-14JUN24",
+		"14JUN24-62000-X": tradeBaseURL + tradeOptions + "BTC",
+		"C":               tradeBaseURL + tradeOptions + "BTC",
+	} {
+		resp, err = e.GetCurrencyTradeURL(t.Context(), asset.Options, currency.NewPair(currency.BTC, currency.NewCode(quote)))
+		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for option quote %s", quote)
+		assert.Equalf(t, exp, resp, "GetCurrencyTradeURL should link option quote %s to its expiry page", quote)
+	}
 }
 
 func TestFormatPairString(t *testing.T) {
@@ -5015,4 +5025,437 @@ func TestAppendCandles(t *testing.T) {
 	resp, err = appendCandles(candles, time.Unix(1338, 0))
 	assert.NoError(t, err)
 	assert.Empty(t, resp)
+}
+
+// TestQuoteVolume pins which instruments have a quote volume to report. get_instruments gives
+// quote_currency USD for a future, BTC for a BTC option and USDC for a USDC one, and Deribit serves
+// volume_notional only where that currency is the one volume_usd is denominated in
+func TestQuoteVolume(t *testing.T) {
+	t.Parallel()
+	const volumeUSD = 4.7
+	for _, a := range []asset.Item{asset.Options, asset.OptionCombo} {
+		// a BTC quoted option: Deribit serves no volume_notional, its premium turnover in BTC
+		assert.Zerof(t, quoteVolume(volumeUSD, 0, a), "%s quoted in the base currency should report no turnover, having none in it", a)
+		// a USDC quoted one, where volume_notional is that turnover
+		assert.Equalf(t, 23.25, quoteVolume(23.25, 23.25, a), "%s quoted in USDC should report volume_notional", a)
+	}
+	for _, a := range []asset.Item{asset.Futures, asset.FutureCombo, asset.Spot} {
+		assert.Equalf(t, volumeUSD, quoteVolume(volumeUSD, 0, a), "%s should fall back to volume_usd where no volume_notional is served", a)
+		// A USDC quoted instrument, where volume_usd differs by the USDC price
+		assert.Equalf(t, 27088304.60512001, quoteVolume(27085692.54, 27088304.60512001, a),
+			"%s quoted in USDC should report volume_notional rather than volume_usd", a)
+	}
+}
+
+// TestQuoteVolumeReachesTheTicker covers both assignments, which the helper's own test cannot reach
+func TestQuoteVolumeReachesTheTicker(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+
+	// A BTC quoted option, whose USD premium turnover is not its quote currency
+	const instrument = "BTC-27JUN25-100000-C"
+	const stats = `"stats":{"volume_usd":4.7,"volume_notional":23.25,"volume":0.5}`
+
+	// Both channels carry the same stats, and ticker is the one defaultSubscriptions subscribes
+	for _, ch := range []string{"ticker." + instrument + ".100ms", "incremental_ticker." + instrument} {
+		payload := []byte(`{"params":{"data":{` + stats + `},"channel":"` + ch + `"},"method":"subscription","jsonrpc":"2.0"}`)
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), payload), "wsHandleData must not error for the %s channel", ch)
+
+		select {
+		case msg := <-ex.Websocket.DataHandler.C:
+			got, ok := msg.Data.(*ticker.Price)
+			require.Truef(t, ok, "the %s handler must send a ticker price", ch)
+			require.Equalf(t, asset.Options, got.AssetType, "the instrument must resolve to the options asset for %s", ch)
+			assert.Equalf(t, 23.25, got.QuoteVolume, "an option's volume_notional should reach the ticker as quote volume for %s", ch)
+		default:
+			require.Failf(t, "no ticker price sent", "the %s handler must send a ticker price", ch)
+		}
+	}
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Trimmed from GET /api/v2/public/ticker
+		_, err := fmt.Fprint(w, `{"result":{"instrument_name":"`+instrument+`",`+stats+`}}`)
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+
+	p, err := currency.NewPairFromString(instrument)
+	require.NoError(t, err, "NewPairFromString must not error")
+	tick, err := ex.UpdateTicker(t.Context(), p, asset.Options)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.Equal(t, 23.25, tick.QuoteVolume, "an option's volume_notional should reach the ticker as quote volume")
+}
+
+// TestProcessTickerMapsEveryKind covers the ticker channel for each instrument kind, which
+// defaultSubscriptions subscribes for every asset. min_price and max_price are the bounds an order
+// is clamped to rather than the day's range, and implied_bid and implied_ask are null outside
+// combos, so reading them for an option recorded a zero book
+func TestProcessTickerMapsEveryKind(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	// Each trimmed from GET /api/v2/public/ticker, which serves what the ticker channel pushes
+	for _, tc := range []struct {
+		instrument string
+		a          asset.Item
+		data       string
+		want       ticker.Price
+	}{
+		{
+			instrument: "ETH-30OCT26-3200-C", a: asset.Options,
+			data: `"timestamp":1789024540294,"last_price":0.0135,"mark_price":0.0131,"index_price":2474.47,"best_bid_price":0.0125,"best_bid_amount":1611.0,"best_ask_price":0.0135,"best_ask_amount":643.0,"implied_bid":null,"implied_ask":null,"min_price":0.0001,"max_price":0.042,"stats":{"high":0.0165,"low":0.0135,"volume":2740.0,"volume_usd":110475.0}`,
+			want: ticker.Price{Bid: 0.0125, BidSize: 1611, Ask: 0.0135, AskSize: 643, Last: 0.0135, Close: 0.0135, High: 0.0165, Low: 0.0135, BaseVolume: 2740, MarkPrice: 0.0131, IndexPrice: 2474.47, LastUpdated: time.UnixMilli(1789024540294)},
+		},
+		{
+			// A combo's own book is priced apart from the one implied off its legs, and the sizes
+			// served are its own book's
+			instrument: "BTC-PCAL-18SEP26_11SEP26-75000", a: asset.OptionCombo,
+			data: `"timestamp":1789024540975,"last_price":0.0084,"mark_price":0.0086,"index_price":78179.34,"best_bid_price":0.0081,"best_bid_amount":30.0,"best_ask_price":0.0089,"best_ask_amount":15.0,"implied_bid":0.008,"implied_ask":0.0092,"min_price":-0.0064,"max_price":0.0235,"stats":{"high":0.0084,"low":0.008,"volume":0.2,"volume_usd":0.0}`,
+			want: ticker.Price{Bid: 0.0081, BidSize: 30, Ask: 0.0089, AskSize: 15, Last: 0.0084, Close: 0.0084, High: 0.0084, Low: 0.008, BaseVolume: 0.2, MarkPrice: 0.0086, IndexPrice: 78179.34, LastUpdated: time.UnixMilli(1789024540975)},
+		},
+		{
+			instrument: "BTC-FS-25SEP26_10SEP26", a: asset.FutureCombo,
+			data: `"timestamp":1789024541973,"last_price":null,"mark_price":119.68,"index_price":78178.92,"best_bid_price":83.0,"best_bid_amount":1.0E+5,"best_ask_price":139.0,"best_ask_amount":1.0E+5,"implied_bid":100.0,"implied_ask":130.0,"min_price":-197.0,"max_price":436.0,"stats":{"high":null,"low":null,"volume":0.0,"volume_usd":0.0,"volume_notional":0.0}`,
+			want: ticker.Price{Bid: 83, BidSize: 1e5, Ask: 139, AskSize: 1e5, MarkPrice: 119.68, IndexPrice: 78178.92, LastUpdated: time.UnixMilli(1789024541973)},
+		},
+		{
+			instrument: "BTC-PERPETUAL", a: asset.Futures,
+			data: `"timestamp":1789024543036,"last_price":78187.0,"mark_price":78187.9,"index_price":78178.92,"best_bid_price":78186.5,"best_bid_amount":25070.0,"best_ask_price":78187.0,"best_ask_amount":5.77E+4,"implied_bid":null,"implied_ask":null,"min_price":77015.0,"max_price":79361.0,"stats":{"high":79779.5,"low":77728.0,"volume":4652.02138044,"volume_usd":366626080.0,"volume_notional":366626080.0}`,
+			want: ticker.Price{Bid: 78186.5, BidSize: 25070, Ask: 78187, AskSize: 57700, Last: 78187, Close: 78187, High: 79779.5, Low: 77728, BaseVolume: 4652.02138044, QuoteVolume: 366626080, MarkPrice: 78187.9, IndexPrice: 78178.92, LastUpdated: time.UnixMilli(1789024543036)},
+		},
+		{
+			instrument: "BTC_USDC", a: asset.Spot,
+			data: `"timestamp":1789024542984,"last_price":78223.0,"mark_price":78178.92,"index_price":78178.92,"best_bid_price":78140.0,"best_bid_amount":0.0462,"best_ask_price":78249.0,"best_ask_amount":0.04,"implied_bid":null,"implied_ask":null,"min_price":76615.0,"max_price":79743.0,"stats":{"high":79755.0,"low":77785.0,"volume":8.6814,"volume_usd":682942.62,"volume_notional":682976.9009}`,
+			want: ticker.Price{Bid: 78140, BidSize: 0.0462, Ask: 78249, AskSize: 0.04, Last: 78223, Close: 78223, High: 79755, Low: 77785, BaseVolume: 8.6814, QuoteVolume: 682976.9009, MarkPrice: 78178.92, IndexPrice: 78178.92, LastUpdated: time.UnixMilli(1789024542984)},
+		},
+	} {
+		payload := `{"params":{"channel":"ticker.` + tc.instrument + `.100ms","data":{"instrument_name":"` + tc.instrument + `",` + tc.data + `}},"method":"subscription","jsonrpc":"2.0"}`
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(payload)), "wsHandleData must not error for %s", tc.instrument)
+
+		p, err := currency.NewPairFromString(tc.instrument)
+		require.NoErrorf(t, err, "NewPairFromString must not error for %s", tc.instrument)
+		tc.want.ExchangeName, tc.want.Pair, tc.want.AssetType = ex.Name, p, tc.a
+		select {
+		case msg := <-ex.Websocket.DataHandler.C:
+			got, ok := msg.Data.(*ticker.Price)
+			require.Truef(t, ok, "the ticker handler must send a ticker price for %s", tc.instrument)
+			assert.Equalf(t, &tc.want, got, "the %s ticker should take its book, last price and range from the fields UpdateTicker reads", tc.a)
+		default:
+			require.Failf(t, "no ticker price sent", "the ticker handler must send a ticker price for %s", tc.instrument)
+		}
+	}
+}
+
+// TestProcessIncrementalTicker covers incremental_ticker, where Deribit sends one snapshot and then
+// only the fields that moved: part of stats or none of it, an explicit 0 for a book side that
+// empties, and a null for a range that empties. Built afresh, the first change zeroed every volume
+// and the day's range, since the store overwrites a pair wholesale
+func TestProcessIncrementalTicker(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+
+	send := func(instrument, data string) error {
+		payload := `{"params":{"channel":"incremental_ticker.` + instrument + `","data":{"instrument_name":"` + instrument + `",` + data + `}},"method":"subscription","jsonrpc":"2.0"}`
+		return ex.wsHandleData(t.Context(), []byte(payload))
+	}
+	received := func() *ticker.Price {
+		t.Helper()
+		select {
+		case msg := <-ex.Websocket.DataHandler.C:
+			got, ok := msg.Data.(*ticker.Price)
+			require.True(t, ok, "the incremental ticker handler must send a ticker price")
+			return got
+		default:
+			require.Fail(t, "no ticker price sent", "the incremental ticker handler must send one for each message")
+			return nil
+		}
+	}
+
+	// Consecutive messages from incremental_ticker.BTC-PERPETUAL
+	for _, data := range []string{
+		`"timestamp":1789023748046,"type":"snapshot","stats":{"high":79779.5,"low":77728.0,"price_change":-1.1276,"volume":4662.27109873,"volume_usd":367468920.0,"volume_notional":367468920.0},"index_price":78291.88,"last_price":78301.0,"min_price":77129.0,"max_price":79479.0,"mark_price":78304.05,"best_ask_price":78301.5,"best_bid_price":78301.0,"best_ask_amount":573260.0,"best_bid_amount":163420.0`,
+		`"timestamp":1789023748464,"type":"change","stats":{"volume":4662.27109873,"volume_usd":367468920.0,"volume_notional":367468920.0},"index_price":78293.92,"last_price":7.83e4,"min_price":77131.0,"max_price":79481.0,"mark_price":78306.09,"best_ask_price":78300.5,"best_bid_price":7.83e4,"best_ask_amount":66980.0,"best_bid_amount":190.0`,
+		`"timestamp":1789023748827,"type":"change","min_price":77130.5,"max_price":79480.5,"mark_price":78305.55,"best_ask_amount":64270.0,"best_bid_amount":530.0`,
+	} {
+		require.NoError(t, send("BTC-PERPETUAL", data), "wsHandleData must not error")
+		received()
+	}
+	perp := currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-")
+
+	// The data handler's consumer writes the store behind the reader, so an older ticker there must
+	// not be what the next change merges onto
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{ExchangeName: ex.Name, Pair: perp, AssetType: asset.Futures, Last: 78200, BaseVolume: 1}), "ProcessTicker must not error")
+	require.NoError(t, send("BTC-PERPETUAL", `"timestamp":1789023749000,"type":"change","index_price":78290.5`), "wsHandleData must not error")
+	assert.Equal(t, &ticker.Price{
+		ExchangeName: ex.Name,
+		Pair:         perp,
+		AssetType:    asset.Futures,
+		Bid:          78300,
+		BidSize:      530,
+		Ask:          78300.5,
+		AskSize:      64270,
+		Last:         78300,
+		Close:        78300,
+		High:         79779.5,
+		Low:          77728,
+		BaseVolume:   4662.27109873,
+		QuoteVolume:  367468920,
+		MarkPrice:    78305.55,
+		IndexPrice:   78290.5,
+		LastUpdated:  time.UnixMilli(1789023749000),
+	}, received(), "each change should merge onto the ticker last sent rather than replace it or read the store")
+
+	// Consecutive messages from incremental_ticker.BTC-10SEP26-78000-P, whose only bid is pulled
+	require.NoError(t, send("BTC-10SEP26-78000-P", `"timestamp":1789026089754,"type":"snapshot","stats":{"high":0.0055,"low":0.0001,"price_change":-95.6522,"volume":55.9,"volume_usd":8221.17},"index_price":77955.54,"last_price":0.0001,"min_price":0.0001,"max_price":0.0225,"mark_price":0.0009,"best_ask_price":0.0014,"best_bid_price":0.0001,"best_ask_amount":16.0,"best_bid_amount":16.0`), "wsHandleData must not error")
+	snapshot := received()
+	require.Equal(t, 0.0001, snapshot.Bid, "the snapshot's bid must be recorded")
+	require.NoError(t, send("BTC-10SEP26-78000-P", `"timestamp":1789026091615,"type":"change","best_bid_price":0.0,"best_bid_amount":0.0`), "wsHandleData must not error")
+	emptied := received()
+	assert.Zero(t, emptied.Bid, "a bid sent as 0 should clear the one before it rather than read as absent")
+	assert.Zero(t, emptied.BidSize, "a bid size sent as 0 should clear the one before it")
+	assert.Equal(t, 0.0014, emptied.Ask, "the side the change leaves out should keep its price")
+
+	// Consecutive messages from incremental_ticker.ETH-25DEC26-1200-P as its only trade left the 24
+	// hour window, which Deribit sends by nulling the day's range
+	require.NoError(t, send("ETH-25DEC26-1200-P", `"timestamp":1789109461717,"type":"snapshot","state":"open","stats":{"high":0.0034,"low":0.0034,"price_change":0.0,"volume":2.0,"volume_usd":16.86},"index_price":2466.06,"last_price":0.0034,"open_interest":6764.0,"mark_price":0.0035,"best_ask_price":0.0038,"best_bid_price":0.0033,"best_ask_amount":30.0,"best_bid_amount":117.0`), "wsHandleData must not error")
+	require.Equal(t, 0.0034, received().High, "the snapshot's high must be recorded")
+	require.NoError(t, send("ETH-25DEC26-1200-P", `"timestamp":1789110000494,"type":"change","stats":{"high":null,"low":null,"price_change":null,"volume":0.0,"volume_usd":0.0},"greeks":{"vega":0.67225,"theta":-0.23727,"rho":-0.17539},"index_price":2466.01,"estimated_delivery_price":2466.01,"bid_iv":73.23,"underlying_price":2491.08`), "wsHandleData must not error")
+	rolled := received()
+	assert.Zero(t, rolled.High, "a high sent as null should clear the one before it rather than read as absent")
+	assert.Zero(t, rolled.Low, "a low sent as null should clear the one before it")
+	assert.Zero(t, rolled.BaseVolume, "a volume sent as 0 should clear the one before it")
+	assert.Equal(t, 0.0034, rolled.Last, "the last price the change leaves out should be kept")
+
+	// A change with no snapshot before it has nothing to merge onto
+	assert.ErrorIs(t, send("ETH-PERPETUAL", `"timestamp":1789023748827,"type":"change","mark_price":2474.47`), errNoTickerSnapshot, "a change with no snapshot before it should error")
+}
+
+func TestWsIncrementalTickerUnmarshal(t *testing.T) {
+	t.Parallel()
+	// A live snapshot from incremental_ticker.BTC-12SEP26-80000-C: the first message on the channel
+	// carries the whole ticker
+	const snapshot = `
+{
+  "timestamp": 1789101556714,
+  "type": "snapshot",
+  "state": "open",
+  "stats": {"high": 0.0065, "low": 0.0008, "price_change": -80.0, "volume": 906.5, "volume_usd": 118930.6},
+  "greeks": {"delta": 0.0924, "gamma": 8.0e-5, "vega": 7.13308, "theta": -90.84534, "rho": 0.21957},
+  "index_price": 77086.35,
+  "instrument_name": "BTC-12SEP26-80000-C",
+  "last_price": 0.0013,
+  "settlement_price": 0.00515494,
+  "min_price": 0.0001,
+  "max_price": 0.0215,
+  "open_interest": 696.4,
+  "mark_price": 0.0012,
+  "interest_rate": 0.0,
+  "estimated_delivery_price": 77086.35,
+  "best_ask_price": 0.0014,
+  "best_bid_price": 0.001,
+  "mark_iv": 49.45,
+  "bid_iv": 47.47,
+  "ask_iv": 51.77,
+  "underlying_price": 77092.18,
+  "underlying_index": "BTC-12SEP26",
+  "best_ask_amount": 106.5,
+  "best_bid_amount": 38.0
+}
+`
+
+	var x WsIncrementalTicker
+	require.NoError(t, json.Unmarshal([]byte(snapshot), &x), "Unmarshal must not error")
+	exp := WsIncrementalTicker{
+		Type:           "snapshot",
+		Timestamp:      types.Time(time.UnixMilli(1789101556714)),
+		InstrumentName: "BTC-12SEP26-80000-C",
+		Stats: WsIncrementalTickerStats{
+			High:        new(0.0065),
+			Low:         new(0.0008),
+			PriceChange: new(-80.0),
+			Volume:      new(906.5),
+			VolumeUSD:   new(118930.6),
+		},
+		Greeks: WsIncrementalTickerGreeks{
+			Delta: new(0.0924),
+			Gamma: new(8.0e-5),
+			Rho:   new(0.21957),
+			Theta: new(-90.84534),
+			Vega:  new(7.13308),
+		},
+		State:                  new("open"),
+		UnderlyingIndex:        new("BTC-12SEP26"),
+		BestBidPrice:           new(0.001),
+		BestBidAmount:          new(38.0),
+		BestAskPrice:           new(0.0014),
+		BestAskAmount:          new(106.5),
+		LastPrice:              new(0.0013),
+		MarkPrice:              new(0.0012),
+		IndexPrice:             new(77086.35),
+		MinPrice:               new(0.0001),
+		MaxPrice:               new(0.0215),
+		EstimatedDeliveryPrice: new(77086.35),
+		SettlementPrice:        new(0.00515494),
+		UnderlyingPrice:        new(77092.18),
+		OpenInterest:           new(696.4),
+		BidIV:                  new(47.47),
+		AskIV:                  new(51.77),
+		MarkIV:                 new(49.45),
+		InterestRate:           new(0.0),
+	}
+	assert.Equal(t, exp, x, "WsIncrementalTicker should unmarshal a snapshot correctly")
+
+	// A live change from incremental_ticker.BTC-10SEP26-78000-P as its only bid was pulled: the side
+	// arrives as an explicit 0, and everything that did not move is left out
+	const change = `
+{
+  "type": "change",
+  "timestamp": 1789026091615,
+  "instrument_name": "BTC-10SEP26-78000-P",
+  "best_bid_price": 0.0,
+  "best_bid_amount": 0.0
+}
+`
+
+	x = WsIncrementalTicker{}
+	require.NoError(t, json.Unmarshal([]byte(change), &x), "Unmarshal must not error")
+	exp = WsIncrementalTicker{
+		Type:           "change",
+		Timestamp:      types.Time(time.UnixMilli(1789026091615)),
+		InstrumentName: "BTC-10SEP26-78000-P",
+		BestBidPrice:   new(0.0),
+		BestBidAmount:  new(0.0),
+	}
+	assert.Equal(t, exp, x, "WsIncrementalTicker should leave every field a change omits nil")
+
+	// A live snapshot from incremental_ticker.BTC-FS-30OCT26_2OCT26. A combo nobody has traded sends
+	// its last price and range as null, which read as nil, and a spread can be priced below zero
+	const combo = `
+{
+  "timestamp": 1789100704971,
+  "type": "snapshot",
+  "state": "open",
+  "stats": {"high": null, "low": null, "price_change": null, "volume": 0.0, "volume_usd": 0.0, "volume_notional": 0.0},
+  "index_price": 77061.95,
+  "instrument_name": "BTC-FS-30OCT26_2OCT26",
+  "last_price": null,
+  "min_price": -56.0,
+  "max_price": 579.0,
+  "mark_price": 261.58,
+  "combo_state": "active",
+  "best_ask_price": 310.0,
+  "best_bid_price": 220.0,
+  "implied_ask": 282.5,
+  "implied_bid": 247.5,
+  "best_ask_amount": 3.0e5,
+  "best_bid_amount": 3.25e5
+}
+`
+
+	x = WsIncrementalTicker{}
+	require.NoError(t, json.Unmarshal([]byte(combo), &x), "Unmarshal must not error")
+	exp = WsIncrementalTicker{
+		Type:           "snapshot",
+		Timestamp:      types.Time(time.UnixMilli(1789100704971)),
+		InstrumentName: "BTC-FS-30OCT26_2OCT26",
+		Stats: WsIncrementalTickerStats{
+			Volume:         new(0.0),
+			VolumeUSD:      new(0.0),
+			VolumeNotional: new(0.0),
+		},
+		State:         new("open"),
+		ComboState:    new("active"),
+		BestBidPrice:  new(220.0),
+		BestBidAmount: new(3.25e5),
+		BestAskPrice:  new(310.0),
+		BestAskAmount: new(3.0e5),
+		MarkPrice:     new(261.58),
+		IndexPrice:    new(77061.95),
+		MinPrice:      new(-56.0),
+		MaxPrice:      new(579.0),
+		ImpliedBid:    new(247.5),
+		ImpliedAsk:    new(282.5),
+	}
+	assert.Equal(t, exp, x, "WsIncrementalTicker should read a null as nil")
+}
+
+// TestTickerPathsAgree feeds one live BTC-PERPETUAL ticker through REST, the ticker channel and an
+// incremental_ticker snapshot, which must all record the same ticker, then merges a live change
+func TestTickerPathsAgree(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+
+	// The data of a live ticker.BTC-PERPETUAL.100ms message, whose fields GET /api/v2/public/ticker
+	// and an incremental_ticker snapshot serve alike
+	const data = `{"timestamp":1789101557103,"state":"open","stats":{"high":78547.5,"low":76441.0,"price_change":-1.6139,"volume":4288.80778094,"volume_usd":331244960.0,"volume_notional":331244960.0},"index_price":77086.35,"instrument_name":"BTC-PERPETUAL","last_price":77085.5,"settlement_price":78078.09,"min_price":75929.0,"max_price":78242.0,"open_interest":840908560,"mark_price":77085.35,"interest_value":0.012870503962934956,"current_funding":0.0,"estimated_delivery_price":77086.35,"funding_8h":1.54e-06,"best_ask_price":77086.0,"best_bid_price":77085.5,"best_ask_amount":16770.0,"best_bid_amount":12460.0}`
+	perp := currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)
+	exp := &ticker.Price{
+		ExchangeName: ex.Name,
+		Pair:         perp,
+		AssetType:    asset.Futures,
+		LastUpdated:  time.UnixMilli(1789101557103),
+		Bid:          77085.5,
+		BidSize:      12460,
+		Ask:          77086,
+		AskSize:      16770,
+		Last:         77085.5,
+		Close:        77085.5,
+		High:         78547.5,
+		Low:          76441,
+		BaseVolume:   4288.80778094,
+		QuoteVolume:  331244960,
+		MarkPrice:    77085.35,
+		IndexPrice:   77086.35,
+		OpenInterest: 840908560,
+	}
+
+	received := func(ch string) *ticker.Price {
+		t.Helper()
+		select {
+		case msg := <-ex.Websocket.DataHandler.C:
+			got, ok := msg.Data.(*ticker.Price)
+			require.Truef(t, ok, "the %s handler must send a ticker price", ch)
+			return got
+		default:
+			require.Failf(t, "no ticker price sent", "the %s handler must send a ticker price", ch)
+			return nil
+		}
+	}
+	for _, ch := range []string{"ticker.BTC-PERPETUAL.100ms", "incremental_ticker.BTC-PERPETUAL"} {
+		payload := data
+		if ch == "incremental_ticker.BTC-PERPETUAL" {
+			payload = `{"type":"snapshot",` + data[1:]
+		}
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(`{"params":{"channel":"`+ch+`","data":`+payload+`},"method":"subscription","jsonrpc":"2.0"}`)), "wsHandleData must not error for %s", ch)
+		assert.Equalf(t, exp, received(ch), "the %s channel should record what REST records", ch)
+	}
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := fmt.Fprint(w, `{"result":`+data+`}`)
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+	tick, err := ex.UpdateTicker(t.Context(), perp, asset.Futures)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.Equal(t, exp, tick, "UpdateTicker should record what both channels record")
+
+	// A live change four seconds on: what it carries replaces the state, and the range and mark price
+	// it leaves out stay as they were
+	const change = `{"timestamp":1789101561225,"type":"change","stats":{"price_change":-1.6184,"volume":4289.0028892,"volume_usd":3.3126e8,"volume_notional":3.3126e8},"instrument_name":"BTC-PERPETUAL","last_price":77082.0,"open_interest":840922200,"best_ask_price":77078.0,"best_bid_price":77077.5,"best_ask_amount":2.91e4,"best_bid_amount":3.0e3}`
+	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"params":{"channel":"incremental_ticker.BTC-PERPETUAL","data":`+change+`},"method":"subscription","jsonrpc":"2.0"}`)), "wsHandleData must not error for the change")
+	exp.LastUpdated = time.UnixMilli(1789101561225)
+	exp.Bid, exp.BidSize, exp.Ask, exp.AskSize = 77077.5, 3000, 77078, 29100
+	exp.Last, exp.Close = 77082, 77082
+	exp.BaseVolume, exp.QuoteVolume = 4289.0028892, 3.3126e8
+	exp.OpenInterest = 840922200
+	assert.Equal(t, exp, received("incremental_ticker.BTC-PERPETUAL"), "a change should merge onto the snapshot")
 }

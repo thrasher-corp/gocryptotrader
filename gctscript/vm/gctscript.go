@@ -2,8 +2,8 @@ package vm
 
 import (
 	"fmt"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -75,7 +75,7 @@ func (g *GctScriptManager) ShutdownAll() (err error) {
 // RemoveVM remove VM from list
 func (g *GctScriptManager) RemoveVM(id uuid.UUID) error {
 	if _, ok := AllVMSync.Load(id); !ok {
-		return fmt.Errorf(ErrNoVMFound, id.String())
+		return fmt.Errorf("%w: %s", ErrNoVMFound, id)
 	}
 
 	AllVMSync.Delete(id)

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,15 +33,15 @@ func TestNewVM(t *testing.T) {
 		config: configHelper(true, true, maxTestVirtualMachines),
 	}
 	require.Nil(t, manager.New(), "New must not create a VM when manager not started")
-	manager.started = 1
+	manager.started.Store(true)
 	require.NotNil(t, manager.New(), "New must create a VM when manager is started")
 }
 
 func TestVMLoad(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	require.NoError(t, testVM.Load(testScript))
 
@@ -55,9 +55,9 @@ func TestVMLoad(t *testing.T) {
 
 func TestVMLoad1s(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	require.NoError(t, testVM.Load(testScriptRunner1s))
 
@@ -67,9 +67,9 @@ func TestVMLoad1s(t *testing.T) {
 
 func TestVMLoadNegativeTimer(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	require.NoError(t, testVM.Load(testScriptRunnerNegative))
 
@@ -79,9 +79,9 @@ func TestVMLoadNegativeTimer(t *testing.T) {
 
 func TestVMLoadNilVM(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	require.NoError(t, testVM.Load(testScript))
 
@@ -91,9 +91,9 @@ func TestVMLoadNilVM(t *testing.T) {
 
 func TestCompileAndRunNilVM(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	vmcount := VMSCount.Len()
 	testVM := manager.New()
 	require.NoError(t, testVM.Load(testScript))
@@ -108,18 +108,18 @@ func TestCompileAndRunNilVM(t *testing.T) {
 
 func TestVMLoadNoFile(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	assert.ErrorIs(t, testVM.Load("missing file"), os.ErrNotExist)
 }
 
 func TestVMCompile(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -134,9 +134,9 @@ func TestVMCompile(t *testing.T) {
 
 func TestVMRun(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.NewVM()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -156,9 +156,9 @@ func TestVMRun(t *testing.T) {
 
 func TestVMRunTX(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.NewVM()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -178,9 +178,9 @@ func TestVMRunTX(t *testing.T) {
 
 func TestVMWithRunner(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	vmCount := VMSCount.Len()
 	VM := manager.New()
 	if VM == nil {
@@ -205,9 +205,9 @@ func TestVMWithRunner(t *testing.T) {
 
 func TestVMWithRunnerOnce(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	vmCount := VMSCount.Len()
 	VM := manager.New()
 	if VM == nil {
@@ -229,9 +229,9 @@ func TestVMWithRunnerOnce(t *testing.T) {
 
 func TestVMWithRunnerNegativeTimer(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	vmCount := VMSCount.Len()
 	VM := manager.New()
 	if VM == nil {
@@ -256,9 +256,9 @@ func TestVMWithRunnerNegativeTimer(t *testing.T) {
 
 func TestVMWithRunnerInvalidTimer(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	vmCount := VMSCount.Len()
 	VM := manager.New()
 	if VM == nil {
@@ -284,9 +284,9 @@ func TestVMWithRunnerInvalidTimer(t *testing.T) {
 
 func TestShutdownAll(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	vmCount := VMSCount.Len()
 	VM := manager.New()
 	err := VM.Load(testScriptRunner)
@@ -311,9 +311,9 @@ func TestShutdownAll(t *testing.T) {
 
 func TestRead(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	VM := manager.NewVM()
 	err := VM.Load(testScriptRunner)
 	if err != nil {
@@ -333,16 +333,23 @@ func TestRead(t *testing.T) {
 
 func TestRemoveVM(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
-	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
+	manager.started.Store(true)
+	id := uuid.MustParse("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := manager.RemoveVM(id)
-	if err != nil {
-		if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
-			t.Fatal(err)
-		}
-	}
+	assert.ErrorIs(t, err, ErrNoVMFound, "RemoveVM should error for an unregistered VM")
+	assert.ErrorContains(t, err, id.String(), "the error should name the requested VM")
+
+	AllVMSync.Store(id, &VM{ID: id})
+	VMSCount.add()
+	count := VMSCount.Len()
+
+	require.NoError(t, manager.RemoveVM(id), "RemoveVM must not error for a registered VM")
+	_, ok := AllVMSync.Load(id)
+	assert.False(t, ok, "RemoveVM should drop the VM from AllVMSync")
+	assert.Equal(t, count-1, VMSCount.Len(), "RemoveVM should decrement the VM count")
+	assert.ErrorIs(t, manager.RemoveVM(id), ErrNoVMFound, "removing the same VM twice should error")
 }
 
 func TestError_Error(t *testing.T) {
@@ -359,9 +366,9 @@ func TestError_Error(t *testing.T) {
 
 func TestVM_CompileInvalid(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	err := testVM.Load(testInvalidScript)
 	if err != nil {
@@ -408,9 +415,9 @@ func TestVM_CompileInvalid(t *testing.T) {
 
 func TestVM_CompileBroken(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	err := testVM.Load(testBrokenScript)
 	if err != nil {
@@ -425,9 +432,9 @@ func TestVM_CompileBroken(t *testing.T) {
 
 func TestVM_CompileAndRunBroken(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	testVM := manager.New()
 	err := testVM.Load(testBrokenScript)
 	if err != nil {
@@ -443,9 +450,9 @@ func TestVM_CompileAndRunBroken(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, true, maxTestVirtualMachines),
-		started: 1,
+		config: configHelper(true, true, maxTestVirtualMachines),
 	}
+	manager.started.Store(true)
 	err := manager.Validate(testBrokenScript)
 	if err == nil {
 		t.Fatal(err)
@@ -458,9 +465,9 @@ func TestValidate(t *testing.T) {
 
 func TestVMLimit(t *testing.T) {
 	manager := GctScriptManager{
-		config:  configHelper(true, false, 0),
-		started: 1,
+		config: configHelper(true, false, 0),
 	}
+	manager.started.Store(true)
 	if testVM := manager.New(); testVM != nil {
 		t.Fatal("expected nil but received pointer to VM")
 	}

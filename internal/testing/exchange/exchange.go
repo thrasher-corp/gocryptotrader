@@ -112,7 +112,8 @@ func MockWsInstance[T any, PT interface {
 	e := PT(new(T))
 	require.NoError(tb, Setup(e, verbose...), "Test exchange Setup must not error")
 
-	s := httptest.NewServer(h)
+	s := httptest.NewTestServer(tb, h)
+	s.Start()
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true

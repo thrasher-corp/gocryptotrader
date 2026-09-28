@@ -21,7 +21,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -148,7 +147,7 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		},
 		{
 			Subsystem:    NTPManagerName,
-			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: convert.BoolPtr(false)}}},
+			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: new(false)}}},
 			EnableError:  errNilNTPConfigValues,
 			DisableError: ErrNilSubsystem,
 		},
@@ -1008,19 +1007,16 @@ func TestCheckAndGenCerts(t *testing.T) {
 func TestNewSupportedExchangeByName(t *testing.T) {
 	t.Parallel()
 
-	for x := range exchange.Exchanges {
-		exch, err := NewSupportedExchangeByName(exchange.Exchanges[x])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if exch == nil {
-			t.Fatalf("received nil exchange")
-		}
+	for _, name := range exchange.Exchanges {
+		exch, err := NewSupportedExchangeByName(name)
+		require.NoErrorf(t, err, "NewSupportedExchangeByName must not error for %s", name)
+		require.NotNilf(t, exch, "NewSupportedExchangeByName must return an exchange for %s", name)
 	}
 
-	_, err := NewSupportedExchangeByName("")
-	assert.ErrorIs(t, err, ErrExchangeNotFound)
+	for _, name := range []string{"", "Bitmex"} {
+		_, err := NewSupportedExchangeByName(name)
+		assert.ErrorIsf(t, err, ErrExchangeNotFound, "NewSupportedExchangeByName should reject %q", name)
+	}
 }
 
 func TestNewExchangeByNameWithDefaults(t *testing.T) {

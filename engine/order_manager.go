@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -23,6 +23,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
+
+// orderEventType labels order notifications pushed to the communications manager
+const orderEventType = "order"
 
 // SetupOrderManager will boot up the OrderManager
 func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, cfg *config.OrderManager) (*OrderManager, error) {
@@ -196,7 +199,7 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 	defer func() {
 		if err != nil {
 			m.orderStore.commsManager.PushEvent(base.Event{
-				Type:    "order",
+				Type:    orderEventType,
 				Message: err.Error(),
 			})
 		}
@@ -248,7 +251,7 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 	msg := fmt.Sprintf("Exchange %s order ID=%v cancelled.",
 		od.Exchange, od.OrderID)
 	log.Debugln(log.OrderMgr, msg)
-	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
+	m.orderStore.commsManager.PushEvent(base.Event{Type: orderEventType, Message: msg})
 	return nil
 }
 
@@ -444,7 +447,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 			mod.OrderID,
 		)
 		m.orderStore.commsManager.PushEvent(base.Event{
-			Type:    "order",
+			Type:    orderEventType,
 			Message: message,
 		})
 		return nil, err
@@ -464,7 +467,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 		message = "Exchange %s order ID=%v: modified successfully"
 	}
 	m.orderStore.commsManager.PushEvent(base.Event{
-		Type:    "order",
+		Type:    orderEventType,
 		Message: fmt.Sprintf(message, mod.Exchange, res.OrderID),
 	})
 	return &order.ModifyResponse{OrderID: res.OrderID}, err
@@ -608,10 +611,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		return nil, order.ErrOrderDetailIsNil
 	}
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		log.Warnf(log.OrderMgr, "Unable to generate UUID. Err: %s", err)
-	}
+	id := uuid.NewV4()
 
 	detail, err := newOrderResp.DeriveDetail(id)
 	if err != nil {
@@ -640,7 +640,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 
 	log.Debugln(log.OrderMgr, msg)
 	if m.orderStore.commsManager != nil {
-		m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
+		m.orderStore.commsManager.PushEvent(base.Event{Type: orderEventType, Message: msg})
 	}
 
 	return &OrderSubmitResponse{Detail: detail, InternalOrderID: detail.InternalOrderID.String()}, nil
@@ -787,9 +787,7 @@ func (m *OrderManager) processFuturesPositions(ctx context.Context, exch exchang
 	if len(position.Orders) == 0 {
 		return fmt.Errorf("%w position for '%v' '%v' '%v' has no orders", errNilOrder, exch.GetName(), position.Asset, position.Pair)
 	}
-	sort.Slice(position.Orders, func(i, j int) bool {
-		return position.Orders[i].Date.Before(position.Orders[j].Date)
-	})
+	slices.SortFunc(position.Orders, func(a, b order.Detail) int { return a.Date.Compare(b.Date) })
 	feat := exch.GetSupportedFeatures()
 	var err error
 	for i := range position.Orders {
@@ -925,7 +923,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 			return
 		}
 		m.orderStore.commsManager.PushEvent(base.Event{
-			Type:    "order",
+			Type:    orderEventType,
 			Message: *message,
 		})
 	}(&msg)

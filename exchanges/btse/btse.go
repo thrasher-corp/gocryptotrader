@@ -81,40 +81,40 @@ func (e *Exchange) GetRawMarketSummary(ctx context.Context, symbol string, spot 
 }
 
 // FetchOrderbook gets orderbook data for a given symbol
-func (e *Exchange) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
+func (e *Exchange) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks uint64, spot bool) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
 	if limitBids > 0 {
-		urlValues.Add("limit_bids", strconv.Itoa(limitBids))
+		urlValues.Add("limit_bids", strconv.FormatUint(limitBids, 10))
 	}
 	if limitAsks > 0 {
-		urlValues.Add("limit_asks", strconv.Itoa(limitAsks))
+		urlValues.Add("limit_asks", strconv.FormatUint(limitAsks, 10))
 	}
 	if group > 0 {
-		urlValues.Add("group", strconv.Itoa(group))
+		urlValues.Add("group", strconv.FormatUint(group, 10))
 	}
 	return &o, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		common.EncodeURLValues(btseOrderbook, urlValues), &o, spot, queryFunc)
 }
 
 // FetchOrderbookL2 retrieve level 2 orderbook for requested symbol and depth
-func (e *Exchange) FetchOrderbookL2(ctx context.Context, symbol string, depth int) (*Orderbook, error) {
+func (e *Exchange) FetchOrderbookL2(ctx context.Context, symbol string, depth uint64) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
-	urlValues.Add("depth", strconv.FormatInt(int64(depth), 10))
+	urlValues.Add("depth", strconv.FormatUint(depth, 10))
 	endpoint := common.EncodeURLValues(btseOrderbook+"/L2", urlValues)
 	return &o, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, true, queryFunc)
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (e *Exchange) GetTrades(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld, spot bool) ([]Trade, error) {
+func (e *Exchange) GetTrades(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count uint64, includeOld, spot bool) ([]Trade, error) {
 	var t []Trade
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
 	if count > 0 {
-		urlValues.Add("count", strconv.Itoa(count))
+		urlValues.Add("count", strconv.FormatUint(count, 10))
 	}
 	if !start.IsZero() {
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
@@ -126,10 +126,10 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string, start, end time
 		return t, common.ErrStartAfterEnd
 	}
 	if beforeSerialID > 0 {
-		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
+		urlValues.Add("beforeSerialId", strconv.FormatUint(beforeSerialID, 10))
 	}
 	if afterSerialID > 0 {
-		urlValues.Add("afterSerialId", strconv.Itoa(afterSerialID))
+		urlValues.Add("afterSerialId", strconv.FormatUint(afterSerialID, 10))
 	}
 	if includeOld {
 		urlValues.Add("includeOld", "true")
@@ -139,7 +139,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string, start, end time
 }
 
 // GetOHLCV retrieve and return OHLCV candle data for requested symbol
-func (e *Exchange) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
+func (e *Exchange) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution uint64, a asset.Item) (OHLCV, error) {
 	var o OHLCV
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -151,19 +151,19 @@ func (e *Exchange) GetOHLCV(ctx context.Context, symbol string, start, end time.
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	res := 60
+	res := uint64(60)
 	if resolution != 0 {
 		res = resolution
 	}
-	urlValues.Add("resolution", strconv.FormatInt(int64(res), 10))
+	urlValues.Add("resolution", strconv.FormatUint(res, 10))
 	endpoint := common.EncodeURLValues(btseOHLCV, urlValues)
 
 	return o, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, a == asset.Spot, queryFunc)
 }
 
 // GetPrice get current price for requested symbol
-func (e *Exchange) GetPrice(ctx context.Context, symbol string) (Price, error) {
-	var p Price
+func (e *Exchange) GetPrice(ctx context.Context, symbol string) ([]Price, error) {
+	var p []Price
 	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
 	return p, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &p, true, queryFunc)
 }
@@ -191,8 +191,8 @@ func (e *Exchange) GetFeeInformation(ctx context.Context, symbol string) ([]Acco
 }
 
 // GetWalletHistory returns the users account balance
-func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count int) (WalletHistory, error) {
-	var resp WalletHistory
+func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count uint64) ([]WalletHistory, error) {
+	var resp []WalletHistory
 
 	urlValues := url.Values{}
 	if symbol != "" {
@@ -206,14 +206,14 @@ func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, e
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
 	if count > 0 {
-		urlValues.Add("count", strconv.Itoa(count))
+		urlValues.Add("count", strconv.FormatUint(count, 10))
 	}
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWalletHistory, true, urlValues, nil, &resp, queryFunc)
 }
 
 // GetWalletAddress returns the users account balance
-func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
-	var resp WalletAddress
+func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) ([]WalletAddress, error) {
+	var resp []WalletAddress
 	urlValues := url.Values{}
 	if ccy != "" {
 		urlValues.Add("currency", ccy)
@@ -222,8 +222,8 @@ func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) (WalletAddr
 }
 
 // CreateWalletAddress create new deposit address for requested currency
-func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
-	var resp WalletAddress
+func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) ([]WalletAddress, error) {
+	var resp []WalletAddress
 	req := make(map[string]any, 1)
 	req["currency"] = ccy
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
@@ -236,7 +236,7 @@ func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) (WalletA
 		}
 		if errResp.ErrorCode == 3528 {
 			walletAddress := strings.Split(errResp.Message, "BADREQUEST: ")
-			return WalletAddress{
+			return []WalletAddress{
 				{
 					Address: walletAddress[1],
 				},
@@ -339,7 +339,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID, symbol, clO
 }
 
 // CancelAllAfter cancels all orders after timeout
-func (e *Exchange) CancelAllAfter(ctx context.Context, timeout int) error {
+func (e *Exchange) CancelAllAfter(ctx context.Context, timeout uint64) error {
 	req := make(map[string]any)
 	req["timeout"] = timeout
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
@@ -396,8 +396,8 @@ func (e *Exchange) IndexOrderPeg(ctx context.Context, clOrderID string, deviatio
 }
 
 // TradeHistory returns previous trades on exchange
-func (e *Exchange) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
-	var resp TradeHistory
+func (e *Exchange) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count uint64, includeOld bool, clOrderID, orderID string) ([]TradeHistory, error) {
+	var resp []TradeHistory
 	urlValues := url.Values{}
 	if symbol != "" {
 		urlValues.Add("symbol", symbol)
@@ -410,16 +410,16 @@ func (e *Exchange) TradeHistory(ctx context.Context, symbol string, start, end t
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
 	if beforeSerialID > 0 {
-		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
+		urlValues.Add("beforeSerialId", strconv.FormatUint(beforeSerialID, 10))
 	}
 	if afterSerialID > 0 {
-		urlValues.Add("afterSerialId", strconv.Itoa(afterSerialID))
+		urlValues.Add("afterSerialId", strconv.FormatUint(afterSerialID, 10))
 	}
 	if includeOld {
 		urlValues.Add("includeOld", "true")
 	}
 	if count > 0 {
-		urlValues.Add("count", strconv.Itoa(count))
+		urlValues.Add("count", strconv.FormatUint(count, 10))
 	}
 	if clOrderID != "" {
 		urlValues.Add("clOrderId", clOrderID)

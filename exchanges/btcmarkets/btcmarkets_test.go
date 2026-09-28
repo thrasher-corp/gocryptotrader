@@ -1022,7 +1022,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	exp := subscription.List{}
+	exp := make(subscription.List, 0, len(e.Features.Subscriptions))
 	for _, baseSub := range e.Features.Subscriptions {
 		s := baseSub.Clone()
 		if !s.Authenticated && s.Channel != subscription.HeartbeatChannel {

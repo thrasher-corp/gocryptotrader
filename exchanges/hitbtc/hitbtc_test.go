@@ -1136,9 +1136,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoErrorf(t, err, "GetEnabledPairs must not error")
+	exp := make(subscription.List, 0, len(e.Features.Subscriptions)*len(pairs))
 	for _, s := range e.Features.Subscriptions {
 		for _, p := range pairs.Format(currency.PairFormat{Uppercase: true}) {
 			s = s.Clone()

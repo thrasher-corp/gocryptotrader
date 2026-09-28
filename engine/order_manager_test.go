@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -60,7 +60,7 @@ func (f omfExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Pri
 		Low:                   1337,
 		Bid:                   1337,
 		Ask:                   1337,
-		Volume:                1337,
+		BaseVolume:            1337,
 		QuoteVolume:           1337,
 		PriceATH:              1337,
 		Open:                  1337,
@@ -141,10 +141,7 @@ func (f omfExchange) ModifyOrder(_ context.Context, action *order.Modify) (*orde
 }
 
 func (f omfExchange) GetFuturesPositions(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionDetails, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	resp := make([]futures.PositionDetails, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
@@ -561,8 +558,8 @@ func TestOrderManagerGracefulShutdownUsesBoundedContextWhenRuntimeCancelled(t *t
 
 	seenCtx := make(chan gracefulShutdownCtxObservation, 1)
 	fakeExchange := gracefulShutdownCtxExchange{
-		omfExchange: omfExchange{IBotExchange: exch},
-		seenCtx:     seenCtx,
+		IBotExchange: exch,
+		seenCtx:      seenCtx,
 	}
 	require.NoError(t, em.Add(fakeExchange))
 
@@ -604,8 +601,8 @@ func TestOrderManagerStopCancelsOrdersOnShutdown(t *testing.T) {
 
 	seenCtx := make(chan gracefulShutdownCtxObservation, 1)
 	fakeExchange := gracefulShutdownCtxExchange{
-		omfExchange: omfExchange{IBotExchange: exch},
-		seenCtx:     seenCtx,
+		IBotExchange: exch,
+		seenCtx:      seenCtx,
 	}
 	require.NoError(t, em.Add(fakeExchange))
 
@@ -717,7 +714,7 @@ func TestSubmit(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if o2.InternalOrderID.IsNil() {
+	if o2.InternalOrderID == uuid.Nil() {
 		t.Error("Failed to assign internal order id")
 	}
 }
@@ -738,8 +735,7 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	submitResp, err := submitReq.DeriveSubmitResponse("batman.obvs")
 	assert.NoError(t, err, "Deriving a SubmitResp should not error")
 
-	id, err := uuid.NewV4()
-	assert.NoError(t, err, "uuid should not error")
+	id := uuid.NewV4()
 	d, err := submitResp.DeriveDetail(id)
 	assert.NoError(t, err, "Derive Detail should not error")
 

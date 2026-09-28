@@ -212,7 +212,7 @@ func (t *Trade) UnmarshalJSON(data []byte) error {
 type FundingBookItem struct {
 	Rate            float64    `json:"rate,string"`
 	Amount          float64    `json:"amount,string"`
-	Period          int        `json:"period"`
+	Period          uint64     `json:"period"`
 	Timestamp       types.Time `json:"timestamp"`
 	FlashReturnRate string     `json:"frr"`
 }
@@ -247,10 +247,10 @@ type AccountFees struct {
 
 // AccountSummary holds account summary data
 type AccountSummary struct {
-	TradeVolumePer30D []Currency `json:"trade_vol_30d"`
-	FundingProfit30D  []Currency `json:"funding_profit_30d"`
-	MakerFee          float64    `json:"maker_fee"`
-	TakerFee          float64    `json:"taker_fee"`
+	TradeVolumePer30Day []Currency `json:"trade_vol_30d"`
+	FundingProfit30Day  []Currency `json:"funding_profit_30d"`
+	MakerFee            float64    `json:"maker_fee"`
+	TakerFee            float64    `json:"taker_fee"`
 }
 
 // Currency is a sub-type for AccountSummary data
@@ -493,7 +493,7 @@ type MarginFunds struct {
 	PositionID int64      `json:"position_id"`
 	Currency   string     `json:"currency"`
 	Rate       float64    `json:"rate,string"`
-	Period     int        `json:"period"`
+	Period     uint64     `json:"period"`
 	Amount     float64    `json:"amount,string"`
 	Timestamp  types.Time `json:"timestamp"`
 	AutoClose  bool       `json:"auto_close"`
@@ -541,7 +541,7 @@ const (
 type LeaderboardEntry struct {
 	Timestamp     time.Time
 	Username      string
-	Ranking       int
+	Ranking       uint64
 	Value         float64
 	TwitterHandle string
 }

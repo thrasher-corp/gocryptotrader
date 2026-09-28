@@ -38,7 +38,7 @@ type ChainAnalysisTransaction struct {
 	LockTime      types.Time `json:"lock_time"`
 	Inputs        []struct {
 		PrevHash  string `json:"prev_hash"`
-		PrevIndex int    `json:"prev_index"`
+		PrevIndex int64  `json:"prev_index"` // Signed because a coinbase input reports -1
 		Value     int64  `json:"value"`
 		Script    string `json:"script"`
 		Address   string `json:"address"`

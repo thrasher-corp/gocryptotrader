@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -34,17 +35,14 @@ func (p *TradingPair) UnmarshalJSON(data []byte) error {
 type orderSide order.Side
 
 func (s *orderSide) UnmarshalJSON(data []byte) error {
-	var i int64
-	if err := json.Unmarshal(data, &i); err != nil {
-		return err
-	}
-	switch i {
-	case 0:
+	// The REST ticker quotes the side whereas the websocket order feed sends a bare number
+	switch string(bytes.Trim(data, `"`)) {
+	case "0":
 		*s = orderSide(order.Buy)
-	case 1:
+	case "1":
 		*s = orderSide(order.Sell)
 	default:
-		return fmt.Errorf("invalid value for order side: %v", i)
+		return fmt.Errorf("%w: %s", order.ErrSideIsInvalid, data)
 	}
 
 	return nil

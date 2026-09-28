@@ -44,8 +44,8 @@ func (s *spotMarginEvaluator) exists(pair currency.Pair, channel string, assetTy
 
 func getChannelKey(pair currency.Pair, channel string, assetType asset.Item) channelPairKey {
 	return channelPairKey{
-		PairAsset: key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: assetType},
-		Channel:   channel,
+		Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: assetType,
+		Channel: channel,
 	}
 }
 

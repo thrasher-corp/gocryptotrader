@@ -3,7 +3,7 @@ package statistics
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -82,9 +82,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key
 		}
 		usdStats.HoldingValues = append(usdStats.HoldingValues, ValueAtTime{Time: report.USDTotalsOverTime[i].Time, Value: report.USDTotalsOverTime[i].USDValue})
 	}
-	sort.Slice(usdStats.HoldingValues, func(i, j int) bool {
-		return usdStats.HoldingValues[i].Time.Before(usdStats.HoldingValues[j].Time)
-	})
+	slices.SortFunc(usdStats.HoldingValues, func(a, b ValueAtTime) int { return a.Time.Compare(b.Time) })
 
 	if len(usdStats.HoldingValues) == 0 {
 		return nil, fmt.Errorf("%w and holding values", errMissingSnapshots)

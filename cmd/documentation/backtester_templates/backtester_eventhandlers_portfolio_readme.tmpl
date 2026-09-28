@@ -1,11 +1,13 @@
 {{define "backtester eventhandlers portfolio" -}}
 {{template "backtester-header" .}}
+
 ## {{.CapitalName}} package overview
 
 The portfolio is one of the most critical packages in the GoCryptoTrader Backtester. It is responsible for making sure that all orders, simulated or otherwise are within all defined risk and sizing rules defined in the config.
 The portfolio receives three kinds of events to be processed: `OnSignal`, `OnFill` and `Update`
 
 The following steps are taken for the `OnSignal` function:
+
 - Retrieve previous iteration's holdings data
 - If a buy order signal is received, ensure there are enough funds
 - If a sell order signal is received, ensure there are any holdings to sell
@@ -19,11 +21,13 @@ The following steps are taken for the `OnSignal` function:
 - If the order is deemed appropriate, the order event will be returned and appended to the event queue for the exchange event handler to run and place the order
 
 The following steps are taken for the `OnFill` function:
+
 - Previous holdings are retrieved and amended with new order information.
   - The stats for the exchange asset currency pair will be updated to reflect the order and pricing
 - The order will be added to the compliance manager for analysis in future events or the statistics package
 
 The following steps are taken for the `Update` function:
+
 - The `Update` function is called when orders are not placed, this allows for the portfolio manager to still keep track of pricing and holding statistics, while not needing to process any orders
 
 {{template "donations" .}}

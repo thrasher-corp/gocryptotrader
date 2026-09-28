@@ -2382,7 +2382,7 @@ func (e *Exchange) PlaceFixedLoanBorrowingOrder(ctx context.Context, ccy currenc
 	arg := &struct {
 		Currency     string  `json:"ccy"`
 		Amount       float64 `json:"amt,string"`
-		MaxRate      float64 `jsons:"maxRate,string"`
+		MaxRate      float64 `json:"maxRate,string"`
 		Term         string  `json:"term"`
 		Reborrow     bool    `json:"reborrow,omitempty"`
 		ReborrowRate float64 `json:"reborrowRate,string,omitempty"`
@@ -3007,7 +3007,7 @@ func (e *Exchange) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrde
 		return nil, common.ErrEmptyParams
 	}
 	for x := range arg {
-		if (arg[x]) == (StopGridAlgoOrderRequest{}) {
+		if arg[x] == (StopGridAlgoOrderRequest{}) {
 			return nil, common.ErrEmptyParams
 		}
 		if arg[x].AlgoID == "" {
@@ -5735,7 +5735,7 @@ func (e *Exchange) GetDepositOrderDetail(ctx context.Context, orderID string) (*
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	params.Set("ordID", orderID)
+	params.Set("ordId", orderID)
 	var resp *FiatOrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderDetailEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit", params), nil, &resp, request.AuthenticatedRequest)
 }
