@@ -899,7 +899,7 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 
 func (e *Exchange) handleSubscription(ctx context.Context, method string, subs subscription.List) error {
 	var err error
-	subs, err = subs.ExpandTemplates(e)
+	subs, err = subs.ExpandTemplatesIfNeeded(e)
 	if err != nil || len(subs) == 0 {
 		return err
 	}

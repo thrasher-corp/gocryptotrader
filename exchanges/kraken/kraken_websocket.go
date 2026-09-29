@@ -688,7 +688,7 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 // Subscribe adds a channel subscription to the websocket
 func (e *Exchange) Subscribe(in subscription.List) error {
 	ctx := context.TODO()
-	in, errs := in.ExpandTemplates(e)
+	in, errs := in.ExpandTemplatesIfNeeded(e)
 
 	// Collect valid new subs and add to websocket in Subscribing state
 	subs := subscription.List{}

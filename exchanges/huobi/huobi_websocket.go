@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -507,30 +506,15 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	subs, errs := e.expandSubscriptions(subs)
+	subs, errs := subs.ExpandTemplatesIfNeeded(e)
 	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubOp, l) }, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	subs, errs := e.expandSubscriptions(subs)
+	subs, errs := subs.ExpandTemplatesIfNeeded(e)
 	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubOp, l) }, 1))
-}
-
-// expandSubscriptions expands subscription templates for any entries which are not qualified yet
-// The manager subscribes with a list it has already expanded (see generateSubscriptions) and, once
-// subscribed, reconciles that same list against the websocket subscription store
-// (exchange/websocket/manager.go). Re-expanding an already qualified list would hand back copies of
-// the manager's subscriptions; those copies cannot be reconciled because huobi keys subscriptions by
-// their channel string rather than with a MatchableKey, and a string key is not matched by value.
-// Passing already qualified lists through untouched keeps the manager's subscriptions reconcilable
-// while leaving direct callers, which subscribe with unqualified lists, unchanged. See #2372
-func (e *Exchange) expandSubscriptions(subs subscription.List) (subscription.List, error) {
-	if !slices.ContainsFunc(subs, func(s *subscription.Subscription) bool { return s.QualifiedChannel == "" }) {
-		return subs, nil
-	}
-	return subs.ExpandTemplates(e)
 }
 
 func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {

@@ -672,7 +672,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
 func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
-	subs, err := subs.ExpandTemplates(e)
+	subs, err := subs.ExpandTemplatesIfNeeded(e)
 	if err != nil {
 		return err
 	}
