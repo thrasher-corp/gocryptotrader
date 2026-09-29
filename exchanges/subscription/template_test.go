@@ -237,7 +237,7 @@ func TestExpandTemplatesOwnership(t *testing.T) {
 		require.Len(t, got, 1, "Must get one subscription back")
 		assert.Equal(t, "custom-key", got[0].Key, "Should keep a custom key so the subscription stays reconcilable")
 		assert.Same(t, in, st.Get(got[0]), "Should find the store entry through the returned subscription")
-		require.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
+		assert.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
 	})
 
 	t.Run("DefaultKey", func(t *testing.T) {
@@ -255,7 +255,32 @@ func TestExpandTemplatesOwnership(t *testing.T) {
 			assert.Same(t, got[0], key.GetSubscription(), "Built-in keys should reference the returned subscription")
 		}
 		assert.Same(t, in, st.Get(got[0]), "Should find the store entry through the returned subscription")
-		require.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
+		assert.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
+	})
+
+	t.Run("BuiltInKeys", func(t *testing.T) {
+		t.Parallel()
+		for _, newKey := range []func(*Subscription) MatchableKey{
+			func(s *Subscription) MatchableKey { return &ExactKey{s} },
+			func(s *Subscription) MatchableKey { return ExactKey{s} },
+			func(s *Subscription) MatchableKey { return &IgnoringPairsKey{s} },
+			func(s *Subscription) MatchableKey { return IgnoringPairsKey{s} },
+			func(s *Subscription) MatchableKey { return &IgnoringAssetKey{s} },
+			func(s *Subscription) MatchableKey { return IgnoringAssetKey{s} },
+			func(s *Subscription) MatchableKey { return &ChannelKey{s} },
+			func(s *Subscription) MatchableKey { return ChannelKey{s} },
+		} {
+			in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT"}
+			inKey := newKey(in)
+			in.SetKey(inKey)
+			got, err := List{in}.ExpandTemplates(e)
+			require.NoErrorf(t, err, "ExpandTemplates must not error for %T", inKey)
+			require.Lenf(t, got, 1, "Must get one subscription back for %T", inKey)
+			key, ok := got[0].Key.(MatchableKey)
+			require.Truef(t, ok, "Key must remain a MatchableKey for %T", inKey)
+			assert.IsTypef(t, inKey, key, "Key should keep its type %T", inKey)
+			assert.Samef(t, got[0], key.GetSubscription(), "%T should reference the returned subscription", inKey)
+		}
 	})
 
 	t.Run("NestedParams", func(t *testing.T) {
@@ -273,7 +298,7 @@ func TestExpandTemplatesOwnership(t *testing.T) {
 		nested["depth"] = 50
 		gotNested, ok := got[0].Params["opts"].(map[string]any)
 		if assert.True(t, ok, "Should keep the nested value") {
-			assert.Equal(t, 50, gotNested["depth"], "Values nested inside Params remain shared with the input")
+			assert.Equal(t, 50, gotNested["depth"], "Values nested inside Params should remain shared with the input")
 		}
 	})
 }

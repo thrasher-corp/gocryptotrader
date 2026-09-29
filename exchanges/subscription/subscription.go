@@ -170,12 +170,20 @@ func (s *Subscription) cloneWithKey() *Subscription {
 	switch key := s.Key.(type) {
 	case *ExactKey:
 		c.SetKey(&ExactKey{Subscription: c})
+	case ExactKey:
+		c.SetKey(ExactKey{Subscription: c})
 	case *IgnoringPairsKey:
 		c.SetKey(&IgnoringPairsKey{Subscription: c})
+	case IgnoringPairsKey:
+		c.SetKey(IgnoringPairsKey{Subscription: c})
 	case *IgnoringAssetKey:
 		c.SetKey(&IgnoringAssetKey{Subscription: c})
+	case IgnoringAssetKey:
+		c.SetKey(IgnoringAssetKey{Subscription: c})
 	case *ChannelKey:
 		c.SetKey(&ChannelKey{Subscription: c})
+	case ChannelKey:
+		c.SetKey(ChannelKey{Subscription: c})
 	case nil:
 		// The copy will be keyed on demand by EnsureKeyed
 	default:
