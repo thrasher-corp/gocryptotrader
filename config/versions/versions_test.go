@@ -125,7 +125,7 @@ func TestRegisterVersion(t *testing.T) {
 
 	assert.PanicsWithError(t, fmt.Sprintf("%s: %d", errAlreadyRegistered, 2), func() {
 		m.registerVersion(2, &TestVersion2{})
-	}, "registeringVersion must panic registering an existing version")
+	}, "registeringVersion should panic registering an existing version")
 }
 
 func TestLatest(t *testing.T) {

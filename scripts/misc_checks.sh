@@ -150,13 +150,13 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Missing postfix `f` for testify assertions
+# 2. Testify message conventions
 # ---------------------------------------------------------------------------
-info "Check for missing postfix f format func variant for testify assertions"
-if pcre_grep '(?:assert|require)\.[A-Za-z_]\w*?(?<!f)\((?:(?!fmt\.Sprintf).)*%' '*.go' 1; then
-    fail 'Replace func with the `…f` func variant (e.g. Equalf, Errorf)'
+info "Check Testify message arguments and assertion variants"
+if make assertion_checks; then
+    pass "Testify message conventions are consistent"
 else
-    pass "No missing postfix f on testify format assertions"
+    fail "Correct the reported Testify message conventions"
 fi
 
 # ---------------------------------------------------------------------------
@@ -167,28 +167,6 @@ if ere_grep "[\`']%s[\`']" '*.go' 0 '.'; then
     fail "Replace '%s' or \`%s\` format specifier with %q"
 else
     pass "No quoted/backticked %s usage found"
-fi
-
-# ---------------------------------------------------------------------------
-# 4. require… "should" / assert… "must" message consistency
-# ---------------------------------------------------------------------------
-info "Check for testify require/assert message consistency"
-check_failed=0
-
-echo "Checking for 'should' in require messages..."
-if ere_grep 'require\.[A-Za-z0-9_]+.*"[^"]*should[^"]*"' '*.go' 0 '.'; then
-    check_failed=1
-fi
-
-echo "Checking for 'must' in assert messages..."
-if ere_grep 'assert\.[A-Za-z0-9_]+.*"[^"]*must[^"]*"' '*.go' 0 '.'; then
-    check_failed=1
-fi
-
-if [[ "$check_failed" -eq 1 ]]; then
-    fail "Replace \"should\" in require messages and \"must\" in assert messages"
-else
-    pass "Testify require/assert message wording is consistent"
 fi
 
 # ---------------------------------------------------------------------------

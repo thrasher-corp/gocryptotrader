@@ -147,8 +147,8 @@ func TestIgnoringAssetKeyString(t *testing.T) {
 func TestGetSubscription(t *testing.T) {
 	t.Parallel()
 	s := &Subscription{Asset: asset.Spot}
-	assert.Same(t, s, ExactKey{s}.GetSubscription(), "ExactKey.GetSubscription Must return a pointer to the subscription")
-	assert.Same(t, s, IgnoringPairsKey{s}.GetSubscription(), "IgnorePairKeys.GetSubscription Must return a pointer to the subscription")
+	assert.Same(t, s, ExactKey{s}.GetSubscription(), "ExactKey.GetSubscription Should return a pointer to the subscription")
+	assert.Same(t, s, IgnoringPairsKey{s}.GetSubscription(), "IgnorePairKeys.GetSubscription Should return a pointer to the subscription")
 }
 
 func TestMustChannelKey(t *testing.T) {

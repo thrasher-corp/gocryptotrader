@@ -61,7 +61,7 @@ func TestAdd(t *testing.T) {
 	assert.ErrorContains(t, err, "Subscription param", "Should error correctly")
 
 	sub := &Subscription{Channel: TickerChannel}
-	require.NoError(t, s.Add(sub), "Should not error on a standard add")
+	require.NoError(t, s.Add(sub), "Must not error on a standard add")
 	assert.NotNil(t, s.get(sub), "Should have stored the sub")
 	assert.ErrorIs(t, s.Add(sub), ErrDuplicate, "Should error on duplicates")
 	assert.NotNil(t, sub.Key, "Add should call EnsureKeyed")
@@ -171,9 +171,9 @@ func TestStoreDiff(t *testing.T) {
 	assert.Empty(t, subs, "Should get no subs")
 	assert.Equal(t, 2, len(unsubs), "Should get the correct number of unsubs")
 	subs, unsubs = s.Diff(List{{Channel: TickerChannel}, {Channel: MyTradesChannel}})
-	require.Equal(t, 1, len(subs), "Should get the correct number of subs")
+	require.Equal(t, 1, len(subs), "Must get the correct number of subs")
 	assert.Equal(t, MyTradesChannel, subs[0].Channel, "Should get correct channels in sub")
-	require.Equal(t, 2, len(unsubs), "Should get the correct number of unsubs")
+	require.Equal(t, 2, len(unsubs), "Must get the correct number of unsubs")
 	EqualLists(t, unsubs, List{{Channel: OrderbookChannel}, {Channel: CandlesChannel}})
 }
 
