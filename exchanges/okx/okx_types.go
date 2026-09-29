@@ -2490,8 +2490,8 @@ type QuoteRequestParams struct {
 	Limit         int64
 }
 
-// RFQTradesRequestParams represents RFQ trades request param
-type RFQTradesRequestParams struct {
+// RFQTradesRequest represents an RFQ trades request
+type RFQTradesRequest struct {
 	RFQID         string
 	ClientRFQID   string
 	QuoteID       string

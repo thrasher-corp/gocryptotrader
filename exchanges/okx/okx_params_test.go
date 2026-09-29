@@ -84,7 +84,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "RFQ trades send clRfqId without state",
 			call: func() error {
-				_, err := e.GetRFQTrades(t.Context(), &RFQTradesRequestParams{ClientRFQID: "rfq-client-1"})
+				_, err := e.GetRFQTrades(t.Context(), &RFQTradesRequest{ClientRFQID: "rfq-client-1"})
 				return err
 			},
 			path:   "/rfq/trades",
@@ -181,9 +181,9 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			absent: []string{"quickMgnType", "upSpotOffset"},
 		},
 		{
-			name: "Pending algo order list drops unsupported clOrdId",
+			name: "Pending algo order list sends algoClOrdId",
 			call: func() error {
-				_, err := e.GetAlgoOrderList(t.Context(), "conditional", "", "", "", time.Time{}, time.Time{}, 1)
+				_, err := e.GetAlgoOrderList(t.Context(), "conditional", "", "", "", "", time.Time{}, time.Time{}, 1)
 				return err
 			},
 			path:   "/trade/orders-algo-pending",

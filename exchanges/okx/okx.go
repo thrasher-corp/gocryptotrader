@@ -582,7 +582,7 @@ func (e *Exchange) GetAlgoOrderDetail(ctx context.Context, algoID, clientSupplie
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account
-func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit uint64) ([]AlgoOrderResponse, error) {
+func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, algoClientOrderID, instrumentType, instrumentID string, after, before time.Time, limit uint64) ([]AlgoOrderResponse, error) {
 	orderType = strings.ToLower(orderType)
 	if orderType == "" {
 		return nil, order.ErrTypeIsInvalid
@@ -591,6 +591,9 @@ func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID,
 	params.Set("ordType", orderType)
 	if algoOrderID != "" {
 		params.Set("algoId", algoOrderID)
+	}
+	if algoClientOrderID != "" {
+		params.Set("algoClOrdId", algoClientOrderID)
 	}
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType != "" {
@@ -1024,8 +1027,8 @@ func (e *Exchange) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]Qu
 }
 
 // GetRFQTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver
-func (e *Exchange) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([]RFQTradeResponse, error) {
-	if *arg == (RFQTradesRequestParams{}) {
+func (e *Exchange) GetRFQTrades(ctx context.Context, arg *RFQTradesRequest) ([]RFQTradeResponse, error) {
+	if *arg == (RFQTradesRequest{}) {
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}

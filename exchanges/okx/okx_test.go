@@ -1447,11 +1447,11 @@ func TestCancelAdvanceAlgoOrder(t *testing.T) {
 
 func TestGetAlgoOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAlgoOrderList(contextGenerate(), "", "", "", "", time.Time{}, time.Time{}, 1)
+	_, err := e.GetAlgoOrderList(contextGenerate(), "", "", "", "", "", time.Time{}, time.Time{}, 1)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAlgoOrderList(contextGenerate(), "conditional", "", "", "", time.Time{}, time.Time{}, 1)
+	result, err := e.GetAlgoOrderList(contextGenerate(), "conditional", "", "", "", "", time.Time{}, time.Time{}, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1790,11 +1790,11 @@ func TestGetQuotes(t *testing.T) {
 
 func TestGetRFQTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetRFQTrades(contextGenerate(), &RFQTradesRequestParams{})
+	_, err := e.GetRFQTrades(contextGenerate(), &RFQTradesRequest{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetRFQTrades(contextGenerate(), &RFQTradesRequestParams{Limit: 1})
+	result, err := e.GetRFQTrades(contextGenerate(), &RFQTradesRequest{Limit: 1})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
