@@ -5078,10 +5078,12 @@ func (e *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
 }
 
 // GetLiquidationOrders retrieves information on liquidation orders in the last day
-func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
+func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) ([]LiquidationOrder, error) {
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
-	if arg.InstrumentType == "" {
-		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
+	switch arg.InstrumentType {
+	case instTypeMargin, instTypeSwap, instTypeFutures, instTypeOption:
+	default:
+		return nil, fmt.Errorf("%w, received %q", errInvalidInstrumentType, arg.InstrumentType)
 	}
 	params := url.Values{}
 	params.Set("instType", arg.InstrumentType)
@@ -5090,15 +5092,27 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 		params.Set("mgnMode", arg.MarginMode)
 	}
 	switch {
-	case arg.InstrumentType == instTypeMargin && arg.InstrumentID != "":
+	case arg.InstrumentType != instTypeMargin:
+		// instId and ccy only apply to MARGIN orders, while SWAP, FUTURES and
+		// OPTION orders are filtered by instFamily, uly, state and alias below.
+	case arg.InstrumentID != "":
 		params.Set("instId", arg.InstrumentID)
-	case arg.InstrumentType == instTypeMargin && arg.Currency.String() != "":
+	case arg.Currency.String() != "":
 		params.Set("ccy", arg.Currency.String())
 	default:
 		return nil, errEitherInstIDOrCcyIsRequired
 	}
-	if arg.InstrumentType != instTypeMargin && arg.Underlying != "" {
-		params.Set("uly", arg.Underlying)
+	if arg.InstrumentType != instTypeMargin {
+		// OKX rejects uly for FUTURES, so instFamily takes precedence.
+		if arg.InstrumentFamily != "" {
+			params.Set("instFamily", arg.InstrumentFamily)
+		} else if arg.Underlying != "" {
+			params.Set("uly", arg.Underlying)
+		}
+		// OKX rejects SWAP and FUTURES requests without a state parameter.
+		if arg.State != "" {
+			params.Set("state", arg.State)
+		}
 	}
 	if arg.InstrumentType == instTypeFutures && arg.Alias != "" {
 		params.Set("alias", arg.Alias)
@@ -5112,7 +5126,7 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 	if arg.Limit > 0 && arg.Limit < 100 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	var resp *LiquidationOrder
+	var resp []LiquidationOrder
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, common.EncodeURLValues("public/liquidation-orders", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
