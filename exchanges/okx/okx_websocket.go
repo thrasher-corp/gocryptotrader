@@ -613,7 +613,7 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 		if err != nil {
 			return err
 		}
-		oType, err := order.StringToOrderType(resp.Data[x].OrderType)
+		oType, _, err := orderTypeFromString(resp.Data[x].OrderType)
 		if err != nil {
 			return err
 		}
@@ -624,12 +624,12 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 			ClientOrderID:        resp.Data[x].ClientOrderID,
 			Date:                 resp.Data[x].CreationTime.Time(),
 			Exchange:             e.Name,
-			ExecutedAmount:       resp.Data[x].FillSize.Float64(),
+			ExecutedAmount:       resp.Data[x].AccFillSize.Float64(),
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                resp.Data[x].Price.Float64(),
 			QuoteAmount:          resp.Data[x].Size.Float64() * resp.Data[x].Price.Float64(),
-			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].FillSize.Float64(),
+			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].AccFillSize.Float64(),
 			Side:                 oSide,
 			Status:               oStatus,
 			Type:                 oType,

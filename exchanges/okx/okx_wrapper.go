@@ -1701,6 +1701,9 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		args[i] = *orderRequest
 	}
 	placed, err := e.WSPlaceMultipleOrders(ctx, args)
+	if (err == nil || len(placed) != 0) && len(placed) != len(orders) {
+		return nil, common.AppendError(err, fmt.Errorf("%w: %d results for %d orders", common.ErrInvalidResponse, len(placed), len(orders)))
+	}
 	responses := make([]*order.SubmitResponse, len(orders))
 	for i := range placed {
 		if placed[i] == nil || placed[i].OrderID == "" {
@@ -1870,8 +1873,9 @@ func (e *Exchange) WebsocketCancelBatchOrders(ctx context.Context, o []order.Can
 }
 
 // WebsocketCancelAllOrders cancels all orders associated with a currency pair
-// through the authenticated private websocket connection. Spread orders return
-// common.ErrFunctionNotSupported before any request is transmitted, as they
+// through the authenticated private websocket connection. Algo order types and
+// spread orders return common.ErrFunctionNotSupported before any request is
+// transmitted: the pending order list holds no algo orders, and spread orders
 // require the business websocket connection.
 func (e *Exchange) WebsocketCancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllResponse := order.CancelAllResponse{
@@ -1882,6 +1886,10 @@ func (e *Exchange) WebsocketCancelAllOrders(ctx context.Context, orderCancellati
 	}
 	if orderCancellation.AssetType == asset.Spread {
 		return cancelAllResponse, errSpreadWebsocketUnsupported
+	}
+	switch orderCancellation.Type {
+	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
+		return cancelAllResponse, fmt.Errorf("%w: cancel of algo order type %v", common.ErrFunctionNotSupported, orderCancellation.Type)
 	}
 	err := orderCancellation.Validate()
 	if err != nil {
@@ -1969,18 +1977,22 @@ ordersLoop:
 			})
 		}
 	}
-	// Resolve instrument ID codes for all orders before any cancel transmits,
-	// so an uncached instrument fails before a partial batch is sent.
+	// An order whose instrument has no cached code cannot be cancelled over
+	// the websocket. It is reported in the error rather than stopping the
+	// cancels that can be sent, as a failed batch does below.
+	var errs error
+	sendable := make([]CancelOrderRequestParam, 0, len(cancelAllOrdersRequestParams))
 	for i := range cancelAllOrdersRequestParams {
 		code, codeErr := e.requireWebsocketInstrumentIDCode(cancelAllOrdersRequestParams[i].InstrumentID)
 		if codeErr != nil {
-			return cancelAllResponse, codeErr
+			errs = common.AppendError(errs, fmt.Errorf("%w cancelling order %s", codeErr, cancelAllOrdersRequestParams[i].OrderID))
+			continue
 		}
 		cancelAllOrdersRequestParams[i].InstrumentIDCode = code
+		sendable = append(sendable, cancelAllOrdersRequestParams[i])
 	}
-	remaining := cancelAllOrdersRequestParams
+	remaining := sendable
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
-	var errs error
 	for range loop {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			// A dead context stops the loop; the statuses and errors collected
@@ -2400,8 +2412,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Price:                spreadOrders[x].Price.Float64(),
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
 				Amount:               spreadOrders[x].Size.Float64(),
-				ExecutedAmount:       spreadOrders[x].FillSize.Float64(),
-				RemainingAmount:      spreadOrders[x].PendingFillSize.Float64(),
+				ExecutedAmount:       spreadOrders[x].AccFillSize.Float64(),
+				RemainingAmount:      spreadOrders[x].Size.Float64() - spreadOrders[x].AccFillSize.Float64(),
 				Exchange:             e.Name,
 				OrderID:              spreadOrders[x].OrderID,
 				ClientOrderID:        spreadOrders[x].ClientOrderID,
@@ -2745,7 +2757,7 @@ func (e *Exchange) cacheInstrumentIDCodesLocked(instruments []Instrument) {
 	for x := range instruments {
 		// OKX sends a null instIdCode until it generates one, including for a
 		// relisted instrument, whose code changes. Dropping the cached code
-		// sends its orders over REST rather than with a replaced code.
+		// fails its websocket order operations instead of sending a stale code.
 		if instruments[x].InstrumentIDCode == 0 {
 			delete(e.instrumentIDCodeMap, instruments[x].InstrumentID.String())
 			continue
@@ -3644,9 +3656,8 @@ func (e *Exchange) getInstrumentIDCode(instID string) uint64 {
 
 // websocketInstrumentIDCode returns the cached instrument ID code for an
 // instrument and whether it is available. An uncached instrument reports ok as
-// false so the caller falls back to REST: OKX requires the code on websocket
-// operations, and newly listed instruments carry a null code until OKX
-// generates one.
+// false: OKX requires the code on websocket operations, and newly listed
+// instruments carry a null code until OKX generates one.
 func (e *Exchange) websocketInstrumentIDCode(instID string) (uint64, bool) {
 	code := e.getInstrumentIDCode(instID)
 	return code, code != 0

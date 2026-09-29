@@ -13,14 +13,17 @@ import (
 	"testing"
 	"uuid"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 // writeOKXData writes a successful OKX JSON response carrying data.
@@ -993,11 +996,11 @@ func TestWebsocketTradingCapabilitiesDeclared(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	ws := e.Features.Supports.WebsocketCapabilities
-	assert.True(t, ws.SubmitOrder, "WebsocketCapabilities must declare SubmitOrder")
-	assert.True(t, ws.SubmitOrders, "WebsocketCapabilities must declare SubmitOrders")
-	assert.True(t, ws.CancelOrder, "WebsocketCapabilities must declare CancelOrder")
-	assert.True(t, ws.CancelOrders, "WebsocketCapabilities must declare CancelOrders")
-	assert.True(t, ws.ModifyOrder, "WebsocketCapabilities must declare ModifyOrder")
+	assert.True(t, ws.SubmitOrder, "WebsocketCapabilities should declare SubmitOrder")
+	assert.True(t, ws.SubmitOrders, "WebsocketCapabilities should declare SubmitOrders")
+	assert.True(t, ws.CancelOrder, "WebsocketCapabilities should declare CancelOrder")
+	assert.True(t, ws.CancelOrders, "WebsocketCapabilities should declare CancelOrders")
+	assert.True(t, ws.ModifyOrder, "WebsocketCapabilities should declare ModifyOrder")
 }
 
 // TestWebsocketOrderMethodsGuards covers the validation and unsupported-path
@@ -1163,6 +1166,12 @@ func TestWebsocketOrderMethodsGuards(t *testing.T) {
 			AssetType: asset.Spread,
 		})
 		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "a spread cancel-all should not transmit on the private connection")
+
+		_, err = e.WebsocketCancelAllOrders(t.Context(), &order.Cancel{
+			AssetType: asset.Spot,
+			Type:      order.Trigger,
+		})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "an algo cancel-all should not transmit over the websocket")
 	})
 
 	t.Run("cached instrument code reaches the websocket transport", func(t *testing.T) {
@@ -1377,4 +1386,234 @@ func TestCancelResultsUsable(t *testing.T) {
 	assert.True(t, cancelResultsUsable(errPartialSuccess), "a partial success should report usable results")
 	assert.True(t, cancelResultsUsable(common.AppendError(errPartialSuccess, errors.New("order 3: does not exist"))), "a joined partial success should still report usable results")
 	assert.False(t, cancelResultsUsable(errors.New("batch one failed")), "any other error should report unusable results")
+}
+
+// newMockWebsocketExchange returns an exchange whose authenticated websocket is
+// available to the wrapper, with every REST endpoint pointed at the same test
+// server and mainPair's instrument code cached. rest answers REST requests, and
+// wsReply returns the code and data of OKX's reply to each websocket operation.
+func newMockWebsocketExchange(t *testing.T, rest http.HandlerFunc, wsReply func(op string, args json.RawMessage) (code string, data any)) *Exchange {
+	t.Helper()
+	e := testexch.MockWsInstance[Exchange](t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Upgrade") != "websocket" {
+			rest(w, r)
+			return
+		}
+		mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
+			if string(msg) == "ping" {
+				return nil
+			}
+			var req struct {
+				ID        string          `json:"id"`
+				Operation string          `json:"op"`
+				Arguments json.RawMessage `json:"args"`
+			}
+			if err := json.Unmarshal(msg, &req); err != nil {
+				return err
+			}
+			code, data := wsReply(req.Operation, req.Arguments)
+			reply, err := json.Marshal(map[string]any{"id": req.ID, "op": req.Operation, "code": code, "msg": "", "data": data})
+			if err != nil {
+				return err
+			}
+			return c.WriteMessage(gws.TextMessage, reply)
+		})
+	}))
+	mockURL, err := e.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "GetURL must not error for RestSpot")
+	for k := range e.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, e.API.Endpoints.SetRunningURL(k, mockURL+"/"), "SetRunningURL must not error for %s", k)
+	}
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the mock websocket must be available to the wrapper")
+	e.instrumentIDCodeMap = map[string]uint64{mainPair.String(): 12345}
+	return e
+}
+
+// TestOrderMethodTransports guards the transport contract: with an
+// authenticated websocket available to the wrapper and the instrument code
+// cached, the standard order methods still place, amend and cancel over REST,
+// and only the Websocket* methods send websocket operations.
+func TestOrderMethodTransports(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	var restPaths, wsOps []string
+	e := newMockWebsocketExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		restPaths = append(restPaths, r.URL.Path)
+		mu.Unlock()
+		if r.URL.Path == "/trade/orders-pending" {
+			writeOKXData(t, w, []map[string]string{{"instId": mainPair.String(), "ordId": "1", "side": "buy", "ordType": orderLimit, "state": "live", "cTime": "1700000000000"}})
+			return
+		}
+		writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+	}, func(op string, _ json.RawMessage) (string, any) {
+		mu.Lock()
+		wsOps = append(wsOps, op)
+		mu.Unlock()
+		return "0", []map[string]string{{"ordId": "1", "sCode": "0"}}
+	})
+	sent := func() (rest, ws []string) {
+		mu.Lock()
+		defer mu.Unlock()
+		rest, ws = restPaths, wsOps
+		restPaths, wsOps = nil, nil
+		return rest, ws
+	}
+	submit := &order.Submit{Exchange: e.Name, Pair: mainPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1}
+	modify := &order.Modify{Pair: mainPair, AssetType: asset.Spot, OrderID: "1", Amount: 2, Price: 1}
+	cancel := &order.Cancel{Pair: mainPair, AssetType: asset.Spot, OrderID: "1"}
+
+	_, err := e.SubmitOrder(t.Context(), submit)
+	require.NoError(t, err, "SubmitOrder must not error")
+	_, err = e.ModifyOrder(t.Context(), modify)
+	require.NoError(t, err, "ModifyOrder must not error")
+	require.NoError(t, e.CancelOrder(t.Context(), cancel), "CancelOrder must not error")
+	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{*cancel})
+	require.NoError(t, err, "CancelBatchOrders must not error")
+	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{Pair: mainPair, AssetType: asset.Spot})
+	require.NoError(t, err, "CancelAllOrders must not error")
+	rest, ws := sent()
+	assert.Equal(t, []string{"/trade/order", "/trade/amend-order", "/trade/cancel-order", "/trade/cancel-batch-orders", "/trade/orders-pending", "/trade/cancel-batch-orders"}, rest, "each standard order method should reach its REST endpoint")
+	assert.Empty(t, ws, "no standard order method should send a websocket operation")
+
+	_, err = e.WebsocketSubmitOrder(t.Context(), submit)
+	require.NoError(t, err, "WebsocketSubmitOrder must not error")
+	_, err = e.WebsocketModifyOrder(t.Context(), modify)
+	require.NoError(t, err, "WebsocketModifyOrder must not error")
+	require.NoError(t, e.WebsocketCancelOrder(t.Context(), cancel), "WebsocketCancelOrder must not error")
+	rest, ws = sent()
+	assert.Empty(t, rest, "no websocket order method should send a REST request")
+	assert.Equal(t, []string{"order", "amend-order", "cancel-order"}, ws, "each websocket order method should send its websocket operation")
+}
+
+// TestWebsocketSubmitOrdersReplies guards how batch submission reports OKX's
+// rows: each is matched to its order by position, a partial success keeps its
+// error beside the placed orders, and a reply without one row per order is
+// rejected rather than misattributed.
+func TestWebsocketSubmitOrdersReplies(t *testing.T) {
+	t.Parallel()
+	first := map[string]string{"ordId": "1", "sCode": "0", "sMsg": ""}
+	second := map[string]string{"ordId": "2", "sCode": "0", "sMsg": ""}
+	failed := map[string]string{"ordId": "", "sCode": "51008", "sMsg": "Order failed. Insufficient USDT balance in account"}
+	for _, tc := range []struct {
+		name   string
+		code   string
+		data   []map[string]string
+		exp    []string
+		expErr error
+	}{
+		{"all placed", "0", []map[string]string{first, second}, []string{"1 BUY", "2 SELL"}, nil},
+		{"partial success", "2", []map[string]string{first, failed}, []string{"1 BUY", ""}, errPartialSuccess},
+		{"null row", "2", []map[string]string{nil, second}, []string{"", "2 SELL"}, errPartialSuccess},
+		{"more rows than orders", "0", []map[string]string{first, second, second}, []string{}, common.ErrInvalidResponse},
+		{"success without rows", "0", []map[string]string{}, []string{}, common.ErrInvalidResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newMockWebsocketExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				t.Errorf("unexpected REST request %s", r.URL.Path)
+				http.NotFound(w, r)
+			}, func(string, json.RawMessage) (string, any) {
+				return tc.code, tc.data
+			})
+			resp, err := e.WebsocketSubmitOrders(t.Context(), []*order.Submit{
+				{Exchange: e.Name, Pair: mainPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1},
+				{Exchange: e.Name, Pair: mainPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Limit, Amount: 1, Price: 2},
+			})
+			if tc.expErr == nil {
+				require.NoError(t, err, "WebsocketSubmitOrders must not error")
+			} else {
+				require.ErrorIs(t, err, tc.expErr, "WebsocketSubmitOrders must return the expected error")
+			}
+			got := make([]string, 0, len(resp))
+			for _, r := range resp {
+				if r == nil {
+					got = append(got, "")
+					continue
+				}
+				got = append(got, r.OrderID+" "+r.Side.String())
+			}
+			assert.Equal(t, tc.exp, got, "WebsocketSubmitOrders should report each placed order ID against its own order")
+		})
+	}
+}
+
+// TestWebsocketCancelBatchOrdersPartialSuccess guards the websocket batch cancel
+// results: a partial success records each order's own outcome beside the error.
+func TestWebsocketCancelBatchOrdersPartialSuccess(t *testing.T) {
+	t.Parallel()
+	e := newMockWebsocketExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected REST request %s", r.URL.Path)
+		http.NotFound(w, r)
+	}, func(string, json.RawMessage) (string, any) {
+		return "2", []map[string]string{
+			{"ordId": "1", "sCode": "0", "sMsg": ""},
+			{"ordId": "2", "sCode": "51400", "sMsg": "Order cancellation failed as the order has been filled, canceled or does not exist"},
+		}
+	})
+	resp, err := e.WebsocketCancelBatchOrders(t.Context(), []order.Cancel{
+		{Pair: mainPair, AssetType: asset.Spot, OrderID: "1"},
+		{Pair: mainPair, AssetType: asset.Spot, OrderID: "2"},
+	})
+	require.ErrorIs(t, err, errPartialSuccess, "WebsocketCancelBatchOrders must return the partial success")
+	require.NotNil(t, resp, "WebsocketCancelBatchOrders must return the results beside the error")
+	assert.Equal(t, map[string]string{
+		"1": order.Cancelled.String(),
+		"2": "Order cancellation failed as the order has been filled, canceled or does not exist",
+	}, resp.Status, "each order should report its own outcome")
+}
+
+// TestWebsocketCancelAllOrdersSkipsUncachedInstruments guards websocket
+// cancel-all: pending orders are cancelled over the websocket in batches of 20
+// with their instrument codes, and an order whose instrument has no cached code
+// is reported in the error rather than stopping the rest.
+func TestWebsocketCancelAllOrdersSkipsUncachedInstruments(t *testing.T) {
+	t.Parallel()
+	pending := make([]map[string]string, 0, 26)
+	for i := range 25 {
+		pending = append(pending, map[string]string{"instId": mainPair.String(), "ordId": strconv.Itoa(i), "side": "buy", "ordType": orderLimit, "state": "live", "cTime": "1700000000000"})
+	}
+	pending = append(pending, map[string]string{"instId": "XRP-USDT", "ordId": "UNCACHED-1", "side": "buy", "ordType": orderLimit, "state": "live", "cTime": "1700000000000"})
+	var mu sync.Mutex
+	var batches [][]CancelOrderRequestParam
+	e := newMockWebsocketExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/orders-pending" {
+			t.Errorf("unexpected REST request %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, pending)
+	}, func(op string, args json.RawMessage) (string, any) {
+		var reqs []CancelOrderRequestParam
+		if err := json.Unmarshal(args, &reqs); err != nil {
+			t.Errorf("decoding %s arguments should not error: %v", op, err)
+		}
+		mu.Lock()
+		batches = append(batches, reqs)
+		mu.Unlock()
+		rows := make([]map[string]string, 0, len(reqs))
+		for x := range reqs {
+			rows = append(rows, map[string]string{"ordId": reqs[x].OrderID, "sCode": "0", "sMsg": ""})
+		}
+		return "0", rows
+	})
+
+	resp, err := e.WebsocketCancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WebsocketCancelAllOrders must report the order it cannot address")
+	assert.ErrorContains(t, err, "UNCACHED-1", "the error should name the order left open")
+	assert.Len(t, resp.Status, 25, "every addressable order should be cancelled")
+	assert.NotContains(t, resp.Status, "UNCACHED-1", "the unaddressable order should not be reported cancelled")
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, batches, 2, "25 orders must be cancelled in two batches")
+	assert.Len(t, batches[0], 20, "the first batch should hold 20 orders")
+	assert.Len(t, batches[1], 5, "the second batch should hold the other 5 orders")
+	for _, b := range batches {
+		for x := range b {
+			assert.EqualValues(t, 12345, b[x].InstrumentIDCode, "each cancel should carry the cached instrument code")
+		}
+	}
 }
