@@ -853,6 +853,19 @@ func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 	assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
 }
 
+func TestConnectReturnsTeardownError(t *testing.T) {
+	t.Parallel()
+
+	ws := NewManager()
+	require.NoError(t, ws.Setup(newDefaultSetup()), "Setup must not error")
+	ws.Conn = &struct{ *connection }{&connection{}}
+	ws.connector = func() error { return errDastardlyReason }
+
+	err := ws.Connect(t.Context())
+	require.ErrorIs(t, err, errDastardlyReason, "Connect must return the connector error")
+	assert.ErrorIs(t, err, common.ErrTypeAssertFailure, "Connect should return the teardown error")
+}
+
 func TestCreateConnectAndSubscribeClosesUntrackedConnection(t *testing.T) {
 	t.Parallel()
 
