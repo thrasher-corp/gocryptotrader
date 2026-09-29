@@ -96,7 +96,7 @@ func TestDialHandshakeTimeout(t *testing.T) {
 		start := time.Now()
 		err := wc.Dial(t.Context(), dialer, nil, nil)
 		require.ErrorIs(t, err, os.ErrDeadlineExceeded, "Dial must time out when the upgrade is never answered")
-		assert.Equal(t, defaultHandshakeTimeout, time.Since(start), "Dial should give up after the default handshake timeout")
+		assert.Equal(t, 45*time.Second, time.Since(start), "Dial should give up after the default handshake timeout")
 		assert.Zero(t, dialer.HandshakeTimeout, "Dial should not set a handshake timeout on the caller's dialer")
 
 		wc.ProxyURL = "http://proxy.invalid"
