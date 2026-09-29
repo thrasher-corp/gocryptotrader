@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -1692,22 +1693,45 @@ func (c *stalledWriteConn) Close() error {
 	return err
 }
 
-func TestConnectionShutdownWithStalledWrite(t *testing.T) {
-	t.Parallel()
-
+// dialStalledWriteConn dials a connection to an echo server through a stalledWriteConn, beneath TLS if useTLS is set
+func dialStalledWriteConn(t *testing.T, useTLS bool) (*connection, *stalledWriteConn) {
+	t.Helper()
 	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	conn := &stalledWriteConn{blocked: make(chan struct{}, 1), closed: make(chan struct{})}
-	dialContext := dialer.NetDialContext
+	dialContext, scheme := dialer.NetDialContext, "ws"
+	if useTLS {
+		tr, ok := mock.Client().Transport.(*http.Transport)
+		require.True(t, ok, "test server client transport must be an *http.Transport")
+		dialer.TLSClientConfig, scheme = tr.TLSClientConfig, "wss"
+		// The in-memory TLS dial returns its client before the handshake, so its connection can be stalled beneath TLS
+		dialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			c, err := tr.DialTLSContext(ctx, network, addr)
+			if err != nil {
+				return nil, err
+			}
+			tlsConn, ok := c.(*tls.Conn)
+			if !ok {
+				return nil, fmt.Errorf("DialTLSContext returned %T, not *tls.Conn", c)
+			}
+			return tlsConn.NetConn(), nil
+		}
+	}
 	dialer.NetDialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		var err error
 		conn.Conn, err = dialContext(ctx, network, addr)
 		return conn, err
 	}
 
-	wc := &connection{URL: "ws" + mock.URL[len("http"):] + "/ws"}
+	wc := &connection{URL: scheme + mock.URL[len("http"):] + "/ws"}
 	require.NoError(t, wc.Dial(t.Context(), dialer, nil, nil), "Dial must not error")
 	t.Cleanup(func() { _ = conn.Close() }) // Releases the write and Shutdown if Shutdown fails to close the connection
+	return wc, conn
+}
 
+func TestConnectionShutdownWithStalledWrite(t *testing.T) {
+	t.Parallel()
+
+	wc, conn := dialStalledWriteConn(t, false)
 	conn.stalled.Store(true)
 	writeErr := make(chan error, 1)
 	go func() { writeErr <- wc.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test")) }()
@@ -1730,6 +1754,50 @@ func TestConnectionShutdownWithStalledWrite(t *testing.T) {
 		assert.ErrorIs(t, err, net.ErrClosed, "stalled write should error once the connection is closed")
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "stalled write must return once the connection is closed")
+	}
+}
+
+func TestConnectionShutdownTLSWithStalledPeer(t *testing.T) {
+	t.Parallel()
+
+	wc, conn := dialStalledWriteConn(t, true)
+	conn.stalled.Store(true) // The peer has stopped reading, and no write is in progress
+	shutdownErr := make(chan error, 1)
+	go func() { shutdownErr <- wc.Shutdown() }()
+	select {
+	case err := <-shutdownErr:
+		require.NoError(t, err, "Shutdown must not error")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "Shutdown must not write to a peer which has stopped reading")
+	}
+}
+
+func TestConnectionShutdownWaitsForWriteInProgress(t *testing.T) {
+	t.Parallel()
+
+	wc, conn := dialStalledWriteConn(t, false)
+	// Holding writeControl stands in for a write in progress, which a reconnect must not be able to overtake
+	wc.writeControl.Lock()
+	shutdownErr := make(chan error, 1)
+	go func() { shutdownErr <- wc.Shutdown() }()
+	select {
+	case <-conn.closed:
+	case <-time.After(5 * time.Second):
+		wc.writeControl.Unlock()
+		require.FailNow(t, "Shutdown must close the connection without waiting for writeControl")
+	}
+	select {
+	case <-shutdownErr:
+		wc.writeControl.Unlock()
+		require.FailNow(t, "Shutdown must not return while a write holds writeControl")
+	case <-time.After(100 * time.Millisecond):
+	}
+	wc.writeControl.Unlock()
+	select {
+	case err := <-shutdownErr:
+		require.NoError(t, err, "Shutdown must not error")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "Shutdown must return once writeControl is released")
 	}
 }
 
