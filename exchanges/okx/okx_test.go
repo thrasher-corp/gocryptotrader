@@ -626,7 +626,7 @@ func TestGetPositionTiers(t *testing.T) {
 	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
-	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", currency.ETH)
+	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "BTC-USD", "", "", currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1633,6 +1633,18 @@ func TestSetQuoteProducts(t *testing.T) {
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{
+		{
+			InstrumentType: "SWAP",
+			Data:           []MakerInstrumentSetting{{InstrumentFamily: "BTC-USD"}},
+		},
+		{
+			InstrumentType: "SPOT",
+			Data:           []MakerInstrumentSetting{{InstrumentFamily: "ETH-USDT"}},
+		},
+	})
+	require.ErrorIs(t, err, errMissingInstrumentID, "validation must check Data[y] for each arg, not Data[x]")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{
