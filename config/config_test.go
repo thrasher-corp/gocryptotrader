@@ -1185,6 +1185,28 @@ func TestExchangeSetName(t *testing.T) {
 	}
 }
 
+func TestExchangeSetEnabled(t *testing.T) {
+	t.Parallel()
+	cfg := &Config{}
+	for i := range 64 {
+		cfg.Exchanges = append(cfg.Exchanges, Exchange{Name: "exchange" + strconv.Itoa(i)})
+	}
+	var wg sync.WaitGroup
+	for i := range cfg.Exchanges {
+		wg.Go(func() { cfg.Exchanges[i].SetEnabled(true) })
+		wg.Go(func() {
+			_ = cfg.CountEnabledExchanges()
+			_ = cfg.GetEnabledExchanges()
+			_ = cfg.GetDisabledExchanges()
+		})
+	}
+	wg.Wait()
+	assert.Equal(t, len(cfg.Exchanges), cfg.CountEnabledExchanges(), "SetEnabled should enable every exchange config")
+	assert.Empty(t, cfg.GetDisabledExchanges(), "GetDisabledExchanges should list no exchange configs once all are enabled")
+	cfg.Exchanges[0].SetEnabled(false)
+	assert.Equal(t, []string{"exchange0"}, cfg.GetDisabledExchanges(), "SetEnabled should disable the exchange config")
+}
+
 func TestGetForexProviders(t *testing.T) {
 	t.Parallel()
 	fxr := "Fixer"

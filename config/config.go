@@ -761,6 +761,8 @@ func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currenc
 
 // GetEnabledExchanges returns a list of enabled exchanges
 func (c *Config) GetEnabledExchanges() []string {
+	m.Lock()
+	defer m.Unlock()
 	var enabledExchs []string
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Enabled {
@@ -772,6 +774,8 @@ func (c *Config) GetEnabledExchanges() []string {
 
 // GetDisabledExchanges returns a list of disabled exchanges
 func (c *Config) GetDisabledExchanges() []string {
+	m.Lock()
+	defer m.Unlock()
 	var disabledExchs []string
 	for i := range c.Exchanges {
 		if !c.Exchanges[i].Enabled {
@@ -783,6 +787,8 @@ func (c *Config) GetDisabledExchanges() []string {
 
 // CountEnabledExchanges returns the number of exchanges that are enabled.
 func (c *Config) CountEnabledExchanges() int {
+	m.Lock()
+	defer m.Unlock()
 	counter := 0
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Enabled {
@@ -823,6 +829,15 @@ func (c *Exchange) SetName(name string) {
 	m.Lock()
 	defer m.Unlock()
 	c.Name = name
+}
+
+// SetEnabled sets the exchange config's enabled state. It holds the lock
+// GetEnabledExchanges, GetDisabledExchanges and CountEnabledExchanges hold, so
+// an exchange can be enabled or disabled while those readers run concurrently
+func (c *Exchange) SetEnabled(enabled bool) {
+	m.Lock()
+	defer m.Unlock()
+	c.Enabled = enabled
 }
 
 // UpdateExchangeConfig updates exchange configurations

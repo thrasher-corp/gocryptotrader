@@ -795,7 +795,7 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 		return err
 	}
 
-	exchCfg.Enabled = false
+	exchCfg.SetEnabled(false)
 	return nil
 }
 
@@ -877,9 +877,9 @@ func (bot *Engine) LoadExchange(name string) error {
 	// NOTE: This will standardise name to default and apply it to the config.
 	exchCfg.SetName(exch.GetName())
 
-	exchCfg.Enabled = true
+	exchCfg.SetEnabled(true)
 	if err := exch.Setup(exchCfg); err != nil {
-		exchCfg.Enabled = false
+		exchCfg.SetEnabled(false)
 		return err
 	}
 
