@@ -94,6 +94,8 @@ When submitting a PR, please abide by our [coding guidelines](./docs/CODING_GUID
 
 Download and install Go from [Go Downloads](https://golang.org/dl/) for your platform.
 
+NTP clock checks support Linux, macOS, Windows, and OpenBSD. On other operating systems, GoCryptoTrader runs with clock checking unavailable. See [clock observation](./engine/ntp_manager.md) for the limitations.
+
 ### Linux/macOS
 
 ```bash
@@ -176,8 +178,8 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 790 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 490 |
-| [shazbert](https://github.com/shazbert) | 424 |
-| [gloriousCode](https://github.com/gloriousCode) | 248 |
+| [shazbert](https://github.com/shazbert) | 426 |
+| [gloriousCode](https://github.com/gloriousCode) | 249 |
 | [gbjk](https://github.com/gbjk) | 146 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
@@ -224,8 +226,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [whilei](https://github.com/whilei) | 1 |
 | [gopherorg](https://github.com/gopherorg) | 1 |
 | [ginavalent](https://github.com/ginavalent) | 1 |
-| [gcmutator](https://github.com/gcmutator) | 1 |
 | [arttobe](https://github.com/arttobe) | 1 |
+| [gcmutator](https://github.com/gcmutator) | 1 |
 | [fmterrors](https://github.com/fmterrors) | 1 |
 | [findfluctuate](https://github.com/findfluctuate) | 1 |
 | [evgmalkov](https://github.com/evgmalkov) | 1 |
@@ -237,6 +239,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
 | [box4wangjing](https://github.com/box4wangjing) | 1 |
 | [shoman4eg](https://github.com/shoman4eg) | 1 |
+| [Robin1987China](https://github.com/Robin1987China) | 1 |
 | [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
 | [youzichuan](https://github.com/youzichuan) | 1 |
 | [xiiiew](https://github.com/xiiiew) | 1 |

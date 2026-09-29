@@ -190,7 +190,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					return err
 				}
 			}
-			return bot.ntpManager.Start()
+			return bot.ntpManager.Start(runtimeCtx)
 		}
 		return bot.ntpManager.Stop()
 	case DatabaseConnectionManagerName:

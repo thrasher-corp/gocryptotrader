@@ -228,21 +228,33 @@ See the section `exchange.features.enabled.subscriptions` for configuring subscr
 ]
 ```
 
-### Configure Network Time Server
+### Configure network time checking
 
-+ To configure and enable a NTP server you need to set the "enabled" field to one of 3 values -1 is disabled 0 is enabled and alert at start up 1 is enabled and warn at start up
-servers are configured by the pool array and attempted first to last allowedDifference and allowedNegativeDifference are how far ahead and behind is acceptable for the time to be out in nanoseconds
+The NTP client checks your computer's clock without changing it or interrupting trading.
+Set `enabled` to `-1` to disable checking. `0` and `1` both check at startup and then every 15 to 16 minutes.
+Startup does not wait for the result or prompt for input.
 
-```js
+An empty or omitted `pool` follows GoCryptoTrader's runtime defaults. An explicit list pins your chosen servers.
+The runtime default is `time.cloudflare.com`, `time.nist.gov`, `ptbtime1.ptb.de` and `ntp.se`, four servers from different organisations.
+Existing saved server lists remain unchanged when you upgrade.
+To follow maintained defaults, change `"pool": ["pool.ntp.org:123"]` to `"pool": []` and restart GoCryptoTrader.
+
+`allowedDifference` is how far the computer may be behind server time, in nanoseconds.
+`allowedNegativeDifference` is how far it may be ahead. Both default to 50 milliseconds.
+The monitor accounts for measurement uncertainty, so a slow connection can prevent a verdict even when the clock is accurate.
+
+```json
+{
  "ntpclient": {
   "enabled": 0,
-  "pool": [
-   "pool.ntp.org:123"
-  ],
-  "allowedDifference": 0,
-  "allowedNegativeDifference": 0
- },
- ```
+  "pool": [],
+  "allowedDifference": 50000000,
+  "allowedNegativeDifference": 50000000
+ }
+}
+```
+
+See the [NTP manager reference]({{.RepoRoot}}/engine/ntp_manager.md) for agreement and reporting behaviour.
 
 {{template "donations" .}}
 {{end}}

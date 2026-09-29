@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -1266,49 +1265,6 @@ func (c *Config) CheckNTPConfig() {
 		c.NTPClient.AllowedNegativeDifference = new(time.Duration)
 		*c.NTPClient.AllowedNegativeDifference = defaultNTPAllowedNegativeDifference
 	}
-
-	if len(c.NTPClient.Pool) < 1 {
-		log.Warnln(log.ConfigMgr, "NTPClient enabled with no servers configured, enabling default pool.")
-		c.NTPClient.Pool = []string{"pool.ntp.org:123"}
-	}
-}
-
-// SetNTPCheck allows the user to change how they are prompted for timesync alerts
-func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	reader := bufio.NewReader(input)
-	fmt.Println("Your system time is out of sync, this may cause issues with trading")                                   //nolint:forbidigo // interactive prompt; the operator reads this on stdout
-	fmt.Println("How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
-
-	var resp string
-	answered := false
-	for !answered {
-		answer, err := reader.ReadString('\n')
-		if err != nil {
-			return resp, err
-		}
-
-		answer = strings.TrimRight(answer, "\r\n")
-		switch answer {
-		case "a":
-			c.NTPClient.Level = 0
-			resp = "Time sync has been set to alert"
-			answered = true
-		case "w":
-			c.NTPClient.Level = 1
-			resp = "Time sync has been set to warn only"
-			answered = true
-		case "d":
-			c.NTPClient.Level = -1
-			resp = "Future notifications for out of time sync has been disabled"
-			answered = true
-		default:
-			fmt.Println("Invalid option selected, please try again (a)lert / (w)arn / (d)isable") //nolint:forbidigo // interactive prompt; the operator reads this on stdout
-		}
-	}
-	return resp, nil
 }
 
 // CheckDataHistoryMonitorConfig ensures the data history config is
@@ -1665,9 +1621,7 @@ func (c *Config) CheckConfig() error {
 		c.GlobalHTTPTimeout = defaultHTTPTimeout
 	}
 
-	if c.NTPClient.Level != 0 {
-		c.CheckNTPConfig()
-	}
+	c.CheckNTPConfig()
 
 	return nil
 }

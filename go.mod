@@ -4,6 +4,7 @@ go 1.27
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/beevik/ntp v1.6.0
 	github.com/buger/jsonparser v1.6.1
 	github.com/bytedance/sonic v1.15.4
 	github.com/d5/tengo/v2 v2.17.0
@@ -27,6 +28,7 @@ require (
 	github.com/yuin/goldmark v1.8.6
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.59.0
+	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
 	golang.org/x/time v0.16.0
@@ -72,7 +74,6 @@ require (
 	golang.org/x/arch v0.13.0 // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
 )

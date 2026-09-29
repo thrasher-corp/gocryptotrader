@@ -15,21 +15,138 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
-## Current Features for Ntp Manager
+## What it does
 
-+ The NTP manager subsystem is used highlight discrepancies between your system time and specified NTP server times
-+ It is useful for debugging and understanding why a request to an exchange may be rejected
-+ The NTP manager cannot update your system clock, so when it does alert you of issues, you must take it upon yourself to change your system time in the event your requests are being rejected for being too far out of sync
-+ In order to modify the behaviour of the NTP manager subsystem, you can edit the following inside your config file under `ntpclient`:
+The NTP manager checks your computer's clock against configured time servers and tells you if it looks wrong.
+It never changes the clock and never stops trading.
+Your operating system's time synchronisation service is still responsible for keeping the clock correct.
 
-### ntpclient
+## Settings
 
-| Config | Description | Example |
-| ------ | ----------- | ------- |
-| enabled | An integer value representing whether the NTP manager is enabled. It will warn you of time sync discrepancies on startup with a value of 0 and will alert you periodically with a value of 1. A value of -1 will disable the manager  |  `1` |
-| pool | A string array of the NTP servers to check for time discrepancies |  `["0.pool.ntp.org:123","pool.ntp.org:123"]` |
-| allowedDifference | A Golang time.Duration representation of the allowable time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
-| allowedNegativeDifference | A Golang time.Duration representation of the allowable negative time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
+These settings belong in the `ntpclient` section of the configuration.
+The default allowed difference is 50 milliseconds in either direction.
+
+| Setting | Meaning | Default |
+| ------- | ------- | ------- |
+| enabled | `-1` turns checking off. `0` and `1` both check at startup and then every 15 to 16 minutes. | `0` |
+| pool | Time server names or IP addresses, optionally with a port. Put IPv6 addresses in brackets when adding a port. An empty list uses GoCryptoTrader's default servers. | `[]` |
+| allowedDifference | How far the computer's clock may be behind server time, in nanoseconds. | `50000000` |
+| allowedNegativeDifference | How far the computer's clock may be ahead of server time, in nanoseconds. | `50000000` |
+
+The default servers are `time.cloudflare.com`, `time.nist.gov`, `ptbtime1.ptb.de` and `ntp.se`.
+An empty `pool` list follows that default automatically.
+
+## Messages and what to do
+
+Each message starts with one of the openings below and then gives details.
+
+| Message opening | Meaning | What to do |
+| --------------- | ------- | ---------- |
+| Your computer's clock appears to be ahead of the correct time | The available measurements place the clock outside the configured limits. | Check your operating system's automatic time synchronisation. |
+| Your computer's clock appears to be behind the correct time | The available measurements place the clock outside the configured limits. | Check your operating system's automatic time synchronisation. |
+| GoCryptoTrader verified that your computer's clock is within the configured tolerance | A fresh check places the clock within the configured limits after an earlier warning or unclear result. | No action is needed. |
+| Your computer's clock appears to be within the configured tolerance | A fresh check is within the configured limits, based on one server without independent confirmation. | No action is needed for this result. |
+| GoCryptoTrader couldn't verify whether your computer's clock is accurate | This check gave no clear answer. The message says why, for example servers refused queries, a name has no IP address, or not enough servers responded. | Follow the advice in the message. A single unclear check is informational. |
+| GoCryptoTrader still couldn't verify whether your computer's clock is accurate | Checks have stayed unclear. This warning appears once. | Follow the advice in the message, or set `ntpclient.enabled` to `-1` to turn checking off. |
+
+An unclear result does not mean your clock is wrong.
+Debug logs show the measured range, the tolerances, how many servers were configured, how many gave usable replies, how many agreed, and detailed errors.
+
+## Choose time servers
+
+The default servers come from four different organisations: Cloudflare, NIST in the United States, PTB in Germany and Netnod in Sweden.
+None of them smears leap seconds, so they agree with each other during a leap second.
+Servers far from you report wider ranges, which still count towards agreement but can't give a verdict alone.
+[NTP Pool](https://www.ntppool.org/en/vendors.html) asks software not to ship `pool.ntp.org` as a default, so GoCryptoTrader doesn't.
+
+For a managed deployment, set `ntpclient.pool` to the NTP servers approved by your infrastructure operator.
+On EC2, AWS documents its local NTP endpoint, `169.254.169.123:123`, in the [Amazon Time Sync Service guidance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configure-ec2-ntp.html).
+A single configured server gives a result without independent corroboration.
+Checking the same server that sets your computer's clock does not independently verify that server.
+A PTP-only service can keep the host clock synchronised, but GoCryptoTrader cannot query it because this check uses NTP.
+
+Use servers that handle leap seconds the same way.
+Google and AWS NTP services "smear" leap seconds by spreading the extra second over many hours.
+Do not mix smeared and unsmeared servers, or servers with different smear schedules.
+During a smear, a smeared clock can differ from unsmeared time by more than the default 50 millisecond tolerance.
+See [RFC 8633's leap-smearing guidance](https://www.rfc-editor.org/rfc/rfc8633.html#section-3.7.1) and [Google's service guidance](https://developers.google.com/time/faq).
+
+## Supported platforms
+
+Clock-checking support is implemented for Linux, macOS, Windows and OpenBSD.
+On other operating systems, including FreeBSD, NetBSD, illumos/Solaris and DragonFly BSD, checking stops with a warning and GoCryptoTrader keeps running.
+For those systems, this implementation has no verified pair of clocks where one keeps counting during sleep and the other stops.
+This changes compatibility with the previous NTP implementation, which did not require that pair of clocks.
+Set `ntpclient.enabled` to `-1` to turn checking off and remove the warning.
+
+## How it works
+
+This section is for maintainers.
+
+### Agreement between servers
+
+Each check selects at most one eligible address per configured entry and queries each selected IP address at most once.
+Different spellings of the same entry count as one entry.
+Different names or ports that lead to the same IP address cannot cast more than one vote.
+Different IP addresses still do not prove different operators.
+
+A result needs agreement from more than half of all configured entries.
+Entries that did not answer do not reduce that requirement.
+With four entries, three replies must agree.
+A single configured server can give a result, labelled as having no independent corroboration.
+If the replies agree on separate ranges instead of one, the result is unknown.
+
+If more than half of the configured servers give ranges that include the actual clock error, any range GCT returns also includes it.
+With four servers configured and only three answering, one wrong range can exclude the actual clock error despite agreement.
+To guarantee this protection with one wrong range among four configured servers, all four must answer and the other three ranges must include the actual clock error.
+Agreement does not authenticate a server or protect against errors shared by several servers.
+
+### Measurement range
+
+Each reply gives an estimated range for how far the local clock is off.
+The clock is healthy only if the whole range is within the allowed differences.
+It is ahead or behind only if the whole range is beyond the corresponding limit.
+Anything in between is unknown, and high network delay can make results unknown at the default 50 millisecond tolerance.
+Each range is widened using NTP's assumed 15 ppm drift allowance for the entire time spent collecting replies.
+That allowance does not cover sudden local clock changes, which are handled separately.
+
+### Scheduling
+
+Checks run at startup and then every 15 to 16 minutes.
+Failed checks never make the next check come sooner.
+The schedule uses a clock that keeps counting during sleep, on Linux, macOS, Windows and OpenBSD.
+After the computer wakes, one overdue check runs, without replaying every missed check.
+A result is discarded if the clock changed or the computer slept while it was being measured.
+A clock change right after a check can therefore leave the result unknown until the next scheduled check.
+The monitor samples the clock periodically and does not prove continuous accuracy or financial regulatory compliance.
+
+### Server and DNS handling
+
+If a server replies with a rate limit (RATE), GoCryptoTrader waits longer before asking that server again.
+If a server refuses service (DENY or RSTR), GoCryptoTrader stops querying that IP address while the same NTP manager exists, including after that worker is stopped and restarted.
+After a successful non-empty DNS lookup, the next lookup is due one hour later and runs during a scheduled check.
+Failed or empty lookups are retried at the next scheduled check.
+Until a lookup returns addresses again, the last known addresses stay in use, still subject to their rate limits and refusals.
+Every check still needs fresh NTP replies, so cached addresses never reuse old measurements.
+After a failed query, a later check can try another address for the same name, skipping refused, delayed and already used addresses.
+A failed DNS refresh appears in debug logs without discarding a usable reply from a last known address.
+Configured servers never fall back to public servers.
+
+### Reporting
+
+The first unclear check produces an informational message.
+A later unclear check produces one warning once at least 15 minutes have passed since the first unclear check.
+A change in the reason does not start a new warning.
+Ahead and behind warnings are not repeated while the same clock error continues.
+An unclear check between two results in the same direction does not cause another ahead or behind warning.
+An unclear result is neither proof of a clock error nor recovery from one, and only a fresh healthy result reports recovery.
+
+### Existing configurations
+
+Updating GoCryptoTrader does not replace your saved time servers or change the configuration version for NTP.
+To follow maintained defaults, replace `"pool": ["pool.ntp.org:123"]` with `"pool": []` under `ntpclient`, then restart GoCryptoTrader.
+Keep an explicit list if you want to continue using those servers.
+If you return to an older GCT build, configure an explicit server list because older builds do not reliably resolve an empty list when `enabled` is `0`.
 
 ## Donations
 
