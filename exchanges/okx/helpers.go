@@ -35,6 +35,12 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.TrailingStop, order.UnknownTIF, nil
 	case orderChase:
 		return order.Chase, order.UnknownTIF, nil
+	case orderRPI:
+		return order.Limit, order.UnknownTIF, nil
+	case orderELP:
+		return order.Limit, order.UnknownTIF, nil
+	case orderOptionFOK:
+		return order.Limit, order.FillOrKill, nil
 	default:
 		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %q", order.ErrTypeIsInvalid, orderType)
 	}

@@ -89,7 +89,7 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 		for x := range resp {
 			errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 		}
-		return nil, common.AppendError(err, errs)
+		return resp, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -2999,7 +2999,7 @@ func (e *Exchange) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAme
 	var resp *GridAlgoOrderIDResponse
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil && resp.StatusMessage == "" {
+		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
 		return nil, err

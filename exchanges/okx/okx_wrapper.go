@@ -2046,7 +2046,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		oType, err := order.StringToOrderType(resp.OrderType)
+		oType, _, err := orderTypeFromString(resp.OrderType)
 		if err != nil {
 			return nil, err
 		}
@@ -2073,11 +2073,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
-			ExecutedAmount:       resp.FillSize.Float64(),
+			ExecutedAmount:       resp.AccFillSize.Float64(),
 			Date:                 resp.CreationTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
-			RemainingAmount:      resp.Size.Float64() - resp.FillSize.Float64(),
+			RemainingAmount:      resp.Size.Float64() - resp.AccFillSize.Float64(),
 		}, nil
 	}
 	if pair.IsEmpty() {
@@ -2111,21 +2111,22 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 
 	return &order.Detail{
-		Amount:         orderDetail.Size.Float64(),
-		Exchange:       e.Name,
-		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientOrderID,
-		Side:           orderDetail.Side,
-		Type:           orderType,
-		Pair:           pair,
-		Cost:           orderDetail.Price.Float64(),
-		AssetType:      assetType,
-		Status:         status,
-		Price:          orderDetail.Price.Float64(),
-		ExecutedAmount: orderDetail.RebateAmount.Float64(),
-		Date:           orderDetail.CreationTime.Time(),
-		LastUpdated:    orderDetail.UpdateTime.Time(),
-		TimeInForce:    tif,
+		Amount:          orderDetail.Size.Float64(),
+		Exchange:        e.Name,
+		OrderID:         orderDetail.OrderID,
+		ClientOrderID:   orderDetail.ClientOrderID,
+		Side:            orderDetail.Side,
+		Type:            orderType,
+		Pair:            pair,
+		Cost:            orderDetail.Price.Float64(),
+		AssetType:       assetType,
+		Status:          status,
+		Price:           orderDetail.Price.Float64(),
+		ExecutedAmount:  orderDetail.AccumulatedFillSize.Float64(),
+		RemainingAmount: orderDetail.Size.Float64() - orderDetail.AccumulatedFillSize.Float64(),
+		Date:            orderDetail.CreationTime.Time(),
+		LastUpdated:     orderDetail.UpdateTime.Time(),
+		TimeInForce:     tif,
 	}, nil
 }
 
@@ -2236,7 +2237,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, err = order.StringToOrderType(spreads[x].OrderType)
+			oType, _, err = orderTypeFromString(spreads[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -2252,8 +2253,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Amount:          spreads[x].Size.Float64(),
 				Pair:            pair,
 				Price:           spreads[x].Price.Float64(),
-				ExecutedAmount:  spreads[x].FillSize.Float64(),
-				RemainingAmount: spreads[x].Size.Float64() - spreads[x].FillSize.Float64(),
+				ExecutedAmount:  spreads[x].AccFillSize.Float64(),
+				RemainingAmount: spreads[x].Size.Float64() - spreads[x].AccFillSize.Float64(),
 				Exchange:        e.Name,
 				OrderID:         spreads[x].OrderID,
 				ClientOrderID:   spreads[x].ClientOrderID,
@@ -2294,8 +2295,7 @@ allOrders:
 			break
 		}
 		for i := range orderList {
-			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
-				orderList[i].CreationTime.Time().Before(req.StartTime) {
+			if orderList[i].CreationTime.Time().Before(req.StartTime) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -2327,8 +2327,8 @@ allOrders:
 				Amount:          orderList[i].Size.Float64(),
 				Pair:            pair,
 				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].FillSize.Float64(),
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
+				ExecutedAmount:  orderList[i].AccumulatedFillSize.Float64(),
+				RemainingAmount: orderList[i].Size.Float64() - orderList[i].AccumulatedFillSize.Float64(),
 				Fee:             orderList[i].TransactionFee.Float64(),
 				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
 				Exchange:        e.Name,
@@ -2384,7 +2384,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(spreadOrders[x].OrderType)
+			oType, _, err := orderTypeFromString(spreadOrders[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -2435,8 +2435,7 @@ allOrders:
 			break
 		}
 		for i := range orderList {
-			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
-				orderList[i].CreationTime.Time().Before(req.StartTime) ||
+			if orderList[i].CreationTime.Time().Before(req.StartTime) ||
 				endTime.Equal(orderList[i].CreationTime.Time()) {
 				// reached end of orders to crawl
 				break allOrders

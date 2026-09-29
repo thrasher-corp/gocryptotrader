@@ -59,6 +59,9 @@ const (
 	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
 	orderMarketMakerProtection            = "mmp"
 	orderOCO                              = "oco"
+	orderRPI                              = "rpi"
+	orderELP                              = "elp"
+	orderOptionFOK                        = "op_fok"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
