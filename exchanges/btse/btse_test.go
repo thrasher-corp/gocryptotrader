@@ -2,6 +2,7 @@ package btse
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -331,11 +332,15 @@ func TestCreateWalletAddressErrorHandling(t *testing.T) {
 
 	t.Run("ordinary BTSE error", func(t *testing.T) {
 		t.Parallel()
-		ex := newCreateWalletAddressTestExchange(t, `{"errorCode":1234,"message":"BADREQUEST: invalid currency","status":400}`)
+		ex := newCreateWalletAddressTestExchange(t, http.StatusBadRequest, `{"code":1234,"msg":"BADREQUEST: invalid currency","success":false}`)
 		resp, err := ex.CreateWalletAddress(t.Context(), "INVALID")
 		assert.Empty(t, resp, "CreateWalletAddress response should be empty")
 		assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWalletAddress should preserve the request error")
-		assert.ErrorContains(t, err, `"errorCode":1234`, "CreateWalletAddress should preserve the BTSE response")
+		assert.ErrorContains(t, err, `"code":1234`, "CreateWalletAddress should preserve the BTSE response")
+		responseErr, ok := errors.AsType[*responseError](err)
+		require.True(t, ok, "CreateWalletAddress must return a structured BTSE error")
+		assert.Equal(t, int64(1234), responseErr.response.code(), "BTSE error code should be captured")
+		assert.Equal(t, "BADREQUEST: invalid currency", responseErr.response.message(), "BTSE error message should be captured")
 	})
 
 	t.Run("missing raw response", func(t *testing.T) {
@@ -350,30 +355,56 @@ func TestCreateWalletAddressErrorHandling(t *testing.T) {
 		assert.ErrorIs(t, err, context.Canceled, "CreateWalletAddress should preserve the context error")
 	})
 
-	t.Run("malformed existing address message", func(t *testing.T) {
+	t.Run("created address", func(t *testing.T) {
 		t.Parallel()
-		ex := newCreateWalletAddressTestExchange(t, `{"errorCode":3528,"message":"unexpected format","status":400}`)
+		ex := newCreateWalletAddressTestExchange(t, http.StatusOK, `[{"address":"new-address","created":1592627542}]`)
 		resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
-		assert.Empty(t, resp, "CreateWalletAddress response should be empty")
-		assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWalletAddress should preserve the request error")
+		require.NoError(t, err, "CreateWalletAddress must decode a successful response")
+		require.Len(t, resp, 1, "CreateWalletAddress must return one address")
+		assert.Equal(t, "new-address", resp[0].Address, "CreateWalletAddress should return the new address")
 	})
 
-	t.Run("existing address", func(t *testing.T) {
-		t.Parallel()
-		ex := newCreateWalletAddressTestExchange(t, `{"errorCode":3528,"message":"BADREQUEST: existing-address","status":400}`)
-		resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
-		require.NoError(t, err, "CreateWalletAddress must accept BTSE's existing address response")
-		require.Len(t, resp, 1, "CreateWalletAddress must return one address")
-		assert.Equal(t, "existing-address", resp[0].Address, "CreateWalletAddress should return the existing address")
-	})
+	for _, tt := range []struct {
+		name     string
+		response string
+	}{
+		{name: "malformed existing address message", response: `{"errorCode":3528,"message":"unexpected format","status":400}`},
+		{name: "empty existing address", response: `{"errorCode":3528,"message":"BADREQUEST: ","status":400}`},
+		{name: "undecodable existing address response", response: `{"errorCode":3528,"message":"BADREQUEST: existing-address","status":"invalid"}`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newCreateWalletAddressTestExchange(t, http.StatusBadRequest, tt.response)
+			resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
+			assert.Empty(t, resp, "CreateWalletAddress response should be empty")
+			assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWalletAddress should preserve the request error")
+		})
+	}
+
+	for _, tt := range []struct {
+		name     string
+		response string
+	}{
+		{name: "legacy existing address response", response: `{"errorCode":3528,"message":"BADREQUEST: existing-address","status":400}`},
+		{name: "spot existing address response", response: `{"code":3528,"msg":"BADREQUEST: existing-address","success":false}`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newCreateWalletAddressTestExchange(t, http.StatusBadRequest, tt.response)
+			resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
+			require.NoError(t, err, "CreateWalletAddress must accept BTSE's existing address response")
+			require.Len(t, resp, 1, "CreateWalletAddress must return one address")
+			assert.Equal(t, "existing-address", resp[0].Address, "CreateWalletAddress should return the existing address")
+		})
+	}
 }
 
-func newCreateWalletAddressTestExchange(t *testing.T, response string) *Exchange {
+func newCreateWalletAddressTestExchange(t *testing.T, status int, response string) *Exchange {
 	t.Helper()
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method, "CreateWalletAddress should use POST")
 		assert.Equal(t, "/spot/api/v3.2/user/wallet/address", r.URL.Path, "CreateWalletAddress should use the wallet address endpoint")
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(status)
 		_, err := fmt.Fprint(w, response)
 		assert.NoError(t, err, "writing the wallet address response should not error")
 	}))
