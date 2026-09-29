@@ -1605,6 +1605,8 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, 0.2, result.ExecutedAmount, "ExecutedAmount should be the filled base quantity")
 	assert.Equal(t, 0.3, result.RemainingAmount, "RemainingAmount should be the unfilled base quantity")
 	assert.Equal(t, 12000.0, result.Cost, "Cost should be the filled quote amount")
+	require.Len(t, result.Trades, 1, "result must have one trade")
+	assert.True(t, result.Trades[0].IsMaker, "a MAKER role should be reported as maker")
 
 	result, err = e.GetOrderInfo(generateContext(t), "331380922769473536", futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
