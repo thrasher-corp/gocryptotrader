@@ -158,3 +158,147 @@ func TestExpandTemplates(t *testing.T) {
 	_, err = List{{Channel: "nil"}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errInvalidTemplate, "Should get correct error on nil template")
 }
+
+// TestExpandTemplatesOwnership ensures callers can modify the result of ExpandTemplates without changing
+// their inputs, for unexpanded, fully qualified and mixed lists, and that keys, state and reconciliation
+// keep working. See the ownership contract on ExpandTemplates and README.md
+func TestExpandTemplatesOwnership(t *testing.T) {
+	t.Parallel()
+
+	e := newMockEx()
+	e.tpl = "subscriptions.tmpl"
+
+	t.Run("Unexpanded", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{Channel: "single-channel"}
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		assert.NotSame(t, in, got[0], "Should not return the input subscription")
+		got[0].Channel = "changed"
+		assert.Equal(t, "single-channel", in.Channel, "Modifying the result should not change the input")
+	})
+
+	t.Run("FullyQualified", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{
+			Enabled:          true,
+			Channel:          OrderbookChannel,
+			QualifiedChannel: "orderbook:BTCUSDT",
+			Pairs:            currency.Pairs{btcusdtPair},
+			Params:           map[string]any{"depth": 20},
+		}
+		require.NoError(t, in.SetState(SubscribedState), "SetState must not error")
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		assert.NotSame(t, in, got[0], "Should not return the input subscription")
+		assert.Equal(t, SubscribedState, got[0].State(), "Should keep the state")
+		assert.Equal(t, "orderbook:BTCUSDT", got[0].QualifiedChannel, "Should keep the qualified channel")
+		assert.Nil(t, got[0].Key, "Should not invent a key for an unkeyed subscription")
+
+		got[0].Channel = "changed"
+		got[0].QualifiedChannel = "changed"
+		got[0].Pairs[0].Delimiter = "🐳"
+		got[0].Params["depth"] = 50
+		assert.Equal(t, OrderbookChannel, in.Channel, "Modifying the result should not change the input channel")
+		assert.Equal(t, "orderbook:BTCUSDT", in.QualifiedChannel, "Modifying the result should not change the input qualified channel")
+		assert.Empty(t, in.Pairs[0].Delimiter, "Modifying the result should not change the input pairs")
+		assert.Equal(t, 20, in.Params["depth"], "Modifying the result should not change the input params")
+	})
+
+	t.Run("Mixed", func(t *testing.T) {
+		t.Parallel()
+		qualified := &Subscription{Channel: "single-channel", QualifiedChannel: "already qualified"}
+		unexpanded := &Subscription{Channel: "single-channel"}
+
+		got, err := List{qualified, unexpanded}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 2, "Must get both subscriptions back")
+		assert.NotSame(t, qualified, got[0], "Should not return the qualified input subscription")
+		assert.NotSame(t, unexpanded, got[1], "Should not return the unexpanded input subscription")
+
+		got[0].Channel, got[0].QualifiedChannel = "changed", "changed"
+		got[1].Channel = "changed"
+		assert.Equal(t, "single-channel", qualified.Channel, "Modifying the result should not change the qualified input")
+		assert.Equal(t, "already qualified", qualified.QualifiedChannel, "Modifying the result should not change the qualified input")
+		assert.Equal(t, "single-channel", unexpanded.Channel, "Modifying the result should not change the unexpanded input")
+	})
+
+	t.Run("CustomKey", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT", Key: "custom-key"}
+		st := NewStore()
+		require.NoError(t, st.Add(in), "Add must not error")
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		assert.Equal(t, "custom-key", got[0].Key, "Should keep a custom key so the subscription stays reconcilable")
+		assert.Same(t, in, st.Get(got[0]), "Should find the store entry through the returned subscription")
+		assert.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
+	})
+
+	t.Run("DefaultKey", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT"}
+		st := NewStore()
+		require.NoError(t, st.Add(in), "Add must not error")
+		require.NotNil(t, in.Key, "Add must set a key")
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		key, ok := got[0].EnsureKeyed().(MatchableKey)
+		if assert.True(t, ok, "Should have a matchable key") {
+			assert.Same(t, got[0], key.GetSubscription(), "Built-in keys should reference the returned subscription")
+		}
+		assert.Same(t, in, st.Get(got[0]), "Should find the store entry through the returned subscription")
+		assert.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
+	})
+
+	t.Run("BuiltInKeys", func(t *testing.T) {
+		t.Parallel()
+		for _, newKey := range []func(*Subscription) MatchableKey{
+			func(s *Subscription) MatchableKey { return &ExactKey{s} },
+			func(s *Subscription) MatchableKey { return ExactKey{s} },
+			func(s *Subscription) MatchableKey { return &IgnoringPairsKey{s} },
+			func(s *Subscription) MatchableKey { return IgnoringPairsKey{s} },
+			func(s *Subscription) MatchableKey { return &IgnoringAssetKey{s} },
+			func(s *Subscription) MatchableKey { return IgnoringAssetKey{s} },
+			func(s *Subscription) MatchableKey { return &ChannelKey{s} },
+			func(s *Subscription) MatchableKey { return ChannelKey{s} },
+		} {
+			in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT"}
+			inKey := newKey(in)
+			in.SetKey(inKey)
+			got, err := List{in}.ExpandTemplates(e)
+			require.NoErrorf(t, err, "ExpandTemplates must not error for %T", inKey)
+			require.Lenf(t, got, 1, "Must get one subscription back for %T", inKey)
+			key, ok := got[0].Key.(MatchableKey)
+			require.Truef(t, ok, "Key must remain a MatchableKey for %T", inKey)
+			assert.IsTypef(t, inKey, key, "Key should keep its type %T", inKey)
+			assert.Samef(t, got[0], key.GetSubscription(), "%T should reference the returned subscription", inKey)
+		}
+	})
+
+	t.Run("NestedParams", func(t *testing.T) {
+		t.Parallel()
+		// Documented limit: only the Params map itself is copied; values nested inside it remain shared
+		nested := map[string]any{"depth": 20}
+		in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT", Params: map[string]any{"opts": nested}}
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+
+		got[0].Params["extra"] = 1
+		assert.NotContains(t, in.Params, "extra", "Params map should be copied")
+		nested["depth"] = 50
+		gotNested, ok := got[0].Params["opts"].(map[string]any)
+		if assert.True(t, ok, "Should keep the nested value") {
+			assert.Equal(t, 50, gotNested["depth"], "Values nested inside Params should remain shared with the input")
+		}
+	})
+}

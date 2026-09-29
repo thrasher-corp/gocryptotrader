@@ -41,10 +41,16 @@ type tplCtx struct {
 // Filters out Authenticated subscriptions if !e.CanUseAuthenticatedEndpoints
 // See README.md for more details
 // The exchange can optionally implement ListValidator to have custom validation on subscriptions
+//
+// Ownership: no returned Subscription is the same value as, or shares its mutable state with, an
+// input Subscription, so callers may modify the result freely. Entries which pass through unexpanded
+// are copied along with their Key so that they still reconcile against a Store, whereas freshly
+// expanded entries are new and unkeyed. Keys are opaque handles and are not deep copied; values
+// nested inside Params remain shared with the input Subscription
 func (l List) ExpandTemplates(e IExchange) (List, error) {
 	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
 		// Empty list, or already processed
-		return slices.Clone(l), nil
+		return l.cloneWithKeys(), nil
 	}
 
 	if !e.CanUseAuthenticatedWebsocketEndpoints() {
@@ -90,9 +96,25 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 	return subs, err
 }
 
+// ExpandTemplatesIfNeeded expands subscription templates for any entries which are not qualified yet
+// The manager expands subscriptions before calling an exchange's Subscribe or Unsubscribe and, once
+// subscribed, reconciles that same list against the exchange's websocket subscription store
+// (exchange/websocket/manager.go). Re-expanding an already qualified list would hand back copies of
+// the manager's subscriptions; those copies cannot be reconciled because the caller still holds the
+// originals. Passing already qualified lists through untouched keeps the manager's subscriptions
+// reconcilable while leaving direct callers, which subscribe with unqualified lists, unchanged.
+// See #2372
+func (l List) ExpandTemplatesIfNeeded(e IExchange) (List, error) {
+	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
+		return l, nil
+	}
+	return l.ExpandTemplates(e)
+}
+
 func expandTemplate(e IExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
 	if s.QualifiedChannel != "" {
-		return List{s}, nil
+		// Already qualified: hand back a copy which keeps the Key so the caller can still reconcile it
+		return List{s.cloneWithKey()}, nil
 	}
 
 	t, err := e.GetSubscriptionTemplate(s)

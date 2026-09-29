@@ -563,7 +563,7 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 
 func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	var errs error
-	subs, errs = subs.ExpandTemplates(e)
+	subs, errs = subs.ExpandTemplatesIfNeeded(e)
 	for _, s := range subs {
 		r := WsRequest{
 			JSONRPCVersion: rpcVersion,
