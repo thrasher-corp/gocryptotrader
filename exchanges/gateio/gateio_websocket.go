@@ -503,6 +503,14 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 			executedAmount = resp.Result[x].FilledAmount.Float64()
 			remainingAmount = 0
 		}
+		// Finish pushes need a terminal status so their final remainder replaces a stored one.
+		var status order.Status
+		if resp.Result[x].Event == "finish" {
+			status = order.Cancelled
+			if resp.Result[x].FinishAs == "filled" {
+				status = order.Filled
+			}
+		}
 		details[x] = order.Detail{
 			Amount:               amount,
 			QuoteAmount:          quoteAmount,
@@ -512,6 +520,7 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 			Type:                 orderType,
 			Pair:                 resp.Result[x].CurrencyPair,
 			AssetType:            a,
+			Status:               status,
 			Price:                resp.Result[x].Price.Float64(),
 			AverageExecutedPrice: resp.Result[x].AverageDealPrice.Float64(),
 			ExecutedAmount:       executedAmount,

@@ -2184,6 +2184,7 @@ type WsSpotOrder struct {
 	RebatedFee         string        `json:"rebated_fee,omitempty"`
 	RebatedFeeCurrency string        `json:"rebated_fee_currency,omitempty"`
 	Event              string        `json:"event"`
+	FinishAs           string        `json:"finish_as"`
 	CreateTime         types.Time    `json:"create_time_ms,omitzero"`
 	UpdateTime         types.Time    `json:"update_time_ms,omitzero"`
 }

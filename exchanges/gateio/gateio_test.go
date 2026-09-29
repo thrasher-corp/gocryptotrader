@@ -3197,7 +3197,7 @@ func TestWsPushSpotMarketBuyOrder(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-			payload := fmt.Appendf(nil, `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`, tc.account)
+			payload := fmt.Appendf(nil, `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"30784435","text":"t-abc","create_time":"1605175506","create_time_ms":"1605175506123","update_time":"1605175506","update_time_ms":"1605175506123","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"market","account":%q,"side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","filled_total":"9.95","fee":"0.000000398","fee_currency":"BTC"}]}`, tc.account)
 			require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, payload), "WsHandleSpotData must not error")
 
 			select {
@@ -3222,6 +3222,44 @@ func TestWsPushSpotMarketBuyOrder(t *testing.T) {
 }
 
 const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrades",	"event": "update",	"result": [	  {		"id": 5736713,		"user_id": 1000001,		"order_id": "30784428",		"currency_pair": "BTC_USDT",		"create_time": 1605176741,		"create_time_ms": "1605176741123.456",		"side": "sell",		"amount": "1.00000000",		"role": "taker",		"price": "10000.00000000",		"fee": "0.00200000000000",		"point_fee": "0",		"gt_fee": "0",		"text": "apiv4"	  }	]}`
+
+func TestProcessSpotOrdersFinish(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, finishAs, finishLeft string
+		status                     order.Status
+		remaining                  float64
+	}{
+		{name: "filled", finishAs: "filled", finishLeft: "0", status: order.Filled, remaining: 0},
+		{name: "cancelled", finishAs: "cancelled", finishLeft: "1", status: order.Cancelled, remaining: 1},
+		{name: "self-trade prevention", finishAs: "stp", finishLeft: "1", status: order.Cancelled, remaining: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			stored := &order.Detail{Exchange: ex.Name, OrderID: "1", AssetType: asset.Spot, Amount: 3, Status: order.Open}
+			for _, push := range []struct{ event, finishAs, left string }{
+				{event: "put", finishAs: "open", left: "3"},
+				{event: "update", finishAs: "open", left: "1"},
+				{event: "finish", finishAs: tc.finishAs, left: tc.finishLeft},
+			} {
+				msg := `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"1","create_time_ms":"1605175506123","update_time_ms":"1605175507123","event":"` + push.event + `","finish_as":"` + push.finishAs + `","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"3","price":"60000","time_in_force":"gtc","left":"` + push.left + `"}]}`
+				require.NoError(t, ex.processSpotOrders(t.Context(), []byte(msg)), "processSpotOrders must not error")
+				res := <-ex.Websocket.DataHandler.C
+				details, ok := res.Data.([]order.Detail)
+				require.True(t, ok, "processSpotOrders must send order details")
+				require.Len(t, details, 1, "processSpotOrders must send one order detail")
+				// The engine merges a push into a copy of the stored order, then merges that copy back.
+				merged := stored.Copy()
+				require.NoError(t, merged.UpdateOrderFromDetail(&details[0]), "UpdateOrderFromDetail must not error")
+				require.NoError(t, stored.UpdateOrderFromDetail(&merged), "UpdateOrderFromDetail must not error")
+			}
+			assert.Equal(t, tc.status, stored.Status, "a finish push should give the stored order its final status")
+			assert.Equal(t, tc.remaining, stored.RemainingAmount, "a finish push should give the stored order its final remainder")
+		})
+	}
+}
 
 func TestWsUserTradesPushDataJSON(t *testing.T) {
 	t.Parallel()

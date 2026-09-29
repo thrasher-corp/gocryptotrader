@@ -1258,6 +1258,7 @@ func TestUpdateOrderFromDetailExecutedQuoteAmount(t *testing.T) {
 		{name: "new fill without a quote total", update: Detail{ExecutedAmount: 0.02}, executedQuoteAmount: 0, averageExecutedPrice: 0},
 		{name: "new fill with a quote total", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210}, executedQuoteAmount: 1210, averageExecutedPrice: 60500},
 		{name: "quote total correction", update: Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 610}, executedQuoteAmount: 610, averageExecutedPrice: 61000},
+		{name: "quote total without an executed amount", update: Detail{ExecutedQuoteAmount: 1210}, executedQuoteAmount: 600, averageExecutedPrice: 60000},
 		{name: "explicit average takes precedence", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210, AverageExecutedPrice: 60001}, executedQuoteAmount: 1210, averageExecutedPrice: 60001},
 		{name: "no new fill", update: Detail{ExecutedAmount: 0.01, Status: Open}, executedQuoteAmount: 600, averageExecutedPrice: 60000},
 	} {
@@ -1287,6 +1288,28 @@ func TestUpdateOrderFromDetailExecutedQuoteAmount(t *testing.T) {
 	od := &Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 20, AverageExecutedPrice: 10, AssetType: asset.Futures}
 	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 22}), "UpdateOrderFromDetail must not error")
 	assert.Zero(t, od.AverageExecutedPrice, "AverageExecutedPrice should clear when derivative execution units do not permit safe inference")
+}
+
+func TestUpdateOrderFromDetailNegativeAverage(t *testing.T) {
+	t.Parallel()
+	od := &Detail{Exchange: "test", OrderID: "1", AssetType: asset.Spread, Amount: 2, ExecutedAmount: 1, AverageExecutedPrice: -57.7}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 1.5, AverageExecutedPrice: -58}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, -58.0, od.AverageExecutedPrice, "a negative spread average should replace the stored one")
+}
+
+func TestUpdateOrderFromDetailAverageConditions(t *testing.T) {
+	t.Parallel()
+	od := &Detail{ExecutedAmount: 1, ExecutedQuoteAmount: 10, AverageExecutedPrice: 10}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 22}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.AverageExecutedPrice, "an order with no asset type should not have its average derived")
+
+	od = &Detail{ExecutedAmount: 1, ExecutedQuoteAmount: 10, AverageExecutedPrice: 10, AssetType: asset.Spot}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 22, AssetType: asset.Futures}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.AverageExecutedPrice, "the update's derivative asset type should take precedence")
+
+	od = &Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 600, AverageExecutedPrice: 60001, AssetType: asset.Spot}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 600}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 60001.0, od.AverageExecutedPrice, "restated totals should keep an explicit average")
 }
 
 func TestUpdateOrderFromDetailFeeAsset(t *testing.T) {

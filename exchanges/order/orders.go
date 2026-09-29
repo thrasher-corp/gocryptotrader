@@ -201,12 +201,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 		updated = true
 	}
-	executedQuoteAmountChanged := m.ExecutedQuoteAmount > 0 && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount
+	executedQuoteAmountChanged := m.ExecutedQuoteAmount > 0 && (m.ExecutedAmount > 0 || m.AverageExecutedPrice > 0) && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount
 	if executedQuoteAmountChanged {
 		d.ExecutedQuoteAmount = m.ExecutedQuoteAmount
 		updated = true
 	}
-	if m.AverageExecutedPrice > 0 {
+	if m.AverageExecutedPrice != 0 {
 		if m.AverageExecutedPrice != d.AverageExecutedPrice {
 			d.AverageExecutedPrice = m.AverageExecutedPrice
 			updated = true
