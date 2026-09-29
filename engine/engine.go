@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -307,6 +306,11 @@ func (bot *Engine) Start() error {
 			return
 		}
 		bot.cancelRuntimeContext()
+		if bot.ntpManager != nil {
+			if err := bot.ntpManager.Stop(); err != nil && !errors.Is(err, ErrSubSystemNotStarted) {
+				gctlog.Errorf(gctlog.Global, "NTP manager unable to stop after startup failure: %s", err)
+			}
+		}
 		bot.clearRuntimeContext()
 	}()
 
@@ -349,18 +353,18 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	if bot.Settings.EnableNTPClient {
-		if bot.Config.NTPClient.Level == 0 {
-			responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
-			if err != nil {
-				return fmt.Errorf("unable to set NTP check: %w", err)
+	if bot.Settings.EnableNTPClient && bot.Config.NTPClient.Level != -1 {
+		if bot.ntpManager == nil {
+			if n, err := setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
+				gctlog.Errorf(gctlog.Global, "NTP manager unable to setup: %s", err)
+			} else {
+				bot.ntpManager = n
 			}
-			gctlog.Infoln(gctlog.TimeMgr, responseMessage)
 		}
-		if n, err := setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
-			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
-		} else {
-			bot.ntpManager = n
+		if bot.ntpManager != nil {
+			if err := bot.ntpManager.Start(runtimeCtx); err != nil {
+				gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
+			}
 		}
 	}
 

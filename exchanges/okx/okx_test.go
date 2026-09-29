@@ -4488,7 +4488,7 @@ func TestOrderPushData(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
+	require.Len(t, e.Websocket.DataHandler.C, 4, "Must see 4 orders")
 	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *order.Detail:

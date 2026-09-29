@@ -1,204 +1,179 @@
 package engine
 
 import (
-	"encoding/binary"
+	"context"
 	"fmt"
-	"net"
+	"math/rand/v2"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// setupNTPManager creates a new NTP manager
 func setupNTPManager(cfg *config.NTPClientConfig, loggingEnabled bool) (*ntpManager, error) {
 	if cfg == nil {
 		return nil, errNilConfig
 	}
-	if cfg.AllowedNegativeDifference == nil ||
-		cfg.AllowedDifference == nil {
+	if cfg.AllowedNegativeDifference == nil || cfg.AllowedDifference == nil {
 		return nil, errNilNTPConfigValues
 	}
+	if cfg.Level < -1 || cfg.Level > 1 || *cfg.AllowedDifference < 0 || *cfg.AllowedNegativeDifference < 0 {
+		return nil, errNTPConfig
+	}
+	pools := cfg.Pool
+	if len(pools) == 0 {
+		// An empty list means "use GCT's default servers".
+		// Default is filled in here and never written back to saved config, so later default changes reach existing users.
+		// Syncthing expands its stored default setting into separate runtime list the same way: https://github.com/syncthing/syncthing/blob/94c3c1cdef718d568686620cbff268eeaaf2c87d/lib/config/optionsconfiguration.go#L210
+		pools = defaultNTPServers
+	}
+	survey, err := newNTPSurvey(pools)
+	if err != nil {
+		return nil, err
+	}
 	return &ntpManager{
-		shutdown:                  make(chan struct{}),
-		level:                     int64(cfg.Level),
+		level:                     cfg.Level,
 		allowedDifference:         *cfg.AllowedDifference,
 		allowedNegativeDifference: *cfg.AllowedNegativeDifference,
-		pools:                     cfg.Pool,
-		checkInterval:             defaultNTPCheckInterval,
-		retryLimit:                defaultRetryLimit,
+		survey:                    survey,
 		loggingEnabled:            loggingEnabled,
+		clock:                     readNTPClock,
+		interval: func() time.Duration {
+			return defaultNTPCheckInterval + time.Duration(rand.Int64N(int64(time.Minute))) //nolint:gosec // Scheduling jitter is not a security token
+		},
 	}, nil
 }
 
-// IsRunning safely checks whether the subsystem is running
+// IsRunning reports whether the NTP worker is still running.
 func (m *ntpManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return m.started.Load()
+	m.lifecycle.Lock()
+	defer m.lifecycle.Unlock()
+	return m.running()
 }
 
-// Start runs the subsystem
-func (m *ntpManager) Start() error {
-	if m == nil {
-		return fmt.Errorf("ntp manager %w", ErrNilSubsystem)
+func (m *ntpManager) running() bool {
+	if m.run == nil {
+		return false
 	}
-	if !m.started.CompareAndSwap(false, true) {
+	select {
+	case <-m.run.done:
+		return false
+	default:
+		return true
+	}
+}
+
+// Start launches the NTP worker without blocking engine startup.
+func (m *ntpManager) Start(parent context.Context) error {
+	if m == nil {
+		return fmt.Errorf("NTP manager %w", ErrNilSubsystem)
+	}
+	m.lifecycle.Lock()
+	defer m.lifecycle.Unlock()
+	if m.running() {
 		return fmt.Errorf("NTP manager %w", ErrSubSystemAlreadyStarted)
 	}
-	if m.level == 0 && m.loggingEnabled {
-		// Sometimes the NTP client can have transient issues due to UDP, try
-		// the default retry limits before giving up
-	check:
-		for i := range m.retryLimit {
-			err := m.processTime()
-			switch err {
-			case nil:
-				break check
-			case ErrSubSystemNotStarted:
-				log.Debugln(log.TimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
-				m.started.CompareAndSwap(true, false)
-				return nil
-			default:
-				if i == m.retryLimit-1 {
-					return err
-				}
-			}
-		}
-	}
-	if m.level != 1 {
-		m.started.CompareAndSwap(true, false)
+	if m.level == -1 {
 		return errNTPManagerDisabled
 	}
-	m.shutdown = make(chan struct{})
-	go m.run()
-	log.Debugf(log.TimeMgr, "NTP manager %s", MsgSubSystemStarted)
+	ctx, cancel := context.WithCancel(parent)
+	run := &ntpRun{cancel: cancel, done: make(chan struct{})}
+	m.run = run
+	go func() {
+		defer close(run.done)
+		defer cancel()
+		m.observe(ctx)
+	}()
 	return nil
 }
 
-// Stop attempts to shutdown the subsystem
+// Stop cancels the NTP worker and waits for it to exit.
 func (m *ntpManager) Stop() error {
 	if m == nil {
-		return fmt.Errorf("ntp manager %w", ErrNilSubsystem)
+		return fmt.Errorf("NTP manager %w", ErrNilSubsystem)
 	}
-	if !m.started.Load() {
+	// Worker never takes this lock, so waiting while holding it cannot deadlock.
+	// Same pattern as Consul's CheckHTTP Start/Stop, plus a guard against starting twice: https://github.com/hashicorp/consul/blob/c3f767b1146f4e394dc147f6d9438f02b7039928/agent/checks/check.go#L379
+	m.lifecycle.Lock()
+	defer m.lifecycle.Unlock()
+	if m.run == nil {
 		return fmt.Errorf("NTP manager %w", ErrSubSystemNotStarted)
 	}
-	defer func() {
-		log.Debugf(log.TimeMgr, "NTP manager %s", MsgSubSystemShutdown)
-		m.started.CompareAndSwap(true, false)
-	}()
-	log.Debugf(log.TimeMgr, "NTP manager %s", MsgSubSystemShuttingDown)
-	close(m.shutdown)
+	m.run.cancel()
+	<-m.run.done
+	m.run = nil
 	return nil
 }
 
-// run continuously checks the internet connection at intervals
-func (m *ntpManager) run() {
-	t := time.NewTicker(m.checkInterval)
-	defer func() {
-		t.Stop()
-	}()
-
+// observe runs the NTP worker loop until ctx is cancelled or a clock read fails.
+// It checks once per interval, first check immediately on first start, and discards a result if clock changed or computer slept during it.
+func (m *ntpManager) observe(ctx context.Context) {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
 	for {
 		select {
-		case <-m.shutdown:
+		case <-ctx.Done():
 			return
-		case <-t.C:
-			err := m.processTime()
-			if err != nil {
-				log.Errorln(log.TimeMgr, err)
-			}
+		case <-timer.C:
 		}
-	}
-}
-
-// FetchNTPTime returns the time from defined NTP pools
-func (m *ntpManager) FetchNTPTime() (time.Time, error) {
-	if m == nil {
-		return time.Time{}, fmt.Errorf("ntp manager %w", ErrNilSubsystem)
-	}
-	if !m.started.Load() {
-		return time.Time{}, fmt.Errorf("NTP manager %w", ErrSubSystemNotStarted)
-	}
-	return m.checkTimeInPools(), nil
-}
-
-// processTime determines the difference between system time and NTP time
-// to discover discrepancies
-func (m *ntpManager) processTime() error {
-	if !m.started.Load() {
-		return fmt.Errorf("NTP manager %w", ErrSubSystemNotStarted)
-	}
-	NTPTime, err := m.FetchNTPTime()
-	if err != nil {
-		return err
-	}
-	currentTime := time.Now()
-	diff := NTPTime.Sub(currentTime)
-	configNTPTime := m.allowedDifference
-	negDiff := m.allowedNegativeDifference
-	configNTPNegativeTime := -negDiff
-	if diff > configNTPTime || diff < configNTPNegativeTime {
-		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n",
-			NTPTime,
-			currentTime,
-			diff,
-			configNTPTime,
-			configNTPNegativeTime)
-	}
-	return nil
-}
-
-// checkTimeInPools returns local based on ntp servers provided timestamp
-// if no server can be reached will return local time in UTC()
-func (m *ntpManager) checkTimeInPools() time.Time {
-	for i := range m.pools {
-		con, err := net.DialTimeout("udp", m.pools[i], 5*time.Second) //nolint:noctx // TODO: #2006 Use (*net.Dialer).DialContext with (*net.Dialer).Timeout
+		// If shutdown and timer happen together, select may pick timer.
+		// Check for shutdown again before starting query.
+		// Kubernetes' wait loop does the same: https://github.com/kubernetes/kubernetes/blob/6c1c7702cf2052245ef10e699d45f071af306f59/staging/src/k8s.io/apimachinery/pkg/util/wait/backoff.go#L236
+		if ctx.Err() != nil {
+			return
+		}
+		current, err := m.clock()
 		if err != nil {
-			log.Warnf(log.TimeMgr, "Unable to connect to hosts %v attempting next", m.pools[i])
-			continue
-		}
-
-		if err = con.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
-			log.Warnf(log.TimeMgr, "Unable to SetDeadline. Error: %s\n", err)
-			err = con.Close()
-			if err != nil {
-				log.Errorln(log.TimeMgr, err)
+			if m.loggingEnabled {
+				log.Warnln(log.TimeMgr, err)
 			}
-			continue
+			return
 		}
-
-		req := &ntpPacket{Settings: 0x1B}
-		if err = binary.Write(con, binary.BigEndian, req); err != nil {
-			log.Warnf(log.TimeMgr, "Unable to write. Error: %s\n", err)
-			err = con.Close()
-			if err != nil {
-				log.Errorln(log.TimeMgr, err)
+		if current.elapsed >= m.nextRound {
+			// Schedule the next check one interval from now.
+			// After sleep, run one overdue check instead of catching up every missed one.
+			// Wall-clock steps never cause extra queries.
+			m.nextRound = current.elapsed + m.interval()
+			observation := m.survey.observe(ctx, current.elapsed, m.allowedDifference, m.allowedNegativeDifference)
+			if ctx.Err() != nil {
+				return
 			}
-			continue
-		}
-
-		rsp := &ntpPacket{}
-		if err = binary.Read(con, binary.BigEndian, rsp); err != nil {
-			log.Warnf(log.TimeMgr, "Unable to read. Error: %s\n", err)
-			err = con.Close()
+			after, err := m.clock()
 			if err != nil {
-				log.Errorln(log.TimeMgr, err)
+				if m.loggingEnabled {
+					log.Warnln(log.TimeMgr, err)
+				}
+				return
 			}
-			continue
+			if ntpClockDiscontinuity(current, after) {
+				if m.loggingEnabled {
+					log.Debugln(log.TimeMgr, errNTPClockChanged)
+				}
+			} else {
+				m.report(&observation, after.elapsed)
+			}
+			current = after
 		}
-
-		secs := float64(rsp.TxTimeSec) - 2208988800
-		nanos := (int64(rsp.TxTimeFrac) * 1e9) >> 32
-
-		err = con.Close()
-		if err != nil {
-			log.Errorln(log.TimeMgr, err)
-		}
-		return time.Unix(int64(secs), nanos)
+		// Go's timers stop during sleep on some platforms, so wake regularly to notice an overdue check.
+		timer.Reset(min(ntpClockWatchInterval, max(time.Millisecond, m.nextRound-current.elapsed)))
 	}
-	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")
-	return time.Now().UTC()
+}
+
+// ntpClockDiscontinuity reports whether clock changed or computer slept between two readings.
+// Compare how far wall clock and sleep-inclusive clock advanced, allowing up to 50 ms difference in either direction.
+// Apply same limit to sleep-inclusive and awake clocks.
+// Also reject either of those clock readings going backwards.
+// Inspired by Tailscale's wall-time watch for resume, but using explicit clock comparisons instead: https://github.com/tailscale/tailscale/blob/2d4379386a5f02342f1a52006555764a22320d6e/net/netmon/netmon.go#L703
+func ntpClockDiscontinuity(previous, current ntpClockReading) bool {
+	elapsed := current.elapsed - previous.elapsed
+	awake := current.awake - previous.awake
+	wall := current.wall.Round(0).Sub(previous.wall.Round(0))
+	delta := wall - elapsed
+	// Go's clock includes sleep on Windows, so use separate awake clock.
+	// Both elapsed clocks keep counting during ordinary slow checks, which helps distinguish them from sleep.
+	suspended := elapsed - awake
+	return elapsed < 0 || awake < 0 || delta > 50*time.Millisecond || delta < -50*time.Millisecond || suspended > 50*time.Millisecond || suspended < -50*time.Millisecond
 }

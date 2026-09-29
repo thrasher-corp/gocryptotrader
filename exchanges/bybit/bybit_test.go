@@ -3368,7 +3368,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	require.LessOrEqual(t, pairErrCount, 1, "At most one option pair matching error must occur")
 
 	expectedMessages := 6 - pairErrCount
-	require.Len(t, ex.Websocket.DataHandler.C, expectedMessages, "Should see correct number of messages")
+	require.Len(t, ex.Websocket.DataHandler.C, expectedMessages, "Must see correct number of messages")
 
 	var sawPositions, sawOrderLinear, sawOrderOption, sawAccounts, sawGreeks, sawFills bool
 	for data := range ex.Websocket.DataHandler.C {
@@ -3525,7 +3525,7 @@ func TestWsTicker(t *testing.T) {
 	})
 	e.Websocket.DataHandler.Close()
 	expected := 8
-	require.Len(t, e.Websocket.DataHandler.C, expected, "Should see correct number of tickers")
+	require.Len(t, e.Websocket.DataHandler.C, expected, "Must see correct number of tickers")
 	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:

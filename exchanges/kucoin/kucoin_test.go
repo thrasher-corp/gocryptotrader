@@ -2214,8 +2214,8 @@ func TestUpdateTickers(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Positivef(t, tick.Last, "%s %s Tick Last should be positive", a, p)
 				assert.NotEmptyf(t, tick.Pair, "%s %s Tick Pair should not be empty", a, p)
-				assert.Equalf(t, e.Name, tick.ExchangeName, "ExchangeName should be correct")
-				assert.Equalf(t, a, tick.AssetType, "AssetType should be correct")
+				assert.Equal(t, e.Name, tick.ExchangeName, "ExchangeName should be correct")
+				assert.Equal(t, a, tick.AssetType, "AssetType should be correct")
 				assert.NotEmptyf(t, tick.LastUpdated, "%s %s Tick LastUpdated should not be empty", a, p)
 			}
 		}
