@@ -893,6 +893,32 @@ func TestConnectDoesNotStartMonitorAfterMultiConnectionAttemptWithEndedContext(t
 	})
 }
 
+func TestConnectStartsMonitorAfterMultiConnectionSuccessWithEndedContext(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := newRetryTestManager(t, true, "ws"+mock.URL[len("http"):]+"/ws", dialer)
+		ws.trafficTimeout = time.Hour // Stops the traffic monitor closing the idle connection on its own
+		ctx, cancel := context.WithCancel(t.Context())
+		setup := ws.connectionManager[0].setup
+		connector := setup.Connector
+		// Ends the context once the socket is up, as a deadline expiring late in a successful attempt would
+		setup.Connector = func(ctx context.Context, conn Connection) error {
+			defer cancel()
+			return connector(ctx, conn)
+		}
+
+		require.NoError(t, ws.Connect(ctx), "Connect must not error")
+		require.NoError(t, ws.Disable(), "Disable must not error")
+		time.Sleep(2 * ws.connectionMonitorDelay)
+		synctest.Wait()
+		assert.False(t, ws.IsConnected(), "IsConnected should return false once the monitor sees the websocket was disabled")
+	})
+}
+
 func TestConnectReturnsTeardownError(t *testing.T) {
 	t.Parallel()
 
