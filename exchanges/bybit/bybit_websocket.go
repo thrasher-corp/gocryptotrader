@@ -316,14 +316,20 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	subAcct := accounts.NewSubAccount(asset.Spot, "")
+	subAccts := make(accounts.SubAccounts, 0, len(result.Data))
 	for x := range result.Data {
+		// UTA 1.0 keeps its inverse derivatives wallet separate from UNIFIED.
+		assetType := asset.Spot
+		if strings.EqualFold(result.Data[x].AccountType, "CONTRACT") {
+			assetType = asset.CoinMarginedFutures
+		}
+		subAcct := accounts.NewSubAccount(assetType, "")
 		for y := range result.Data[x].Coin {
 			coin := result.Data[x].Coin[y]
-			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, coin.Coin, func(balance *accounts.Balance) {
+			balance, err := e.Accounts.UpdateBalance(ctx, "", assetType, coin.Coin, func(balance *accounts.Balance) {
 				balance.Total = coin.WalletBalance.Float64()
-				// Only non-UNIFIED wallets use availableToWithdraw; it is deprecated for
-				// UNIFIED wallets, whose REST-derived availability must be preserved.
+				// UNIFIED's availableToWithdraw is deprecated in both REST and websocket
+				// responses; do not replace cached availability with this field.
 				if !strings.EqualFold(result.Data[x].AccountType, "UNIFIED") {
 					balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
 				}
@@ -333,8 +339,9 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 			}
 			subAcct.Balances.Set(coin.Coin, balance)
 		}
+		subAccts = append(subAccts, subAcct)
 	}
-	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
