@@ -500,7 +500,7 @@ func TestMovementMethods(t *testing.T) {
 			methodName, _, _ := strings.Cut(tt.name, "_")
 
 			_, err := callMethod(getInvalidDepth(), methodName, tt.tests[0].inputs)
-			assert.ErrorIsf(t, err, ErrOrderbookInvalid, "should error correctly with an invalid orderbook")
+			assert.ErrorIs(t, err, ErrOrderbookInvalid, "should error correctly with an invalid orderbook")
 
 			_, err = callMethod(depth, methodName, tt.tests[0].inputs)
 			assert.ErrorIs(t, err, errNoLiquidity, "should error correctly with no liquidity")

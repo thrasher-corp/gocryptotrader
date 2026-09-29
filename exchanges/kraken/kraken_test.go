@@ -1326,18 +1326,18 @@ func TestWsSubscribe(t *testing.T) {
 	err := e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
 	require.NoError(t, err, "Simple subscription must not error")
 	subs := e.Websocket.GetSubscriptions()
-	require.Len(t, subs, 1, "Should add 1 Subscription")
+	require.Len(t, subs, 1, "Must add 1 Subscription")
 	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription should be subscribed state")
 
 	err = e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
 	assert.ErrorIs(t, err, subscription.ErrDuplicate, "Resubscribing to the same channel should error with SubscribedAlready")
 	subs = e.Websocket.GetSubscriptions()
-	require.Len(t, subs, 1, "Should not add a subscription on error")
+	require.Len(t, subs, 1, "Must not add a subscription on error")
 	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "Existing subscription state should not change")
 
 	err = e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}}})
 	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs: DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
-	require.Len(t, e.Websocket.GetSubscriptions(), 1, "Should not add a subscription on error")
+	require.Len(t, e.Websocket.GetSubscriptions(), 1, "Must not add a subscription on error")
 
 	// Mix success and failure
 	err = e.Subscribe(subscription.List{
@@ -1348,7 +1348,7 @@ func TestWsSubscribe(t *testing.T) {
 	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs:", "Subscribing to an invalid pair should error correctly")
 	assert.ErrorContains(t, err, "DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
 	assert.ErrorContains(t, err, "DWARF/ELF", "Subscribing to an invalid pair should error correctly")
-	require.Len(t, e.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
+	require.Len(t, e.Websocket.GetSubscriptions(), 2, "Must have 2 subscriptions after mixed success/failures")
 
 	// Just failures
 	err = e.Subscribe(subscription.List{
@@ -1358,7 +1358,7 @@ func TestWsSubscribe(t *testing.T) {
 	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs:", "Subscribing to an invalid pair should error correctly")
 	assert.ErrorContains(t, err, "DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
 	assert.ErrorContains(t, err, "DWARF/GOBLIN", "Subscribing to an invalid pair should error correctly")
-	require.Len(t, e.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
+	require.Len(t, e.Websocket.GetSubscriptions(), 2, "Must have 2 subscriptions after mixed success/failures")
 
 	// Just success
 	err = e.Subscribe(subscription.List{
@@ -1399,8 +1399,8 @@ func TestWsSubscribe(t *testing.T) {
 			Channel: c,
 			Pairs:   currency.Pairs{spotTestPair},
 		}})
-		assert.ErrorIs(t, err, subscription.ErrUseConstChannelName, "Must error when trying to use a private channel name")
-		assert.ErrorContains(t, err, c+" => subscription.CandlesChannel", "Must error when trying to use a private channel name")
+		assert.ErrorIs(t, err, subscription.ErrUseConstChannelName, "Should error when trying to use a private channel name")
+		assert.ErrorContains(t, err, c+" => subscription.CandlesChannel", "Should error when trying to use a private channel name")
 	}
 }
 
@@ -1413,7 +1413,7 @@ func TestWsResubscribe(t *testing.T) {
 	err := e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 1000}})
 	require.NoError(t, err, "Subscribe must not error")
 	subs := e.Websocket.GetSubscriptions()
-	require.Len(t, subs, 1, "Should add 1 Subscription")
+	require.Len(t, subs, 1, "Must add 1 Subscription")
 	require.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription must be in a subscribed state")
 
 	require.Eventually(t, func() bool {
@@ -1482,7 +1482,7 @@ func TestWsCandlesSub(t *testing.T) {
 	require.NoError(t, err, "Simple subscription must not error")
 
 	subs := e.Websocket.GetSubscriptions()
-	require.Equal(t, 1, len(subs), "Should add 1 Subscription")
+	require.Equal(t, 1, len(subs), "Must add 1 Subscription")
 
 	err = e.Unsubscribe(subs)
 	assert.NoError(t, err, "Unsubscribe should not error")
