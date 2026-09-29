@@ -528,7 +528,9 @@ func TestRateLimitBarrierRejectedAdmissionRestoresCapacity(t *testing.T) {
 	require.ErrorIs(t, <-errs, ErrDelayNotAllowed, "group admission must be refused")
 	require.ErrorIs(t, <-errs, ErrDelayNotAllowed, "group admission must be refused")
 	assert.InDelta(t, 1, peer.limiter.TokensAt(at), 1e-9,
-		"a refused group admission must leave the peer's capacity untouched")
+		"a refused group admission should leave the peer's capacity untouched")
+	assert.InDelta(t, 1, weighted.limiter.TokensAt(at), 1e-9,
+		"a refused group admission should leave the weighted participant's capacity untouched")
 }
 
 func TestInitiateRateLimit(t *testing.T) {
