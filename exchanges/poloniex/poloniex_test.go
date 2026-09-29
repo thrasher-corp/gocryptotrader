@@ -2356,12 +2356,21 @@ func TestProcessOrdersPlaceEventNoTrade(t *testing.T) {
 	}
 	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error for a place event")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
-	details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
-	require.True(t, ok, "Data must be a []order.Detail")
-	require.Len(t, details, 1, "Must see exactly one order detail")
-	assert.Empty(t, details[0].Trades, "a place event should not fabricate a trade")
-	assert.Equal(t, time.UnixMilli(1648708187469), details[0].LastUpdated, "LastUpdated should fall back to the event timestamp when tradeTime is unset")
-	assert.Equal(t, 1.0, details[0].RemainingAmount, "RemainingAmount should be the unfilled base amount")
+	exp := []order.Detail{{
+		Price:           47112.1,
+		Amount:          1,
+		RemainingAmount: 1,
+		Exchange:        ex.Name,
+		OrderID:         "32471407854219264",
+		Type:            order.Limit,
+		Side:            order.Buy,
+		Status:          order.New,
+		AssetType:       asset.Spot,
+		Date:            time.UnixMilli(1648708186922),
+		LastUpdated:     time.UnixMilli(1648708187469),
+		Pair:            currency.NewPairWithDelimiter("BTC", "USDC", "_"),
+	}}
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should map a place event without a trade")
 }
 
 // TestProcessOrdersPartiallyCanceledBatch asserts that a PARTIALLY_CANCELED
