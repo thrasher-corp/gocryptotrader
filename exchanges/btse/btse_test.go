@@ -364,6 +364,13 @@ func TestCreateWalletAddressErrorHandling(t *testing.T) {
 		assert.Equal(t, "new-address", resp[0].Address, "CreateWalletAddress should return the new address")
 	})
 
+	t.Run("undecodable created address", func(t *testing.T) {
+		t.Parallel()
+		ex := newCreateWalletAddressTestExchange(t, http.StatusOK, `{"address":"new-address"}`)
+		_, err := ex.CreateWalletAddress(t.Context(), "BTC")
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CreateWalletAddress should report an undecodable response as a failed authenticated request")
+	})
+
 	for _, tt := range []struct {
 		name     string
 		response string
@@ -415,6 +422,13 @@ func newCreateWalletAddressTestExchange(t *testing.T, status int, response strin
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 	return ex
+}
+
+func TestSendAuthenticatedHTTPRequestWithoutResult(t *testing.T) {
+	t.Parallel()
+	ex := newCreateWalletAddressTestExchange(t, http.StatusOK, "")
+	err := ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, map[string]any{"currency": "BTC"}, nil, queryFunc)
+	assert.NoError(t, err, "SendAuthenticatedHTTPRequest should accept a 200 without a body when no result is wanted")
 }
 
 func TestWalletAddressUnmarshalJSON(t *testing.T) {

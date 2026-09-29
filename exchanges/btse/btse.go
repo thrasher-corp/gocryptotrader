@@ -480,6 +480,11 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	var intermediary json.RawMessage
+	// Left nil without a result, since BTSE answers cancelAllAfter with a bare 200 that does not decode
+	var resultTarget any
+	if result != nil {
+		resultTarget = &intermediary
+	}
 	newRequest := func() (*request.Item, error) {
 		// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
 		// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
@@ -537,7 +542,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Path:                   host,
 			Headers:                headers,
 			Body:                   body,
-			Result:                 &intermediary,
+			Result:                 resultTarget,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
@@ -550,7 +555,10 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if result == nil || len(intermediary) == 0 {
 		return nil
 	}
-	return json.Unmarshal(intermediary, result)
+	if err := json.Unmarshal(intermediary, result); err != nil {
+		return common.AppendError(err, request.ErrAuthRequestFailed)
+	}
+	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction
