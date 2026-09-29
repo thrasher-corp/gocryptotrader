@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -1119,41 +1118,31 @@ func TestTransactionHistory(t *testing.T) {
 // window.
 func TestGetTransactionDetailsOrderID(t *testing.T) {
 	t.Parallel()
-	var (
-		mutex sync.Mutex
-		query url.Values
-	)
+	const orderID = "312269865356374016"
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method, "the fills request should be a GET")
-		assert.Equal(t, "/trade/fills", r.URL.Path, "GetTransactionDetailsLast3Days should call the 3-day fills endpoint")
-		mutex.Lock()
-		query = r.URL.Query()
-		mutex.Unlock()
+		assert.Equal(t, http.MethodGet, r.Method, "fills request should use GET")
+		assert.Equal(t, "/trade/fills", r.URL.Path, "fills request should use the 3-day endpoint")
+		query := r.URL.Query()
+		require.NotNil(t, query, "Request must have a valid query")
+		assert.Equal(t, orderID, query.Get("ordId"), "GetTransactionDetailsLast3Days should forward the order ID filter as ordId")
+		assert.Equal(t, "2", query.Get("subType"), "GetTransactionDetailsLast3Days should forward the transaction type filter as subType")
+		assert.Equal(t, instTypeSpot, query.Get("instType"), "GetTransactionDetailsLast3Days should forward the instrument type")
+		assert.Equal(t, "3", query.Get("limit"), "GetTransactionDetailsLast3Days should forward the limit")
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
 	}))
-
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.SkipAuthCheck = true
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
-
-	const orderID = "312269865356374016"
 	_, err := ex.GetTransactionDetailsLast3Days(t.Context(), &TransactionDetailRequestParams{
 		InstrumentType: instTypeSpot,
 		OrderID:        orderID,
 		SubType:        "2",
 		Limit:          3,
 	})
-	require.NoError(t, err, "GetTransactionDetailsLast3Days must not error")
-	mutex.Lock()
-	defer mutex.Unlock()
-	require.NotNil(t, query, "a request must have been sent")
-	assert.Equal(t, orderID, query.Get("ordId"), "GetTransactionDetailsLast3Days should forward the order ID filter as ordId")
-	assert.Equal(t, "2", query.Get("subType"), "GetTransactionDetailsLast3Days should forward the transaction type filter as subType")
-	assert.Equal(t, instTypeSpot, query.Get("instType"), "GetTransactionDetailsLast3Days should forward the instrument type")
-	assert.Equal(t, "3", query.Get("limit"), "GetTransactionDetailsLast3Days should forward the limit")
+	require.NoError(t, err, "fills request must not error")
 }
 
 func TestGetTransactionDetailsLast3Months(t *testing.T) {
