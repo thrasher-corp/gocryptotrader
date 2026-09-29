@@ -128,6 +128,7 @@ func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
 	}()
 
 	csvData := csv.NewReader(csvFile)
+	csvData.FieldsPerRecord = 6
 
 	for {
 		row, errCSV := csvData.Read()

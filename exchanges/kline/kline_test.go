@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"encoding/csv"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -833,6 +834,16 @@ func TestLoadCSV(t *testing.T) {
 	if v[364].Open != 7246 {
 		t.Fatalf("unexpected value received: %v", v[364].Open)
 	}
+}
+
+func TestLoadCSVInvalidFieldCount(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "malformed.csv")
+	err := os.WriteFile(path, []byte("1546300800,1,2,3,4\n"), 0o600)
+	require.NoError(t, err, "writing test CSV must not error")
+
+	_, err = LoadFromGCTScriptCSV(path)
+	assert.ErrorIs(t, err, csv.ErrFieldCount, "malformed CSV should return a field count error")
 }
 
 func TestVerifyResultsHaveData(t *testing.T) {
