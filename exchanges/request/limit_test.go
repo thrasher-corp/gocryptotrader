@@ -493,7 +493,7 @@ func TestRateLimitRejectedRequestRestoresCapacity(t *testing.T) {
 			require.ErrorIs(t, weighted.RateLimit(ctx), ErrDelayNotAllowed,
 				"a request that needs a delay must be refused when delays are not allowed")
 			assert.InDelta(t, 1, limiter.TokensAt(at), 1e-9,
-				"a refused request must leave the limiter's capacity untouched")
+				"a refused request should leave the limiter's capacity untouched")
 			require.NoError(t, single.RateLimit(ctx),
 				"an unrelated weight-1 request must still be admitted without delay")
 		})
