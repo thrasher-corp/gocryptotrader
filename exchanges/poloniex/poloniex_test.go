@@ -2373,18 +2373,57 @@ func TestProcessOrdersPartiallyCanceledBatch(t *testing.T) {
 
 	resp := &SubscriptionResponse{
 		Channel: "orders",
-		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"1","tradeFee":"0.0001","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","side":"BUY","filledQuantity":"0.3","matchRole":"TAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"12000","createTime":1757800000000,"price":"60000","tradeQty":"0.3","tradePrice":"60000","tradeId":"68561300","ts":1757800060010},{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"2","tradeFee":"0","accountType":"SPOT","feeCurrency":"","eventType":"cancel","side":"SELL","filledQuantity":"0.25","state":"PARTIALLY_CANCELED","tradeTime":0,"createTime":1757800000000,"price":"61000","tradeId":"0","ts":1757800090000}]`),
+		Data:    json.RawMessage(`[{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"1","tradeFee":"0.0001","accountType":"SPOT","feeCurrency":"BTC","eventType":"trade","side":"BUY","filledQuantity":"0.3","matchRole":"TAKER","state":"PARTIALLY_FILLED","tradeTime":1757800060000,"tradeAmount":"18000","createTime":1757800000000,"price":"60000","tradeQty":"0.3","tradePrice":"60000","tradeId":"68561300","ts":1757800060010},{"symbol":"BTC_USDT","type":"LIMIT","quantity":"0.5","orderId":"2","tradeFee":"0","accountType":"SPOT","feeCurrency":"","eventType":"canceled","side":"SELL","filledQuantity":"0.25","state":"PARTIALLY_CANCELED","tradeTime":0,"createTime":1757800000000,"price":"61000","tradeId":"0","ts":1757800090000}]`),
 	}
 	require.NoError(t, ex.processOrders(t.Context(), resp), "processOrders must not error for a PARTIALLY_CANCELED state")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "Must see exactly one order update")
-	details, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
-	require.True(t, ok, "Data must be a []order.Detail")
-	require.Len(t, details, 2, "both orders in the batch must be delivered")
-	assert.Equal(t, order.PartiallyFilled, details[0].Status)
-	assert.Equal(t, order.PartiallyCancelled, details[1].Status)
-	require.Len(t, details[0].Trades, 1, "the fill event must carry a trade")
-	assert.False(t, details[0].Trades[0].IsMaker, "a TAKER role should not be reported as maker")
-	assert.Empty(t, details[1].Trades, "a cancel event should not fabricate a trade")
+	exp := []order.Detail{
+		{
+			Price:           60000,
+			Amount:          0.5,
+			ExecutedAmount:  0.3,
+			RemainingAmount: 0.2,
+			Fee:             0.0001,
+			FeeAsset:        currency.BTC,
+			Exchange:        ex.Name,
+			OrderID:         "1",
+			Type:            order.Limit,
+			Side:            order.Buy,
+			Status:          order.PartiallyFilled,
+			AssetType:       asset.Spot,
+			Date:            time.UnixMilli(1757800000000),
+			LastUpdated:     time.UnixMilli(1757800060000),
+			Pair:            currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Trades: []order.TradeHistory{{
+				Price:     60000,
+				Amount:    0.3,
+				Fee:       0.0001,
+				Exchange:  ex.Name,
+				TID:       "68561300",
+				Type:      order.Limit,
+				Side:      order.Buy,
+				Timestamp: time.UnixMilli(1757800060000),
+				FeeAsset:  "BTC",
+				Total:     18000,
+			}},
+		},
+		{
+			Price:           61000,
+			Amount:          0.5,
+			ExecutedAmount:  0.25,
+			RemainingAmount: 0.25,
+			Exchange:        ex.Name,
+			OrderID:         "2",
+			Type:            order.Limit,
+			Side:            order.Sell,
+			Status:          order.PartiallyCancelled,
+			AssetType:       asset.Spot,
+			Date:            time.UnixMilli(1757800000000),
+			LastUpdated:     time.UnixMilli(1757800090000),
+			Pair:            currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+		},
+	}
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processOrders should deliver both orders, with a trade only on the fill")
 }
 
 func TestProcessCandlestickDataIntervalMapping(t *testing.T) {
