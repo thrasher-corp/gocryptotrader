@@ -69,6 +69,7 @@ type WebsocketOrderResponse struct {
 	Text                      string        `json:"text"`
 	Status                    string        `json:"status"`
 	Iceberg                   types.Number  `json:"iceberg"`
+	FilledAmount              types.Number  `json:"filled_amount"`
 	FilledTotal               types.Number  `json:"filled_total"`
 	ID                        string        `json:"id"`
 	FillPrice                 types.Number  `json:"fill_price"`

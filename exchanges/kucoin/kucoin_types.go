@@ -594,7 +594,7 @@ type OrderDetail struct {
 	Channel             string       `json:"channel"`
 	OperationType       string       `json:"opType"` // operation type: DEAL
 	Funds               string       `json:"funds"`
-	DealFunds           string       `json:"dealFunds"`
+	DealFunds           types.Number `json:"dealFunds"`
 	DealSize            types.Number `json:"dealSize"`
 	Fee                 types.Number `json:"fee"`
 	FeeCurrency         string       `json:"feeCurrency"`

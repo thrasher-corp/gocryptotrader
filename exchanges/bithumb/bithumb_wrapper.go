@@ -700,7 +700,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				orderDetail.Side = order.Sell
 			}
 
-			orderDetail.InferCostsAndTimes()
+			// Bithumb documents Price as the order price and no longer documents
+			// the legacy Total field, so neither is an authoritative execution value.
+			orderDetail.InferExecutionAndTimes()
 			orders = append(orders, orderDetail)
 		}
 	}

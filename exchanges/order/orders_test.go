@@ -277,10 +277,23 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 
 	id := uuid.NewV4()
 
-	s = &SubmitResponse{}
+	s = &SubmitResponse{
+		AverageExecutedPrice: 2,
+		ExecutedAmount:       3,
+		ExecutedQuoteAmount:  4,
+		RemainingAmount:      5,
+		Fee:                  6,
+		FeeAsset:             currency.USDT,
+	}
 	deets, err := s.DeriveDetail(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, deets.InternalOrderID)
+	assert.Equal(t, 2.0, deets.AverageExecutedPrice)
+	assert.Equal(t, 3.0, deets.ExecutedAmount)
+	assert.Equal(t, 4.0, deets.ExecutedQuoteAmount)
+	assert.Zero(t, deets.RemainingAmount, "DeriveDetail should not seed RemainingAmount from a submission response")
+	assert.Equal(t, 6.0, deets.Fee)
+	assert.Equal(t, currency.USDT, deets.FeeAsset)
 }
 
 func TestOrderSides(t *testing.T) {
@@ -372,47 +385,47 @@ func TestOrderTypeToString(t *testing.T) {
 	}
 }
 
-func TestInferCostsAndTimes(t *testing.T) {
+func TestInferExecutionAndTimes(t *testing.T) {
 	t.Parallel()
 	var detail Detail
-	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.Amount, "InferCostsAndTimes on empty details should set correct Amount")
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.Amount, "InferExecutionAndTimes on empty details should set correct Amount")
 
 	detail.CloseTime = time.Now()
-	detail.InferCostsAndTimes()
+	detail.InferExecutionAndTimes()
 	assert.Equal(t, detail.CloseTime, detail.LastUpdated, "Order last updated not equals close time")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
-	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.AverageExecutedPrice, "InferCostsAndTimes should set AverageExecutedPrice correctly")
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.AverageExecutedPrice, "InferExecutionAndTimes should set AverageExecutedPrice correctly")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
-	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.Cost, "InferCostsAndTimes should set Cost correctly")
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.ExecutedQuoteAmount, "InferExecutionAndTimes should set ExecutedQuoteAmount correctly")
 
 	detail.ExecutedAmount = 0
 
 	detail.Amount = 1
 	detail.RemainingAmount = 1
-	detail.InferCostsAndTimes()
+	detail.InferExecutionAndTimes()
 	assert.Equal(t, detail.ExecutedAmount+detail.RemainingAmount, detail.Amount)
 	detail.RemainingAmount = 0
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.Price = 2
-	detail.InferCostsAndTimes()
-	assert.Equal(t, 2.0, detail.AverageExecutedPrice)
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.AverageExecutedPrice, "request price should not be treated as an authoritative average execution price")
 
-	detail = Detail{Amount: 1, ExecutedAmount: 2, Cost: 3, Price: 0}
-	detail.InferCostsAndTimes()
+	detail = Detail{Amount: 1, ExecutedAmount: 2, ExecutedQuoteAmount: 3, Price: 0}
+	detail.InferExecutionAndTimes()
 	assert.Equal(t, 1.5, detail.AverageExecutedPrice)
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
-	detail.InferCostsAndTimes()
-	assert.Equal(t, 6.0, detail.Cost)
+	detail.InferExecutionAndTimes()
+	assert.Zero(t, detail.ExecutedQuoteAmount, "average execution price should not synthesize an authoritative executed quote amount")
 }
 
 func TestFilterOrdersByType(t *testing.T) {
@@ -1014,6 +1027,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		ExecutedAmount:  1,
 		RemainingAmount: 1,
 		Fee:             1,
+		FeeAsset:        currency.USDT,
 		Exchange:        "1",
 		InternalOrderID: id,
 		OrderID:         "1",
@@ -1051,6 +1065,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, 1.0, od.ExecutedAmount)
 	assert.Equal(t, 1.0, od.RemainingAmount)
 	assert.Equal(t, 1.0, od.Fee)
+	assert.Equal(t, currency.USDT, od.FeeAsset)
 	assert.Equal(t, "test", od.Exchange, "Should not be able to update exchange via modify")
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, "1", od.ClientID)
@@ -1063,7 +1078,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, "BTCUSD", od.Pair.String())
 	assert.Zero(t, od.ContractAmount)
 	assert.Zero(t, od.AverageExecutedPrice)
-	assert.Zero(t, od.Cost)
+	assert.Zero(t, od.ExecutedQuoteAmount)
 	assert.True(t, od.CloseTime.IsZero())
 	assert.Nil(t, od.Trades)
 
@@ -1097,14 +1112,14 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(&Detail{
 		ContractAmount:       10,
 		AverageExecutedPrice: 11,
-		Cost:                 12,
+		ExecutedQuoteAmount:  12,
 		CloseTime:            closeTime,
 		LastUpdated:          lastUpdated,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 10.0, od.ContractAmount)
 	assert.Equal(t, 11.0, od.AverageExecutedPrice)
-	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, 12.0, od.ExecutedQuoteAmount)
 	assert.Equal(t, closeTime, od.CloseTime)
 	assert.Equal(t, lastUpdated, od.LastUpdated)
 
@@ -1122,7 +1137,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 10.0, od.ContractAmount)
 	assert.Equal(t, 11.0, od.AverageExecutedPrice)
-	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, 12.0, od.ExecutedQuoteAmount)
 	assert.Equal(t, nextCloseTime, od.CloseTime)
 	assert.Equal(t, lastUpdatedWithoutIncoming, od.LastUpdated)
 
@@ -1176,6 +1191,138 @@ func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
 	}
 	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, 2.0, od.RemainingAmount, "RemainingAmount should be updated when the fill is larger than the reported remainder")
+}
+
+func TestUpdateOrderFromDetailClearsRemainingWhenFilled(t *testing.T) {
+	t.Parallel()
+
+	od := &Detail{Exchange: "test", OrderID: "1", Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:        "test",
+		OrderID:         "1",
+		Amount:          2,
+		ExecutedAmount:  2,
+		RemainingAmount: 0,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.RemainingAmount, "a fully executed update should clear RemainingAmount")
+
+	od = &Detail{Exchange: "test", OrderID: "1", Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:       "test",
+		OrderID:        "1",
+		ExecutedAmount: 0.5,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 1.5, od.RemainingAmount, "an update that does not report the order filled should not clear RemainingAmount")
+
+	od = &Detail{Exchange: "test", OrderID: "1", Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:        "test",
+		OrderID:         "1",
+		Status:          Cancelled,
+		Amount:          2,
+		ExecutedAmount:  0.5,
+		RemainingAmount: 0,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 1.5, od.RemainingAmount, "a cancelled partial fill with an omitted remainder should retain RemainingAmount")
+
+	od = &Detail{Exchange: "test", OrderID: "1", QuoteAmount: 60}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:        "test",
+		OrderID:         "1",
+		Amount:          60,
+		ExecutedAmount:  600,
+		RemainingAmount: -540,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.RemainingAmount, "a negative RemainingAmount should not be stored")
+
+	od = &Detail{Exchange: "test", OrderID: "1", RemainingAmount: 30}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{
+		Exchange:        "test",
+		OrderID:         "1",
+		Status:          PartiallyFilled,
+		Amount:          60,
+		ExecutedAmount:  600,
+		RemainingAmount: 0,
+	}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 30.0, od.RemainingAmount, "an active mixed-unit update should not clear RemainingAmount")
+}
+
+func TestUpdateOrderFromDetailExecutedQuoteAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                 string
+		update               Detail
+		executedQuoteAmount  float64
+		averageExecutedPrice float64
+	}{
+		{name: "new fill without a quote total", update: Detail{ExecutedAmount: 0.02}, executedQuoteAmount: 0, averageExecutedPrice: 0},
+		{name: "new fill with a quote total", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210}, executedQuoteAmount: 1210, averageExecutedPrice: 60500},
+		{name: "quote total correction", update: Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 610}, executedQuoteAmount: 610, averageExecutedPrice: 61000},
+		{name: "quote total without an executed amount", update: Detail{ExecutedQuoteAmount: 1210}, executedQuoteAmount: 600, averageExecutedPrice: 60000},
+		{name: "explicit average takes precedence", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210, AverageExecutedPrice: 60001}, executedQuoteAmount: 1210, averageExecutedPrice: 60001},
+		{name: "no new fill", update: Detail{ExecutedAmount: 0.01, Status: Open}, executedQuoteAmount: 600, averageExecutedPrice: 60000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			od := &Detail{
+				Exchange:             "test",
+				OrderID:              "1",
+				Amount:               0.02,
+				ExecutedAmount:       0.01,
+				ExecutedQuoteAmount:  600,
+				AverageExecutedPrice: 60000,
+				Fee:                  0.6,
+				FeeAsset:             currency.USDT,
+				RemainingAmount:      0.01,
+				AssetType:            asset.Spot,
+			}
+			require.NoError(t, od.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
+			assert.Equal(t, tc.executedQuoteAmount, od.ExecutedQuoteAmount, "ExecutedQuoteAmount should describe the stored executed amount")
+			assert.Equal(t, tc.averageExecutedPrice, od.AverageExecutedPrice, "AverageExecutedPrice should describe the stored execution totals")
+			assert.Equal(t, 0.6, od.Fee, "Fee should remain until an update establishes a different fee")
+			assert.Equal(t, currency.USDT, od.FeeAsset, "FeeAsset should remain associated with the stored fee")
+			assert.Equal(t, 0.01, od.RemainingAmount, "RemainingAmount should remain until an update establishes a different remainder")
+		})
+	}
+
+	od := &Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 20, AverageExecutedPrice: 10, AssetType: asset.Futures}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 22}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.AverageExecutedPrice, "AverageExecutedPrice should clear when derivative execution units do not permit safe inference")
+}
+
+func TestUpdateOrderFromDetailNegativeAverage(t *testing.T) {
+	t.Parallel()
+	od := &Detail{Exchange: "test", OrderID: "1", AssetType: asset.Spread, Amount: 2, ExecutedAmount: 1, AverageExecutedPrice: -57.7}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 1.5, AverageExecutedPrice: -58}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, -58.0, od.AverageExecutedPrice, "a negative spread average should replace the stored one")
+}
+
+func TestUpdateOrderFromDetailAverageConditions(t *testing.T) {
+	t.Parallel()
+	od := &Detail{ExecutedAmount: 1, ExecutedQuoteAmount: 10, AverageExecutedPrice: 10}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 22}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.AverageExecutedPrice, "an order with no asset type should not have its average derived")
+
+	od = &Detail{ExecutedAmount: 1, ExecutedQuoteAmount: 10, AverageExecutedPrice: 10, AssetType: asset.Spot}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 2, ExecutedQuoteAmount: 22, AssetType: asset.Futures}), "UpdateOrderFromDetail must not error")
+	assert.Zero(t, od.AverageExecutedPrice, "the update's derivative asset type should take precedence")
+
+	od = &Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 600, AverageExecutedPrice: 60001, AssetType: asset.Spot}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 600}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 60001.0, od.AverageExecutedPrice, "restated totals should keep an explicit average")
+}
+
+func TestUpdateOrderFromDetailFeeAsset(t *testing.T) {
+	t.Parallel()
+
+	od := &Detail{Fee: 0.6, FeeAsset: currency.USDT}
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{FeeAsset: currency.BTC}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 0.6, od.Fee, "an omitted fee should retain the stored fee")
+	assert.Equal(t, currency.USDT, od.FeeAsset, "an omitted fee should not relabel the stored fee")
+
+	require.NoError(t, od.UpdateOrderFromDetail(&Detail{Fee: -0.2, FeeAsset: currency.BTC}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, -0.2, od.Fee, "a negative fee should update the stored fee")
+	assert.Equal(t, currency.BTC, od.FeeAsset, "a non-zero fee should update its fee asset")
 }
 
 // TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report

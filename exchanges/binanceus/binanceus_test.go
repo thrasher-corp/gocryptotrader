@@ -270,6 +270,12 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
+func TestNonNegativeExecutedQuoteAmount(t *testing.T) {
+	t.Parallel()
+	assert.Zero(t, nonNegativeExecutedQuoteAmount(-1), "unavailable historical quote amount should be zero")
+	assert.Equal(t, 10.0, nonNegativeExecutedQuoteAmount(10), "available historical quote amount should be retained")
+}
+
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepositAddress(t.Context(), currency.EMPTYCODE, "", currency.BNB.String())
@@ -1746,7 +1752,6 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		Price:           52789.1,
 		Amount:          0.00028400,
 		RemainingAmount: 0.00028400,
-		CostAsset:       currency.USDT,
 		FeeAsset:        currency.BTC,
 		Exchange:        "Binanceus",
 		OrderID:         "5340845958",
@@ -1780,6 +1785,14 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 	if err != nil {
 		t.Fatal("Binanceus OrderExecutionReport json conversion error", err)
 	}
+	res = <-e.Websocket.DataHandler.C
+	require.IsType(t, &order.Detail{}, res.Data, "single-fill execution report must produce an order detail")
+	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041557,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Moc","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00057200","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783272,"l":"0.00028600","z":"0.00057200","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041556,"t":726946524,"I":11390206313,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"29.99387820","Y":"14.99693910","Q":"0.00000000"}}`)
+	require.NoError(t, e.wsHandleData(t.Context(), payload), "wsHandleData must not error for a two-fill execution report")
+	res = <-e.Websocket.DataHandler.C
+	filled, ok := res.Data.(*order.Detail)
+	require.True(t, ok, "two-fill execution report must produce an order detail")
+	assert.Equal(t, 29.9938782, filled.ExecutedQuoteAmount, "ExecutedQuoteAmount should be the cumulative quote transacted, not the last fill's")
 }
 
 func TestWebsocketOutboundAccountPosition(t *testing.T) {

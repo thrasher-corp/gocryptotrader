@@ -129,6 +129,8 @@ type SubmitResponse struct {
 	Price                float64
 	Amount               float64
 	QuoteAmount          float64
+	ExecutedAmount       float64
+	ExecutedQuoteAmount  float64 // Authoritative filled amount in the instrument's quote currency, which may differ from Pair.Quote for derivatives.
 	RemainingAmount      float64
 	TriggerPrice         float64
 	ClientID             string
@@ -141,8 +143,6 @@ type SubmitResponse struct {
 	Trades               []TradeHistory
 	Fee                  float64
 	FeeAsset             currency.Code
-	Cost                 float64
-	Purchased            float64 // Buy in base currency, Sell in quote
 	BorrowSize           float64
 	LoanApplyID          string
 	MarginType           margin.Type
@@ -233,8 +233,7 @@ type Detail struct {
 	QuoteAmount          float64
 	ExecutedAmount       float64
 	RemainingAmount      float64
-	Cost                 float64
-	CostAsset            currency.Code
+	ExecutedQuoteAmount  float64 // Authoritative filled amount in the instrument's quote currency, which may differ from Pair.Quote for derivatives.
 	Fee                  float64
 	FeeAsset             currency.Code
 	Exchange             string

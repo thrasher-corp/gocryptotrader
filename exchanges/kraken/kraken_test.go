@@ -1763,6 +1763,9 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
 				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
 				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
+				// Kraken reports cost outside the quote currency for viqc orders, and fill updates
+				// omit oflags, so the handler cannot tell which unit it is.
+				assert.Zero(t, v.ExecutedQuoteAmount, "websocket cost should not populate ExecutedQuoteAmount")
 				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
 				assert.Equal(t, 0.00687, v.Fee, "Fee")
 			case 2:

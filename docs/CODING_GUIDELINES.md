@@ -15,6 +15,11 @@ This document outlines the coding, formatting, and testing standards for impleme
     reports an American spelling, use the replacement in the
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
+- Treat review feedback as a standards-gap audit. Cross-reference each reusable
+    expectation against these guidelines and update this document when the rule
+    is missing or ambiguous. Keep domain-specific behaviour in the relevant
+    implementation and its tests rather than promoting one-off details into a
+    project-wide rule.
 
 ## Security
 
@@ -73,6 +78,38 @@ Never relay an empty batch.
         } `json:"brackets"`
     }
 ```
+
+### Exchange Adapter Boundary
+
+- Exchange implementations must translate authoritative API fields into the
+  corresponding generic GoCryptoTrader fields without discarding available
+  execution state. This includes executed and remaining quantities, average
+  execution price, fees, fee currency, status, and exchange timestamps when
+  the API supplies them.
+- Keep adapters free of consumer policy. Do not calculate strategy positions,
+  fee-adjusted exposure, profitability, hedge outcomes, or recovery actions in
+  an exchange wrapper. Those decisions belong to the consuming engine or
+  application, where they can be applied consistently across exchanges.
+- Structural normalisation required by a documented generic field is allowed,
+  such as parsing side and status, converting signed contracts to side plus
+  absolute quantity, or calculating executed quantity from authoritative total
+  and remaining quantities. Do not infer an execution from the submitted
+  request price, requested amount, an acknowledgement, or a zero value.
+- Prefer direct source-field mapping over reconstructing an equivalent value.
+  If the generic contract has no lossless representation for an authoritative
+  field, extend that contract or document the omission; do not overload a field
+  with different units or semantics. In particular, fees must populate fee
+  fields and must not be stored as execution cost.
+- Generic execution fields must have stable units and meaning across side and
+  transport. Do not expose direction-dependent convenience values, such as one
+  field meaning purchased base for buys and received quote for sells. Preserve
+  unit-stable exchange facts and leave derived execution counterparts to the
+  consumer. Ambiguous generic `Cost`, `CostAsset`, and `Purchased` execution
+  fields are prohibited; use explicit requested and executed quantity fields.
+- REST and websocket adapters for the same exchange must expose compatible
+  units and semantics. Tests must cover both mappings when either path is
+  changed. Missing or contradictory execution facts must remain visible so the
+  consumer can reconcile them authoritatively.
 
 ### TestMain usage
 
@@ -222,6 +259,24 @@ Use `require` and `assert` appropriately:
 - When resolving review feedback, fix the underlying source of truth, add
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
+- Test changed REST and websocket mappings at their direct conversion boundary.
+    When fields have similar meanings, use deliberately different fixture values
+    that prove the intended source was selected, such as cumulative execution
+    value versus the latest fill value. Do not rely solely on downstream tests
+    that would continue to pass if the mapping were removed.
+- For merge and upsert logic, preserve consistency between authoritative fields
+    and their dependent aggregates. When an authoritative component changes and
+    an update omits a previously stored dependent value, recompute it from
+    values the update supplies, or clear it if its zero reads as unknown. Keep
+    values whose zero is itself meaningful, such as a fee or a remaining
+    quantity, until an update establishes them. Cover advancement with and
+    without the dependent value, and an update where the authoritative
+    component does not change.
+- When an external API deprecates a mapped field, verify the replacement against
+    current authoritative documentation and, where credentials are required,
+    distinguish documented behaviour from live verification. If the replacement
+    is richer than the common model, define an explicit lossless or documented
+    reduction policy before mapping it; do not silently select or combine values.
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
