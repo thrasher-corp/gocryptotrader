@@ -1981,6 +1981,31 @@ func TestGetMaxWithdrawMargin(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// TestGetMaxWithdrawMarginMocked pins the margin the caller receives. Returning resp.Float64()
+// alongside the call that fills resp would hand back the zero value instead of the endpoint's.
+func TestGetMaxWithdrawMarginMocked(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/margin/maxWithdrawMargin", r.URL.Path, "the request path should be the max withdraw margin endpoint")
+		assert.Equal(t, "XBTUSDTM", r.URL.Query().Get("symbol"), "symbol should be the requested contract")
+		_, err := fmt.Fprint(w, `{"code":"200000","data":"1.5"}`)
+		assert.NoError(t, err, "writing the margin response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+
+	got, err := ex.GetMaxWithdrawMargin(t.Context(), "XBTUSDTM")
+	require.NoError(t, err, "GetMaxWithdrawMargin must not error")
+	assert.Equal(t, 1.5, got, "GetMaxWithdrawMargin should return the margin the endpoint sent, not the pre-call zero value")
+}
+
 func TestRemoveMarginManually(t *testing.T) {
 	t.Parallel()
 	_, err := e.RemoveMarginManually(t.Context(), &WithdrawMarginResponse{})
