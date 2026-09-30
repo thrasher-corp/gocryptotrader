@@ -2957,6 +2957,12 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
+func TestWebsocketCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketCancelBatchOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
 func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := new(Base).MessageID()

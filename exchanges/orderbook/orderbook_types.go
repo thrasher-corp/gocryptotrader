@@ -23,6 +23,7 @@ const (
 // Public errors
 var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
+	ErrAssetTypeNotSet   = errors.New("orderbook asset type not set")
 	ErrPriceZero         = errors.New("price cannot be zero")
 	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
 	// ErrInvalidContractMultiplier is returned when a linear contract multiplier is not positive.
@@ -33,7 +34,6 @@ var (
 
 var (
 	errPairNotSet           = errors.New("orderbook currency pair not set")
-	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder      = errors.New("pricing out of order")
 	errIDOutOfOrder         = errors.New("ID out of order")
@@ -105,6 +105,11 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
+	// ReceivedAt marks when the update first reaches GoCryptoTrader code,
+	// before orderbook processing begins (typically set with time.Now() at the
+	// start of websocket message handling).
+	ReceivedAt time.Time
+
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
 	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
@@ -142,6 +147,7 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	lastPushed             time.Time
+	receivedAt             time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
