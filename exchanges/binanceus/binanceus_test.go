@@ -1,11 +1,15 @@
 package binanceus
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	reflects "reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1154,6 +1158,44 @@ func TestFiatDepositHistory(t *testing.T) {
 	_, er := e.FiatDepositHistory(t.Context(), &FiatWithdrawalRequestParams{})
 	if er != nil {
 		t.Error("Binanceus FiatDepositHistory() error", er)
+	}
+}
+
+// TestFiatHistoryForwardsOrderID verifies the fiat withdrawal and deposit history
+// endpoints forward an orderId filter when one is supplied and omit it otherwise.
+func TestFiatHistoryForwardsOrderID(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		path    string
+		history func(*Exchange, context.Context, *FiatWithdrawalRequestParams) (FiatAssetsHistory, error)
+	}{
+		{name: "withdrawal", path: "/sapi/v1/fiatpayment/query/withdraw/history", history: (*Exchange).FiatWithdrawalHistory},
+		{name: "deposit", path: "/sapi/v1/fiatpayment/query/deposit/history", history: (*Exchange).FiatDepositHistory},
+	} {
+		for _, orderID := range []string{"1337", "6c2ff984890145fdac2b7160299062f0", ""} {
+			t.Run(tc.name+" orderId="+orderID, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+				var requests atomic.Int64
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					assert.Equal(t, tc.path, r.URL.Path, "request should target the documented endpoint")
+					assert.Equal(t, orderID != "", r.URL.Query().Has("orderId"), "orderId should only be sent when set")
+					assert.Equal(t, orderID, r.URL.Query().Get("orderId"), "orderId should match the supplied value")
+					_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+				_, err := tc.history(ex, t.Context(), &FiatWithdrawalRequestParams{FiatCurrency: "USD", OrderID: orderID})
+				require.NoError(t, err, "fiat history request must not error")
+				assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
+			})
+		}
 	}
 }
 
