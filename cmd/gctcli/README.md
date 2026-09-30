@@ -31,33 +31,33 @@ go build or go run .
 
 For a full list of commands, you can run `gctcli --help`. Alternatively, you can also
 visit our [GoCryptoTrader API reference](https://api.gocryptotrader.app/).
+Run `gctcli <command> --help` to see a command's flags, with required flags
+marked. Set boolean flags with `=`, for example
+`gctcli getexchanges --enabled=false`.
 
-Supply command parameters either entirely as positional arguments or entirely as
-named flags. Mixing the two forms is rejected, including flags placed after
-positional arguments. This applies to all commands and subcommands.
+Supply command parameters as named flags. Positional arguments are rejected for
+all commands and subcommands.
 
 ```bash
-gctcli getticker Binance BTC-USDT spot
 gctcli getticker --exchange Binance --pair BTC-USDT --asset spot
 ```
 
-Global options are separate from command parameters. **You can use global options
-with positional command arguments or with named command flags.** Place global
-options, such as `--rpchost`, before the command name:
+Global options are separate from command parameters. Place global options, such
+as `--rpchost`, before the command name:
 
 ```bash
-# Allowed: global option with positional command arguments
-gctcli --rpchost localhost:9052 getticker Binance BTC-USDT spot
-
-# Allowed: global option with named command flags
 gctcli --rpchost localhost:9052 getticker --exchange Binance --pair BTC-USDT --asset spot
 
-# Rejected: a named command flag mixed with positional command arguments
+# Rejected: positional command arguments
 gctcli --rpchost localhost:9052 getticker --exchange Binance BTC-USDT spot
 ```
 
-Negative numeric positional values remain supported. Use `--` before positional
-values that begin with a dash and should be treated literally.
+The `cancelallorders` command accepts optional `--asset` and `--pair` flags to
+scope cancellation. A pair requires an asset:
+
+```bash
+gctcli cancelallorders --exchange Binance --asset spot --pair BTC-USDT
+```
 
 If `cancelallorders` completes some cancellations before a later batch fails, the
 CLI prints the retained order statuses as JSON and still exits with an error.

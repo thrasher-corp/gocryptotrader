@@ -2712,7 +2712,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		if err != nil {
 			return nil, err
 		}
-		return e.deriveFuturesWebsocketOrderResponse(resp)
+		return e.deriveFuturesWebsocketOrderResponse(resp, s.AssetType)
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
 	}
@@ -2876,8 +2876,8 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 	return out, nil
 }
 
-func (e *Exchange) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse) (*order.SubmitResponse, error) {
-	resp, err := e.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{responses})
+func (e *Exchange) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse, a asset.Item) (*order.SubmitResponse, error) {
+	resp, err := e.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{responses}, a)
 	if err != nil {
 		return nil, err
 	}
@@ -2885,7 +2885,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponse(responses *WebsocketFutur
 }
 
 // deriveFuturesWebsocketOrderResponses returns the order submission responses for futures
-func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
+func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFuturesOrderResponse, a asset.Item) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
 		return nil, common.ErrNoResponse
 	}
@@ -2922,7 +2922,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 		out = append(out, &order.SubmitResponse{
 			Exchange:             e.Name,
 			OrderID:              strconv.FormatInt(resp.ID, 10),
-			AssetType:            asset.Futures,
+			AssetType:            a,
 			Pair:                 resp.Contract,
 			ClientOrderID:        clientOrderID,
 			Date:                 resp.CreateTime.Time(),
@@ -3057,7 +3057,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		if err != nil {
 			return nil, err
 		}
-		return e.deriveFuturesWebsocketOrderResponses(resp)
+		return e.deriveFuturesWebsocketOrderResponses(resp, a)
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}

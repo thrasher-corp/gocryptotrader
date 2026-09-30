@@ -7367,598 +7367,6 @@ func (x *AuditEvent) GetTimestamp() string {
 	return ""
 }
 
-type GCTScript struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	NextRun       string                 `protobuf:"bytes,4,opt,name=next_run,json=nextRun,proto3" json:"next_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScript) Reset() {
-	*x = GCTScript{}
-	mi := &file_rpc_proto_msgTypes[120]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScript) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScript) ProtoMessage() {}
-
-func (x *GCTScript) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[120]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScript.ProtoReflect.Descriptor instead.
-func (*GCTScript) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{120}
-}
-
-func (x *GCTScript) GetUuid() string {
-	if x != nil {
-		return x.Uuid
-	}
-	return ""
-}
-
-func (x *GCTScript) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *GCTScript) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *GCTScript) GetNextRun() string {
-	if x != nil {
-		return x.NextRun
-	}
-	return ""
-}
-
-type GCTScriptExecuteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Script        *GCTScript             `protobuf:"bytes,1,opt,name=script,proto3" json:"script,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptExecuteRequest) Reset() {
-	*x = GCTScriptExecuteRequest{}
-	mi := &file_rpc_proto_msgTypes[121]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptExecuteRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptExecuteRequest) ProtoMessage() {}
-
-func (x *GCTScriptExecuteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[121]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptExecuteRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptExecuteRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{121}
-}
-
-func (x *GCTScriptExecuteRequest) GetScript() *GCTScript {
-	if x != nil {
-		return x.Script
-	}
-	return nil
-}
-
-type GCTScriptStopRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Script        *GCTScript             `protobuf:"bytes,1,opt,name=script,proto3" json:"script,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptStopRequest) Reset() {
-	*x = GCTScriptStopRequest{}
-	mi := &file_rpc_proto_msgTypes[122]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptStopRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptStopRequest) ProtoMessage() {}
-
-func (x *GCTScriptStopRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[122]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptStopRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptStopRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{122}
-}
-
-func (x *GCTScriptStopRequest) GetScript() *GCTScript {
-	if x != nil {
-		return x.Script
-	}
-	return nil
-}
-
-type GCTScriptStopAllRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptStopAllRequest) Reset() {
-	*x = GCTScriptStopAllRequest{}
-	mi := &file_rpc_proto_msgTypes[123]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptStopAllRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptStopAllRequest) ProtoMessage() {}
-
-func (x *GCTScriptStopAllRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[123]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptStopAllRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptStopAllRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{123}
-}
-
-type GCTScriptStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptStatusRequest) Reset() {
-	*x = GCTScriptStatusRequest{}
-	mi := &file_rpc_proto_msgTypes[124]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptStatusRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptStatusRequest) ProtoMessage() {}
-
-func (x *GCTScriptStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[124]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptStatusRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptStatusRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{124}
-}
-
-type GCTScriptListAllRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptListAllRequest) Reset() {
-	*x = GCTScriptListAllRequest{}
-	mi := &file_rpc_proto_msgTypes[125]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptListAllRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptListAllRequest) ProtoMessage() {}
-
-func (x *GCTScriptListAllRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[125]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptListAllRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptListAllRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{125}
-}
-
-type GCTScriptUploadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ScriptName    string                 `protobuf:"bytes,1,opt,name=script_name,json=scriptName,proto3" json:"script_name,omitempty"`
-	ScriptData    string                 `protobuf:"bytes,2,opt,name=script_data,json=scriptData,proto3" json:"script_data,omitempty"`
-	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	Archived      bool                   `protobuf:"varint,4,opt,name=archived,proto3" json:"archived,omitempty"`
-	Overwrite     bool                   `protobuf:"varint,5,opt,name=overwrite,proto3" json:"overwrite,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptUploadRequest) Reset() {
-	*x = GCTScriptUploadRequest{}
-	mi := &file_rpc_proto_msgTypes[126]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptUploadRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptUploadRequest) ProtoMessage() {}
-
-func (x *GCTScriptUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[126]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptUploadRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptUploadRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{126}
-}
-
-func (x *GCTScriptUploadRequest) GetScriptName() string {
-	if x != nil {
-		return x.ScriptName
-	}
-	return ""
-}
-
-func (x *GCTScriptUploadRequest) GetScriptData() string {
-	if x != nil {
-		return x.ScriptData
-	}
-	return ""
-}
-
-func (x *GCTScriptUploadRequest) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-func (x *GCTScriptUploadRequest) GetArchived() bool {
-	if x != nil {
-		return x.Archived
-	}
-	return false
-}
-
-func (x *GCTScriptUploadRequest) GetOverwrite() bool {
-	if x != nil {
-		return x.Overwrite
-	}
-	return false
-}
-
-type GCTScriptReadScriptRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Script        *GCTScript             `protobuf:"bytes,1,opt,name=script,proto3" json:"script,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptReadScriptRequest) Reset() {
-	*x = GCTScriptReadScriptRequest{}
-	mi := &file_rpc_proto_msgTypes[127]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptReadScriptRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptReadScriptRequest) ProtoMessage() {}
-
-func (x *GCTScriptReadScriptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[127]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptReadScriptRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptReadScriptRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{127}
-}
-
-func (x *GCTScriptReadScriptRequest) GetScript() *GCTScript {
-	if x != nil {
-		return x.Script
-	}
-	return nil
-}
-
-type GCTScriptQueryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Script        *GCTScript             `protobuf:"bytes,1,opt,name=script,proto3" json:"script,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptQueryRequest) Reset() {
-	*x = GCTScriptQueryRequest{}
-	mi := &file_rpc_proto_msgTypes[128]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptQueryRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptQueryRequest) ProtoMessage() {}
-
-func (x *GCTScriptQueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[128]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptQueryRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptQueryRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{128}
-}
-
-func (x *GCTScriptQueryRequest) GetScript() *GCTScript {
-	if x != nil {
-		return x.Script
-	}
-	return nil
-}
-
-type GCTScriptAutoLoadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Script        string                 `protobuf:"bytes,1,opt,name=script,proto3" json:"script,omitempty"`
-	Status        bool                   `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptAutoLoadRequest) Reset() {
-	*x = GCTScriptAutoLoadRequest{}
-	mi := &file_rpc_proto_msgTypes[129]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptAutoLoadRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptAutoLoadRequest) ProtoMessage() {}
-
-func (x *GCTScriptAutoLoadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[129]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptAutoLoadRequest.ProtoReflect.Descriptor instead.
-func (*GCTScriptAutoLoadRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{129}
-}
-
-func (x *GCTScriptAutoLoadRequest) GetScript() string {
-	if x != nil {
-		return x.Script
-	}
-	return ""
-}
-
-func (x *GCTScriptAutoLoadRequest) GetStatus() bool {
-	if x != nil {
-		return x.Status
-	}
-	return false
-}
-
-type GCTScriptStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Scripts       []*GCTScript           `protobuf:"bytes,2,rep,name=scripts,proto3" json:"scripts,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptStatusResponse) Reset() {
-	*x = GCTScriptStatusResponse{}
-	mi := &file_rpc_proto_msgTypes[130]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptStatusResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptStatusResponse) ProtoMessage() {}
-
-func (x *GCTScriptStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[130]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptStatusResponse.ProtoReflect.Descriptor instead.
-func (*GCTScriptStatusResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{130}
-}
-
-func (x *GCTScriptStatusResponse) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *GCTScriptStatusResponse) GetScripts() []*GCTScript {
-	if x != nil {
-		return x.Scripts
-	}
-	return nil
-}
-
-type GCTScriptQueryResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Script        *GCTScript             `protobuf:"bytes,2,opt,name=script,proto3" json:"script,omitempty"`
-	Data          string                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GCTScriptQueryResponse) Reset() {
-	*x = GCTScriptQueryResponse{}
-	mi := &file_rpc_proto_msgTypes[131]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GCTScriptQueryResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GCTScriptQueryResponse) ProtoMessage() {}
-
-func (x *GCTScriptQueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[131]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GCTScriptQueryResponse.ProtoReflect.Descriptor instead.
-func (*GCTScriptQueryResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{131}
-}
-
-func (x *GCTScriptQueryResponse) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *GCTScriptQueryResponse) GetScript() *GCTScript {
-	if x != nil {
-		return x.Script
-	}
-	return nil
-}
-
-func (x *GCTScriptQueryResponse) GetData() string {
-	if x != nil {
-		return x.Data
-	}
-	return ""
-}
-
 type GenericResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
@@ -7969,7 +7377,7 @@ type GenericResponse struct {
 
 func (x *GenericResponse) Reset() {
 	*x = GenericResponse{}
-	mi := &file_rpc_proto_msgTypes[132]
+	mi := &file_rpc_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7981,7 +7389,7 @@ func (x *GenericResponse) String() string {
 func (*GenericResponse) ProtoMessage() {}
 
 func (x *GenericResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[132]
+	mi := &file_rpc_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7994,7 +7402,7 @@ func (x *GenericResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenericResponse.ProtoReflect.Descriptor instead.
 func (*GenericResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{132}
+	return file_rpc_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *GenericResponse) GetStatus() string {
@@ -8022,7 +7430,7 @@ type SetExchangeAssetRequest struct {
 
 func (x *SetExchangeAssetRequest) Reset() {
 	*x = SetExchangeAssetRequest{}
-	mi := &file_rpc_proto_msgTypes[133]
+	mi := &file_rpc_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8034,7 +7442,7 @@ func (x *SetExchangeAssetRequest) String() string {
 func (*SetExchangeAssetRequest) ProtoMessage() {}
 
 func (x *SetExchangeAssetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[133]
+	mi := &file_rpc_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8047,7 +7455,7 @@ func (x *SetExchangeAssetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetExchangeAssetRequest.ProtoReflect.Descriptor instead.
 func (*SetExchangeAssetRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{133}
+	return file_rpc_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *SetExchangeAssetRequest) GetExchange() string {
@@ -8081,7 +7489,7 @@ type SetExchangeAllPairsRequest struct {
 
 func (x *SetExchangeAllPairsRequest) Reset() {
 	*x = SetExchangeAllPairsRequest{}
-	mi := &file_rpc_proto_msgTypes[134]
+	mi := &file_rpc_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8093,7 +7501,7 @@ func (x *SetExchangeAllPairsRequest) String() string {
 func (*SetExchangeAllPairsRequest) ProtoMessage() {}
 
 func (x *SetExchangeAllPairsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[134]
+	mi := &file_rpc_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8106,7 +7514,7 @@ func (x *SetExchangeAllPairsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetExchangeAllPairsRequest.ProtoReflect.Descriptor instead.
 func (*SetExchangeAllPairsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{134}
+	return file_rpc_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *SetExchangeAllPairsRequest) GetExchange() string {
@@ -8132,7 +7540,7 @@ type UpdateExchangeSupportedPairsRequest struct {
 
 func (x *UpdateExchangeSupportedPairsRequest) Reset() {
 	*x = UpdateExchangeSupportedPairsRequest{}
-	mi := &file_rpc_proto_msgTypes[135]
+	mi := &file_rpc_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8144,7 +7552,7 @@ func (x *UpdateExchangeSupportedPairsRequest) String() string {
 func (*UpdateExchangeSupportedPairsRequest) ProtoMessage() {}
 
 func (x *UpdateExchangeSupportedPairsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[135]
+	mi := &file_rpc_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8157,7 +7565,7 @@ func (x *UpdateExchangeSupportedPairsRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use UpdateExchangeSupportedPairsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateExchangeSupportedPairsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{135}
+	return file_rpc_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *UpdateExchangeSupportedPairsRequest) GetExchange() string {
@@ -8176,7 +7584,7 @@ type GetExchangeAssetsRequest struct {
 
 func (x *GetExchangeAssetsRequest) Reset() {
 	*x = GetExchangeAssetsRequest{}
-	mi := &file_rpc_proto_msgTypes[136]
+	mi := &file_rpc_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8188,7 +7596,7 @@ func (x *GetExchangeAssetsRequest) String() string {
 func (*GetExchangeAssetsRequest) ProtoMessage() {}
 
 func (x *GetExchangeAssetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[136]
+	mi := &file_rpc_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8201,7 +7609,7 @@ func (x *GetExchangeAssetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExchangeAssetsRequest.ProtoReflect.Descriptor instead.
 func (*GetExchangeAssetsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{136}
+	return file_rpc_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *GetExchangeAssetsRequest) GetExchange() string {
@@ -8220,7 +7628,7 @@ type GetExchangeAssetsResponse struct {
 
 func (x *GetExchangeAssetsResponse) Reset() {
 	*x = GetExchangeAssetsResponse{}
-	mi := &file_rpc_proto_msgTypes[137]
+	mi := &file_rpc_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8232,7 +7640,7 @@ func (x *GetExchangeAssetsResponse) String() string {
 func (*GetExchangeAssetsResponse) ProtoMessage() {}
 
 func (x *GetExchangeAssetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[137]
+	mi := &file_rpc_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8245,7 +7653,7 @@ func (x *GetExchangeAssetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExchangeAssetsResponse.ProtoReflect.Descriptor instead.
 func (*GetExchangeAssetsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{137}
+	return file_rpc_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *GetExchangeAssetsResponse) GetAssets() string {
@@ -8264,7 +7672,7 @@ type WebsocketGetInfoRequest struct {
 
 func (x *WebsocketGetInfoRequest) Reset() {
 	*x = WebsocketGetInfoRequest{}
-	mi := &file_rpc_proto_msgTypes[138]
+	mi := &file_rpc_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8276,7 +7684,7 @@ func (x *WebsocketGetInfoRequest) String() string {
 func (*WebsocketGetInfoRequest) ProtoMessage() {}
 
 func (x *WebsocketGetInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[138]
+	mi := &file_rpc_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8289,7 +7697,7 @@ func (x *WebsocketGetInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebsocketGetInfoRequest.ProtoReflect.Descriptor instead.
 func (*WebsocketGetInfoRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{138}
+	return file_rpc_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *WebsocketGetInfoRequest) GetExchange() string {
@@ -8314,7 +7722,7 @@ type WebsocketGetInfoResponse struct {
 
 func (x *WebsocketGetInfoResponse) Reset() {
 	*x = WebsocketGetInfoResponse{}
-	mi := &file_rpc_proto_msgTypes[139]
+	mi := &file_rpc_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8326,7 +7734,7 @@ func (x *WebsocketGetInfoResponse) String() string {
 func (*WebsocketGetInfoResponse) ProtoMessage() {}
 
 func (x *WebsocketGetInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[139]
+	mi := &file_rpc_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8339,7 +7747,7 @@ func (x *WebsocketGetInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebsocketGetInfoResponse.ProtoReflect.Descriptor instead.
 func (*WebsocketGetInfoResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{139}
+	return file_rpc_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *WebsocketGetInfoResponse) GetExchange() string {
@@ -8401,7 +7809,7 @@ type WebsocketSetEnabledRequest struct {
 
 func (x *WebsocketSetEnabledRequest) Reset() {
 	*x = WebsocketSetEnabledRequest{}
-	mi := &file_rpc_proto_msgTypes[140]
+	mi := &file_rpc_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8413,7 +7821,7 @@ func (x *WebsocketSetEnabledRequest) String() string {
 func (*WebsocketSetEnabledRequest) ProtoMessage() {}
 
 func (x *WebsocketSetEnabledRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[140]
+	mi := &file_rpc_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8426,7 +7834,7 @@ func (x *WebsocketSetEnabledRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebsocketSetEnabledRequest.ProtoReflect.Descriptor instead.
 func (*WebsocketSetEnabledRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{140}
+	return file_rpc_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *WebsocketSetEnabledRequest) GetExchange() string {
@@ -8452,7 +7860,7 @@ type WebsocketGetSubscriptionsRequest struct {
 
 func (x *WebsocketGetSubscriptionsRequest) Reset() {
 	*x = WebsocketGetSubscriptionsRequest{}
-	mi := &file_rpc_proto_msgTypes[141]
+	mi := &file_rpc_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8464,7 +7872,7 @@ func (x *WebsocketGetSubscriptionsRequest) String() string {
 func (*WebsocketGetSubscriptionsRequest) ProtoMessage() {}
 
 func (x *WebsocketGetSubscriptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[141]
+	mi := &file_rpc_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8477,7 +7885,7 @@ func (x *WebsocketGetSubscriptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebsocketGetSubscriptionsRequest.ProtoReflect.Descriptor instead.
 func (*WebsocketGetSubscriptionsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{141}
+	return file_rpc_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *WebsocketGetSubscriptionsRequest) GetExchange() string {
@@ -8499,7 +7907,7 @@ type WebsocketSubscription struct {
 
 func (x *WebsocketSubscription) Reset() {
 	*x = WebsocketSubscription{}
-	mi := &file_rpc_proto_msgTypes[142]
+	mi := &file_rpc_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8511,7 +7919,7 @@ func (x *WebsocketSubscription) String() string {
 func (*WebsocketSubscription) ProtoMessage() {}
 
 func (x *WebsocketSubscription) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[142]
+	mi := &file_rpc_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8524,7 +7932,7 @@ func (x *WebsocketSubscription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebsocketSubscription.ProtoReflect.Descriptor instead.
 func (*WebsocketSubscription) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{142}
+	return file_rpc_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *WebsocketSubscription) GetChannel() string {
@@ -8565,7 +7973,7 @@ type WebsocketGetSubscriptionsResponse struct {
 
 func (x *WebsocketGetSubscriptionsResponse) Reset() {
 	*x = WebsocketGetSubscriptionsResponse{}
-	mi := &file_rpc_proto_msgTypes[143]
+	mi := &file_rpc_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8577,7 +7985,7 @@ func (x *WebsocketGetSubscriptionsResponse) String() string {
 func (*WebsocketGetSubscriptionsResponse) ProtoMessage() {}
 
 func (x *WebsocketGetSubscriptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[143]
+	mi := &file_rpc_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8590,7 +7998,7 @@ func (x *WebsocketGetSubscriptionsResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use WebsocketGetSubscriptionsResponse.ProtoReflect.Descriptor instead.
 func (*WebsocketGetSubscriptionsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{143}
+	return file_rpc_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *WebsocketGetSubscriptionsResponse) GetExchange() string {
@@ -8617,7 +8025,7 @@ type WebsocketSetProxyRequest struct {
 
 func (x *WebsocketSetProxyRequest) Reset() {
 	*x = WebsocketSetProxyRequest{}
-	mi := &file_rpc_proto_msgTypes[144]
+	mi := &file_rpc_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8629,7 +8037,7 @@ func (x *WebsocketSetProxyRequest) String() string {
 func (*WebsocketSetProxyRequest) ProtoMessage() {}
 
 func (x *WebsocketSetProxyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[144]
+	mi := &file_rpc_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8642,7 +8050,7 @@ func (x *WebsocketSetProxyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebsocketSetProxyRequest.ProtoReflect.Descriptor instead.
 func (*WebsocketSetProxyRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{144}
+	return file_rpc_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *WebsocketSetProxyRequest) GetExchange() string {
@@ -8669,7 +8077,7 @@ type WebsocketSetURLRequest struct {
 
 func (x *WebsocketSetURLRequest) Reset() {
 	*x = WebsocketSetURLRequest{}
-	mi := &file_rpc_proto_msgTypes[145]
+	mi := &file_rpc_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8681,7 +8089,7 @@ func (x *WebsocketSetURLRequest) String() string {
 func (*WebsocketSetURLRequest) ProtoMessage() {}
 
 func (x *WebsocketSetURLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[145]
+	mi := &file_rpc_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8694,7 +8102,7 @@ func (x *WebsocketSetURLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebsocketSetURLRequest.ProtoReflect.Descriptor instead.
 func (*WebsocketSetURLRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{145}
+	return file_rpc_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *WebsocketSetURLRequest) GetExchange() string {
@@ -8725,7 +8133,7 @@ type FindMissingCandlePeriodsRequest struct {
 
 func (x *FindMissingCandlePeriodsRequest) Reset() {
 	*x = FindMissingCandlePeriodsRequest{}
-	mi := &file_rpc_proto_msgTypes[146]
+	mi := &file_rpc_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8737,7 +8145,7 @@ func (x *FindMissingCandlePeriodsRequest) String() string {
 func (*FindMissingCandlePeriodsRequest) ProtoMessage() {}
 
 func (x *FindMissingCandlePeriodsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[146]
+	mi := &file_rpc_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8750,7 +8158,7 @@ func (x *FindMissingCandlePeriodsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindMissingCandlePeriodsRequest.ProtoReflect.Descriptor instead.
 func (*FindMissingCandlePeriodsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{146}
+	return file_rpc_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *FindMissingCandlePeriodsRequest) GetExchangeName() string {
@@ -8808,7 +8216,7 @@ type FindMissingTradePeriodsRequest struct {
 
 func (x *FindMissingTradePeriodsRequest) Reset() {
 	*x = FindMissingTradePeriodsRequest{}
-	mi := &file_rpc_proto_msgTypes[147]
+	mi := &file_rpc_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8820,7 +8228,7 @@ func (x *FindMissingTradePeriodsRequest) String() string {
 func (*FindMissingTradePeriodsRequest) ProtoMessage() {}
 
 func (x *FindMissingTradePeriodsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[147]
+	mi := &file_rpc_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8833,7 +8241,7 @@ func (x *FindMissingTradePeriodsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindMissingTradePeriodsRequest.ProtoReflect.Descriptor instead.
 func (*FindMissingTradePeriodsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{147}
+	return file_rpc_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *FindMissingTradePeriodsRequest) GetExchangeName() string {
@@ -8884,7 +8292,7 @@ type FindMissingIntervalsResponse struct {
 
 func (x *FindMissingIntervalsResponse) Reset() {
 	*x = FindMissingIntervalsResponse{}
-	mi := &file_rpc_proto_msgTypes[148]
+	mi := &file_rpc_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8896,7 +8304,7 @@ func (x *FindMissingIntervalsResponse) String() string {
 func (*FindMissingIntervalsResponse) ProtoMessage() {}
 
 func (x *FindMissingIntervalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[148]
+	mi := &file_rpc_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8909,7 +8317,7 @@ func (x *FindMissingIntervalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindMissingIntervalsResponse.ProtoReflect.Descriptor instead.
 func (*FindMissingIntervalsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{148}
+	return file_rpc_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *FindMissingIntervalsResponse) GetExchangeName() string {
@@ -8957,7 +8365,7 @@ type SetExchangeTradeProcessingRequest struct {
 
 func (x *SetExchangeTradeProcessingRequest) Reset() {
 	*x = SetExchangeTradeProcessingRequest{}
-	mi := &file_rpc_proto_msgTypes[149]
+	mi := &file_rpc_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8969,7 +8377,7 @@ func (x *SetExchangeTradeProcessingRequest) String() string {
 func (*SetExchangeTradeProcessingRequest) ProtoMessage() {}
 
 func (x *SetExchangeTradeProcessingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[149]
+	mi := &file_rpc_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8982,7 +8390,7 @@ func (x *SetExchangeTradeProcessingRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SetExchangeTradeProcessingRequest.ProtoReflect.Descriptor instead.
 func (*SetExchangeTradeProcessingRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{149}
+	return file_rpc_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *SetExchangeTradeProcessingRequest) GetExchange() string {
@@ -9026,7 +8434,7 @@ type UpsertDataHistoryJobRequest struct {
 
 func (x *UpsertDataHistoryJobRequest) Reset() {
 	*x = UpsertDataHistoryJobRequest{}
-	mi := &file_rpc_proto_msgTypes[150]
+	mi := &file_rpc_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9038,7 +8446,7 @@ func (x *UpsertDataHistoryJobRequest) String() string {
 func (*UpsertDataHistoryJobRequest) ProtoMessage() {}
 
 func (x *UpsertDataHistoryJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[150]
+	mi := &file_rpc_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9051,7 +8459,7 @@ func (x *UpsertDataHistoryJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertDataHistoryJobRequest.ProtoReflect.Descriptor instead.
 func (*UpsertDataHistoryJobRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{150}
+	return file_rpc_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *UpsertDataHistoryJobRequest) GetNickname() string {
@@ -9196,7 +8604,7 @@ type InsertSequentialJobsRequest struct {
 
 func (x *InsertSequentialJobsRequest) Reset() {
 	*x = InsertSequentialJobsRequest{}
-	mi := &file_rpc_proto_msgTypes[151]
+	mi := &file_rpc_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9208,7 +8616,7 @@ func (x *InsertSequentialJobsRequest) String() string {
 func (*InsertSequentialJobsRequest) ProtoMessage() {}
 
 func (x *InsertSequentialJobsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[151]
+	mi := &file_rpc_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9221,7 +8629,7 @@ func (x *InsertSequentialJobsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InsertSequentialJobsRequest.ProtoReflect.Descriptor instead.
 func (*InsertSequentialJobsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{151}
+	return file_rpc_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *InsertSequentialJobsRequest) GetJobs() []*UpsertDataHistoryJobRequest {
@@ -9240,7 +8648,7 @@ type InsertSequentialJobsResponse struct {
 
 func (x *InsertSequentialJobsResponse) Reset() {
 	*x = InsertSequentialJobsResponse{}
-	mi := &file_rpc_proto_msgTypes[152]
+	mi := &file_rpc_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9252,7 +8660,7 @@ func (x *InsertSequentialJobsResponse) String() string {
 func (*InsertSequentialJobsResponse) ProtoMessage() {}
 
 func (x *InsertSequentialJobsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[152]
+	mi := &file_rpc_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9265,7 +8673,7 @@ func (x *InsertSequentialJobsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InsertSequentialJobsResponse.ProtoReflect.Descriptor instead.
 func (*InsertSequentialJobsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{152}
+	return file_rpc_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *InsertSequentialJobsResponse) GetJobs() []*UpsertDataHistoryJobResponse {
@@ -9285,7 +8693,7 @@ type UpsertDataHistoryJobResponse struct {
 
 func (x *UpsertDataHistoryJobResponse) Reset() {
 	*x = UpsertDataHistoryJobResponse{}
-	mi := &file_rpc_proto_msgTypes[153]
+	mi := &file_rpc_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9297,7 +8705,7 @@ func (x *UpsertDataHistoryJobResponse) String() string {
 func (*UpsertDataHistoryJobResponse) ProtoMessage() {}
 
 func (x *UpsertDataHistoryJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[153]
+	mi := &file_rpc_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9310,7 +8718,7 @@ func (x *UpsertDataHistoryJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertDataHistoryJobResponse.ProtoReflect.Descriptor instead.
 func (*UpsertDataHistoryJobResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{153}
+	return file_rpc_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *UpsertDataHistoryJobResponse) GetMessage() string {
@@ -9338,7 +8746,7 @@ type GetDataHistoryJobDetailsRequest struct {
 
 func (x *GetDataHistoryJobDetailsRequest) Reset() {
 	*x = GetDataHistoryJobDetailsRequest{}
-	mi := &file_rpc_proto_msgTypes[154]
+	mi := &file_rpc_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9350,7 +8758,7 @@ func (x *GetDataHistoryJobDetailsRequest) String() string {
 func (*GetDataHistoryJobDetailsRequest) ProtoMessage() {}
 
 func (x *GetDataHistoryJobDetailsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[154]
+	mi := &file_rpc_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9363,7 +8771,7 @@ func (x *GetDataHistoryJobDetailsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDataHistoryJobDetailsRequest.ProtoReflect.Descriptor instead.
 func (*GetDataHistoryJobDetailsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{154}
+	return file_rpc_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *GetDataHistoryJobDetailsRequest) GetId() string {
@@ -9417,7 +8825,7 @@ type DataHistoryJob struct {
 
 func (x *DataHistoryJob) Reset() {
 	*x = DataHistoryJob{}
-	mi := &file_rpc_proto_msgTypes[155]
+	mi := &file_rpc_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9429,7 +8837,7 @@ func (x *DataHistoryJob) String() string {
 func (*DataHistoryJob) ProtoMessage() {}
 
 func (x *DataHistoryJob) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[155]
+	mi := &file_rpc_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9442,7 +8850,7 @@ func (x *DataHistoryJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataHistoryJob.ProtoReflect.Descriptor instead.
 func (*DataHistoryJob) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{155}
+	return file_rpc_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *DataHistoryJob) GetId() string {
@@ -9612,7 +9020,7 @@ type DataHistoryJobResult struct {
 
 func (x *DataHistoryJobResult) Reset() {
 	*x = DataHistoryJobResult{}
-	mi := &file_rpc_proto_msgTypes[156]
+	mi := &file_rpc_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9624,7 +9032,7 @@ func (x *DataHistoryJobResult) String() string {
 func (*DataHistoryJobResult) ProtoMessage() {}
 
 func (x *DataHistoryJobResult) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[156]
+	mi := &file_rpc_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9637,7 +9045,7 @@ func (x *DataHistoryJobResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataHistoryJobResult.ProtoReflect.Descriptor instead.
 func (*DataHistoryJobResult) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{156}
+	return file_rpc_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *DataHistoryJobResult) GetStartDate() string {
@@ -9684,7 +9092,7 @@ type DataHistoryJobs struct {
 
 func (x *DataHistoryJobs) Reset() {
 	*x = DataHistoryJobs{}
-	mi := &file_rpc_proto_msgTypes[157]
+	mi := &file_rpc_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9696,7 +9104,7 @@ func (x *DataHistoryJobs) String() string {
 func (*DataHistoryJobs) ProtoMessage() {}
 
 func (x *DataHistoryJobs) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[157]
+	mi := &file_rpc_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9709,7 +9117,7 @@ func (x *DataHistoryJobs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataHistoryJobs.ProtoReflect.Descriptor instead.
 func (*DataHistoryJobs) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{157}
+	return file_rpc_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *DataHistoryJobs) GetResults() []*DataHistoryJob {
@@ -9729,7 +9137,7 @@ type GetDataHistoryJobsBetweenRequest struct {
 
 func (x *GetDataHistoryJobsBetweenRequest) Reset() {
 	*x = GetDataHistoryJobsBetweenRequest{}
-	mi := &file_rpc_proto_msgTypes[158]
+	mi := &file_rpc_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9741,7 +9149,7 @@ func (x *GetDataHistoryJobsBetweenRequest) String() string {
 func (*GetDataHistoryJobsBetweenRequest) ProtoMessage() {}
 
 func (x *GetDataHistoryJobsBetweenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[158]
+	mi := &file_rpc_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9754,7 +9162,7 @@ func (x *GetDataHistoryJobsBetweenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDataHistoryJobsBetweenRequest.ProtoReflect.Descriptor instead.
 func (*GetDataHistoryJobsBetweenRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{158}
+	return file_rpc_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *GetDataHistoryJobsBetweenRequest) GetStartDate() string {
@@ -9782,7 +9190,7 @@ type SetDataHistoryJobStatusRequest struct {
 
 func (x *SetDataHistoryJobStatusRequest) Reset() {
 	*x = SetDataHistoryJobStatusRequest{}
-	mi := &file_rpc_proto_msgTypes[159]
+	mi := &file_rpc_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9794,7 +9202,7 @@ func (x *SetDataHistoryJobStatusRequest) String() string {
 func (*SetDataHistoryJobStatusRequest) ProtoMessage() {}
 
 func (x *SetDataHistoryJobStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[159]
+	mi := &file_rpc_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9807,7 +9215,7 @@ func (x *SetDataHistoryJobStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDataHistoryJobStatusRequest.ProtoReflect.Descriptor instead.
 func (*SetDataHistoryJobStatusRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{159}
+	return file_rpc_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *SetDataHistoryJobStatusRequest) GetId() string {
@@ -9841,7 +9249,7 @@ type UpdateDataHistoryJobPrerequisiteRequest struct {
 
 func (x *UpdateDataHistoryJobPrerequisiteRequest) Reset() {
 	*x = UpdateDataHistoryJobPrerequisiteRequest{}
-	mi := &file_rpc_proto_msgTypes[160]
+	mi := &file_rpc_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9853,7 +9261,7 @@ func (x *UpdateDataHistoryJobPrerequisiteRequest) String() string {
 func (*UpdateDataHistoryJobPrerequisiteRequest) ProtoMessage() {}
 
 func (x *UpdateDataHistoryJobPrerequisiteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[160]
+	mi := &file_rpc_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9866,7 +9274,7 @@ func (x *UpdateDataHistoryJobPrerequisiteRequest) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use UpdateDataHistoryJobPrerequisiteRequest.ProtoReflect.Descriptor instead.
 func (*UpdateDataHistoryJobPrerequisiteRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{160}
+	return file_rpc_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *UpdateDataHistoryJobPrerequisiteRequest) GetNickname() string {
@@ -9897,7 +9305,7 @@ type ModifyOrderRequest struct {
 
 func (x *ModifyOrderRequest) Reset() {
 	*x = ModifyOrderRequest{}
-	mi := &file_rpc_proto_msgTypes[161]
+	mi := &file_rpc_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9909,7 +9317,7 @@ func (x *ModifyOrderRequest) String() string {
 func (*ModifyOrderRequest) ProtoMessage() {}
 
 func (x *ModifyOrderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[161]
+	mi := &file_rpc_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9922,7 +9330,7 @@ func (x *ModifyOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifyOrderRequest.ProtoReflect.Descriptor instead.
 func (*ModifyOrderRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{161}
+	return file_rpc_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *ModifyOrderRequest) GetExchange() string {
@@ -9976,7 +9384,7 @@ type ModifyOrderResponse struct {
 
 func (x *ModifyOrderResponse) Reset() {
 	*x = ModifyOrderResponse{}
-	mi := &file_rpc_proto_msgTypes[162]
+	mi := &file_rpc_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9988,7 +9396,7 @@ func (x *ModifyOrderResponse) String() string {
 func (*ModifyOrderResponse) ProtoMessage() {}
 
 func (x *ModifyOrderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[162]
+	mi := &file_rpc_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10001,7 +9409,7 @@ func (x *ModifyOrderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifyOrderResponse.ProtoReflect.Descriptor instead.
 func (*ModifyOrderResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{162}
+	return file_rpc_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *ModifyOrderResponse) GetModifiedOrderId() string {
@@ -10020,7 +9428,7 @@ type CurrencyStateGetAllRequest struct {
 
 func (x *CurrencyStateGetAllRequest) Reset() {
 	*x = CurrencyStateGetAllRequest{}
-	mi := &file_rpc_proto_msgTypes[163]
+	mi := &file_rpc_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10032,7 +9440,7 @@ func (x *CurrencyStateGetAllRequest) String() string {
 func (*CurrencyStateGetAllRequest) ProtoMessage() {}
 
 func (x *CurrencyStateGetAllRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[163]
+	mi := &file_rpc_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10045,7 +9453,7 @@ func (x *CurrencyStateGetAllRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyStateGetAllRequest.ProtoReflect.Descriptor instead.
 func (*CurrencyStateGetAllRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{163}
+	return file_rpc_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *CurrencyStateGetAllRequest) GetExchange() string {
@@ -10066,7 +9474,7 @@ type CurrencyStateTradingRequest struct {
 
 func (x *CurrencyStateTradingRequest) Reset() {
 	*x = CurrencyStateTradingRequest{}
-	mi := &file_rpc_proto_msgTypes[164]
+	mi := &file_rpc_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10078,7 +9486,7 @@ func (x *CurrencyStateTradingRequest) String() string {
 func (*CurrencyStateTradingRequest) ProtoMessage() {}
 
 func (x *CurrencyStateTradingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[164]
+	mi := &file_rpc_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10091,7 +9499,7 @@ func (x *CurrencyStateTradingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyStateTradingRequest.ProtoReflect.Descriptor instead.
 func (*CurrencyStateTradingRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{164}
+	return file_rpc_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *CurrencyStateTradingRequest) GetExchange() string {
@@ -10126,7 +9534,7 @@ type CurrencyStateTradingPairRequest struct {
 
 func (x *CurrencyStateTradingPairRequest) Reset() {
 	*x = CurrencyStateTradingPairRequest{}
-	mi := &file_rpc_proto_msgTypes[165]
+	mi := &file_rpc_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10138,7 +9546,7 @@ func (x *CurrencyStateTradingPairRequest) String() string {
 func (*CurrencyStateTradingPairRequest) ProtoMessage() {}
 
 func (x *CurrencyStateTradingPairRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[165]
+	mi := &file_rpc_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10151,7 +9559,7 @@ func (x *CurrencyStateTradingPairRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyStateTradingPairRequest.ProtoReflect.Descriptor instead.
 func (*CurrencyStateTradingPairRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{165}
+	return file_rpc_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *CurrencyStateTradingPairRequest) GetExchange() string {
@@ -10186,7 +9594,7 @@ type CurrencyStateWithdrawRequest struct {
 
 func (x *CurrencyStateWithdrawRequest) Reset() {
 	*x = CurrencyStateWithdrawRequest{}
-	mi := &file_rpc_proto_msgTypes[166]
+	mi := &file_rpc_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10198,7 +9606,7 @@ func (x *CurrencyStateWithdrawRequest) String() string {
 func (*CurrencyStateWithdrawRequest) ProtoMessage() {}
 
 func (x *CurrencyStateWithdrawRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[166]
+	mi := &file_rpc_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10211,7 +9619,7 @@ func (x *CurrencyStateWithdrawRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyStateWithdrawRequest.ProtoReflect.Descriptor instead.
 func (*CurrencyStateWithdrawRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{166}
+	return file_rpc_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *CurrencyStateWithdrawRequest) GetExchange() string {
@@ -10246,7 +9654,7 @@ type CurrencyStateDepositRequest struct {
 
 func (x *CurrencyStateDepositRequest) Reset() {
 	*x = CurrencyStateDepositRequest{}
-	mi := &file_rpc_proto_msgTypes[167]
+	mi := &file_rpc_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10258,7 +9666,7 @@ func (x *CurrencyStateDepositRequest) String() string {
 func (*CurrencyStateDepositRequest) ProtoMessage() {}
 
 func (x *CurrencyStateDepositRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[167]
+	mi := &file_rpc_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10271,7 +9679,7 @@ func (x *CurrencyStateDepositRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyStateDepositRequest.ProtoReflect.Descriptor instead.
 func (*CurrencyStateDepositRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{167}
+	return file_rpc_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *CurrencyStateDepositRequest) GetExchange() string {
@@ -10304,7 +9712,7 @@ type CurrencyStateResponse struct {
 
 func (x *CurrencyStateResponse) Reset() {
 	*x = CurrencyStateResponse{}
-	mi := &file_rpc_proto_msgTypes[168]
+	mi := &file_rpc_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10316,7 +9724,7 @@ func (x *CurrencyStateResponse) String() string {
 func (*CurrencyStateResponse) ProtoMessage() {}
 
 func (x *CurrencyStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[168]
+	mi := &file_rpc_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10329,7 +9737,7 @@ func (x *CurrencyStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyStateResponse.ProtoReflect.Descriptor instead.
 func (*CurrencyStateResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{168}
+	return file_rpc_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *CurrencyStateResponse) GetCurrencyStates() []*CurrencyState {
@@ -10352,7 +9760,7 @@ type CurrencyState struct {
 
 func (x *CurrencyState) Reset() {
 	*x = CurrencyState{}
-	mi := &file_rpc_proto_msgTypes[169]
+	mi := &file_rpc_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10364,7 +9772,7 @@ func (x *CurrencyState) String() string {
 func (*CurrencyState) ProtoMessage() {}
 
 func (x *CurrencyState) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[169]
+	mi := &file_rpc_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10377,7 +9785,7 @@ func (x *CurrencyState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyState.ProtoReflect.Descriptor instead.
 func (*CurrencyState) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{169}
+	return file_rpc_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *CurrencyState) GetCurrency() string {
@@ -10426,7 +9834,7 @@ type FundingRate struct {
 
 func (x *FundingRate) Reset() {
 	*x = FundingRate{}
-	mi := &file_rpc_proto_msgTypes[170]
+	mi := &file_rpc_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10438,7 +9846,7 @@ func (x *FundingRate) String() string {
 func (*FundingRate) ProtoMessage() {}
 
 func (x *FundingRate) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[170]
+	mi := &file_rpc_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10451,7 +9859,7 @@ func (x *FundingRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FundingRate.ProtoReflect.Descriptor instead.
 func (*FundingRate) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{170}
+	return file_rpc_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *FundingRate) GetDate() string {
@@ -10495,7 +9903,7 @@ type FundingData struct {
 
 func (x *FundingData) Reset() {
 	*x = FundingData{}
-	mi := &file_rpc_proto_msgTypes[171]
+	mi := &file_rpc_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10507,7 +9915,7 @@ func (x *FundingData) String() string {
 func (*FundingData) ProtoMessage() {}
 
 func (x *FundingData) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[171]
+	mi := &file_rpc_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10520,7 +9928,7 @@ func (x *FundingData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FundingData.ProtoReflect.Descriptor instead.
 func (*FundingData) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{171}
+	return file_rpc_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *FundingData) GetExchange() string {
@@ -10642,7 +10050,7 @@ type FuturesPositionStats struct {
 
 func (x *FuturesPositionStats) Reset() {
 	*x = FuturesPositionStats{}
-	mi := &file_rpc_proto_msgTypes[172]
+	mi := &file_rpc_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10654,7 +10062,7 @@ func (x *FuturesPositionStats) String() string {
 func (*FuturesPositionStats) ProtoMessage() {}
 
 func (x *FuturesPositionStats) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[172]
+	mi := &file_rpc_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10667,7 +10075,7 @@ func (x *FuturesPositionStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FuturesPositionStats.ProtoReflect.Descriptor instead.
 func (*FuturesPositionStats) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{172}
+	return file_rpc_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *FuturesPositionStats) GetMaintenanceMarginRequirement() string {
@@ -10886,7 +10294,7 @@ type FuturePosition struct {
 
 func (x *FuturePosition) Reset() {
 	*x = FuturePosition{}
-	mi := &file_rpc_proto_msgTypes[173]
+	mi := &file_rpc_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10898,7 +10306,7 @@ func (x *FuturePosition) String() string {
 func (*FuturePosition) ProtoMessage() {}
 
 func (x *FuturePosition) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[173]
+	mi := &file_rpc_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10911,7 +10319,7 @@ func (x *FuturePosition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FuturePosition.ProtoReflect.Descriptor instead.
 func (*FuturePosition) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{173}
+	return file_rpc_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *FuturePosition) GetExchange() string {
@@ -11062,7 +10470,7 @@ type GetManagedPositionRequest struct {
 
 func (x *GetManagedPositionRequest) Reset() {
 	*x = GetManagedPositionRequest{}
-	mi := &file_rpc_proto_msgTypes[174]
+	mi := &file_rpc_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11074,7 +10482,7 @@ func (x *GetManagedPositionRequest) String() string {
 func (*GetManagedPositionRequest) ProtoMessage() {}
 
 func (x *GetManagedPositionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[174]
+	mi := &file_rpc_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11087,7 +10495,7 @@ func (x *GetManagedPositionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetManagedPositionRequest.ProtoReflect.Descriptor instead.
 func (*GetManagedPositionRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{174}
+	return file_rpc_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *GetManagedPositionRequest) GetExchange() string {
@@ -11151,7 +10559,7 @@ type GetAllManagedPositionsRequest struct {
 
 func (x *GetAllManagedPositionsRequest) Reset() {
 	*x = GetAllManagedPositionsRequest{}
-	mi := &file_rpc_proto_msgTypes[175]
+	mi := &file_rpc_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11163,7 +10571,7 @@ func (x *GetAllManagedPositionsRequest) String() string {
 func (*GetAllManagedPositionsRequest) ProtoMessage() {}
 
 func (x *GetAllManagedPositionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[175]
+	mi := &file_rpc_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11176,7 +10584,7 @@ func (x *GetAllManagedPositionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllManagedPositionsRequest.ProtoReflect.Descriptor instead.
 func (*GetAllManagedPositionsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{175}
+	return file_rpc_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *GetAllManagedPositionsRequest) GetIncludeFullOrderData() bool {
@@ -11216,7 +10624,7 @@ type GetManagedPositionsResponse struct {
 
 func (x *GetManagedPositionsResponse) Reset() {
 	*x = GetManagedPositionsResponse{}
-	mi := &file_rpc_proto_msgTypes[176]
+	mi := &file_rpc_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11228,7 +10636,7 @@ func (x *GetManagedPositionsResponse) String() string {
 func (*GetManagedPositionsResponse) ProtoMessage() {}
 
 func (x *GetManagedPositionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[176]
+	mi := &file_rpc_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11241,7 +10649,7 @@ func (x *GetManagedPositionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetManagedPositionsResponse.ProtoReflect.Descriptor instead.
 func (*GetManagedPositionsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{176}
+	return file_rpc_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *GetManagedPositionsResponse) GetPositions() []*FuturePosition {
@@ -11263,7 +10671,7 @@ type GetFuturesPositionsSummaryRequest struct {
 
 func (x *GetFuturesPositionsSummaryRequest) Reset() {
 	*x = GetFuturesPositionsSummaryRequest{}
-	mi := &file_rpc_proto_msgTypes[177]
+	mi := &file_rpc_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11275,7 +10683,7 @@ func (x *GetFuturesPositionsSummaryRequest) String() string {
 func (*GetFuturesPositionsSummaryRequest) ProtoMessage() {}
 
 func (x *GetFuturesPositionsSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[177]
+	mi := &file_rpc_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11288,7 +10696,7 @@ func (x *GetFuturesPositionsSummaryRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetFuturesPositionsSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GetFuturesPositionsSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{177}
+	return file_rpc_proto_rawDescGZIP(), []int{165}
 }
 
 func (x *GetFuturesPositionsSummaryRequest) GetExchange() string {
@@ -11331,7 +10739,7 @@ type GetFuturesPositionsSummaryResponse struct {
 
 func (x *GetFuturesPositionsSummaryResponse) Reset() {
 	*x = GetFuturesPositionsSummaryResponse{}
-	mi := &file_rpc_proto_msgTypes[178]
+	mi := &file_rpc_proto_msgTypes[166]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11343,7 +10751,7 @@ func (x *GetFuturesPositionsSummaryResponse) String() string {
 func (*GetFuturesPositionsSummaryResponse) ProtoMessage() {}
 
 func (x *GetFuturesPositionsSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[178]
+	mi := &file_rpc_proto_msgTypes[166]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11356,7 +10764,7 @@ func (x *GetFuturesPositionsSummaryResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetFuturesPositionsSummaryResponse.ProtoReflect.Descriptor instead.
 func (*GetFuturesPositionsSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{178}
+	return file_rpc_proto_rawDescGZIP(), []int{166}
 }
 
 func (x *GetFuturesPositionsSummaryResponse) GetExchange() string {
@@ -11403,7 +10811,7 @@ type GetFuturesPositionsOrdersRequest struct {
 
 func (x *GetFuturesPositionsOrdersRequest) Reset() {
 	*x = GetFuturesPositionsOrdersRequest{}
-	mi := &file_rpc_proto_msgTypes[179]
+	mi := &file_rpc_proto_msgTypes[167]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11415,7 +10823,7 @@ func (x *GetFuturesPositionsOrdersRequest) String() string {
 func (*GetFuturesPositionsOrdersRequest) ProtoMessage() {}
 
 func (x *GetFuturesPositionsOrdersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[179]
+	mi := &file_rpc_proto_msgTypes[167]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11428,7 +10836,7 @@ func (x *GetFuturesPositionsOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFuturesPositionsOrdersRequest.ProtoReflect.Descriptor instead.
 func (*GetFuturesPositionsOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{179}
+	return file_rpc_proto_rawDescGZIP(), []int{167}
 }
 
 func (x *GetFuturesPositionsOrdersRequest) GetExchange() string {
@@ -11496,7 +10904,7 @@ type GetFuturesPositionsOrdersResponse struct {
 
 func (x *GetFuturesPositionsOrdersResponse) Reset() {
 	*x = GetFuturesPositionsOrdersResponse{}
-	mi := &file_rpc_proto_msgTypes[180]
+	mi := &file_rpc_proto_msgTypes[168]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11508,7 +10916,7 @@ func (x *GetFuturesPositionsOrdersResponse) String() string {
 func (*GetFuturesPositionsOrdersResponse) ProtoMessage() {}
 
 func (x *GetFuturesPositionsOrdersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[180]
+	mi := &file_rpc_proto_msgTypes[168]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11521,7 +10929,7 @@ func (x *GetFuturesPositionsOrdersResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetFuturesPositionsOrdersResponse.ProtoReflect.Descriptor instead.
 func (*GetFuturesPositionsOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{180}
+	return file_rpc_proto_rawDescGZIP(), []int{168}
 }
 
 func (x *GetFuturesPositionsOrdersResponse) GetPositions() []*FuturePosition {
@@ -11541,7 +10949,7 @@ type GetCollateralModeRequest struct {
 
 func (x *GetCollateralModeRequest) Reset() {
 	*x = GetCollateralModeRequest{}
-	mi := &file_rpc_proto_msgTypes[181]
+	mi := &file_rpc_proto_msgTypes[169]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11553,7 +10961,7 @@ func (x *GetCollateralModeRequest) String() string {
 func (*GetCollateralModeRequest) ProtoMessage() {}
 
 func (x *GetCollateralModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[181]
+	mi := &file_rpc_proto_msgTypes[169]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11566,7 +10974,7 @@ func (x *GetCollateralModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollateralModeRequest.ProtoReflect.Descriptor instead.
 func (*GetCollateralModeRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{181}
+	return file_rpc_proto_rawDescGZIP(), []int{169}
 }
 
 func (x *GetCollateralModeRequest) GetExchange() string {
@@ -11594,7 +11002,7 @@ type GetCollateralModeResponse struct {
 
 func (x *GetCollateralModeResponse) Reset() {
 	*x = GetCollateralModeResponse{}
-	mi := &file_rpc_proto_msgTypes[182]
+	mi := &file_rpc_proto_msgTypes[170]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11606,7 +11014,7 @@ func (x *GetCollateralModeResponse) String() string {
 func (*GetCollateralModeResponse) ProtoMessage() {}
 
 func (x *GetCollateralModeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[182]
+	mi := &file_rpc_proto_msgTypes[170]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11619,7 +11027,7 @@ func (x *GetCollateralModeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollateralModeResponse.ProtoReflect.Descriptor instead.
 func (*GetCollateralModeResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{182}
+	return file_rpc_proto_rawDescGZIP(), []int{170}
 }
 
 func (x *GetCollateralModeResponse) GetExchange() string {
@@ -11654,7 +11062,7 @@ type SetCollateralModeRequest struct {
 
 func (x *SetCollateralModeRequest) Reset() {
 	*x = SetCollateralModeRequest{}
-	mi := &file_rpc_proto_msgTypes[183]
+	mi := &file_rpc_proto_msgTypes[171]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11666,7 +11074,7 @@ func (x *SetCollateralModeRequest) String() string {
 func (*SetCollateralModeRequest) ProtoMessage() {}
 
 func (x *SetCollateralModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[183]
+	mi := &file_rpc_proto_msgTypes[171]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11679,7 +11087,7 @@ func (x *SetCollateralModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCollateralModeRequest.ProtoReflect.Descriptor instead.
 func (*SetCollateralModeRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{183}
+	return file_rpc_proto_rawDescGZIP(), []int{171}
 }
 
 func (x *SetCollateralModeRequest) GetExchange() string {
@@ -11714,7 +11122,7 @@ type SetCollateralModeResponse struct {
 
 func (x *SetCollateralModeResponse) Reset() {
 	*x = SetCollateralModeResponse{}
-	mi := &file_rpc_proto_msgTypes[184]
+	mi := &file_rpc_proto_msgTypes[172]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11726,7 +11134,7 @@ func (x *SetCollateralModeResponse) String() string {
 func (*SetCollateralModeResponse) ProtoMessage() {}
 
 func (x *SetCollateralModeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[184]
+	mi := &file_rpc_proto_msgTypes[172]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11739,7 +11147,7 @@ func (x *SetCollateralModeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCollateralModeResponse.ProtoReflect.Descriptor instead.
 func (*SetCollateralModeResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{184}
+	return file_rpc_proto_rawDescGZIP(), []int{172}
 }
 
 func (x *SetCollateralModeResponse) GetExchange() string {
@@ -11774,7 +11182,7 @@ type GetMarginTypeRequest struct {
 
 func (x *GetMarginTypeRequest) Reset() {
 	*x = GetMarginTypeRequest{}
-	mi := &file_rpc_proto_msgTypes[185]
+	mi := &file_rpc_proto_msgTypes[173]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11786,7 +11194,7 @@ func (x *GetMarginTypeRequest) String() string {
 func (*GetMarginTypeRequest) ProtoMessage() {}
 
 func (x *GetMarginTypeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[185]
+	mi := &file_rpc_proto_msgTypes[173]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11799,7 +11207,7 @@ func (x *GetMarginTypeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMarginTypeRequest.ProtoReflect.Descriptor instead.
 func (*GetMarginTypeRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{185}
+	return file_rpc_proto_rawDescGZIP(), []int{173}
 }
 
 func (x *GetMarginTypeRequest) GetExchange() string {
@@ -11835,7 +11243,7 @@ type GetMarginTypeResponse struct {
 
 func (x *GetMarginTypeResponse) Reset() {
 	*x = GetMarginTypeResponse{}
-	mi := &file_rpc_proto_msgTypes[186]
+	mi := &file_rpc_proto_msgTypes[174]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11847,7 +11255,7 @@ func (x *GetMarginTypeResponse) String() string {
 func (*GetMarginTypeResponse) ProtoMessage() {}
 
 func (x *GetMarginTypeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[186]
+	mi := &file_rpc_proto_msgTypes[174]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11860,7 +11268,7 @@ func (x *GetMarginTypeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMarginTypeResponse.ProtoReflect.Descriptor instead.
 func (*GetMarginTypeResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{186}
+	return file_rpc_proto_rawDescGZIP(), []int{174}
 }
 
 func (x *GetMarginTypeResponse) GetExchange() string {
@@ -11906,7 +11314,7 @@ type ChangePositionMarginRequest struct {
 
 func (x *ChangePositionMarginRequest) Reset() {
 	*x = ChangePositionMarginRequest{}
-	mi := &file_rpc_proto_msgTypes[187]
+	mi := &file_rpc_proto_msgTypes[175]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11918,7 +11326,7 @@ func (x *ChangePositionMarginRequest) String() string {
 func (*ChangePositionMarginRequest) ProtoMessage() {}
 
 func (x *ChangePositionMarginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[187]
+	mi := &file_rpc_proto_msgTypes[175]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11931,7 +11339,7 @@ func (x *ChangePositionMarginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePositionMarginRequest.ProtoReflect.Descriptor instead.
 func (*ChangePositionMarginRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{187}
+	return file_rpc_proto_rawDescGZIP(), []int{175}
 }
 
 func (x *ChangePositionMarginRequest) GetExchange() string {
@@ -11997,7 +11405,7 @@ type ChangePositionMarginResponse struct {
 
 func (x *ChangePositionMarginResponse) Reset() {
 	*x = ChangePositionMarginResponse{}
-	mi := &file_rpc_proto_msgTypes[188]
+	mi := &file_rpc_proto_msgTypes[176]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12009,7 +11417,7 @@ func (x *ChangePositionMarginResponse) String() string {
 func (*ChangePositionMarginResponse) ProtoMessage() {}
 
 func (x *ChangePositionMarginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[188]
+	mi := &file_rpc_proto_msgTypes[176]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12022,7 +11430,7 @@ func (x *ChangePositionMarginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePositionMarginResponse.ProtoReflect.Descriptor instead.
 func (*ChangePositionMarginResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{188}
+	return file_rpc_proto_rawDescGZIP(), []int{176}
 }
 
 func (x *ChangePositionMarginResponse) GetExchange() string {
@@ -12079,7 +11487,7 @@ type SetMarginTypeRequest struct {
 
 func (x *SetMarginTypeRequest) Reset() {
 	*x = SetMarginTypeRequest{}
-	mi := &file_rpc_proto_msgTypes[189]
+	mi := &file_rpc_proto_msgTypes[177]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12091,7 +11499,7 @@ func (x *SetMarginTypeRequest) String() string {
 func (*SetMarginTypeRequest) ProtoMessage() {}
 
 func (x *SetMarginTypeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[189]
+	mi := &file_rpc_proto_msgTypes[177]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12104,7 +11512,7 @@ func (x *SetMarginTypeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMarginTypeRequest.ProtoReflect.Descriptor instead.
 func (*SetMarginTypeRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{189}
+	return file_rpc_proto_rawDescGZIP(), []int{177}
 }
 
 func (x *SetMarginTypeRequest) GetExchange() string {
@@ -12147,7 +11555,7 @@ type SetMarginTypeResponse struct {
 
 func (x *SetMarginTypeResponse) Reset() {
 	*x = SetMarginTypeResponse{}
-	mi := &file_rpc_proto_msgTypes[190]
+	mi := &file_rpc_proto_msgTypes[178]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12159,7 +11567,7 @@ func (x *SetMarginTypeResponse) String() string {
 func (*SetMarginTypeResponse) ProtoMessage() {}
 
 func (x *SetMarginTypeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[190]
+	mi := &file_rpc_proto_msgTypes[178]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12172,7 +11580,7 @@ func (x *SetMarginTypeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMarginTypeResponse.ProtoReflect.Descriptor instead.
 func (*SetMarginTypeResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{190}
+	return file_rpc_proto_rawDescGZIP(), []int{178}
 }
 
 func (x *SetMarginTypeResponse) GetExchange() string {
@@ -12217,7 +11625,7 @@ type GetLeverageRequest struct {
 
 func (x *GetLeverageRequest) Reset() {
 	*x = GetLeverageRequest{}
-	mi := &file_rpc_proto_msgTypes[191]
+	mi := &file_rpc_proto_msgTypes[179]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12229,7 +11637,7 @@ func (x *GetLeverageRequest) String() string {
 func (*GetLeverageRequest) ProtoMessage() {}
 
 func (x *GetLeverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[191]
+	mi := &file_rpc_proto_msgTypes[179]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12242,7 +11650,7 @@ func (x *GetLeverageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLeverageRequest.ProtoReflect.Descriptor instead.
 func (*GetLeverageRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{191}
+	return file_rpc_proto_rawDescGZIP(), []int{179}
 }
 
 func (x *GetLeverageRequest) GetExchange() string {
@@ -12302,7 +11710,7 @@ type GetLeverageResponse struct {
 
 func (x *GetLeverageResponse) Reset() {
 	*x = GetLeverageResponse{}
-	mi := &file_rpc_proto_msgTypes[192]
+	mi := &file_rpc_proto_msgTypes[180]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12314,7 +11722,7 @@ func (x *GetLeverageResponse) String() string {
 func (*GetLeverageResponse) ProtoMessage() {}
 
 func (x *GetLeverageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[192]
+	mi := &file_rpc_proto_msgTypes[180]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12327,7 +11735,7 @@ func (x *GetLeverageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLeverageResponse.ProtoReflect.Descriptor instead.
 func (*GetLeverageResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{192}
+	return file_rpc_proto_rawDescGZIP(), []int{180}
 }
 
 func (x *GetLeverageResponse) GetExchange() string {
@@ -12394,7 +11802,7 @@ type SetLeverageRequest struct {
 
 func (x *SetLeverageRequest) Reset() {
 	*x = SetLeverageRequest{}
-	mi := &file_rpc_proto_msgTypes[193]
+	mi := &file_rpc_proto_msgTypes[181]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12406,7 +11814,7 @@ func (x *SetLeverageRequest) String() string {
 func (*SetLeverageRequest) ProtoMessage() {}
 
 func (x *SetLeverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[193]
+	mi := &file_rpc_proto_msgTypes[181]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12419,7 +11827,7 @@ func (x *SetLeverageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetLeverageRequest.ProtoReflect.Descriptor instead.
 func (*SetLeverageRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{193}
+	return file_rpc_proto_rawDescGZIP(), []int{181}
 }
 
 func (x *SetLeverageRequest) GetExchange() string {
@@ -12486,7 +11894,7 @@ type SetLeverageResponse struct {
 
 func (x *SetLeverageResponse) Reset() {
 	*x = SetLeverageResponse{}
-	mi := &file_rpc_proto_msgTypes[194]
+	mi := &file_rpc_proto_msgTypes[182]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12498,7 +11906,7 @@ func (x *SetLeverageResponse) String() string {
 func (*SetLeverageResponse) ProtoMessage() {}
 
 func (x *SetLeverageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[194]
+	mi := &file_rpc_proto_msgTypes[182]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12511,7 +11919,7 @@ func (x *SetLeverageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetLeverageResponse.ProtoReflect.Descriptor instead.
 func (*SetLeverageResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{194}
+	return file_rpc_proto_rawDescGZIP(), []int{182}
 }
 
 func (x *SetLeverageResponse) GetExchange() string {
@@ -12576,7 +11984,7 @@ type GetCollateralRequest struct {
 
 func (x *GetCollateralRequest) Reset() {
 	*x = GetCollateralRequest{}
-	mi := &file_rpc_proto_msgTypes[195]
+	mi := &file_rpc_proto_msgTypes[183]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12588,7 +11996,7 @@ func (x *GetCollateralRequest) String() string {
 func (*GetCollateralRequest) ProtoMessage() {}
 
 func (x *GetCollateralRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[195]
+	mi := &file_rpc_proto_msgTypes[183]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12601,7 +12009,7 @@ func (x *GetCollateralRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollateralRequest.ProtoReflect.Descriptor instead.
 func (*GetCollateralRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{195}
+	return file_rpc_proto_rawDescGZIP(), []int{183}
 }
 
 func (x *GetCollateralRequest) GetExchange() string {
@@ -12658,7 +12066,7 @@ type GetCollateralResponse struct {
 
 func (x *GetCollateralResponse) Reset() {
 	*x = GetCollateralResponse{}
-	mi := &file_rpc_proto_msgTypes[196]
+	mi := &file_rpc_proto_msgTypes[184]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12670,7 +12078,7 @@ func (x *GetCollateralResponse) String() string {
 func (*GetCollateralResponse) ProtoMessage() {}
 
 func (x *GetCollateralResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[196]
+	mi := &file_rpc_proto_msgTypes[184]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12683,7 +12091,7 @@ func (x *GetCollateralResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollateralResponse.ProtoReflect.Descriptor instead.
 func (*GetCollateralResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{196}
+	return file_rpc_proto_rawDescGZIP(), []int{184}
 }
 
 func (x *GetCollateralResponse) GetSubAccount() string {
@@ -12784,7 +12192,7 @@ type CollateralForCurrency struct {
 
 func (x *CollateralForCurrency) Reset() {
 	*x = CollateralForCurrency{}
-	mi := &file_rpc_proto_msgTypes[197]
+	mi := &file_rpc_proto_msgTypes[185]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12796,7 +12204,7 @@ func (x *CollateralForCurrency) String() string {
 func (*CollateralForCurrency) ProtoMessage() {}
 
 func (x *CollateralForCurrency) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[197]
+	mi := &file_rpc_proto_msgTypes[185]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12809,7 +12217,7 @@ func (x *CollateralForCurrency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollateralForCurrency.ProtoReflect.Descriptor instead.
 func (*CollateralForCurrency) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{197}
+	return file_rpc_proto_rawDescGZIP(), []int{185}
 }
 
 func (x *CollateralForCurrency) GetCurrency() string {
@@ -12918,7 +12326,7 @@ type CollateralByPosition struct {
 
 func (x *CollateralByPosition) Reset() {
 	*x = CollateralByPosition{}
-	mi := &file_rpc_proto_msgTypes[198]
+	mi := &file_rpc_proto_msgTypes[186]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12930,7 +12338,7 @@ func (x *CollateralByPosition) String() string {
 func (*CollateralByPosition) ProtoMessage() {}
 
 func (x *CollateralByPosition) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[198]
+	mi := &file_rpc_proto_msgTypes[186]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12943,7 +12351,7 @@ func (x *CollateralByPosition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollateralByPosition.ProtoReflect.Descriptor instead.
 func (*CollateralByPosition) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{198}
+	return file_rpc_proto_rawDescGZIP(), []int{186}
 }
 
 func (x *CollateralByPosition) GetCurrency() string {
@@ -13011,7 +12419,7 @@ type CollateralUsedBreakdown struct {
 
 func (x *CollateralUsedBreakdown) Reset() {
 	*x = CollateralUsedBreakdown{}
-	mi := &file_rpc_proto_msgTypes[199]
+	mi := &file_rpc_proto_msgTypes[187]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13023,7 +12431,7 @@ func (x *CollateralUsedBreakdown) String() string {
 func (*CollateralUsedBreakdown) ProtoMessage() {}
 
 func (x *CollateralUsedBreakdown) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[199]
+	mi := &file_rpc_proto_msgTypes[187]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13036,7 +12444,7 @@ func (x *CollateralUsedBreakdown) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollateralUsedBreakdown.ProtoReflect.Descriptor instead.
 func (*CollateralUsedBreakdown) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{199}
+	return file_rpc_proto_rawDescGZIP(), []int{187}
 }
 
 func (x *CollateralUsedBreakdown) GetLockedInStakes() string {
@@ -13112,7 +12520,7 @@ type GetFundingRatesRequest struct {
 
 func (x *GetFundingRatesRequest) Reset() {
 	*x = GetFundingRatesRequest{}
-	mi := &file_rpc_proto_msgTypes[200]
+	mi := &file_rpc_proto_msgTypes[188]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13124,7 +12532,7 @@ func (x *GetFundingRatesRequest) String() string {
 func (*GetFundingRatesRequest) ProtoMessage() {}
 
 func (x *GetFundingRatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[200]
+	mi := &file_rpc_proto_msgTypes[188]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13137,7 +12545,7 @@ func (x *GetFundingRatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFundingRatesRequest.ProtoReflect.Descriptor instead.
 func (*GetFundingRatesRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{200}
+	return file_rpc_proto_rawDescGZIP(), []int{188}
 }
 
 func (x *GetFundingRatesRequest) GetExchange() string {
@@ -13212,7 +12620,7 @@ type GetFundingRatesResponse struct {
 
 func (x *GetFundingRatesResponse) Reset() {
 	*x = GetFundingRatesResponse{}
-	mi := &file_rpc_proto_msgTypes[201]
+	mi := &file_rpc_proto_msgTypes[189]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13224,7 +12632,7 @@ func (x *GetFundingRatesResponse) String() string {
 func (*GetFundingRatesResponse) ProtoMessage() {}
 
 func (x *GetFundingRatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[201]
+	mi := &file_rpc_proto_msgTypes[189]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13237,7 +12645,7 @@ func (x *GetFundingRatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFundingRatesResponse.ProtoReflect.Descriptor instead.
 func (*GetFundingRatesResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{201}
+	return file_rpc_proto_rawDescGZIP(), []int{189}
 }
 
 func (x *GetFundingRatesResponse) GetRates() *FundingData {
@@ -13259,7 +12667,7 @@ type GetLatestFundingRateRequest struct {
 
 func (x *GetLatestFundingRateRequest) Reset() {
 	*x = GetLatestFundingRateRequest{}
-	mi := &file_rpc_proto_msgTypes[202]
+	mi := &file_rpc_proto_msgTypes[190]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13271,7 +12679,7 @@ func (x *GetLatestFundingRateRequest) String() string {
 func (*GetLatestFundingRateRequest) ProtoMessage() {}
 
 func (x *GetLatestFundingRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[202]
+	mi := &file_rpc_proto_msgTypes[190]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13284,7 +12692,7 @@ func (x *GetLatestFundingRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLatestFundingRateRequest.ProtoReflect.Descriptor instead.
 func (*GetLatestFundingRateRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{202}
+	return file_rpc_proto_rawDescGZIP(), []int{190}
 }
 
 func (x *GetLatestFundingRateRequest) GetExchange() string {
@@ -13324,7 +12732,7 @@ type GetLatestFundingRateResponse struct {
 
 func (x *GetLatestFundingRateResponse) Reset() {
 	*x = GetLatestFundingRateResponse{}
-	mi := &file_rpc_proto_msgTypes[203]
+	mi := &file_rpc_proto_msgTypes[191]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13336,7 +12744,7 @@ func (x *GetLatestFundingRateResponse) String() string {
 func (*GetLatestFundingRateResponse) ProtoMessage() {}
 
 func (x *GetLatestFundingRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[203]
+	mi := &file_rpc_proto_msgTypes[191]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13349,7 +12757,7 @@ func (x *GetLatestFundingRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLatestFundingRateResponse.ProtoReflect.Descriptor instead.
 func (*GetLatestFundingRateResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{203}
+	return file_rpc_proto_rawDescGZIP(), []int{191}
 }
 
 func (x *GetLatestFundingRateResponse) GetRate() *FundingData {
@@ -13367,7 +12775,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_rpc_proto_msgTypes[204]
+	mi := &file_rpc_proto_msgTypes[192]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13379,7 +12787,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[204]
+	mi := &file_rpc_proto_msgTypes[192]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13392,7 +12800,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{204}
+	return file_rpc_proto_rawDescGZIP(), []int{192}
 }
 
 type ShutdownResponse struct {
@@ -13403,7 +12811,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_rpc_proto_msgTypes[205]
+	mi := &file_rpc_proto_msgTypes[193]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13415,7 +12823,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[205]
+	mi := &file_rpc_proto_msgTypes[193]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13428,7 +12836,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{205}
+	return file_rpc_proto_rawDescGZIP(), []int{193}
 }
 
 type GetTechnicalAnalysisRequest struct {
@@ -13455,7 +12863,7 @@ type GetTechnicalAnalysisRequest struct {
 
 func (x *GetTechnicalAnalysisRequest) Reset() {
 	*x = GetTechnicalAnalysisRequest{}
-	mi := &file_rpc_proto_msgTypes[206]
+	mi := &file_rpc_proto_msgTypes[194]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13467,7 +12875,7 @@ func (x *GetTechnicalAnalysisRequest) String() string {
 func (*GetTechnicalAnalysisRequest) ProtoMessage() {}
 
 func (x *GetTechnicalAnalysisRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[206]
+	mi := &file_rpc_proto_msgTypes[194]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13480,7 +12888,7 @@ func (x *GetTechnicalAnalysisRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTechnicalAnalysisRequest.ProtoReflect.Descriptor instead.
 func (*GetTechnicalAnalysisRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{206}
+	return file_rpc_proto_rawDescGZIP(), []int{194}
 }
 
 func (x *GetTechnicalAnalysisRequest) GetExchange() string {
@@ -13604,7 +13012,7 @@ type ListOfSignals struct {
 
 func (x *ListOfSignals) Reset() {
 	*x = ListOfSignals{}
-	mi := &file_rpc_proto_msgTypes[207]
+	mi := &file_rpc_proto_msgTypes[195]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13616,7 +13024,7 @@ func (x *ListOfSignals) String() string {
 func (*ListOfSignals) ProtoMessage() {}
 
 func (x *ListOfSignals) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[207]
+	mi := &file_rpc_proto_msgTypes[195]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13629,7 +13037,7 @@ func (x *ListOfSignals) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOfSignals.ProtoReflect.Descriptor instead.
 func (*ListOfSignals) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{207}
+	return file_rpc_proto_rawDescGZIP(), []int{195}
 }
 
 func (x *ListOfSignals) GetSignals() []float64 {
@@ -13648,7 +13056,7 @@ type GetTechnicalAnalysisResponse struct {
 
 func (x *GetTechnicalAnalysisResponse) Reset() {
 	*x = GetTechnicalAnalysisResponse{}
-	mi := &file_rpc_proto_msgTypes[208]
+	mi := &file_rpc_proto_msgTypes[196]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13660,7 +13068,7 @@ func (x *GetTechnicalAnalysisResponse) String() string {
 func (*GetTechnicalAnalysisResponse) ProtoMessage() {}
 
 func (x *GetTechnicalAnalysisResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[208]
+	mi := &file_rpc_proto_msgTypes[196]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13673,7 +13081,7 @@ func (x *GetTechnicalAnalysisResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTechnicalAnalysisResponse.ProtoReflect.Descriptor instead.
 func (*GetTechnicalAnalysisResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{208}
+	return file_rpc_proto_rawDescGZIP(), []int{196}
 }
 
 func (x *GetTechnicalAnalysisResponse) GetSignals() map[string]*ListOfSignals {
@@ -13704,7 +13112,7 @@ type GetMarginRatesHistoryRequest struct {
 
 func (x *GetMarginRatesHistoryRequest) Reset() {
 	*x = GetMarginRatesHistoryRequest{}
-	mi := &file_rpc_proto_msgTypes[209]
+	mi := &file_rpc_proto_msgTypes[197]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13716,7 +13124,7 @@ func (x *GetMarginRatesHistoryRequest) String() string {
 func (*GetMarginRatesHistoryRequest) ProtoMessage() {}
 
 func (x *GetMarginRatesHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[209]
+	mi := &file_rpc_proto_msgTypes[197]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13729,7 +13137,7 @@ func (x *GetMarginRatesHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMarginRatesHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetMarginRatesHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{209}
+	return file_rpc_proto_rawDescGZIP(), []int{197}
 }
 
 func (x *GetMarginRatesHistoryRequest) GetExchange() string {
@@ -13833,7 +13241,7 @@ type LendingPayment struct {
 
 func (x *LendingPayment) Reset() {
 	*x = LendingPayment{}
-	mi := &file_rpc_proto_msgTypes[210]
+	mi := &file_rpc_proto_msgTypes[198]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13845,7 +13253,7 @@ func (x *LendingPayment) String() string {
 func (*LendingPayment) ProtoMessage() {}
 
 func (x *LendingPayment) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[210]
+	mi := &file_rpc_proto_msgTypes[198]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13858,7 +13266,7 @@ func (x *LendingPayment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LendingPayment.ProtoReflect.Descriptor instead.
 func (*LendingPayment) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{210}
+	return file_rpc_proto_rawDescGZIP(), []int{198}
 }
 
 func (x *LendingPayment) GetPayment() string {
@@ -13885,7 +13293,7 @@ type BorrowCost struct {
 
 func (x *BorrowCost) Reset() {
 	*x = BorrowCost{}
-	mi := &file_rpc_proto_msgTypes[211]
+	mi := &file_rpc_proto_msgTypes[199]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13897,7 +13305,7 @@ func (x *BorrowCost) String() string {
 func (*BorrowCost) ProtoMessage() {}
 
 func (x *BorrowCost) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[211]
+	mi := &file_rpc_proto_msgTypes[199]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13910,7 +13318,7 @@ func (x *BorrowCost) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BorrowCost.ProtoReflect.Descriptor instead.
 func (*BorrowCost) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{211}
+	return file_rpc_proto_rawDescGZIP(), []int{199}
 }
 
 func (x *BorrowCost) GetCost() string {
@@ -13943,7 +13351,7 @@ type MarginRate struct {
 
 func (x *MarginRate) Reset() {
 	*x = MarginRate{}
-	mi := &file_rpc_proto_msgTypes[212]
+	mi := &file_rpc_proto_msgTypes[200]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13955,7 +13363,7 @@ func (x *MarginRate) String() string {
 func (*MarginRate) ProtoMessage() {}
 
 func (x *MarginRate) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[212]
+	mi := &file_rpc_proto_msgTypes[200]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13968,7 +13376,7 @@ func (x *MarginRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarginRate.ProtoReflect.Descriptor instead.
 func (*MarginRate) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{212}
+	return file_rpc_proto_rawDescGZIP(), []int{200}
 }
 
 func (x *MarginRate) GetTime() string {
@@ -14044,7 +13452,7 @@ type GetMarginRatesHistoryResponse struct {
 
 func (x *GetMarginRatesHistoryResponse) Reset() {
 	*x = GetMarginRatesHistoryResponse{}
-	mi := &file_rpc_proto_msgTypes[213]
+	mi := &file_rpc_proto_msgTypes[201]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14056,7 +13464,7 @@ func (x *GetMarginRatesHistoryResponse) String() string {
 func (*GetMarginRatesHistoryResponse) ProtoMessage() {}
 
 func (x *GetMarginRatesHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[213]
+	mi := &file_rpc_proto_msgTypes[201]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14069,7 +13477,7 @@ func (x *GetMarginRatesHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMarginRatesHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetMarginRatesHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{213}
+	return file_rpc_proto_rawDescGZIP(), []int{201}
 }
 
 func (x *GetMarginRatesHistoryResponse) GetRates() []*MarginRate {
@@ -14150,7 +13558,7 @@ type GetOrderbookMovementRequest struct {
 
 func (x *GetOrderbookMovementRequest) Reset() {
 	*x = GetOrderbookMovementRequest{}
-	mi := &file_rpc_proto_msgTypes[214]
+	mi := &file_rpc_proto_msgTypes[202]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14162,7 +13570,7 @@ func (x *GetOrderbookMovementRequest) String() string {
 func (*GetOrderbookMovementRequest) ProtoMessage() {}
 
 func (x *GetOrderbookMovementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[214]
+	mi := &file_rpc_proto_msgTypes[202]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14175,7 +13583,7 @@ func (x *GetOrderbookMovementRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderbookMovementRequest.ProtoReflect.Descriptor instead.
 func (*GetOrderbookMovementRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{214}
+	return file_rpc_proto_rawDescGZIP(), []int{202}
 }
 
 func (x *GetOrderbookMovementRequest) GetExchange() string {
@@ -14249,7 +13657,7 @@ type GetOrderbookMovementResponse struct {
 
 func (x *GetOrderbookMovementResponse) Reset() {
 	*x = GetOrderbookMovementResponse{}
-	mi := &file_rpc_proto_msgTypes[215]
+	mi := &file_rpc_proto_msgTypes[203]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14261,7 +13669,7 @@ func (x *GetOrderbookMovementResponse) String() string {
 func (*GetOrderbookMovementResponse) ProtoMessage() {}
 
 func (x *GetOrderbookMovementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[215]
+	mi := &file_rpc_proto_msgTypes[203]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14274,7 +13682,7 @@ func (x *GetOrderbookMovementResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderbookMovementResponse.ProtoReflect.Descriptor instead.
 func (*GetOrderbookMovementResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{215}
+	return file_rpc_proto_rawDescGZIP(), []int{203}
 }
 
 func (x *GetOrderbookMovementResponse) GetNominalPercentage() float64 {
@@ -14389,7 +13797,7 @@ type GetOrderbookAmountByNominalRequest struct {
 
 func (x *GetOrderbookAmountByNominalRequest) Reset() {
 	*x = GetOrderbookAmountByNominalRequest{}
-	mi := &file_rpc_proto_msgTypes[216]
+	mi := &file_rpc_proto_msgTypes[204]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14401,7 +13809,7 @@ func (x *GetOrderbookAmountByNominalRequest) String() string {
 func (*GetOrderbookAmountByNominalRequest) ProtoMessage() {}
 
 func (x *GetOrderbookAmountByNominalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[216]
+	mi := &file_rpc_proto_msgTypes[204]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14414,7 +13822,7 @@ func (x *GetOrderbookAmountByNominalRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetOrderbookAmountByNominalRequest.ProtoReflect.Descriptor instead.
 func (*GetOrderbookAmountByNominalRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{216}
+	return file_rpc_proto_rawDescGZIP(), []int{204}
 }
 
 func (x *GetOrderbookAmountByNominalRequest) GetExchange() string {
@@ -14478,7 +13886,7 @@ type GetOrderbookAmountByNominalResponse struct {
 
 func (x *GetOrderbookAmountByNominalResponse) Reset() {
 	*x = GetOrderbookAmountByNominalResponse{}
-	mi := &file_rpc_proto_msgTypes[217]
+	mi := &file_rpc_proto_msgTypes[205]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14490,7 +13898,7 @@ func (x *GetOrderbookAmountByNominalResponse) String() string {
 func (*GetOrderbookAmountByNominalResponse) ProtoMessage() {}
 
 func (x *GetOrderbookAmountByNominalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[217]
+	mi := &file_rpc_proto_msgTypes[205]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14503,7 +13911,7 @@ func (x *GetOrderbookAmountByNominalResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GetOrderbookAmountByNominalResponse.ProtoReflect.Descriptor instead.
 func (*GetOrderbookAmountByNominalResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{217}
+	return file_rpc_proto_rawDescGZIP(), []int{205}
 }
 
 func (x *GetOrderbookAmountByNominalResponse) GetAmountRequired() float64 {
@@ -14597,7 +14005,7 @@ type GetOrderbookAmountByImpactRequest struct {
 
 func (x *GetOrderbookAmountByImpactRequest) Reset() {
 	*x = GetOrderbookAmountByImpactRequest{}
-	mi := &file_rpc_proto_msgTypes[218]
+	mi := &file_rpc_proto_msgTypes[206]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14609,7 +14017,7 @@ func (x *GetOrderbookAmountByImpactRequest) String() string {
 func (*GetOrderbookAmountByImpactRequest) ProtoMessage() {}
 
 func (x *GetOrderbookAmountByImpactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[218]
+	mi := &file_rpc_proto_msgTypes[206]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14622,7 +14030,7 @@ func (x *GetOrderbookAmountByImpactRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetOrderbookAmountByImpactRequest.ProtoReflect.Descriptor instead.
 func (*GetOrderbookAmountByImpactRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{218}
+	return file_rpc_proto_rawDescGZIP(), []int{206}
 }
 
 func (x *GetOrderbookAmountByImpactRequest) GetExchange() string {
@@ -14686,7 +14094,7 @@ type GetOrderbookAmountByImpactResponse struct {
 
 func (x *GetOrderbookAmountByImpactResponse) Reset() {
 	*x = GetOrderbookAmountByImpactResponse{}
-	mi := &file_rpc_proto_msgTypes[219]
+	mi := &file_rpc_proto_msgTypes[207]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14698,7 +14106,7 @@ func (x *GetOrderbookAmountByImpactResponse) String() string {
 func (*GetOrderbookAmountByImpactResponse) ProtoMessage() {}
 
 func (x *GetOrderbookAmountByImpactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[219]
+	mi := &file_rpc_proto_msgTypes[207]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14711,7 +14119,7 @@ func (x *GetOrderbookAmountByImpactResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetOrderbookAmountByImpactResponse.ProtoReflect.Descriptor instead.
 func (*GetOrderbookAmountByImpactResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{219}
+	return file_rpc_proto_rawDescGZIP(), []int{207}
 }
 
 func (x *GetOrderbookAmountByImpactResponse) GetAmountRequired() float64 {
@@ -14801,7 +14209,7 @@ type GetOpenInterestRequest struct {
 
 func (x *GetOpenInterestRequest) Reset() {
 	*x = GetOpenInterestRequest{}
-	mi := &file_rpc_proto_msgTypes[220]
+	mi := &file_rpc_proto_msgTypes[208]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14813,7 +14221,7 @@ func (x *GetOpenInterestRequest) String() string {
 func (*GetOpenInterestRequest) ProtoMessage() {}
 
 func (x *GetOpenInterestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[220]
+	mi := &file_rpc_proto_msgTypes[208]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14826,7 +14234,7 @@ func (x *GetOpenInterestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOpenInterestRequest.ProtoReflect.Descriptor instead.
 func (*GetOpenInterestRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{220}
+	return file_rpc_proto_rawDescGZIP(), []int{208}
 }
 
 func (x *GetOpenInterestRequest) GetExchange() string {
@@ -14853,7 +14261,7 @@ type OpenInterestDataRequest struct {
 
 func (x *OpenInterestDataRequest) Reset() {
 	*x = OpenInterestDataRequest{}
-	mi := &file_rpc_proto_msgTypes[221]
+	mi := &file_rpc_proto_msgTypes[209]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14865,7 +14273,7 @@ func (x *OpenInterestDataRequest) String() string {
 func (*OpenInterestDataRequest) ProtoMessage() {}
 
 func (x *OpenInterestDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[221]
+	mi := &file_rpc_proto_msgTypes[209]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14878,7 +14286,7 @@ func (x *OpenInterestDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenInterestDataRequest.ProtoReflect.Descriptor instead.
 func (*OpenInterestDataRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{221}
+	return file_rpc_proto_rawDescGZIP(), []int{209}
 }
 
 func (x *OpenInterestDataRequest) GetAsset() string {
@@ -14904,7 +14312,7 @@ type GetOpenInterestResponse struct {
 
 func (x *GetOpenInterestResponse) Reset() {
 	*x = GetOpenInterestResponse{}
-	mi := &file_rpc_proto_msgTypes[222]
+	mi := &file_rpc_proto_msgTypes[210]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14916,7 +14324,7 @@ func (x *GetOpenInterestResponse) String() string {
 func (*GetOpenInterestResponse) ProtoMessage() {}
 
 func (x *GetOpenInterestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[222]
+	mi := &file_rpc_proto_msgTypes[210]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14929,7 +14337,7 @@ func (x *GetOpenInterestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOpenInterestResponse.ProtoReflect.Descriptor instead.
 func (*GetOpenInterestResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{222}
+	return file_rpc_proto_rawDescGZIP(), []int{210}
 }
 
 func (x *GetOpenInterestResponse) GetData() []*OpenInterestDataResponse {
@@ -14951,7 +14359,7 @@ type OpenInterestDataResponse struct {
 
 func (x *OpenInterestDataResponse) Reset() {
 	*x = OpenInterestDataResponse{}
-	mi := &file_rpc_proto_msgTypes[223]
+	mi := &file_rpc_proto_msgTypes[211]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14963,7 +14371,7 @@ func (x *OpenInterestDataResponse) String() string {
 func (*OpenInterestDataResponse) ProtoMessage() {}
 
 func (x *OpenInterestDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[223]
+	mi := &file_rpc_proto_msgTypes[211]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14976,7 +14384,7 @@ func (x *OpenInterestDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenInterestDataResponse.ProtoReflect.Descriptor instead.
 func (*OpenInterestDataResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{223}
+	return file_rpc_proto_rawDescGZIP(), []int{211}
 }
 
 func (x *OpenInterestDataResponse) GetExchange() string {
@@ -15018,7 +14426,7 @@ type GetCurrencyTradeURLRequest struct {
 
 func (x *GetCurrencyTradeURLRequest) Reset() {
 	*x = GetCurrencyTradeURLRequest{}
-	mi := &file_rpc_proto_msgTypes[224]
+	mi := &file_rpc_proto_msgTypes[212]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15030,7 +14438,7 @@ func (x *GetCurrencyTradeURLRequest) String() string {
 func (*GetCurrencyTradeURLRequest) ProtoMessage() {}
 
 func (x *GetCurrencyTradeURLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[224]
+	mi := &file_rpc_proto_msgTypes[212]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15043,7 +14451,7 @@ func (x *GetCurrencyTradeURLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrencyTradeURLRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrencyTradeURLRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{224}
+	return file_rpc_proto_rawDescGZIP(), []int{212}
 }
 
 func (x *GetCurrencyTradeURLRequest) GetExchange() string {
@@ -15076,7 +14484,7 @@ type GetCurrencyTradeURLResponse struct {
 
 func (x *GetCurrencyTradeURLResponse) Reset() {
 	*x = GetCurrencyTradeURLResponse{}
-	mi := &file_rpc_proto_msgTypes[225]
+	mi := &file_rpc_proto_msgTypes[213]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15088,7 +14496,7 @@ func (x *GetCurrencyTradeURLResponse) String() string {
 func (*GetCurrencyTradeURLResponse) ProtoMessage() {}
 
 func (x *GetCurrencyTradeURLResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_proto_msgTypes[225]
+	mi := &file_rpc_proto_msgTypes[213]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15101,7 +14509,7 @@ func (x *GetCurrencyTradeURLResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrencyTradeURLResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrencyTradeURLResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_proto_rawDescGZIP(), []int{225}
+	return file_rpc_proto_rawDescGZIP(), []int{213}
 }
 
 func (x *GetCurrencyTradeURLResponse) GetUrl() string {
@@ -15718,41 +15126,7 @@ const file_rpc_proto_rawDesc = "" +
 	"identifier\x18\x02 \x01(\tR\n" +
 	"identifier\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1c\n" +
-	"\ttimestamp\x18\x04 \x01(\tR\ttimestamp\"b\n" +
-	"\tGCTScript\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
-	"\x04path\x18\x03 \x01(\tR\x04path\x12\x19\n" +
-	"\bnext_run\x18\x04 \x01(\tR\anextRun\"D\n" +
-	"\x17GCTScriptExecuteRequest\x12)\n" +
-	"\x06script\x18\x01 \x01(\v2\x11.gctrpc.GCTScriptR\x06script\"A\n" +
-	"\x14GCTScriptStopRequest\x12)\n" +
-	"\x06script\x18\x01 \x01(\v2\x11.gctrpc.GCTScriptR\x06script\"\x19\n" +
-	"\x17GCTScriptStopAllRequest\"\x18\n" +
-	"\x16GCTScriptStatusRequest\"\x19\n" +
-	"\x17GCTScriptListAllRequest\"\xa8\x01\n" +
-	"\x16GCTScriptUploadRequest\x12\x1f\n" +
-	"\vscript_name\x18\x01 \x01(\tR\n" +
-	"scriptName\x12\x1f\n" +
-	"\vscript_data\x18\x02 \x01(\tR\n" +
-	"scriptData\x12\x12\n" +
-	"\x04data\x18\x03 \x01(\fR\x04data\x12\x1a\n" +
-	"\barchived\x18\x04 \x01(\bR\barchived\x12\x1c\n" +
-	"\toverwrite\x18\x05 \x01(\bR\toverwrite\"G\n" +
-	"\x1aGCTScriptReadScriptRequest\x12)\n" +
-	"\x06script\x18\x01 \x01(\v2\x11.gctrpc.GCTScriptR\x06script\"B\n" +
-	"\x15GCTScriptQueryRequest\x12)\n" +
-	"\x06script\x18\x01 \x01(\v2\x11.gctrpc.GCTScriptR\x06script\"J\n" +
-	"\x18GCTScriptAutoLoadRequest\x12\x16\n" +
-	"\x06script\x18\x01 \x01(\tR\x06script\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\bR\x06status\"^\n" +
-	"\x17GCTScriptStatusResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12+\n" +
-	"\ascripts\x18\x02 \x03(\v2\x11.gctrpc.GCTScriptR\ascripts\"o\n" +
-	"\x16GCTScriptQueryResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12)\n" +
-	"\x06script\x18\x02 \x01(\v2\x11.gctrpc.GCTScriptR\x06script\x12\x12\n" +
-	"\x04data\x18\x03 \x01(\tR\x04data\"=\n" +
+	"\ttimestamp\x18\x04 \x01(\tR\ttimestamp\"=\n" +
 	"\x0fGenericResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\tR\x04data\"c\n" +
@@ -16386,7 +15760,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\x05asset\x18\x02 \x01(\tR\x05asset\x12(\n" +
 	"\x04pair\x18\x03 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\"/\n" +
 	"\x1bGetCurrencyTradeURLResponse\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url2\xccl\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url2\xd3d\n" +
 	"\x15GoCryptoTraderService\x12O\n" +
 	"\aGetInfo\x12\x16.gctrpc.GetInfoRequest\x1a\x17.gctrpc.GetInfoResponse\"\x13\x82\xd3\xe4\x93\x02\r\x12\v/v1/getinfo\x12g\n" +
 	"\rGetSubsystems\x12\x1c.gctrpc.GetSubsystemsRequest\x1a\x1d.gctrpc.GetSubsystemsResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/getsubsystems\x12h\n" +
@@ -16442,16 +15816,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\x1aGetExchangeOrderbookStream\x12).gctrpc.GetExchangeOrderbookStreamRequest\x1a\x19.gctrpc.OrderbookResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/v1/getexchangeorderbookstream0\x01\x12h\n" +
 	"\x0fGetTickerStream\x12\x1e.gctrpc.GetTickerStreamRequest\x1a\x16.gctrpc.TickerResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/v1/gettickerstream0\x01\x12\x80\x01\n" +
 	"\x17GetExchangeTickerStream\x12&.gctrpc.GetExchangeTickerStreamRequest\x1a\x16.gctrpc.TickerResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/getexchangetickerstream0\x01\x12g\n" +
-	"\rGetAuditEvent\x12\x1c.gctrpc.GetAuditEventRequest\x1a\x1d.gctrpc.GetAuditEventResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/getauditevent\x12k\n" +
-	"\x10GCTScriptExecute\x12\x1f.gctrpc.GCTScriptExecuteRequest\x1a\x17.gctrpc.GenericResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/gctscript/execute\x12k\n" +
-	"\x0fGCTScriptUpload\x12\x1e.gctrpc.GCTScriptUploadRequest\x1a\x17.gctrpc.GenericResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/gctscript/upload\x12x\n" +
-	"\x13GCTScriptReadScript\x12\".gctrpc.GCTScriptReadScriptRequest\x1a\x1e.gctrpc.GCTScriptQueryResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/v1/gctscript/read\x12p\n" +
-	"\x0fGCTScriptStatus\x12\x1e.gctrpc.GCTScriptStatusRequest\x1a\x1f.gctrpc.GCTScriptStatusResponse\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/gctscript/status\x12l\n" +
-	"\x0eGCTScriptQuery\x12\x1d.gctrpc.GCTScriptQueryRequest\x1a\x1e.gctrpc.GCTScriptQueryResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/v1/gctscript/query\x12e\n" +
-	"\rGCTScriptStop\x12\x1c.gctrpc.GCTScriptStopRequest\x1a\x17.gctrpc.GenericResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/v1/gctscript/stop\x12n\n" +
-	"\x10GCTScriptStopAll\x12\x1f.gctrpc.GCTScriptStopAllRequest\x1a\x17.gctrpc.GenericResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/gctscript/stopall\x12s\n" +
-	"\x10GCTScriptListAll\x12\x1f.gctrpc.GCTScriptListAllRequest\x1a\x1f.gctrpc.GCTScriptStatusResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/v1/gctscript/list\x12w\n" +
-	"\x17GCTScriptAutoLoadToggle\x12 .gctrpc.GCTScriptAutoLoadRequest\x1a\x17.gctrpc.GenericResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/gctscript/autoload\x12{\n" +
+	"\rGetAuditEvent\x12\x1c.gctrpc.GetAuditEventRequest\x1a\x1d.gctrpc.GetAuditEventResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/getauditevent\x12{\n" +
 	"\x12GetHistoricCandles\x12!.gctrpc.GetHistoricCandlesRequest\x1a\".gctrpc.GetHistoricCandlesResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/gethistoriccandles\x12j\n" +
 	"\x10SetExchangeAsset\x12\x1f.gctrpc.SetExchangeAssetRequest\x1a\x17.gctrpc.GenericResponse\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/setexchangeasset\x12s\n" +
 	"\x13SetAllExchangePairs\x12\".gctrpc.SetExchangeAllPairsRequest\x1a\x17.gctrpc.GenericResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/setallexchangepairs\x12\x8e\x01\n" +
@@ -16517,7 +15882,7 @@ func file_rpc_proto_rawDescGZIP() []byte {
 	return file_rpc_proto_rawDescData
 }
 
-var file_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 240)
+var file_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 228)
 var file_rpc_proto_goTypes = []any{
 	(*GetInfoRequest)(nil),                            // 0: gctrpc.GetInfoRequest
 	(*GetInfoResponse)(nil),                           // 1: gctrpc.GetInfoResponse
@@ -16639,136 +16004,124 @@ var file_rpc_proto_goTypes = []any{
 	(*GetHistoricCandlesResponse)(nil),                // 117: gctrpc.GetHistoricCandlesResponse
 	(*Candle)(nil),                                    // 118: gctrpc.Candle
 	(*AuditEvent)(nil),                                // 119: gctrpc.AuditEvent
-	(*GCTScript)(nil),                                 // 120: gctrpc.GCTScript
-	(*GCTScriptExecuteRequest)(nil),                   // 121: gctrpc.GCTScriptExecuteRequest
-	(*GCTScriptStopRequest)(nil),                      // 122: gctrpc.GCTScriptStopRequest
-	(*GCTScriptStopAllRequest)(nil),                   // 123: gctrpc.GCTScriptStopAllRequest
-	(*GCTScriptStatusRequest)(nil),                    // 124: gctrpc.GCTScriptStatusRequest
-	(*GCTScriptListAllRequest)(nil),                   // 125: gctrpc.GCTScriptListAllRequest
-	(*GCTScriptUploadRequest)(nil),                    // 126: gctrpc.GCTScriptUploadRequest
-	(*GCTScriptReadScriptRequest)(nil),                // 127: gctrpc.GCTScriptReadScriptRequest
-	(*GCTScriptQueryRequest)(nil),                     // 128: gctrpc.GCTScriptQueryRequest
-	(*GCTScriptAutoLoadRequest)(nil),                  // 129: gctrpc.GCTScriptAutoLoadRequest
-	(*GCTScriptStatusResponse)(nil),                   // 130: gctrpc.GCTScriptStatusResponse
-	(*GCTScriptQueryResponse)(nil),                    // 131: gctrpc.GCTScriptQueryResponse
-	(*GenericResponse)(nil),                           // 132: gctrpc.GenericResponse
-	(*SetExchangeAssetRequest)(nil),                   // 133: gctrpc.SetExchangeAssetRequest
-	(*SetExchangeAllPairsRequest)(nil),                // 134: gctrpc.SetExchangeAllPairsRequest
-	(*UpdateExchangeSupportedPairsRequest)(nil),       // 135: gctrpc.UpdateExchangeSupportedPairsRequest
-	(*GetExchangeAssetsRequest)(nil),                  // 136: gctrpc.GetExchangeAssetsRequest
-	(*GetExchangeAssetsResponse)(nil),                 // 137: gctrpc.GetExchangeAssetsResponse
-	(*WebsocketGetInfoRequest)(nil),                   // 138: gctrpc.WebsocketGetInfoRequest
-	(*WebsocketGetInfoResponse)(nil),                  // 139: gctrpc.WebsocketGetInfoResponse
-	(*WebsocketSetEnabledRequest)(nil),                // 140: gctrpc.WebsocketSetEnabledRequest
-	(*WebsocketGetSubscriptionsRequest)(nil),          // 141: gctrpc.WebsocketGetSubscriptionsRequest
-	(*WebsocketSubscription)(nil),                     // 142: gctrpc.WebsocketSubscription
-	(*WebsocketGetSubscriptionsResponse)(nil),         // 143: gctrpc.WebsocketGetSubscriptionsResponse
-	(*WebsocketSetProxyRequest)(nil),                  // 144: gctrpc.WebsocketSetProxyRequest
-	(*WebsocketSetURLRequest)(nil),                    // 145: gctrpc.WebsocketSetURLRequest
-	(*FindMissingCandlePeriodsRequest)(nil),           // 146: gctrpc.FindMissingCandlePeriodsRequest
-	(*FindMissingTradePeriodsRequest)(nil),            // 147: gctrpc.FindMissingTradePeriodsRequest
-	(*FindMissingIntervalsResponse)(nil),              // 148: gctrpc.FindMissingIntervalsResponse
-	(*SetExchangeTradeProcessingRequest)(nil),         // 149: gctrpc.SetExchangeTradeProcessingRequest
-	(*UpsertDataHistoryJobRequest)(nil),               // 150: gctrpc.UpsertDataHistoryJobRequest
-	(*InsertSequentialJobsRequest)(nil),               // 151: gctrpc.InsertSequentialJobsRequest
-	(*InsertSequentialJobsResponse)(nil),              // 152: gctrpc.InsertSequentialJobsResponse
-	(*UpsertDataHistoryJobResponse)(nil),              // 153: gctrpc.UpsertDataHistoryJobResponse
-	(*GetDataHistoryJobDetailsRequest)(nil),           // 154: gctrpc.GetDataHistoryJobDetailsRequest
-	(*DataHistoryJob)(nil),                            // 155: gctrpc.DataHistoryJob
-	(*DataHistoryJobResult)(nil),                      // 156: gctrpc.DataHistoryJobResult
-	(*DataHistoryJobs)(nil),                           // 157: gctrpc.DataHistoryJobs
-	(*GetDataHistoryJobsBetweenRequest)(nil),          // 158: gctrpc.GetDataHistoryJobsBetweenRequest
-	(*SetDataHistoryJobStatusRequest)(nil),            // 159: gctrpc.SetDataHistoryJobStatusRequest
-	(*UpdateDataHistoryJobPrerequisiteRequest)(nil),   // 160: gctrpc.UpdateDataHistoryJobPrerequisiteRequest
-	(*ModifyOrderRequest)(nil),                        // 161: gctrpc.ModifyOrderRequest
-	(*ModifyOrderResponse)(nil),                       // 162: gctrpc.ModifyOrderResponse
-	(*CurrencyStateGetAllRequest)(nil),                // 163: gctrpc.CurrencyStateGetAllRequest
-	(*CurrencyStateTradingRequest)(nil),               // 164: gctrpc.CurrencyStateTradingRequest
-	(*CurrencyStateTradingPairRequest)(nil),           // 165: gctrpc.CurrencyStateTradingPairRequest
-	(*CurrencyStateWithdrawRequest)(nil),              // 166: gctrpc.CurrencyStateWithdrawRequest
-	(*CurrencyStateDepositRequest)(nil),               // 167: gctrpc.CurrencyStateDepositRequest
-	(*CurrencyStateResponse)(nil),                     // 168: gctrpc.CurrencyStateResponse
-	(*CurrencyState)(nil),                             // 169: gctrpc.CurrencyState
-	(*FundingRate)(nil),                               // 170: gctrpc.FundingRate
-	(*FundingData)(nil),                               // 171: gctrpc.FundingData
-	(*FuturesPositionStats)(nil),                      // 172: gctrpc.FuturesPositionStats
-	(*FuturePosition)(nil),                            // 173: gctrpc.FuturePosition
-	(*GetManagedPositionRequest)(nil),                 // 174: gctrpc.GetManagedPositionRequest
-	(*GetAllManagedPositionsRequest)(nil),             // 175: gctrpc.GetAllManagedPositionsRequest
-	(*GetManagedPositionsResponse)(nil),               // 176: gctrpc.GetManagedPositionsResponse
-	(*GetFuturesPositionsSummaryRequest)(nil),         // 177: gctrpc.GetFuturesPositionsSummaryRequest
-	(*GetFuturesPositionsSummaryResponse)(nil),        // 178: gctrpc.GetFuturesPositionsSummaryResponse
-	(*GetFuturesPositionsOrdersRequest)(nil),          // 179: gctrpc.GetFuturesPositionsOrdersRequest
-	(*GetFuturesPositionsOrdersResponse)(nil),         // 180: gctrpc.GetFuturesPositionsOrdersResponse
-	(*GetCollateralModeRequest)(nil),                  // 181: gctrpc.GetCollateralModeRequest
-	(*GetCollateralModeResponse)(nil),                 // 182: gctrpc.GetCollateralModeResponse
-	(*SetCollateralModeRequest)(nil),                  // 183: gctrpc.SetCollateralModeRequest
-	(*SetCollateralModeResponse)(nil),                 // 184: gctrpc.SetCollateralModeResponse
-	(*GetMarginTypeRequest)(nil),                      // 185: gctrpc.GetMarginTypeRequest
-	(*GetMarginTypeResponse)(nil),                     // 186: gctrpc.GetMarginTypeResponse
-	(*ChangePositionMarginRequest)(nil),               // 187: gctrpc.ChangePositionMarginRequest
-	(*ChangePositionMarginResponse)(nil),              // 188: gctrpc.ChangePositionMarginResponse
-	(*SetMarginTypeRequest)(nil),                      // 189: gctrpc.SetMarginTypeRequest
-	(*SetMarginTypeResponse)(nil),                     // 190: gctrpc.SetMarginTypeResponse
-	(*GetLeverageRequest)(nil),                        // 191: gctrpc.GetLeverageRequest
-	(*GetLeverageResponse)(nil),                       // 192: gctrpc.GetLeverageResponse
-	(*SetLeverageRequest)(nil),                        // 193: gctrpc.SetLeverageRequest
-	(*SetLeverageResponse)(nil),                       // 194: gctrpc.SetLeverageResponse
-	(*GetCollateralRequest)(nil),                      // 195: gctrpc.GetCollateralRequest
-	(*GetCollateralResponse)(nil),                     // 196: gctrpc.GetCollateralResponse
-	(*CollateralForCurrency)(nil),                     // 197: gctrpc.CollateralForCurrency
-	(*CollateralByPosition)(nil),                      // 198: gctrpc.CollateralByPosition
-	(*CollateralUsedBreakdown)(nil),                   // 199: gctrpc.CollateralUsedBreakdown
-	(*GetFundingRatesRequest)(nil),                    // 200: gctrpc.GetFundingRatesRequest
-	(*GetFundingRatesResponse)(nil),                   // 201: gctrpc.GetFundingRatesResponse
-	(*GetLatestFundingRateRequest)(nil),               // 202: gctrpc.GetLatestFundingRateRequest
-	(*GetLatestFundingRateResponse)(nil),              // 203: gctrpc.GetLatestFundingRateResponse
-	(*ShutdownRequest)(nil),                           // 204: gctrpc.ShutdownRequest
-	(*ShutdownResponse)(nil),                          // 205: gctrpc.ShutdownResponse
-	(*GetTechnicalAnalysisRequest)(nil),               // 206: gctrpc.GetTechnicalAnalysisRequest
-	(*ListOfSignals)(nil),                             // 207: gctrpc.ListOfSignals
-	(*GetTechnicalAnalysisResponse)(nil),              // 208: gctrpc.GetTechnicalAnalysisResponse
-	(*GetMarginRatesHistoryRequest)(nil),              // 209: gctrpc.GetMarginRatesHistoryRequest
-	(*LendingPayment)(nil),                            // 210: gctrpc.LendingPayment
-	(*BorrowCost)(nil),                                // 211: gctrpc.BorrowCost
-	(*MarginRate)(nil),                                // 212: gctrpc.MarginRate
-	(*GetMarginRatesHistoryResponse)(nil),             // 213: gctrpc.GetMarginRatesHistoryResponse
-	(*GetOrderbookMovementRequest)(nil),               // 214: gctrpc.GetOrderbookMovementRequest
-	(*GetOrderbookMovementResponse)(nil),              // 215: gctrpc.GetOrderbookMovementResponse
-	(*GetOrderbookAmountByNominalRequest)(nil),        // 216: gctrpc.GetOrderbookAmountByNominalRequest
-	(*GetOrderbookAmountByNominalResponse)(nil),       // 217: gctrpc.GetOrderbookAmountByNominalResponse
-	(*GetOrderbookAmountByImpactRequest)(nil),         // 218: gctrpc.GetOrderbookAmountByImpactRequest
-	(*GetOrderbookAmountByImpactResponse)(nil),        // 219: gctrpc.GetOrderbookAmountByImpactResponse
-	(*GetOpenInterestRequest)(nil),                    // 220: gctrpc.GetOpenInterestRequest
-	(*OpenInterestDataRequest)(nil),                   // 221: gctrpc.OpenInterestDataRequest
-	(*GetOpenInterestResponse)(nil),                   // 222: gctrpc.GetOpenInterestResponse
-	(*OpenInterestDataResponse)(nil),                  // 223: gctrpc.OpenInterestDataResponse
-	(*GetCurrencyTradeURLRequest)(nil),                // 224: gctrpc.GetCurrencyTradeURLRequest
-	(*GetCurrencyTradeURLResponse)(nil),               // 225: gctrpc.GetCurrencyTradeURLResponse
-	nil,                                               // 226: gctrpc.GetInfoResponse.SubsystemStatusEntry
-	nil,                                               // 227: gctrpc.GetInfoResponse.RpcEndpointsEntry
-	nil,                                               // 228: gctrpc.GetCommunicationRelayersResponse.CommunicationRelayersEntry
-	nil,                                               // 229: gctrpc.GetSubsystemsResponse.SubsystemsStatusEntry
-	nil,                                               // 230: gctrpc.GetRPCEndpointsResponse.EndpointsEntry
-	nil,                                               // 231: gctrpc.GetExchangeOTPsResponse.OtpCodesEntry
-	nil,                                               // 232: gctrpc.GetExchangeInfoResponse.SupportedAssetsEntry
-	nil,                                               // 233: gctrpc.OnlineCoins.CoinsEntry
-	nil,                                               // 234: gctrpc.GetPortfolioSummaryResponse.CoinsOfflineSummaryEntry
-	nil,                                               // 235: gctrpc.GetPortfolioSummaryResponse.CoinsOnlineSummaryEntry
-	nil,                                               // 236: gctrpc.Orders.OrderStatusEntry
-	nil,                                               // 237: gctrpc.GetCryptocurrencyDepositAddressesResponse.AddressesEntry
-	nil,                                               // 238: gctrpc.GetExchangePairsResponse.SupportedAssetsEntry
-	nil,                                               // 239: gctrpc.GetTechnicalAnalysisResponse.SignalsEntry
-	(*timestamppb.Timestamp)(nil),                     // 240: google.protobuf.Timestamp
+	(*GenericResponse)(nil),                           // 120: gctrpc.GenericResponse
+	(*SetExchangeAssetRequest)(nil),                   // 121: gctrpc.SetExchangeAssetRequest
+	(*SetExchangeAllPairsRequest)(nil),                // 122: gctrpc.SetExchangeAllPairsRequest
+	(*UpdateExchangeSupportedPairsRequest)(nil),       // 123: gctrpc.UpdateExchangeSupportedPairsRequest
+	(*GetExchangeAssetsRequest)(nil),                  // 124: gctrpc.GetExchangeAssetsRequest
+	(*GetExchangeAssetsResponse)(nil),                 // 125: gctrpc.GetExchangeAssetsResponse
+	(*WebsocketGetInfoRequest)(nil),                   // 126: gctrpc.WebsocketGetInfoRequest
+	(*WebsocketGetInfoResponse)(nil),                  // 127: gctrpc.WebsocketGetInfoResponse
+	(*WebsocketSetEnabledRequest)(nil),                // 128: gctrpc.WebsocketSetEnabledRequest
+	(*WebsocketGetSubscriptionsRequest)(nil),          // 129: gctrpc.WebsocketGetSubscriptionsRequest
+	(*WebsocketSubscription)(nil),                     // 130: gctrpc.WebsocketSubscription
+	(*WebsocketGetSubscriptionsResponse)(nil),         // 131: gctrpc.WebsocketGetSubscriptionsResponse
+	(*WebsocketSetProxyRequest)(nil),                  // 132: gctrpc.WebsocketSetProxyRequest
+	(*WebsocketSetURLRequest)(nil),                    // 133: gctrpc.WebsocketSetURLRequest
+	(*FindMissingCandlePeriodsRequest)(nil),           // 134: gctrpc.FindMissingCandlePeriodsRequest
+	(*FindMissingTradePeriodsRequest)(nil),            // 135: gctrpc.FindMissingTradePeriodsRequest
+	(*FindMissingIntervalsResponse)(nil),              // 136: gctrpc.FindMissingIntervalsResponse
+	(*SetExchangeTradeProcessingRequest)(nil),         // 137: gctrpc.SetExchangeTradeProcessingRequest
+	(*UpsertDataHistoryJobRequest)(nil),               // 138: gctrpc.UpsertDataHistoryJobRequest
+	(*InsertSequentialJobsRequest)(nil),               // 139: gctrpc.InsertSequentialJobsRequest
+	(*InsertSequentialJobsResponse)(nil),              // 140: gctrpc.InsertSequentialJobsResponse
+	(*UpsertDataHistoryJobResponse)(nil),              // 141: gctrpc.UpsertDataHistoryJobResponse
+	(*GetDataHistoryJobDetailsRequest)(nil),           // 142: gctrpc.GetDataHistoryJobDetailsRequest
+	(*DataHistoryJob)(nil),                            // 143: gctrpc.DataHistoryJob
+	(*DataHistoryJobResult)(nil),                      // 144: gctrpc.DataHistoryJobResult
+	(*DataHistoryJobs)(nil),                           // 145: gctrpc.DataHistoryJobs
+	(*GetDataHistoryJobsBetweenRequest)(nil),          // 146: gctrpc.GetDataHistoryJobsBetweenRequest
+	(*SetDataHistoryJobStatusRequest)(nil),            // 147: gctrpc.SetDataHistoryJobStatusRequest
+	(*UpdateDataHistoryJobPrerequisiteRequest)(nil),   // 148: gctrpc.UpdateDataHistoryJobPrerequisiteRequest
+	(*ModifyOrderRequest)(nil),                        // 149: gctrpc.ModifyOrderRequest
+	(*ModifyOrderResponse)(nil),                       // 150: gctrpc.ModifyOrderResponse
+	(*CurrencyStateGetAllRequest)(nil),                // 151: gctrpc.CurrencyStateGetAllRequest
+	(*CurrencyStateTradingRequest)(nil),               // 152: gctrpc.CurrencyStateTradingRequest
+	(*CurrencyStateTradingPairRequest)(nil),           // 153: gctrpc.CurrencyStateTradingPairRequest
+	(*CurrencyStateWithdrawRequest)(nil),              // 154: gctrpc.CurrencyStateWithdrawRequest
+	(*CurrencyStateDepositRequest)(nil),               // 155: gctrpc.CurrencyStateDepositRequest
+	(*CurrencyStateResponse)(nil),                     // 156: gctrpc.CurrencyStateResponse
+	(*CurrencyState)(nil),                             // 157: gctrpc.CurrencyState
+	(*FundingRate)(nil),                               // 158: gctrpc.FundingRate
+	(*FundingData)(nil),                               // 159: gctrpc.FundingData
+	(*FuturesPositionStats)(nil),                      // 160: gctrpc.FuturesPositionStats
+	(*FuturePosition)(nil),                            // 161: gctrpc.FuturePosition
+	(*GetManagedPositionRequest)(nil),                 // 162: gctrpc.GetManagedPositionRequest
+	(*GetAllManagedPositionsRequest)(nil),             // 163: gctrpc.GetAllManagedPositionsRequest
+	(*GetManagedPositionsResponse)(nil),               // 164: gctrpc.GetManagedPositionsResponse
+	(*GetFuturesPositionsSummaryRequest)(nil),         // 165: gctrpc.GetFuturesPositionsSummaryRequest
+	(*GetFuturesPositionsSummaryResponse)(nil),        // 166: gctrpc.GetFuturesPositionsSummaryResponse
+	(*GetFuturesPositionsOrdersRequest)(nil),          // 167: gctrpc.GetFuturesPositionsOrdersRequest
+	(*GetFuturesPositionsOrdersResponse)(nil),         // 168: gctrpc.GetFuturesPositionsOrdersResponse
+	(*GetCollateralModeRequest)(nil),                  // 169: gctrpc.GetCollateralModeRequest
+	(*GetCollateralModeResponse)(nil),                 // 170: gctrpc.GetCollateralModeResponse
+	(*SetCollateralModeRequest)(nil),                  // 171: gctrpc.SetCollateralModeRequest
+	(*SetCollateralModeResponse)(nil),                 // 172: gctrpc.SetCollateralModeResponse
+	(*GetMarginTypeRequest)(nil),                      // 173: gctrpc.GetMarginTypeRequest
+	(*GetMarginTypeResponse)(nil),                     // 174: gctrpc.GetMarginTypeResponse
+	(*ChangePositionMarginRequest)(nil),               // 175: gctrpc.ChangePositionMarginRequest
+	(*ChangePositionMarginResponse)(nil),              // 176: gctrpc.ChangePositionMarginResponse
+	(*SetMarginTypeRequest)(nil),                      // 177: gctrpc.SetMarginTypeRequest
+	(*SetMarginTypeResponse)(nil),                     // 178: gctrpc.SetMarginTypeResponse
+	(*GetLeverageRequest)(nil),                        // 179: gctrpc.GetLeverageRequest
+	(*GetLeverageResponse)(nil),                       // 180: gctrpc.GetLeverageResponse
+	(*SetLeverageRequest)(nil),                        // 181: gctrpc.SetLeverageRequest
+	(*SetLeverageResponse)(nil),                       // 182: gctrpc.SetLeverageResponse
+	(*GetCollateralRequest)(nil),                      // 183: gctrpc.GetCollateralRequest
+	(*GetCollateralResponse)(nil),                     // 184: gctrpc.GetCollateralResponse
+	(*CollateralForCurrency)(nil),                     // 185: gctrpc.CollateralForCurrency
+	(*CollateralByPosition)(nil),                      // 186: gctrpc.CollateralByPosition
+	(*CollateralUsedBreakdown)(nil),                   // 187: gctrpc.CollateralUsedBreakdown
+	(*GetFundingRatesRequest)(nil),                    // 188: gctrpc.GetFundingRatesRequest
+	(*GetFundingRatesResponse)(nil),                   // 189: gctrpc.GetFundingRatesResponse
+	(*GetLatestFundingRateRequest)(nil),               // 190: gctrpc.GetLatestFundingRateRequest
+	(*GetLatestFundingRateResponse)(nil),              // 191: gctrpc.GetLatestFundingRateResponse
+	(*ShutdownRequest)(nil),                           // 192: gctrpc.ShutdownRequest
+	(*ShutdownResponse)(nil),                          // 193: gctrpc.ShutdownResponse
+	(*GetTechnicalAnalysisRequest)(nil),               // 194: gctrpc.GetTechnicalAnalysisRequest
+	(*ListOfSignals)(nil),                             // 195: gctrpc.ListOfSignals
+	(*GetTechnicalAnalysisResponse)(nil),              // 196: gctrpc.GetTechnicalAnalysisResponse
+	(*GetMarginRatesHistoryRequest)(nil),              // 197: gctrpc.GetMarginRatesHistoryRequest
+	(*LendingPayment)(nil),                            // 198: gctrpc.LendingPayment
+	(*BorrowCost)(nil),                                // 199: gctrpc.BorrowCost
+	(*MarginRate)(nil),                                // 200: gctrpc.MarginRate
+	(*GetMarginRatesHistoryResponse)(nil),             // 201: gctrpc.GetMarginRatesHistoryResponse
+	(*GetOrderbookMovementRequest)(nil),               // 202: gctrpc.GetOrderbookMovementRequest
+	(*GetOrderbookMovementResponse)(nil),              // 203: gctrpc.GetOrderbookMovementResponse
+	(*GetOrderbookAmountByNominalRequest)(nil),        // 204: gctrpc.GetOrderbookAmountByNominalRequest
+	(*GetOrderbookAmountByNominalResponse)(nil),       // 205: gctrpc.GetOrderbookAmountByNominalResponse
+	(*GetOrderbookAmountByImpactRequest)(nil),         // 206: gctrpc.GetOrderbookAmountByImpactRequest
+	(*GetOrderbookAmountByImpactResponse)(nil),        // 207: gctrpc.GetOrderbookAmountByImpactResponse
+	(*GetOpenInterestRequest)(nil),                    // 208: gctrpc.GetOpenInterestRequest
+	(*OpenInterestDataRequest)(nil),                   // 209: gctrpc.OpenInterestDataRequest
+	(*GetOpenInterestResponse)(nil),                   // 210: gctrpc.GetOpenInterestResponse
+	(*OpenInterestDataResponse)(nil),                  // 211: gctrpc.OpenInterestDataResponse
+	(*GetCurrencyTradeURLRequest)(nil),                // 212: gctrpc.GetCurrencyTradeURLRequest
+	(*GetCurrencyTradeURLResponse)(nil),               // 213: gctrpc.GetCurrencyTradeURLResponse
+	nil,                                               // 214: gctrpc.GetInfoResponse.SubsystemStatusEntry
+	nil,                                               // 215: gctrpc.GetInfoResponse.RpcEndpointsEntry
+	nil,                                               // 216: gctrpc.GetCommunicationRelayersResponse.CommunicationRelayersEntry
+	nil,                                               // 217: gctrpc.GetSubsystemsResponse.SubsystemsStatusEntry
+	nil,                                               // 218: gctrpc.GetRPCEndpointsResponse.EndpointsEntry
+	nil,                                               // 219: gctrpc.GetExchangeOTPsResponse.OtpCodesEntry
+	nil,                                               // 220: gctrpc.GetExchangeInfoResponse.SupportedAssetsEntry
+	nil,                                               // 221: gctrpc.OnlineCoins.CoinsEntry
+	nil,                                               // 222: gctrpc.GetPortfolioSummaryResponse.CoinsOfflineSummaryEntry
+	nil,                                               // 223: gctrpc.GetPortfolioSummaryResponse.CoinsOnlineSummaryEntry
+	nil,                                               // 224: gctrpc.Orders.OrderStatusEntry
+	nil,                                               // 225: gctrpc.GetCryptocurrencyDepositAddressesResponse.AddressesEntry
+	nil,                                               // 226: gctrpc.GetExchangePairsResponse.SupportedAssetsEntry
+	nil,                                               // 227: gctrpc.GetTechnicalAnalysisResponse.SignalsEntry
+	(*timestamppb.Timestamp)(nil),                     // 228: google.protobuf.Timestamp
 }
 var file_rpc_proto_depIdxs = []int32{
-	226, // 0: gctrpc.GetInfoResponse.subsystem_status:type_name -> gctrpc.GetInfoResponse.SubsystemStatusEntry
-	227, // 1: gctrpc.GetInfoResponse.rpc_endpoints:type_name -> gctrpc.GetInfoResponse.RpcEndpointsEntry
-	228, // 2: gctrpc.GetCommunicationRelayersResponse.communication_relayers:type_name -> gctrpc.GetCommunicationRelayersResponse.CommunicationRelayersEntry
-	229, // 3: gctrpc.GetSubsystemsResponse.subsystems_status:type_name -> gctrpc.GetSubsystemsResponse.SubsystemsStatusEntry
-	230, // 4: gctrpc.GetRPCEndpointsResponse.endpoints:type_name -> gctrpc.GetRPCEndpointsResponse.EndpointsEntry
-	231, // 5: gctrpc.GetExchangeOTPsResponse.otp_codes:type_name -> gctrpc.GetExchangeOTPsResponse.OtpCodesEntry
-	232, // 6: gctrpc.GetExchangeInfoResponse.supported_assets:type_name -> gctrpc.GetExchangeInfoResponse.SupportedAssetsEntry
+	214, // 0: gctrpc.GetInfoResponse.subsystem_status:type_name -> gctrpc.GetInfoResponse.SubsystemStatusEntry
+	215, // 1: gctrpc.GetInfoResponse.rpc_endpoints:type_name -> gctrpc.GetInfoResponse.RpcEndpointsEntry
+	216, // 2: gctrpc.GetCommunicationRelayersResponse.communication_relayers:type_name -> gctrpc.GetCommunicationRelayersResponse.CommunicationRelayersEntry
+	217, // 3: gctrpc.GetSubsystemsResponse.subsystems_status:type_name -> gctrpc.GetSubsystemsResponse.SubsystemsStatusEntry
+	218, // 4: gctrpc.GetRPCEndpointsResponse.endpoints:type_name -> gctrpc.GetRPCEndpointsResponse.EndpointsEntry
+	219, // 5: gctrpc.GetExchangeOTPsResponse.otp_codes:type_name -> gctrpc.GetExchangeOTPsResponse.OtpCodesEntry
+	220, // 6: gctrpc.GetExchangeInfoResponse.supported_assets:type_name -> gctrpc.GetExchangeInfoResponse.SupportedAssetsEntry
 	21,  // 7: gctrpc.GetTickerRequest.pair:type_name -> gctrpc.CurrencyPair
 	21,  // 8: gctrpc.TickerResponse.pair:type_name -> gctrpc.CurrencyPair
 	22,  // 9: gctrpc.Tickers.tickers:type_name -> gctrpc.TickerResponse
@@ -16780,16 +16133,16 @@ var file_rpc_proto_depIdxs = []int32{
 	28,  // 15: gctrpc.Orderbooks.orderbooks:type_name -> gctrpc.OrderbookResponse
 	30,  // 16: gctrpc.GetOrderbooksResponse.orderbooks:type_name -> gctrpc.Orderbooks
 	34,  // 17: gctrpc.Account.currencies:type_name -> gctrpc.AccountCurrencyInfo
-	240, // 18: gctrpc.AccountCurrencyInfo.updated_at:type_name -> google.protobuf.Timestamp
+	228, // 18: gctrpc.AccountCurrencyInfo.updated_at:type_name -> google.protobuf.Timestamp
 	33,  // 19: gctrpc.GetAccountBalancesResponse.accounts:type_name -> gctrpc.Account
 	38,  // 20: gctrpc.GetPortfolioResponse.portfolio:type_name -> gctrpc.PortfolioAddress
 	43,  // 21: gctrpc.OfflineCoins.addresses:type_name -> gctrpc.OfflineCoinSummary
-	233, // 22: gctrpc.OnlineCoins.coins:type_name -> gctrpc.OnlineCoins.CoinsEntry
+	221, // 22: gctrpc.OnlineCoins.coins:type_name -> gctrpc.OnlineCoins.CoinsEntry
 	42,  // 23: gctrpc.GetPortfolioSummaryResponse.coin_totals:type_name -> gctrpc.Coin
 	42,  // 24: gctrpc.GetPortfolioSummaryResponse.coins_offline:type_name -> gctrpc.Coin
-	234, // 25: gctrpc.GetPortfolioSummaryResponse.coins_offline_summary:type_name -> gctrpc.GetPortfolioSummaryResponse.CoinsOfflineSummaryEntry
+	222, // 25: gctrpc.GetPortfolioSummaryResponse.coins_offline_summary:type_name -> gctrpc.GetPortfolioSummaryResponse.CoinsOfflineSummaryEntry
 	42,  // 26: gctrpc.GetPortfolioSummaryResponse.coins_online:type_name -> gctrpc.Coin
-	235, // 27: gctrpc.GetPortfolioSummaryResponse.coins_online_summary:type_name -> gctrpc.GetPortfolioSummaryResponse.CoinsOnlineSummaryEntry
+	223, // 27: gctrpc.GetPortfolioSummaryResponse.coins_online_summary:type_name -> gctrpc.GetPortfolioSummaryResponse.CoinsOnlineSummaryEntry
 	51,  // 28: gctrpc.GetForexProvidersResponse.forex_providers:type_name -> gctrpc.ForexProvider
 	54,  // 29: gctrpc.GetForexRatesResponse.forex_rates:type_name -> gctrpc.ForexRatesConversion
 	57,  // 30: gctrpc.OrderDetails.trades:type_name -> gctrpc.TradeHistory
@@ -16803,7 +16156,7 @@ var file_rpc_proto_depIdxs = []int32{
 	21,  // 38: gctrpc.WhaleBombRequest.pair:type_name -> gctrpc.CurrencyPair
 	21,  // 39: gctrpc.CancelOrderRequest.pair:type_name -> gctrpc.CurrencyPair
 	21,  // 40: gctrpc.CancelBatchOrdersRequest.pair:type_name -> gctrpc.CurrencyPair
-	236, // 41: gctrpc.Orders.order_status:type_name -> gctrpc.Orders.OrderStatusEntry
+	224, // 41: gctrpc.Orders.order_status:type_name -> gctrpc.Orders.OrderStatusEntry
 	69,  // 42: gctrpc.CancelBatchOrdersResponse.orders:type_name -> gctrpc.Orders
 	21,  // 43: gctrpc.CancelAllOrdersRequest.pair:type_name -> gctrpc.CurrencyPair
 	69,  // 44: gctrpc.CancelAllOrdersResponse.orders:type_name -> gctrpc.Orders
@@ -16812,16 +16165,16 @@ var file_rpc_proto_depIdxs = []int32{
 	74,  // 47: gctrpc.AddEventRequest.condition_params:type_name -> gctrpc.ConditionParams
 	21,  // 48: gctrpc.AddEventRequest.pair:type_name -> gctrpc.CurrencyPair
 	80,  // 49: gctrpc.DepositAddresses.addresses:type_name -> gctrpc.DepositAddress
-	237, // 50: gctrpc.GetCryptocurrencyDepositAddressesResponse.addresses:type_name -> gctrpc.GetCryptocurrencyDepositAddressesResponse.AddressesEntry
+	225, // 50: gctrpc.GetCryptocurrencyDepositAddressesResponse.addresses:type_name -> gctrpc.GetCryptocurrencyDepositAddressesResponse.AddressesEntry
 	95,  // 51: gctrpc.WithdrawalEventByIDResponse.event:type_name -> gctrpc.WithdrawalEventResponse
 	95,  // 52: gctrpc.WithdrawalEventsByExchangeResponse.event:type_name -> gctrpc.WithdrawalEventResponse
 	96,  // 53: gctrpc.WithdrawalEventResponse.exchange:type_name -> gctrpc.WithdrawalExchangeEvent
 	97,  // 54: gctrpc.WithdrawalEventResponse.request:type_name -> gctrpc.WithdrawalRequestEvent
-	240, // 55: gctrpc.WithdrawalEventResponse.created_at:type_name -> google.protobuf.Timestamp
-	240, // 56: gctrpc.WithdrawalEventResponse.updated_at:type_name -> google.protobuf.Timestamp
+	228, // 55: gctrpc.WithdrawalEventResponse.created_at:type_name -> google.protobuf.Timestamp
+	228, // 56: gctrpc.WithdrawalEventResponse.updated_at:type_name -> google.protobuf.Timestamp
 	98,  // 57: gctrpc.WithdrawalRequestEvent.fiat:type_name -> gctrpc.FiatWithdrawalEvent
 	99,  // 58: gctrpc.WithdrawalRequestEvent.crypto:type_name -> gctrpc.CryptoWithdrawalEvent
-	238, // 59: gctrpc.GetExchangePairsResponse.supported_assets:type_name -> gctrpc.GetExchangePairsResponse.SupportedAssetsEntry
+	226, // 59: gctrpc.GetExchangePairsResponse.supported_assets:type_name -> gctrpc.GetExchangePairsResponse.SupportedAssetsEntry
 	21,  // 60: gctrpc.SetExchangePairRequest.pairs:type_name -> gctrpc.CurrencyPair
 	21,  // 61: gctrpc.GetOrderbookStreamRequest.pair:type_name -> gctrpc.CurrencyPair
 	21,  // 62: gctrpc.GetTickerStreamRequest.pair:type_name -> gctrpc.CurrencyPair
@@ -16833,327 +16186,303 @@ var file_rpc_proto_depIdxs = []int32{
 	21,  // 68: gctrpc.GetHistoricCandlesRequest.pair:type_name -> gctrpc.CurrencyPair
 	21,  // 69: gctrpc.GetHistoricCandlesResponse.pair:type_name -> gctrpc.CurrencyPair
 	118, // 70: gctrpc.GetHistoricCandlesResponse.candle:type_name -> gctrpc.Candle
-	120, // 71: gctrpc.GCTScriptExecuteRequest.script:type_name -> gctrpc.GCTScript
-	120, // 72: gctrpc.GCTScriptStopRequest.script:type_name -> gctrpc.GCTScript
-	120, // 73: gctrpc.GCTScriptReadScriptRequest.script:type_name -> gctrpc.GCTScript
-	120, // 74: gctrpc.GCTScriptQueryRequest.script:type_name -> gctrpc.GCTScript
-	120, // 75: gctrpc.GCTScriptStatusResponse.scripts:type_name -> gctrpc.GCTScript
-	120, // 76: gctrpc.GCTScriptQueryResponse.script:type_name -> gctrpc.GCTScript
-	142, // 77: gctrpc.WebsocketGetSubscriptionsResponse.subscriptions:type_name -> gctrpc.WebsocketSubscription
-	21,  // 78: gctrpc.FindMissingCandlePeriodsRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 79: gctrpc.FindMissingTradePeriodsRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 80: gctrpc.FindMissingIntervalsResponse.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 81: gctrpc.UpsertDataHistoryJobRequest.pair:type_name -> gctrpc.CurrencyPair
-	150, // 82: gctrpc.InsertSequentialJobsRequest.jobs:type_name -> gctrpc.UpsertDataHistoryJobRequest
-	153, // 83: gctrpc.InsertSequentialJobsResponse.jobs:type_name -> gctrpc.UpsertDataHistoryJobResponse
-	21,  // 84: gctrpc.DataHistoryJob.pair:type_name -> gctrpc.CurrencyPair
-	156, // 85: gctrpc.DataHistoryJob.job_results:type_name -> gctrpc.DataHistoryJobResult
-	155, // 86: gctrpc.DataHistoryJobs.results:type_name -> gctrpc.DataHistoryJob
-	21,  // 87: gctrpc.ModifyOrderRequest.pair:type_name -> gctrpc.CurrencyPair
-	169, // 88: gctrpc.CurrencyStateResponse.currency_states:type_name -> gctrpc.CurrencyState
-	21,  // 89: gctrpc.FundingData.pair:type_name -> gctrpc.CurrencyPair
-	170, // 90: gctrpc.FundingData.rates:type_name -> gctrpc.FundingRate
-	170, // 91: gctrpc.FundingData.latest_rate:type_name -> gctrpc.FundingRate
-	170, // 92: gctrpc.FundingData.upcoming_rate:type_name -> gctrpc.FundingRate
-	21,  // 93: gctrpc.FuturePosition.pair:type_name -> gctrpc.CurrencyPair
-	56,  // 94: gctrpc.FuturePosition.orders:type_name -> gctrpc.OrderDetails
-	172, // 95: gctrpc.FuturePosition.position_stats:type_name -> gctrpc.FuturesPositionStats
-	171, // 96: gctrpc.FuturePosition.funding_data:type_name -> gctrpc.FundingData
-	21,  // 97: gctrpc.GetManagedPositionRequest.pair:type_name -> gctrpc.CurrencyPair
-	173, // 98: gctrpc.GetManagedPositionsResponse.positions:type_name -> gctrpc.FuturePosition
-	21,  // 99: gctrpc.GetFuturesPositionsSummaryRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 100: gctrpc.GetFuturesPositionsSummaryRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
-	21,  // 101: gctrpc.GetFuturesPositionsSummaryResponse.pair:type_name -> gctrpc.CurrencyPair
-	172, // 102: gctrpc.GetFuturesPositionsSummaryResponse.position_stats:type_name -> gctrpc.FuturesPositionStats
-	21,  // 103: gctrpc.GetFuturesPositionsOrdersRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 104: gctrpc.GetFuturesPositionsOrdersRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
-	173, // 105: gctrpc.GetFuturesPositionsOrdersResponse.positions:type_name -> gctrpc.FuturePosition
-	21,  // 106: gctrpc.GetMarginTypeRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 107: gctrpc.GetMarginTypeResponse.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 108: gctrpc.ChangePositionMarginRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 109: gctrpc.ChangePositionMarginResponse.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 110: gctrpc.SetMarginTypeRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 111: gctrpc.SetMarginTypeResponse.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 112: gctrpc.GetLeverageRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 113: gctrpc.GetLeverageRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
-	21,  // 114: gctrpc.GetLeverageResponse.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 115: gctrpc.GetLeverageResponse.underlying_pair:type_name -> gctrpc.CurrencyPair
-	21,  // 116: gctrpc.SetLeverageRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 117: gctrpc.SetLeverageRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
-	21,  // 118: gctrpc.SetLeverageResponse.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 119: gctrpc.SetLeverageResponse.underlying_pair:type_name -> gctrpc.CurrencyPair
-	199, // 120: gctrpc.GetCollateralResponse.used_breakdown:type_name -> gctrpc.CollateralUsedBreakdown
-	197, // 121: gctrpc.GetCollateralResponse.currency_breakdown:type_name -> gctrpc.CollateralForCurrency
-	198, // 122: gctrpc.GetCollateralResponse.position_breakdown:type_name -> gctrpc.CollateralByPosition
-	199, // 123: gctrpc.CollateralForCurrency.used_breakdown:type_name -> gctrpc.CollateralUsedBreakdown
-	21,  // 124: gctrpc.GetFundingRatesRequest.pair:type_name -> gctrpc.CurrencyPair
-	171, // 125: gctrpc.GetFundingRatesResponse.rates:type_name -> gctrpc.FundingData
-	21,  // 126: gctrpc.GetLatestFundingRateRequest.pair:type_name -> gctrpc.CurrencyPair
-	171, // 127: gctrpc.GetLatestFundingRateResponse.rate:type_name -> gctrpc.FundingData
-	21,  // 128: gctrpc.GetTechnicalAnalysisRequest.pair:type_name -> gctrpc.CurrencyPair
-	240, // 129: gctrpc.GetTechnicalAnalysisRequest.start:type_name -> google.protobuf.Timestamp
-	240, // 130: gctrpc.GetTechnicalAnalysisRequest.end:type_name -> google.protobuf.Timestamp
-	21,  // 131: gctrpc.GetTechnicalAnalysisRequest.other_pair:type_name -> gctrpc.CurrencyPair
-	239, // 132: gctrpc.GetTechnicalAnalysisResponse.signals:type_name -> gctrpc.GetTechnicalAnalysisResponse.SignalsEntry
-	212, // 133: gctrpc.GetMarginRatesHistoryRequest.rates:type_name -> gctrpc.MarginRate
-	210, // 134: gctrpc.MarginRate.lending_payment:type_name -> gctrpc.LendingPayment
-	211, // 135: gctrpc.MarginRate.borrow_cost:type_name -> gctrpc.BorrowCost
-	212, // 136: gctrpc.GetMarginRatesHistoryResponse.rates:type_name -> gctrpc.MarginRate
-	212, // 137: gctrpc.GetMarginRatesHistoryResponse.latest_rate:type_name -> gctrpc.MarginRate
-	212, // 138: gctrpc.GetMarginRatesHistoryResponse.predicted_rate:type_name -> gctrpc.MarginRate
-	21,  // 139: gctrpc.GetOrderbookMovementRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 140: gctrpc.GetOrderbookAmountByNominalRequest.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 141: gctrpc.GetOrderbookAmountByImpactRequest.pair:type_name -> gctrpc.CurrencyPair
-	221, // 142: gctrpc.GetOpenInterestRequest.data:type_name -> gctrpc.OpenInterestDataRequest
-	21,  // 143: gctrpc.OpenInterestDataRequest.pair:type_name -> gctrpc.CurrencyPair
-	223, // 144: gctrpc.GetOpenInterestResponse.data:type_name -> gctrpc.OpenInterestDataResponse
-	21,  // 145: gctrpc.OpenInterestDataResponse.pair:type_name -> gctrpc.CurrencyPair
-	21,  // 146: gctrpc.GetCurrencyTradeURLRequest.pair:type_name -> gctrpc.CurrencyPair
-	9,   // 147: gctrpc.GetInfoResponse.RpcEndpointsEntry.value:type_name -> gctrpc.RPCEndpoint
-	3,   // 148: gctrpc.GetCommunicationRelayersResponse.CommunicationRelayersEntry.value:type_name -> gctrpc.CommunicationRelayer
-	9,   // 149: gctrpc.GetRPCEndpointsResponse.EndpointsEntry.value:type_name -> gctrpc.RPCEndpoint
-	18,  // 150: gctrpc.GetExchangeInfoResponse.SupportedAssetsEntry.value:type_name -> gctrpc.PairsSupported
-	44,  // 151: gctrpc.OnlineCoins.CoinsEntry.value:type_name -> gctrpc.OnlineCoinSummary
-	45,  // 152: gctrpc.GetPortfolioSummaryResponse.CoinsOfflineSummaryEntry.value:type_name -> gctrpc.OfflineCoins
-	46,  // 153: gctrpc.GetPortfolioSummaryResponse.CoinsOnlineSummaryEntry.value:type_name -> gctrpc.OnlineCoins
-	81,  // 154: gctrpc.GetCryptocurrencyDepositAddressesResponse.AddressesEntry.value:type_name -> gctrpc.DepositAddresses
-	18,  // 155: gctrpc.GetExchangePairsResponse.SupportedAssetsEntry.value:type_name -> gctrpc.PairsSupported
-	207, // 156: gctrpc.GetTechnicalAnalysisResponse.SignalsEntry.value:type_name -> gctrpc.ListOfSignals
-	0,   // 157: gctrpc.GoCryptoTraderService.GetInfo:input_type -> gctrpc.GetInfoRequest
-	6,   // 158: gctrpc.GoCryptoTraderService.GetSubsystems:input_type -> gctrpc.GetSubsystemsRequest
-	5,   // 159: gctrpc.GoCryptoTraderService.EnableSubsystem:input_type -> gctrpc.GenericSubsystemRequest
-	5,   // 160: gctrpc.GoCryptoTraderService.DisableSubsystem:input_type -> gctrpc.GenericSubsystemRequest
-	8,   // 161: gctrpc.GoCryptoTraderService.GetRPCEndpoints:input_type -> gctrpc.GetRPCEndpointsRequest
-	2,   // 162: gctrpc.GoCryptoTraderService.GetCommunicationRelayers:input_type -> gctrpc.GetCommunicationRelayersRequest
-	12,  // 163: gctrpc.GoCryptoTraderService.GetExchanges:input_type -> gctrpc.GetExchangesRequest
-	11,  // 164: gctrpc.GoCryptoTraderService.DisableExchange:input_type -> gctrpc.GenericExchangeNameRequest
-	11,  // 165: gctrpc.GoCryptoTraderService.GetExchangeInfo:input_type -> gctrpc.GenericExchangeNameRequest
-	11,  // 166: gctrpc.GoCryptoTraderService.GetExchangeOTPCode:input_type -> gctrpc.GenericExchangeNameRequest
-	15,  // 167: gctrpc.GoCryptoTraderService.GetExchangeOTPCodes:input_type -> gctrpc.GetExchangeOTPsRequest
-	11,  // 168: gctrpc.GoCryptoTraderService.EnableExchange:input_type -> gctrpc.GenericExchangeNameRequest
-	20,  // 169: gctrpc.GoCryptoTraderService.GetTicker:input_type -> gctrpc.GetTickerRequest
-	23,  // 170: gctrpc.GoCryptoTraderService.GetTickers:input_type -> gctrpc.GetTickersRequest
-	26,  // 171: gctrpc.GoCryptoTraderService.GetOrderbook:input_type -> gctrpc.GetOrderbookRequest
-	29,  // 172: gctrpc.GoCryptoTraderService.GetOrderbooks:input_type -> gctrpc.GetOrderbooksRequest
-	32,  // 173: gctrpc.GoCryptoTraderService.GetAccountBalances:input_type -> gctrpc.GetAccountBalancesRequest
-	32,  // 174: gctrpc.GoCryptoTraderService.UpdateAccountBalances:input_type -> gctrpc.GetAccountBalancesRequest
-	32,  // 175: gctrpc.GoCryptoTraderService.GetAccountBalancesStream:input_type -> gctrpc.GetAccountBalancesRequest
-	36,  // 176: gctrpc.GoCryptoTraderService.GetConfig:input_type -> gctrpc.GetConfigRequest
-	39,  // 177: gctrpc.GoCryptoTraderService.GetPortfolio:input_type -> gctrpc.GetPortfolioRequest
-	41,  // 178: gctrpc.GoCryptoTraderService.GetPortfolioSummary:input_type -> gctrpc.GetPortfolioSummaryRequest
-	48,  // 179: gctrpc.GoCryptoTraderService.AddPortfolioAddress:input_type -> gctrpc.AddPortfolioAddressRequest
-	49,  // 180: gctrpc.GoCryptoTraderService.RemovePortfolioAddress:input_type -> gctrpc.RemovePortfolioAddressRequest
-	50,  // 181: gctrpc.GoCryptoTraderService.GetForexProviders:input_type -> gctrpc.GetForexProvidersRequest
-	53,  // 182: gctrpc.GoCryptoTraderService.GetForexRates:input_type -> gctrpc.GetForexRatesRequest
-	58,  // 183: gctrpc.GoCryptoTraderService.GetOrders:input_type -> gctrpc.GetOrdersRequest
-	60,  // 184: gctrpc.GoCryptoTraderService.GetOrder:input_type -> gctrpc.GetOrderRequest
-	61,  // 185: gctrpc.GoCryptoTraderService.SubmitOrder:input_type -> gctrpc.SubmitOrderRequest
-	64,  // 186: gctrpc.GoCryptoTraderService.SimulateOrder:input_type -> gctrpc.SimulateOrderRequest
-	66,  // 187: gctrpc.GoCryptoTraderService.WhaleBomb:input_type -> gctrpc.WhaleBombRequest
-	67,  // 188: gctrpc.GoCryptoTraderService.CancelOrder:input_type -> gctrpc.CancelOrderRequest
-	68,  // 189: gctrpc.GoCryptoTraderService.CancelBatchOrders:input_type -> gctrpc.CancelBatchOrdersRequest
-	71,  // 190: gctrpc.GoCryptoTraderService.CancelAllOrders:input_type -> gctrpc.CancelAllOrdersRequest
-	73,  // 191: gctrpc.GoCryptoTraderService.GetEvents:input_type -> gctrpc.GetEventsRequest
-	76,  // 192: gctrpc.GoCryptoTraderService.AddEvent:input_type -> gctrpc.AddEventRequest
-	78,  // 193: gctrpc.GoCryptoTraderService.RemoveEvent:input_type -> gctrpc.RemoveEventRequest
-	79,  // 194: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddresses:input_type -> gctrpc.GetCryptocurrencyDepositAddressesRequest
-	83,  // 195: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddress:input_type -> gctrpc.GetCryptocurrencyDepositAddressRequest
-	85,  // 196: gctrpc.GoCryptoTraderService.GetAvailableTransferChains:input_type -> gctrpc.GetAvailableTransferChainsRequest
-	87,  // 197: gctrpc.GoCryptoTraderService.WithdrawFiatFunds:input_type -> gctrpc.WithdrawFiatRequest
-	88,  // 198: gctrpc.GoCryptoTraderService.WithdrawCryptocurrencyFunds:input_type -> gctrpc.WithdrawCryptoRequest
-	90,  // 199: gctrpc.GoCryptoTraderService.WithdrawalEventByID:input_type -> gctrpc.WithdrawalEventByIDRequest
-	92,  // 200: gctrpc.GoCryptoTraderService.WithdrawalEventsByExchange:input_type -> gctrpc.WithdrawalEventsByExchangeRequest
-	93,  // 201: gctrpc.GoCryptoTraderService.WithdrawalEventsByDate:input_type -> gctrpc.WithdrawalEventsByDateRequest
-	100, // 202: gctrpc.GoCryptoTraderService.GetLoggerDetails:input_type -> gctrpc.GetLoggerDetailsRequest
-	102, // 203: gctrpc.GoCryptoTraderService.SetLoggerDetails:input_type -> gctrpc.SetLoggerDetailsRequest
-	103, // 204: gctrpc.GoCryptoTraderService.GetExchangePairs:input_type -> gctrpc.GetExchangePairsRequest
-	105, // 205: gctrpc.GoCryptoTraderService.SetExchangePair:input_type -> gctrpc.SetExchangePairRequest
-	106, // 206: gctrpc.GoCryptoTraderService.GetOrderbookStream:input_type -> gctrpc.GetOrderbookStreamRequest
-	107, // 207: gctrpc.GoCryptoTraderService.GetExchangeOrderbookStream:input_type -> gctrpc.GetExchangeOrderbookStreamRequest
-	108, // 208: gctrpc.GoCryptoTraderService.GetTickerStream:input_type -> gctrpc.GetTickerStreamRequest
-	109, // 209: gctrpc.GoCryptoTraderService.GetExchangeTickerStream:input_type -> gctrpc.GetExchangeTickerStreamRequest
-	110, // 210: gctrpc.GoCryptoTraderService.GetAuditEvent:input_type -> gctrpc.GetAuditEventRequest
-	121, // 211: gctrpc.GoCryptoTraderService.GCTScriptExecute:input_type -> gctrpc.GCTScriptExecuteRequest
-	126, // 212: gctrpc.GoCryptoTraderService.GCTScriptUpload:input_type -> gctrpc.GCTScriptUploadRequest
-	127, // 213: gctrpc.GoCryptoTraderService.GCTScriptReadScript:input_type -> gctrpc.GCTScriptReadScriptRequest
-	124, // 214: gctrpc.GoCryptoTraderService.GCTScriptStatus:input_type -> gctrpc.GCTScriptStatusRequest
-	128, // 215: gctrpc.GoCryptoTraderService.GCTScriptQuery:input_type -> gctrpc.GCTScriptQueryRequest
-	122, // 216: gctrpc.GoCryptoTraderService.GCTScriptStop:input_type -> gctrpc.GCTScriptStopRequest
-	123, // 217: gctrpc.GoCryptoTraderService.GCTScriptStopAll:input_type -> gctrpc.GCTScriptStopAllRequest
-	125, // 218: gctrpc.GoCryptoTraderService.GCTScriptListAll:input_type -> gctrpc.GCTScriptListAllRequest
-	129, // 219: gctrpc.GoCryptoTraderService.GCTScriptAutoLoadToggle:input_type -> gctrpc.GCTScriptAutoLoadRequest
-	116, // 220: gctrpc.GoCryptoTraderService.GetHistoricCandles:input_type -> gctrpc.GetHistoricCandlesRequest
-	133, // 221: gctrpc.GoCryptoTraderService.SetExchangeAsset:input_type -> gctrpc.SetExchangeAssetRequest
-	134, // 222: gctrpc.GoCryptoTraderService.SetAllExchangePairs:input_type -> gctrpc.SetExchangeAllPairsRequest
-	135, // 223: gctrpc.GoCryptoTraderService.UpdateExchangeSupportedPairs:input_type -> gctrpc.UpdateExchangeSupportedPairsRequest
-	136, // 224: gctrpc.GoCryptoTraderService.GetExchangeAssets:input_type -> gctrpc.GetExchangeAssetsRequest
-	138, // 225: gctrpc.GoCryptoTraderService.WebsocketGetInfo:input_type -> gctrpc.WebsocketGetInfoRequest
-	140, // 226: gctrpc.GoCryptoTraderService.WebsocketSetEnabled:input_type -> gctrpc.WebsocketSetEnabledRequest
-	141, // 227: gctrpc.GoCryptoTraderService.WebsocketGetSubscriptions:input_type -> gctrpc.WebsocketGetSubscriptionsRequest
-	144, // 228: gctrpc.GoCryptoTraderService.WebsocketSetProxy:input_type -> gctrpc.WebsocketSetProxyRequest
-	145, // 229: gctrpc.GoCryptoTraderService.WebsocketSetURL:input_type -> gctrpc.WebsocketSetURLRequest
-	112, // 230: gctrpc.GoCryptoTraderService.GetRecentTrades:input_type -> gctrpc.GetSavedTradesRequest
-	112, // 231: gctrpc.GoCryptoTraderService.GetHistoricTrades:input_type -> gctrpc.GetSavedTradesRequest
-	112, // 232: gctrpc.GoCryptoTraderService.GetSavedTrades:input_type -> gctrpc.GetSavedTradesRequest
-	115, // 233: gctrpc.GoCryptoTraderService.ConvertTradesToCandles:input_type -> gctrpc.ConvertTradesToCandlesRequest
-	146, // 234: gctrpc.GoCryptoTraderService.FindMissingSavedCandleIntervals:input_type -> gctrpc.FindMissingCandlePeriodsRequest
-	147, // 235: gctrpc.GoCryptoTraderService.FindMissingSavedTradeIntervals:input_type -> gctrpc.FindMissingTradePeriodsRequest
-	149, // 236: gctrpc.GoCryptoTraderService.SetExchangeTradeProcessing:input_type -> gctrpc.SetExchangeTradeProcessingRequest
-	150, // 237: gctrpc.GoCryptoTraderService.UpsertDataHistoryJob:input_type -> gctrpc.UpsertDataHistoryJobRequest
-	154, // 238: gctrpc.GoCryptoTraderService.GetDataHistoryJobDetails:input_type -> gctrpc.GetDataHistoryJobDetailsRequest
-	0,   // 239: gctrpc.GoCryptoTraderService.GetActiveDataHistoryJobs:input_type -> gctrpc.GetInfoRequest
-	158, // 240: gctrpc.GoCryptoTraderService.GetDataHistoryJobsBetween:input_type -> gctrpc.GetDataHistoryJobsBetweenRequest
-	154, // 241: gctrpc.GoCryptoTraderService.GetDataHistoryJobSummary:input_type -> gctrpc.GetDataHistoryJobDetailsRequest
-	159, // 242: gctrpc.GoCryptoTraderService.SetDataHistoryJobStatus:input_type -> gctrpc.SetDataHistoryJobStatusRequest
-	160, // 243: gctrpc.GoCryptoTraderService.UpdateDataHistoryJobPrerequisite:input_type -> gctrpc.UpdateDataHistoryJobPrerequisiteRequest
-	58,  // 244: gctrpc.GoCryptoTraderService.GetManagedOrders:input_type -> gctrpc.GetOrdersRequest
-	161, // 245: gctrpc.GoCryptoTraderService.ModifyOrder:input_type -> gctrpc.ModifyOrderRequest
-	163, // 246: gctrpc.GoCryptoTraderService.CurrencyStateGetAll:input_type -> gctrpc.CurrencyStateGetAllRequest
-	164, // 247: gctrpc.GoCryptoTraderService.CurrencyStateTrading:input_type -> gctrpc.CurrencyStateTradingRequest
-	167, // 248: gctrpc.GoCryptoTraderService.CurrencyStateDeposit:input_type -> gctrpc.CurrencyStateDepositRequest
-	166, // 249: gctrpc.GoCryptoTraderService.CurrencyStateWithdraw:input_type -> gctrpc.CurrencyStateWithdrawRequest
-	165, // 250: gctrpc.GoCryptoTraderService.CurrencyStateTradingPair:input_type -> gctrpc.CurrencyStateTradingPairRequest
-	177, // 251: gctrpc.GoCryptoTraderService.GetFuturesPositionsSummary:input_type -> gctrpc.GetFuturesPositionsSummaryRequest
-	179, // 252: gctrpc.GoCryptoTraderService.GetFuturesPositionsOrders:input_type -> gctrpc.GetFuturesPositionsOrdersRequest
-	195, // 253: gctrpc.GoCryptoTraderService.GetCollateral:input_type -> gctrpc.GetCollateralRequest
-	204, // 254: gctrpc.GoCryptoTraderService.Shutdown:input_type -> gctrpc.ShutdownRequest
-	206, // 255: gctrpc.GoCryptoTraderService.GetTechnicalAnalysis:input_type -> gctrpc.GetTechnicalAnalysisRequest
-	209, // 256: gctrpc.GoCryptoTraderService.GetMarginRatesHistory:input_type -> gctrpc.GetMarginRatesHistoryRequest
-	174, // 257: gctrpc.GoCryptoTraderService.GetManagedPosition:input_type -> gctrpc.GetManagedPositionRequest
-	175, // 258: gctrpc.GoCryptoTraderService.GetAllManagedPositions:input_type -> gctrpc.GetAllManagedPositionsRequest
-	200, // 259: gctrpc.GoCryptoTraderService.GetFundingRates:input_type -> gctrpc.GetFundingRatesRequest
-	202, // 260: gctrpc.GoCryptoTraderService.GetLatestFundingRate:input_type -> gctrpc.GetLatestFundingRateRequest
-	214, // 261: gctrpc.GoCryptoTraderService.GetOrderbookMovement:input_type -> gctrpc.GetOrderbookMovementRequest
-	216, // 262: gctrpc.GoCryptoTraderService.GetOrderbookAmountByNominal:input_type -> gctrpc.GetOrderbookAmountByNominalRequest
-	218, // 263: gctrpc.GoCryptoTraderService.GetOrderbookAmountByImpact:input_type -> gctrpc.GetOrderbookAmountByImpactRequest
-	181, // 264: gctrpc.GoCryptoTraderService.GetCollateralMode:input_type -> gctrpc.GetCollateralModeRequest
-	191, // 265: gctrpc.GoCryptoTraderService.GetLeverage:input_type -> gctrpc.GetLeverageRequest
-	183, // 266: gctrpc.GoCryptoTraderService.SetCollateralMode:input_type -> gctrpc.SetCollateralModeRequest
-	189, // 267: gctrpc.GoCryptoTraderService.SetMarginType:input_type -> gctrpc.SetMarginTypeRequest
-	193, // 268: gctrpc.GoCryptoTraderService.SetLeverage:input_type -> gctrpc.SetLeverageRequest
-	187, // 269: gctrpc.GoCryptoTraderService.ChangePositionMargin:input_type -> gctrpc.ChangePositionMarginRequest
-	220, // 270: gctrpc.GoCryptoTraderService.GetOpenInterest:input_type -> gctrpc.GetOpenInterestRequest
-	224, // 271: gctrpc.GoCryptoTraderService.GetCurrencyTradeURL:input_type -> gctrpc.GetCurrencyTradeURLRequest
-	1,   // 272: gctrpc.GoCryptoTraderService.GetInfo:output_type -> gctrpc.GetInfoResponse
-	7,   // 273: gctrpc.GoCryptoTraderService.GetSubsystems:output_type -> gctrpc.GetSubsystemsResponse
-	132, // 274: gctrpc.GoCryptoTraderService.EnableSubsystem:output_type -> gctrpc.GenericResponse
-	132, // 275: gctrpc.GoCryptoTraderService.DisableSubsystem:output_type -> gctrpc.GenericResponse
-	10,  // 276: gctrpc.GoCryptoTraderService.GetRPCEndpoints:output_type -> gctrpc.GetRPCEndpointsResponse
-	4,   // 277: gctrpc.GoCryptoTraderService.GetCommunicationRelayers:output_type -> gctrpc.GetCommunicationRelayersResponse
-	13,  // 278: gctrpc.GoCryptoTraderService.GetExchanges:output_type -> gctrpc.GetExchangesResponse
-	132, // 279: gctrpc.GoCryptoTraderService.DisableExchange:output_type -> gctrpc.GenericResponse
-	19,  // 280: gctrpc.GoCryptoTraderService.GetExchangeInfo:output_type -> gctrpc.GetExchangeInfoResponse
-	14,  // 281: gctrpc.GoCryptoTraderService.GetExchangeOTPCode:output_type -> gctrpc.GetExchangeOTPResponse
-	16,  // 282: gctrpc.GoCryptoTraderService.GetExchangeOTPCodes:output_type -> gctrpc.GetExchangeOTPsResponse
-	132, // 283: gctrpc.GoCryptoTraderService.EnableExchange:output_type -> gctrpc.GenericResponse
-	22,  // 284: gctrpc.GoCryptoTraderService.GetTicker:output_type -> gctrpc.TickerResponse
-	25,  // 285: gctrpc.GoCryptoTraderService.GetTickers:output_type -> gctrpc.GetTickersResponse
-	28,  // 286: gctrpc.GoCryptoTraderService.GetOrderbook:output_type -> gctrpc.OrderbookResponse
-	31,  // 287: gctrpc.GoCryptoTraderService.GetOrderbooks:output_type -> gctrpc.GetOrderbooksResponse
-	35,  // 288: gctrpc.GoCryptoTraderService.GetAccountBalances:output_type -> gctrpc.GetAccountBalancesResponse
-	35,  // 289: gctrpc.GoCryptoTraderService.UpdateAccountBalances:output_type -> gctrpc.GetAccountBalancesResponse
-	35,  // 290: gctrpc.GoCryptoTraderService.GetAccountBalancesStream:output_type -> gctrpc.GetAccountBalancesResponse
-	37,  // 291: gctrpc.GoCryptoTraderService.GetConfig:output_type -> gctrpc.GetConfigResponse
-	40,  // 292: gctrpc.GoCryptoTraderService.GetPortfolio:output_type -> gctrpc.GetPortfolioResponse
-	47,  // 293: gctrpc.GoCryptoTraderService.GetPortfolioSummary:output_type -> gctrpc.GetPortfolioSummaryResponse
-	132, // 294: gctrpc.GoCryptoTraderService.AddPortfolioAddress:output_type -> gctrpc.GenericResponse
-	132, // 295: gctrpc.GoCryptoTraderService.RemovePortfolioAddress:output_type -> gctrpc.GenericResponse
-	52,  // 296: gctrpc.GoCryptoTraderService.GetForexProviders:output_type -> gctrpc.GetForexProvidersResponse
-	55,  // 297: gctrpc.GoCryptoTraderService.GetForexRates:output_type -> gctrpc.GetForexRatesResponse
-	59,  // 298: gctrpc.GoCryptoTraderService.GetOrders:output_type -> gctrpc.GetOrdersResponse
-	56,  // 299: gctrpc.GoCryptoTraderService.GetOrder:output_type -> gctrpc.OrderDetails
-	63,  // 300: gctrpc.GoCryptoTraderService.SubmitOrder:output_type -> gctrpc.SubmitOrderResponse
-	65,  // 301: gctrpc.GoCryptoTraderService.SimulateOrder:output_type -> gctrpc.SimulateOrderResponse
-	65,  // 302: gctrpc.GoCryptoTraderService.WhaleBomb:output_type -> gctrpc.SimulateOrderResponse
-	132, // 303: gctrpc.GoCryptoTraderService.CancelOrder:output_type -> gctrpc.GenericResponse
-	70,  // 304: gctrpc.GoCryptoTraderService.CancelBatchOrders:output_type -> gctrpc.CancelBatchOrdersResponse
-	72,  // 305: gctrpc.GoCryptoTraderService.CancelAllOrders:output_type -> gctrpc.CancelAllOrdersResponse
-	75,  // 306: gctrpc.GoCryptoTraderService.GetEvents:output_type -> gctrpc.GetEventsResponse
-	77,  // 307: gctrpc.GoCryptoTraderService.AddEvent:output_type -> gctrpc.AddEventResponse
-	132, // 308: gctrpc.GoCryptoTraderService.RemoveEvent:output_type -> gctrpc.GenericResponse
-	82,  // 309: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddresses:output_type -> gctrpc.GetCryptocurrencyDepositAddressesResponse
-	84,  // 310: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddress:output_type -> gctrpc.GetCryptocurrencyDepositAddressResponse
-	86,  // 311: gctrpc.GoCryptoTraderService.GetAvailableTransferChains:output_type -> gctrpc.GetAvailableTransferChainsResponse
-	89,  // 312: gctrpc.GoCryptoTraderService.WithdrawFiatFunds:output_type -> gctrpc.WithdrawResponse
-	89,  // 313: gctrpc.GoCryptoTraderService.WithdrawCryptocurrencyFunds:output_type -> gctrpc.WithdrawResponse
-	91,  // 314: gctrpc.GoCryptoTraderService.WithdrawalEventByID:output_type -> gctrpc.WithdrawalEventByIDResponse
-	94,  // 315: gctrpc.GoCryptoTraderService.WithdrawalEventsByExchange:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
-	94,  // 316: gctrpc.GoCryptoTraderService.WithdrawalEventsByDate:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
-	101, // 317: gctrpc.GoCryptoTraderService.GetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
-	101, // 318: gctrpc.GoCryptoTraderService.SetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
-	104, // 319: gctrpc.GoCryptoTraderService.GetExchangePairs:output_type -> gctrpc.GetExchangePairsResponse
-	132, // 320: gctrpc.GoCryptoTraderService.SetExchangePair:output_type -> gctrpc.GenericResponse
-	28,  // 321: gctrpc.GoCryptoTraderService.GetOrderbookStream:output_type -> gctrpc.OrderbookResponse
-	28,  // 322: gctrpc.GoCryptoTraderService.GetExchangeOrderbookStream:output_type -> gctrpc.OrderbookResponse
-	22,  // 323: gctrpc.GoCryptoTraderService.GetTickerStream:output_type -> gctrpc.TickerResponse
-	22,  // 324: gctrpc.GoCryptoTraderService.GetExchangeTickerStream:output_type -> gctrpc.TickerResponse
-	111, // 325: gctrpc.GoCryptoTraderService.GetAuditEvent:output_type -> gctrpc.GetAuditEventResponse
-	132, // 326: gctrpc.GoCryptoTraderService.GCTScriptExecute:output_type -> gctrpc.GenericResponse
-	132, // 327: gctrpc.GoCryptoTraderService.GCTScriptUpload:output_type -> gctrpc.GenericResponse
-	131, // 328: gctrpc.GoCryptoTraderService.GCTScriptReadScript:output_type -> gctrpc.GCTScriptQueryResponse
-	130, // 329: gctrpc.GoCryptoTraderService.GCTScriptStatus:output_type -> gctrpc.GCTScriptStatusResponse
-	131, // 330: gctrpc.GoCryptoTraderService.GCTScriptQuery:output_type -> gctrpc.GCTScriptQueryResponse
-	132, // 331: gctrpc.GoCryptoTraderService.GCTScriptStop:output_type -> gctrpc.GenericResponse
-	132, // 332: gctrpc.GoCryptoTraderService.GCTScriptStopAll:output_type -> gctrpc.GenericResponse
-	130, // 333: gctrpc.GoCryptoTraderService.GCTScriptListAll:output_type -> gctrpc.GCTScriptStatusResponse
-	132, // 334: gctrpc.GoCryptoTraderService.GCTScriptAutoLoadToggle:output_type -> gctrpc.GenericResponse
-	117, // 335: gctrpc.GoCryptoTraderService.GetHistoricCandles:output_type -> gctrpc.GetHistoricCandlesResponse
-	132, // 336: gctrpc.GoCryptoTraderService.SetExchangeAsset:output_type -> gctrpc.GenericResponse
-	132, // 337: gctrpc.GoCryptoTraderService.SetAllExchangePairs:output_type -> gctrpc.GenericResponse
-	132, // 338: gctrpc.GoCryptoTraderService.UpdateExchangeSupportedPairs:output_type -> gctrpc.GenericResponse
-	137, // 339: gctrpc.GoCryptoTraderService.GetExchangeAssets:output_type -> gctrpc.GetExchangeAssetsResponse
-	139, // 340: gctrpc.GoCryptoTraderService.WebsocketGetInfo:output_type -> gctrpc.WebsocketGetInfoResponse
-	132, // 341: gctrpc.GoCryptoTraderService.WebsocketSetEnabled:output_type -> gctrpc.GenericResponse
-	143, // 342: gctrpc.GoCryptoTraderService.WebsocketGetSubscriptions:output_type -> gctrpc.WebsocketGetSubscriptionsResponse
-	132, // 343: gctrpc.GoCryptoTraderService.WebsocketSetProxy:output_type -> gctrpc.GenericResponse
-	132, // 344: gctrpc.GoCryptoTraderService.WebsocketSetURL:output_type -> gctrpc.GenericResponse
-	114, // 345: gctrpc.GoCryptoTraderService.GetRecentTrades:output_type -> gctrpc.SavedTradesResponse
-	114, // 346: gctrpc.GoCryptoTraderService.GetHistoricTrades:output_type -> gctrpc.SavedTradesResponse
-	114, // 347: gctrpc.GoCryptoTraderService.GetSavedTrades:output_type -> gctrpc.SavedTradesResponse
-	117, // 348: gctrpc.GoCryptoTraderService.ConvertTradesToCandles:output_type -> gctrpc.GetHistoricCandlesResponse
-	148, // 349: gctrpc.GoCryptoTraderService.FindMissingSavedCandleIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
-	148, // 350: gctrpc.GoCryptoTraderService.FindMissingSavedTradeIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
-	132, // 351: gctrpc.GoCryptoTraderService.SetExchangeTradeProcessing:output_type -> gctrpc.GenericResponse
-	153, // 352: gctrpc.GoCryptoTraderService.UpsertDataHistoryJob:output_type -> gctrpc.UpsertDataHistoryJobResponse
-	155, // 353: gctrpc.GoCryptoTraderService.GetDataHistoryJobDetails:output_type -> gctrpc.DataHistoryJob
-	157, // 354: gctrpc.GoCryptoTraderService.GetActiveDataHistoryJobs:output_type -> gctrpc.DataHistoryJobs
-	157, // 355: gctrpc.GoCryptoTraderService.GetDataHistoryJobsBetween:output_type -> gctrpc.DataHistoryJobs
-	155, // 356: gctrpc.GoCryptoTraderService.GetDataHistoryJobSummary:output_type -> gctrpc.DataHistoryJob
-	132, // 357: gctrpc.GoCryptoTraderService.SetDataHistoryJobStatus:output_type -> gctrpc.GenericResponse
-	132, // 358: gctrpc.GoCryptoTraderService.UpdateDataHistoryJobPrerequisite:output_type -> gctrpc.GenericResponse
-	59,  // 359: gctrpc.GoCryptoTraderService.GetManagedOrders:output_type -> gctrpc.GetOrdersResponse
-	162, // 360: gctrpc.GoCryptoTraderService.ModifyOrder:output_type -> gctrpc.ModifyOrderResponse
-	168, // 361: gctrpc.GoCryptoTraderService.CurrencyStateGetAll:output_type -> gctrpc.CurrencyStateResponse
-	132, // 362: gctrpc.GoCryptoTraderService.CurrencyStateTrading:output_type -> gctrpc.GenericResponse
-	132, // 363: gctrpc.GoCryptoTraderService.CurrencyStateDeposit:output_type -> gctrpc.GenericResponse
-	132, // 364: gctrpc.GoCryptoTraderService.CurrencyStateWithdraw:output_type -> gctrpc.GenericResponse
-	132, // 365: gctrpc.GoCryptoTraderService.CurrencyStateTradingPair:output_type -> gctrpc.GenericResponse
-	178, // 366: gctrpc.GoCryptoTraderService.GetFuturesPositionsSummary:output_type -> gctrpc.GetFuturesPositionsSummaryResponse
-	180, // 367: gctrpc.GoCryptoTraderService.GetFuturesPositionsOrders:output_type -> gctrpc.GetFuturesPositionsOrdersResponse
-	196, // 368: gctrpc.GoCryptoTraderService.GetCollateral:output_type -> gctrpc.GetCollateralResponse
-	205, // 369: gctrpc.GoCryptoTraderService.Shutdown:output_type -> gctrpc.ShutdownResponse
-	208, // 370: gctrpc.GoCryptoTraderService.GetTechnicalAnalysis:output_type -> gctrpc.GetTechnicalAnalysisResponse
-	213, // 371: gctrpc.GoCryptoTraderService.GetMarginRatesHistory:output_type -> gctrpc.GetMarginRatesHistoryResponse
-	176, // 372: gctrpc.GoCryptoTraderService.GetManagedPosition:output_type -> gctrpc.GetManagedPositionsResponse
-	176, // 373: gctrpc.GoCryptoTraderService.GetAllManagedPositions:output_type -> gctrpc.GetManagedPositionsResponse
-	201, // 374: gctrpc.GoCryptoTraderService.GetFundingRates:output_type -> gctrpc.GetFundingRatesResponse
-	203, // 375: gctrpc.GoCryptoTraderService.GetLatestFundingRate:output_type -> gctrpc.GetLatestFundingRateResponse
-	215, // 376: gctrpc.GoCryptoTraderService.GetOrderbookMovement:output_type -> gctrpc.GetOrderbookMovementResponse
-	217, // 377: gctrpc.GoCryptoTraderService.GetOrderbookAmountByNominal:output_type -> gctrpc.GetOrderbookAmountByNominalResponse
-	219, // 378: gctrpc.GoCryptoTraderService.GetOrderbookAmountByImpact:output_type -> gctrpc.GetOrderbookAmountByImpactResponse
-	182, // 379: gctrpc.GoCryptoTraderService.GetCollateralMode:output_type -> gctrpc.GetCollateralModeResponse
-	192, // 380: gctrpc.GoCryptoTraderService.GetLeverage:output_type -> gctrpc.GetLeverageResponse
-	184, // 381: gctrpc.GoCryptoTraderService.SetCollateralMode:output_type -> gctrpc.SetCollateralModeResponse
-	190, // 382: gctrpc.GoCryptoTraderService.SetMarginType:output_type -> gctrpc.SetMarginTypeResponse
-	194, // 383: gctrpc.GoCryptoTraderService.SetLeverage:output_type -> gctrpc.SetLeverageResponse
-	188, // 384: gctrpc.GoCryptoTraderService.ChangePositionMargin:output_type -> gctrpc.ChangePositionMarginResponse
-	222, // 385: gctrpc.GoCryptoTraderService.GetOpenInterest:output_type -> gctrpc.GetOpenInterestResponse
-	225, // 386: gctrpc.GoCryptoTraderService.GetCurrencyTradeURL:output_type -> gctrpc.GetCurrencyTradeURLResponse
-	272, // [272:387] is the sub-list for method output_type
-	157, // [157:272] is the sub-list for method input_type
-	157, // [157:157] is the sub-list for extension type_name
-	157, // [157:157] is the sub-list for extension extendee
-	0,   // [0:157] is the sub-list for field type_name
+	130, // 71: gctrpc.WebsocketGetSubscriptionsResponse.subscriptions:type_name -> gctrpc.WebsocketSubscription
+	21,  // 72: gctrpc.FindMissingCandlePeriodsRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 73: gctrpc.FindMissingTradePeriodsRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 74: gctrpc.FindMissingIntervalsResponse.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 75: gctrpc.UpsertDataHistoryJobRequest.pair:type_name -> gctrpc.CurrencyPair
+	138, // 76: gctrpc.InsertSequentialJobsRequest.jobs:type_name -> gctrpc.UpsertDataHistoryJobRequest
+	141, // 77: gctrpc.InsertSequentialJobsResponse.jobs:type_name -> gctrpc.UpsertDataHistoryJobResponse
+	21,  // 78: gctrpc.DataHistoryJob.pair:type_name -> gctrpc.CurrencyPair
+	144, // 79: gctrpc.DataHistoryJob.job_results:type_name -> gctrpc.DataHistoryJobResult
+	143, // 80: gctrpc.DataHistoryJobs.results:type_name -> gctrpc.DataHistoryJob
+	21,  // 81: gctrpc.ModifyOrderRequest.pair:type_name -> gctrpc.CurrencyPair
+	157, // 82: gctrpc.CurrencyStateResponse.currency_states:type_name -> gctrpc.CurrencyState
+	21,  // 83: gctrpc.FundingData.pair:type_name -> gctrpc.CurrencyPair
+	158, // 84: gctrpc.FundingData.rates:type_name -> gctrpc.FundingRate
+	158, // 85: gctrpc.FundingData.latest_rate:type_name -> gctrpc.FundingRate
+	158, // 86: gctrpc.FundingData.upcoming_rate:type_name -> gctrpc.FundingRate
+	21,  // 87: gctrpc.FuturePosition.pair:type_name -> gctrpc.CurrencyPair
+	56,  // 88: gctrpc.FuturePosition.orders:type_name -> gctrpc.OrderDetails
+	160, // 89: gctrpc.FuturePosition.position_stats:type_name -> gctrpc.FuturesPositionStats
+	159, // 90: gctrpc.FuturePosition.funding_data:type_name -> gctrpc.FundingData
+	21,  // 91: gctrpc.GetManagedPositionRequest.pair:type_name -> gctrpc.CurrencyPair
+	161, // 92: gctrpc.GetManagedPositionsResponse.positions:type_name -> gctrpc.FuturePosition
+	21,  // 93: gctrpc.GetFuturesPositionsSummaryRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 94: gctrpc.GetFuturesPositionsSummaryRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
+	21,  // 95: gctrpc.GetFuturesPositionsSummaryResponse.pair:type_name -> gctrpc.CurrencyPair
+	160, // 96: gctrpc.GetFuturesPositionsSummaryResponse.position_stats:type_name -> gctrpc.FuturesPositionStats
+	21,  // 97: gctrpc.GetFuturesPositionsOrdersRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 98: gctrpc.GetFuturesPositionsOrdersRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
+	161, // 99: gctrpc.GetFuturesPositionsOrdersResponse.positions:type_name -> gctrpc.FuturePosition
+	21,  // 100: gctrpc.GetMarginTypeRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 101: gctrpc.GetMarginTypeResponse.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 102: gctrpc.ChangePositionMarginRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 103: gctrpc.ChangePositionMarginResponse.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 104: gctrpc.SetMarginTypeRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 105: gctrpc.SetMarginTypeResponse.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 106: gctrpc.GetLeverageRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 107: gctrpc.GetLeverageRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
+	21,  // 108: gctrpc.GetLeverageResponse.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 109: gctrpc.GetLeverageResponse.underlying_pair:type_name -> gctrpc.CurrencyPair
+	21,  // 110: gctrpc.SetLeverageRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 111: gctrpc.SetLeverageRequest.underlying_pair:type_name -> gctrpc.CurrencyPair
+	21,  // 112: gctrpc.SetLeverageResponse.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 113: gctrpc.SetLeverageResponse.underlying_pair:type_name -> gctrpc.CurrencyPair
+	187, // 114: gctrpc.GetCollateralResponse.used_breakdown:type_name -> gctrpc.CollateralUsedBreakdown
+	185, // 115: gctrpc.GetCollateralResponse.currency_breakdown:type_name -> gctrpc.CollateralForCurrency
+	186, // 116: gctrpc.GetCollateralResponse.position_breakdown:type_name -> gctrpc.CollateralByPosition
+	187, // 117: gctrpc.CollateralForCurrency.used_breakdown:type_name -> gctrpc.CollateralUsedBreakdown
+	21,  // 118: gctrpc.GetFundingRatesRequest.pair:type_name -> gctrpc.CurrencyPair
+	159, // 119: gctrpc.GetFundingRatesResponse.rates:type_name -> gctrpc.FundingData
+	21,  // 120: gctrpc.GetLatestFundingRateRequest.pair:type_name -> gctrpc.CurrencyPair
+	159, // 121: gctrpc.GetLatestFundingRateResponse.rate:type_name -> gctrpc.FundingData
+	21,  // 122: gctrpc.GetTechnicalAnalysisRequest.pair:type_name -> gctrpc.CurrencyPair
+	228, // 123: gctrpc.GetTechnicalAnalysisRequest.start:type_name -> google.protobuf.Timestamp
+	228, // 124: gctrpc.GetTechnicalAnalysisRequest.end:type_name -> google.protobuf.Timestamp
+	21,  // 125: gctrpc.GetTechnicalAnalysisRequest.other_pair:type_name -> gctrpc.CurrencyPair
+	227, // 126: gctrpc.GetTechnicalAnalysisResponse.signals:type_name -> gctrpc.GetTechnicalAnalysisResponse.SignalsEntry
+	200, // 127: gctrpc.GetMarginRatesHistoryRequest.rates:type_name -> gctrpc.MarginRate
+	198, // 128: gctrpc.MarginRate.lending_payment:type_name -> gctrpc.LendingPayment
+	199, // 129: gctrpc.MarginRate.borrow_cost:type_name -> gctrpc.BorrowCost
+	200, // 130: gctrpc.GetMarginRatesHistoryResponse.rates:type_name -> gctrpc.MarginRate
+	200, // 131: gctrpc.GetMarginRatesHistoryResponse.latest_rate:type_name -> gctrpc.MarginRate
+	200, // 132: gctrpc.GetMarginRatesHistoryResponse.predicted_rate:type_name -> gctrpc.MarginRate
+	21,  // 133: gctrpc.GetOrderbookMovementRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 134: gctrpc.GetOrderbookAmountByNominalRequest.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 135: gctrpc.GetOrderbookAmountByImpactRequest.pair:type_name -> gctrpc.CurrencyPair
+	209, // 136: gctrpc.GetOpenInterestRequest.data:type_name -> gctrpc.OpenInterestDataRequest
+	21,  // 137: gctrpc.OpenInterestDataRequest.pair:type_name -> gctrpc.CurrencyPair
+	211, // 138: gctrpc.GetOpenInterestResponse.data:type_name -> gctrpc.OpenInterestDataResponse
+	21,  // 139: gctrpc.OpenInterestDataResponse.pair:type_name -> gctrpc.CurrencyPair
+	21,  // 140: gctrpc.GetCurrencyTradeURLRequest.pair:type_name -> gctrpc.CurrencyPair
+	9,   // 141: gctrpc.GetInfoResponse.RpcEndpointsEntry.value:type_name -> gctrpc.RPCEndpoint
+	3,   // 142: gctrpc.GetCommunicationRelayersResponse.CommunicationRelayersEntry.value:type_name -> gctrpc.CommunicationRelayer
+	9,   // 143: gctrpc.GetRPCEndpointsResponse.EndpointsEntry.value:type_name -> gctrpc.RPCEndpoint
+	18,  // 144: gctrpc.GetExchangeInfoResponse.SupportedAssetsEntry.value:type_name -> gctrpc.PairsSupported
+	44,  // 145: gctrpc.OnlineCoins.CoinsEntry.value:type_name -> gctrpc.OnlineCoinSummary
+	45,  // 146: gctrpc.GetPortfolioSummaryResponse.CoinsOfflineSummaryEntry.value:type_name -> gctrpc.OfflineCoins
+	46,  // 147: gctrpc.GetPortfolioSummaryResponse.CoinsOnlineSummaryEntry.value:type_name -> gctrpc.OnlineCoins
+	81,  // 148: gctrpc.GetCryptocurrencyDepositAddressesResponse.AddressesEntry.value:type_name -> gctrpc.DepositAddresses
+	18,  // 149: gctrpc.GetExchangePairsResponse.SupportedAssetsEntry.value:type_name -> gctrpc.PairsSupported
+	195, // 150: gctrpc.GetTechnicalAnalysisResponse.SignalsEntry.value:type_name -> gctrpc.ListOfSignals
+	0,   // 151: gctrpc.GoCryptoTraderService.GetInfo:input_type -> gctrpc.GetInfoRequest
+	6,   // 152: gctrpc.GoCryptoTraderService.GetSubsystems:input_type -> gctrpc.GetSubsystemsRequest
+	5,   // 153: gctrpc.GoCryptoTraderService.EnableSubsystem:input_type -> gctrpc.GenericSubsystemRequest
+	5,   // 154: gctrpc.GoCryptoTraderService.DisableSubsystem:input_type -> gctrpc.GenericSubsystemRequest
+	8,   // 155: gctrpc.GoCryptoTraderService.GetRPCEndpoints:input_type -> gctrpc.GetRPCEndpointsRequest
+	2,   // 156: gctrpc.GoCryptoTraderService.GetCommunicationRelayers:input_type -> gctrpc.GetCommunicationRelayersRequest
+	12,  // 157: gctrpc.GoCryptoTraderService.GetExchanges:input_type -> gctrpc.GetExchangesRequest
+	11,  // 158: gctrpc.GoCryptoTraderService.DisableExchange:input_type -> gctrpc.GenericExchangeNameRequest
+	11,  // 159: gctrpc.GoCryptoTraderService.GetExchangeInfo:input_type -> gctrpc.GenericExchangeNameRequest
+	11,  // 160: gctrpc.GoCryptoTraderService.GetExchangeOTPCode:input_type -> gctrpc.GenericExchangeNameRequest
+	15,  // 161: gctrpc.GoCryptoTraderService.GetExchangeOTPCodes:input_type -> gctrpc.GetExchangeOTPsRequest
+	11,  // 162: gctrpc.GoCryptoTraderService.EnableExchange:input_type -> gctrpc.GenericExchangeNameRequest
+	20,  // 163: gctrpc.GoCryptoTraderService.GetTicker:input_type -> gctrpc.GetTickerRequest
+	23,  // 164: gctrpc.GoCryptoTraderService.GetTickers:input_type -> gctrpc.GetTickersRequest
+	26,  // 165: gctrpc.GoCryptoTraderService.GetOrderbook:input_type -> gctrpc.GetOrderbookRequest
+	29,  // 166: gctrpc.GoCryptoTraderService.GetOrderbooks:input_type -> gctrpc.GetOrderbooksRequest
+	32,  // 167: gctrpc.GoCryptoTraderService.GetAccountBalances:input_type -> gctrpc.GetAccountBalancesRequest
+	32,  // 168: gctrpc.GoCryptoTraderService.UpdateAccountBalances:input_type -> gctrpc.GetAccountBalancesRequest
+	32,  // 169: gctrpc.GoCryptoTraderService.GetAccountBalancesStream:input_type -> gctrpc.GetAccountBalancesRequest
+	36,  // 170: gctrpc.GoCryptoTraderService.GetConfig:input_type -> gctrpc.GetConfigRequest
+	39,  // 171: gctrpc.GoCryptoTraderService.GetPortfolio:input_type -> gctrpc.GetPortfolioRequest
+	41,  // 172: gctrpc.GoCryptoTraderService.GetPortfolioSummary:input_type -> gctrpc.GetPortfolioSummaryRequest
+	48,  // 173: gctrpc.GoCryptoTraderService.AddPortfolioAddress:input_type -> gctrpc.AddPortfolioAddressRequest
+	49,  // 174: gctrpc.GoCryptoTraderService.RemovePortfolioAddress:input_type -> gctrpc.RemovePortfolioAddressRequest
+	50,  // 175: gctrpc.GoCryptoTraderService.GetForexProviders:input_type -> gctrpc.GetForexProvidersRequest
+	53,  // 176: gctrpc.GoCryptoTraderService.GetForexRates:input_type -> gctrpc.GetForexRatesRequest
+	58,  // 177: gctrpc.GoCryptoTraderService.GetOrders:input_type -> gctrpc.GetOrdersRequest
+	60,  // 178: gctrpc.GoCryptoTraderService.GetOrder:input_type -> gctrpc.GetOrderRequest
+	61,  // 179: gctrpc.GoCryptoTraderService.SubmitOrder:input_type -> gctrpc.SubmitOrderRequest
+	64,  // 180: gctrpc.GoCryptoTraderService.SimulateOrder:input_type -> gctrpc.SimulateOrderRequest
+	66,  // 181: gctrpc.GoCryptoTraderService.WhaleBomb:input_type -> gctrpc.WhaleBombRequest
+	67,  // 182: gctrpc.GoCryptoTraderService.CancelOrder:input_type -> gctrpc.CancelOrderRequest
+	68,  // 183: gctrpc.GoCryptoTraderService.CancelBatchOrders:input_type -> gctrpc.CancelBatchOrdersRequest
+	71,  // 184: gctrpc.GoCryptoTraderService.CancelAllOrders:input_type -> gctrpc.CancelAllOrdersRequest
+	73,  // 185: gctrpc.GoCryptoTraderService.GetEvents:input_type -> gctrpc.GetEventsRequest
+	76,  // 186: gctrpc.GoCryptoTraderService.AddEvent:input_type -> gctrpc.AddEventRequest
+	78,  // 187: gctrpc.GoCryptoTraderService.RemoveEvent:input_type -> gctrpc.RemoveEventRequest
+	79,  // 188: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddresses:input_type -> gctrpc.GetCryptocurrencyDepositAddressesRequest
+	83,  // 189: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddress:input_type -> gctrpc.GetCryptocurrencyDepositAddressRequest
+	85,  // 190: gctrpc.GoCryptoTraderService.GetAvailableTransferChains:input_type -> gctrpc.GetAvailableTransferChainsRequest
+	87,  // 191: gctrpc.GoCryptoTraderService.WithdrawFiatFunds:input_type -> gctrpc.WithdrawFiatRequest
+	88,  // 192: gctrpc.GoCryptoTraderService.WithdrawCryptocurrencyFunds:input_type -> gctrpc.WithdrawCryptoRequest
+	90,  // 193: gctrpc.GoCryptoTraderService.WithdrawalEventByID:input_type -> gctrpc.WithdrawalEventByIDRequest
+	92,  // 194: gctrpc.GoCryptoTraderService.WithdrawalEventsByExchange:input_type -> gctrpc.WithdrawalEventsByExchangeRequest
+	93,  // 195: gctrpc.GoCryptoTraderService.WithdrawalEventsByDate:input_type -> gctrpc.WithdrawalEventsByDateRequest
+	100, // 196: gctrpc.GoCryptoTraderService.GetLoggerDetails:input_type -> gctrpc.GetLoggerDetailsRequest
+	102, // 197: gctrpc.GoCryptoTraderService.SetLoggerDetails:input_type -> gctrpc.SetLoggerDetailsRequest
+	103, // 198: gctrpc.GoCryptoTraderService.GetExchangePairs:input_type -> gctrpc.GetExchangePairsRequest
+	105, // 199: gctrpc.GoCryptoTraderService.SetExchangePair:input_type -> gctrpc.SetExchangePairRequest
+	106, // 200: gctrpc.GoCryptoTraderService.GetOrderbookStream:input_type -> gctrpc.GetOrderbookStreamRequest
+	107, // 201: gctrpc.GoCryptoTraderService.GetExchangeOrderbookStream:input_type -> gctrpc.GetExchangeOrderbookStreamRequest
+	108, // 202: gctrpc.GoCryptoTraderService.GetTickerStream:input_type -> gctrpc.GetTickerStreamRequest
+	109, // 203: gctrpc.GoCryptoTraderService.GetExchangeTickerStream:input_type -> gctrpc.GetExchangeTickerStreamRequest
+	110, // 204: gctrpc.GoCryptoTraderService.GetAuditEvent:input_type -> gctrpc.GetAuditEventRequest
+	116, // 205: gctrpc.GoCryptoTraderService.GetHistoricCandles:input_type -> gctrpc.GetHistoricCandlesRequest
+	121, // 206: gctrpc.GoCryptoTraderService.SetExchangeAsset:input_type -> gctrpc.SetExchangeAssetRequest
+	122, // 207: gctrpc.GoCryptoTraderService.SetAllExchangePairs:input_type -> gctrpc.SetExchangeAllPairsRequest
+	123, // 208: gctrpc.GoCryptoTraderService.UpdateExchangeSupportedPairs:input_type -> gctrpc.UpdateExchangeSupportedPairsRequest
+	124, // 209: gctrpc.GoCryptoTraderService.GetExchangeAssets:input_type -> gctrpc.GetExchangeAssetsRequest
+	126, // 210: gctrpc.GoCryptoTraderService.WebsocketGetInfo:input_type -> gctrpc.WebsocketGetInfoRequest
+	128, // 211: gctrpc.GoCryptoTraderService.WebsocketSetEnabled:input_type -> gctrpc.WebsocketSetEnabledRequest
+	129, // 212: gctrpc.GoCryptoTraderService.WebsocketGetSubscriptions:input_type -> gctrpc.WebsocketGetSubscriptionsRequest
+	132, // 213: gctrpc.GoCryptoTraderService.WebsocketSetProxy:input_type -> gctrpc.WebsocketSetProxyRequest
+	133, // 214: gctrpc.GoCryptoTraderService.WebsocketSetURL:input_type -> gctrpc.WebsocketSetURLRequest
+	112, // 215: gctrpc.GoCryptoTraderService.GetRecentTrades:input_type -> gctrpc.GetSavedTradesRequest
+	112, // 216: gctrpc.GoCryptoTraderService.GetHistoricTrades:input_type -> gctrpc.GetSavedTradesRequest
+	112, // 217: gctrpc.GoCryptoTraderService.GetSavedTrades:input_type -> gctrpc.GetSavedTradesRequest
+	115, // 218: gctrpc.GoCryptoTraderService.ConvertTradesToCandles:input_type -> gctrpc.ConvertTradesToCandlesRequest
+	134, // 219: gctrpc.GoCryptoTraderService.FindMissingSavedCandleIntervals:input_type -> gctrpc.FindMissingCandlePeriodsRequest
+	135, // 220: gctrpc.GoCryptoTraderService.FindMissingSavedTradeIntervals:input_type -> gctrpc.FindMissingTradePeriodsRequest
+	137, // 221: gctrpc.GoCryptoTraderService.SetExchangeTradeProcessing:input_type -> gctrpc.SetExchangeTradeProcessingRequest
+	138, // 222: gctrpc.GoCryptoTraderService.UpsertDataHistoryJob:input_type -> gctrpc.UpsertDataHistoryJobRequest
+	142, // 223: gctrpc.GoCryptoTraderService.GetDataHistoryJobDetails:input_type -> gctrpc.GetDataHistoryJobDetailsRequest
+	0,   // 224: gctrpc.GoCryptoTraderService.GetActiveDataHistoryJobs:input_type -> gctrpc.GetInfoRequest
+	146, // 225: gctrpc.GoCryptoTraderService.GetDataHistoryJobsBetween:input_type -> gctrpc.GetDataHistoryJobsBetweenRequest
+	142, // 226: gctrpc.GoCryptoTraderService.GetDataHistoryJobSummary:input_type -> gctrpc.GetDataHistoryJobDetailsRequest
+	147, // 227: gctrpc.GoCryptoTraderService.SetDataHistoryJobStatus:input_type -> gctrpc.SetDataHistoryJobStatusRequest
+	148, // 228: gctrpc.GoCryptoTraderService.UpdateDataHistoryJobPrerequisite:input_type -> gctrpc.UpdateDataHistoryJobPrerequisiteRequest
+	58,  // 229: gctrpc.GoCryptoTraderService.GetManagedOrders:input_type -> gctrpc.GetOrdersRequest
+	149, // 230: gctrpc.GoCryptoTraderService.ModifyOrder:input_type -> gctrpc.ModifyOrderRequest
+	151, // 231: gctrpc.GoCryptoTraderService.CurrencyStateGetAll:input_type -> gctrpc.CurrencyStateGetAllRequest
+	152, // 232: gctrpc.GoCryptoTraderService.CurrencyStateTrading:input_type -> gctrpc.CurrencyStateTradingRequest
+	155, // 233: gctrpc.GoCryptoTraderService.CurrencyStateDeposit:input_type -> gctrpc.CurrencyStateDepositRequest
+	154, // 234: gctrpc.GoCryptoTraderService.CurrencyStateWithdraw:input_type -> gctrpc.CurrencyStateWithdrawRequest
+	153, // 235: gctrpc.GoCryptoTraderService.CurrencyStateTradingPair:input_type -> gctrpc.CurrencyStateTradingPairRequest
+	165, // 236: gctrpc.GoCryptoTraderService.GetFuturesPositionsSummary:input_type -> gctrpc.GetFuturesPositionsSummaryRequest
+	167, // 237: gctrpc.GoCryptoTraderService.GetFuturesPositionsOrders:input_type -> gctrpc.GetFuturesPositionsOrdersRequest
+	183, // 238: gctrpc.GoCryptoTraderService.GetCollateral:input_type -> gctrpc.GetCollateralRequest
+	192, // 239: gctrpc.GoCryptoTraderService.Shutdown:input_type -> gctrpc.ShutdownRequest
+	194, // 240: gctrpc.GoCryptoTraderService.GetTechnicalAnalysis:input_type -> gctrpc.GetTechnicalAnalysisRequest
+	197, // 241: gctrpc.GoCryptoTraderService.GetMarginRatesHistory:input_type -> gctrpc.GetMarginRatesHistoryRequest
+	162, // 242: gctrpc.GoCryptoTraderService.GetManagedPosition:input_type -> gctrpc.GetManagedPositionRequest
+	163, // 243: gctrpc.GoCryptoTraderService.GetAllManagedPositions:input_type -> gctrpc.GetAllManagedPositionsRequest
+	188, // 244: gctrpc.GoCryptoTraderService.GetFundingRates:input_type -> gctrpc.GetFundingRatesRequest
+	190, // 245: gctrpc.GoCryptoTraderService.GetLatestFundingRate:input_type -> gctrpc.GetLatestFundingRateRequest
+	202, // 246: gctrpc.GoCryptoTraderService.GetOrderbookMovement:input_type -> gctrpc.GetOrderbookMovementRequest
+	204, // 247: gctrpc.GoCryptoTraderService.GetOrderbookAmountByNominal:input_type -> gctrpc.GetOrderbookAmountByNominalRequest
+	206, // 248: gctrpc.GoCryptoTraderService.GetOrderbookAmountByImpact:input_type -> gctrpc.GetOrderbookAmountByImpactRequest
+	169, // 249: gctrpc.GoCryptoTraderService.GetCollateralMode:input_type -> gctrpc.GetCollateralModeRequest
+	179, // 250: gctrpc.GoCryptoTraderService.GetLeverage:input_type -> gctrpc.GetLeverageRequest
+	171, // 251: gctrpc.GoCryptoTraderService.SetCollateralMode:input_type -> gctrpc.SetCollateralModeRequest
+	177, // 252: gctrpc.GoCryptoTraderService.SetMarginType:input_type -> gctrpc.SetMarginTypeRequest
+	181, // 253: gctrpc.GoCryptoTraderService.SetLeverage:input_type -> gctrpc.SetLeverageRequest
+	175, // 254: gctrpc.GoCryptoTraderService.ChangePositionMargin:input_type -> gctrpc.ChangePositionMarginRequest
+	208, // 255: gctrpc.GoCryptoTraderService.GetOpenInterest:input_type -> gctrpc.GetOpenInterestRequest
+	212, // 256: gctrpc.GoCryptoTraderService.GetCurrencyTradeURL:input_type -> gctrpc.GetCurrencyTradeURLRequest
+	1,   // 257: gctrpc.GoCryptoTraderService.GetInfo:output_type -> gctrpc.GetInfoResponse
+	7,   // 258: gctrpc.GoCryptoTraderService.GetSubsystems:output_type -> gctrpc.GetSubsystemsResponse
+	120, // 259: gctrpc.GoCryptoTraderService.EnableSubsystem:output_type -> gctrpc.GenericResponse
+	120, // 260: gctrpc.GoCryptoTraderService.DisableSubsystem:output_type -> gctrpc.GenericResponse
+	10,  // 261: gctrpc.GoCryptoTraderService.GetRPCEndpoints:output_type -> gctrpc.GetRPCEndpointsResponse
+	4,   // 262: gctrpc.GoCryptoTraderService.GetCommunicationRelayers:output_type -> gctrpc.GetCommunicationRelayersResponse
+	13,  // 263: gctrpc.GoCryptoTraderService.GetExchanges:output_type -> gctrpc.GetExchangesResponse
+	120, // 264: gctrpc.GoCryptoTraderService.DisableExchange:output_type -> gctrpc.GenericResponse
+	19,  // 265: gctrpc.GoCryptoTraderService.GetExchangeInfo:output_type -> gctrpc.GetExchangeInfoResponse
+	14,  // 266: gctrpc.GoCryptoTraderService.GetExchangeOTPCode:output_type -> gctrpc.GetExchangeOTPResponse
+	16,  // 267: gctrpc.GoCryptoTraderService.GetExchangeOTPCodes:output_type -> gctrpc.GetExchangeOTPsResponse
+	120, // 268: gctrpc.GoCryptoTraderService.EnableExchange:output_type -> gctrpc.GenericResponse
+	22,  // 269: gctrpc.GoCryptoTraderService.GetTicker:output_type -> gctrpc.TickerResponse
+	25,  // 270: gctrpc.GoCryptoTraderService.GetTickers:output_type -> gctrpc.GetTickersResponse
+	28,  // 271: gctrpc.GoCryptoTraderService.GetOrderbook:output_type -> gctrpc.OrderbookResponse
+	31,  // 272: gctrpc.GoCryptoTraderService.GetOrderbooks:output_type -> gctrpc.GetOrderbooksResponse
+	35,  // 273: gctrpc.GoCryptoTraderService.GetAccountBalances:output_type -> gctrpc.GetAccountBalancesResponse
+	35,  // 274: gctrpc.GoCryptoTraderService.UpdateAccountBalances:output_type -> gctrpc.GetAccountBalancesResponse
+	35,  // 275: gctrpc.GoCryptoTraderService.GetAccountBalancesStream:output_type -> gctrpc.GetAccountBalancesResponse
+	37,  // 276: gctrpc.GoCryptoTraderService.GetConfig:output_type -> gctrpc.GetConfigResponse
+	40,  // 277: gctrpc.GoCryptoTraderService.GetPortfolio:output_type -> gctrpc.GetPortfolioResponse
+	47,  // 278: gctrpc.GoCryptoTraderService.GetPortfolioSummary:output_type -> gctrpc.GetPortfolioSummaryResponse
+	120, // 279: gctrpc.GoCryptoTraderService.AddPortfolioAddress:output_type -> gctrpc.GenericResponse
+	120, // 280: gctrpc.GoCryptoTraderService.RemovePortfolioAddress:output_type -> gctrpc.GenericResponse
+	52,  // 281: gctrpc.GoCryptoTraderService.GetForexProviders:output_type -> gctrpc.GetForexProvidersResponse
+	55,  // 282: gctrpc.GoCryptoTraderService.GetForexRates:output_type -> gctrpc.GetForexRatesResponse
+	59,  // 283: gctrpc.GoCryptoTraderService.GetOrders:output_type -> gctrpc.GetOrdersResponse
+	56,  // 284: gctrpc.GoCryptoTraderService.GetOrder:output_type -> gctrpc.OrderDetails
+	63,  // 285: gctrpc.GoCryptoTraderService.SubmitOrder:output_type -> gctrpc.SubmitOrderResponse
+	65,  // 286: gctrpc.GoCryptoTraderService.SimulateOrder:output_type -> gctrpc.SimulateOrderResponse
+	65,  // 287: gctrpc.GoCryptoTraderService.WhaleBomb:output_type -> gctrpc.SimulateOrderResponse
+	120, // 288: gctrpc.GoCryptoTraderService.CancelOrder:output_type -> gctrpc.GenericResponse
+	70,  // 289: gctrpc.GoCryptoTraderService.CancelBatchOrders:output_type -> gctrpc.CancelBatchOrdersResponse
+	72,  // 290: gctrpc.GoCryptoTraderService.CancelAllOrders:output_type -> gctrpc.CancelAllOrdersResponse
+	75,  // 291: gctrpc.GoCryptoTraderService.GetEvents:output_type -> gctrpc.GetEventsResponse
+	77,  // 292: gctrpc.GoCryptoTraderService.AddEvent:output_type -> gctrpc.AddEventResponse
+	120, // 293: gctrpc.GoCryptoTraderService.RemoveEvent:output_type -> gctrpc.GenericResponse
+	82,  // 294: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddresses:output_type -> gctrpc.GetCryptocurrencyDepositAddressesResponse
+	84,  // 295: gctrpc.GoCryptoTraderService.GetCryptocurrencyDepositAddress:output_type -> gctrpc.GetCryptocurrencyDepositAddressResponse
+	86,  // 296: gctrpc.GoCryptoTraderService.GetAvailableTransferChains:output_type -> gctrpc.GetAvailableTransferChainsResponse
+	89,  // 297: gctrpc.GoCryptoTraderService.WithdrawFiatFunds:output_type -> gctrpc.WithdrawResponse
+	89,  // 298: gctrpc.GoCryptoTraderService.WithdrawCryptocurrencyFunds:output_type -> gctrpc.WithdrawResponse
+	91,  // 299: gctrpc.GoCryptoTraderService.WithdrawalEventByID:output_type -> gctrpc.WithdrawalEventByIDResponse
+	94,  // 300: gctrpc.GoCryptoTraderService.WithdrawalEventsByExchange:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
+	94,  // 301: gctrpc.GoCryptoTraderService.WithdrawalEventsByDate:output_type -> gctrpc.WithdrawalEventsByExchangeResponse
+	101, // 302: gctrpc.GoCryptoTraderService.GetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
+	101, // 303: gctrpc.GoCryptoTraderService.SetLoggerDetails:output_type -> gctrpc.GetLoggerDetailsResponse
+	104, // 304: gctrpc.GoCryptoTraderService.GetExchangePairs:output_type -> gctrpc.GetExchangePairsResponse
+	120, // 305: gctrpc.GoCryptoTraderService.SetExchangePair:output_type -> gctrpc.GenericResponse
+	28,  // 306: gctrpc.GoCryptoTraderService.GetOrderbookStream:output_type -> gctrpc.OrderbookResponse
+	28,  // 307: gctrpc.GoCryptoTraderService.GetExchangeOrderbookStream:output_type -> gctrpc.OrderbookResponse
+	22,  // 308: gctrpc.GoCryptoTraderService.GetTickerStream:output_type -> gctrpc.TickerResponse
+	22,  // 309: gctrpc.GoCryptoTraderService.GetExchangeTickerStream:output_type -> gctrpc.TickerResponse
+	111, // 310: gctrpc.GoCryptoTraderService.GetAuditEvent:output_type -> gctrpc.GetAuditEventResponse
+	117, // 311: gctrpc.GoCryptoTraderService.GetHistoricCandles:output_type -> gctrpc.GetHistoricCandlesResponse
+	120, // 312: gctrpc.GoCryptoTraderService.SetExchangeAsset:output_type -> gctrpc.GenericResponse
+	120, // 313: gctrpc.GoCryptoTraderService.SetAllExchangePairs:output_type -> gctrpc.GenericResponse
+	120, // 314: gctrpc.GoCryptoTraderService.UpdateExchangeSupportedPairs:output_type -> gctrpc.GenericResponse
+	125, // 315: gctrpc.GoCryptoTraderService.GetExchangeAssets:output_type -> gctrpc.GetExchangeAssetsResponse
+	127, // 316: gctrpc.GoCryptoTraderService.WebsocketGetInfo:output_type -> gctrpc.WebsocketGetInfoResponse
+	120, // 317: gctrpc.GoCryptoTraderService.WebsocketSetEnabled:output_type -> gctrpc.GenericResponse
+	131, // 318: gctrpc.GoCryptoTraderService.WebsocketGetSubscriptions:output_type -> gctrpc.WebsocketGetSubscriptionsResponse
+	120, // 319: gctrpc.GoCryptoTraderService.WebsocketSetProxy:output_type -> gctrpc.GenericResponse
+	120, // 320: gctrpc.GoCryptoTraderService.WebsocketSetURL:output_type -> gctrpc.GenericResponse
+	114, // 321: gctrpc.GoCryptoTraderService.GetRecentTrades:output_type -> gctrpc.SavedTradesResponse
+	114, // 322: gctrpc.GoCryptoTraderService.GetHistoricTrades:output_type -> gctrpc.SavedTradesResponse
+	114, // 323: gctrpc.GoCryptoTraderService.GetSavedTrades:output_type -> gctrpc.SavedTradesResponse
+	117, // 324: gctrpc.GoCryptoTraderService.ConvertTradesToCandles:output_type -> gctrpc.GetHistoricCandlesResponse
+	136, // 325: gctrpc.GoCryptoTraderService.FindMissingSavedCandleIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
+	136, // 326: gctrpc.GoCryptoTraderService.FindMissingSavedTradeIntervals:output_type -> gctrpc.FindMissingIntervalsResponse
+	120, // 327: gctrpc.GoCryptoTraderService.SetExchangeTradeProcessing:output_type -> gctrpc.GenericResponse
+	141, // 328: gctrpc.GoCryptoTraderService.UpsertDataHistoryJob:output_type -> gctrpc.UpsertDataHistoryJobResponse
+	143, // 329: gctrpc.GoCryptoTraderService.GetDataHistoryJobDetails:output_type -> gctrpc.DataHistoryJob
+	145, // 330: gctrpc.GoCryptoTraderService.GetActiveDataHistoryJobs:output_type -> gctrpc.DataHistoryJobs
+	145, // 331: gctrpc.GoCryptoTraderService.GetDataHistoryJobsBetween:output_type -> gctrpc.DataHistoryJobs
+	143, // 332: gctrpc.GoCryptoTraderService.GetDataHistoryJobSummary:output_type -> gctrpc.DataHistoryJob
+	120, // 333: gctrpc.GoCryptoTraderService.SetDataHistoryJobStatus:output_type -> gctrpc.GenericResponse
+	120, // 334: gctrpc.GoCryptoTraderService.UpdateDataHistoryJobPrerequisite:output_type -> gctrpc.GenericResponse
+	59,  // 335: gctrpc.GoCryptoTraderService.GetManagedOrders:output_type -> gctrpc.GetOrdersResponse
+	150, // 336: gctrpc.GoCryptoTraderService.ModifyOrder:output_type -> gctrpc.ModifyOrderResponse
+	156, // 337: gctrpc.GoCryptoTraderService.CurrencyStateGetAll:output_type -> gctrpc.CurrencyStateResponse
+	120, // 338: gctrpc.GoCryptoTraderService.CurrencyStateTrading:output_type -> gctrpc.GenericResponse
+	120, // 339: gctrpc.GoCryptoTraderService.CurrencyStateDeposit:output_type -> gctrpc.GenericResponse
+	120, // 340: gctrpc.GoCryptoTraderService.CurrencyStateWithdraw:output_type -> gctrpc.GenericResponse
+	120, // 341: gctrpc.GoCryptoTraderService.CurrencyStateTradingPair:output_type -> gctrpc.GenericResponse
+	166, // 342: gctrpc.GoCryptoTraderService.GetFuturesPositionsSummary:output_type -> gctrpc.GetFuturesPositionsSummaryResponse
+	168, // 343: gctrpc.GoCryptoTraderService.GetFuturesPositionsOrders:output_type -> gctrpc.GetFuturesPositionsOrdersResponse
+	184, // 344: gctrpc.GoCryptoTraderService.GetCollateral:output_type -> gctrpc.GetCollateralResponse
+	193, // 345: gctrpc.GoCryptoTraderService.Shutdown:output_type -> gctrpc.ShutdownResponse
+	196, // 346: gctrpc.GoCryptoTraderService.GetTechnicalAnalysis:output_type -> gctrpc.GetTechnicalAnalysisResponse
+	201, // 347: gctrpc.GoCryptoTraderService.GetMarginRatesHistory:output_type -> gctrpc.GetMarginRatesHistoryResponse
+	164, // 348: gctrpc.GoCryptoTraderService.GetManagedPosition:output_type -> gctrpc.GetManagedPositionsResponse
+	164, // 349: gctrpc.GoCryptoTraderService.GetAllManagedPositions:output_type -> gctrpc.GetManagedPositionsResponse
+	189, // 350: gctrpc.GoCryptoTraderService.GetFundingRates:output_type -> gctrpc.GetFundingRatesResponse
+	191, // 351: gctrpc.GoCryptoTraderService.GetLatestFundingRate:output_type -> gctrpc.GetLatestFundingRateResponse
+	203, // 352: gctrpc.GoCryptoTraderService.GetOrderbookMovement:output_type -> gctrpc.GetOrderbookMovementResponse
+	205, // 353: gctrpc.GoCryptoTraderService.GetOrderbookAmountByNominal:output_type -> gctrpc.GetOrderbookAmountByNominalResponse
+	207, // 354: gctrpc.GoCryptoTraderService.GetOrderbookAmountByImpact:output_type -> gctrpc.GetOrderbookAmountByImpactResponse
+	170, // 355: gctrpc.GoCryptoTraderService.GetCollateralMode:output_type -> gctrpc.GetCollateralModeResponse
+	180, // 356: gctrpc.GoCryptoTraderService.GetLeverage:output_type -> gctrpc.GetLeverageResponse
+	172, // 357: gctrpc.GoCryptoTraderService.SetCollateralMode:output_type -> gctrpc.SetCollateralModeResponse
+	178, // 358: gctrpc.GoCryptoTraderService.SetMarginType:output_type -> gctrpc.SetMarginTypeResponse
+	182, // 359: gctrpc.GoCryptoTraderService.SetLeverage:output_type -> gctrpc.SetLeverageResponse
+	176, // 360: gctrpc.GoCryptoTraderService.ChangePositionMargin:output_type -> gctrpc.ChangePositionMarginResponse
+	210, // 361: gctrpc.GoCryptoTraderService.GetOpenInterest:output_type -> gctrpc.GetOpenInterestResponse
+	213, // 362: gctrpc.GoCryptoTraderService.GetCurrencyTradeURL:output_type -> gctrpc.GetCurrencyTradeURLResponse
+	257, // [257:363] is the sub-list for method output_type
+	151, // [151:257] is the sub-list for method input_type
+	151, // [151:151] is the sub-list for extension type_name
+	151, // [151:151] is the sub-list for extension extendee
+	0,   // [0:151] is the sub-list for field type_name
 }
 
 func init() { file_rpc_proto_init() }
@@ -17167,7 +16496,7 @@ func file_rpc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_proto_rawDesc), len(file_rpc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   240,
+			NumMessages:   228,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
