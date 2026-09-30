@@ -1,0 +1,30 @@
+// spot@public.kline.v3.api.pb@<symbol>@<interval>
+
+syntax = "proto3";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PublicSpotKlineV3ApiProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PublicSpotKlineV3Api {
+  // Kline interval (Min1, Min5, Min15, Min30, Min60, Hour4, Hour8, Day1, Week1, Month1)
+  string interval = 1;
+  // Window start time, in seconds
+  int64 windowStart = 2;
+  // Open price
+  string openingPrice = 3;
+  // Close price
+  string closingPrice = 4;
+  // High price
+  string highestPrice = 5;
+  // Low price
+  string lowestPrice = 6;
+  // Base volume
+  string volume = 7;
+  // Quote volume
+  string amount = 8;
+  // Window end time, in seconds
+  int64 windowEnd = 9;
+}
