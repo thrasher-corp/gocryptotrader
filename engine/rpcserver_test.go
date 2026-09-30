@@ -53,6 +53,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -310,7 +312,6 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 		Ask:          1337,
 		BaseVolume:   1337,
 		QuoteVolume:  1337,
-		PriceATH:     1337,
 		Open:         1337,
 		Close:        1337,
 		Pair:         p,
@@ -1859,6 +1860,85 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 }
 
+func TestRPCServer_tickerResponse(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewBTCUSD()
+	price := &ticker.Price{
+		Pair:                       pair,
+		ExchangeName:               "Bitstamp",
+		AssetType:                  asset.Spot,
+		LastUpdated:                time.Unix(1643640186, 123456789),
+		Last:                       1,
+		LastSize:                   2,
+		VolumeWeightedAveragePrice: 3,
+		High:                       4,
+		Low:                        5,
+		Bid:                        7,
+		BidSize:                    8,
+		Ask:                        10,
+		AskSize:                    11,
+		BaseVolume:                 12,
+		QuoteVolume:                13,
+		Open:                       14,
+		Open24Hour:                 15,
+		PercentChange24Hour:        16,
+		Close:                      17,
+		OpenInterest:               18,
+		OpenInterestValue:          19,
+		MarkPrice:                  20,
+		IndexPrice:                 21,
+		FlashReturnRate:            22,
+		BidPeriod:                  23,
+		AskPeriod:                  24,
+		FlashReturnRateAmount:      25,
+	}
+
+	s := &RPCServer{}
+	want := &gctrpc.TickerResponse{
+		Pair: &gctrpc.CurrencyPair{
+			Base:  "BTC",
+			Quote: "USD",
+		},
+		LastUpdated:                timestamppb.New(price.LastUpdated),
+		CurrencyPair:               "BTCUSD",
+		Last:                       1,
+		LastSize:                   2,
+		VolumeWeightedAveragePrice: 3,
+		High:                       4,
+		Low:                        5,
+		Bid:                        7,
+		BidSize:                    8,
+		Ask:                        10,
+		AskSize:                    11,
+		Volume:                     12,
+		BaseVolume:                 12,
+		QuoteVolume:                13,
+		Open:                       14,
+		Open24Hour:                 15,
+		PercentChange24Hour:        16,
+		Close:                      17,
+		OpenInterest:               18,
+		OpenInterestValue:          19,
+		MarkPrice:                  20,
+		IndexPrice:                 21,
+		ExchangeName:               "Bitstamp",
+		AssetType:                  asset.Spot.String(),
+		FlashReturnRate:            22,
+		BidPeriod:                  23,
+		AskPeriod:                  24,
+		FlashReturnRateAmount:      25,
+	}
+	got := s.tickerResponse(price)
+	assert.Equal(t, want, got, "ticker RPC response should contain every stored price field")
+
+	encoded, err := proto.Marshal(got)
+	require.NoError(t, err, "ticker RPC response must marshal")
+	var decoded gctrpc.TickerResponse
+	require.NoError(t, proto.Unmarshal(encoded, &decoded), "ticker RPC response must unmarshal")
+	assert.True(t, proto.Equal(want, &decoded), "ticker RPC fields should survive a wire round trip")
+}
+
 func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
 	t.Parallel()
 	// Make a dummy pair we'll be using for this test.
@@ -1902,7 +1982,7 @@ func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
 	request := &gctrpc.GetTickerRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: pair.Delimiter,
+			Delimiter: "-",
 			Base:      pair.Base.String(),
 			Quote:     pair.Quote.String(),
 		},
@@ -1913,6 +1993,10 @@ func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
 	require.NoError(t, err, "GetTicker must not error")
 	require.NotNil(t, response.LastUpdated, "LastUpdated must be populated")
 	assert.Equal(t, now.UTC(), response.LastUpdated.AsTime(), "LastUpdated should preserve nanosecond precision")
+	assert.Equal(t, request.Pair, response.Pair, "GetTicker should echo the requested pair")
+	assert.Equal(t, "XXXXX-YYYYY", response.CurrencyPair, "GetTicker should echo the requested pair format")
+	request.Pair.Base = "changed"
+	assert.Equal(t, "XXXXX", response.Pair.Base, "response pair should not alias the request")
 }
 
 func TestRPCServer_GetOrderbook_LastUpdated(t *testing.T) {
