@@ -234,38 +234,31 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
+			if err := m.syncer.WebsocketUpdate(exchName,
 				d.Pair,
 				d.AssetType,
 				SyncItemTicker,
-				nil)
-			if err != nil {
+				nil); err != nil {
 				return err
 			}
 		}
-		err := ticker.ProcessTicker(d)
-		if err != nil {
-			return err
-		}
-		m.syncer.PrintTickerSummary(d, "websocket", err)
+		m.syncer.PrintTickerSummary(d, "websocket", nil)
 	case []ticker.Price:
+		var errs error
 		for x := range d {
 			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdate(exchName,
+				if err := m.syncer.WebsocketUpdate(exchName,
 					d[x].Pair,
 					d[x].AssetType,
 					SyncItemTicker,
-					nil)
-				if err != nil {
-					return err
+					nil); err != nil {
+					errs = common.AppendError(errs, err)
+					continue
 				}
 			}
-			err := ticker.ProcessTicker(&d[x])
-			if err != nil {
-				return err
-			}
-			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
+			m.syncer.PrintTickerSummary(&d[x], "websocket", nil)
 		}
+		return errs
 	case *options.Greeks:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s options updated %+v", exchName, m.FormatCurrency(d.Pair), d.AssetType, d)

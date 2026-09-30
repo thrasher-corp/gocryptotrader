@@ -866,7 +866,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
         if err := json.Unmarshal(respRaw, &resultData);err != nil {
             return err
         }
-        return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+        tickPrice := &ticker.Price{
             ExchangeName: e.Name,
             Bid:          resultData.Ticker.Bid,
             Ask:          resultData.Ticker.Ask,
@@ -874,7 +874,11 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
             LastUpdated:  resultData.Ticker.Time,
             Pair:         p,
             AssetType:    a,
-        })
+        }
+        if err := ticker.ProcessTicker(tickPrice); err != nil {
+            return err
+        }
+        return e.Websocket.DataHandler.Send(ctx, tickPrice)
     }
 ```
 
