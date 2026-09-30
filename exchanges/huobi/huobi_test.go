@@ -443,6 +443,9 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTickerSpot(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
 	assert.ErrorContains(t, err, "invalid symbol")
 	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
@@ -451,6 +454,9 @@ func TestUpdateTickerSpot(t *testing.T) {
 
 func TestUpdateTickerCMF(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("INV", "ALID", "_"), asset.CoinMarginedFutures)
 	assert.ErrorContains(t, err, "symbol data error")
 	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
@@ -1870,7 +1876,10 @@ func TestGetBatchFuturesContracts(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	updatePairsOnce(t, e)
+	e.Name = t.Name()
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(t.Context(), a)
 		require.NoErrorf(t, err, "UpdateTickers must not error for asset %s", a)

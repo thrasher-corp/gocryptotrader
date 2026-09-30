@@ -235,26 +235,40 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if !m.syncer.IsRunning() {
 			return nil
 		}
-		err := m.syncer.WebsocketUpdate(exchName, d.Pair, d.AssetType, SyncItemTicker, nil)
-		if errors.Is(err, errCouldNotSyncNewData) {
-			return nil
+		if m.syncer.IsRunning() {
+			if err := m.syncer.WebsocketUpdate(exchName,
+				d.Pair,
+				d.AssetType,
+				SyncItemTicker,
+				nil); err != nil {
+				if errors.Is(err, errCouldNotSyncNewData) {
+					return nil
+				}
+				return err
+			}
 		}
-		m.syncer.PrintTickerSummary(d, "websocket", err)
-		return err
+		m.syncer.PrintTickerSummary(d, "websocket", nil)
 	case []ticker.Price:
 		if !m.syncer.IsRunning() {
 			return nil
 		}
+		var errs error
 		for x := range d {
-			err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil)
-			if errors.Is(err, errCouldNotSyncNewData) {
-				continue
+			if m.syncer.IsRunning() {
+				if err := m.syncer.WebsocketUpdate(exchName,
+					d[x].Pair,
+					d[x].AssetType,
+					SyncItemTicker,
+					nil); err != nil {
+					if !errors.Is(err, errCouldNotSyncNewData) {
+						errs = common.AppendError(errs, err)
+					}
+					continue
+				}
 			}
-			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
-			if err != nil {
-				return err
-			}
+			m.syncer.PrintTickerSummary(&d[x], "websocket", nil)
 		}
+		return errs
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
 	case kline.Item:

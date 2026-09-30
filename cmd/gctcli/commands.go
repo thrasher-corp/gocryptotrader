@@ -3043,19 +3043,8 @@ func getTickerStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Ticker stream for %s %s:\n", exchangeName,
-			resp.Pair.String())
+		jsonOutput(resp)
 		fmt.Println()
-
-		fmt.Printf("LAST: %f\n HIGH: %f\n LOW: %f\n BID: %f\n ASK: %f\n VOLUME: %f\n PRICEATH: %f\n LASTUPDATED: %d\n",
-			resp.Last,
-			resp.High,
-			resp.Low,
-			resp.Bid,
-			resp.Ask,
-			resp.Volume,
-			resp.PriceAth,
-			resp.LastUpdated)
 	}
 }
 
@@ -3103,19 +3092,8 @@ func getExchangeTickerStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Ticker stream for %s %s:\n",
-			exchangeName,
-			resp.Pair.String())
-
-		fmt.Printf("LAST: %f HIGH: %f LOW: %f BID: %f ASK: %f VOLUME: %f PRICEATH: %f LASTUPDATED: %d\n",
-			resp.Last,
-			resp.High,
-			resp.Low,
-			resp.Bid,
-			resp.Ask,
-			resp.Volume,
-			resp.PriceAth,
-			resp.LastUpdated)
+		jsonOutput(resp)
+		fmt.Println()
 	}
 }
 

@@ -130,6 +130,9 @@ func instantiateTradablePairs() {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.Pair{}, asset.Margin)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -5056,6 +5059,21 @@ func TestQuoteVolumeReachesTheTicker(t *testing.T) {
 	const instrument = "BTC-27JUN25-100000-C"
 	const stats = `"stats":{"volume_usd":4.7,"volume_notional":23.25,"volume":0.5}`
 
+	// REST first, so the store holds only what UpdateTicker wrote when it is read back
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Trimmed from GET /api/v2/public/ticker
+		_, err := fmt.Fprint(w, `{"result":{"instrument_name":"`+instrument+`",`+stats+`}}`)
+		assert.NoError(t, err, "writing the ticker response should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
+
+	p, err := currency.NewPairFromString(instrument)
+	require.NoError(t, err, "NewPairFromString must not error")
+	tick, err := ex.UpdateTicker(t.Context(), p, asset.Options)
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.Equal(t, 23.25, tick.QuoteVolume, "an option's volume_notional should reach the ticker as quote volume")
+
 	// Both channels carry the same stats, and ticker is the one defaultSubscriptions subscribes
 	for _, ch := range []string{"ticker." + instrument + ".100ms", "incremental_ticker." + instrument} {
 		payload := []byte(`{"params":{"data":{` + stats + `},"channel":"` + ch + `"},"method":"subscription","jsonrpc":"2.0"}`)
@@ -5071,20 +5089,6 @@ func TestQuoteVolumeReachesTheTicker(t *testing.T) {
 			require.Failf(t, "no ticker price sent", "the %s handler must send a ticker price", ch)
 		}
 	}
-
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// Trimmed from GET /api/v2/public/ticker
-		_, err := fmt.Fprint(w, `{"result":{"instrument_name":"`+instrument+`",`+stats+`}}`)
-		assert.NoError(t, err, "writing the ticker response should not error")
-	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "SetRunningURL must not error")
-
-	p, err := currency.NewPairFromString(instrument)
-	require.NoError(t, err, "NewPairFromString must not error")
-	tick, err := ex.UpdateTicker(t.Context(), p, asset.Options)
-	require.NoError(t, err, "UpdateTicker must not error")
-	assert.Equal(t, 23.25, tick.QuoteVolume, "an option's volume_notional should reach the ticker as quote volume")
 }
 
 // TestProcessTickerMapsEveryKind covers the ticker channel for each instrument kind, which
@@ -5427,15 +5431,7 @@ func TestTickerPathsAgree(t *testing.T) {
 			return nil
 		}
 	}
-	for _, ch := range []string{"ticker.BTC-PERPETUAL.100ms", "incremental_ticker.BTC-PERPETUAL"} {
-		payload := data
-		if ch == "incremental_ticker.BTC-PERPETUAL" {
-			payload = `{"type":"snapshot",` + data[1:]
-		}
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(`{"params":{"channel":"`+ch+`","data":`+payload+`},"method":"subscription","jsonrpc":"2.0"}`)), "wsHandleData must not error for %s", ch)
-		assert.Equalf(t, exp, received(ch), "the %s channel should record what REST records", ch)
-	}
-
+	// REST first, so the store holds only what UpdateTicker wrote when it is read back
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := fmt.Fprint(w, `{"result":`+data+`}`)
 		assert.NoError(t, err, "writing the ticker response should not error")
@@ -5445,6 +5441,15 @@ func TestTickerPathsAgree(t *testing.T) {
 	tick, err := ex.UpdateTicker(t.Context(), perp, asset.Futures)
 	require.NoError(t, err, "UpdateTicker must not error")
 	assert.Equal(t, exp, tick, "UpdateTicker should record what both channels record")
+
+	for _, ch := range []string{"ticker.BTC-PERPETUAL.100ms", "incremental_ticker.BTC-PERPETUAL"} {
+		payload := data
+		if ch == "incremental_ticker.BTC-PERPETUAL" {
+			payload = `{"type":"snapshot",` + data[1:]
+		}
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(`{"params":{"channel":"`+ch+`","data":`+payload+`},"method":"subscription","jsonrpc":"2.0"}`)), "wsHandleData must not error for %s", ch)
+		assert.Equalf(t, exp, received(ch), "the %s channel should record what REST records", ch)
+	}
 
 	// A live change four seconds on: what it carries replaces the state, and the range and mark price
 	// it leaves out stay as they were

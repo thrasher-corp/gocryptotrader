@@ -599,6 +599,9 @@ func TestWsGetSymbolsJSON(t *testing.T) {
 }
 
 func TestWsTicker(t *testing.T) {
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	pressXToJSON := []byte(`{
   "jsonrpc": "2.0",
   "method": "ticker",

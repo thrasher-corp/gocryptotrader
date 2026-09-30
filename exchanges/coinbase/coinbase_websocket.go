@@ -113,6 +113,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 		return err
 	}
 	var allTickers []ticker.Price
+	var errs error
 	aliases := e.pairAliases.GetAliases()
 	for i := range wsTickers {
 		for j := range wsTickers[i].Tickers {
@@ -137,14 +138,16 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 					continue
 				}
 				t.Pair = pair
-				if err := ticker.ProcessTicker(&t); err != nil {
-					return err
-				}
 				allTickers = append(allTickers, t)
 			}
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, allTickers)
+	processed, processErr := ticker.ProcessBatch(allTickers)
+	errs = common.AppendError(errs, processErr)
+	if len(processed) == 0 {
+		return errs
+	}
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // wsProcessCandle handles candle data from the websocket

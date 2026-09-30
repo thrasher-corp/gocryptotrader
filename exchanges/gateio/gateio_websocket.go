@@ -279,10 +279,11 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 			LastUpdated:  pushTime,
 		})
 	}
-	if err := ticker.ProcessBatch(out); err != nil {
+	processed, err := ticker.ProcessBatch(out)
+	if len(processed) == 0 {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, out)
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 func (e *Exchange) processTrades(incoming []byte) error {
