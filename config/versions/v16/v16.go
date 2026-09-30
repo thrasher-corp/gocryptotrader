@@ -1,35 +1,24 @@
-// Package v16 corrects Gemini's legacy public websocket endpoint override.
+// Package v16 removes configuration for the decommissioned GCTScript feature.
 package v16
 
 import (
 	"context"
-	"errors"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version migrates the bare Gemini host which cannot serve market-data upgrades.
+var legacyGCTScriptConfig = []byte(`{"enabled":false,"timeout":30000000000,"max_virtual_machines":10,"allow_imports":false,"auto_load":null,"verbose":false}`)
+
+// Version implements ConfigVersion to remove decommissioned GCTScript configuration.
 type Version struct{}
 
-// Exchanges limits the migration to Gemini configurations.
-func (*Version) Exchanges() []string { return []string{"Gemini"} }
-
-// UpgradeExchange preserves custom endpoints and updates only the old default.
-func (*Version) UpgradeExchange(_ context.Context, data []byte) ([]byte, error) {
-	url, err := jsonparser.GetString(data, "api", "urlEndpoints", "WebsocketSpotURL")
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return data, nil
-	}
-	if err != nil {
-		return data, err
-	}
-	if url != "wss://api.gemini.com" {
-		return data, nil
-	}
-	return jsonparser.Set(data, []byte(`"wss://api.gemini.com/v2/marketdata"`), "api", "urlEndpoints", "WebsocketSpotURL")
+// UpgradeConfig removes the GCTScript configuration. Obsolete sublogger entries
+// are retained because rewriting duplicate subloggers keys can alter their merged decoding.
+func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return jsonparser.Delete(config, "gctscript"), nil
 }
 
-// DowngradeExchange retains the working URL because the bare host is unusable.
-func (*Version) DowngradeExchange(_ context.Context, data []byte) ([]byte, error) {
-	return data, nil
+// DowngradeConfig restores the legacy GCTScript defaults expected by older releases.
+func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return jsonparser.Set(config, legacyGCTScriptConfig, "gctscript")
 }

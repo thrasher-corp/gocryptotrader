@@ -754,316 +754,6 @@
         ]
       }
     },
-    "/v1/gctscript/autoload": {
-      "post": {
-        "operationId": "GoCryptoTraderService_GCTScriptAutoLoadToggle",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptAutoLoadRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/execute": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GCTScriptExecute",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "script.uuid",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.name",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.path",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.nextRun",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/list": {
-      "post": {
-        "operationId": "GoCryptoTraderService_GCTScriptListAll",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptStatusResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptListAllRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/query": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GCTScriptQuery",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "script.uuid",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.name",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.path",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.nextRun",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/read": {
-      "post": {
-        "operationId": "GoCryptoTraderService_GCTScriptReadScript",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptReadScriptRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/status": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GCTScriptStatus",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptStatusResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/stop": {
-      "post": {
-        "operationId": "GoCryptoTraderService_GCTScriptStop",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptStopRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/stopall": {
-      "post": {
-        "operationId": "GoCryptoTraderService_GCTScriptStopAll",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptStopAllRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/gctscript/upload": {
-      "post": {
-        "operationId": "GoCryptoTraderService_GCTScriptUpload",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGenericResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptUploadRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
     "/v1/getaccountbalances": {
       "get": {
         "operationId": "GoCryptoTraderService_GetAccountBalances",
@@ -4784,7 +4474,6 @@
         "currencies": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcAccountCurrencyInfo"
           }
         }
@@ -4920,7 +4609,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrders"
           }
         },
@@ -4959,7 +4647,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrders"
           }
         }
@@ -5280,7 +4967,6 @@
         "currencyStates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCurrencyState"
           }
         }
@@ -5359,7 +5045,6 @@
         "jobResults": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcDataHistoryJobResult"
           }
         },
@@ -5397,7 +5082,6 @@
         "results": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcDataHistoryJob"
           }
         }
@@ -5423,7 +5107,6 @@
         "addresses": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcDepositAddress"
           }
         }
@@ -5545,7 +5228,6 @@
         "rates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcFundingRate"
           }
         },
@@ -5635,7 +5317,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
         },
@@ -5733,106 +5414,6 @@
         }
       }
     },
-    "gctrpcGCTScript": {
-      "type": "object",
-      "properties": {
-        "uuid": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "path": {
-          "type": "string"
-        },
-        "nextRun": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcGCTScriptAutoLoadRequest": {
-      "type": "object",
-      "properties": {
-        "script": {
-          "type": "string"
-        },
-        "status": {
-          "type": "boolean"
-        }
-      }
-    },
-    "gctrpcGCTScriptListAllRequest": {
-      "type": "object"
-    },
-    "gctrpcGCTScriptQueryResponse": {
-      "type": "object",
-      "properties": {
-        "status": {
-          "type": "string"
-        },
-        "script": {
-          "$ref": "#/definitions/gctrpcGCTScript"
-        },
-        "data": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcGCTScriptReadScriptRequest": {
-      "type": "object",
-      "properties": {
-        "script": {
-          "$ref": "#/definitions/gctrpcGCTScript"
-        }
-      }
-    },
-    "gctrpcGCTScriptStatusResponse": {
-      "type": "object",
-      "properties": {
-        "status": {
-          "type": "string"
-        },
-        "scripts": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/gctrpcGCTScript"
-          }
-        }
-      }
-    },
-    "gctrpcGCTScriptStopAllRequest": {
-      "type": "object"
-    },
-    "gctrpcGCTScriptStopRequest": {
-      "type": "object",
-      "properties": {
-        "script": {
-          "$ref": "#/definitions/gctrpcGCTScript"
-        }
-      }
-    },
-    "gctrpcGCTScriptUploadRequest": {
-      "type": "object",
-      "properties": {
-        "scriptName": {
-          "type": "string"
-        },
-        "scriptData": {
-          "type": "string"
-        },
-        "data": {
-          "type": "string",
-          "format": "byte"
-        },
-        "archived": {
-          "type": "boolean"
-        },
-        "overwrite": {
-          "type": "boolean"
-        }
-      }
-    },
     "gctrpcGenericExchangeNameRequest": {
       "type": "object",
       "properties": {
@@ -5861,7 +5442,6 @@
         "accounts": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcAccount"
           }
         }
@@ -5873,7 +5453,6 @@
         "events": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcAuditEvent"
           }
         }
@@ -5948,14 +5527,12 @@
         "currencyBreakdown": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCollateralForCurrency"
           }
         },
         "positionBreakdown": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCollateralByPosition"
           }
         }
@@ -6164,7 +5741,6 @@
         "forexProviders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcForexProvider"
           }
         }
@@ -6176,7 +5752,6 @@
         "forexRates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcForexRatesConversion"
           }
         }
@@ -6196,7 +5771,6 @@
         "positions": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcFuturePosition"
           }
         }
@@ -6240,7 +5814,6 @@
         "candle": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCandle"
           }
         }
@@ -6338,7 +5911,6 @@
         "positions": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcFuturePosition"
           }
         }
@@ -6350,7 +5922,6 @@
         "rates": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcMarginRate"
           }
         },
@@ -6387,7 +5958,6 @@
         "data": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOpenInterestDataResponse"
           }
         }
@@ -6573,7 +6143,6 @@
         "orderbooks": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbooks"
           }
         }
@@ -6605,7 +6174,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
         }
@@ -6617,7 +6185,6 @@
         "portfolio": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcPortfolioAddress"
           }
         }
@@ -6629,14 +6196,12 @@
         "coinTotals": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
         "coinsOffline": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
@@ -6649,7 +6214,6 @@
         "coinsOnline": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCoin"
           }
         },
@@ -6714,7 +6278,6 @@
         "tickers": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTickers"
           }
         }
@@ -6802,7 +6365,6 @@
         "addresses": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOfflineCoinSummary"
           }
         }
@@ -6920,7 +6482,6 @@
         "trades": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTradeHistory"
           }
         },
@@ -6959,14 +6520,12 @@
         "bids": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookItem"
           }
         },
         "asks": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookItem"
           }
         },
@@ -6991,7 +6550,6 @@
         "orderbooks": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookResponse"
           }
         }
@@ -7111,7 +6669,6 @@
         "trades": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcSavedTrades"
           }
         }
@@ -7172,7 +6729,6 @@
         "pairs": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcCurrencyPair"
           }
         },
@@ -7309,7 +6865,6 @@
         "orders": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcOrderbookItem"
           }
         },
@@ -7380,7 +6935,6 @@
         "trades": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTrades"
           }
         }
@@ -7438,7 +6992,6 @@
         "tickers": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcTickerResponse"
           }
         }
@@ -7628,7 +7181,6 @@
         "subscriptions": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcWebsocketSubscription"
           }
         }
@@ -7818,7 +7370,6 @@
         "event": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
           }
         }
@@ -7885,7 +7436,6 @@
         "details": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }
