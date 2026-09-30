@@ -1,12 +1,7 @@
 package kline
 
 import (
-	"encoding/csv"
 	"errors"
-	"fmt"
-	"io"
-	"os"
-	"strconv"
 	"time"
 	"uuid"
 
@@ -14,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // LoadFromDatabase returns Item from database seeded data
@@ -111,70 +105,4 @@ func StoreInDatabase(in *Item, force bool) (uint64, error) {
 		}
 	}
 	return candle.Insert(&databaseCandles)
-}
-
-// LoadFromGCTScriptCSV loads kline data from a CSV file
-func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
-	csvFile, err := os.Open(file)
-	if err != nil {
-		return out, err
-	}
-
-	defer func() {
-		err = csvFile.Close()
-		if err != nil {
-			log.Errorln(log.Global, err)
-		}
-	}()
-
-	csvData := csv.NewReader(csvFile)
-
-	for {
-		row, errCSV := csvData.Read()
-		if errCSV != nil {
-			if errCSV == io.EOF {
-				break
-			}
-			return out, errCSV
-		}
-
-		tempCandle := Candle{}
-		v, errParse := strconv.ParseInt(row[0], 10, 32)
-		if errParse != nil {
-			err = errParse
-			break
-		}
-		tempCandle.Time = time.Unix(v, 0).UTC()
-		if tempCandle.Time.IsZero() {
-			err = fmt.Errorf("invalid timestamp received on row %v", row)
-			break
-		}
-
-		tempCandle.Volume, err = strconv.ParseFloat(row[1], 64)
-		if err != nil {
-			break
-		}
-
-		tempCandle.Open, err = strconv.ParseFloat(row[2], 64)
-		if err != nil {
-			break
-		}
-
-		tempCandle.High, err = strconv.ParseFloat(row[3], 64)
-		if err != nil {
-			break
-		}
-
-		tempCandle.Low, err = strconv.ParseFloat(row[4], 64)
-		if err != nil {
-			break
-		}
-
-		tempCandle.Close, err = strconv.ParseFloat(row[5], 64)
-		if err != nil {
-			break
-		}
-		out = append(out, tempCandle)
-	}
-	return out, err
 }
