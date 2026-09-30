@@ -3772,6 +3772,9 @@ func TestWsProcessTickers(t *testing.T) {
 	default:
 		require.Fail(t, "no futures tickers sent", "processFuturesTickers must send ticker prices")
 	}
+	require.NoError(t, ex.processTicker(t.Context(), &SubscriptionResponse{Data: []byte(`[]`)}), "processTicker must not error for empty data")
+	require.NoError(t, ex.processFuturesTickers(t.Context(), []byte(`[]`)), "processFuturesTickers must not error for empty data")
+	assert.Empty(t, ex.Websocket.DataHandler.C, "ticker handlers should not relay an empty batch")
 }
 
 // TestUpdateTickersReachesTheStore covers the wiring into the store, which the spotTicker and
