@@ -141,7 +141,19 @@ func TestPushData(t *testing.T) {
 		return e.wsHandleData(ctx, nil, r)
 	})
 
-	require.Eventually(t, func() bool { return len(e.Websocket.DataHandler.C) == 31 }, time.Second, time.Millisecond*10, "must receive 31 messages")
+	messageCount := 0
+	require.Eventually(t, func() bool {
+		for len(e.Websocket.DataHandler.C) > 0 {
+			response := <-e.Websocket.DataHandler.C
+			if prices, ok := response.Data.([]ticker.Price); ok {
+				assert.NotEmpty(t, prices, "ticker batch should contain at least one price")
+				messageCount += len(prices)
+				continue
+			}
+			messageCount++
+		}
+		return messageCount == 31
+	}, time.Second, time.Millisecond*10, "must receive 31 messages")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
@@ -1540,11 +1552,12 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 func TestProcessTicker(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	ku.Name = t.Name()
 	// size is the quantity of the latest fill rather than a 24 hour volume
 	msg := []byte(`{"topic":"/market/ticker:BTC-USDT","type":"message","subject":"trade.ticker","data":{"bestAsk":"76330.2","bestAskSize":"1.06213577","bestBid":"76330.1","bestBidSize":"0.00480864","price":"76330.1","sequence":"37257610995","size":"0.00002628","time":1789624664495}}`)
 	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
-	require.Len(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for a pair enabled on spot alone")
-	exp := &ticker.Price{
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker batch for a pair enabled on spot alone")
+	exp := ticker.Price{
 		Last:         76330.1,
 		LastSize:     0.00002628,
 		Bid:          76330.1,
@@ -1556,12 +1569,24 @@ func TestProcessTicker(t *testing.T) {
 		AssetType:    asset.Spot,
 		LastUpdated:  time.UnixMilli(1789624664495),
 	}
-	assert.Equal(t, exp, (<-ku.Websocket.DataHandler.C).Data, "processTicker should map the latest fill's size to LastSize rather than a volume")
+	got, ok := (<-ku.Websocket.DataHandler.C).Data.([]ticker.Price)
+	require.True(t, ok, "processTicker must send a ticker batch")
+	assert.Equal(t, []ticker.Price{exp}, got, "processTicker should map the latest fill's size to LastSize rather than a volume")
+	stored, err := ticker.GetTicker(ku.Name, exp.Pair, asset.Spot)
+	require.NoError(t, err, "processTicker must store the ticker before dispatch")
+	assert.Equal(t, exp.Last, stored.Last, "stored ticker should contain the latest price")
+
+	msg = []byte(`{"topic":"/market/ticker:all","type":"message","subject":"UNTRACKED-USDT","data":{"price":"1","time":1789624664495}}`)
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must ignore a ticker for an untracked pair")
+	assert.Empty(t, ku.Websocket.DataHandler.C, "wsHandleData should not send an empty ticker batch")
 }
 
 func TestProcessFuturesTickerV2(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	// The ticker store is shared by the whole test process and UpdateTickers leaves a
+	// snapshot behind, so a scoped name keeps those values out of these cases.
+	ku.Name = t.Name()
 	pair := currency.NewPairWithDelimiter("SOL", "USDTM", "_")
 	for _, tc := range []struct {
 		name    string
@@ -1603,56 +1628,147 @@ func TestProcessFuturesTickerV2(t *testing.T) {
 		require.NoErrorf(t, ku.wsHandleData(t.Context(), nil, []byte(tc.message)), "wsHandleData must not error for %s", tc.name)
 		require.Lenf(t, ku.Websocket.DataHandler.C, 1, "wsHandleData must send one ticker for %s", tc.name)
 		assert.Equalf(t, tc.exp, (<-ku.Websocket.DataHandler.C).Data, "processFuturesTickerV2 should map %s with any fill size in LastSize rather than a volume", tc.name)
+		stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
+		require.NoErrorf(t, err, "processFuturesTickerV2 must store %s before dispatch", tc.name)
+		assert.Equalf(t, tc.exp, stored, "the stored ticker should match the dispatched %s ticker", tc.name)
 	}
+}
+
+// TestProcessFuturesTickerV2KeepsStoredSnapshot covers the tickerV2 channel reporting only
+// the best bid and ask, where replacing the stored ticker would clear the snapshot the REST
+// ticker request left behind.
+func TestProcessFuturesTickerV2KeepsStoredSnapshot(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	// The ticker store is shared by the whole test process, so a scoped name keeps the
+	// seeded snapshot below away from every other case.
+	ku.Name = t.Name()
+	pair := currency.NewPairWithDelimiter("ETH", "USDCM", "_")
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		Pair:         pair,
+		Last:         3551,
+		LastSize:     12,
+		High:         3600,
+		Low:          3400,
+		BaseVolume:   30449670,
+		QuoteVolume:  845169919063,
+		OpenInterest: 1234567,
+	}), "seeding the stored ticker must not error")
+
+	msg := []byte(`{"topic":"/contractMarket/tickerV2:ETHUSDCM","type":"message","subject":"tickerV2","data":{"symbol":"ETHUSDCM","sequence":1739524604832,"bestBidSize":795,"bestBidPrice":"3200","bestAskPrice":"3600","bestAskSize":284,"ts":1789627572494000000}}`)
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "the push must emit a single ticker")
+
+	got, ok := (<-ku.Websocket.DataHandler.C).Data.(*ticker.Price)
+	require.True(t, ok, "the push must emit a ticker price")
+
+	stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
+	require.NoError(t, err, "the ticker must remain stored")
+	exp := &ticker.Price{
+		Last:         3551,
+		LastSize:     12,
+		High:         3600,
+		Low:          3400,
+		Bid:          3200,
+		BidSize:      795,
+		Ask:          3600,
+		AskSize:      284,
+		BaseVolume:   30449670,
+		QuoteVolume:  845169919063,
+		OpenInterest: 1234567,
+		Pair:         pair,
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		LastUpdated:  time.Unix(0, 1789627572494000000),
+	}
+	assert.Equal(t, exp, stored, "the best bid/ask push should keep every stored field it does not report")
+	assert.Equal(t, stored, got, "the stored ticker should match the dispatched ticker")
+}
+
+// TestProcessFuturesTickerV2WithoutTimestamp covers a tickerV2 frame that carries no ts. The
+// stored snapshot's timestamp must not be carried onto the fresh bid and ask, which would make
+// the exchange store them under a stale time.
+func TestProcessFuturesTickerV2WithoutTimestamp(t *testing.T) {
+	t.Parallel()
+	ku := testInstance(t)
+	// The ticker store is shared by the whole test process, so a scoped name keeps the
+	// seeded snapshot below away from every other case.
+	ku.Name = t.Name()
+	pair := currency.NewPairWithDelimiter("ETH", "USDCM", "_")
+	require.NoError(t, ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		Pair:         pair,
+		Last:         3551,
+		High:         3600,
+		Low:          3400,
+		LastUpdated:  time.Now().Add(-time.Hour),
+	}), "seeding the stored ticker must not error")
+
+	msg := []byte(`{"topic":"/contractMarket/tickerV2:ETHUSDCM","type":"message","subject":"tickerV2","data":{"symbol":"ETHUSDCM","sequence":1739524604832,"bestBidSize":795,"bestBidPrice":"3200","bestAskPrice":"3600","bestAskSize":284}}`)
+	before := time.Now()
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, msg), "wsHandleData must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "the push must emit a single ticker")
+
+	got, ok := (<-ku.Websocket.DataHandler.C).Data.(*ticker.Price)
+	require.True(t, ok, "the push must emit a ticker price")
+	assert.False(t, got.LastUpdated.Before(before), "a frame without ts should carry its own receipt time")
+	stored, err := ticker.GetTicker(ku.Name, pair, asset.Futures)
+	require.NoError(t, err, "the ticker must remain stored")
+	assert.False(t, stored.LastUpdated.Before(before), "the untimestamped push should be stored under its own store time")
+	exp := &ticker.Price{
+		Last:         3551,
+		High:         3600,
+		Low:          3400,
+		Bid:          3200,
+		BidSize:      795,
+		Ask:          3600,
+		AskSize:      284,
+		Pair:         pair,
+		ExchangeName: ku.Name,
+		AssetType:    asset.Futures,
+		LastUpdated:  stored.LastUpdated,
+	}
+	assert.Equal(t, exp, stored, "the untimestamped push should keep every stored field it does not report")
 }
 
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	ku.Name = t.Name()
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
-	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
-	seenAssetTypes := map[asset.Item]int{}
+	var tickers []ticker.Price
 	for resp := range ku.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
-		case *ticker.Price:
-			switch len(ku.Websocket.DataHandler.C) {
-			case 3:
-				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
-				assert.Equal(t, 0.004445, v.High, "high")
-				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.004191, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 13097.3357, v.BaseVolume, "BaseVolume should decode from vol")
-				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
-			case 2, 1:
-				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
-				assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
-				seenAssetTypes[v.AssetType]++
-				assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
-				assert.Equal(t, 0.054846, v.High, "high")
-				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.05364, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2958.3139116, v.BaseVolume, "BaseVolume should decode from vol")
-				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
-			case 0:
-				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
-				assert.Equal(t, 37750.0, v.High, "high")
-				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
-				assert.Equal(t, 36700.0, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2900.37846402, v.BaseVolume, "BaseVolume should decode from vol")
-				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
-			}
+		case []ticker.Price:
+			tickers = append(tickers, v...)
 		case error:
 			t.Error(v)
 		default:
 			t.Errorf("Got unexpected data: %T %v", v, v)
 		}
 	}
+	require.Len(t, tickers, 4, "processMarketSnapshot must send four tickers")
+	for i := range tickers {
+		stored, err := ticker.GetTicker(ku.Name, tickers[i].Pair, tickers[i].AssetType)
+		require.NoError(t, err, "processMarketSnapshot must store each ticker before dispatch")
+		assert.Equal(t, tickers[i].Last, stored.Last, "stored ticker should contain the dispatched price")
+	}
+	exp := []ticker.Price{
+		{ExchangeName: ku.Name, AssetType: asset.Margin, Pair: currency.NewPairWithDelimiter("TRX", "BTC", "-"), Last: 0.004415, High: 0.004445, Low: 0.004191, Open: 0.004415, Close: 0.004415, BaseVolume: 13097.3357, QuoteVolume: 57.44552981, LastUpdated: time.UnixMilli(1700555342007)},
+		{ExchangeName: ku.Name, AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("ETH", "BTC", "-"), Last: 0.053778, High: 0.054846, Low: 0.05364, Open: 0.054236, Close: 0.053778, BaseVolume: 2958.3139116, QuoteVolume: 160.7847672784213, LastUpdated: time.UnixMilli(1700555340197)},
+		{ExchangeName: ku.Name, AssetType: asset.Margin, Pair: currency.NewPairWithDelimiter("ETH", "BTC", "-"), Last: 0.053778, High: 0.054846, Low: 0.05364, Open: 0.054236, Close: 0.053778, BaseVolume: 2958.3139116, QuoteVolume: 160.7847672784213, LastUpdated: time.UnixMilli(1700555340197)},
+		{ExchangeName: ku.Name, AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USDT", "-"), Last: 37366.8, High: 37750, Low: 36700, Open: 37195.3, Close: 37366.8, BaseVolume: 2900.37846402, QuoteVolume: 108210331.34015164, LastUpdated: time.UnixMilli(1700555342151)},
+	}
+	assert.Equal(t, exp, tickers, "processMarketSnapshot should send a ticker per enabled asset with every snapshot field mapped")
+
+	ku = testInstance(t)
+	msg := []byte(`{"data":{"symbol":"UNTRACKED-USDT"}}`)
+	require.NoError(t, ku.processMarketSnapshot(t.Context(), msg, marketSnapshotChannel), "processMarketSnapshot must ignore an untracked pair")
+	assert.Empty(t, ku.Websocket.DataHandler.C, "processMarketSnapshot should not send an empty ticker batch")
 }
 
 // TestSubscribeBatches ensures that endpoints support batching, contrary to kucoin api docs

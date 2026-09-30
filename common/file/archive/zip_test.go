@@ -40,20 +40,23 @@ func TestZip(t *testing.T) {
 	require.NoError(t, err, "UnZip must not error")
 	assert.Len(t, o, 1, "UnZip should extract 1 file")
 
-	folder := filepath.Join("..", "..", "..", "testdata", "gctscript")
+	folder := filepath.Join(tempDir, "folder")
+	require.NoError(t, os.Mkdir(folder, 0o750), "Mkdir must not error")
+	require.NoError(t, os.WriteFile(filepath.Join(folder, "payload.txt"), []byte("payload"), 0o600), "WriteFile must not error")
+	require.NoError(t, os.WriteFile(filepath.Join(folder, "second.txt"), []byte("second"), 0o600), "WriteFile must not error")
 	outFolderZip := filepath.Join(tempDir, "out_folder.zip")
 	err = Zip(folder, outFolderZip)
 	require.NoError(t, err, "Zip must not error")
-	o, err = UnZip(outFolderZip, tempDir)
+	o, err = UnZip(outFolderZip, filepath.Join(tempDir, "extracted"))
 	require.NoError(t, err, "UnZip must not error")
 	var found bool
 	for i := range o {
-		if filepath.Base(o[i]) == "timer.gct" {
+		if filepath.Base(o[i]) == "payload.txt" {
 			found = true
 		}
 	}
-	assert.True(t, found, "UnZip should find a gctscript in the zip")
-	assert.GreaterOrEqual(t, len(o), 6, "UnZip should extract at least 6 files")
+	assert.True(t, found, "UnZip should find the payload in the zip")
+	assert.Len(t, o, 2, "UnZip should extract both files")
 
 	folder = filepath.Join("..", "..", "..", "testdata", "invalid_file.json")
 	err = Zip(folder, filepath.Join(tempDir, "invalid.zip"))
