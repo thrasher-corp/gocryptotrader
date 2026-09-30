@@ -479,11 +479,11 @@ func TestGetDeliveryHistory(t *testing.T) {
 
 func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterestData(contextGenerate(), "", mainPair.String(), "", "")
+	_, err := e.GetOpenInterestData(contextGenerate(), "", "", "")
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetOpenInterestData(contextGenerate(), instTypeOption, "", "", "")
-	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
+	_, err = e.GetOpenInterestData(contextGenerate(), instTypeOption, "", "")
+	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	testexch.UpdatePairsOnce(t, e)
 	p, err := e.GetAvailablePairs(asset.Options)
@@ -491,12 +491,13 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
 	instrumentID := p[0].String()
-	// uly takes the plain underlying (BTC-USD), not a family such as
-	// BTC-USD_UM, so resolve the option's underlying.
-	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
+	// instFamily is the documented open-interest filter; an option
+	// instrument resolves to its family, e.g. BTC-USD_UM for
+	// BTC-USD_UM-260928-79000-C.
+	family, err := e.instrumentFamilyFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, "", instrumentID)
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, family, instrumentID)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6724,31 +6725,6 @@ func TestGetFiatDepositPaymentMethods(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func (e *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
-	e.instrumentsInfoMapLock.Lock()
-	defer e.instrumentsInfoMapLock.Unlock()
-	if instrumentType != "" {
-		insts, okay := e.instrumentsInfoMap[instrumentType]
-		if !okay {
-			return "", errInvalidInstrumentType
-		}
-		for a := range insts {
-			if insts[a].InstrumentID.String() == instID {
-				return insts[a].Underlying, nil
-			}
-		}
-	} else {
-		for _, insts := range e.instrumentsInfoMap {
-			for a := range insts {
-				if insts[a].InstrumentID.String() == instID {
-					return insts[a].Underlying, nil
-				}
-			}
-		}
-	}
-	return "", fmt.Errorf("underlying not found for instrument %s", instID)
-}
-
 func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {
 	e.instrumentsInfoMapLock.Lock()
 	defer e.instrumentsInfoMapLock.Unlock()
@@ -7101,7 +7077,7 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 // instFamily carries the filter and uly stays absent. Where the filter is an
 // underlying rather than a family — an underlying such as BTC-USD spans
 // several families (BTC-USD and BTC-USD_UM) — OKX still honours the
-// undocumented uly, so those cases assert the filter keeps travelling as uly
+// undocumented uly, so that case asserts the filter keeps travelling as uly
 // and instFamily stays absent.
 func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
 	e := new(Exchange)
@@ -7287,7 +7263,7 @@ func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
 		{
 			name: "open interest swap family",
 			call: func() error {
-				_, err := e.GetOpenInterestData(t.Context(), instTypeSwap, "", "BTC-USDT", "")
+				_, err := e.GetOpenInterestData(t.Context(), instTypeSwap, "BTC-USDT", "")
 				return err
 			},
 			path:  "/public/open-interest",
@@ -7295,18 +7271,17 @@ func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
 			value: "BTC-USDT",
 		},
 		{
-			// SOL-USD is an underlying, not a family: its only option family
-			// is SOL-USD_UM and instFamily=SOL-USD answers 51000, so querying
-			// by underlying still needs the undocumented uly, which OKX
-			// continues to honour.
-			name: "open interest option underlying keeps uly",
+			// An option query must name its family: an underlying spans
+			// several families (BTC-USD spans BTC-USD and BTC-USD_UM), so
+			// instFamily is the only filter this endpoint takes.
+			name: "open interest option family",
 			call: func() error {
-				_, err := e.GetOpenInterestData(t.Context(), instTypeOption, "SOL-USD", "", "")
+				_, err := e.GetOpenInterestData(t.Context(), instTypeOption, "BTC-USD_UM", "")
 				return err
 			},
 			path:  "/public/open-interest",
-			param: "uly",
-			value: "SOL-USD",
+			param: "instFamily",
+			value: "BTC-USD_UM",
 		},
 		{
 			name: "option market data",

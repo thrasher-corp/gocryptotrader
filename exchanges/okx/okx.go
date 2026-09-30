@@ -1963,11 +1963,13 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		uly, err := e.GetUnderlying(feeBuilder.Pair, asset.Spot)
+		// The spot underlying doubles as the instrument ID the fee rates are
+		// queried by, e.g. BTC-USDT.
+		instID, err := e.GetUnderlying(feeBuilder.Pair, asset.Spot)
 		if err != nil {
 			return 0, err
 		}
-		responses, err := e.GetTradeFee(ctx, instTypeSpot, uly, "", "")
+		responses, err := e.GetTradeFee(ctx, instTypeSpot, instID, "", "")
 		if err != nil {
 			return 0, err
 		} else if len(responses) == 0 {
@@ -4940,24 +4942,20 @@ func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, instr
 		common.EncodeURLValues("public/delivery-exercise-history", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// GetOpenInterestData retrieves the total open interest for contracts on OKX
-func (e *Exchange) GetOpenInterestData(ctx context.Context, instType, underlying, instrumentFamily, instID string) ([]OpenInterest, error) {
+// GetOpenInterestData retrieves the total open interest for contracts on OKX.
+// An option query must name its instrument family; an underlying spans
+// several families (BTC-USD spans BTC-USD and BTC-USD_UM), so it cannot
+// substitute for one.
+func (e *Exchange) GetOpenInterestData(ctx context.Context, instType, instrumentFamily, instID string) ([]OpenInterest, error) {
 	if instType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
-	if instType == instTypeOption && underlying == "" && instrumentFamily == "" {
-		return nil, errInstrumentFamilyOrUnderlyingRequired
+	if instType == instTypeOption && instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
 	}
 	params := url.Values{}
 	instType = strings.ToUpper(instType)
 	params.Set("instType", instType)
-	// An underlying such as BTC-USD spans several families (BTC-USD and
-	// BTC-USD_UM), so underlying and instrument family are not
-	// interchangeable: the underlying travels as uly, which OKX continues
-	// to honour, and the family as instFamily.
-	if underlying != "" {
-		params.Set("uly", underlying)
-	}
 	if instrumentFamily != "" {
 		params.Set("instFamily", instrumentFamily)
 	}

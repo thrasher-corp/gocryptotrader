@@ -2919,6 +2919,34 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	}
 }
 
+// optionInstrumentFamilies lists the option families on OKX's instrument
+// tick bands table, which the open interest queries iterate: instFamily is
+// the documented filter and an underlying spans several families (BTC-USD
+// spans BTC-USD and BTC-USD_UM), so it cannot stand in for one.
+func (e *Exchange) optionInstrumentFamilies(ctx context.Context) ([]string, error) {
+	tickBands, err := e.GetOptionsTickBands(ctx, instTypeOption, "")
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{}, len(tickBands))
+	families := make([]string, 0, len(tickBands))
+	for i := range tickBands {
+		family := tickBands[i].InstrumentFamily
+		if family == "" {
+			continue
+		}
+		if _, alreadySeen := seen[family]; alreadySeen {
+			continue
+		}
+		seen[family] = struct{}{}
+		families = append(families, family)
+	}
+	if len(families) == 0 {
+		return nil, common.ErrNoResponse
+	}
+	return families, nil
+}
+
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range k {
@@ -2942,22 +2970,21 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			var err error
 			switch instType {
 			case instTypeOption:
-				var underlyings []string
-				underlyings, err = e.GetPublicUnderlyings(ctx, instTypeOption)
+				var families []string
+				families, err = e.optionInstrumentFamilies(ctx)
 				if err != nil {
 					return nil, err
 				}
-				for u := range underlyings {
+				for u := range families {
 					var incOID []OpenInterest
-					incOID, err = e.GetOpenInterestData(ctx, instType, underlyings[u], "", "")
+					incOID, err = e.GetOpenInterestData(ctx, instType, families[u], "")
 					if err != nil {
 						return nil, err
 					}
 					oid = append(oid, incOID...)
 				}
-			case instTypeSwap,
-				instTypeFutures:
-				oid, err = e.GetOpenInterestData(ctx, instType, "", "", "")
+			case instTypeSwap, instTypeFutures:
+				oid, err = e.GetOpenInterestData(ctx, instType, "", "")
 				if err != nil {
 					return nil, err
 				}
@@ -3002,21 +3029,21 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	var oid []OpenInterest
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
-		var underlyings []string
-		underlyings, err = e.GetPublicUnderlyings(ctx, instTypeOption)
+		var families []string
+		families, err = e.optionInstrumentFamilies(ctx)
 		if err != nil {
 			return nil, err
 		}
-		for u := range underlyings {
+		for u := range families {
 			var incOID []OpenInterest
-			incOID, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], underlyings[u], "", "")
+			incOID, err = e.GetOpenInterestData(ctx, instTypeOption, families[u], "")
 			if err != nil {
 				return nil, err
 			}
 			oid = append(oid, incOID...)
 		}
 	case instTypeSwap, instTypeFutures:
-		oid, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", "", pFmt)
+		oid, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
 		if err != nil {
 			return nil, err
 		}
