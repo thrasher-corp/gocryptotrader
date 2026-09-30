@@ -2171,7 +2171,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	var resp []order.Detail
 	var format currency.PairFormat
 	if req.AssetType == asset.Spread {
-		var spreads []SpreadOrder
 		var spreadOrderType string
 		if req.Type != order.UnknownType && req.Type != order.AnyType {
 			spreadOrderType, err = spreadOrderTypeFilter(req.Type, req.TimeInForce)
@@ -2179,9 +2178,23 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 		}
-		spreads, err = e.GetActiveSpreadOrders(ctx, "", spreadOrderType, "", req.FromOrderID, "", 0)
-		if err != nil {
-			return nil, err
+		// OKX caps the pending spread order response at orderListPageSize
+		// records and pages the remainder with the endId cursor: endId returns
+		// records earlier than the order ID, the direction the newest-first
+		// listing pages. beginId returns records newer than the order ID and
+		// cannot walk the pages.
+		var spreads []SpreadOrder
+		for endID := ""; ; {
+			var page []SpreadOrder
+			page, err = e.GetActiveSpreadOrders(ctx, "", spreadOrderType, "", req.FromOrderID, endID, 0)
+			if err != nil {
+				return nil, err
+			}
+			spreads = append(spreads, page...)
+			if len(page) < orderListPageSize {
+				break
+			}
+			endID = page[len(page)-1].OrderID
 		}
 		for x := range spreads {
 			format, err = e.GetPairFormat(asset.Spread, true)
@@ -2338,16 +2351,28 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
 		var spreadOrderType string
+		var err error
 		if req.Type != order.UnknownType && req.Type != order.AnyType {
-			oType, err := spreadOrderTypeFilter(req.Type, req.TimeInForce)
+			spreadOrderType, err = spreadOrderTypeFilter(req.Type, req.TimeInForce)
 			if err != nil {
 				return nil, err
 			}
-			spreadOrderType = oType
 		}
-		spreadOrders, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", spreadOrderType, "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
-		if err != nil {
-			return nil, err
+		// OKX caps the spread order history response at orderListPageSize
+		// records and pages the remainder with the same earlier-than order ID
+		// endId cursor as the pending spread order listing.
+		var spreadOrders []SpreadOrder
+		for endID := ""; ; {
+			var page []SpreadOrder
+			page, err = e.GetCompletedSpreadOrdersLast7Days(ctx, "", spreadOrderType, "", req.FromOrderID, endID, req.StartTime, req.EndTime, 0)
+			if err != nil {
+				return nil, err
+			}
+			spreadOrders = append(spreadOrders, page...)
+			if len(page) < orderListPageSize {
+				break
+			}
+			endID = page[len(page)-1].OrderID
 		}
 		for x := range spreadOrders {
 			var format currency.PairFormat

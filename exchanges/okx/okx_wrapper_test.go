@@ -783,6 +783,142 @@ func TestSpreadOrderHistoryTypeFilter(t *testing.T) {
 	}
 }
 
+// TestGetActiveSpreadOrdersPaginatesWithEndIDCursor guards the pending spread
+// order pagination: OKX caps the sprd/orders-pending response at
+// orderListPageSize records while an account can hold 500 pending spread
+// orders, and pages the remainder with the endId cursor, which returns
+// records earlier than the order ID.
+func TestGetActiveSpreadOrdersPaginatesWithEndIDCursor(t *testing.T) {
+	t.Parallel()
+
+	fillPage := func(first, count int) []map[string]string {
+		ords := make([]map[string]string, 0, count)
+		for x := range count {
+			ords = append(ords, map[string]string{
+				"sprdId":    "BTC-USDT_BTC-USDT",
+				"ordId":     fmt.Sprintf("SPD-%03d", first+x),
+				"cTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"uTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"state":     "live",
+				"ordType":   "limit",
+				"side":      "buy",
+				"sz":        "1",
+				"px":        "42000",
+				"accFillSz": "0",
+			})
+		}
+		return ords
+	}
+	pages := map[string][]map[string]string{
+		"":        fillPage(0, orderListPageSize),
+		"SPD-099": fillPage(orderListPageSize, 50),
+	}
+
+	var mu sync.Mutex
+	var endIDCursors []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/orders-pending" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		endID := r.URL.Query().Get("endId")
+		mu.Lock()
+		endIDCursors = append(endIDCursors, endID)
+		page := pages[endID]
+		mu.Unlock()
+		writeOKXData(t, w, page)
+	}))
+
+	resp, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spread,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error when the pending spread order list spans pages")
+
+	mu.Lock()
+	cursors := make([]string, len(endIDCursors))
+	copy(cursors, endIDCursors)
+	mu.Unlock()
+	assert.Equal(t, []string{"", "SPD-099"}, cursors, "the second page should be requested with the first page's last order ID as the endId cursor")
+	assert.Len(t, resp, orderListPageSize+50, "a paginated crawl should return every pending spread order")
+	ids := make(map[string]struct{}, len(resp))
+	for x := range resp {
+		ids[resp[x].OrderID] = struct{}{}
+	}
+	assert.Len(t, ids, orderListPageSize+50, "a paginated crawl should not duplicate orders")
+	assert.Contains(t, ids, "SPD-149", "orders past the first page should be returned")
+}
+
+// TestGetSpreadOrderHistoryPaginatesWithEndIDCursor guards the spread order
+// history pagination: OKX caps the sprd/orders-history response at
+// orderListPageSize records and pages the remainder with the same endId
+// earlier-than order ID cursor as the pending spread order listing.
+func TestGetSpreadOrderHistoryPaginatesWithEndIDCursor(t *testing.T) {
+	t.Parallel()
+
+	fillPage := func(first, count int) []map[string]string {
+		ords := make([]map[string]string, 0, count)
+		for x := range count {
+			ords = append(ords, map[string]string{
+				"sprdId":    "BTC-USDT_BTC-USDT",
+				"ordId":     fmt.Sprintf("SPD-%03d", first+x),
+				"cTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"uTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"state":     "filled",
+				"ordType":   "limit",
+				"side":      "buy",
+				"sz":        "1",
+				"px":        "42000",
+				"accFillSz": "1",
+				"avgPx":     "42000",
+			})
+		}
+		return ords
+	}
+	pages := map[string][]map[string]string{
+		"":        fillPage(0, orderListPageSize),
+		"SPD-099": fillPage(orderListPageSize, 50),
+	}
+
+	var mu sync.Mutex
+	var endIDCursors []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/orders-history" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		endID := r.URL.Query().Get("endId")
+		mu.Lock()
+		endIDCursors = append(endIDCursors, endID)
+		page := pages[endID]
+		mu.Unlock()
+		writeOKXData(t, w, page)
+	}))
+
+	resp, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spread,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error when the spread order history spans pages")
+
+	mu.Lock()
+	cursors := make([]string, len(endIDCursors))
+	copy(cursors, endIDCursors)
+	mu.Unlock()
+	assert.Equal(t, []string{"", "SPD-099"}, cursors, "the second page should be requested with the first page's last order ID as the endId cursor")
+	assert.Len(t, resp, orderListPageSize+50, "a paginated crawl should return every spread order in the history")
+	ids := make(map[string]struct{}, len(resp))
+	for x := range resp {
+		ids[resp[x].OrderID] = struct{}{}
+	}
+	assert.Len(t, ids, orderListPageSize+50, "a paginated crawl should not duplicate orders")
+	assert.Contains(t, ids, "SPD-149", "orders past the first page should be returned")
+}
+
 // TestPendingOrderTypeFilter guards the pending order type filter through both
 // wrappers: OKX returns the order types listed in ordType, which must cover
 // every OKX order type read back as the requested type and time in force.
