@@ -4550,6 +4550,45 @@ func TestOrderPushData(t *testing.T) {
 	}
 }
 
+// TestWsOrderPushesParseEveryOrderType guards the order channel: a push for
+// each OKX order type that reads back as a GCT type with a time in force
+// reaches the data handler with both set, rather than erroring.
+func TestWsOrderPushesParseEveryOrderType(t *testing.T) {
+	t.Parallel()
+	for ordType, exp := range map[string]struct {
+		oType order.Type
+		tif   order.TimeInForce
+	}{
+		orderPostOnly:                         {order.Limit, order.PostOnly},
+		orderFOK:                              {order.Limit, order.FillOrKill},
+		orderIOC:                              {order.Limit, order.ImmediateOrCancel},
+		orderOptionFOK:                        {order.Limit, order.FillOrKill},
+		orderOptimalLimitIOC:                  {order.OptimalLimit, order.ImmediateOrCancel},
+		orderMarketMakerProtection:            {order.MarketMakerProtection, order.UnknownTIF},
+		orderMarketMakerProtectionAndPostOnly: {order.MarketMakerProtection, order.PostOnly},
+		orderRPI:                              {order.Limit, order.UnknownTIF},
+		orderELP:                              {order.Limit, order.UnknownTIF},
+	} {
+		t.Run(ordType, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			push := []byte(`{"arg":{"channel":"orders","instType":"SPOT"},"data":[{"instId":"BTC-USDT","ordId":"1","ordType":"` + ordType + `","side":"buy","state":"live","sz":"1","accFillSz":"0","cTime":"1700000000000"}]}`)
+			require.NoErrorf(t, e.wsProcessOrders(t.Context(), push), "a %s order push must not error", ordType)
+			e.Websocket.DataHandler.Close()
+			var got *order.Detail
+			for resp := range e.Websocket.DataHandler.C {
+				d, ok := resp.Data.(*order.Detail)
+				require.True(t, ok, "the order push must reach the data handler as an order detail")
+				got = d
+			}
+			require.NotNil(t, got, "the order push must reach the data handler")
+			assert.Equal(t, exp.oType, got.Type, "the push should read the order type")
+			assert.Equal(t, exp.tif, got.TimeInForce, "the push should preserve the time in force")
+		})
+	}
+}
+
 var pushDataMap = map[string]string{
 	"Algo Orders":                           `{"arg": {"channel": "orders-algo","uid": "77982378738415879","instType": "FUTURES","instId": "BTC-USD-200329"},"data": [{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","px": "999","sz": "3","tdMode": "cross","tgtCcy": "","notionalUsd": "","ordType": "trigger","side": "buy","posSide": "long","state": "live","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","tag": "adadadadad","actualSide": "","triggerTime": "1597026383085","cTime": "1597026383000"}]}`,
 	"Advanced Algo Order":                   `{"arg": {"channel":"algo-advance","uid": "77982378738415879","instType":"SPOT","instId":"BTC-USDT"},"data":[{"actualPx":"","actualSide":"","actualSz":"0","algoId":"355056228680335360","cTime":"1630924001545","ccy":"","count":"1","instId":"BTC-USDT","instType":"SPOT","lever":"0","notionalUsd":"","ordPx":"","ordType":"iceberg","pTime":"1630924295204","posSide":"net","pxLimit":"10","pxSpread":"1","pxVar":"","side":"buy","slOrdPx":"","slTriggerPx":"","state":"pause","sz":"0.1","szLimit":"0.1","tdMode":"cash","timeInterval":"","tpOrdPx":"","tpTriggerPx":"","tag": "adadadadad","triggerPx":"","triggerTime":"","callbackRatio":"","callbackSpread":"","activePx":"","moveTriggerPx":""}]}`,

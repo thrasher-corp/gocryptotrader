@@ -1139,7 +1139,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
 			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
 
-			StopLossTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
+			StopLossTriggerPrice:     s.RiskManagementModes.StopLoss.Price,
 			StopLossOrderPrice:       s.RiskManagementModes.StopLoss.LimitPrice,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
@@ -1487,133 +1487,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		return cancelAllResponse, nil
 	}
 
-	var instrumentType string
-	if orderCancellation.AssetType.IsValid() {
-		err = e.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType)
-		if err != nil {
-			return order.CancelAllResponse{}, err
-		}
-		instrumentType = GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
+	cancelAllOrdersRequestParams, err := e.pendingOrdersToCancel(ctx, orderCancellation)
+	if err != nil {
+		return cancelAllResponse, err
 	}
-	var oType string
-	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
-		oType, err = orderTypeFilter(orderCancellation.Type, orderCancellation.TimeInForce)
-		if err != nil {
-			return order.CancelAllResponse{}, err
-		}
-	}
-	var curr string
-	if orderCancellation.Pair.IsPopulated() {
-		if orderCancellation.AssetType.IsValid() {
-			// Format through the exchange's pair format so callers passing a
-			// differently delimited pair still resolve their instrument; OKX
-			// rejects an unmatched instId with error 51001.
-			var pairFormat currency.PairFormat
-			pairFormat, err = e.GetPairFormat(orderCancellation.AssetType, true)
-			if err != nil {
-				return order.CancelAllResponse{}, err
-			}
-			curr = pairFormat.Format(orderCancellation.Pair)
-		} else {
-			curr = orderCancellation.Pair.Upper().String()
-		}
-	}
-	// OKX caps the pending order list at 100 records per request, so page
-	// through the full list before cancelling to reach accounts holding more
-	// open orders than a single page.
-	var myOrders []OrderDetail
-	for after := ""; ; {
-		var page []OrderDetail
-		page, err = e.GetOrderList(ctx, &OrderListRequestParams{
-			InstrumentType: instrumentType,
-			OrderType:      oType,
-			InstrumentID:   curr,
-			After:          after,
-		})
-		if err != nil {
-			return cancelAllResponse, err
-		}
-		myOrders = append(myOrders, page...)
-		if len(page) < orderListPageSize {
-			break
-		}
-		after = page[len(page)-1].OrderID
-	}
-	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
-ordersLoop:
-	for x := range myOrders {
-		switch {
-		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
-			// Every supplied discriminator must match, so supplying both IDs
-			// cannot cancel an order matching only one of them.
-			if (orderCancellation.OrderID == "" || myOrders[x].OrderID == orderCancellation.OrderID) &&
-				(orderCancellation.ClientOrderID == "" || myOrders[x].ClientOrderID == orderCancellation.ClientOrderID) {
-				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
-					InstrumentID:  myOrders[x].InstrumentID,
-					OrderID:       myOrders[x].OrderID,
-					ClientOrderID: myOrders[x].ClientOrderID,
-				})
-				break ordersLoop
-			}
-		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
-			if myOrders[x].Side == orderCancellation.Side {
-				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
-					InstrumentID:  myOrders[x].InstrumentID,
-					OrderID:       myOrders[x].OrderID,
-					ClientOrderID: myOrders[x].ClientOrderID,
-				})
-			}
-		default:
-			cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
-				InstrumentID:  myOrders[x].InstrumentID,
-				OrderID:       myOrders[x].OrderID,
-				ClientOrderID: myOrders[x].ClientOrderID,
-			})
-		}
-	}
-	remaining := cancelAllOrdersRequestParams
-	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
-	var errs error
-	for range loop {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			// A dead context stops the loop; the statuses and errors collected
-			// so far are still returned so the caller sees what was cancelled.
-			// The failed batch's error already carries the context error, so
-			// append it only once.
-			if !errors.Is(errs, ctxErr) {
-				errs = common.AppendError(errs, ctxErr)
-			}
-			break
-		}
-		batch := remaining
-		if len(batch) > 20 {
-			batch = batch[:20]
-			remaining = remaining[20:]
-		} else {
-			remaining = nil
-		}
-		response, err := e.CancelMultipleOrders(ctx, batch)
-		// A failed batch does not stop later batches; the errors are joined so
-		// a cancel-all still reaches every remaining order.
-		errs = common.AppendError(errs, err)
-		if !cancelResultsUsable(err) {
-			continue
-		}
-		for y := range response {
-			if response[y] == nil || response[y].OrderID == "" {
-				continue
-			}
-			if response[y].StatusCode == 0 {
-				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
-			} else {
-				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
-			}
-		}
-	}
-	if errs != nil {
-		return cancelAllResponse, errs
-	}
-	return cancelAllResponse, nil
+	return cancelInBatches(ctx, cancelAllOrdersRequestParams, e.CancelMultipleOrders)
 }
 
 // errSpreadWebsocketUnsupported reports that a spread order operation cannot
@@ -1896,86 +1774,9 @@ func (e *Exchange) WebsocketCancelAllOrders(ctx context.Context, orderCancellati
 		return cancelAllResponse, err
 	}
 
-	var instrumentType string
-	if orderCancellation.AssetType.IsValid() {
-		err = e.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType)
-		if err != nil {
-			return cancelAllResponse, err
-		}
-		instrumentType = GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
-	}
-	var oType string
-	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
-		oType, err = orderTypeFilter(orderCancellation.Type, orderCancellation.TimeInForce)
-		if err != nil {
-			return cancelAllResponse, err
-		}
-	}
-	var curr string
-	if orderCancellation.Pair.IsPopulated() {
-		if orderCancellation.AssetType.IsValid() {
-			var pairFormat currency.PairFormat
-			pairFormat, err = e.GetPairFormat(orderCancellation.AssetType, true)
-			if err != nil {
-				return cancelAllResponse, err
-			}
-			curr = pairFormat.Format(orderCancellation.Pair)
-		} else {
-			curr = orderCancellation.Pair.Upper().String()
-		}
-	}
-	// OKX caps the pending order list at 100 records per request, so page
-	// through the full list before cancelling to reach accounts holding more
-	// open orders than a single page.
-	var myOrders []OrderDetail
-	for after := ""; ; {
-		var page []OrderDetail
-		page, err = e.GetOrderList(ctx, &OrderListRequestParams{
-			InstrumentType: instrumentType,
-			OrderType:      oType,
-			InstrumentID:   curr,
-			After:          after,
-		})
-		if err != nil {
-			return cancelAllResponse, err
-		}
-		myOrders = append(myOrders, page...)
-		if len(page) < orderListPageSize {
-			break
-		}
-		after = page[len(page)-1].OrderID
-	}
-	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
-ordersLoop:
-	for x := range myOrders {
-		switch {
-		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
-			// Every supplied discriminator must match, so supplying both IDs
-			// cannot cancel an order matching only one of them.
-			if (orderCancellation.OrderID == "" || myOrders[x].OrderID == orderCancellation.OrderID) &&
-				(orderCancellation.ClientOrderID == "" || myOrders[x].ClientOrderID == orderCancellation.ClientOrderID) {
-				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
-					InstrumentID:  myOrders[x].InstrumentID,
-					OrderID:       myOrders[x].OrderID,
-					ClientOrderID: myOrders[x].ClientOrderID,
-				})
-				break ordersLoop
-			}
-		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
-			if myOrders[x].Side == orderCancellation.Side {
-				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
-					InstrumentID:  myOrders[x].InstrumentID,
-					OrderID:       myOrders[x].OrderID,
-					ClientOrderID: myOrders[x].ClientOrderID,
-				})
-			}
-		default:
-			cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
-				InstrumentID:  myOrders[x].InstrumentID,
-				OrderID:       myOrders[x].OrderID,
-				ClientOrderID: myOrders[x].ClientOrderID,
-			})
-		}
+	cancelAllOrdersRequestParams, err := e.pendingOrdersToCancel(ctx, orderCancellation)
+	if err != nil {
+		return cancelAllResponse, err
 	}
 	// An order whose instrument has no cached code cannot be cancelled over
 	// the websocket. It is reported in the error rather than stopping the
@@ -1991,8 +1792,113 @@ ordersLoop:
 		cancelAllOrdersRequestParams[i].InstrumentIDCode = code
 		sendable = append(sendable, cancelAllOrdersRequestParams[i])
 	}
-	remaining := sendable
+	resp, batchErrs := cancelInBatches(ctx, sendable, e.WSCancelMultipleOrders)
+	errs = common.AppendError(errs, batchErrs)
+	if errs != nil {
+		return resp, errs
+	}
+	return resp, nil
+}
+
+// pendingOrdersToCancel pages through the pending orders a cancel-all selects:
+// OKX caps the pending order list at 100 records per request, so the full list
+// is crawled before cancelling to reach accounts holding more open orders than
+// a single page, and the orders the cancellation scopes to are kept.
+func (e *Exchange) pendingOrdersToCancel(ctx context.Context, c *order.Cancel) ([]CancelOrderRequestParam, error) {
+	var err error
+	var instrumentType string
+	if c.AssetType.IsValid() {
+		err = e.CurrencyPairs.IsAssetEnabled(c.AssetType)
+		if err != nil {
+			return nil, err
+		}
+		instrumentType = GetInstrumentTypeFromAssetItem(c.AssetType)
+	}
+	var oType string
+	if c.Type != order.UnknownType && c.Type != order.AnyType {
+		oType, err = orderTypeFilter(c.Type, c.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var curr string
+	if c.Pair.IsPopulated() {
+		if c.AssetType.IsValid() {
+			// Format through the exchange's pair format so callers passing a
+			// differently delimited pair still resolve their instrument; OKX
+			// rejects an unmatched instId with error 51001.
+			var pairFormat currency.PairFormat
+			pairFormat, err = e.GetPairFormat(c.AssetType, true)
+			if err != nil {
+				return nil, err
+			}
+			curr = pairFormat.Format(c.Pair)
+		} else {
+			curr = c.Pair.Upper().String()
+		}
+	}
+	var myOrders []OrderDetail
+	for after := ""; ; {
+		var page []OrderDetail
+		page, err = e.GetOrderList(ctx, &OrderListRequestParams{
+			InstrumentType: instrumentType,
+			OrderType:      oType,
+			InstrumentID:   curr,
+			After:          after,
+		})
+		if err != nil {
+			return nil, err
+		}
+		myOrders = append(myOrders, page...)
+		if len(page) < orderListPageSize {
+			break
+		}
+		after = page[len(page)-1].OrderID
+	}
+	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, 0, len(myOrders))
+ordersLoop:
+	for x := range myOrders {
+		switch {
+		case c.OrderID != "" || c.ClientOrderID != "":
+			// Every supplied discriminator must match, so supplying both IDs
+			// cannot cancel an order matching only one of them.
+			if (c.OrderID == "" || myOrders[x].OrderID == c.OrderID) &&
+				(c.ClientOrderID == "" || myOrders[x].ClientOrderID == c.ClientOrderID) {
+				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
+				})
+				break ordersLoop
+			}
+		case c.Side == order.Buy || c.Side == order.Sell:
+			if myOrders[x].Side == c.Side {
+				cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
+				})
+			}
+		default:
+			cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{
+				InstrumentID:  myOrders[x].InstrumentID,
+				OrderID:       myOrders[x].OrderID,
+				ClientOrderID: myOrders[x].ClientOrderID,
+			})
+		}
+	}
+	return cancelAllOrdersRequestParams, nil
+}
+
+// cancelInBatches cancels orders 20 at a time with cancel, recording each
+// result; a failed batch does not stop the batches after it.
+func cancelInBatches(ctx context.Context, params []CancelOrderRequestParam, cancel func(context.Context, []CancelOrderRequestParam) ([]*OrderData, error)) (order.CancelAllResponse, error) {
+	cancelAllResponse := order.CancelAllResponse{
+		Status: map[string]string{},
+	}
+	remaining := params
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
+	var errs error
 	for range loop {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			// A dead context stops the loop; the statuses and errors collected
@@ -2011,7 +1917,7 @@ ordersLoop:
 		} else {
 			remaining = nil
 		}
-		response, err := e.WSCancelMultipleOrders(ctx, batch)
+		response, err := cancel(ctx, batch)
 		// A failed batch does not stop later batches; the errors are joined so
 		// a cancel-all still reaches every remaining order.
 		errs = common.AppendError(errs, err)
@@ -2431,11 +2337,15 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		oType, err := orderTypeString(req.Type, req.TimeInForce)
-		if err != nil {
-			return nil, err
+		var spreadOrderType string
+		if req.Type != order.UnknownType && req.Type != order.AnyType {
+			oType, err := orderTypeString(req.Type, req.TimeInForce)
+			if err != nil {
+				return nil, err
+			}
+			spreadOrderType = oType
 		}
-		spreadOrders, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", oType, "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
+		spreadOrders, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", spreadOrderType, "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
 		if err != nil {
 			return nil, err
 		}

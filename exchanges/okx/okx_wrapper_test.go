@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 	"uuid"
 
 	gws "github.com/gorilla/websocket"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -1357,6 +1359,60 @@ func TestCancelResultsUsable(t *testing.T) {
 	assert.False(t, cancelResultsUsable(errors.New("batch one failed")), "any other error should report unusable results")
 }
 
+// TestOrderListsIncludeStartTime guards the StartTime bound of GetActiveOrders
+// and GetOrderHistory: an order created exactly at StartTime is returned, and
+// the listing stops at the first older order.
+func TestOrderListsIncludeStartTime(t *testing.T) {
+	t.Parallel()
+	start := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+	row := func(id string, created time.Time) map[string]string {
+		return map[string]string{"instId": mainPair.String(), "ordId": id, "ordType": orderLimit, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "cTime": strconv.FormatInt(created.UnixMilli(), 10)}
+	}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeOKXData(t, w, []map[string]string{row("NEWER", start.Add(time.Minute)), row("AT-START", start), row("OLDER", start.Add(-time.Minute))})
+	}))
+	active, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, StartTime: start})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, StartTime: start, Pairs: currency.Pairs{mainPair}})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	for name, orders := range map[string]order.FilteredOrders{"GetActiveOrders": active, "GetOrderHistory": history} {
+		ids := make([]string, 0, len(orders))
+		for i := range orders {
+			ids = append(ids, orders[i].OrderID)
+		}
+		assert.ElementsMatchf(t, []string{"NEWER", "AT-START"}, ids, "%s should return the orders created from StartTime on", name)
+	}
+}
+
+// TestBatchAndGridReplies guards two REST replies: a partially successful
+// batch placement returns its rows beside the error, and a failed grid amend
+// reports OKX's status message.
+func TestBatchAndGridReplies(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trade/batch-orders":
+			_, _ = w.Write([]byte(`{"code":"2","msg":"Bulk operation partially succeeded.","data":[{"ordId":"1","sCode":"0","sMsg":""},{"ordId":"","sCode":"51008","sMsg":"Order failed. Insufficient USDT balance in account."}]}`))
+		case "/tradingBot/grid/amend-order-algo":
+			_, _ = w.Write([]byte(`{"code":"1","msg":"Operation failed.","data":[{"algoId":"","sCode":"51000","sMsg":"Parameter algoId error"}]}`))
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	placed, err := e.PlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{
+		{InstrumentID: mainPair.String(), TradeMode: TradeModeCash, Side: order.Buy.Lower(), OrderType: orderLimit, Amount: 1, Price: 1},
+		{InstrumentID: mainPair.String(), TradeMode: TradeModeCash, Side: order.Buy.Lower(), OrderType: orderLimit, Amount: 1, Price: 1},
+	})
+	require.ErrorIs(t, err, errPartialSuccess, "PlaceMultipleOrders must return the partial success")
+	require.Len(t, placed, 2, "PlaceMultipleOrders must return every row beside the error")
+	assert.Equal(t, "1", placed[0].OrderID, "the placed order should keep its order ID")
+	assert.Equal(t, int64(51008), placed[1].StatusCode, "the failed order should keep its status code")
+
+	_, err = e.AmendGridAlgoOrder(t.Context(), &GridAlgoOrderAmend{AlgoID: "1", InstrumentID: "BTC-USDT-SWAP", StopLossTriggerPrice: 1})
+	assert.ErrorContains(t, err, "Parameter algoId error", "AmendGridAlgoOrder should report OKX's status message")
+}
+
 // newMockWebsocketExchange returns an exchange whose authenticated websocket is
 // available to the wrapper, with every REST endpoint pointed at the same test
 // server and mainPair's instrument code cached. rest answers REST requests, and
@@ -1631,7 +1687,7 @@ func TestOrderAmounts(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				writeOKXData(t, w, []map[string]string{tc.row})
 			}))
 			detail, err := e.GetOrderInfo(t.Context(), "1", mainPair, asset.Spot)
@@ -1650,14 +1706,14 @@ func TestOrderAmounts(t *testing.T) {
 func TestSpreadOrderDetails(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name                            string
-		ordType                         string
-		state                           string
-		sz                              string
-		accFillSz                       string
-		oType                           order.Type
-		tif                             order.TimeInForce
-		executed, remaining             float64
+		name                string
+		ordType             string
+		state               string
+		sz                  string
+		accFillSz           string
+		oType               order.Type
+		tif                 order.TimeInForce
+		executed, remaining float64
 	}{
 		{"limit", orderLimit, "live", "1", "0.3", order.Limit, order.UnknownTIF, 0.3, 0.7},
 		{"post_only", orderPostOnly, "live", "1", "0.3", order.Limit, order.PostOnly, 0.3, 0.7},
@@ -1679,7 +1735,7 @@ func TestSpreadOrderDetails(t *testing.T) {
 				"accFillSz": tc.accFillSz,
 				"px":        "100",
 			}
-			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				writeOKXData(t, w, spreadRow)
 			}))
 
@@ -1691,4 +1747,66 @@ func TestSpreadOrderDetails(t *testing.T) {
 			assert.Equal(t, tc.remaining, detail.RemainingAmount, "GetOrderInfo should report the unfilled remainder")
 		})
 	}
+}
+
+// TestSpreadOrderHistoryAnyType guards the spread GetOrderHistory path: an
+// AnyType request reaches OKX without an ordType filter instead of being
+// rejected before sending, and its rows keep orderTypeFromString's typing.
+func TestSpreadOrderHistoryAnyType(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/orders-history" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		assert.Empty(t, r.URL.Query().Get("ordType"), "an AnyType request should not send an ordType filter")
+		writeOKXData(t, w, []map[string]string{{"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderPostOnly, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "px": "100"}})
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide})
+	require.NoError(t, err, "GetOrderHistory must not reject order.AnyType")
+	require.Len(t, history, 1, "GetOrderHistory must return the spread order")
+	assert.Equal(t, order.Limit, history[0].Type, "GetOrderHistory should read the order type")
+	assert.Equal(t, order.PostOnly, history[0].TimeInForce, "GetOrderHistory should preserve the time in force")
+}
+
+// TestOCOStopLossTriggerPrice guards the OCO submit path: the stop loss leg
+// triggers at the stop loss price, not the take profit price.
+func TestOCOStopLossTriggerPrice(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var body []byte
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/order-algo" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		b, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "reading the algo order request body should not error")
+		mu.Lock()
+		body = b
+		mu.Unlock()
+		writeOKXData(t, w, map[string]string{"algoId": "1", "sCode": "0", "sMsg": ""})
+	}))
+	_, err := e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:   e.Name,
+		Pair:       mainPair,
+		AssetType:  asset.Spot,
+		Side:       order.Sell,
+		Type:       order.OCO,
+		Amount:     1,
+		MarginType: margin.NoMargin,
+		RiskManagementModes: order.RiskManagementModes{
+			TakeProfit: order.RiskManagement{Price: 110},
+			StopLoss:   order.RiskManagement{Price: 90},
+		},
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	mu.Lock()
+	defer mu.Unlock()
+	var sent AlgoOrderParams
+	require.NoError(t, json.Unmarshal(body, &sent), "the algo order request body must decode")
+	assert.Equal(t, 110.0, sent.TakeProfitTriggerPrice, "the take profit leg should trigger at the take profit price")
+	assert.Equal(t, 90.0, sent.StopLossTriggerPrice, "the stop loss leg should trigger at the stop loss price")
 }

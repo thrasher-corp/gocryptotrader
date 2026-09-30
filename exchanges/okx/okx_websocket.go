@@ -1167,7 +1167,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		return err
 	}
 	for x := range response.Data {
-		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
+		orderType, tif, err := orderTypeFromString(response.Data[x].OrderType)
 		if err != nil {
 			return err
 		}
@@ -1227,6 +1227,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 			Side:                 response.Data[x].Side,
 			Status:               orderStatus,
 			Type:                 orderType,
+			TimeInForce:          tif,
 		}
 		if orderStatus == order.Filled {
 			d.CloseTime = response.Data[x].FillTime.Time()
