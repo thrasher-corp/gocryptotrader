@@ -29,7 +29,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 Position mode is fetched using each order call's credentials. Avoid changing account
 position mode concurrently with order submission, including through other clients.
 
-Configuration version 16 renames Huobi to HTX and adds derivative pairs and subscriptions.
+Configuration version 17 renames Huobi to HTX and adds derivative pairs and subscriptions.
 Private derivative subscriptions default to disabled and require authenticated access.
 
 The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),

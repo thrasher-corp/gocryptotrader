@@ -67,7 +67,6 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
 + OHLCV/Candle retrieval support. See [OHLCV](./docs/OHLCV.md).
-+ Scripting support. See [gctscript](./gctscript/README.md).
 + Recent and historic trade processing. See [trades](./exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](./backtester/README.md).
 + Exchange HTTP mock testing. See [mock](./exchanges/mock/README.md).
@@ -174,11 +173,11 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 788 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 488 |
-| [shazbert](https://github.com/shazbert) | 419 |
-| [gloriousCode](https://github.com/gloriousCode) | 247 |
-| [gbjk](https://github.com/gbjk) | 145 |
+| [thrasher-](https://github.com/thrasher-) | 790 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 490 |
+| [shazbert](https://github.com/shazbert) | 427 |
+| [gloriousCode](https://github.com/gloriousCode) | 249 |
+| [gbjk](https://github.com/gbjk) | 146 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
@@ -197,12 +196,14 @@ Binaries will be published once the codebase reaches a stable condition.
 | [140am](https://github.com/140am) | 8 |
 | [romanornr](https://github.com/romanornr) | 6 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
+| [Robin1987China](https://github.com/Robin1987China) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
-| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
+| [bretep](https://github.com/bretep) | 2 |
+| [evgmalkov](https://github.com/evgmalkov) | 2 |
 | [goyusia](https://github.com/goyusia) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [Asalei](https://github.com/Asalei) | 2 |
@@ -211,24 +212,22 @@ Binaries will be published once the codebase reaches a stable condition.
 | [tk42](https://github.com/tk42) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [mshogin](https://github.com/mshogin) | 2 |
-| [bretep](https://github.com/bretep) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [azhang](https://github.com/azhang) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
+| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [alaningtrump](https://github.com/alaningtrump) | 2 |
-| [gam-phon](https://github.com/gam-phon) | 2 |
 | [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
 | [roberttidball](https://github.com/roberttidball) | 2 |
+| [gam-phon](https://github.com/gam-phon) | 2 |
 | [whilei](https://github.com/whilei) | 1 |
 | [gopherorg](https://github.com/gopherorg) | 1 |
 | [ginavalent](https://github.com/ginavalent) | 1 |
 | [gcmutator](https://github.com/gcmutator) | 1 |
-| [lookfirst](https://github.com/lookfirst) | 1 |
 | [fmterrors](https://github.com/fmterrors) | 1 |
 | [findfluctuate](https://github.com/findfluctuate) | 1 |
-| [evgmalkov](https://github.com/evgmalkov) | 1 |
 | [elonfliter](https://github.com/elonfliter) | 1 |
 | [dazi005](https://github.com/dazi005) | 1 |
 | [cuoguojida](https://github.com/cuoguojida) | 1 |
@@ -237,6 +236,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
 | [box4wangjing](https://github.com/box4wangjing) | 1 |
 | [shoman4eg](https://github.com/shoman4eg) | 1 |
+| [arttobe](https://github.com/arttobe) | 1 |
+| [lookfirst](https://github.com/lookfirst) | 1 |
 | [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
 | [youzichuan](https://github.com/youzichuan) | 1 |
 | [xiiiew](https://github.com/xiiiew) | 1 |
@@ -272,13 +273,13 @@ Binaries will be published once the codebase reaches a stable condition.
 | [blombard](https://github.com/blombard) | 1 |
 | [antonzhukov](https://github.com/antonzhukov) | 1 |
 | [aidan-bailey](https://github.com/aidan-bailey) | 1 |
-| [arttobe](https://github.com/arttobe) | 1 |
 | [vyloy](https://github.com/vyloy) | 1 |
 | [hannut91](https://github.com/hannut91) | 1 |
 | [idealhack](https://github.com/idealhack) | 1 |
 | [varunbhat](https://github.com/varunbhat) | 1 |
 | [tonywangcn](https://github.com/tonywangcn) | 1 |
 | [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
+| [serhiizghama](https://github.com/serhiizghama) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [nolight132](https://github.com/nolight132) | 1 |
 | [Polizo96](https://github.com/Polizo96) | 1 |
