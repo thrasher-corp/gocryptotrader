@@ -1878,6 +1878,10 @@ type AccountAndPositionRisk struct {
 	Timestamp          types.Time           `json:"ts"`
 }
 
+// billTypeFundingFee filters account bills down to funding fee entries,
+// bill type 8 per the BillsDetailQueryParameter.BillType mapping
+const billTypeFundingFee = 8
+
 // BillsDetailQueryParameter represents bills detail query parameter
 type BillsDetailQueryParameter struct {
 	InstrumentType string // Instrument type "SPOT" "MARGIN" "SWAP" "FUTURES" "OPTION"
@@ -3115,7 +3119,6 @@ type SubscriptionInfo struct {
 	InstrumentID     currency.Pair `json:"instId,omitzero"`
 	InstrumentFamily string        `json:"instFamily,omitempty"`
 	InstrumentType   string        `json:"instType,omitempty"`
-	Underlying       string        `json:"uly,omitempty"`
 	UID              string        `json:"uid,omitempty"` // user identifier
 
 	// For Algo Orders

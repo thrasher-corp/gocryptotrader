@@ -2355,6 +2355,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
 			billDetailsFunc = e.GetBillsDetailLast7Days
 		}
+		var after string
 		for sd.Before(r.EndDate) {
 			var fri time.Duration
 			if len(e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
@@ -2367,9 +2368,10 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: GetInstrumentTypeFromAssetItem(r.Asset),
 				Currency:       pairRate.PaymentCurrency,
-				BillType:       137,
-				BeginTime:      sd,
+				BillType:       billTypeFundingFee,
+				BeginTime:      r.StartDate,
 				EndTime:        r.EndDate,
+				After:          after,
 				Limit:          int64(requestLimit),
 			})
 			if err != nil {
@@ -2384,7 +2386,12 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			if len(billDetails) < requestLimit {
 				break
 			}
-			sd = billDetails[len(billDetails)-1].Timestamp.Time()
+			// Bills pages arrive newest first, so page strictly older via the
+			// unique bill ID cursor; reusing the page timestamp could repeat
+			// the same page when many bills share one funding timestamp.
+			lastBill := billDetails[len(billDetails)-1]
+			after = lastBill.BillID
+			sd = lastBill.Timestamp.Time()
 		}
 
 		for i := range pairRate.FundingRates {
