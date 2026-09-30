@@ -153,3 +153,24 @@ func ntpTestServer(t *testing.T, modify func([]byte)) (address string, requestRe
 	}()
 	return listener.LocalAddr().String(), received
 }
+
+func TestNTPReplyChecksKissOfDeathPoll(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		exponent byte
+		poll     time.Duration
+	}{
+		{exponent: 6, poll: 64 * time.Second},
+		{exponent: 17, poll: 8192 * time.Second},
+		{exponent: 128, poll: time.Second},
+	} {
+		checks := &ntpReplyChecks{origin: [8]byte{1, 2, 3, 4, 5, 6, 7, 8}}
+		packet := make([]byte, 48)
+		packet[0], packet[2] = 4<<3|4, tc.exponent
+		copy(packet[12:16], "RATE")
+		copy(packet[24:32], checks.origin[:])
+		require.ErrorIsf(t, checks.ProcessResponse(packet), ntp.ErrKissOfDeath, "kiss-o'-death with poll exponent %d must be reported", tc.exponent)
+		require.NotNilf(t, checks.kiss, "kiss-o'-death with poll exponent %d must be kept", tc.exponent)
+		assert.Equalf(t, tc.poll, checks.kiss.Poll, "poll exponent %d should give a capped, non-negative poll interval", tc.exponent)
+	}
+}

@@ -11,7 +11,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-var queryUnbiasedInterruptTimePrecise = windows.NewLazySystemDLL("kernel32.dll").NewProc("QueryUnbiasedInterruptTimePrecise")
+// Load the realtime API set rather than kernel32.dll, which doesn't export this function despite Microsoft's reference page.
+// Chromium links the same API set: https://github.com/chromium/chromium/blob/fcd1720dfbc767af07055b27f303207fab09c45d/base/BUILD.gn#L133
+var queryUnbiasedInterruptTimePrecise = windows.NewLazySystemDLL("api-ms-win-core-realtime-l1-1-1.dll").NewProc("QueryUnbiasedInterruptTimePrecise")
 
 // readNTPClock reads wall, awake and sleep-inclusive clocks.
 func readNTPClock() (ntpClockReading, error) {

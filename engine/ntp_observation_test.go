@@ -134,3 +134,68 @@ func FuzzNTPIntervalAgreement(f *testing.F) {
 		assert.Equal(t, 2, votes, "both configured sources should be required")
 	})
 }
+
+func TestNTPDefaultServerGeometry(t *testing.T) {
+	t.Parallel()
+	// Root distances in milliseconds, estimated from median ping times of three probes per city in September 2026.
+	// These are zero-offset examples, not measured clock accuracy.
+	// A correct clock should get a verdict in these cities, also when any one server does not answer.
+	// Nairobi and Dubai have only Cloudflare nearby, so they need local servers.
+	for city, tc := range map[string]struct {
+		distances map[string]float64
+		state     ntpClockState
+	}{
+		"Sydney":       {map[string]float64{"time.cloudflare.com": 2.2, "any.time.nl": 1.4, "time.nist.gov": 86.1, "ntp.nict.jp": 66.4}, ntpHealthy},
+		"Auckland":     {map[string]float64{"time.cloudflare.com": 3.0, "any.time.nl": 13.9, "time.nist.gov": 98.0, "ntp.nict.jp": 125.8}, ntpHealthy},
+		"Tokyo":        {map[string]float64{"time.cloudflare.com": 2.3, "any.time.nl": 1.4, "time.nist.gov": 65.2, "ntp.nict.jp": 1.1}, ntpHealthy},
+		"Singapore":    {map[string]float64{"time.cloudflare.com": 2.4, "any.time.nl": 1.6, "time.nist.gov": 106.7, "ntp.nict.jp": 35.0}, ntpHealthy},
+		"Seoul":        {map[string]float64{"time.cloudflare.com": 3.8, "any.time.nl": 59.8, "time.nist.gov": 90.7, "ntp.nict.jp": 19.9}, ntpHealthy},
+		"Manila":       {map[string]float64{"time.cloudflare.com": 12.6, "any.time.nl": 93.8, "time.nist.gov": 107.1, "ntp.nict.jp": 38.9}, ntpHealthy},
+		"Mumbai":       {map[string]float64{"time.cloudflare.com": 2.2, "any.time.nl": 1.4, "time.nist.gov": 130.5, "ntp.nict.jp": 69.3}, ntpHealthy},
+		"Frankfurt":    {map[string]float64{"time.cloudflare.com": 2.3, "any.time.nl": 1.4, "time.nist.gov": 63.1, "ntp.nict.jp": 121.7}, ntpHealthy},
+		"New York":     {map[string]float64{"time.cloudflare.com": 2.6, "any.time.nl": 1.7, "time.nist.gov": 20.8, "ntp.nict.jp": 82.3}, ntpHealthy},
+		"Sao Paulo":    {map[string]float64{"time.cloudflare.com": 2.3, "any.time.nl": 1.5, "time.nist.gov": 76.1, "ntp.nict.jp": 138.0}, ntpHealthy},
+		"Johannesburg": {map[string]float64{"time.cloudflare.com": 2.0, "any.time.nl": 1.1, "time.nist.gov": 136.3, "ntp.nict.jp": 197.3}, ntpHealthy},
+		"Nairobi":      {map[string]float64{"time.cloudflare.com": 5.8, "any.time.nl": 86.3, "time.nist.gov": 139.1, "ntp.nict.jp": 154.5}, ntpUnknown},
+		"Dubai":        {map[string]float64{"time.cloudflare.com": 6.0, "any.time.nl": 105.9, "time.nist.gov": 117.9, "ntp.nict.jp": 131.1}, ntpUnknown},
+	} {
+		hosts := make([]string, 0, len(defaultNTPServers))
+		radii := make([]time.Duration, 0, len(defaultNTPServers))
+		for _, server := range defaultNTPServers {
+			host, _, err := parseNTPSource(server)
+			require.NoError(t, err, "default server must parse")
+			distance, ok := tc.distances[host]
+			require.Truef(t, ok, "%s must have a measured distance for default server %s", city, host)
+			hosts = append(hosts, host)
+			radii = append(radii, time.Duration(distance*float64(time.Millisecond)))
+		}
+		for missing := -1; missing < len(radii); missing++ {
+			if missing >= 0 && tc.state != ntpHealthy {
+				break
+			}
+			answering := "all servers answering"
+			if missing >= 0 {
+				answering = hosts[missing] + " not answering"
+			}
+			var intervals []ntpInterval
+			for i, radius := range radii {
+				if i != missing {
+					intervals = append(intervals, ntpInterval{-radius, radius})
+				}
+			}
+			interval, _, err := selectNTPInterval(intervals, len(radii))
+			require.NoErrorf(t, err, "%s with %s must reach agreement", city, answering)
+			assert.Equalf(t, tc.state, interval.classify(50*time.Millisecond, 50*time.Millisecond), "%s with %s should give the expected verdict for a correct clock", city, answering)
+		}
+	}
+
+	// The previous defaults had one nearby server outside Europe and North America, so distant servers formed the majority.
+	interval, _, err := selectNTPInterval([]ntpInterval{
+		{-2500 * time.Microsecond, 2500 * time.Microsecond},
+		{-87 * time.Millisecond, 87 * time.Millisecond},
+		{-152 * time.Millisecond, 152 * time.Millisecond},
+		{-152 * time.Millisecond, 152 * time.Millisecond},
+	}, 4)
+	require.NoError(t, err, "previous defaults from Sydney must reach agreement")
+	assert.Equal(t, ntpUnknown, interval.classify(50*time.Millisecond, 50*time.Millisecond), "previous defaults from Sydney should not verify a correct clock")
+}

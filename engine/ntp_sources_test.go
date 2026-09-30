@@ -7,6 +7,7 @@ import (
 	"math"
 	"net"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -27,6 +28,27 @@ func TestNTPSourceNormalisation(t *testing.T) {
 	for _, name := range []string{"", ":123", "host:0", "host:65536", "host:ntp", "[::1]:"} {
 		_, err := newNTPSurvey([]string{name})
 		assert.ErrorIsf(t, err, errNTPSource, "%q should be rejected", name)
+	}
+}
+
+func TestNTPSurveyScopedAddresses(t *testing.T) {
+	t.Parallel()
+	survey, err := newNTPSurvey([]string{"[fe80::123%1]:123", "[fe80::123%2]:123"})
+	require.NoError(t, err, "scoped sources must parse")
+	survey.resolve = func(context.Context, string, string) ([]netip.Addr, error) {
+		return nil, errors.New("test resolver should not be called for IP literals")
+	}
+	var queried []string
+	survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+		queried = append(queried, address)
+		return &ntp.Response{RootDistance: time.Millisecond}, nil
+	}
+	for _, elapsed := range []time.Duration{0, 2 * time.Hour} {
+		queried = nil
+		result := survey.observe(t.Context(), elapsed, 50*time.Millisecond, 50*time.Millisecond)
+		assert.Equalf(t, []string{"[fe80::123%1]:123", "[fe80::123%2]:123"}, queried, "each link-local server should be queried with its zone after %s", elapsed)
+		assert.Equalf(t, 2, result.usable, "servers on different links should count as separate votes after %s", elapsed)
+		assert.NoErrorf(t, result.diagnostics, "IP literals should not be resolved after %s", elapsed)
 	}
 }
 
@@ -637,4 +659,174 @@ func TestNTPSurveyOfflineGoResolver(t *testing.T) {
 	notices := history.update(&result, 0)
 	require.Len(t, notices, 1, "offline lookup must explain missing evidence")
 	assert.Equal(t, "GoCryptoTrader couldn't verify whether your computer's clock is accurate. 0/1 configured time servers provided usable time measurements. Some configured time server names could not be looked up. Check your network connection and DNS settings. GoCryptoTrader will keep running.", notices[0].message, "offline Go resolver should suggest checking network and DNS without claiming an NTP reply was expected")
+}
+
+func TestNTPSurveyDialFailureTriesNextAddress(t *testing.T) {
+	t.Parallel()
+	survey, err := newNTPSurvey([]string{"one.invalid", "two.invalid", "three.invalid"})
+	require.NoError(t, err, "sources must parse")
+	for i := range survey.sources {
+		survey.sources[i].addresses = []netip.Addr{netip.MustParseAddr(fmt.Sprintf("2001:db8::%d", i+1)), netip.MustParseAddr(fmt.Sprintf("192.0.2.%d", i+1))}
+		survey.sources[i].refreshAfter = time.Hour
+	}
+	var queried []string
+	survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+		queried = append(queried, address)
+		if address[0] == '[' {
+			return nil, fmt.Errorf("query NTP server %s: %w", address, &net.OpError{Op: "dial", Net: "udp", Err: errors.New("connect: network is unreachable")})
+		}
+		return &ntp.Response{RootDistance: time.Millisecond}, nil
+	}
+	result := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, ntpHealthy, result.state, "addresses the host cannot dial should not cost their entries a vote")
+	assert.Equal(t, 3, result.usable, "each entry should fall back to an address the host can reach")
+	assert.Zero(t, result.failures, "a successful fallback should not be reported as a failure")
+	assert.Equal(t, []string{"[2001:db8::1]:123", "192.0.2.1:123", "[2001:db8::2]:123", "192.0.2.2:123", "[2001:db8::3]:123", "192.0.2.3:123"}, queried, "a dial failure should move on to the entry's next address in the same round")
+
+	queried = nil
+	result = survey.observe(t.Context(), defaultNTPCheckInterval, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, 3, result.usable, "the next round should still reach every entry")
+	assert.Equal(t, []string{"192.0.2.1:123", "192.0.2.2:123", "192.0.2.3:123"}, queried, "the next round should try the address that answered before one that failed to dial")
+}
+
+func TestNTPSurveyFailureAfterSendDoesNotTryNextAddress(t *testing.T) {
+	t.Parallel()
+	survey, err := newNTPSurvey([]string{"one.invalid"})
+	require.NoError(t, err, "source must parse")
+	survey.sources[0].addresses = []netip.Addr{netip.MustParseAddr("2001:db8::1"), netip.MustParseAddr("192.0.2.1")}
+	survey.sources[0].refreshAfter = time.Hour
+	var queried []string
+	survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+		queried = append(queried, address)
+		return nil, fmt.Errorf("query NTP server %s: %w", address, &net.OpError{Op: "read", Net: "udp", Err: errors.New("connection refused")})
+	}
+	result := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, []string{"[2001:db8::1]:123"}, queried, "a failure after a request may have been sent should not query another address this round")
+	assert.Equal(t, ntpUnreachable, result.failures, "a read failure should be reported as unreachable")
+}
+
+func TestNTPSurveyDialFailureKeepsSkippedReasons(t *testing.T) {
+	t.Parallel()
+	survey, err := newNTPSurvey([]string{"one.invalid"})
+	require.NoError(t, err, "source must parse")
+	rateLimited := netip.MustParseAddr("192.0.2.1")
+	survey.sources[0].addresses = []netip.Addr{rateLimited, netip.MustParseAddr("2001:db8::1")}
+	survey.sources[0].refreshAfter = time.Hour
+	survey.endpoints[rateLimited] = ntpEndpoint{nextAllowed: time.Hour, backoff: time.Hour}
+	survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+		return nil, fmt.Errorf("query NTP server %s: %w", address, &net.OpError{Op: "dial", Net: "udp", Err: errors.New("connect: network is unreachable")})
+	}
+	result := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+	assert.Equal(t, ntpRateLimited|ntpUnreachable, result.failures, "a failed entry should report both the rate limit and the dial failure")
+	assert.ErrorIs(t, result.diagnostics, errNTPSourceBackoff, "diagnostics should keep the rate-limited address")
+}
+
+func TestNTPSurveyDialFallbackStopsOnCancellation(t *testing.T) {
+	t.Parallel()
+	for _, cancelAt := range []int{1, 2} {
+		t.Run(fmt.Sprintf("cancel at attempt %d", cancelAt), func(t *testing.T) {
+			t.Parallel()
+			survey, err := newNTPSurvey([]string{"one.invalid"})
+			require.NoError(t, err, "source must parse")
+			survey.sources[0].addresses = []netip.Addr{netip.MustParseAddr("2001:db8::1"), netip.MustParseAddr("2001:db8::2"), netip.MustParseAddr("192.0.2.1")}
+			survey.sources[0].refreshAfter = time.Hour
+			original := slices.Clone(survey.sources[0].addresses)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			attempts := 0
+			survey.query = func(context.Context, string) (*ntp.Response, error) {
+				attempts++
+				if attempts == cancelAt {
+					cancel()
+				}
+				return nil, &net.OpError{Op: "dial", Net: "udp", Err: errors.New("connect: network is unreachable")}
+			}
+			result := survey.observe(ctx, 0, 50*time.Millisecond, 50*time.Millisecond)
+			assert.Equal(t, cancelAt, attempts, "cancellation should stop trying further addresses")
+			assert.Equal(t, original, survey.sources[0].addresses, "a cancelled round should not reorder addresses")
+			assert.Zero(t, result.usable, "a cancelled round should have no usable replies")
+		})
+	}
+}
+
+func TestNTPSurveyDialFallbackKissOfDeath(t *testing.T) {
+	t.Parallel()
+	for _, code := range []string{"RATE", "DENY", "RSTR"} {
+		t.Run(code, func(t *testing.T) {
+			t.Parallel()
+			survey, err := newNTPSurvey([]string{"one.invalid"})
+			require.NoError(t, err, "source must parse")
+			undialled, responder := netip.MustParseAddr("2001:db8::1"), netip.MustParseAddr("192.0.2.1")
+			survey.sources[0].addresses = []netip.Addr{undialled, responder, netip.MustParseAddr("192.0.2.2")}
+			survey.sources[0].refreshAfter = 24 * time.Hour
+			var queried []string
+			survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+				queried = append(queried, address)
+				switch address {
+				case "[2001:db8::1]:123":
+					return nil, &net.OpError{Op: "dial", Net: "udp", Err: errors.New("connect: network is unreachable")}
+				case "192.0.2.1:123":
+					return &ntp.Response{KissCode: code}, ntp.ErrKissOfDeath
+				default:
+					return &ntp.Response{RootDistance: time.Millisecond}, nil
+				}
+			}
+			result := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+			assert.Equal(t, []string{"[2001:db8::1]:123", "192.0.2.1:123"}, queried, "a kiss-o'-death reply should end the entry's attempts for the round")
+			assert.ErrorIs(t, result.diagnostics, ntp.ErrKissOfDeath, "diagnostics should keep the kiss-o'-death reply")
+			assert.Zero(t, survey.endpoints[undialled], "an address that could not be dialled should not be restricted")
+			if code == "RATE" {
+				assert.Equal(t, ntpEndpoint{nextAllowed: 30 * time.Minute, backoff: 30 * time.Minute}, survey.endpoints[responder], "the address that asked for fewer queries should back off")
+			} else {
+				assert.True(t, survey.endpoints[responder].denied, "the address that refused queries should be denied")
+			}
+
+			queried = nil
+			result = survey.observe(t.Context(), defaultNTPCheckInterval, 50*time.Millisecond, 50*time.Millisecond)
+			assert.Equal(t, ntpHealthy, result.state, "the entry should recover through its next eligible address")
+			assert.Equal(t, []string{"192.0.2.2:123"}, queried, "the next round should go straight to the address that has not failed")
+		})
+	}
+}
+
+func TestNTPSurveyBlockedEntryReasons(t *testing.T) {
+	t.Parallel()
+	shared, rateLimited, denied := netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2"), netip.MustParseAddr("192.0.2.3")
+	undialled, invalid := netip.MustParseAddr("2001:db8::1"), netip.MustParseAddr("192.0.2.4")
+	for _, tc := range []struct {
+		name      string
+		addresses [][]netip.Addr
+		failures  ntpFailures
+	}{
+		{name: "no usable address", addresses: [][]netip.Addr{{shared}, {rateLimited, shared, denied}}, failures: ntpRateLimited | ntpDuplicateAddress | ntpRefused},
+		{name: "failed query", addresses: [][]netip.Addr{{denied, undialled, invalid}}, failures: ntpRefused | ntpUnreachable | ntpInvalidReply},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			names := make([]string, len(tc.addresses))
+			for i := range names {
+				names[i] = fmt.Sprintf("entry%d.invalid", i)
+			}
+			survey, err := newNTPSurvey(names)
+			require.NoError(t, err, "sources must parse")
+			for i, addresses := range tc.addresses {
+				survey.sources[i].addresses = addresses
+				survey.sources[i].refreshAfter = time.Hour
+			}
+			survey.endpoints[rateLimited] = ntpEndpoint{nextAllowed: time.Hour, backoff: time.Hour}
+			survey.endpoints[denied] = ntpEndpoint{denied: true}
+			survey.query = func(_ context.Context, address string) (*ntp.Response, error) {
+				switch address {
+				case "[2001:db8::1]:123":
+					return nil, &net.OpError{Op: "dial", Net: "udp", Err: errors.New("connect: network is unreachable")}
+				case "192.0.2.4:123":
+					return nil, errors.New("test reply is invalid")
+				default:
+					return &ntp.Response{RootDistance: time.Millisecond}, nil
+				}
+			}
+			result := survey.observe(t.Context(), 0, 50*time.Millisecond, 50*time.Millisecond)
+			assert.Equal(t, tc.failures, result.failures, "an entry with no reply should keep the reason for each address it could not use")
+		})
+	}
 }

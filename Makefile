@@ -38,8 +38,8 @@ assertion_checks:
 
 .PHONY: mutation_math
 mutation_math:
-	go run $(GREMLINSPKG) unleash ./common/math --workers 2 --test-cpu 1 --timeout-coefficient 20
-	go run $(GREMLINSPKG) unleash ./common/math --workers 2 --test-cpu 1 --timeout-coefficient 20 --tags udecimal_on
+	go run $(GREMLINSPKG) unleash ./common/math --workers 2 --timeout-coefficient 20
+	go run $(GREMLINSPKG) unleash ./common/math --workers 2 --timeout-coefficient 20 --tags udecimal_on
 
 markdownlint:
 	@if ! command -v npx >/dev/null 2>&1; then \

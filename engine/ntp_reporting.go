@@ -41,7 +41,7 @@ func (h *ntpReporting) update(observation *ntpObservation, elapsed time.Duration
 			h.warned = true
 			warning = true
 		}
-		reason := "The measurements are not precise enough to judge the configured tolerance."
+		reason := "The measurements are not precise enough to judge the configured tolerance. Time servers closer to you, set in ntpclient.pool, give more precise measurements."
 		switch {
 		case errors.Is(observation.reason, errNTPInsufficientSources):
 			details := []string{fmt.Sprintf("%d/%d configured time servers provided usable time measurements.", observation.usable, observation.configured)}

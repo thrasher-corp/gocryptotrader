@@ -57,3 +57,20 @@ func TestNTPClockChangeDuringQuery(t *testing.T) {
 		})
 	}
 }
+
+func TestNTPClockDiscontinuity(t *testing.T) {
+	t.Parallel()
+	previous := ntpClockReading{wall: time.Unix(1_700_000_000, 0), elapsed: time.Minute, awake: time.Minute}
+	for _, tc := range []struct {
+		name                 string
+		wall, elapsed, awake time.Duration
+		changed              bool
+	}{
+		{name: "wall reading delay", wall: 15*time.Second + 20*time.Millisecond, elapsed: 15 * time.Second, awake: 15 * time.Second},
+		{name: "elapsed clock moves backwards alone", wall: -time.Millisecond, elapsed: -time.Millisecond, changed: true},
+		{name: "awake clock moves backwards alone", awake: -time.Millisecond, changed: true},
+	} {
+		current := ntpClockReading{wall: previous.wall.Add(tc.wall), elapsed: previous.elapsed + tc.elapsed, awake: previous.awake + tc.awake}
+		assert.Equalf(t, tc.changed, ntpClockDiscontinuity(previous, current), "%s should give the expected discontinuity result", tc.name)
+	}
+}

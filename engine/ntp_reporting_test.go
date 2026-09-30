@@ -65,3 +65,11 @@ func TestNTPReportingSingleSourceRecovery(t *testing.T) {
 		assert.Empty(t, history.update(&healthy, 30*time.Minute), "repeated healthy evidence should remain quiet")
 	}
 }
+
+func TestNTPReportingImpreciseMeasurements(t *testing.T) {
+	t.Parallel()
+	var history ntpReporting
+	notices := history.update(&ntpObservation{reason: errNTPUncertain, configured: 4, usable: 4, agreeing: 3}, 0)
+	require.Len(t, notices, 1, "imprecise measurements must be reported")
+	assert.Equal(t, "GoCryptoTrader couldn't verify whether your computer's clock is accurate. The measurements are not precise enough to judge the configured tolerance. Time servers closer to you, set in ntpclient.pool, give more precise measurements. GoCryptoTrader will keep running.", notices[0].message, "imprecision should point to closer time servers")
+}

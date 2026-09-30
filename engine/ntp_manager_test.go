@@ -45,6 +45,13 @@ func TestSetupNTPManager(t *testing.T) {
 	_, err = setupNTPManager(&config.NTPClientConfig{}, false)
 	assert.ErrorIs(t, err, errNilNTPConfigValues, "uninitialised tolerance should be rejected")
 	tolerance := time.Second
+	_, err = setupNTPManager(&config.NTPClientConfig{AllowedDifference: &tolerance}, false)
+	assert.ErrorIs(t, err, errNilNTPConfigValues, "missing negative tolerance should be rejected")
+	_, err = setupNTPManager(&config.NTPClientConfig{AllowedNegativeDifference: &tolerance}, false)
+	assert.ErrorIs(t, err, errNilNTPConfigValues, "missing positive tolerance should be rejected")
+	var zero time.Duration
+	_, err = setupNTPManager(&config.NTPClientConfig{AllowedDifference: &zero, AllowedNegativeDifference: &zero}, false)
+	assert.NoError(t, err, "zero tolerance should be accepted")
 	_, err = setupNTPManager(&config.NTPClientConfig{Level: 2, AllowedDifference: &tolerance, AllowedNegativeDifference: &tolerance}, false)
 	assert.ErrorIs(t, err, errNTPConfig, "invalid level should be rejected")
 }
@@ -204,7 +211,7 @@ func TestSetupNTPManagerDefaultServers(t *testing.T) {
 	for _, source := range manager.survey.sources {
 		hosts = append(hosts, source.host)
 	}
-	assert.Equal(t, []string{"time.cloudflare.com", "time.nist.gov", "ptbtime1.ptb.de", "ntp.se"}, hosts, "empty pool should use four servers from different organisations")
+	assert.Equal(t, []string{"time.cloudflare.com", "any.time.nl", "time.nist.gov", "ntp.nict.jp"}, hosts, "empty pool should use four servers from different organisations")
 }
 
 func TestNilNTPManager(t *testing.T) {
@@ -247,4 +254,40 @@ func TestNTPUnknownEscalationUsesCompletedObservations(t *testing.T) {
 		}
 		assert.Equal(t, 3, calls, "reporting persistence should not create extra network attempts")
 	})
+}
+
+func TestNTPManagerClockFailureStopsWorker(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		failingRead int32
+	}{
+		{name: "before survey", failingRead: 1},
+		{name: "after survey", failingRead: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				manager := testNTPManager(t, 1)
+				reading := manager.clock
+				var reads, queries atomic.Int32
+				manager.clock = func() (ntpClockReading, error) {
+					if reads.Add(1) == tc.failingRead {
+						return ntpClockReading{}, errors.New("test clock unavailable")
+					}
+					return reading()
+				}
+				manager.survey.query = func(context.Context, string) (*ntp.Response, error) {
+					queries.Add(1)
+					return &ntp.Response{RootDistance: time.Millisecond}, nil
+				}
+				require.NoError(t, manager.Start(t.Context()), "worker must start")
+				synctest.Wait()
+				assert.False(t, manager.IsRunning(), "worker should exit when its clock cannot be read")
+				assert.Equal(t, tc.failingRead-1, queries.Load(), "worker should stop at the failed clock read")
+				assert.Equal(t, ntpReporting{}, manager.history, "a round without a clock reading should not be reported")
+				assert.NoError(t, manager.Stop(), "Stop should join a worker that already exited")
+			})
+		})
+	}
 }

@@ -19,7 +19,7 @@ The default allowed difference is 50 milliseconds in either direction.
 | allowedDifference | How far the computer's clock may be behind server time, in nanoseconds. | `50000000` |
 | allowedNegativeDifference | How far the computer's clock may be ahead of server time, in nanoseconds. | `50000000` |
 
-The default servers are `time.cloudflare.com`, `time.nist.gov`, `ptbtime1.ptb.de` and `ntp.se`.
+The default servers are `time.cloudflare.com`, `any.time.nl`, `time.nist.gov` and `ntp.nict.jp`.
 An empty `pool` list follows that default automatically.
 
 ## Messages and what to do
@@ -40,9 +40,14 @@ Debug logs show the measured range, the tolerances, how many servers were config
 
 ## Choose time servers
 
-The default servers come from four different organisations: Cloudflare, NIST in the United States, PTB in Germany and Netnod in Sweden.
-None of them smears leap seconds, so they agree with each other during a leap second.
+The default servers come from four different organisations: Cloudflare, SIDN Labs in the Netherlands, NIST in the United States and NICT in Japan.
+Cloudflare and SIDN Labs' `any.time.nl` answer from many locations worldwide, which gives most regions two nearby servers.
+NIST and NICT are national time laboratories that add independent votes.
+All four insert leap seconds rather than smearing them, so they avoid mixing smeared time with UTC.
+Cloudflare, SIDN Labs and NIST state this, and NICT documented it for the 2015 leap second.
 Servers far from you report wider ranges, which still count towards agreement but can't give a verdict alone.
+If most of your configured servers are far away, checks can stay unclear even when your clock is correct.
+In some regions, such as parts of Africa and the Middle East, add servers close to you.
 [NTP Pool](https://www.ntppool.org/en/vendors.html) asks software not to ship `pool.ntp.org` as a default, so GoCryptoTrader doesn't.
 
 For a managed deployment, set `ntpclient.pool` to the NTP servers approved by your infrastructure operator.
@@ -71,7 +76,7 @@ This section is for maintainers.
 
 ### Agreement between servers
 
-Each check selects at most one eligible address per configured entry and queries each selected IP address at most once.
+Each check sends at most one request per configured entry and queries each IP address at most once.
 Different spellings of the same entry count as one entry.
 Different names or ports that lead to the same IP address cannot cast more than one vote.
 Different IP addresses still do not prove different operators.
@@ -115,6 +120,8 @@ Failed or empty lookups are retried at the next scheduled check.
 Until a lookup returns addresses again, the last known addresses stay in use, still subject to their rate limits and refusals.
 Every check still needs fresh NTP replies, so cached addresses never reuse old measurements.
 After a failed query, a later check can try another address for the same name, skipping refused, delayed and already used addresses.
+If an address can't be dialled, for example an IPv6 address on a host without IPv6 routing, the same check tries the name's next address, because no request was sent.
+Configured IP addresses are used as written without a DNS lookup, which keeps an IPv6 zone such as `%eth0`.
 A failed DNS refresh appears in debug logs without discarding a usable reply from a last known address.
 Configured servers never fall back to public servers.
 

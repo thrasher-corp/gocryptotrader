@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -90,7 +92,12 @@ func newNTPSurvey(names []string) (*ntpSurvey, error) {
 		key := net.JoinHostPort(host, port)
 		if !seen[key] {
 			seen[key] = true
-			survey.sources = append(survey.sources, ntpSource{host: host, port: port})
+			source := ntpSource{host: host, port: port}
+			// Go's resolver drops an IPv6 zone, so query an IP literal exactly as configured and never resolve it.
+			if ip, err := netip.ParseAddr(host); err == nil {
+				source.addresses, source.refreshAfter = []netip.Addr{ip}, math.MaxInt64
+			}
+			survey.sources = append(survey.sources, source)
 		}
 	}
 	return survey, nil
@@ -138,7 +145,8 @@ func parseNTPSource(name string) (host, port string, err error) {
 }
 
 // observe runs one check round across configured servers.
-// It resolves names when due, queries at most one eligible address per entry, and combines replies into one result.
+// It resolves names when due, sends at most one request per entry, and combines replies into one result.
+// An entry may try several addresses when earlier ones can't be dialled.
 // Servers without a usable reply still count against required majority.
 func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, allowedNegativeDifference time.Duration) ntpObservation {
 	observation := ntpObservation{configured: len(s.sources)}
@@ -185,10 +193,13 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 			observation.failures |= lookupFailure
 			continue
 		}
-		selected := -1
+		var address netip.Addr
+		var response *ntp.Response
+		var err error
 		var unavailable error
 		var blocked ntpFailures
-		for index, candidate := range source.addresses {
+		var failed []netip.Addr
+		for _, candidate := range source.addresses {
 			candidate = candidate.Unmap()
 			if !candidate.IsValid() {
 				blocked |= ntpNameNotFound
@@ -209,10 +220,24 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 				unavailable = errors.Join(unavailable, fmt.Errorf("%w: %s at %s, remaining %s", errNTPSourceBackoff, source.host, candidate, endpoint.nextAllowed-elapsed))
 				continue
 			}
-			selected = index
-			break
+			if address.IsValid() {
+				// The previous address failed to dial, so no request was sent to it.
+				blocked |= ntpUnreachable
+				unavailable = errors.Join(unavailable, fmt.Errorf("query NTP source %s at %s: %w", source.host, address, err))
+				failed = append(failed, address)
+			}
+			address = candidate
+			// Count each IP address at most once, even if several names or ports lead to it.
+			// Different IP addresses don't prove different operators.
+			used[address] = true
+			response, err = s.query(ctx, net.JoinHostPort(address.String(), source.port))
+			// A socket that couldn't be opened sent nothing, such as an IPv6 address on an IPv4-only host.
+			// Try the entry's next address this round, so DNS answers for one address family can't cost the entry its vote.
+			if opError, ok := errors.AsType[*net.OpError](err); !ok || opError.Op != "dial" || ctx.Err() != nil {
+				break
+			}
 		}
-		if selected < 0 {
+		if !address.IsValid() {
 			observation.failures |= blocked
 			if unavailable == nil {
 				unavailable = fmt.Errorf("%w %s: DNS returned no unused IP address", errNTPSourceAddress, source.host)
@@ -220,11 +245,6 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 			failures = append(failures, unavailable)
 			continue
 		}
-		address := source.addresses[selected].Unmap()
-		// Count each IP address at most once, even if several names or ports lead to it.
-		// Different IP addresses don't prove different operators.
-		used[address] = true
-		response, err := s.query(ctx, net.JoinHostPort(address.String(), source.port))
 		var queryFailure ntpFailures
 		if err != nil {
 			queryFailure = ntpInvalidReply
@@ -248,17 +268,25 @@ func (s *ntpSurvey) observe(ctx context.Context, elapsed, allowedDifference, all
 			s.endpoints[address] = endpoint
 		}
 		if err != nil {
-			observation.failures |= queryFailure
-			// After query failure, move address to back so a later round can try another eligible address.
-			// Do not rotate on shutdown.
-			// A different address is not necessarily a different server.
-			// systemd-timesyncd also moves to next address after failure, and this slice rotation is GCT's implementation: https://github.com/systemd/systemd/blob/885fe07ee37cff7316680b5088d11081e01813b1/src/timesync/timesyncd-manager.c#L926
-			if ctx.Err() == nil {
-				failed := source.addresses[selected]
-				copy(source.addresses[selected:], source.addresses[selected+1:])
-				source.addresses[len(source.addresses)-1] = failed
+			failed = append(failed, address)
+		}
+		// Move failed addresses to back so later rounds try another eligible address first.
+		// Do not rotate on shutdown.
+		// A different address is not necessarily a different server.
+		// systemd-timesyncd also moves to next address after failure, and this reordering is GCT's implementation: https://github.com/systemd/systemd/blob/885fe07ee37cff7316680b5088d11081e01813b1/src/timesync/timesyncd-manager.c#L926
+		if len(failed) != 0 && ctx.Err() == nil {
+			rank := func(a netip.Addr) int {
+				if slices.Contains(failed, a.Unmap()) {
+					return 1
+				}
+				return 0
 			}
-			failures = append(failures, fmt.Errorf("query NTP source %s at %s: %w", source.host, address, err))
+			slices.SortStableFunc(source.addresses, func(a, b netip.Addr) int { return cmp.Compare(rank(a), rank(b)) })
+		}
+		if err != nil {
+			// Report skipped addresses' reasons too, because no address for this name gave a reply.
+			observation.failures |= blocked | queryFailure
+			failures = append(failures, errors.Join(unavailable, fmt.Errorf("query NTP source %s at %s: %w", source.host, address, err)))
 			continue
 		}
 		responses = append(responses, response)
