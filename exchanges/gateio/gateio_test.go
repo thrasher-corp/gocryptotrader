@@ -384,7 +384,13 @@ func TestUpdateTicker(t *testing.T) {
 		for _, a := range e.GetAssetTypes(false) {
 			t.Run(a.String(), func(t *testing.T) {
 				t.Parallel()
-				got, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
+				pair := getPair(t, a)
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				testexch.UpdatePairsOnce(t, ex)
+				// Isolate the cache so another test cannot supply the ticker being checked.
+				ex.Name = t.Name()
+				got, err := ex.UpdateTicker(t.Context(), pair, a)
 				require.NoError(t, err, "UpdateTicker must not error")
 				require.NotNil(t, got, "live ticker must not be nil")
 				switch a {
