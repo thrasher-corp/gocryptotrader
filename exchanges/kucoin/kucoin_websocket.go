@@ -518,7 +518,12 @@ func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData [
 	})
 }
 
-// processFuturesTickerV2 processes a futures account ticker data.
+// processFuturesTickerV2 processes futures ticker data. The tickerV2
+// channel only reports the best bid and ask, so the stored snapshot of the pair
+// is carried over for every field the channel cannot report. ticker.ProcessTicker
+// replaces the stored ticker outright, so emitting a partial ticker here would
+// otherwise clear the last trade, high, low and volumes that the REST ticker
+// request stored.
 func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) error {
 	resp := WsFuturesTicker{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
@@ -532,18 +537,28 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
-		AssetType:    asset.Futures,
-		Last:         resp.FilledPrice.Float64(),
-		LastSize:     resp.FilledSize.Float64(),
-		LastUpdated:  resp.FilledTime.Time(),
-		ExchangeName: e.Name,
-		Pair:         pair,
-		Ask:          resp.BestAskPrice.Float64(),
-		Bid:          resp.BestBidPrice.Float64(),
-		AskSize:      resp.BestAskSize.Float64(),
-		BidSize:      resp.BestBidSize.Float64(),
-	})
+	tickPrice, err := ticker.GetTicker(e.Name, pair, asset.Futures)
+	if err != nil {
+		if !errors.Is(err, ticker.ErrTickerNotFound) {
+			return err
+		}
+		tickPrice = new(ticker.Price)
+		tickPrice.ExchangeName = e.Name
+		tickPrice.AssetType = asset.Futures
+		tickPrice.Pair = pair
+	}
+	// tickerV2 frames carry no fill, so keep the stored Last and LastSize unless
+	// this frame reports a non-zero fill price.
+	if resp.FilledPrice.Float64() != 0 {
+		tickPrice.Last = resp.FilledPrice.Float64()
+		tickPrice.LastSize = resp.FilledSize.Float64()
+	}
+	tickPrice.LastUpdated = resp.FilledTime.Time()
+	tickPrice.Bid = resp.BestBidPrice.Float64()
+	tickPrice.BidSize = resp.BestBidSize.Float64()
+	tickPrice.Ask = resp.BestAskPrice.Float64()
+	tickPrice.AskSize = resp.BestAskSize.Float64()
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 // processFuturesKline represents a futures instrument kline data update.
