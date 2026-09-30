@@ -393,8 +393,7 @@ func getOrderbook(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbook(
-		c.Context,
+	result, err := client.GetOrderbook(c.Context,
 		&gctrpc.GetOrderbookRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -513,8 +512,7 @@ func getOrderbookStream(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbookStream(
-		c.Context,
+	result, err := client.GetOrderbookStream(c.Context,
 		&gctrpc.GetOrderbookStreamRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{

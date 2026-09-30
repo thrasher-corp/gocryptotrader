@@ -18,8 +18,8 @@ func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) 
 	return jsonparser.Delete(config, "remoteControl", "gRPC", "timeInNanoSeconds"), nil
 }
 
-// DowngradeConfig enables nanosecond precision when a gRPC configuration
-// exists so the standardised timestamp behaviour survives a downgrade.
+// DowngradeConfig restores the legacy default expected by older releases, as the
+// upgrade discarded any configured precision.
 func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
 	_, valueType, _, err := jsonparser.Get(config, "remoteControl", "gRPC")
 	switch {
@@ -31,7 +31,7 @@ func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error
 		return config, nil
 	}
 
-	updated, err := jsonparser.Set(config, []byte("true"), "remoteControl", "gRPC", "timeInNanoSeconds")
+	updated, err := jsonparser.Set(config, []byte("false"), "remoteControl", "gRPC", "timeInNanoSeconds")
 	if err != nil {
 		return config, fmt.Errorf("error restoring gRPC timestamp precision: %w", err)
 	}

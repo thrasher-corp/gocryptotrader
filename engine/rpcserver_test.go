@@ -1910,12 +1910,44 @@ func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
 	}
 
 	response, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "GetTicker must not error")
 	require.NotNil(t, response.LastUpdated, "LastUpdated must be populated")
-	assert.Equal(t, now.Unix(), response.LastUpdated.Seconds, "LastUpdated seconds should match")
-	assert.Equal(t, int32(now.Nanosecond()), response.LastUpdated.Nanos, "LastUpdated nanoseconds should match")
+	assert.Equal(t, now.UTC(), response.LastUpdated.AsTime(), "LastUpdated should preserve nanosecond precision")
+}
+
+func TestRPCServer_GetOrderbook_LastUpdated(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = newUniqueFakeExchangeName()
+	b.Enabled = true
+	require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must not error")
+
+	pair := currency.NewPair(currency.BTC, currency.METAL)
+	depth, err := orderbook.DeployDepth(b.Name, pair, asset.Spot)
+	require.NoError(t, err, "DeployDepth must not error")
+	lastUpdated := time.Unix(1759200000, 123456789)
+	err = depth.LoadSnapshot(&orderbook.Book{
+		Bids:         []orderbook.Level{{Price: 10, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 11, Amount: 1}},
+		LastUpdated:  lastUpdated,
+		LastPushed:   lastUpdated,
+		RestSnapshot: true,
+	})
+	require.NoError(t, err, "LoadSnapshot must not error")
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	response, err := s.GetOrderbook(t.Context(), &gctrpc.GetOrderbookRequest{
+		Exchange:  b.Name,
+		Pair:      &gctrpc.CurrencyPair{Base: pair.Base.String(), Quote: pair.Quote.String()},
+		AssetType: asset.Spot.String(),
+	})
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.NotNil(t, response.LastUpdated, "LastUpdated must be populated")
+	assert.Equal(t, lastUpdated.UTC(), response.LastUpdated.AsTime(), "LastUpdated should preserve nanosecond precision")
 }
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {

@@ -58,7 +58,7 @@ func TestDowngradeConfig(t *testing.T) {
 		{
 			name:     "gRPC configuration",
 			input:    `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved","timeInNanoSeconds":true}}}`,
+			expected: `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved","timeInNanoSeconds":false}}}`,
 		},
 		{
 			name:     "missing gRPC configuration remains absent",
@@ -75,7 +75,7 @@ func TestDowngradeConfig(t *testing.T) {
 			t.Parallel()
 			output, err := new(v17.Version).DowngradeConfig(t.Context(), []byte(tc.input))
 			require.NoError(t, err, "DowngradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "DowngradeConfig should preserve nanosecond precision where needed")
+			assert.JSONEq(t, tc.expected, string(output), "DowngradeConfig should restore the legacy default where needed")
 		})
 	}
 }
@@ -90,7 +90,7 @@ func TestRegisteredMigration(t *testing.T) {
 
 	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 16)
 	require.NoError(t, err, "Deploy must apply the registered v17 downgrade")
-	assert.JSONEq(t, `{"version":16,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":true}}}`, string(downgraded), "Deploy should preserve nanosecond precision and set version 16")
+	assert.JSONEq(t, `{"version":16,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`, string(downgraded), "Deploy should restore the legacy default and set version 16")
 }
 
 func TestDowngradeConfigRejectsMalformedConfig(t *testing.T) {

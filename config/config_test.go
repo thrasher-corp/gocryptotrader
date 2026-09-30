@@ -512,8 +512,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Error("err should have been thrown on a non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -550,8 +549,7 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		t.Error("Expected error for non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -597,8 +595,7 @@ func TestSetPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -634,8 +631,7 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 		t.Error("Expected error with non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -687,8 +683,7 @@ func TestCheckPairConfigFormats(t *testing.T) {
 		t.Error("non-existent exchange should throw an error")
 	}
 	// Test nil pair store
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -762,8 +757,7 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	assert.ErrorIs(t, c.CheckPairConsistency("asdf"), ErrExchangeNotFound)
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -875,8 +869,7 @@ func TestGetPairFormat(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -974,8 +967,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
@@ -1018,8 +1010,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(
-		c.Exchanges,
+	c.Exchanges = append(c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
