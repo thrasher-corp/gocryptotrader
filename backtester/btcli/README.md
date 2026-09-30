@@ -26,6 +26,17 @@ For a list of commands, you can run the following
 go run .
 ```
 
+Run `btcli <command> --help` to see its flags. Required flags are marked in
+the help output. Set boolean flags with `=`, for example `--donotstore=false`.
+
+Supply command parameters as named flags. Positional arguments are rejected.
+For example:
+
+```console
+btcli starttask --id 3f8b1d52-8c2e-4c56-9f25-2a7d0d6f1b11
+btcli executestrategyfromfile --path strategy.json
+```
+
 ## Donations
 
 <img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">

@@ -62,7 +62,6 @@ func (f omfExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Pri
 		Ask:                   1337,
 		BaseVolume:            1337,
 		QuoteVolume:           1337,
-		PriceATH:              1337,
 		Open:                  1337,
 		Close:                 1337,
 		Pair:                  p,

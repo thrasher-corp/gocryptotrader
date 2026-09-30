@@ -374,7 +374,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 	// v, l, h and o are each [today, last 24 hours]. The store overwrites a pair wholesale, so this
 	// records what UpdateTickers does for the same pair: the 24 hour volume and range beside today's
 	// open, the only open the REST ticker serves
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Ask:          t.Ask[0].Float64(),
 		AskSize:      t.Ask[2].Float64(),
@@ -388,7 +388,11 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 		Open:         t.Open[0].Float64(),
 		AssetType:    asset.Spot,
 		Pair:         pair,
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 // wsProcessSpread converts spread/orderbook data and sends it to the datahandler
