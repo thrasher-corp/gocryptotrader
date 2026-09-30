@@ -444,7 +444,7 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 
 	resp := &gctrpc.TickerResponse{
 		Pair:        r.Pair,
-		LastUpdated: s.unixTimestamp(t.LastUpdated),
+		LastUpdated: timestamppb.New(t.LastUpdated),
 		Last:        t.Last,
 		High:        t.High,
 		Low:         t.Low,
@@ -471,7 +471,7 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 					Base:      val.Pair.Base.String(),
 					Quote:     val.Pair.Quote.String(),
 				},
-				LastUpdated: s.unixTimestamp(val.LastUpdated),
+				LastUpdated: timestamppb.New(val.LastUpdated),
 				Last:        val.Last,
 				High:        val.High,
 				Low:         val.Low,
@@ -521,7 +521,7 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 		Pair:        r.Pair,
 		Bids:        bids,
 		Asks:        asks,
-		LastUpdated: s.unixTimestamp(ob.LastUpdated),
+		LastUpdated: timestamppb.New(ob.LastUpdated),
 		AssetType:   r.AssetType,
 	}
 
@@ -560,7 +560,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 						Quote:     pair.Quote.String(),
 					},
 					AssetType:   a.String(),
-					LastUpdated: s.unixTimestamp(resp.LastUpdated),
+					LastUpdated: timestamppb.New(resp.LastUpdated),
 					Bids:        make([]*gctrpc.OrderbookItem, len(resp.Bids)),
 					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
 				}
@@ -942,7 +942,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 				Total:     resp[x].Trades[i].Total,
 			}
 			if !resp[x].Trades[i].Timestamp.IsZero() {
-				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
+				t.CreationTime = timestamppb.New(resp[x].Trades[i].Timestamp)
 			}
 			trades[i] = t
 		}
@@ -1032,7 +1032,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 				Total:     resp[x].Trades[i].Total,
 			}
 			if !resp[x].Trades[i].Timestamp.IsZero() {
-				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
+				t.CreationTime = timestamppb.New(resp[x].Trades[i].Timestamp)
 			}
 			trades[i] = t
 		}
@@ -1103,7 +1103,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	trades := make([]*gctrpc.TradeHistory, len(result.Trades))
 	for i := range result.Trades {
 		trades[i] = &gctrpc.TradeHistory{
-			CreationTime: s.unixTimestamp(result.Trades[i].Timestamp),
+			CreationTime: timestamppb.New(result.Trades[i].Timestamp),
 			Id:           result.Trades[i].TID,
 			Price:        result.Trades[i].Price,
 			Amount:       result.Trades[i].Amount,
@@ -2063,9 +2063,9 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		base, err := depth.Retrieve()
 		if err != nil {
 			resp.Error = err.Error()
-			resp.LastUpdated = time.Now().UnixMicro()
+			resp.LastUpdated = timestamppb.Now()
 		} else {
-			resp.LastUpdated = base.LastUpdated.UnixMicro()
+			resp.LastUpdated = timestamppb.New(base.LastUpdated)
 			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
 			for i := range base.Bids {
 				resp.Bids[i] = &gctrpc.OrderbookItem{
@@ -2128,9 +2128,9 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		ob, err := d.Retrieve()
 		if err != nil {
 			resp.Error = err.Error()
-			resp.LastUpdated = time.Now().UnixMicro()
+			resp.LastUpdated = timestamppb.Now()
 		} else {
-			resp.LastUpdated = ob.LastUpdated.UnixMicro()
+			resp.LastUpdated = timestamppb.New(ob.LastUpdated)
 			resp.Pair = &gctrpc.CurrencyPair{
 				Base:  ob.Pair.Base.String(),
 				Quote: ob.Pair.Quote.String(),
@@ -2217,7 +2217,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 				Quote:     t.Pair.Quote.String(),
 				Delimiter: t.Pair.Delimiter,
 			},
-			LastUpdated: s.unixTimestamp(t.LastUpdated),
+			LastUpdated: timestamppb.New(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
 			Low:         t.Low,
@@ -2271,7 +2271,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 				Quote:     t.Pair.Quote.String(),
 				Delimiter: t.Pair.Delimiter,
 			},
-			LastUpdated: s.unixTimestamp(t.LastUpdated),
+			LastUpdated: timestamppb.New(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
 			Low:         t.Low,
@@ -3669,15 +3669,6 @@ func (s *RPCServer) GetDataHistoryJobSummary(_ context.Context, r *gctrpc.GetDat
 	}, nil
 }
 
-// unixTimestamp returns given time in either unix seconds or unix nanoseconds, depending
-// on the remoteControl/gRPC/timeInNanoSeconds boolean configuration.
-func (s *RPCServer) unixTimestamp(x time.Time) int64 {
-	if s.Config.RemoteControl.GRPC.TimeInNanoSeconds {
-		return x.UnixNano()
-	}
-	return x.Unix()
-}
-
 // SetDataHistoryJobStatus sets a data history job's status
 func (s *RPCServer) SetDataHistoryJobStatus(_ context.Context, r *gctrpc.SetDataHistoryJobStatusRequest) (*gctrpc.GenericResponse, error) {
 	if r == nil {
@@ -3857,7 +3848,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 			}
 			for j := range position.Orders[i].Trades {
 				od.Trades = append(od.Trades, &gctrpc.TradeHistory{
-					CreationTime: position.Orders[i].Trades[j].Timestamp.Unix(),
+					CreationTime: timestamppb.New(position.Orders[i].Trades[j].Timestamp),
 					Id:           position.Orders[i].Trades[j].TID,
 					Price:        position.Orders[i].Trades[j].Price,
 					Amount:       position.Orders[i].Trades[j].Amount,

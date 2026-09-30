@@ -512,7 +512,8 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Error("err should have been thrown on a non-existent exchange")
 	}
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -549,7 +550,8 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		t.Error("Expected error for non-existent exchange")
 	}
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
@@ -595,7 +597,8 @@ func TestSetPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -631,7 +634,8 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 		t.Error("Expected error with non-existent exchange")
 	}
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -683,7 +687,8 @@ func TestCheckPairConfigFormats(t *testing.T) {
 		t.Error("non-existent exchange should throw an error")
 	}
 	// Test nil pair store
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -757,7 +762,8 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	assert.ErrorIs(t, c.CheckPairConsistency("asdf"), ErrExchangeNotFound)
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -869,7 +875,8 @@ func TestGetPairFormat(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name: testFakeExchangeName,
 		},
@@ -967,7 +974,8 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
@@ -1010,7 +1018,8 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	c.Exchanges = append(c.Exchanges,
+	c.Exchanges = append(
+		c.Exchanges,
 		Exchange{
 			Name:          testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{},
@@ -1579,7 +1588,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 16, expected.Version, "Config.Version must use version 16")
+	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1588,6 +1597,15 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	exchanges = append(exchanges, json.RawMessage(`{"name":"Bitmex","enabled":true,"api":{"credentials":{"key":"retired-key","secret":"retired-secret"}}}`))
 	saved["exchanges"], err = json.Marshal(exchanges)
 	require.NoError(t, err, "Marshal must encode the saved exchanges")
+	var remoteControl map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(saved["remoteControl"], &remoteControl), "Unmarshal must preserve remote control settings")
+	var grpcConfig map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(remoteControl["gRPC"], &grpcConfig), "Unmarshal must preserve gRPC settings")
+	grpcConfig["timeInNanoSeconds"] = json.RawMessage(`true`)
+	remoteControl["gRPC"], err = json.Marshal(grpcConfig)
+	require.NoError(t, err, "Marshal must encode gRPC settings")
+	saved["remoteControl"], err = json.Marshal(remoteControl)
+	require.NoError(t, err, "Marshal must encode remote control settings")
 	saved["version"] = json.RawMessage(`14`)
 	data, err = json.Marshal(saved)
 	require.NoError(t, err, "Marshal must encode the version 14 config")
@@ -1596,7 +1614,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
@@ -1610,7 +1628,7 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
-	assert.Equal(t, 16, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
+	assert.Equal(t, 17, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
 	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
 	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
 	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")

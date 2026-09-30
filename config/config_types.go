@@ -239,7 +239,6 @@ type GRPCConfig struct {
 	GRPCProxyEnabled       bool   `json:"grpcProxyEnabled"`
 	GRPCProxyListenAddress string `json:"grpcProxyListenAddress"`
 	GRPCAllowBotShutdown   bool   `json:"grpcAllowBotShutdown"`
-	TimeInNanoSeconds      bool   `json:"timeInNanoSeconds"`
 }
 
 // RemoteControlConfig stores the RPC services config

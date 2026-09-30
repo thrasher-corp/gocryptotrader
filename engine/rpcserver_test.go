@@ -1859,37 +1859,7 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 }
 
-func TestRPCServer_unixTimestamp(t *testing.T) {
-	t.Parallel()
-
-	s := RPCServer{
-		Engine: &Engine{
-			Config: &config.Config{
-				RemoteControl: config.RemoteControlConfig{
-					GRPC: config.GRPCConfig{
-						TimeInNanoSeconds: false,
-					},
-				},
-			},
-		},
-	}
-	const sec = 1618888141
-	const nsec = 2
-	x := time.Unix(sec, nsec)
-
-	timestampSeconds := s.unixTimestamp(x)
-	if timestampSeconds != sec {
-		t.Errorf("have %d, want %d", timestampSeconds, sec)
-	}
-
-	s.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
-	timestampNanos := s.unixTimestamp(x)
-	if want := int64(sec*1_000_000_000 + nsec); timestampNanos != want {
-		t.Errorf("have %d, want %d", timestampSeconds, want)
-	}
-}
-
-func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
+func TestRPCServer_GetTicker_LastUpdated(t *testing.T) {
 	t.Parallel()
 	// Make a dummy pair we'll be using for this test.
 	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
@@ -1939,25 +1909,13 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 		AssetType: asset.Spot.String(),
 	}
 
-	// Check if timestamp returned is in seconds if !TimeInNanoSeconds.
-	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = false
-	one, err := server.GetTicker(t.Context(), request)
+	response, err := server.GetTicker(t.Context(), request)
 	if err != nil {
 		t.Error(err)
 	}
-	if want := now.Unix(); one.LastUpdated != want {
-		t.Errorf("have %d, want %d", one.LastUpdated, want)
-	}
-
-	// Check if timestamp returned is in nanoseconds if TimeInNanoSeconds.
-	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
-	two, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
-	if want := now.UnixNano(); two.LastUpdated != want {
-		t.Errorf("have %d, want %d", two.LastUpdated, want)
-	}
+	require.NotNil(t, response.LastUpdated, "LastUpdated must be populated")
+	assert.Equal(t, now.Unix(), response.LastUpdated.Seconds, "LastUpdated seconds should match")
+	assert.Equal(t, int32(now.Nanosecond()), response.LastUpdated.Nanos, "LastUpdated nanoseconds should match")
 }
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
