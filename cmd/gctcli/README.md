@@ -52,6 +52,17 @@ gctcli --rpchost localhost:9052 getticker --exchange Binance --pair BTC-USDT --a
 gctcli --rpchost localhost:9052 getticker --exchange Binance BTC-USDT spot
 ```
 
+The `cancelallorders` command accepts optional `--asset` and `--pair` flags to
+scope cancellation. A pair requires an asset:
+
+```bash
+gctcli cancelallorders --exchange Binance --asset spot --pair BTC-USDT
+```
+
+If `cancelallorders` completes some cancellations before a later batch fails, the
+CLI prints the retained order statuses as JSON and still exits with an error.
+Inspect those results before retrying the request.
+
 ## Autocomplete
 
 Bash/ZSH autocomplete entries are available in the [contrib directory](../../contrib).

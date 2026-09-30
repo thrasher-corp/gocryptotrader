@@ -24,6 +24,14 @@ through basic authorisation specified by the users config file.
 GoCryptoTrader also supports a gRPC JSON proxy service for applications which can
 be toggled on or off depending on the users preference.
 
+## Partial cancellation results
+
+When `CancelAllOrders` retains order statuses before a later failure, it returns a
+non-OK gRPC status containing a `CancelAllOrdersResponse` in its structured error
+details. Go clients can inspect `status.Convert(err).Details()` for that response.
+The error remains a failure; its details identify the cancellation results already
+known. A failure with no retained statuses has no partial-response detail.
+
 ## Installation
 
 GoCryptoTrader requires a local installation of the Google protocol buffers

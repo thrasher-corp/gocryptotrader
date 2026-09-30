@@ -329,12 +329,10 @@ func (e *Exchange) processFuturesStopOrderLifecycleEvent(ctx context.Context, re
 	if err != nil {
 		return err
 	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
 		return err
 	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -367,6 +365,9 @@ func (e *Exchange) processFuturesPrivateTradeOrders(ctx context.Context, respDat
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+		return err
+	}
 	oType, err := order.StringToOrderType(resp.OrderType)
 	if err != nil {
 		return err
@@ -375,12 +376,7 @@ func (e *Exchange) processFuturesPrivateTradeOrders(ctx context.Context, respDat
 	if err != nil {
 		return err
 	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -451,6 +447,9 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+		return err
+	}
 	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
@@ -472,6 +471,9 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 
 // processFuturesOrderbookLevel2 processes a V2 futures account orderbook data
 func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData []byte, instrument string) error {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+		return err
+	}
 	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
@@ -491,7 +493,6 @@ func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData [
 	if err != nil {
 		return err
 	}
-
 	amount, err := strconv.ParseFloat(parts[2], 64)
 	if err != nil {
 		return err
@@ -529,11 +530,10 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
 		return err
 	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -1171,18 +1171,32 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
 	switch {
 	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
-		if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
-			if !errors.Is(err, asset.ErrNotSupported) {
-				return nil, err
+		futuresAvailable, err := e.IsPairAvailable(cp, asset.Futures)
+		if err != nil {
+			if errors.Is(err, currency.ErrCurrencyNotFound) || errors.Is(err, asset.ErrNotSupported) {
+				return nil, nil
 			}
+			return nil, err
+		}
+		if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+			return nil, err
+		}
+		if !futuresAvailable {
 			return nil, nil
 		}
 		return []asset.Item{asset.Futures}, nil
 	case strings.HasPrefix(topic, "/margin"), strings.HasPrefix(topic, "/index"):
-		if err := e.CurrencyPairs.IsAssetEnabled(asset.Margin); err != nil {
-			if !errors.Is(err, asset.ErrNotSupported) {
-				return nil, err
+		marginAvailable, err := e.IsPairAvailable(cp, asset.Margin)
+		if err != nil {
+			if errors.Is(err, currency.ErrCurrencyNotFound) || errors.Is(err, asset.ErrNotSupported) {
+				return nil, nil
 			}
+			return nil, err
+		}
+		if err := e.CurrencyPairs.IsAssetEnabled(asset.Margin); err != nil {
+			return nil, err
+		}
+		if !marginAvailable {
 			return nil, nil
 		}
 		return []asset.Item{asset.Margin}, nil

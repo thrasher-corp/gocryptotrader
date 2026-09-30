@@ -276,21 +276,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	}
 	// Market Data Streams
 	if wsStream, ok := multiStreamData["stream"].(string); ok {
-		var pairs currency.Pairs
 		streamType := strings.Split(wsStream, "@")
 		if len(streamType) > 1 {
 			if data, ok := multiStreamData["data"]; ok {
 				rawData, err := json.Marshal(data)
-				if err != nil {
-					return err
-				}
-
-				pairs, err = e.GetEnabledPairs(asset.Spot)
-				if err != nil {
-					return err
-				}
-
-				format, err := e.GetPairFormat(asset.Spot, true)
 				if err != nil {
 					return err
 				}
@@ -310,7 +299,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 							err)
 					}
 
-					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
+					pair, err := e.MatchSymbolWithAvailablePairs(t.Symbol, asset.Spot, false)
 					if err != nil {
 						return err
 					}
@@ -334,7 +323,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 							err.Error())
 					}
 
-					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
+					pair, err := e.MatchSymbolWithAvailablePairs(t.Symbol, asset.Spot, false)
 					if err != nil {
 						return err
 					}
@@ -368,7 +357,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 							err)
 					}
 
-					pair, err := currency.NewPairFromFormattedPairs(ks.Symbol, pairs, format)
+					pair, err := e.MatchSymbolWithAvailablePairs(ks.Symbol, asset.Spot, false)
 					if err != nil {
 						return err
 					}
@@ -424,7 +413,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to bookOrder structure %s ", err, e.Name)
 					}
-					pair, err := currency.NewPairFromFormattedPairs(bo.S, pairs, format)
+					pair, err := e.MatchSymbolWithAvailablePairs(bo.S, asset.Spot, false)
 					if err != nil {
 						return err
 					}
@@ -450,20 +439,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				pairs, err := e.GetEnabledPairs(asset.Spot)
-				if err != nil {
-					return err
-				}
-
-				format, err := e.GetPairFormat(asset.Spot, true)
-				if err != nil {
-					return err
-				}
 				err = json.Unmarshal(rawData, &bt)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to bookOrder structure %s ", err, e.Name)
 				}
-				pair, err := currency.NewPairFromFormattedPairs(bt.S, pairs, format)
+				pair, err := e.MatchSymbolWithAvailablePairs(bt.S, asset.Spot, false)
 				if err != nil {
 					return err
 				}
@@ -477,19 +457,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
 func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
-	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return false, err
-	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return false, err
-	}
-
-	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
-		enabledPairs,
-		format)
+	currencyPair, err := e.MatchSymbolWithAvailablePairs(wsdp.Pair, asset.Spot, false)
 	if err != nil {
 		return false, err
 	}

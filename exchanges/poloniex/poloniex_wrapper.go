@@ -331,7 +331,16 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for _, tick := range ticks {
-			if err := ticker.ProcessTicker(e.spotTicker(tick)); err != nil {
+			pair, err := e.MatchSymbolWithAvailablePairs(tick.Symbol.String(), assetType, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
+			}
+			price := e.spotTicker(tick)
+			price.Pair = pair
+			if err := ticker.ProcessTicker(price); err != nil {
 				return err
 			}
 		}
@@ -341,7 +350,16 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for _, tick := range ticks {
-			if err := ticker.ProcessTicker(e.futuresTicker(tick)); err != nil {
+			pair, err := e.MatchSymbolWithAvailablePairs(tick.Symbol.String(), assetType, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
+			}
+			price := e.futuresTicker(tick)
+			price.Pair = pair
+			if err := ticker.ProcessTicker(price); err != nil {
 				return err
 			}
 		}
@@ -401,6 +419,14 @@ func (e *Exchange) futuresTicker(t *FuturesTickerDetails) *ticker.Price {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	isAvailable, err := e.IsPairAvailable(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	if !isAvailable {
+		return nil, fmt.Errorf("%s %w in the list of available pairs", pair, currency.ErrPairNotFound)
+	}
+
 	var tick *ticker.Price
 	switch assetType {
 	case asset.Spot:
@@ -452,7 +478,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	fPair, err := e.FormatExchangeCurrency(pair, assetType)
@@ -968,13 +994,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel) (*order.CancelAllResponse, error) {
 	if cancelOrd == nil {
-		return order.CancelAllResponse{}, common.ErrNilPointer
+		return nil, common.ErrNilPointer
 	}
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
-	}
+	var cancelAllOrdersResponse order.CancelAllResponse
 	switch cancelOrd.AssetType {
 	case asset.Spot:
 		var pairs currency.Pairs
@@ -982,7 +1006,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			var err error
 			cancelOrd.Pair, err = e.FormatExchangeCurrency(cancelOrd.Pair, cancelOrd.AssetType)
 			if err != nil {
-				return order.CancelAllResponse{}, err
+				return nil, err
 			}
 			pairs = append(pairs, cancelOrd.Pair)
 		}
@@ -994,49 +1018,61 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 			resp, err := e.CancelSmartOrders(ctx, pairs, nil, orderTypes)
 			for _, co := range resp {
-				cancelAllOrdersResponse.Status[co.OrderID] = co.State
+				cancelAllOrdersResponse.Add(co.OrderID, co.State)
 			}
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				if len(cancelAllOrdersResponse.Status) > 0 {
+					return &cancelAllOrdersResponse, err
+				}
+				return nil, err
 			}
 		case e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper():
 			wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
 			for _, wco := range wsResponse {
-				cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
+				cancelAllOrdersResponse.Add(strconv.FormatUint(wco.OrderID, 10), wco.State)
 				if wco.Code != 0 && wco.Code != 200 {
-					cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "Failed"
+					cancelAllOrdersResponse.Add(strconv.FormatUint(wco.OrderID, 10), "Failed")
 				}
 			}
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				if len(cancelAllOrdersResponse.Status) > 0 {
+					return &cancelAllOrdersResponse, err
+				}
+				return nil, err
 			}
 		default:
 			resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
 			for _, co := range resp {
-				cancelAllOrdersResponse.Status[co.OrderID] = co.State
+				cancelAllOrdersResponse.Add(co.OrderID, co.State)
 				if co.Code != 0 && co.Code != 200 {
-					cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
+					cancelAllOrdersResponse.Add(co.OrderID, "Failed")
 				}
 			}
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				if len(cancelAllOrdersResponse.Status) > 0 {
+					return &cancelAllOrdersResponse, err
+				}
+				return nil, err
 			}
 		}
 	case asset.Futures:
 		result, err := e.CancelFuturesOrders(ctx, cancelOrd.Pair, cancelOrd.Side.String())
 		for _, co := range result {
-			cancelAllOrdersResponse.Status[co.OrderID] = order.Cancelled.String()
+			cancelAllOrdersResponse.Add(co.OrderID, order.Cancelled.String())
 			if co.Code != 0 && co.Code != 200 {
-				cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
+				cancelAllOrdersResponse.Add(co.OrderID, "Failed")
 			}
 		}
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
+			}
+			return nil, err
 		}
 	default:
-		return order.CancelAllResponse{}, fmt.Errorf("%w: %q", asset.ErrNotSupported, cancelOrd.AssetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, cancelOrd.AssetType)
 	}
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1846,7 +1882,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

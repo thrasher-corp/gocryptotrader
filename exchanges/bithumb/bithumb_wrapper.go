@@ -212,17 +212,17 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	pairs, err := e.GetEnabledPairs(a)
+	pairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
 
+	stored := 0
 	for i := range pairs {
 		curr := pairs[i].Base.String()
 		t, ok := tickers[curr]
 		if !ok {
-			return fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
-				pairs[i], pairs, tickers)
+			continue
 		}
 		p, err := e.FormatExchangeCurrency(pairs[i], a)
 		if err != nil {
@@ -242,6 +242,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
+		stored++
+	}
+	if stored == 0 && len(pairs) > 0 {
+		return fmt.Errorf("%w: no available pair matched the returned ticker map", common.ErrInvalidResponse)
 	}
 	return nil
 }
@@ -259,7 +263,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -442,40 +446,33 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
+	var cancelAllOrdersResponse order.CancelAllResponse
+
+	if orderCancellation.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
 
-	var allOrders []OrderData
-	currs, err := e.GetEnabledPairs(asset.Spot)
+	allOrders, err := e.GetOrders(ctx, "", orderCancellation.Side.String(), 100, time.Time{}, orderCancellation.Pair.Base, currency.EMPTYCODE)
 	if err != nil {
-		return cancelAllOrdersResponse, err
+		return nil, err
 	}
 
-	for i := range currs {
-		orders, err := e.GetOrders(ctx, "", orderCancellation.Side.String(), 100, time.Time{}, currs[i].Base, currency.EMPTYCODE)
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
-		allOrders = append(allOrders, orders.Data...)
-	}
-
-	for i := range allOrders {
+	for i := range allOrders.Data {
 		_, err := e.CancelTrade(ctx,
 			orderCancellation.Side.String(),
-			allOrders[i].OrderID,
+			allOrders.Data[i].OrderID,
 			orderCancellation.Pair.Base.String())
 		if err != nil {
-			cancelAllOrdersResponse.Status[allOrders[i].OrderID] = err.Error()
+			cancelAllOrdersResponse.Add(allOrders.Data[i].OrderID, err.Error())
 		}
 	}
 
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -801,7 +798,7 @@ func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

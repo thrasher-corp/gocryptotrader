@@ -695,7 +695,7 @@ func (e *Exchange) wsProcessIndexCandles(ctx context.Context, respRaw []byte) er
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), false)
 		if err != nil {
 			return err
 		}
@@ -835,7 +835,7 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 		return fmt.Errorf("%s - no data returned", e.Name)
 	}
 
-	assets, err := e.getAssetsFromInstrumentID(resp.Argument.InstrumentID.String())
+	assets, err := e.getAssetsFromInstrumentIDWithCheck(resp.Argument.InstrumentID.String(), false)
 	if err != nil {
 		return err
 	}
@@ -919,7 +919,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), false)
 		if err != nil {
 			return err
 		}
@@ -1107,7 +1107,7 @@ func (e *Exchange) wsProcessTrades(ctx context.Context, data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), false)
 		if err != nil {
 			return err
 		}
@@ -1255,7 +1255,7 @@ func (e *Exchange) wsProcessCandles(ctx context.Context, respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), false)
 		if err != nil {
 			return err
 		}
@@ -1300,7 +1300,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 			}
 			assets = append(assets, assetType)
 		} else {
-			assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+			assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), false)
 			if err != nil {
 				return err
 			}

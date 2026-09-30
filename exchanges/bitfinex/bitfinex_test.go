@@ -1162,6 +1162,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewBTCUSD()})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should reject pair-scoped requests")
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
@@ -1172,6 +1174,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
+	orderCancellation.Pair = currency.EMPTYPAIR
 	resp, err := e.CancelAllOrders(t.Context(), orderCancellation)
 
 	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
@@ -1181,7 +1184,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if len(resp.Status) > 0 {
+	if err == nil && len(resp.Status) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
@@ -1319,6 +1322,16 @@ func TestWSAuth(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
+
+	t.Run("spot disabled", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "setup must succeed")
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "spot must disable")
+		subs, err := ex.generateSubscriptions()
+		require.NoError(t, err, "disabled spot must not break other subscriptions")
+		assert.NotEmpty(t, subs, "margin and funding subscriptions should remain")
+	})
 
 	expectedQualifiedChannel := func(t *testing.T, s *subscription.Subscription, a asset.Item, p currency.Pair) string {
 		t.Helper()
