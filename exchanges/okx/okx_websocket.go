@@ -613,27 +613,34 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 		if err != nil {
 			return err
 		}
-		oType, _, err := orderTypeFromString(resp.Data[x].OrderType)
+		oType, tif, err := orderTypeFromString(resp.Data[x].OrderType)
 		if err != nil {
 			return err
 		}
+		spreadAmt := resp.Data[x].Size.Float64()
+		spreadExec := resp.Data[x].AccFillSize.Float64()
+		spreadRemaining := float64(0)
+		if oStatus != order.Filled && spreadAmt > spreadExec {
+			spreadRemaining = spreadAmt - spreadExec
+		}
 		orderDetails[x] = order.Detail{
 			AssetType:            asset.Spread,
-			Amount:               resp.Data[x].Size.Float64(),
+			Amount:               spreadAmt,
 			AverageExecutedPrice: resp.Data[x].AveragePrice.Float64(),
 			ClientOrderID:        resp.Data[x].ClientOrderID,
 			Date:                 resp.Data[x].CreationTime.Time(),
 			Exchange:             e.Name,
-			ExecutedAmount:       resp.Data[x].AccFillSize.Float64(),
+			ExecutedAmount:       spreadExec,
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                resp.Data[x].Price.Float64(),
 			QuoteAmount:          resp.Data[x].Size.Float64() * resp.Data[x].Price.Float64(),
-			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].AccFillSize.Float64(),
+			RemainingAmount:      spreadRemaining,
 			Side:                 oSide,
 			Status:               oStatus,
 			Type:                 oType,
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
+			TimeInForce:          tif,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)

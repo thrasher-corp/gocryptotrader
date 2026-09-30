@@ -2058,7 +2058,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		oType, _, err := orderTypeFromString(resp.OrderType)
+		oType, tif, err := orderTypeFromString(resp.OrderType)
 		if err != nil {
 			return nil, err
 		}
@@ -2073,8 +2073,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if !pair.IsEmpty() && !cp.Equal(pair) {
 			return nil, fmt.Errorf("%w, unexpected instrument ID %v for order ID %s", order.ErrOrderNotFound, pair, orderID)
 		}
+		spreadAmt := resp.Size.Float64()
+		spreadExec := resp.AccFillSize.Float64()
+		spreadRemaining := float64(0)
+		if oStatus != order.Filled && spreadAmt > spreadExec {
+			spreadRemaining = spreadAmt - spreadExec
+		}
 		return &order.Detail{
-			Amount:               resp.Size.Float64(),
+			Amount:               spreadAmt,
 			Exchange:             e.Name,
 			OrderID:              resp.OrderID,
 			ClientOrderID:        resp.ClientOrderID,
@@ -2085,11 +2091,12 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
-			ExecutedAmount:       resp.AccFillSize.Float64(),
+			ExecutedAmount:       spreadExec,
 			Date:                 resp.CreationTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
-			RemainingAmount:      resp.Size.Float64() - resp.AccFillSize.Float64(),
+			RemainingAmount:      spreadRemaining,
+			TimeInForce:          tif,
 		}, nil
 	}
 	if pair.IsEmpty() {
@@ -2122,8 +2129,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 
+	amount, remaining, quoteAmount := orderAmounts(orderDetail, status)
 	return &order.Detail{
-		Amount:          orderDetail.Size.Float64(),
+		Amount:          amount,
 		Exchange:        e.Name,
 		OrderID:         orderDetail.OrderID,
 		ClientOrderID:   orderDetail.ClientOrderID,
@@ -2135,11 +2143,40 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Status:          status,
 		Price:           orderDetail.Price.Float64(),
 		ExecutedAmount:  orderDetail.AccumulatedFillSize.Float64(),
-		RemainingAmount: orderDetail.Size.Float64() - orderDetail.AccumulatedFillSize.Float64(),
+		RemainingAmount: remaining,
+		QuoteAmount:     quoteAmount,
 		Date:            orderDetail.CreationTime.Time(),
 		LastUpdated:     orderDetail.UpdateTime.Time(),
 		TimeInForce:     tif,
 	}, nil
+}
+
+// targetCurrencyQuote is the tgtCcy value that sizes an order in its quote
+// currency.
+const targetCurrencyQuote = "quote_ccy"
+
+// orderAmounts returns an order's size and unfilled size in the base currency,
+// and its size in the quote currency when OKX states it that way: tgtCcy
+// quote_ccy sizes a spot market order in the quote currency, while accFillSz
+// is always in the base currency. It sizes them as wsProcessOrders does.
+func orderAmounts(o *OrderDetail, status order.Status) (amount, remaining, quoteAmount float64) {
+	amount = o.Size.Float64()
+	executed := o.AccumulatedFillSize.Float64()
+	if o.QuantityType == targetCurrencyQuote {
+		quoteAmount = amount
+		switch avgPrice := o.AveragePrice.Float64(); {
+		case status == order.Filled:
+			amount = executed
+		case avgPrice > 0:
+			amount = quoteAmount / avgPrice
+		default:
+			amount = 0
+		}
+	}
+	if status != order.Filled && amount > executed {
+		remaining = amount - executed
+	}
+	return amount, remaining, quoteAmount
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -2229,7 +2266,14 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	var format currency.PairFormat
 	if req.AssetType == asset.Spread {
 		var spreads []SpreadOrder
-		spreads, err = e.GetActiveSpreadOrders(ctx, "", req.Type.String(), "", req.FromOrderID, "", 0)
+		var spreadOrderType string
+		if req.Type != order.UnknownType && req.Type != order.AnyType {
+			spreadOrderType, err = orderTypeFilter(req.Type, req.TimeInForce)
+			if err != nil {
+				return nil, err
+			}
+		}
+		spreads, err = e.GetActiveSpreadOrders(ctx, "", spreadOrderType, "", req.FromOrderID, "", 0)
 		if err != nil {
 			return nil, err
 		}
@@ -2241,6 +2285,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			var (
 				pair    currency.Pair
 				oType   order.Type
+				tif     order.TimeInForce
 				oSide   order.Side
 				oStatus order.Status
 			)
@@ -2249,7 +2294,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, _, err = orderTypeFromString(spreads[x].OrderType)
+			oType, tif, err = orderTypeFromString(spreads[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -2261,12 +2306,18 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
+			spreadAmt := spreads[x].Size.Float64()
+			spreadExec := spreads[x].AccFillSize.Float64()
+			spreadRemaining := float64(0)
+			if oStatus != order.Filled && spreadAmt > spreadExec {
+				spreadRemaining = spreadAmt - spreadExec
+			}
 			resp = append(resp, order.Detail{
-				Amount:          spreads[x].Size.Float64(),
+				Amount:          spreadAmt,
 				Pair:            pair,
 				Price:           spreads[x].Price.Float64(),
-				ExecutedAmount:  spreads[x].AccFillSize.Float64(),
-				RemainingAmount: spreads[x].Size.Float64() - spreads[x].AccFillSize.Float64(),
+				ExecutedAmount:  spreadExec,
+				RemainingAmount: spreadRemaining,
 				Exchange:        e.Name,
 				OrderID:         spreads[x].OrderID,
 				ClientOrderID:   spreads[x].ClientOrderID,
@@ -2276,6 +2327,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				AssetType:       req.AssetType,
 				Date:            spreads[x].CreationTime.Time(),
 				LastUpdated:     spreads[x].UpdateTime.Time(),
+				TimeInForce:     tif,
 			})
 		}
 		return req.Filter(e.Name, resp), nil
@@ -2335,12 +2387,14 @@ allOrders:
 			if err != nil {
 				return nil, err
 			}
+			amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
 			resp = append(resp, order.Detail{
-				Amount:          orderList[i].Size.Float64(),
+				Amount:          amount,
 				Pair:            pair,
 				Price:           orderList[i].Price.Float64(),
 				ExecutedAmount:  orderList[i].AccumulatedFillSize.Float64(),
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].AccumulatedFillSize.Float64(),
+				RemainingAmount: remaining,
+				QuoteAmount:     quoteAmount,
 				Fee:             orderList[i].TransactionFee.Float64(),
 				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
 				Exchange:        e.Name,
@@ -2396,7 +2450,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, _, err := orderTypeFromString(spreadOrders[x].OrderType)
+			oType, tif, err := orderTypeFromString(spreadOrders[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -2408,12 +2462,18 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
+			spreadAmt := spreadOrders[x].Size.Float64()
+			spreadExec := spreadOrders[x].AccFillSize.Float64()
+			spreadRemaining := float64(0)
+			if oStatus != order.Filled && spreadAmt > spreadExec {
+				spreadRemaining = spreadAmt - spreadExec
+			}
 			resp = append(resp, order.Detail{
 				Price:                spreadOrders[x].Price.Float64(),
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
-				Amount:               spreadOrders[x].Size.Float64(),
-				ExecutedAmount:       spreadOrders[x].AccFillSize.Float64(),
-				RemainingAmount:      spreadOrders[x].Size.Float64() - spreadOrders[x].AccFillSize.Float64(),
+				Amount:               spreadAmt,
+				ExecutedAmount:       spreadExec,
+				RemainingAmount:      spreadRemaining,
 				Exchange:             e.Name,
 				OrderID:              spreadOrders[x].OrderID,
 				ClientOrderID:        spreadOrders[x].ClientOrderID,
@@ -2424,6 +2484,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Date:                 spreadOrders[x].CreationTime.Time(),
 				LastUpdated:          spreadOrders[x].UpdateTime.Time(),
 				Pair:                 pair,
+				TimeInForce:          tif,
 			})
 		}
 		return req.Filter(e.Name, resp), nil
@@ -2471,22 +2532,14 @@ allOrders:
 				if err != nil {
 					return nil, err
 				}
-				orderAmount := orderList[i].Size
-				if orderList[i].QuantityType == "quote_ccy" {
-					// Size is quote amount.
-					orderAmount /= orderList[i].AveragePrice
-				}
-
-				remainingAmount := float64(0)
-				if orderStatus != order.Filled {
-					remainingAmount = orderAmount.Float64() - orderList[i].AccumulatedFillSize.Float64()
-				}
+				amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
 				resp = append(resp, order.Detail{
 					Price:                orderList[i].Price.Float64(),
 					AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
-					Amount:               orderAmount.Float64(),
+					Amount:               amount,
 					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
-					RemainingAmount:      remainingAmount,
+					RemainingAmount:      remaining,
+					QuoteAmount:          quoteAmount,
 					Fee:                  orderList[i].TransactionFee.Float64(),
 					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
 					Exchange:             e.Name,

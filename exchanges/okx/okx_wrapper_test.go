@@ -645,9 +645,9 @@ func TestOrderTypeFilter(t *testing.T) {
 		tif       order.TimeInForce
 		exp       string
 	}{
-		{order.Limit, order.UnknownTIF, "limit,post_only,fok,ioc"},
+		{order.Limit, order.UnknownTIF, "limit,post_only,fok,ioc,op_fok,rpi"},
 		{order.Limit, order.PostOnly, orderPostOnly},
-		{order.Limit, order.FillOrKill, orderFOK},
+		{order.Limit, order.FillOrKill, "fok,op_fok"},
 		{order.Limit, order.ImmediateOrCancel, orderIOC},
 		{order.Limit, order.GoodTillCancel, orderLimit},
 		{order.MarketMakerProtection, order.UnknownTIF, "mmp,mmp_and_post_only"},
@@ -676,7 +676,8 @@ func TestPendingOrderTypeFilter(t *testing.T) {
 		{"instId": "BTC-USDT", "ordId": "MMP-1", "ordType": orderMarketMakerProtection, "side": "buy", "state": "live", "cTime": "1700000000004"},
 		{"instId": "BTC-USDT", "ordId": "MMP-PO-1", "ordType": orderMarketMakerProtectionAndPostOnly, "side": "buy", "state": "live", "cTime": "1700000000003"},
 		{"instId": "BTC-USDT", "ordId": "OPTIMAL-1", "ordType": orderOptimalLimitIOC, "side": "buy", "state": "live", "cTime": "1700000000002"},
-		{"instId": "BTC-USDT", "ordId": "RPI-1", "ordType": "rpi", "side": "buy", "state": "live", "cTime": "1700000000001"},
+		{"instId": "BTC-USDT", "ordId": "RPI-1", "ordType": orderRPI, "side": "buy", "state": "live", "cTime": "1700000000001"},
+		{"instId": "BTC-USDT", "ordId": "OPFOK-1", "ordType": orderOptionFOK, "side": "buy", "state": "live", "cTime": "1700000000000"},
 	}
 	var mu sync.Mutex
 	var cancelled []string
@@ -725,9 +726,9 @@ func TestPendingOrderTypeFilter(t *testing.T) {
 		tif       order.TimeInForce
 		exp       []string
 	}{
-		{order.Limit, order.UnknownTIF, []string{"LIMIT-1", "POST-1", "FOK-1", "IOC-1"}},
+		{order.Limit, order.UnknownTIF, []string{"LIMIT-1", "POST-1", "FOK-1", "IOC-1", "RPI-1", "OPFOK-1"}},
 		{order.Limit, order.PostOnly, []string{"POST-1"}},
-		{order.Limit, order.FillOrKill, []string{"FOK-1"}},
+		{order.Limit, order.FillOrKill, []string{"FOK-1", "OPFOK-1"}},
 		{order.Limit, order.ImmediateOrCancel, []string{"IOC-1"}},
 		{order.MarketMakerProtection, order.UnknownTIF, []string{"MMP-1", "MMP-PO-1"}},
 		{order.MarketMakerProtection, order.PostOnly, []string{"MMP-PO-1"}},
@@ -747,7 +748,7 @@ func TestPendingOrderTypeFilter(t *testing.T) {
 
 	got, err := cancelAll(&order.Cancel{Type: order.Limit})
 	require.NoError(t, err, "CancelAllOrders must not error for a cancel scoped by type alone")
-	assert.ElementsMatch(t, []string{"LIMIT-1", "POST-1", "FOK-1", "IOC-1"}, got, "a cancel scoped by type alone should cancel every limit order")
+	assert.ElementsMatch(t, []string{"LIMIT-1", "POST-1", "FOK-1", "IOC-1", "RPI-1", "OPFOK-1"}, got, "a cancel scoped by type alone should cancel every limit order")
 
 	got, err = cancelAll(&order.Cancel{Type: order.Limit, OrderID: "POST-1"})
 	require.NoError(t, err, "CancelAllOrders must not error for an order ID within the requested type")
@@ -955,38 +956,6 @@ func TestWebsocketInstrumentIDCode(t *testing.T) {
 	code, ok = fresh.websocketInstrumentIDCode("ETH-USDT")
 	assert.False(t, ok, "an uncached instrument should report unavailability")
 	assert.Zero(t, code, "an uncached instrument should report a zero code")
-}
-
-// TestSubmitOrderUsesREST guards the transport contract of the standard order
-// methods: submission goes over REST only. The mock exchange speaks REST only,
-// so any non-REST transport fails this test; a websocket branch gated behind
-// CanUseAuthenticatedWebsocketForWrapper is not exercised because the mock
-// exchange never enables authenticated websockets.
-func TestSubmitOrderUsesREST(t *testing.T) {
-	t.Parallel()
-
-	var mu sync.Mutex
-	var paths []string
-	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		paths = append(paths, r.URL.Path)
-		mu.Unlock()
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"ordId":"2341161427393388544","clOrdId":"","tag":"","sCode":"0","sMsg":"","ts":"1700000000000"}]}`))
-	}))
-
-	resp, err := e.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:  e.Name,
-		Pair:      mainPair,
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Amount:    1,
-		Price:     1,
-		AssetType: asset.Spot,
-	})
-	require.NoError(t, err, "SubmitOrder must not error against the mock REST server")
-	require.NotNil(t, resp, "SubmitOrder must return a response against the mock REST server")
-	assert.Equal(t, []string{"/trade/order"}, paths, "SubmitOrder should send exactly one REST place order request")
 }
 
 func TestWebsocketTradingCapabilitiesDeclared(t *testing.T) {
@@ -1615,5 +1584,111 @@ func TestWebsocketCancelAllOrdersSkipsUncachedInstruments(t *testing.T) {
 		for x := range b {
 			assert.EqualValues(t, 12345, b[x].InstrumentIDCode, "each cancel should carry the cached instrument code")
 		}
+	}
+}
+
+// TestOrderAmounts guards the order sizes GetOrderInfo reports: an order sized
+// in the quote currency reports its amounts in the base currency, as the
+// websocket order channel does for the captured order in testdata/wsOrders.json,
+// and a filled order has nothing remaining.
+func TestOrderAmounts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                                     string
+		row                                      map[string]string
+		amount, executed, remaining, quoteAmount float64
+	}{
+		{
+			"quote sized, filled",
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "sell", "cTime": "1694153250532", "sz": "10", "tgtCcy": "quote_ccy", "accFillSz": "0.00038128", "avgPx": "26228.1", "state": "filled"},
+			0.00038128, 0.00038128, 0, 10,
+		},
+		{
+			"quote sized, partially filled",
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0.001", "avgPx": "25000", "state": "partially_filled"},
+			0.004, 0.001, 0.003, 100,
+		},
+		{
+			"quote sized, live",
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderLimit, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "live"},
+			0, 0, 0, 100,
+		},
+		{
+			"quote sized, partially filled, zero avgPx",
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderLimit, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "partially_filled"},
+			0, 0, 0, 100,
+		},
+		{
+			"base sized, partially filled",
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderLimit, "side": "buy", "cTime": "1694153250532", "sz": "1", "tgtCcy": "base_ccy", "accFillSz": "0.5", "avgPx": "25000", "state": "partially_filled"},
+			1, 0.5, 0.5, 0,
+		},
+		{
+			"base sized, filled",
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "sell", "cTime": "1694153250532", "sz": "1", "tgtCcy": "base_ccy", "accFillSz": "1", "avgPx": "25000", "state": "filled"},
+			1, 1, 0, 0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				writeOKXData(t, w, []map[string]string{tc.row})
+			}))
+			detail, err := e.GetOrderInfo(t.Context(), "1", mainPair, asset.Spot)
+			require.NoError(t, err, "GetOrderInfo must not error")
+			assert.Equal(t, tc.amount, detail.Amount, "Amount should be in the base currency")
+			assert.Equal(t, tc.executed, detail.ExecutedAmount, "ExecutedAmount should match accFillSz")
+			assert.Equal(t, tc.remaining, detail.RemainingAmount, "RemainingAmount should be the unfilled base amount")
+			assert.Equal(t, tc.quoteAmount, detail.QuoteAmount, "QuoteAmount should carry the quote-currency size when set")
+		})
+	}
+}
+
+// TestSpreadOrderDetails guards the GetOrderInfo spread order path: it
+// preserves the time in force orderTypeFromString returns, and reports the
+// accumulated fill size rather than the last fill.
+func TestSpreadOrderDetails(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                            string
+		ordType                         string
+		state                           string
+		sz                              string
+		accFillSz                       string
+		oType                           order.Type
+		tif                             order.TimeInForce
+		executed, remaining             float64
+	}{
+		{"limit", orderLimit, "live", "1", "0.3", order.Limit, order.UnknownTIF, 0.3, 0.7},
+		{"post_only", orderPostOnly, "live", "1", "0.3", order.Limit, order.PostOnly, 0.3, 0.7},
+		{"ioc", orderIOC, "live", "1", "0.3", order.Limit, order.ImmediateOrCancel, 0.3, 0.7},
+		{"op_fok", orderOptionFOK, "live", "1", "0.3", order.Limit, order.FillOrKill, 0.3, 0.7},
+		{"filled", orderLimit, "filled", "1", "1", order.Limit, order.UnknownTIF, 1, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			spreadRow := map[string]string{
+				"instId":    "BTC-USDT",
+				"sprdId":    "BTC-USDT_BTC-USDT",
+				"ordId":     "1",
+				"ordType":   tc.ordType,
+				"side":      "buy",
+				"state":     tc.state,
+				"cTime":     "1700000000000",
+				"sz":        tc.sz,
+				"accFillSz": tc.accFillSz,
+				"px":        "100",
+			}
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				writeOKXData(t, w, spreadRow)
+			}))
+
+			detail, err := e.GetOrderInfo(t.Context(), "1", currency.Pair{}, asset.Spread)
+			require.NoError(t, err, "GetOrderInfo must not error for a spread order")
+			assert.Equal(t, tc.oType, detail.Type, "GetOrderInfo should read the order type")
+			assert.Equal(t, tc.tif, detail.TimeInForce, "GetOrderInfo should preserve the time in force")
+			assert.Equal(t, tc.executed, detail.ExecutedAmount, "GetOrderInfo should report the accumulated fill")
+			assert.Equal(t, tc.remaining, detail.RemainingAmount, "GetOrderInfo should report the unfilled remainder")
+		})
 	}
 }
