@@ -19,7 +19,7 @@ install_go_tool github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gatewa
 install_go_tool github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 
 # Linting
-install_go_tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+install_go_tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@"$(cat "$(dirname "$0")/../.golangci-lint-version")"
 
 # Formatting
 install_go_tool mvdan.cc/gofumpt@latest

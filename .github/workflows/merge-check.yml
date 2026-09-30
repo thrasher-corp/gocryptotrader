@@ -1,0 +1,96 @@
+name: merge-check
+on:
+  push:
+    branches-ignore:
+      - 'gh-readonly-queue/**'
+      - 'dependabot/**'
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  # Master pushes each get their own group, because a queued run is cancelled when
+  # a newer one joins its group whatever cancel-in-progress says, which would leave
+  # master commits without a verdict. Every other run, a push to a fork's branch
+  # included, supersedes the older runs for its ref.
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.run_id || github.ref }}
+  cancel-in-progress: true
+jobs:
+  merge-check:
+    name: merge-check
+    # It gates merges into thrasher-corp, so forks skip it unless it is run by
+    # hand; the linters and tests still run there.
+    if: github.repository == 'thrasher-corp/gocryptotrader' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+
+    # Keeps this job's build cache separate; jobs sharing a cache key race to
+    # store the first one that finishes, which suits none of the others.
+    - name: Record Go cache key
+      run: echo "merge-check" > .go-cache-key
+
+    - name: Setup Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+        cache-dependency-path: |
+          go.sum
+          .go-cache-key
+
+    # go vet type-checks _test.go files, which go build skips, in each build
+    # configuration below, including those the linter does not cover. It runs no
+    # tests, so it is deterministic enough to be a required check. Configurations
+    # run three at a time, and each one's output is printed afterwards in its own
+    # log group.
+    - name: Vet every build configuration
+      shell: bash
+      run: |
+        configs=(
+          "default linux amd64 -"
+          "udecimal linux amd64 udecimal_on"
+          "sonic linux amd64 sonic_on"
+          "sonic+udecimal linux amd64 sonic_on,udecimal_on"
+          "mock_test_off linux amd64 mock_test_off"
+          "linux-386 linux 386 -"
+          "linux-arm64 linux arm64 -"
+          "windows windows amd64 -"
+          "darwin darwin arm64 -"
+        )
+        logs="$RUNNER_TEMP/vet"
+        mkdir -p "$logs"
+
+        vet() {
+          local name=$1 goos=$2 goarch=$3 tags=${4#-} status=ok
+          GOOS="$goos" GOARCH="$goarch" go vet -tags="$tags" ./... >"$logs/$name.log" 2>&1 || status=failed
+          echo "$status" >"$logs/$name.status"
+        }
+
+        for config in "${configs[@]}"; do
+          read -r name goos goarch tags <<<"$config"
+          vet "$name" "$goos" "$goarch" "$tags" &
+          while [ "$(jobs -rp | wc -l)" -ge 3 ]; do
+            wait -n
+          done
+        done
+        wait
+
+        failed=()
+        for config in "${configs[@]}"; do
+          read -r name _ <<<"$config"
+          status=$(cat "$logs/$name.status")
+          echo "::group::vet ($name): $status"
+          cat "$logs/$name.log"
+          echo "::endgroup::"
+          if [ "$status" != ok ]; then
+            failed+=("$name")
+          fi
+        done
+        if [ "${#failed[@]}" -gt 0 ]; then
+          echo "::error::go vet failed for: ${failed[*]}"
+          exit 1
+        fi

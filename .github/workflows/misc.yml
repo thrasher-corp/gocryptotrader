@@ -1,23 +1,63 @@
 name: misc
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore:
+      - 'gh-readonly-queue/**'
+      - 'dependabot/**'
+  pull_request:
+  merge_group:
 permissions:
   contents: read
-env:
-  GO_VERSION: 1.27.x
 jobs:
   lint:
     name: miscellaneous checks
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
 
     - name: Setup Go
       uses: actions/setup-go@v7
       with:
-        go-version: ${{ env.GO_VERSION }}
+        go-version-file: go.mod
 
     - name: Run miscellaneous checks
       run: ./scripts/misc_checks.sh
 
     - name: Lint Markdown
       run: make markdownlint
+
+  workflow-lint:
+    name: workflow lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+
+    - name: Record Go cache key
+      run: echo "workflow-lint" > .go-cache-key
+
+    - name: Setup Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+        cache-dependency-path: |
+          go.sum
+          .go-cache-key
+
+    # actionlint runs shellcheck over every run block, so fail here rather than
+    # quietly checking less if the runner image stops shipping shellcheck.
+    - name: Check shellcheck is installed
+      run: shellcheck --version
+
+    - name: Lint workflows
+      run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
+    - name: Lint shell scripts
+      run: shellcheck --severity=warning scripts/*.sh
+
+    # Offline keeps the audit deterministic; it needs no token that way.
+    - name: Audit workflows
+      run: pipx run zizmor==1.30.1 --offline --format plain .github/workflows
