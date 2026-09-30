@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -761,6 +760,8 @@ func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currenc
 
 // GetEnabledExchanges returns a list of enabled exchanges
 func (c *Config) GetEnabledExchanges() []string {
+	m.Lock()
+	defer m.Unlock()
 	var enabledExchs []string
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Enabled {
@@ -772,6 +773,8 @@ func (c *Config) GetEnabledExchanges() []string {
 
 // GetDisabledExchanges returns a list of disabled exchanges
 func (c *Config) GetDisabledExchanges() []string {
+	m.Lock()
+	defer m.Unlock()
 	var disabledExchs []string
 	for i := range c.Exchanges {
 		if !c.Exchanges[i].Enabled {
@@ -783,6 +786,8 @@ func (c *Config) GetDisabledExchanges() []string {
 
 // CountEnabledExchanges returns the number of exchanges that are enabled.
 func (c *Config) CountEnabledExchanges() int {
+	m.Lock()
+	defer m.Unlock()
 	counter := 0
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Enabled {
@@ -823,6 +828,15 @@ func (c *Exchange) SetName(name string) {
 	m.Lock()
 	defer m.Unlock()
 	c.Name = name
+}
+
+// SetEnabled sets the exchange config's enabled state. It holds the lock
+// GetEnabledExchanges, GetDisabledExchanges and CountEnabledExchanges hold, so
+// an exchange can be enabled or disabled while those readers run concurrently
+func (c *Exchange) SetEnabled(enabled bool) {
+	m.Lock()
+	defer m.Unlock()
+	c.Enabled = enabled
 }
 
 // UpdateExchangeConfig updates exchange configurations
@@ -1184,35 +1198,6 @@ func (c *Config) CheckLoggerConfig() error {
 		return err
 	}
 	return log.SetLogPath(logPath)
-}
-
-func (c *Config) checkGCTScriptConfig() error {
-	m.Lock()
-	defer m.Unlock()
-
-	if c.GCTScript.ScriptTimeout <= 0 {
-		c.GCTScript.ScriptTimeout = gctscript.DefaultTimeoutValue
-	}
-
-	if c.GCTScript.MaxVirtualMachines == 0 {
-		c.GCTScript.MaxVirtualMachines = gctscript.DefaultMaxVirtualMachines
-	}
-
-	scriptPath := c.GetDataPath("scripts")
-	err := common.CreateDir(scriptPath)
-	if err != nil {
-		return err
-	}
-
-	outputPath := filepath.Join(scriptPath, "output")
-	err = common.CreateDir(outputPath)
-	if err != nil {
-		return err
-	}
-
-	gctscript.ScriptPath = scriptPath
-
-	return nil
 }
 
 func (c *Config) checkDatabaseConfig() error {
@@ -1634,10 +1619,6 @@ func (c *Config) CheckConfig() error {
 
 	if err := c.CheckExchangeConfigValues(); err != nil {
 		return fmt.Errorf("%w: %w", errCheckingConfigValues, err)
-	}
-
-	if err := c.checkGCTScriptConfig(); err != nil {
-		log.Errorf(log.ConfigMgr, "Failed to configure gctscript, feature has been disabled: %s\n", err)
 	}
 
 	c.CheckConnectionMonitorConfig()

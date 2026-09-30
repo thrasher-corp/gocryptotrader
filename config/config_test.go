@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1186,6 +1185,28 @@ func TestExchangeSetName(t *testing.T) {
 	}
 }
 
+func TestExchangeSetEnabled(t *testing.T) {
+	t.Parallel()
+	cfg := &Config{}
+	for i := range 64 {
+		cfg.Exchanges = append(cfg.Exchanges, Exchange{Name: "exchange" + strconv.Itoa(i)})
+	}
+	var wg sync.WaitGroup
+	for i := range cfg.Exchanges {
+		wg.Go(func() { cfg.Exchanges[i].SetEnabled(true) })
+		wg.Go(func() {
+			_ = cfg.CountEnabledExchanges()
+			_ = cfg.GetEnabledExchanges()
+			_ = cfg.GetDisabledExchanges()
+		})
+	}
+	wg.Wait()
+	assert.Equal(t, len(cfg.Exchanges), cfg.CountEnabledExchanges(), "SetEnabled should enable every exchange config")
+	assert.Empty(t, cfg.GetDisabledExchanges(), "GetDisabledExchanges should list no exchange configs once all are enabled")
+	cfg.Exchanges[0].SetEnabled(false)
+	assert.Equal(t, []string{"exchange0"}, cfg.GetDisabledExchanges(), "SetEnabled should disable the exchange config")
+}
+
 func TestGetForexProviders(t *testing.T) {
 	t.Parallel()
 	fxr := "Fixer"
@@ -1620,6 +1641,21 @@ func TestReadVersion15OrderbookBufferConfigFromFile(t *testing.T) {
 	require.NoError(t, migrated.Save(func() (io.Writer, error) { return &output, nil }), "Save must serialise the migrated config")
 	assert.NotContains(t, output.String(), `"websocketBufferEnabled"`, "Save should omit removed buffer enabled settings")
 	assert.NotContains(t, output.String(), `"websocketBufferLimit"`, "Save should omit removed buffer limit settings")
+}
+
+func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "config.json")
+	data := []byte(`{"name":"test","version":15,"encryptConfig":-1,"logging":{"subloggers":[{"name":"GCTSCRIPT","output":"console"}]}}`)
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 15 config")
+
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
+	assert.Equal(t, 16, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
+	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
+	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
+	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")
 }
 
 func TestReadConfigFromReader(t *testing.T) {
@@ -2096,23 +2132,6 @@ func TestDisableNTPCheck(t *testing.T) {
 	_, err = c.SetNTPCheck(strings.NewReader(" "))
 	if err.Error() != "EOF" {
 		t.Errorf("failed expected EOF got: %v", err)
-	}
-}
-
-func TestCheckGCTScriptConfig(t *testing.T) {
-	t.Parallel()
-
-	var c Config
-	if err := c.checkGCTScriptConfig(); err != nil {
-		t.Error(err)
-	}
-
-	if c.GCTScript.ScriptTimeout != gctscript.DefaultTimeoutValue {
-		t.Fatal("unexpected value return")
-	}
-
-	if c.GCTScript.MaxVirtualMachines != gctscript.DefaultMaxVirtualMachines {
-		t.Fatal("unexpected value return")
 	}
 }
 

@@ -181,7 +181,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
 			Open:         wsTicker.Params.Open,
 			BaseVolume:   wsTicker.Params.Volume,
@@ -194,7 +194,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			LastUpdated:  wsTicker.Params.Timestamp,
 			AssetType:    asset.Spot,
 			Pair:         p,
-		})
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, tickPrice)
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook
 		err := json.Unmarshal(respRaw, &obSnapshot)

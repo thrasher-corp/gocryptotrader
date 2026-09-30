@@ -1,4 +1,4 @@
-// Package v16 removes obsolete websocket orderbook buffer settings.
+// Package v16 removes obsolete websocket orderbook buffer settings and GCTScript configuration.
 package v16
 
 import (
@@ -8,8 +8,21 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// Version implements ExchangeVersion for the removal of orderbook buffering.
+var legacyGCTScriptConfig = []byte(`{"enabled":false,"timeout":30000000000,"max_virtual_machines":10,"allow_imports":false,"auto_load":null,"verbose":false}`)
+
+// Version implements ConfigVersion and ExchangeVersion for the v16 migrations.
 type Version struct{}
+
+// UpgradeConfig removes the GCTScript configuration. Obsolete sublogger entries
+// are retained because rewriting duplicate subloggers keys can alter their merged decoding.
+func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return jsonparser.Delete(config, "gctscript"), nil
+}
+
+// DowngradeConfig restores the legacy GCTScript defaults expected by older releases.
+func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return jsonparser.Set(config, legacyGCTScriptConfig, "gctscript")
+}
 
 // Exchanges applies this migration to every exchange.
 func (*Version) Exchanges() []string { return []string{"*"} }
