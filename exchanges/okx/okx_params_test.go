@@ -183,11 +183,11 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Pending algo order list sends algoClOrdId",
 			call: func() error {
-				_, err := e.GetAlgoOrderList(t.Context(), "conditional", "", "", "", "", time.Time{}, time.Time{}, 1)
+				_, err := e.GetAlgoOrderList(t.Context(), "conditional", "", "test-algo-client-id", "", "", time.Time{}, time.Time{}, 1)
 				return err
 			},
 			path:   "/trade/orders-algo-pending",
-			params: map[string]string{"ordType": "conditional"},
+			params: map[string]string{"ordType": "conditional", "algoClOrdId": "test-algo-client-id"},
 			absent: []string{"clOrdId"},
 		},
 		{
