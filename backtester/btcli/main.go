@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -36,6 +37,24 @@ var (
 
 const defaultTimeout = time.Second * 30
 
+var errPositionalArgument = errors.New("unexpected positional argument; use named flags")
+
+func rejectPositionalArguments(commands []*cli.Command) {
+	for _, command := range commands {
+		before := command.Before
+		command.Before = func(c *cli.Context) error {
+			if c.NArg() > 0 && c.Command.Command(c.Args().First()) == nil {
+				return fmt.Errorf("%w: %q", errPositionalArgument, c.Args().First())
+			}
+			if before != nil {
+				return before(c)
+			}
+			return nil
+		}
+		rejectPositionalArguments(command.Subcommands)
+	}
+}
+
 func jsonOutput(in any) {
 	j, err := json.MarshalIndent(in, "", " ")
 	if err != nil {
@@ -65,6 +84,13 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 }
 
 func main() {
+	flagString := cli.FlagStringer
+	cli.FlagStringer = func(f cli.Flag) string {
+		if required, ok := f.(cli.RequiredFlag); ok && required.IsRequired() {
+			return flagString(f) + " (required)"
+		}
+		return flagString(f)
+	}
 	version := core.Version(true)
 	version = strings.Replace(version, "GoCryptoTrader", "GoCryptoTrader Backtester", 1)
 	app := cli.NewApp()
@@ -121,6 +147,8 @@ func main() {
 		clearTaskCommand,
 		clearAllTasksCommand,
 	}
+
+	rejectPositionalArguments(app.Commands)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
