@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 15,
+ "version": 16,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -105,14 +105,6 @@
   ],
   "allowedDifference": 50000000,
   "allowedNegativeDifference": 50000000
- },
- "gctscript": {
-  "enabled": true,
-  "timeout": 60000000000,
-  "max_virtual_machines": 10,
-  "allow_imports": true,
-  "auto_load": [],
-  "verbose": false
  },
  "currencyConfig": {
   "forexProviders": [

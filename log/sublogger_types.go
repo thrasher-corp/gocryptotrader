@@ -11,7 +11,6 @@ var (
 	ConfigMgr        *SubLogger
 	DatabaseMgr      *SubLogger
 	DataHistory      *SubLogger
-	GCTScriptMgr     *SubLogger
 	OrderMgr         *SubLogger
 	PortfolioMgr     *SubLogger
 	SyncMgr          *SubLogger
