@@ -469,7 +469,7 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -478,7 +478,11 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 		Ask:          quoteTicker.BestAskPrice,
 		BidSize:      quoteTicker.BestBidAmount,
 		AskSize:      quoteTicker.BestAskAmount,
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 func (e *Exchange) processTrades(ctx context.Context, respRaw []byte, channels []string) error {
@@ -573,6 +577,9 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 	e.incrementalTickers[channels[1]] = state
 	tick := state.tickerPrice(e.Name, cp, a)
 	e.incrementalTickersMtx.Unlock()
+	if err := ticker.ProcessTicker(tick); err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
@@ -628,7 +635,7 @@ func (e *Exchange) processTicker(ctx context.Context, respRaw []byte, channels [
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickerPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -646,7 +653,11 @@ func (e *Exchange) processTicker(ctx context.Context, respRaw []byte, channels [
 		MarkPrice:    tickerPriceResponse.MarkPrice,
 		IndexPrice:   tickerPriceResponse.IndexPrice,
 		OpenInterest: tickerPriceResponse.OpenInterest,
-	})
+	}
+	if err := ticker.ProcessTicker(tickerPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickerPrice)
 }
 
 func (e *Exchange) processData(ctx context.Context, respRaw []byte, result any) error {
