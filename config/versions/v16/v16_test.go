@@ -9,65 +9,68 @@ import (
 	v16 "github.com/thrasher-corp/gocryptotrader/config/versions/v16"
 )
 
-func TestUpgradeExchange(t *testing.T) {
+func TestUpgradeConfig(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
+
+	for _, tc := range []struct {
 		name     string
 		input    string
 		expected string
+		exact    bool
 	}{
+		{name: "missing logging", input: `{"gctscript":{"enabled":true},"keep":true}`, expected: `{"keep":true}`},
+		{name: "non-array subloggers", input: `{"logging":{"subloggers":null},"keep":true}`, expected: `{"logging":{"subloggers":null},"keep":true}`},
 		{
-			name:     "Deribit adds account subscription",
-			input:    `{"name":"Deribit","features":{"subscriptions":[{"enabled":true,"channel":"ticker"}]}}`,
-			expected: `{"name":"Deribit","features":{"subscriptions":[{"enabled":true,"channel":"ticker"},{"enabled":true,"channel":"myAccount","authenticated":true}]}}`,
+			name:     "subloggers preserved",
+			input:    `{"gctscript":{"enabled":true},"logging":{"subloggers":[{"name":"GCTSCRIPT","level":"DEBUG","output":"stdout"},{"name":"DATABASE","level":"INFO","output":"file"},{"name":"gctscript","level":"ERROR","output":"stderr"}]},"keep":true}`,
+			expected: `{"logging":{"subloggers":[{"name":"GCTSCRIPT","level":"DEBUG","output":"stdout"},{"name":"DATABASE","level":"INFO","output":"file"},{"name":"gctscript","level":"ERROR","output":"stderr"}]},"keep":true}`,
 		},
 		{
-			name:     "OKX adds missing subscriptions",
-			input:    `{"name":"Okx","features":{"subscriptions":[{"enabled":true,"channel":"tickers"}]}}`,
-			expected: `{"name":"Okx","features":{"subscriptions":[{"enabled":true,"channel":"tickers"},{"enabled":true,"channel":"opt-summary","asset":"options"},{"enabled":true,"channel":"balance_and_position","authenticated":true},{"enabled":true,"channel":"account-greeks","authenticated":true}]}}`,
+			name:     "duplicate subloggers preserved",
+			input:    `{"gctscript":{},"logging":{"subloggers":[{"name":"GCTSCRIPT","level":"ERROR","output":"console"},{"name":"DATABASE","level":"ERROR","output":"console"}],"subloggers":[{"name":"DATABASE"}]}}`,
+			expected: `{"logging":{"subloggers":[{"name":"GCTSCRIPT","level":"ERROR","output":"console"},{"name":"DATABASE","level":"ERROR","output":"console"}],"subloggers":[{"name":"DATABASE"}]}}`,
+			exact:    true,
 		},
-		{
-			name:     "custom disabled subscription is preserved",
-			input:    `{"name":"Okx","features":{"subscriptions":[{"enabled":false,"channel":"opt-summary","asset":"options","custom":true}]}}`,
-			expected: `{"name":"Okx","features":{"subscriptions":[{"enabled":false,"channel":"opt-summary","asset":"options","custom":true},{"enabled":true,"channel":"balance_and_position","authenticated":true},{"enabled":true,"channel":"account-greeks","authenticated":true}]}}`,
-		},
-		{
-			name:     "missing subscription list uses runtime defaults",
-			input:    `{"name":"Deribit","enabled":true}`,
-			expected: `{"name":"Deribit","enabled":true}`,
-		},
-	}
-	version := new(v16.Version)
-	for _, tc := range tests {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := version.UpgradeExchange(t.Context(), []byte(tc.input))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, tc.expected, string(got), "UpgradeExchange should add only missing defaults")
-			again, err := version.UpgradeExchange(t.Context(), got)
-			require.NoError(t, err, "repeated UpgradeExchange must not error")
-			assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
+			out, err := new(v16.Version).UpgradeConfig(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "UpgradeConfig must not error")
+			if tc.exact {
+				assert.Equal(t, tc.expected, string(out), "UpgradeConfig should preserve duplicate sublogger arrays exactly")
+			} else {
+				assert.JSONEq(t, tc.expected, string(out), "UpgradeConfig should remove only the root GCTScript configuration")
+			}
 		})
 	}
 }
 
-func TestDowngradeExchange(t *testing.T) {
+func TestDowngradeConfig(t *testing.T) {
 	t.Parallel()
-	input := []byte(`{"name":"Okx","features":{"subscriptions":[{"channel":"opt-summary"}]}}`)
-	got, err := new(v16.Version).DowngradeExchange(t.Context(), input)
-	require.NoError(t, err, "DowngradeExchange must not error")
-	assert.Equal(t, input, got, "DowngradeExchange should preserve subscriptions")
+
+	out, err := new(v16.Version).DowngradeConfig(t.Context(), []byte(`{"keep":true}`))
+	require.NoError(t, err, "DowngradeConfig must not error")
+	assert.JSONEq(t, `{"keep":true,"gctscript":{"enabled":false,"timeout":30000000000,"max_virtual_machines":10,"allow_imports":false,"auto_load":null,"verbose":false}}`, string(out), "DowngradeConfig should restore the legacy GCTScript defaults")
 }
 
-func TestExchanges(t *testing.T) {
+func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-	assert.ElementsMatch(t, []string{"Deribit", "Okx"}, new(v16.Version).Exchanges(), "Exchanges should include affected exchanges")
-}
 
-func TestRegisteredUpgrade(t *testing.T) {
-	t.Parallel()
-	input := []byte(`{"version":15,"exchanges":[{"name":"Deribit","features":{"subscriptions":[]}},{"name":"Okx","features":{"subscriptions":[{"enabled":false,"channel":"opt-summary"}]}},{"name":"Kraken","enabled":true}]}`)
-	got, err := versions.Manager.Deploy(t.Context(), input, versions.UseLatestVersion)
+	input := []byte(`{"version":15,"gctscript":{"enabled":true},"logging":{"subloggers":[{"name":"GCTSCRIPT"},{"name":"DATABASE"}]}}`)
+	out, err := versions.Manager.Deploy(t.Context(), input, 16)
 	require.NoError(t, err, "Deploy must apply the registered v16 upgrade")
-	assert.JSONEq(t, `{"version":16,"exchanges":[{"name":"Deribit","features":{"subscriptions":[{"enabled":true,"channel":"myAccount","authenticated":true}]}},{"name":"Okx","features":{"subscriptions":[{"enabled":false,"channel":"opt-summary"},{"enabled":true,"channel":"balance_and_position","authenticated":true},{"enabled":true,"channel":"account-greeks","authenticated":true}]}},{"name":"Kraken","enabled":true}]}`, string(got), "Deploy should add missing subscriptions while preserving explicit settings")
+	assert.JSONEq(t, `{"version":16,"logging":{"subloggers":[{"name":"GCTSCRIPT"},{"name":"DATABASE"}]}}`, string(out), "Deploy should remove the root GCTScript configuration and set version 16")
+
+	out, err = versions.Manager.Deploy(t.Context(), out, 15)
+	require.NoError(t, err, "Deploy must apply the registered v16 downgrade")
+	assert.JSONEq(t, `{"version":15,"logging":{"subloggers":[{"name":"GCTSCRIPT"},{"name":"DATABASE"}]},"gctscript":{"enabled":false,"timeout":30000000000,"max_virtual_machines":10,"allow_imports":false,"auto_load":null,"verbose":false}}`, string(out), "Deploy should restore compatible GCTScript defaults and set version 15")
+}
+
+func TestRegisteredMultiHopUpgrade(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`{"version":12,"gctscript":{"enabled":true},"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"hobbyist"}},"exchanges":[{"name":"Bitmex"},{"name":"Kraken"}],"logging":{"subloggers":[{"name":"GCTSCRIPT"},{"name":"DATABASE"}]}}`)
+	out, err := versions.Manager.Deploy(t.Context(), input, 16)
+	require.NoError(t, err, "Deploy must apply registered migrations from version 12 through version 16")
+	assert.JSONEq(t, `{"version":16,"currencyConfig":{"cryptocurrencyProvider":{"accountPlan":"builder"}},"exchanges":[{"name":"Kraken"}],"logging":{"subloggers":[{"name":"GCTSCRIPT"},{"name":"DATABASE"}]}}`, string(out), "Deploy should preserve earlier migrations while removing the root GCTScript configuration")
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -106,7 +105,6 @@ type Config struct {
 	CurrencyStateManager CurrencyStateManager      `json:"currencyStateManager"`
 	Profiler             Profiler                  `json:"profiler"`
 	NTPClient            NTPClientConfig           `json:"ntpclient"`
-	GCTScript            gctscript.Config          `json:"gctscript"`
 	Currency             currency.Config           `json:"currencyConfig"`
 	Communications       base.CommunicationsConfig `json:"communications"`
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
