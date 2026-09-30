@@ -1579,7 +1579,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 16, expected.Version, "Config.Version must use version 16")
+	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1596,7 +1596,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
@@ -1610,7 +1610,7 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
-	assert.Equal(t, 16, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
+	assert.Equal(t, 17, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
 	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
 	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
 	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")

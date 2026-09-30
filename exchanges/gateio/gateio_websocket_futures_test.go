@@ -2,20 +2,60 @@ package gateio
 
 import (
 	"context"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
+
+func TestWsFuturesConnect(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		endpoint exchange.URL
+		url      string
+		err      error
+	}{
+		{name: "USDT margined", endpoint: exchange.WebsocketUSDTMargined},
+		{name: "coin margined", endpoint: exchange.WebsocketCoinMargined},
+		{name: "unrelated connection", url: "wss://unsupported.example.com", err: errUnsupportedFuturesWebsocketURL},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			if tc.url == "" {
+				server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(testing.TB, []byte, *gws.Conn) error { return nil }))
+				t.Cleanup(server.Close)
+				tc.url = "ws" + strings.TrimPrefix(server.URL, "http")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(tc.endpoint.String(), tc.url), "mock endpoint must update")
+			}
+			conn := testexch.GetMockConn(t, ex, tc.url)
+			err := ex.WsFuturesConnect(t.Context(), conn)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "WsFuturesConnect must return the expected error")
+			} else {
+				require.NoError(t, err, "WsFuturesConnect must support the futures websocket endpoint")
+				t.Cleanup(func() { require.NoError(t, conn.Shutdown(), "mock connection must shut down") })
+			}
+		})
+	}
+}
 
 func TestProcessFuturesTickers(t *testing.T) {
 	t.Parallel()
