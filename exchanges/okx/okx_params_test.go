@@ -38,6 +38,10 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			// GetRecurringOrderDetails decodes a single item from the array
 			data = `{"code":"0","msg":"","data":[{}]}`
 		}
+		if r.URL.Path == "/fiat/deposit" {
+			// GetDepositOrderDetail decodes a single item from the array
+			data = `{"code":"0","msg":"","data":[{}]}`
+		}
 		_, _ = w.Write([]byte(data))
 	}))
 
@@ -219,6 +223,16 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			path:   "/rubik/stat/taker-volume",
 			params: map[string]string{"instType": "SPOT"},
 			absent: []string{"instFamily"},
+		},
+		{
+			name: "Deposit order detail sends ordId",
+			call: func() error {
+				_, err := e.GetDepositOrderDetail(t.Context(), "12345")
+				return err
+			},
+			path:   "/fiat/deposit",
+			params: map[string]string{"ordId": "12345"},
+			absent: []string{"ordID"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

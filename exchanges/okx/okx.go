@@ -616,7 +616,7 @@ func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID,
 }
 
 // GetAlgoOrderHistory load a list of all algo orders under the current account in the last 3 months
-func (e *Exchange) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
+func (e *Exchange) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOrderID, instrumentType, instrumentID string, after, before time.Time, limit uint64) ([]AlgoOrderResponse, error) {
 	if orderType == "" {
 		return nil, order.ErrTypeIsInvalid
 	}
@@ -644,7 +644,7 @@ func (e *Exchange) GetAlgoOrderHistory(ctx context.Context, orderType, state, al
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []AlgoOrderResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
@@ -986,7 +986,7 @@ func (e *Exchange) GetRFQs(ctx context.Context, arg *RFQRequestParams) ([]RFQRes
 		params.Set("endId", arg.EndID)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []RFQResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRFQsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
@@ -1020,7 +1020,7 @@ func (e *Exchange) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]Qu
 		params.Set("endId", arg.EndID)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []QuoteResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/quotes", params), nil, &resp, request.AuthenticatedRequest)
@@ -1814,7 +1814,7 @@ func (e *Exchange) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, "account/set-leverage", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetMaximumBuySellAmountOROpenAmount retrieves the maximum buy or sell amount for a sell id
+// GetMaximumBuySellAmountOROpenAmount retrieves the maximum buy or sell amount for an instrument ID
 func (e *Exchange) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode, leverage string, price float64) ([]MaximumBuyAndSell, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -2456,7 +2456,7 @@ func (e *Exchange) ReduceLiabilitiesForFixedLoan(ctx context.Context, orderID st
 
 // GetFixedLoanBorrowOrderList retrieves fixed loan borrow order list
 // State '1': Borrowing '2': Borrowed '3': Settled (Repaid) '4': Borrow failed '5': Overdue '6': Settling '7': Reborrowing '8': Pending repay
-func (e *Exchange) GetFixedLoanBorrowOrderList(ctx context.Context, ccy currency.Code, orderID, state, term string, after, before time.Time, limit int64) ([]FixedLoanBorrowOrderDetail, error) {
+func (e *Exchange) GetFixedLoanBorrowOrderList(ctx context.Context, ccy currency.Code, orderID, state, term string, after, before time.Time, limit uint64) ([]FixedLoanBorrowOrderDetail, error) {
 	params := url.Values{}
 	if orderID != "" {
 		params.Set("ordId", orderID)
@@ -2479,7 +2479,7 @@ func (e *Exchange) GetFixedLoanBorrowOrderList(ctx context.Context, ccy currency
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []FixedLoanBorrowOrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowOrderListEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-orders-list", params), nil, &resp, request.AuthenticatedRequest)
@@ -2801,7 +2801,7 @@ func (e *Exchange) HistoryOfSubaccountTransfer(ctx context.Context, ccy currency
 }
 
 // GetHistoryOfManagedSubAccountTransfer retrieves managed sub-account transfers.
-// nly applicable to the trading team's master account to getting transfer records of managed sub accounts entrusted to oneself
+// Only applicable to the trading team's master account to getting transfer records of managed sub accounts entrusted to oneself
 func (e *Exchange) GetHistoryOfManagedSubAccountTransfer(ctx context.Context, ccy currency.Code, transferType, subAccountName, subAccountUID string, after, before time.Time, limit int64) ([]SubAccountTransfer, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -2869,7 +2869,6 @@ func (e *Exchange) SetPermissionOfTransferOut(ctx context.Context, arg *Permissi
 }
 
 // GetCustodyTradingSubaccountList the trading team uses this interface to view the list of sub-accounts currently under escrow
-// usersEntrustSubaccountList ="users/entrust-subaccount-list"
 func (e *Exchange) GetCustodyTradingSubaccountList(ctx context.Context, subaccountName string) ([]SubaccountName, error) {
 	params := url.Values{}
 	if subaccountName != "" {
@@ -3502,7 +3501,7 @@ func (e *Exchange) GetRecurringBuyOrderList(ctx context.Context, algoID string, 
 }
 
 // GetRecurringBuyOrderHistory retrieves recurring buy order history
-func (e *Exchange) GetRecurringBuyOrderHistory(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
+func (e *Exchange) GetRecurringBuyOrderHistory(ctx context.Context, algoID string, after, before time.Time, limit uint64) ([]RecurringOrderItem, error) {
 	params := url.Values{}
 	if algoID != "" {
 		params.Set("algoId", algoID)
@@ -3514,7 +3513,7 @@ func (e *Exchange) GetRecurringBuyOrderHistory(ctx context.Context, algoID strin
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []RecurringOrderItem
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
@@ -3866,7 +3865,7 @@ func (e *Exchange) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanks
 }
 
 // GetWeeklyTraderProfitAndLoss retrieve lead trader weekly pnl. Results are returned in counter chronological order
-func (e *Exchange) GetWeeklyTraderProfitAndLoss(ctx context.Context, instrumentType, uniqueCode string) ([]TraderWeeklyProfitAndLoss, error) {
+func (e *Exchange) GetWeeklyTraderProfitAndLoss(ctx context.Context, instrumentType, uniqueCode string) ([]TraderProfitAndLoss, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}
@@ -3875,13 +3874,13 @@ func (e *Exchange) GetWeeklyTraderProfitAndLoss(ctx context.Context, instrumentT
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
 	}
-	var resp []TraderWeeklyProfitAndLoss
+	var resp []TraderProfitAndLoss
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderWeeklyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-weekly-pnl", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetDailyLeadTraderPNL retrieve lead trader daily pnl. Results are returned in counter chronological order.
 // Last days "1": last 7 days  "2": last 30 days "3": last 90 days  "4": last 365 days
-func (e *Exchange) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]TraderWeeklyProfitAndLoss, error) {
+func (e *Exchange) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]TraderProfitAndLoss, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}
@@ -3894,7 +3893,7 @@ func (e *Exchange) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, un
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
 	}
-	var resp []TraderWeeklyProfitAndLoss
+	var resp []TraderProfitAndLoss
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderDailyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-pnl", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
@@ -4779,14 +4778,14 @@ func (e *Exchange) GetPublicSpreads(ctx context.Context, baseCurrency, instrumen
 }
 
 // GetPublicSpreadOrderBooks retrieve the order book of the spread
-func (e *Exchange) GetPublicSpreadOrderBooks(ctx context.Context, spreadID string, orderbookSize int64) ([]SpreadOrderbook, error) {
+func (e *Exchange) GetPublicSpreadOrderBooks(ctx context.Context, spreadID string, orderbookSize uint64) ([]SpreadOrderbook, error) {
 	if spreadID == "" {
 		return nil, fmt.Errorf("%w, spread ID missing", errMissingInstrumentID)
 	}
 	params := url.Values{}
 	params.Set("sprdId", spreadID)
 	if orderbookSize != 0 {
-		params.Set("sz", strconv.FormatInt(orderbookSize, 10))
+		params.Set("sz", strconv.FormatUint(orderbookSize, 10))
 	}
 	var resp []SpreadOrderbook
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderbookEPL, http.MethodGet, common.EncodeURLValues("sprd/books", params), nil, &resp, request.UnauthenticatedRequest)

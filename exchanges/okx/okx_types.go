@@ -2457,7 +2457,7 @@ type RFQRequestParams struct {
 	State       string
 	BeginningID string
 	EndID       string
-	Limit       int64
+	Limit       uint64
 }
 
 // RFQResponse RFQ response detail
@@ -2487,7 +2487,7 @@ type QuoteRequestParams struct {
 	State         string
 	BeginID       string
 	EndID         string
-	Limit         int64
+	Limit         uint64
 }
 
 // RFQTradesRequest represents an RFQ trades request
@@ -4700,8 +4700,8 @@ type LeadTradersRank struct {
 	TotalPage string `json:"totalPage"`
 }
 
-// TraderWeeklyProfitAndLoss represents lead trader weekly pnl
-type TraderWeeklyProfitAndLoss struct {
+// TraderProfitAndLoss represents lead trader pnl
+type TraderProfitAndLoss struct {
 	BeginTimestamp     types.Time   `json:"beginTs"`
 	ProfitAndLoss      types.Number `json:"pnl"`
 	ProfitAndLossRatio types.Number `json:"pnlRatio"`
