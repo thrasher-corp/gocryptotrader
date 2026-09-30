@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -199,6 +200,13 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		AssetType:    asset.Spot,
 	})
 	assert.NoError(t, err)
+	err = m.websocketDataHandler(exchName, &options.Greeks{
+		Pair:      currency.NewBTCUSD(),
+		AssetType: asset.Options,
+	})
+	assert.NoError(t, err)
+	err = m.websocketDataHandler(exchName, options.Greeks{})
+	assert.ErrorIs(t, err, errUseAPointer)
 	testPair := currency.NewPair(currency.NewCode("AAA"), currency.NewCode("BBB"))
 	err = m.websocketDataHandler(exchName, &ticker.Price{
 		ExchangeName: exchName,
@@ -337,7 +345,7 @@ func TestWebsocketDataHandlerTickerBatchSyncsPastUntrackedEntries(t *testing.T) 
 		{
 			ExchangeName: t.Name(), Pair: btc, AssetType: asset.Margin, LastUpdated: updated,
 			Last: 2, LastSize: 0.2, High: 2.2, Low: 1.8, Bid: 1.9, BidSize: 1.1, Ask: 2.1, AskSize: 1.2,
-			BaseVolume: 20, QuoteVolume: 40, PriceATH: 3, Open: 1.7, Close: 1.95, OpenInterest: 50,
+			BaseVolume: 20, QuoteVolume: 40, VolumeWeightedAveragePrice: 3, Open: 1.7, Open24Hour: 1.6, PercentChange24Hour: 0.2, Close: 1.95, OpenInterest: 50, OpenInterestValue: 100,
 			MarkPrice: 2.05, IndexPrice: 2.02, FlashReturnRate: 0.01, BidPeriod: 4, AskPeriod: 30, FlashReturnRateAmount: 100,
 		},
 		{ExchangeName: t.Name(), Pair: eth, AssetType: asset.Spot, Last: 5},

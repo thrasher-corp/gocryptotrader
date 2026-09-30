@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 16,
+ "version": 17,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -1730,6 +1730,11 @@
       "asset": "all",
       "interval": "100ms",
       "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "myAccount",
+      "authenticated": true
      }
     ]
    },
@@ -2791,6 +2796,21 @@
      {
       "enabled": true,
       "channel": "myAccount",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "asset": "options",
+      "channel": "opt-summary"
+     },
+     {
+      "enabled": true,
+      "channel": "balance_and_position",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "account-greeks",
       "authenticated": true
      }
     ]

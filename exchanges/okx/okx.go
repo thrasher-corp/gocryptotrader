@@ -33,8 +33,9 @@ import (
 type Exchange struct {
 	exchange.Base
 
-	instrumentsInfoMapLock sync.Mutex
-	instrumentsInfoMap     map[string][]Instrument
+	instrumentsInfoMapLock   sync.Mutex
+	instrumentsInfoFetchLock sync.Mutex
+	instrumentsInfoMap       map[string][]Instrument
 }
 
 const (

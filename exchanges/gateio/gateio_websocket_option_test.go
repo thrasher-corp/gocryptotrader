@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,7 +12,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestProcessOptionsContractTickers(t *testing.T) {
+func TestProcessOptionsContractTickersPrices(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -33,7 +34,7 @@ func TestProcessOptionsContractTickers(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
-			err := ex.processOptionsContractTickers(t.Context(), []byte(tc.payload))
+			err := ex.processOptionsContractTickers(t.Context(), []byte(tc.payload), time.Time{})
 			if tc.wantErr {
 				require.Error(t, err, "malformed response must fail")
 				return
