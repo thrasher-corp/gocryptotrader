@@ -665,6 +665,124 @@ func TestOrderTypeFilter(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "orderTypeFilter should reject an order type OKX does not list")
 }
 
+// TestSpreadOrderTypeFilter guards the spread order type filter: the spread
+// endpoints document only market, limit, post_only and ioc as single ordType
+// values and reject the comma-separated lists the ordinary order endpoints
+// accept with 51000.
+func TestSpreadOrderTypeFilter(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       string
+	}{
+		// limit, post_only and ioc all read back as Limit: no filter is sent
+		// and the request filter narrows by type instead.
+		{order.Limit, order.UnknownTIF, ""},
+		{order.Limit, order.GoodTillCancel, orderLimit},
+		{order.Limit, order.PostOnly, orderPostOnly},
+		{order.Limit, order.ImmediateOrCancel, orderIOC},
+		// Spread orders cannot be fill-or-kill, so the plain limit type is the
+		// documented stand-in.
+		{order.Limit, order.FillOrKill, orderLimit},
+		{order.Market, order.UnknownTIF, orderMarket},
+		{order.Market, order.ImmediateOrCancel, orderIOC},
+	} {
+		got, err := spreadOrderTypeFilter(tc.orderType, tc.tif)
+		require.NoErrorf(t, err, "spreadOrderTypeFilter must not error for %s %s", tc.orderType, tc.tif)
+		assert.Equalf(t, tc.exp, got, "spreadOrderTypeFilter should select a documented spread ordType for %s %s", tc.orderType, tc.tif)
+	}
+	_, err := spreadOrderTypeFilter(order.Market, order.FillOrKill)
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "spreadOrderTypeFilter should reject the fok a fill-or-kill market order maps to")
+	_, err = spreadOrderTypeFilter(order.Trigger, order.UnknownTIF)
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "spreadOrderTypeFilter should reject an order type the spread endpoints do not list")
+}
+
+// TestSpreadOrderTypeFilterRequests guards the ordType the spread order
+// queries send: only the documented single values reach the spread endpoints.
+func TestSpreadOrderTypeFilterRequests(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       string
+		expErr    error
+	}{
+		{"limit spans no filter", order.Limit, order.UnknownTIF, "", nil},
+		{"good till cancel limit", order.Limit, order.GoodTillCancel, orderLimit, nil},
+		{"post only limit", order.Limit, order.PostOnly, orderPostOnly, nil},
+		{"immediate or cancel limit", order.Limit, order.ImmediateOrCancel, orderIOC, nil},
+		{"market", order.Market, order.UnknownTIF, orderMarket, nil},
+		{"fill or kill market rejected", order.Market, order.FillOrKill, "", order.ErrUnsupportedOrderType},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var gotOrdType string
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/sprd/orders-pending" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				gotOrdType = r.URL.Query().Get("ordType")
+				writeOKXData(t, w, []map[string]string{{
+					"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderLimit,
+					"side": "buy", "state": "live", "sz": "1", "accFillSz": "0", "px": "100",
+				}})
+			}))
+			_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+				AssetType: asset.Spread, Type: tc.orderType, TimeInForce: tc.tif, Side: order.AnySide,
+			})
+			if tc.expErr != nil {
+				assert.ErrorIs(t, err, tc.expErr, "GetActiveOrders should reject the type before sending")
+				return
+			}
+			require.NoErrorf(t, err, "GetActiveOrders must not error for %s %s", tc.orderType, tc.tif)
+			assert.Equal(t, tc.exp, gotOrdType, "the spread query should send the documented ordType")
+		})
+	}
+}
+
+// TestSpreadOrderHistoryTypeFilter guards the spread GetOrderHistory ordType:
+// the documented single values are sent, and a plain limit query no longer
+// drops post_only and ioc history behind a limit-only filter.
+func TestSpreadOrderHistoryTypeFilter(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       string
+	}{
+		{"limit spans no filter", order.Limit, order.UnknownTIF, ""},
+		{"post only limit", order.Limit, order.PostOnly, orderPostOnly},
+		{"market", order.Market, order.UnknownTIF, orderMarket},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var gotOrdType string
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/sprd/orders-history" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				gotOrdType = r.URL.Query().Get("ordType")
+				writeOKXData(t, w, []map[string]string{{
+					"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderPostOnly,
+					"side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "px": "100",
+				}})
+			}))
+			_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				AssetType: asset.Spread, Type: tc.orderType, TimeInForce: tc.tif, Side: order.AnySide,
+			})
+			require.NoErrorf(t, err, "GetOrderHistory must not error for %s %s", tc.orderType, tc.tif)
+			assert.Equal(t, tc.exp, gotOrdType, "the spread history query should send the documented ordType")
+		})
+	}
+}
+
 // TestPendingOrderTypeFilter guards the pending order type filter through both
 // wrappers: OKX returns the order types listed in ordType, which must cover
 // every OKX order type read back as the requested type and time in force.

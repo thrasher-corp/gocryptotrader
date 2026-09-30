@@ -2174,7 +2174,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		var spreads []SpreadOrder
 		var spreadOrderType string
 		if req.Type != order.UnknownType && req.Type != order.AnyType {
-			spreadOrderType, err = orderTypeFilter(req.Type, req.TimeInForce)
+			spreadOrderType, err = spreadOrderTypeFilter(req.Type, req.TimeInForce)
 			if err != nil {
 				return nil, err
 			}
@@ -2339,7 +2339,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if req.AssetType == asset.Spread {
 		var spreadOrderType string
 		if req.Type != order.UnknownType && req.Type != order.AnyType {
-			oType, err := orderTypeString(req.Type, req.TimeInForce)
+			oType, err := spreadOrderTypeFilter(req.Type, req.TimeInForce)
 			if err != nil {
 				return nil, err
 			}

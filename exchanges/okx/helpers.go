@@ -2,6 +2,7 @@ package okx
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -109,6 +110,39 @@ func orderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error
 		return strings.Join(oTypes, ","), nil
 	}
 	return orderTypeString(orderType, tif)
+}
+
+// spreadOrderTypeFilter returns the ordType filter for the spread order
+// endpoints, which document only market, limit, post_only and ioc as single
+// values: the comma-separated lists the ordinary order endpoints accept are
+// rejected with 51000 there. One matching type is sent as-is; several matches
+// (limit, post_only and ioc all read back as Limit) send no filter and leave
+// the request filter to narrow by type. No match falls back to orderTypeString
+// and rejects values outside the four spread types, such as the fok a market
+// order with FillOrKill maps to: spread orders cannot be fill-or-kill.
+func spreadOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
+	spreadTypes := []string{orderMarket, orderLimit, orderPostOnly, orderIOC}
+	var oTypes []string
+	for _, oType := range spreadTypes {
+		if t, f, _ := orderTypeFromString(oType); t == orderType && (tif == order.UnknownTIF || f == tif) {
+			oTypes = append(oTypes, oType)
+		}
+	}
+	switch len(oTypes) {
+	case 0:
+		fallback, err := orderTypeString(orderType, tif)
+		if err != nil {
+			return "", err
+		}
+		if !slices.Contains(spreadTypes, fallback) {
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, fallback)
+		}
+		return fallback, nil
+	case 1:
+		return oTypes[0], nil
+	default:
+		return "", nil
+	}
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
