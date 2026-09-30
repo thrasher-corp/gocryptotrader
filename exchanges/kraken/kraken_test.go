@@ -111,6 +111,9 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	testexch.UpdatePairsOnce(t, e)
 	_, err := e.UpdateTicker(t.Context(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "UpdateTicker spot asset should not error")
@@ -124,6 +127,7 @@ func TestUpdateTickers(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 
 	testexch.UpdatePairsOnce(t, e)
 

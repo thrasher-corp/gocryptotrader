@@ -73,6 +73,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 		return err
 	}
 	var allTickers []ticker.Price
+	var errs error
 	aliases := e.pairAliases.GetAliases()
 	for i := range wsTickers {
 		for j := range wsTickers[i].Tickers {
@@ -90,7 +91,6 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 				Ask:          wsTickers[i].Tickers[j].BestAsk.Float64(),
 				AskSize:      wsTickers[i].Tickers[j].BestAskQuantity.Float64(),
 			}
-			var errs error
 			for k := range symbolAliases {
 				if isEnabled, err := e.CurrencyPairs.IsPairEnabled(symbolAliases[k], asset.Spot); err != nil {
 					errs = common.AppendError(errs, err)
@@ -102,7 +102,12 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 			}
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, allTickers)
+	processed, processErr := ticker.ProcessBatch(allTickers)
+	errs = common.AppendError(errs, processErr)
+	if len(processed) == 0 {
+		return errs
+	}
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // wsProcessCandle handles candle data from the websocket

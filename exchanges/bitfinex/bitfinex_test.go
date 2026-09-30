@@ -604,6 +604,9 @@ func TestNewOrder(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 
 	tick, err := e.UpdateTicker(t.Context(), btcusdPair, asset.Spot)
 	require.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker may only error about locked markets")
@@ -1854,7 +1857,7 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 50973.3020771, tick.BaseVolume, "Ticker BaseVolume should be correct")
 		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
-		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
+		assert.False(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should use the receipt time when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Ticker update must be queued")
 	}
@@ -1892,7 +1895,7 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
 		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")
-		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
+		assert.False(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should use the receipt time when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Funding ticker update must be queued")
 	}

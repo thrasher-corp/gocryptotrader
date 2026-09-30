@@ -556,6 +556,9 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	tickPrice.BidSize = resp.BestBidSize.Float64()
 	tickPrice.Ask = resp.BestAskPrice.Float64()
 	tickPrice.AskSize = resp.BestAskSize.Float64()
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
@@ -762,11 +765,12 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 	if err != nil {
 		return err
 	}
+	tickerPrices := make([]ticker.Price, 0, len(assets))
 	for x := range assets {
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickerPrices = append(tickerPrices, ticker.Price{
 			AssetType:    assets[x],
 			Last:         response.Price,
 			LastSize:     response.Size,
@@ -777,11 +781,13 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 			Bid:          response.BestBid,
 			AskSize:      response.BestAskSize,
 			BidSize:      response.BestBidSize,
-		}); err != nil {
-			return err
-		}
+		})
 	}
-	return nil
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // processCandlesticks processes a candlestick data for an instrument with a particular interval
@@ -936,11 +942,12 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 	if err != nil {
 		return err
 	}
+	tickerPrices := make([]ticker.Price, 0, len(assets))
 	for x := range assets {
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickerPrices = append(tickerPrices, ticker.Price{
 			ExchangeName: e.Name,
 			AssetType:    assets[x],
 			Last:         response.Data.LastTradedPrice,
@@ -952,11 +959,13 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 			Open:         response.Data.Open,
 			Close:        response.Data.Close,
 			LastUpdated:  response.Data.Datetime.Time(),
-		}); err != nil {
-			return err
-		}
+		})
 	}
-	return nil
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // Subscribe sends a websocket message to receive data from the channel
