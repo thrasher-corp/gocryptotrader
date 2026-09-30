@@ -179,6 +179,7 @@ func TestWSHandleTickerMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	e.Name = t.Name()
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
@@ -203,6 +204,9 @@ func TestWSHandleTickerMsg(t *testing.T) {
 		LastUpdated:  time.UnixMilli(1630998026649),
 	}
 	assert.Equal(t, exp, tick)
+	stored, err := ticker.GetTicker(e.Name, tick.Pair, tick.AssetType)
+	require.NoError(t, err, "websocket ticker must reach the shared store")
+	assert.Equal(t, tick, stored, "stored ticker should match the dispatched ticker")
 }
 
 func TestWSHandleMyAccountMsg(t *testing.T) {

@@ -130,6 +130,7 @@ func TestWSTickerDerivativeRecordsNoQuoteVolume(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	e.Name = t.Name()
 	sub := &subscription.Subscription{Key: "market.BTC-USD.detail", Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSD()}, Channel: subscription.TickerChannel}
 	require.NoError(t, e.Websocket.AddSubscriptions(e.Websocket.Conn, sub), "AddSubscriptions must not error")
 
@@ -144,4 +145,7 @@ func TestWSTickerDerivativeRecordsNoQuoteVolume(t *testing.T) {
 	require.True(t, ok, "Must get the correct type from DataHandler")
 	assert.Equal(t, 13991.028076056185, tick.BaseVolume, "amount should be recorded as the base volume")
 	assert.Zero(t, tick.QuoteVolume, "vol counts contracts here, so no quote volume should be recorded")
+	stored, err := ticker.GetTicker(e.Name, tick.Pair, tick.AssetType)
+	require.NoError(t, err, "websocket ticker must reach the shared store")
+	assert.Equal(t, tick, stored, "stored ticker should match the dispatched ticker")
 }

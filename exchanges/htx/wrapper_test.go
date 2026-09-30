@@ -189,6 +189,9 @@ func TestUpdateCurrencyStates(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
 	assert.ErrorContains(t, err, "invalid symbol")
 	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
@@ -197,6 +200,9 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickerCMF(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("INV", "ALID", "_"), asset.CoinMarginedFutures)
 	assert.ErrorContains(t, err, "symbol data error")
 	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
@@ -205,12 +211,18 @@ func TestUpdateTickerCMF(t *testing.T) {
 
 func TestUpdateTickerFutures(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), btccwPair, asset.Futures)
 	require.NoError(t, err)
 }
 
 func TestUpdateTickerUSDTMarginedFutures(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
 	_, err := e.UpdateTicker(t.Context(), btcusdtPair, asset.USDTMarginedFutures)
 	require.NoError(t, err)
 }
