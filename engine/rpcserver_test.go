@@ -1855,16 +1855,13 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: "spot",
 		Pair:      p,
 	})
-	if err != nil {
-		t.Errorf("non expected Error: %v", err)
-	} else if oo == nil || len(oo.GetOrders()) != 1 {
-		t.Errorf("unexpected order result: %v", oo)
-	} else {
-		require.Len(t, oo.GetOrders()[0].GetTrades(), 1, "GetManagedOrders must return the stored trade")
-		creationTime := oo.GetOrders()[0].GetTrades()[0].GetCreationTime()
-		require.NotNil(t, creationTime, "GetManagedOrders must return the trade timestamp")
-		assert.Equal(t, tradeTime, creationTime.AsTime(), "GetManagedOrders should preserve trade timestamp nanoseconds")
-	}
+	require.NoError(t, err, "GetManagedOrders must not error")
+	require.NotNil(t, oo, "GetManagedOrders must return a response")
+	require.Len(t, oo.GetOrders(), 1, "GetManagedOrders must return the stored order")
+	require.Len(t, oo.GetOrders()[0].GetTrades(), 1, "GetManagedOrders must return the stored trade")
+	creationTime := oo.GetOrders()[0].GetTrades()[0].GetCreationTime()
+	require.NotNil(t, creationTime, "GetManagedOrders must return the trade timestamp")
+	assert.Equal(t, tradeTime, creationTime.AsTime(), "GetManagedOrders should preserve trade timestamp nanoseconds")
 }
 
 func TestRPCServer_tickerResponse(t *testing.T) {
