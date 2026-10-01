@@ -45,6 +45,9 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
+	if len(args) > 20 {
+		return nil, fmt.Errorf("%w, cannot place more than 20 orders", errExceedLimit)
+	}
 
 	for i := range args {
 		if err := args[i].Validate(); err != nil {

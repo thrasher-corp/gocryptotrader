@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -41,6 +40,10 @@ const (
 	positionSideLong  = "long"
 	positionSideShort = "short"
 	positionSideNet   = "net"
+
+	// Position modes for placing perpetual swap orders
+	positionModeNet       = "net_mode"
+	positionModeLongShort = "long_short_mode"
 )
 
 // order types, margin balance types, and instrument types constants
@@ -822,8 +825,15 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+		allowed := []string{"long", "short"}
+		if arg.AssetType == asset.PerpetualSwap {
+			// The account's position mode decides the required value, which
+			// only the caller knows: net mode defaults to net and may omit
+			// the field entirely, so empty is accepted too.
+			allowed = append(allowed, "", positionSideNet)
+		}
+		if !slices.Contains(allowed, arg.PositionSide) {
+			return fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
@@ -1138,7 +1148,7 @@ type AlgoOrderParams struct {
 	LimitPrice    float64 `json:"pxLimit,string,omitempty"`  // Required
 
 	// TWAPOrder
-	TimeInterval kline.Interval `json:"interval,omitempty"` // Required
+	TimeInterval string `json:"timeInterval,omitempty"` // Required. Time interval in unit of second
 
 	// Chase order
 	ChaseType     string  `json:"chaseType,omitempty"` // Possible values: "distance" and "ratio"

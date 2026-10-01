@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1258,7 +1259,7 @@ func TestPlaceTWAPOrder(t *testing.T) {
 		TradeMode:         "cross",
 		Side:              order.Sell.Lower(),
 		Size:              6,
-		TimeInterval:      kline.ThreeDay,
+		TimeInterval:      strconv.FormatInt(int64(kline.ThreeDay.Duration().Seconds()), 10),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1293,7 +1294,7 @@ func TestPlaceTakeProfitStopLossOrder(t *testing.T) {
 		TradeMode:                "cross",
 		Side:                     order.Sell.Lower(),
 		Size:                     6,
-		TimeInterval:             kline.ThreeDay,
+		TimeInterval:             strconv.FormatInt(int64(kline.ThreeDay.Duration().Seconds()), 10),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -6578,6 +6579,8 @@ func TestOrderTypeString(t *testing.T) {
 		{OrderType: order.Limit, TIF: order.PostOnly}:                   {Expected: orderPostOnly},
 		{OrderType: order.Limit, TIF: order.FillOrKill}:                 {Expected: orderFOK},
 		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:          {Expected: orderIOC},
+		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:            {Expected: orderPostOnly},
+		{OrderType: order.Stop, TIF: order.ImmediateOrCancel}:           {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.Market, TIF: order.FillOrKill}:                {Expected: orderFOK},
 		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:         {Expected: orderIOC},
 		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}:   {Expected: orderOptimalLimitIOC},
@@ -7075,6 +7078,17 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
+
+	// Perpetual swap: the account's position mode decides the position side,
+	// so empty and net pass alongside long and short.
+	p.AssetType = asset.PerpetualSwap
+	require.NoError(t, p.Validate())
+	p.PositionSide = positionSideNet
+	require.NoError(t, p.Validate())
+	p.PositionSide = ""
+	require.NoError(t, p.Validate())
+	p.PositionSide = "reverse"
+	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {

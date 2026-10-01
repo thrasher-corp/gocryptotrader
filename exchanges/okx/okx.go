@@ -38,6 +38,11 @@ type Exchange struct {
 	// instrumentIDCodeMap caches instrument ID codes by instrument ID for
 	// websocket order operations which identify instruments by code.
 	instrumentIDCodeMap map[string]uint64
+	// accountPositionMode caches the account's contract position mode, which
+	// decides the placement of perpetual swap orders. It is fetched on first
+	// use and refreshed by SetPositionMode.
+	accountPositionModeMu sync.RWMutex
+	accountPositionMode   string
 }
 
 const (
@@ -73,6 +78,9 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) 
 func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
+	}
+	if len(args) > 20 {
+		return nil, fmt.Errorf("%w, cannot place more than 20 orders", errExceedLimit)
 	}
 	for x := range args {
 		if err := args[x].Validate(); err != nil {
@@ -455,7 +463,7 @@ func (e *Exchange) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*A
 	if arg.LimitPrice <= 0 {
 		return nil, errInvalidPriceLimit
 	}
-	if IntervalFromString(arg.TimeInterval, true) == "" {
+	if arg.TimeInterval == "" {
 		return nil, errMissingIntervalValue
 	}
 	return e.PlaceAlgoOrder(ctx, arg)
@@ -1786,13 +1794,21 @@ func (e *Exchange) GetAccountConfiguration(ctx context.Context) (*AccountConfigu
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
 // Position mode 'long_short_mode': long/short, only applicable to  FUTURES/SWAP'net_mode': net
 func (e *Exchange) SetPositionMode(ctx context.Context, positionMode string) (*PositionMode, error) {
-	if positionMode != "long_short_mode" && positionMode != "net_mode" {
+	if positionMode != positionModeLongShort && positionMode != positionModeNet {
 		return nil, errInvalidPositionMode
 	}
 	var resp *PositionMode
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
 		PositionMode: positionMode,
 	}, &resp, request.AuthenticatedRequest)
+	if err == nil {
+		// The mode switch succeeded, so the cached mode the order placement
+		// branches on is refreshed alongside it.
+		e.accountPositionModeMu.Lock()
+		e.accountPositionMode = positionMode
+		e.accountPositionModeMu.Unlock()
+	}
+	return resp, err
 }
 
 // SetLeverageRate sets a leverage setting for instrument id

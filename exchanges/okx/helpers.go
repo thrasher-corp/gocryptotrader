@@ -80,10 +80,17 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		order.TWAP,
 		order.OCO:
 		return orderType.Lower(), nil
+	case order.LimitMaker:
+		return orderPostOnly, nil
 	case order.ConditionalStop:
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
+	case order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.Bracket, order.Liquidation:
+		// A trigger order cannot ride the time-in-force fallback below: it
+		// would reach OKX as a plain limit-style order with no trigger
+		// attached.
+		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	default:
 		switch tif {
 		case order.PostOnly:

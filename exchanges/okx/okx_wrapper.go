@@ -909,13 +909,14 @@ type submitPrelude struct {
 	tradeMode      string
 	sideType       string
 	positionSide   string
+	positionMode   string
 	amount         float64
 	targetCurrency string
 }
 
 // validateSubmitPrelude performs the validation and formatting common to REST
 // and websocket order submission.
-func (e *Exchange) validateSubmitPrelude(s *order.Submit) (*submitPrelude, error) {
+func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (*submitPrelude, error) {
 	if s == nil {
 		return nil, order.ErrSubmissionIsNil
 	}
@@ -935,23 +936,47 @@ func (e *Exchange) validateSubmitPrelude(s *order.Submit) (*submitPrelude, error
 	if s.AssetType.IsFutures() && s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
 	}
+	tradeMode := e.marginTypeToString(s.MarginType)
+	if tradeMode == "" {
+		// OKX requires tdMode, and the zero margin type leaves it empty: spot
+		// defaults to cash and perpetual swap to cross.
+		switch s.AssetType {
+		case asset.Spot:
+			tradeMode = TradeModeCash
+		case asset.Margin, asset.Futures, asset.PerpetualSwap, asset.Options:
+			tradeMode = TradeModeCross
+		}
+	}
 	p := &submitPrelude{
 		pairString: pairFormat.Format(s.Pair),
-		tradeMode:  e.marginTypeToString(s.MarginType),
+		tradeMode:  tradeMode,
 		amount:     s.Amount,
 	}
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.Spread:
 		p.sideType = s.Side.String()
 	case asset.Futures, asset.PerpetualSwap, asset.Options:
-		p.positionSide = s.Side.Lower()
 		// OKX requires side for every instrument type, and contracts carry
-		// the direction in side as well as posSide.
+		// the direction in side as well as posSide, which only futures and
+		// perpetual swap accept.
 		if s.Side.IsLong() {
 			p.sideType = order.Buy.Lower()
 		} else if s.Side.IsShort() {
 			p.sideType = order.Sell.Lower()
 		}
+		if s.AssetType != asset.Options {
+			p.positionSide = s.Side.Lower()
+		}
+	}
+	if s.AssetType == asset.PerpetualSwap {
+		// Perpetual swap placement branches on the account's position mode:
+		// net mode pairs reduceOnly with posSide net, long/short mode pairs
+		// the side with the position side instead.
+		mode, err := e.contractPositionMode(ctx)
+		if err != nil {
+			return nil, err
+		}
+		p.positionMode = mode
 	}
 	if s.AssetType == asset.Spot && s.Type == order.Market {
 		p.targetCurrency = "base_ccy" // Default to base currency
@@ -987,25 +1012,28 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 		OrderType:      oType,
 		Amount:         p.amount,
 		ClientOrderID:  s.ClientOrderID,
-		Price:          s.Price,
 		TargetCurrency: p.targetCurrency,
 		AssetType:      s.AssetType,
 	}
-	switch s.Type.Lower() {
-	case orderLimit, orderPostOnly, orderFOK, orderIOC:
+	// px only applies to the limit-style order types, so a market order
+	// carries no price even when the submit set one.
+	switch oType {
+	case orderLimit, orderPostOnly, orderFOK, orderIOC, orderMarketMakerProtection, orderMarketMakerProtectionAndPostOnly:
 		orderRequest.Price = s.Price
 	}
 	// OKX applies reduceOnly to MARGIN orders and FUTURES/SWAP orders in net
-	// mode only, so it is not sent for the other instruments.
+	// mode only.
 	switch s.AssetType {
-	case asset.Margin, asset.Futures, asset.PerpetualSwap:
+	case asset.Margin:
 		orderRequest.ReduceOnly = s.ReduceOnly
-	}
-	if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
-		if s.Type.Lower() == "" {
-			orderRequest.OrderType = orderOptimalLimitIOC
-		}
-		// TODO: handle positionSideLong while side is Short and positionSideShort while side is Long
+	case asset.PerpetualSwap:
+		// The account's position mode decides the placement: net mode pairs
+		// reduceOnly with posSide net, and long/short mode pairs the side
+		// with the position side, expressing the close through it.
+		orderRequest.PositionSide = positionSideForMode(s.Side, s.ReduceOnly, p.positionMode)
+		orderRequest.ReduceOnly = s.ReduceOnly && p.positionMode == positionModeNet
+	case asset.Futures:
+		orderRequest.ReduceOnly = s.ReduceOnly
 		if s.Side.IsLong() {
 			orderRequest.PositionSide = positionSideLong
 		} else {
@@ -1015,9 +1043,30 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 	return orderRequest
 }
 
+// positionSideForMode returns the posSide a perpetual swap order sends under
+// the account's position mode. Net mode takes net, where reduceOnly carries
+// the close intent. Long/short mode pairs the side with the position side
+// instead: an open points at its own direction and a close at the opposite
+// one, so sell plus long closes a long position.
+func positionSideForMode(side order.Side, reduceOnly bool, mode string) string {
+	if mode != positionModeLongShort {
+		return positionSideNet
+	}
+	if reduceOnly {
+		if side.IsLong() {
+			return positionSideShort
+		}
+		return positionSideLong
+	}
+	if side.IsLong() {
+		return positionSideLong
+	}
+	return positionSideShort
+}
+
 // SubmitOrder submits a new order via the exchange REST API.
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	p, err := e.validateSubmitPrelude(s)
+	p, err := e.validateSubmitPrelude(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -1032,6 +1081,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
+	// Algo orders carry posSide only for futures and perpetual swap: the
+	// perpetual swap branch follows the account's position mode, the futures
+	// branch keeps its own direction mapping.
+	var positionSide string
+	switch s.AssetType {
+	case asset.PerpetualSwap:
+		positionSide = positionSideForMode(s.Side, s.ReduceOnly, p.positionMode)
+	case asset.Futures:
+		if s.Side.IsLong() {
+			positionSide = positionSideLong
+		} else {
+			positionSide = positionSideShort
+		}
+	}
 	var result *AlgoOrder
 	switch orderTypeStr {
 	case orderLimit, orderMarket, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, orderMarketMakerProtection, orderMarketMakerProtectionAndPostOnly:
@@ -1041,15 +1104,21 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
 	case orderTrigger:
+		if s.Price == 0 {
+			// OKX requires orderPx on trigger orders: -1 submits a market
+			// order when triggered, any other value is the limit price.
+			return nil, fmt.Errorf("%w, order price is required, -1 submits a market order when triggered", limits.ErrPriceBelowMin)
+		}
 		result, err = e.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     p.pairString,
 			TradeMode:        p.tradeMode,
-			Side:             s.Side.Lower(),
-			PositionSide:     p.positionSide,
+			Side:             p.sideType,
+			PositionSide:     positionSide,
 			OrderType:        orderTypeStr,
 			Size:             s.Amount,
 			ReduceOnly:       s.ReduceOnly,
 			TriggerPrice:     s.TriggerPrice,
+			OrderPrice:       s.Price,
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	case orderConditional:
@@ -1057,8 +1126,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             p.pairString,
 			TradeMode:                p.tradeMode,
-			Side:                     s.Side.Lower(),
-			PositionSide:             p.positionSide,
+			Side:                     p.sideType,
+			PositionSide:             positionSide,
 			OrderType:                orderTypeStr,
 			Size:                     s.Amount,
 			ReduceOnly:               s.ReduceOnly,
@@ -1076,12 +1145,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  p.pairString,
 			TradeMode:     p.tradeMode,
-			Side:          s.Side.Lower(),
-			PositionSide:  p.positionSide,
+			Side:          p.sideType,
+			PositionSide:  positionSide,
 			OrderType:     orderTypeStr,
 			Size:          s.Amount,
 			ReduceOnly:    s.ReduceOnly,
-			MaxChaseType:  s.TrackingMode.String(),
+			MaxChaseType:  chaseTypeString(s.TrackingMode),
 			MaxChaseValue: s.TrackingValue,
 		})
 	case orderMoveOrderStop:
@@ -1099,7 +1168,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			InstrumentID:           p.pairString,
 			TradeMode:              p.tradeMode,
 			Side:                   p.sideType,
-			PositionSide:           p.positionSide,
+			PositionSide:           positionSide,
 			OrderType:              orderTypeStr,
 			Size:                   s.Amount,
 			ReduceOnly:             s.ReduceOnly,
@@ -1122,7 +1191,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			InstrumentID:  p.pairString,
 			TradeMode:     p.tradeMode,
 			Side:          p.sideType,
-			PositionSide:  p.positionSide,
+			PositionSide:  positionSide,
 			OrderType:     orderTypeStr,
 			Size:          s.Amount,
 			ReduceOnly:    s.ReduceOnly,
@@ -1130,7 +1199,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PriceSpread:   priceSpread,
 			SizeLimit:     s.Amount,
 			LimitPrice:    s.Price,
-			TimeInterval:  kline.FifteenMin,
+			// OKX documents no input field for the interval, so the wrapper
+			// keeps the 15 minute default and sends it as seconds.
+			TimeInterval: strconv.FormatInt(int64(kline.FifteenMin.Duration().Seconds()), 10),
 		})
 	case orderOCO:
 		switch {
@@ -1143,7 +1214,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			InstrumentID: p.pairString,
 			TradeMode:    p.tradeMode,
 			Side:         p.sideType,
-			PositionSide: p.positionSide,
+			PositionSide: positionSide,
 			OrderType:    orderTypeStr,
 			Size:         s.Amount,
 			ReduceOnly:   s.ReduceOnly,
@@ -1163,6 +1234,42 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 	return s.DeriveSubmitResponse(result.AlgoID)
+}
+
+// contractPositionMode returns the account's contract position mode,
+// fetching and caching it on first use: net mode and long/short mode place
+// perpetual swap orders differently.
+func (e *Exchange) contractPositionMode(ctx context.Context) (string, error) {
+	e.accountPositionModeMu.RLock()
+	mode := e.accountPositionMode
+	e.accountPositionModeMu.RUnlock()
+	if mode != "" {
+		return mode, nil
+	}
+	accountConfig, err := e.GetAccountConfiguration(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error fetching the account position mode: %w", err)
+	}
+	if accountConfig.PositionMode != positionModeNet && accountConfig.PositionMode != positionModeLongShort {
+		return "", fmt.Errorf("%w %q", errInvalidPositionMode, accountConfig.PositionMode)
+	}
+	e.accountPositionModeMu.Lock()
+	e.accountPositionMode = accountConfig.PositionMode
+	e.accountPositionModeMu.Unlock()
+	return accountConfig.PositionMode, nil
+}
+
+// chaseTypeString maps the tracking mode to OKX's maxChaseType values, which
+// name a ratio rather than the percentage the tracking mode string carries.
+func chaseTypeString(mode order.TrackingMode) string {
+	switch mode {
+	case order.Distance:
+		return "distance"
+	case order.Percentage:
+		return "ratio"
+	default:
+		return ""
+	}
 }
 
 func priceTypeString(pt order.PriceType) string {
@@ -1549,8 +1656,8 @@ func (e *Exchange) requireWebsocketInstrumentIDCode(instID string) (uint64, erro
 // return common.ErrFunctionNotSupported before any request transmits; algo
 // orders have no websocket equivalent, and spread orders require the business
 // connection.
-func (e *Exchange) prepareWebsocketPlaceOrder(s *order.Submit) (*PlaceOrderRequestParam, error) {
-	p, err := e.validateSubmitPrelude(s)
+func (e *Exchange) prepareWebsocketPlaceOrder(ctx context.Context, s *order.Submit) (*PlaceOrderRequestParam, error) {
+	p, err := e.validateSubmitPrelude(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -1578,7 +1685,7 @@ func (e *Exchange) prepareWebsocketPlaceOrder(s *order.Submit) (*PlaceOrderReque
 // websocket connection. Algo order types and spread orders return
 // common.ErrFunctionNotSupported before any request is transmitted.
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	orderRequest, err := e.prepareWebsocketPlaceOrder(s)
+	orderRequest, err := e.prepareWebsocketPlaceOrder(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -1603,7 +1710,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	}
 	args := make([]PlaceOrderRequestParam, len(orders))
 	for i := range orders {
-		orderRequest, err := e.prepareWebsocketPlaceOrder(orders[i])
+		orderRequest, err := e.prepareWebsocketPlaceOrder(ctx, orders[i])
 		if err != nil {
 			return nil, err
 		}
