@@ -353,6 +353,20 @@ Run the miscellaneous repository checks locally with:
     make misc_checks
 ```
 
+Lint the GitHub workflows and shell scripts, which needs `shellcheck` and `pipx` installed, with:
+
+```console
+    make workflow_lint
+```
+
+Regenerate the gRPC code in `gctrpc` and `backtester/btrpc` with the protoc plugin versions that `go.mod` pins, which needs `buf` installed, with:
+
+```console
+    make proto
+```
+
+`make proto_check` fails if the generated files differ from what the protos generate.
+
 The full local verification flow can be run with:
 
 ```console

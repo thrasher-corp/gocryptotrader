@@ -161,8 +161,6 @@ jobs:
   backend-live-test-build:
     name: GoCryptoTrader mock_test_off build (ubuntu-latest, amd64, psql=false, sonic=false)
     runs-on: ubuntu-latest
-    env:
-      GCT_SKIP_LIVE_TESTS: true
 
     steps:
     - name: Checkout code
@@ -214,6 +212,7 @@ jobs:
       run: |
         docker buildx build \
           --load \
+          --build-arg GO_VERSION="$(awk '$1 == "go" { print $2; exit }' go.mod)" \
           --cache-to=type=local,dest=/tmp/.docker-buildx-cache-new,mode=max \
           --cache-from=type=local,src=/tmp/.docker-buildx-cache \
           --tag gct-backend-amd64 \

@@ -15,7 +15,7 @@ DECIMAL_BENCH_COUNT ?= 5
 DECIMAL_BENCH_TIME ?= 500ms
 DECIMAL_BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime $(DECIMAL_BENCH_TIME) -count $(DECIMAL_BENCH_COUNT)
 
-.PHONY: all lint lint_docker markdownlint misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
+.PHONY: all lint lint_docker markdownlint workflow_lint proto proto_check misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
 
 all: check build
 
@@ -37,7 +37,30 @@ markdownlint:
 	fi; \
 	npx --yes markdownlint-cli2@0.23.2 "**/*.md" "cmd/documentation/**/*.tmpl"
 
-check: lint misc_checks markdownlint test
+# zizmor needs --config: it looks for its config from the nearest .git directory,
+# which from a linked worktree, whose .git is a file, can be an unrelated repository
+workflow_lint:
+	@for tool in shellcheck pipx; do \
+		if ! command -v $$tool >/dev/null 2>&1; then \
+			if [ -n "$$CI" ]; then echo "$$tool not found: workflow lint cannot run in CI"; exit 1; fi; \
+			echo "$$tool not found: skipping workflow lint, which CI still runs"; exit 0; \
+		fi; \
+	done; \
+	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 && \
+	shellcheck --severity=warning scripts/*.sh .devcontainer/*.sh && \
+	pipx run zizmor==1.30.1 --offline --format plain --config .github/zizmor.yml .github/workflows
+
+proto:
+	bash ./scripts/proto.sh
+
+proto_check:
+	@if ! command -v buf >/dev/null 2>&1; then \
+		if [ -n "$$CI" ]; then echo "buf not found: the generated code check cannot run in CI"; exit 1; fi; \
+		echo "buf not found: skipping the generated code check, which CI still runs"; exit 0; \
+	fi; \
+	bash ./scripts/proto.sh --check
+
+check: lint misc_checks markdownlint workflow_lint proto_check test
 
 test:
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...

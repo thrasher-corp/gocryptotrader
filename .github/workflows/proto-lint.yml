@@ -24,17 +24,12 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # Installs the protoc plugins at the versions go.mod's tool block pins.
-      - name: Setup build depends
-        run: go install tool
-
       - uses: bufbuild/buf-setup-action@v1.50.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: buf generate
-        working-directory: ./gctrpc
-        run: buf generate
+      - name: Check generated code is up to date
+        run: make proto_check
 
       - uses: bufbuild/buf-lint-action@v1
         with:
@@ -42,10 +37,6 @@ jobs:
           
       - name: buf format
         run: buf format --diff --exit-code
-
-      - name: buf generate backtester
-        working-directory: ./backtester/btrpc
-        run: buf generate
 
       - uses: bufbuild/buf-lint-action@v1
         with:

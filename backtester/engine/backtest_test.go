@@ -73,7 +73,7 @@ func TestSetupFromConfig(t *testing.T) {
 		{
 			ExchangeName: testExchange,
 			Base:         currency.BTC,
-			Quote:        currency.USD,
+			Quote:        currency.USDT,
 			Asset:        asset.Spot,
 		},
 	}
@@ -113,7 +113,7 @@ func TestSetupFromConfig(t *testing.T) {
 		{
 			ExchangeName: testExchange,
 			Asset:        asset.Spot,
-			Currency:     currency.USD,
+			Currency:     currency.USDT,
 			InitialFunds: leet,
 			TransferFee:  leet,
 		},

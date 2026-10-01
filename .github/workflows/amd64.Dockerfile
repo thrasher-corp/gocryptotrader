@@ -1,4 +1,5 @@
-FROM golang:1.27
+ARG GO_VERSION
+FROM golang:${GO_VERSION:-latest}
 
 # Install GCC with multi-architecture support (needed for SQLite library)
 RUN apt-get update && apt-get install -y gcc-multilib && rm -rf /var/lib/apt/lists/*
