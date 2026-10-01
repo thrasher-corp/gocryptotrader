@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
 	exchangerates "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangeratesapi.io"
 	fixer "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fxmacrodata"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/openexchangerates"
 )
 
@@ -31,6 +32,7 @@ func GetSupportedForexProviders() []string {
 		"CurrencyLayer",
 		"ExchangeRates",
 		"Fixer",
+		"FXMacroData",
 		"OpenExchangeRates",
 	}
 }
@@ -72,6 +74,8 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 			provider = new(exchangerates.ExchangeRates)
 		case "Fixer":
 			provider = new(fixer.Fixer)
+		case "FXMacroData":
+			provider = new(fxmacrodata.FXMacroData)
 		case "OpenExchangeRates":
 			provider = new(openexchangerates.OXR)
 		default:
