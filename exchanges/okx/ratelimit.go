@@ -37,7 +37,6 @@ const (
 	placeAlgoOrderEPL
 	cancelAlgoOrderEPL
 	amendAlgoOrderEPL
-	cancelAdvanceAlgoOrderEPL
 	getAlgoOrderDetailEPL
 	getAlgoOrderListEPL
 	getAlgoOrderHistoryEPL
@@ -351,7 +350,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		placeAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		cancelAlgoOrderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		amendAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAdvanceAlgoOrderEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderDetailEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderListEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),

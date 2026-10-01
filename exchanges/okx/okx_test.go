@@ -1425,26 +1425,6 @@ func TestCancelAlgoOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCancelAdvanceAlgoOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.CancelAdvanceAlgoOrder(contextGenerate(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{}})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{InstrumentID: "90994943"}})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{AlgoOrderID: "90994943"}})
-	require.ErrorIs(t, err, errMissingInstrumentID)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{
-		InstrumentID: mainPair.String(),
-		AlgoOrderID:  "90994943",
-	}})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetAlgoOrderList(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAlgoOrderList(contextGenerate(), "", "", "", "", "", time.Time{}, time.Time{}, 1)

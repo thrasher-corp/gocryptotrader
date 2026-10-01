@@ -30,7 +30,6 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"placeAlgoOrder":                                 placeAlgoOrderEPL,
 		"cancelAlgoOrder":                                cancelAlgoOrderEPL,
 		"amendAlgoOrder":                                 amendAlgoOrderEPL,
-		"cancelAdvanceAlgoOrder":                         cancelAdvanceAlgoOrderEPL,
 		"getAlgoOrderDetail":                             getAlgoOrderDetailEPL,
 		"getAlgoOrderList":                               getAlgoOrderListEPL,
 		"getAlgoOrderHistory":                            getAlgoOrderHistoryEPL,
