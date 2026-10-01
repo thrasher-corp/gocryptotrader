@@ -236,7 +236,7 @@ func (b *rateLimitBarrier) admitLocked() error {
 		participant.limiter.m.Unlock()
 		reservations = append(reservations, reserved...)
 		if delay != 0 {
-			// Rounding, a zero burst or a rate.Limiter change made outside rateLimitReservationMu can still leave a delay here.
+			// Rounding or a rate.Limiter change made outside rateLimitReservationMu can still leave a delay here.
 			cancelAll(reservations, at)
 			return ErrDelayNotAllowed
 		}

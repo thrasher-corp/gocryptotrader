@@ -509,7 +509,7 @@ func TestRateLimitRejectedRequestRestoresCapacity(t *testing.T) {
 func TestRateLimitAdmittedRequestConsumesCapacity(t *testing.T) {
 	t.Parallel()
 
-	limiter := NewRateLimit(time.Second, 60)
+	limiter := NewRateLimit(time.Hour, 1)
 	weighted := GetRateLimiterWithWeight(limiter, 1)
 	ctx := WithDelayNotAllowed(t.Context())
 	require.NoError(t, weighted.RateLimit(ctx), "first request must be admitted without delay")
