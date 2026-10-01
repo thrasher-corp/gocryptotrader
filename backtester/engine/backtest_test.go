@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -43,6 +45,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
@@ -68,6 +71,7 @@ func TestSetupFromConfig(t *testing.T) {
 	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
 
 	const testExchange = "okx"
+	require.NoError(t, bt.exchangeManager.Add(newMockOKX(t)), "adding the mock OKX exchange must not error")
 
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
@@ -102,7 +106,7 @@ func TestSetupFromConfig(t *testing.T) {
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
 
-	cfg.DataSettings.APIData.StartDate = time.Now().Truncate(gctkline.OneMin.Duration()).Add(-gctkline.OneMin.Duration() * 10)
+	cfg.DataSettings.APIData.StartDate = time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
 	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration() * 5)
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	err = bt.SetupFromConfig(cfg, "", "", false)
@@ -120,6 +124,38 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.NoError(t, err)
+}
+
+// newMockOKX returns an OKX exchange whose REST requests reach a local server, so that a test does not
+// depend on the network or on OKX still listing a pair. It is built from OKX's standard config rather
+// than testdata/configtest.json, which cmd/exchange_template's test rewrites while other packages'
+// tests run. The server answers every candle request with OKX's one-minute BTC-USDT candles from
+// 2026-09-01 00:00 to 00:06 UTC; the exchange drops those outside the requested range.
+func newMockOKX(t *testing.T) *okx.Exchange {
+	t.Helper()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v5/market/history-candles", r.URL.Path, "the request path should be candle history")
+		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("instId"), "instId should be the configured pair")
+		assert.Equal(t, "1m", r.URL.Query().Get("bar"), "bar should be the configured interval")
+		_, err := w.Write([]byte(`{"code":"0","msg":"","data":[
+			["1788221160000","78676.7","78676.7","78618.7","78618.7","2.7867378","219156.404915931","219156.404915931","1"],
+			["1788221100000","78645","78690.5","78645","78677.4","2.76639104","217637.28375909","217637.28375909","1"],
+			["1788221040000","78628.9","78645.8","78615.1","78645.8","0.3852116","30290.504560427","30290.504560427","1"],
+			["1788220980000","78602.5","78633.9","78601.7","78630.1","2.9811496","234361.292366974","234361.292366974","1"],
+			["1788220920000","78584.1","78603.5","78572.4","78602.5","1.33334246","104796.487666947","104796.487666947","1"],
+			["1788220860000","78560.1","78584.5","78560.1","78584.5","0.53752658","42233.722015053","42233.722015053","1"],
+			["1788220800000","78582.2","78582.2","78552.9","78560.1","4.17043622","327637.068724681","327637.068724681","1"]
+		]}`))
+		assert.NoError(t, err, "writing the candles response should not error")
+	}))
+	ex := new(okx.Exchange)
+	ex.SetDefaults()
+	cfg, err := ex.GetStandardConfig()
+	require.NoError(t, err, "GetStandardConfig must not error")
+	require.NoError(t, ex.Setup(cfg), "Setup must not error")
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(gctexchange.RestSpot.String(), server.URL+"/api/v5/"), "SetRunningURL must not error")
+	return ex
 }
 
 func TestLoadDataAPI(t *testing.T) {
