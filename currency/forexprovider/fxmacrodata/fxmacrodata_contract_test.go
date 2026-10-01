@@ -193,16 +193,18 @@ func TestCurrencyScopedEndpointsWithoutAnAPIKey(t *testing.T) {
 
 	t.Run("announcements", func(t *testing.T) {
 		provider, closeServer := newKeylessContractProvider(t, "/api/v1/announcements/usd/inflation", `{
-			"currency":"USD","indicator":"inflation","data":[{"date":"2026-07-31","val":2.7}]
+			"currency":"USD","indicator":"inflation","value_metadata":{"source_unit":"%YoY","normalization_applied":true},
+			"data":[{"date":"2026-07-31","val":2.7}]
 		}`)
 		defer closeServer()
 
 		response, err := provider.Announcements(t.Context(), "usd", inflation, nil)
 		require.NoError(t, err, "a lowercase usd Announcements request must work with no API key configured")
 		exp := &AnnouncementResponse{
-			Currency:  usd,
-			Indicator: inflation,
-			Data:      []AnnouncementDataPoint{{Date: calendarDay(2026, time.July, 31), Val: 2.7}},
+			Currency:      usd,
+			Indicator:     inflation,
+			ValueMetadata: ValueMetadata{NormalizationApplied: true, SourceUnit: "%YoY"},
+			Data:          []AnnouncementDataPoint{{Date: calendarDay(2026, time.July, 31), Val: 2.7}},
 		}
 		assert.Equal(t, exp, response, "keyless Announcements should decode every fixture field")
 

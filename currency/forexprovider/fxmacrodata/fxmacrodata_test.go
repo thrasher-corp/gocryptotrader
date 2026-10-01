@@ -241,7 +241,7 @@ func TestGetLatestForexRateReadsPastARowWithoutAValue(t *testing.T) {
 	// its currency out of the conversion table.
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "5", r.URL.Query().Get("limit"), "GetLatestForexRate should request enough rows to read past a valueless one")
-		_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-10","val":null},{"date":"2026-09-09","val":1.5}]}`))
+		_, _ = w.Write([]byte(`{"data":[{"date":"2026-09-10","val":null},{"date":"2026-09-09","val":1.5},{"date":"2026-09-08","val":1.4}]}`))
 	}))
 	defer closeServer()
 

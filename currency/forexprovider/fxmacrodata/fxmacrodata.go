@@ -106,8 +106,8 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 	return f.getLatestForexRates(context.TODO(), baseCurrency, targetSymbols)
 }
 
-// getLatestForexRates fetches one rate per target. A pair whose latest row
-// carries no usable value is skipped and logged rather than failing the batch,
+// getLatestForexRates fetches one rate per target. A pair with no usable value
+// among its newest rows is skipped and logged rather than failing the batch,
 // so one empty pair does not discard every other rate; the error is returned
 // only when no pair produced a rate. Any other error, such as a transport or
 // authentication failure, still fails the whole call.
