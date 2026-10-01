@@ -24,6 +24,11 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + [Enable via configuration](../../../config/README.md#enable-currency-via-config-example)
 
++ Rates come from daily reference-rate series and are fetched one pair per
+  request, so the one-minute default `foreignExchangeUpdateDuration` spends
+  most of a key's monthly request allowance (1,000,000 requests per month);
+  raise it to leave headroom.
+
 + Individual package example below:
 
 ```go
@@ -36,12 +41,11 @@ c := fxmacrodata.FXMacroData{}
 
 // Define configuration
 newSettings := base.Settings{
-	Name:             "FXMacroData",
-	Enabled:          true,
-	Verbose:          false,
-	RESTPollingDelay: time.Duration,
-	APIKey:           "key",
-	PrimaryProvider:  true,
+	Name:            "FXMacroData",
+	Enabled:         true,
+	Verbose:         false,
+	APIKey:          "key",
+	PrimaryProvider: true,
 }
 
 c.Setup(newSettings)
