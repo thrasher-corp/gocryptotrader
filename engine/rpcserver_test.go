@@ -1833,6 +1833,7 @@ func TestGetManagedOrders(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
+	tradeTime := time.Unix(1_643_640_186, 123_456_789).UTC()
 	o := order.Detail{
 		Price:     100000,
 		Amount:    0.002,
@@ -1842,6 +1843,7 @@ func TestGetManagedOrders(t *testing.T) {
 		Status:    order.New,
 		AssetType: asset.Spot,
 		Pair:      currency.NewBTCUSDT(),
+		Trades:    []order.TradeHistory{{Timestamp: tradeTime}},
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -1857,6 +1859,11 @@ func TestGetManagedOrders(t *testing.T) {
 		t.Errorf("non expected Error: %v", err)
 	} else if oo == nil || len(oo.GetOrders()) != 1 {
 		t.Errorf("unexpected order result: %v", oo)
+	} else {
+		require.Len(t, oo.GetOrders()[0].GetTrades(), 1, "GetManagedOrders must return the stored trade")
+		creationTime := oo.GetOrders()[0].GetTrades()[0].GetCreationTime()
+		require.NotNil(t, creationTime, "GetManagedOrders must return the trade timestamp")
+		assert.Equal(t, tradeTime, creationTime.AsTime(), "GetManagedOrders should preserve trade timestamp nanoseconds")
 	}
 }
 
