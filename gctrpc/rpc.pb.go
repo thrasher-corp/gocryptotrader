@@ -1130,7 +1130,7 @@ func (x *CurrencyPair) GetQuote() string {
 type TickerResponse struct {
 	state                      protoimpl.MessageState `protogen:"open.v1"`
 	Pair                       *CurrencyPair          `protobuf:"bytes,1,opt,name=pair,proto3" json:"pair,omitempty"`
-	LastUpdated                *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_updated,json=lastUpdated,proto3" json:"last_updated,omitempty"`
+	LastUpdated                *timestamppb.Timestamp `protobuf:"bytes,31,opt,name=last_updated,json=lastUpdated,proto3" json:"last_updated,omitempty"`
 	CurrencyPair               string                 `protobuf:"bytes,3,opt,name=currency_pair,json=currencyPair,proto3" json:"currency_pair,omitempty"`
 	Last                       float64                `protobuf:"fixed64,4,opt,name=last,proto3" json:"last,omitempty"`
 	High                       float64                `protobuf:"fixed64,5,opt,name=high,proto3" json:"high,omitempty"`
@@ -1653,7 +1653,7 @@ type OrderbookResponse struct {
 	CurrencyPair  string                 `protobuf:"bytes,2,opt,name=currency_pair,json=currencyPair,proto3" json:"currency_pair,omitempty"`
 	Bids          []*OrderbookItem       `protobuf:"bytes,3,rep,name=bids,proto3" json:"bids,omitempty"`
 	Asks          []*OrderbookItem       `protobuf:"bytes,4,rep,name=asks,proto3" json:"asks,omitempty"`
-	LastUpdated   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_updated,json=lastUpdated,proto3" json:"last_updated,omitempty"`
+	LastUpdated   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_updated,json=lastUpdated,proto3" json:"last_updated,omitempty"`
 	AssetType     string                 `protobuf:"bytes,6,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
 	Error         string                 `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -3373,7 +3373,7 @@ func (x *OrderDetails) GetContractAmount() float64 {
 
 type TradeHistory struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CreationTime  *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
+	CreationTime  *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
 	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	Price         float64                `protobuf:"fixed64,3,opt,name=price,proto3" json:"price,omitempty"`
 	Amount        float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
@@ -14744,10 +14744,10 @@ const file_rpc_proto_rawDesc = "" +
 	"\fCurrencyPair\x12\x1c\n" +
 	"\tdelimiter\x18\x01 \x01(\tR\tdelimiter\x12\x12\n" +
 	"\x04base\x18\x02 \x01(\tR\x04base\x12\x14\n" +
-	"\x05quote\x18\x03 \x01(\tR\x05quote\"\xfa\a\n" +
+	"\x05quote\x18\x03 \x01(\tR\x05quote\"\x80\b\n" +
 	"\x0eTickerResponse\x12(\n" +
 	"\x04pair\x18\x01 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12=\n" +
-	"\flast_updated\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vlastUpdated\x12#\n" +
+	"\flast_updated\x18\x1f \x01(\v2\x1a.google.protobuf.TimestampR\vlastUpdated\x12#\n" +
 	"\rcurrency_pair\x18\x03 \x01(\tR\fcurrencyPair\x12\x12\n" +
 	"\x04last\x18\x04 \x01(\x01R\x04last\x12\x12\n" +
 	"\x04high\x18\x05 \x01(\x01R\x04high\x12\x10\n" +
@@ -14781,7 +14781,7 @@ const file_rpc_proto_rawDesc = "" +
 	"bid_period\x18\x1c \x01(\x01R\tbidPeriod\x12\x1d\n" +
 	"\n" +
 	"ask_period\x18\x1d \x01(\x01R\taskPeriod\x127\n" +
-	"\x18flash_return_rate_amount\x18\x1e \x01(\x01R\x15flashReturnRateAmountJ\x04\b\n" +
+	"\x18flash_return_rate_amount\x18\x1e \x01(\x01R\x15flashReturnRateAmountJ\x04\b\x02\x10\x03J\x04\b\n" +
 	"\x10\vR\tprice_ath\"\x13\n" +
 	"\x11GetTickersRequest\"W\n" +
 	"\aTickers\x12\x1a\n" +
@@ -14797,16 +14797,16 @@ const file_rpc_proto_rawDesc = "" +
 	"\rOrderbookItem\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x14\n" +
 	"\x05price\x18\x02 \x01(\x01R\x05price\x12\x0e\n" +
-	"\x02id\x18\x03 \x01(\x03R\x02id\"\xac\x02\n" +
+	"\x02id\x18\x03 \x01(\x03R\x02id\"\xb2\x02\n" +
 	"\x11OrderbookResponse\x12(\n" +
 	"\x04pair\x18\x01 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12#\n" +
 	"\rcurrency_pair\x18\x02 \x01(\tR\fcurrencyPair\x12)\n" +
 	"\x04bids\x18\x03 \x03(\v2\x15.gctrpc.OrderbookItemR\x04bids\x12)\n" +
 	"\x04asks\x18\x04 \x03(\v2\x15.gctrpc.OrderbookItemR\x04asks\x12=\n" +
-	"\flast_updated\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vlastUpdated\x12\x1d\n" +
+	"\flast_updated\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vlastUpdated\x12\x1d\n" +
 	"\n" +
 	"asset_type\x18\x06 \x01(\tR\tassetType\x12\x14\n" +
-	"\x05error\x18\a \x01(\tR\x05error\"\x16\n" +
+	"\x05error\x18\a \x01(\tR\x05errorJ\x04\b\x05\x10\x06\"\x16\n" +
 	"\x14GetOrderbooksRequest\"c\n" +
 	"\n" +
 	"Orderbooks\x12\x1a\n" +
@@ -14946,9 +14946,10 @@ const file_rpc_proto_rawDesc = "" +
 	"\x03fee\x18\x0f \x01(\x01R\x03fee\x12\x12\n" +
 	"\x04cost\x18\x10 \x01(\x01R\x04cost\x12,\n" +
 	"\x06trades\x18\x11 \x03(\v2\x14.gctrpc.TradeHistoryR\x06trades\x12'\n" +
-	"\x0fcontract_amount\x18\x12 \x01(\x01R\x0econtractAmount\"\x8f\x02\n" +
+	"\x0fcontract_amount\x18\x12 \x01(\x01R\x0econtractAmount\"\x95\x02\n" +
 	"\fTradeHistory\x12?\n" +
-	"\rcreation_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\fcreationTime\x12\x0e\n" +
+	"\rcreation_time\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\fcreationTime\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
 	"\x05price\x18\x03 \x01(\x01R\x05price\x12\x16\n" +
 	"\x06amount\x18\x04 \x01(\x01R\x06amount\x12\x1a\n" +
@@ -14958,7 +14959,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\n" +
 	"order_side\x18\a \x01(\tR\torderSide\x12\x10\n" +
 	"\x03fee\x18\b \x01(\x01R\x03fee\x12\x14\n" +
-	"\x05total\x18\t \x01(\x01R\x05total\"\xb1\x01\n" +
+	"\x05total\x18\t \x01(\x01R\x05totalJ\x04\b\x01\x10\x02\"\xb1\x01\n" +
 	"\x10GetOrdersRequest\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x1d\n" +
 	"\n" +

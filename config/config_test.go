@@ -1608,6 +1608,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
+	assert.Equal(t, expected.RemoteControl, migrated.RemoteControl, "ReadConfigFromFile should preserve remote control settings")
 }
 
 func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {

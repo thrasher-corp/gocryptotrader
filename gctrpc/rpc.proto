@@ -108,11 +108,11 @@ message CurrencyPair {
 }
 
 message TickerResponse {
-  reserved 10;
+  reserved 2, 10;
   reserved "price_ath";
 
   CurrencyPair pair = 1;
-  google.protobuf.Timestamp last_updated = 2;
+  google.protobuf.Timestamp last_updated = 31;
   string currency_pair = 3;
   double last = 4;
   double high = 5;
@@ -166,11 +166,13 @@ message OrderbookItem {
 }
 
 message OrderbookResponse {
+  reserved 5;
+
   CurrencyPair pair = 1;
   string currency_pair = 2;
   repeated OrderbookItem bids = 3;
   repeated OrderbookItem asks = 4;
-  google.protobuf.Timestamp last_updated = 5;
+  google.protobuf.Timestamp last_updated = 8;
   string asset_type = 6;
   string error = 7;
 }
@@ -331,7 +333,9 @@ message OrderDetails {
 }
 
 message TradeHistory {
-  google.protobuf.Timestamp creation_time = 1;
+  reserved 1;
+
+  google.protobuf.Timestamp creation_time = 10;
   string id = 2;
   double price = 3;
   double amount = 4;
