@@ -1,12 +1,20 @@
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore:
+      - 'gh-readonly-queue/**'
+      - 'dependabot/**'
+  pull_request:
 name: CI
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Master pushes each get their own group, because a queued run is cancelled when
+  # a newer one joins its group whatever cancel-in-progress says, which would leave
+  # master commits without a verdict. Every other run, a push to a fork's branch
+  # included, supersedes the older runs for its ref.
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.run_id || github.ref }}
   cancel-in-progress: true
 env:
-  GO_VERSION: 1.27.x
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   backend:
@@ -71,27 +79,38 @@ jobs:
     - name: Set up Postgres environment
       if: matrix.psql == true
       run: |
-        echo "PSQL_USER=postgres" >> $GITHUB_ENV
-        echo "PSQL_PASS=postgres" >> $GITHUB_ENV
-        echo "PSQL_HOST=localhost" >> $GITHUB_ENV
-        echo "PSQL_DBNAME=gct_dev_ci" >> $GITHUB_ENV
-        echo "PSQL_TESTDBNAME=gct_dev_ci" >> $GITHUB_ENV
-        echo "PSQL_SSLMODE=disable" >> $GITHUB_ENV
-        echo "PSQL_SKIPSQLCMD=true" >> $GITHUB_ENV
+        {
+          echo "PSQL_USER=postgres"
+          echo "PSQL_PASS=postgres"
+          echo "PSQL_HOST=localhost"
+          echo "PSQL_DBNAME=gct_dev_ci"
+          echo "PSQL_TESTDBNAME=gct_dev_ci"
+          echo "PSQL_SSLMODE=disable"
+          echo "PSQL_SKIPSQLCMD=true"
+        } >> "$GITHUB_ENV"
       shell: bash
 
     - name: Checkout code
       uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+
+    - name: Record Go cache key
+      run: echo "${{ matrix.goarch }}-sonic=${{ matrix.sonic }}-udecimal=${{ matrix.udecimal }}" > .go-cache-key
+      shell: bash
 
     - name: Setup Go
       uses: actions/setup-go@v7
       with:
-        go-version: ${{ env.GO_VERSION }}
+        go-version-file: go.mod
+        cache-dependency-path: |
+          go.sum
+          .go-cache-key
 
     - name: Skip additional wrapper CI tests
       if: matrix.skip_wrapper_tests == true
       run: |
-        echo "SKIP_WRAPPER_CI_TESTS=true" >> $GITHUB_ENV
+        echo "SKIP_WRAPPER_CI_TESTS=true" >> "$GITHUB_ENV"
       shell: bash
 
     - name: Additional steps for 386 architecture
@@ -104,7 +123,7 @@ jobs:
     - name: Set CGO_ENABLED for 386 and macos-latest
       if: matrix.goarch == '386' || matrix.os == 'macos-latest'
       run: |
-        echo "CGO_ENABLED=1" >> $GITHUB_ENV
+        echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
       shell: bash
 
     - name: Set GOFLAGS
@@ -118,7 +137,7 @@ jobs:
         fi
         if [ "${#tags[@]}" -gt 0 ]; then
           tags_csv=$(IFS=,; echo "${tags[*]}")
-          echo "GOFLAGS=${GOFLAGS} -tags=${tags_csv}" >> $GITHUB_ENV
+          echo "GOFLAGS=${GOFLAGS} -tags=${tags_csv}" >> "$GITHUB_ENV"
         fi
       shell: bash
 
@@ -126,9 +145,9 @@ jobs:
       run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
         unset PGSERVICEFILE
         if [ "${{ matrix.goarch }}" = "386" ]; then
-          go test -coverprofile coverage.txt -covermode atomic ./...
+          go test -count=1 -coverprofile coverage.txt -covermode atomic ./...
         else
-          go test -race -coverprofile coverage.txt -covermode atomic ./...
+          go test -race -count=1 -coverprofile coverage.txt -covermode atomic ./...
         fi
       shell: bash
       env:
@@ -140,40 +159,32 @@ jobs:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   backend-live-test-build:
-    name: GoCryptoTrader mock_test_off build (ubuntu-latest, amd64, psql=true, sonic=false)
+    name: GoCryptoTrader mock_test_off build (ubuntu-latest, amd64, psql=false, sonic=false)
     runs-on: ubuntu-latest
-    env:
-      GCT_SKIP_LIVE_TESTS: true
 
     steps:
-    - name: Setup Postgres
-      uses: ikalnytskyi/action-setup-postgres@v8
-      with:
-        database: gct_dev_ci
-      id: postgres
-
-    - name: Set up Postgres environment
-      run: |
-        echo "PSQL_USER=postgres" >> $GITHUB_ENV
-        echo "PSQL_PASS=postgres" >> $GITHUB_ENV
-        echo "PSQL_HOST=localhost" >> $GITHUB_ENV
-        echo "PSQL_DBNAME=gct_dev_ci" >> $GITHUB_ENV
-        echo "PSQL_TESTDBNAME=gct_dev_ci" >> $GITHUB_ENV
-        echo "PSQL_SSLMODE=disable" >> $GITHUB_ENV
-        echo "PSQL_SKIPSQLCMD=true" >> $GITHUB_ENV
-      shell: bash
-
     - name: Checkout code
       uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+
+    - name: Record Go cache key
+      run: echo "mock_test_off" > .go-cache-key
+      shell: bash
 
     - name: Setup Go
       uses: actions/setup-go@v7
       with:
-        go-version: ${{ env.GO_VERSION }}
+        go-version-file: go.mod
+        cache-dependency-path: |
+          go.sum
+          .go-cache-key
 
+    # -exec=/bin/true links each test binary without running it. Running them would
+    # still run every TestMain, and some of those call live exchange APIs.
     - name: Build tests with mock_test_off
       run: |
-        go test -run=^$ -tags=mock_test_off ./...
+        go test -run=^$ -exec=/bin/true -tags=mock_test_off ./...
       shell: bash
   
   backend-docker:
@@ -183,6 +194,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
+      with:
+        persist-credentials: false
 
     - name: Set up Docker buildx
       uses: docker/setup-buildx-action@v4
@@ -191,20 +204,25 @@ jobs:
       uses: actions/cache@v6
       with:
         path: /tmp/.docker-buildx-cache
-        key: ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/amd64.Dockerfile') }}-${{ github.sha }}
+        key: ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/amd64.Dockerfile', 'go.mod', 'go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/amd64.Dockerfile') }}-
           ${{ runner.os }}-docker-buildx-
     
     - name: Build Docker image
       run: |
         docker buildx build \
           --load \
-          --cache-to=type=local,dest=/tmp/.docker-buildx-cache,mode=max \
+          --build-arg GO_VERSION="$(awk '$1 == "go" { print $2; exit }' go.mod)" \
+          --cache-to=type=local,dest=/tmp/.docker-buildx-cache-new,mode=max \
           --cache-from=type=local,src=/tmp/.docker-buildx-cache \
           --tag gct-backend-amd64 \
           -f ./.github/workflows/amd64.Dockerfile \
           .
+
+    - name: Move Docker cache
+      run: |
+        rm -rf /tmp/.docker-buildx-cache
+        mv /tmp/.docker-buildx-cache-new /tmp/.docker-buildx-cache
     
     - name: Run Docker image
       run: |

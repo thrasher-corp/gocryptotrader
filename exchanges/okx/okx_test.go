@@ -66,6 +66,7 @@ var (
 
 	mainPair          = currency.NewPairWithDelimiter("BTC", "USDT", "-") // Is used for spot, margin symbols and underlying contracts
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
+	futuresPair       = currency.NewPairWithDelimiter("BTC", "USD", "-") // OKX lists no delivery futures for BTC-USDT
 	perpetualSwapPair = currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-")
 	spreadPair        = currency.NewPairWithDelimiter("BTC-USDT", "BTC-USDT-SWAP", "_")
 )
@@ -465,12 +466,12 @@ func TestGetDeliveryHistory(t *testing.T) {
 	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, "", "", time.Time{}, time.Time{}, 3)
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), "", time.Time{}, time.Time{}, 345)
+	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, futuresPair.String(), "", time.Time{}, time.Time{}, 345)
 	require.ErrorIs(t, err, errLimitValueExceedsMaxOf100)
 
-	result, err := e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), "", time.Time{}, time.Time{}, 3)
+	result, err := e.GetDeliveryHistory(contextGenerate(), instTypeFutures, futuresPair.String(), "", time.Time{}, time.Time{}, 3)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.NotEmpty(t, result, "GetDeliveryHistory should return deliveries")
 }
 
 func TestGetOpenInterestData(t *testing.T) {
@@ -620,18 +621,18 @@ func TestGetPositionTiers(t *testing.T) {
 	_, err := e.GetPositionTiers(contextGenerate(), "", "cross", mainPair.String(), "", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "", mainPair.String(), "", "", "", currency.ETH)
+	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "", futuresPair.String(), "", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidTradeMode)
 
 	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "", "", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", "", currency.EMPTYCODE)
+	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", futuresPair.String(), "", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
-	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", "", currency.ETH)
+	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", futuresPair.String(), "", "", "", currency.ETH)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.NotEmpty(t, result, "GetPositionTiers should return tiers")
 }
 
 func TestGetInterestRateAndLoanQuota(t *testing.T) {
@@ -683,10 +684,11 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
 	}
 
+	// The underlying BTC-USD spans several futures families, each answered separately, so name one family
 	r, err = e.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
-		InstrumentType: instTypeFutures,
-		Underlying:     mainPair.String(),
-		Limit:          2,
+		InstrumentType:   instTypeFutures,
+		InstrumentFamily: futuresPair.String(),
+		Limit:            2,
 	})
 	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
