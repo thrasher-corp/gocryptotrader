@@ -58,8 +58,13 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	case order.OptimalLimit:
 		return orderOptimalLimitIOC, nil
 	case order.Limit:
-		if tif == order.PostOnly {
+		switch tif {
+		case order.PostOnly:
 			return orderPostOnly, nil
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
 		}
 		return orderLimit, nil
 	case order.Market:
@@ -119,7 +124,8 @@ func orderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error
 // (limit, post_only and ioc all read back as Limit) send no filter and leave
 // the request filter to narrow by type. No match falls back to orderTypeString
 // and rejects values outside the four spread types, such as the fok a market
-// order with FillOrKill maps to: spread orders cannot be fill-or-kill.
+// or limit order with FillOrKill maps to: spread orders cannot be
+// fill-or-kill.
 func spreadOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
 	spreadTypes := []string{orderMarket, orderLimit, orderPostOnly, orderIOC}
 	var oTypes []string

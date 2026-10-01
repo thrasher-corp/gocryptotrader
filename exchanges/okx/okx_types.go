@@ -810,7 +810,8 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.InstrumentID == "" {
 		return errMissingInstrumentID
 	}
-	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
+	if arg.AssetType == asset.Empty || arg.AssetType == asset.Spot || arg.AssetType == asset.Margin ||
+		arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap || arg.AssetType == asset.Options {
 		arg.Side = strings.ToLower(arg.Side)
 		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)

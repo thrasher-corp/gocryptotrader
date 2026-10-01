@@ -516,9 +516,11 @@ func (e *Exchange) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderPara
 	return e.PlaceAlgoOrder(ctx, arg)
 }
 
-// CancelAdvanceAlgoOrder Cancel unfilled algo orders
-// A maximum of 10 orders can be cancelled at a time.
-// Request parameters should be passed in the form of an array
+// CancelAdvanceAlgoOrder cancels unfilled algo orders.
+// Request parameters should be passed in the form of an array.
+//
+// Deprecated: OKX no longer documents the cancel-advance-algos endpoint; use
+// CancelAlgoOrder, which cancels at most 10 orders per request.
 func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -526,8 +528,8 @@ func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderC
 	return e.cancelAlgoOrder(ctx, args, "trade/cancel-advance-algos", cancelAdvanceAlgoOrderEPL)
 }
 
-// CancelAlgoOrder to cancel unfilled algo orders (not including Iceberg order, TWAP order, Trailing Stop order).
-// A maximum of 10 orders can be cancelled at a time.
+// CancelAlgoOrder cancels unfilled algo orders.
+// A maximum of 10 orders can be cancelled per request.
 // Request parameters should be passed in the form of an array
 func (e *Exchange) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
 	if len(args) == 0 {

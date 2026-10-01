@@ -945,6 +945,13 @@ func (e *Exchange) validateSubmitPrelude(s *order.Submit) (*submitPrelude, error
 		p.sideType = s.Side.String()
 	case asset.Futures, asset.PerpetualSwap, asset.Options:
 		p.positionSide = s.Side.Lower()
+		// OKX requires side for every instrument type, and contracts carry
+		// the direction in side as well as posSide.
+		if s.Side.IsLong() {
+			p.sideType = order.Buy.Lower()
+		} else if s.Side.IsShort() {
+			p.sideType = order.Sell.Lower()
+		}
 	}
 	if s.AssetType == asset.Spot && s.Type == order.Market {
 		p.targetCurrency = "base_ccy" // Default to base currency
@@ -987,6 +994,12 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 	switch s.Type.Lower() {
 	case orderLimit, orderPostOnly, orderFOK, orderIOC:
 		orderRequest.Price = s.Price
+	}
+	// OKX applies reduceOnly to MARGIN orders and FUTURES/SWAP orders in net
+	// mode only, so it is not sent for the other instruments.
+	switch s.AssetType {
+	case asset.Margin, asset.Futures, asset.PerpetualSwap:
+		orderRequest.ReduceOnly = s.ReduceOnly
 	}
 	if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
 		if s.Type.Lower() == "" {
@@ -1312,7 +1325,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		})
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
 		var response []AlgoOrder
-		response, err = e.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
+		response, err = e.CancelAlgoOrder(ctx, []AlgoOrderCancelParams{
 			{
 				AlgoOrderID:  ord.OrderID,
 				InstrumentID: instrumentID,
@@ -1330,6 +1343,10 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	return err
 }
+
+// maxCancelAlgosPerRequest is the documented maximum number of algo orders
+// POST /api/v5/trade/cancel-algos accepts per request.
+const maxCancelAlgosPerRequest = 10
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers via the
 // exchange REST API.
@@ -1431,24 +1448,38 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 	}
 	if len(cancelAlgoOrderParams) > 0 {
-		algoResults, err := e.CancelAdvanceAlgoOrder(ctx, cancelAlgoOrderParams)
-		if cancelResultsUsable(err) {
-			// OKX reports one result per requested algo order; failed cancels are
-			// reported with their status message instead of a false Cancelled.
-			for x := range algoResults {
-				if algoResults[x].AlgoID == "" {
-					continue
-				}
-				if algoResults[x].StatusCode == 0 {
-					resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
-				} else {
-					resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
+		// cancel-advance-algos is no longer in OKX's documentation and the
+		// documented cancel-algos accepts at most maxCancelAlgosPerRequest
+		// orders per request, so the batch is sent in chunks. A partially
+		// successful chunk leaves the chunks after it to cancel, as
+		// cancelInBatches does for ordinary orders.
+		var batchErr error
+		for start := 0; start < len(cancelAlgoOrderParams); start += maxCancelAlgosPerRequest {
+			end := min(start+maxCancelAlgosPerRequest, len(cancelAlgoOrderParams))
+			algoResults, err := e.CancelAlgoOrder(ctx, cancelAlgoOrderParams[start:end])
+			if cancelResultsUsable(err) {
+				// OKX reports one result per requested algo order; failed
+				// cancels are reported with their status message instead of a
+				// false Cancelled.
+				for x := range algoResults {
+					if algoResults[x].AlgoID == "" {
+						continue
+					}
+					if algoResults[x].StatusCode == 0 {
+						resp.Status[algoResults[x].AlgoID] = order.Cancelled.String()
+					} else {
+						resp.Status[algoResults[x].AlgoID] = algoResults[x].StatusMessage
+					}
 				}
 			}
+			batchErr = common.AppendError(batchErr, err)
+			if err != nil && !cancelResultsUsable(err) {
+				// A failed chunk stops the chunks after it, as the ordinary
+				// batch branch above does.
+				return resp, batchErr
+			}
 		}
-		if err != nil {
-			return resp, err
-		}
+		return resp, batchErr
 	}
 	return resp, nil
 }
@@ -1972,7 +2003,13 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		cp, err := currency.NewPairFromString(resp.InstrumentID)
+		format, err := e.GetPairFormat(assetType, true)
+		if err != nil {
+			return nil, err
+		}
+		// OKX's spread order response documents sprdId, not instId, so the
+		// pair comes from the spread ID like the other spread listings.
+		cp, err := currency.NewPairDelimiter(resp.SpreadID, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -2430,6 +2467,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	endTime := req.EndTime
+	// OKX returns the archive newest first and several orders can share one
+	// creation millisecond, so a full page's last creation time can reappear
+	// at the head of the next page when OKX reads the end timestamp
+	// inclusively. Track the order IDs and skip the overlap instead of
+	// stopping at the first row on the boundary millisecond, which drops the
+	// rest of that millisecond's orders and everything older.
+	seen := make(map[string]struct{})
 allOrders:
 	for {
 		orderList, err := e.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
@@ -2442,12 +2486,18 @@ allOrders:
 		if len(orderList) == 0 {
 			break
 		}
+		var progressed bool
 		for i := range orderList {
-			if orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime.Equal(orderList[i].CreationTime.Time()) {
-				// reached end of orders to crawl
+			if orderList[i].CreationTime.Time().Before(req.StartTime) {
+				// Reached the end of the crawl: rows arrive newest first, so
+				// every row after is older than StartTime.
 				break allOrders
 			}
+			if _, ok := seen[orderList[i].OrderID]; ok {
+				continue
+			}
+			seen[orderList[i].OrderID] = struct{}{}
+			progressed = true
 			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
@@ -2493,7 +2543,9 @@ allOrders:
 				})
 			}
 		}
-		if len(orderList) < 100 {
+		// A full page holding no new order means OKX keeps returning the
+		// boundary millisecond's rows; stop rather than loop forever.
+		if len(orderList) < 100 || !progressed {
 			break
 		}
 		endTime = orderList[len(orderList)-1].CreationTime.Time()
