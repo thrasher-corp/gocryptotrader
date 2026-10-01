@@ -15,10 +15,8 @@ const (
 	// APIURL is the default FXMacroData API endpoint.
 	APIURL = "https://api.fxmacrodata.com/v1/"
 
-	// supportedCurrencies lists the currencies the forex endpoint serves. KRW is
-	// accepted by the endpoint's enum but no public reference source serves it
-	// yet, so it is left out until the endpoint returns rows for it.
-	supportedCurrencies = "AUD,BRL,CAD,CHF,CNH,CNY,DKK,EUR,GBP,HUF,ILS,JPY,MYR,NGN,NOK,NZD,PEN,SEK,THB,TWD,USD"
+	// supportedCurrencies lists the currencies the forex endpoint serves.
+	supportedCurrencies = "AUD,BRL,CAD,CHF,CNH,CNY,DKK,EUR,GBP,HUF,ILS,JPY,KRW,MYR,NGN,NOK,NZD,PEN,SEK,THB,TWD,USD"
 )
 
 // Seven response fields are free-form in the FXMacroData OpenAPI contract, with
