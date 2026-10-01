@@ -68,7 +68,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "RFQs send clRfqId",
 			call: func() error {
-				_, err := e.GetRFQs(t.Context(), &RFQRequestParams{ClientRFQID: "rfq-client-1"})
+				_, err := e.GetRFQs(t.Context(), &RFQsRequest{ClientRFQID: "rfq-client-1"})
 				return err
 			},
 			path:   "/rfq/rfqs",
@@ -78,7 +78,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Quotes send clRfqId",
 			call: func() error {
-				_, err := e.GetQuotes(t.Context(), &QuoteRequestParams{ClientRFQID: "rfq-client-1"})
+				_, err := e.GetQuotes(t.Context(), &QuotesRequest{ClientRFQID: "rfq-client-1"})
 				return err
 			},
 			path:   "/rfq/quotes",
@@ -108,11 +108,11 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Subaccount bills filter uses subAcct",
 			call: func() error {
-				_, err := e.HistoryOfSubaccountTransfer(t.Context(), currency.BTC, "", "sub-one", time.Time{}, time.Time{}, 0)
+				_, err := e.HistoryOfSubaccountTransfer(t.Context(), currency.BTC, "", "sub-one", time.Time{}, time.Time{}, 7)
 				return err
 			},
 			path:   "/asset/subaccount/bills",
-			params: map[string]string{"subAcct": "sub-one"},
+			params: map[string]string{"subAcct": "sub-one", "limit": "7"},
 			absent: []string{"subacct", "setAcct"},
 		},
 		{
@@ -185,6 +185,9 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			absent: []string{"quickMgnType", "upSpotOffset"},
 		},
 		{
+			// algoClOrdId is the last name the request table documented for
+			// this filter: it was delisted on 2025-04-24, but live the endpoint
+			// still narrows on it, and the old clOrdId name no longer filters.
 			name: "Pending algo order list sends algoClOrdId",
 			call: func() error {
 				_, err := e.GetAlgoOrderList(t.Context(), "conditional", "", "test-algo-client-id", "", "", time.Time{}, time.Time{}, 1)

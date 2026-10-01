@@ -1764,11 +1764,11 @@ func TestCancelAllRFQQuotes(t *testing.T) {
 
 func TestGetRFQs(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetRFQs(contextGenerate(), &RFQRequestParams{})
+	_, err := e.GetRFQs(contextGenerate(), &RFQsRequest{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetRFQs(contextGenerate(), &RFQRequestParams{
+	result, err := e.GetRFQs(contextGenerate(), &RFQsRequest{
 		Limit: 1,
 	})
 	require.NoError(t, err)
@@ -1777,11 +1777,11 @@ func TestGetRFQs(t *testing.T) {
 
 func TestGetQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetQuotes(contextGenerate(), &QuoteRequestParams{})
+	_, err := e.GetQuotes(contextGenerate(), &QuotesRequest{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetQuotes(contextGenerate(), &QuoteRequestParams{
+	result, err := e.GetQuotes(contextGenerate(), &QuotesRequest{
 		Limit: 3,
 	})
 	require.NoError(t, err)
@@ -2540,117 +2540,6 @@ func TestGetBorrowInterestAndLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetBorrowInterestAndLimit(contextGenerate(), 1, currency.BTC)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetFixedLoanBorrowLimit(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetFixedLoanBorrowLimit(contextGenerate())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetFixedLoanBorrowQuote(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "", "30D", "123423423", 1, .4)
-	require.ErrorIs(t, err, errBorrowTypeRequired)
-	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.EMPTYCODE, "normal", "30D", "123423423", 1, .4)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "30D", "", 0, .4)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "30D", "123423423", 1, 0)
-	require.ErrorIs(t, err, errMaxRateRequired)
-	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "", "123423423", 1, .4)
-	require.ErrorIs(t, err, errLendingTermIsRequired)
-	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "reborrow", "30D", "", 1, .4)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "30D", "123423423", 1, .4)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestPlaceFixedLoanBorrowingOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.EMPTYCODE, 1, .3, .2, "30D", false)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.USDT, 0, .3, .2, "30D", false)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.USDT, 1, 0, .2, "30D", false)
-	require.ErrorIs(t, err, errMaxRateRequired)
-	_, err = e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.USDT, 1, .3, .2, "", false)
-	require.ErrorIs(t, err, errLendingTermIsRequired)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.USDT, 1, .3, .2, "30D", false)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestAmendFixedLoanBorrowingOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.AmendFixedLoanBorrowingOrder(contextGenerate(), "", false, .4)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.AmendFixedLoanBorrowingOrder(contextGenerate(), "12312312", false, .4)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestManualRenewFixedLoanBorrowingOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.ManualRenewFixedLoanBorrowingOrder(contextGenerate(), "", .3)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.ManualRenewFixedLoanBorrowingOrder(contextGenerate(), "12312312", 0)
-	require.ErrorIs(t, err, errMaxRateRequired)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.ManualRenewFixedLoanBorrowingOrder(contextGenerate(), "12312312", .3)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestRepayFixedLoanBorrowingOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.RepayFixedLoanBorrowingOrder(contextGenerate(), "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.RepayFixedLoanBorrowingOrder(contextGenerate(), "12321")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestConvertFixedLoanToMarketLoan(t *testing.T) {
-	t.Parallel()
-	_, err := e.ConvertFixedLoanToMarketLoan(contextGenerate(), "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.ConvertFixedLoanToMarketLoan(contextGenerate(), "12321")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestReduceLiabilitiesForFixedLoan(t *testing.T) {
-	t.Parallel()
-	_, err := e.ReduceLiabilitiesForFixedLoan(contextGenerate(), "", false)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.ReduceLiabilitiesForFixedLoan(contextGenerate(), "123123", false)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetFixedLoanBorrowOrderList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetFixedLoanBorrowOrderList(contextGenerate(), currency.USDT, "1231231", "8", "30D", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6376,69 +6265,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
-}
-
-func TestPlaceLendingOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.PlaceLendingOrder(contextGenerate(), &LendingOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	arg := &LendingOrderParam{AutoRenewal: true}
-	_, err = e.PlaceLendingOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	arg.Currency = currency.USDT
-	_, err = e.PlaceLendingOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-
-	arg.Amount = 1
-	_, err = e.PlaceLendingOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, errRateRequired)
-
-	arg.Rate = 0.01
-	_, err = e.PlaceLendingOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, errLendingTermIsRequired)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.PlaceLendingOrder(contextGenerate(), &LendingOrderParam{
-		Currency:    currency.USDT,
-		Amount:      1,
-		Rate:        0.01,
-		Term:        "30D",
-		AutoRenewal: true,
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestAmendLendingOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.AmendLendingOrder(contextGenerate(), "", 0, 0, false)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.AmendLendingOrder(contextGenerate(), "12312312", 1., 2., true)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetLendingOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetLendingOrders(contextGenerate(), "", "pending", currency.ETH, time.Time{}, time.Time{}, 10)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetLendingSubOrderList(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetLendingSubOrderList(contextGenerate(), "", "pending", time.Time{}, time.Time{}, 10)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetLendingSubOrderList(contextGenerate(), "12345", "", time.Time{}, time.Time{}, 10)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestCancelAllSpreadOrdersAfterCountdown(t *testing.T) {

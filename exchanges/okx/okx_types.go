@@ -152,8 +152,6 @@ var (
 	errRateRequired                         = errors.New("lending rate is required")
 	errQuarterValueRequired                 = errors.New("quarter is required")
 	errYearRequired                         = errors.New("year is required")
-	errBorrowTypeRequired                   = errors.New("borrow type is required")
-	errMaxRateRequired                      = errors.New("max rate is required")
 	errLendingSideRequired                  = errors.New("lending side is required")
 	errPaymentMethodRequired                = errors.New("payment method required")
 	errIDNotSet                             = errors.New("ID is not set")
@@ -2243,35 +2241,6 @@ type SurplusLimitDetail struct {
 	PlatRemainingQuota    string `json:"platRemainingQuota"`
 }
 
-// FixedLoanBorrowLimitInformation represents a fixed loan borrow information
-type FixedLoanBorrowLimitInformation struct {
-	TotalBorrowLimit     types.Number `json:"totalBorrowLmt"`
-	TotalAvailableBorrow types.Number `json:"totalAvailBorrow"`
-	Borrowed             types.Number `json:"borrowed"`
-	UsedAmount           types.Number `json:"used"`
-	AvailRepay           string       `json:"availRepay"`
-	Details              []struct {
-		Borrowed    types.Number `json:"borrowed"`
-		AvailBorrow types.Number `json:"availBorrow"`
-		Currency    string       `json:"ccy"`
-		MinBorrow   types.Number `json:"minBorrow"`
-		Used        types.Number `json:"used"`
-		Term        string       `json:"term"`
-	} `json:"details"`
-	Timestamp types.Time `json:"ts"`
-}
-
-// FixedLoanBorrowQuote represents a fixed loan quote details
-type FixedLoanBorrowQuote struct {
-	Currency        string       `json:"ccy"`
-	Term            string       `json:"term"`
-	EstAvailBorrow  types.Number `json:"estAvailBorrow"`
-	EstRate         types.Number `json:"estRate"`
-	EstInterest     types.Number `json:"estInterest"`
-	PenaltyInterest types.Number `json:"penaltyInterest"`
-	Timestamp       types.Time   `json:"ts"`
-}
-
 // GreeksItem represents greeks response
 type GreeksItem struct {
 	ThetaBS   string     `json:"thetaBS"`
@@ -2450,8 +2419,8 @@ type CancelQuoteResponse struct {
 	StatusMessage string `json:"sMsg"`
 }
 
-// RFQRequestParams represents get RFQ orders param
-type RFQRequestParams struct {
+// RFQsRequest represents get RFQ orders param
+type RFQsRequest struct {
 	RFQID       string
 	ClientRFQID string
 	State       string
@@ -2478,8 +2447,8 @@ type RFQResponse struct {
 	} `json:"legs"`
 }
 
-// QuoteRequestParams request params
-type QuoteRequestParams struct {
+// QuotesRequest represents get quotes request params
+type QuotesRequest struct {
 	RFQID         string
 	ClientRFQID   string
 	QuoteID       string
@@ -4700,8 +4669,8 @@ type LeadTradersRank struct {
 	TotalPage string `json:"totalPage"`
 }
 
-// TraderProfitAndLoss represents lead trader pnl
-type TraderProfitAndLoss struct {
+// TraderProfitAndLossResponse represents lead trader pnl
+type TraderProfitAndLossResponse struct {
 	BeginTimestamp     types.Time   `json:"beginTs"`
 	ProfitAndLoss      types.Number `json:"pnl"`
 	ProfitAndLossRatio types.Number `json:"pnlRatio"`
@@ -4761,58 +4730,6 @@ type LeadPosition struct {
 	SubPosition        string       `json:"subPos"`
 	SubPositionID      string       `json:"subPosId"`
 	UniqueCode         string       `json:"uniqueCode"`
-}
-
-// LendingOrderParam represents a lending order request parameters
-type LendingOrderParam struct {
-	Currency    currency.Code `json:"ccy"`
-	Amount      float64       `json:"amt,omitempty,string"`
-	Rate        float64       `json:"rate,omitempty,string"`
-	Term        string        `json:"term"`
-	AutoRenewal bool          `json:"autoRenewal,omitempty"`
-}
-
-// LendingOrderResponse represents an order ID response after placing a lending order
-type LendingOrderResponse []struct {
-	OrderID string `json:"ordId"`
-}
-
-// LendingOrderDetail represents a lending order detail
-type LendingOrderDetail struct {
-	OrderID       string       `json:"ordId"`
-	Amount        types.Number `json:"amt"`
-	AutoRenewal   bool         `json:"autoRenewal"`
-	Currency      string       `json:"ccy"`
-	EarningAmount types.Number `json:"earningAmt"`
-	PendingAmount types.Number `json:"pendingAmt"`
-	Rate          types.Number `json:"rate"`
-	State         string       `json:"state"`
-	Term          string       `json:"term"`
-	TotalInterest string       `json:"totalInterest"`
-	CreationTime  types.Time   `json:"cTime"`
-	UpdateTime    types.Time   `json:"uTime"`
-	SettledTime   types.Time   `json:"settledTime"`
-	StartTime     types.Time   `json:"startTime"`
-}
-
-// LendingSubOrder represents a lending sub-order detail
-type LendingSubOrder struct {
-	AccruedInterest        string       `json:"accruedInterest"`
-	Amount                 types.Number `json:"amt"`
-	Currency               string       `json:"ccy"`
-	EarlyTerminatedPenalty string       `json:"earlyTerminatedPenalty"`
-	ExpiryTime             types.Time   `json:"expiryTime"`
-	FinalSettlementTime    types.Time   `json:"finalSettlementTime"`
-	OrderID                string       `json:"ordId"`
-	OverdueInterest        string       `json:"overdueInterest"`
-	Rate                   string       `json:"rate"`
-	SettledTime            types.Time   `json:"settledTime"`
-	State                  string       `json:"state"`
-	SubOrdID               string       `json:"subOrdId"`
-	Term                   string       `json:"term"`
-	TotalInterest          string       `json:"totalInterest"`
-	CreationTime           types.Time   `json:"cTime"`
-	UpdateTime             types.Time   `json:"uTime"`
 }
 
 // SpreadOrderCancellationResponse represents a spread order cancellation response
@@ -4888,36 +4805,6 @@ type AccountInstrument struct {
 	TickSize            types.Number `json:"tickSz"`
 	Underlying          string       `json:"uly"`
 	RuleType            string       `json:"ruleType"`
-}
-
-// ReduceLiabilities represents a response after reducing liabilities
-type ReduceLiabilities struct {
-	OrderID      string `json:"ordId"`
-	PendingRepay bool   `json:"pendingRepay"`
-}
-
-// FixedLoanBorrowOrderDetail represents a borrow order detail
-type FixedLoanBorrowOrderDetail struct {
-	OrderID                   string       `json:"ordId"`
-	AccruedInterest           string       `json:"accruedInterest"`
-	ActualBorrowAmount        types.Number `json:"actualBorrowAmt"`
-	CreateTime                types.Time   `json:"cTime"`
-	Currency                  string       `json:"ccy"`
-	CurRate                   types.Number `json:"curRate"`
-	DeadlinePenaltyInterest   types.Number `json:"deadlinePenaltyInterest"`
-	EarlyRepayPenaltyInterest types.Number `json:"earlyRepayPenaltyInterest"`
-	ExpiryTime                types.Time   `json:"expiryTime"`
-	FailedReason              string       `json:"failedReason"`
-	ForceRepayTime            types.Time   `json:"forceRepayTime"`
-	OverduePenaltyInterest    types.Number `json:"overduePenaltyInterest"`
-	PotentialPenaltyInterest  types.Number `json:"potentialPenaltyInterest"`
-	Reborrow                  bool         `json:"reborrow"`
-	ReborrowRate              types.Number `json:"reborrowRate"`
-	ReqBorrowAmount           types.Number `json:"reqBorrowAmt"`
-	SettleReason              string       `json:"settleReason"`
-	State                     string       `json:"state"`
-	Term                      string       `json:"term"`
-	UpdateTime                types.Time   `json:"uTime"`
 }
 
 // BorrowOrRepay represents a borrow and repay operation response
