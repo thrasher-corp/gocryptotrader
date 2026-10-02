@@ -3094,6 +3094,79 @@ func TestSubmitOrderContractsFollowPositionMode(t *testing.T) {
 	}
 }
 
+// TestSetPositionModeRefreshesOrderPlacement guards the position mode cache
+// refresh: a successful switch steers later contract order placement without
+// another account configuration fetch, and an empty or unrecognised success
+// reply reports an error rather than caching an unconfirmed mode.
+func TestSetPositionModeRefreshesOrderPlacement(t *testing.T) {
+	t.Parallel()
+	t.Run("placement follows the confirmed mode", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var body []byte
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/account/set-position-mode":
+				writeOKXData(t, w, []map[string]string{{"posMode": positionModeLongShort}})
+				return
+			case "/trade/order":
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the order body should not error")
+			mu.Lock()
+			body = b
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+		}))
+		_, err := e.SetPositionMode(t.Context(), positionModeLongShort)
+		require.NoError(t, err, "SetPositionMode must not error")
+		_, err = e.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:   e.Name,
+			Pair:       mainPair,
+			AssetType:  asset.Futures,
+			Side:       order.Buy,
+			Type:       order.Limit,
+			Amount:     1,
+			Price:      1,
+			MarginType: margin.Multi,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		mu.Lock()
+		defer mu.Unlock()
+		var sent map[string]any
+		require.NoError(t, json.Unmarshal(body, &sent), "the order request body must decode")
+		assert.Equal(t, positionSideLong, sent["posSide"], "the order should follow the confirmed position mode without refetching it")
+	})
+	for _, tc := range []struct {
+		name string
+		data any
+		err  error
+	}{
+		{"empty reply", nil, common.ErrNoResponse},
+		{"null row", []any{nil}, common.ErrNoResponse},
+		{"unrecognised mode", []map[string]string{{"posMode": "reverse"}}, errInvalidPositionMode},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/account/set-position-mode" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				writeOKXData(t, w, tc.data)
+			}))
+			_, err := e.SetPositionMode(t.Context(), positionModeLongShort)
+			require.ErrorIsf(t, err, tc.err, "SetPositionMode must report a %s", tc.name)
+			assert.Empty(t, e.accountPositionMode, "an unconfirmed mode switch should not refresh the cache")
+		})
+	}
+}
+
 // TestLimitMakerOrdersAmendAndCancelByType guards the order types the amend
 // and cancel switches accept: SubmitOrder places LimitMaker orders as
 // post_only, so amending or cancelling one by the type it was submitted with

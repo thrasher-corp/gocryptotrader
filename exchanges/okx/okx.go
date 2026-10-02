@@ -1795,20 +1795,27 @@ func (e *Exchange) GetAccountConfiguration(ctx context.Context) (*AccountConfigu
 // Position mode 'long_short_mode': long/short, only applicable to  FUTURES/SWAP'net_mode': net
 func (e *Exchange) SetPositionMode(ctx context.Context, positionMode string) (*PositionMode, error) {
 	if positionMode != positionModeLongShort && positionMode != positionModeNet {
-		return nil, errInvalidPositionMode
+		return nil, fmt.Errorf("%w: %q", errInvalidPositionMode, positionMode)
 	}
 	var resp *PositionMode
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
 		PositionMode: positionMode,
 	}, &resp, request.AuthenticatedRequest)
-	if err == nil {
-		// The mode switch succeeded, so the cached mode the order placement
-		// branches on is refreshed alongside it.
-		e.accountPositionModeMu.Lock()
-		e.accountPositionMode = positionMode
-		e.accountPositionModeMu.Unlock()
+	if err != nil {
+		return nil, err
 	}
-	return resp, err
+	if resp == nil {
+		return nil, fmt.Errorf("%w setting the account position mode", common.ErrNoResponse)
+	}
+	if resp.PositionMode != positionModeLongShort && resp.PositionMode != positionModeNet {
+		return nil, fmt.Errorf("%w %q", errInvalidPositionMode, resp.PositionMode)
+	}
+	// The mode switch succeeded, so the cached mode the order placement
+	// branches on is refreshed with the mode OKX confirms.
+	e.accountPositionModeMu.Lock()
+	e.accountPositionMode = resp.PositionMode
+	e.accountPositionModeMu.Unlock()
+	return resp, nil
 }
 
 // SetLeverageRate sets a leverage setting for instrument id
