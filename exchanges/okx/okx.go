@@ -4616,12 +4616,20 @@ func (e *Exchange) GetPublicBlockTrades(ctx context.Context, instrumentID string
 
 // PlaceSpreadOrder places new spread order
 func (e *Exchange) PlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
-	err := e.validatePlaceSpreadOrderParam(arg)
-	if err != nil {
+	if err := e.validatePlaceSpreadOrderParam(arg); err != nil {
 		return nil, err
 	}
 	var resp *SpreadOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodPost, "sprd/order", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodPost, "sprd/order", arg, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		if resp != nil {
+			// OKX's top-level reply only says all operations failed; the row
+			// carries the code and reason, such as 51008 for a balance reject.
+			err = common.AppendError(err, resp.Error())
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (e *Exchange) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
@@ -4634,10 +4642,14 @@ func (e *Exchange) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
 	if arg.OrderType == "" {
 		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
 	}
+	arg.OrderType = strings.ToLower(arg.OrderType)
 	if arg.Size <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if arg.Price <= 0 {
+	// Market orders carry no px, and the px of a spread order is the
+	// differential between its legs, which can be negative: only a missing
+	// price on a price-bearing order type is an error.
+	if arg.OrderType != orderMarket && arg.Price == 0 {
 		return limits.ErrPriceBelowMin
 	}
 	arg.Side = strings.ToLower(arg.Side)
@@ -4662,7 +4674,14 @@ func (e *Exchange) CancelSpreadOrder(ctx context.Context, orderID, clientOrderID
 		arg["clOrdId"] = clientOrderID
 	}
 	var resp *SpreadOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		if resp != nil {
+			err = common.AppendError(err, resp.Error())
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 // CancelAllSpreadOrders cancels all spread orders and returns whether OKX
@@ -4692,7 +4711,14 @@ func (e *Exchange) AmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPa
 		return nil, errSizeOrPriceIsRequired
 	}
 	var resp *SpreadOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		if resp != nil {
+			err = common.AppendError(err, resp.Error())
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 // GetSpreadOrderDetails retrieves spread order details

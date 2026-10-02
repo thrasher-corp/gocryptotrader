@@ -990,15 +990,19 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 
 // deriveSpreadOrderParam converts a validated submit into a spread order
 // parameter, with the formatted pair identifying the spread as the sprdId.
-func deriveSpreadOrderParam(s *order.Submit, p *submitPrelude) *SpreadOrderParam {
+func deriveSpreadOrderParam(s *order.Submit, p *submitPrelude) (*SpreadOrderParam, error) {
+	spreadOrderType, err := spreadOrderTypeString(s.Type, s.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
 	return &SpreadOrderParam{
 		SpreadID:      p.pairString,
 		ClientOrderID: s.ClientOrderID,
 		Side:          p.sideType,
-		OrderType:     s.Type.Lower(),
+		OrderType:     spreadOrderType,
 		Size:          s.Amount,
 		Price:         s.Price,
-	}
+	}, nil
 }
 
 // derivePlaceOrderRequest converts a validated submit into a place order
@@ -1064,7 +1068,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 	if s.AssetType == asset.Spread {
-		placeSpreadOrderResponse, err := e.PlaceSpreadOrder(ctx, deriveSpreadOrderParam(s, p))
+		spreadParam, err := deriveSpreadOrderParam(s, p)
+		if err != nil {
+			return nil, err
+		}
+		placeSpreadOrderResponse, err := e.PlaceSpreadOrder(ctx, spreadParam)
 		if err != nil {
 			return nil, err
 		}

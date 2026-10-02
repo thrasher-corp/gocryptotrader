@@ -2919,7 +2919,7 @@ type SpreadOrderParam struct {
 	Side          string  `json:"side"`    // Order side, buy sell
 	OrderType     string  `json:"ordType"` // Order type  'limit': Limit order  'post_only': Post-only order 'ioc': Immediate-or-cancel order
 	Size          float64 `json:"sz,string"`
-	Price         float64 `json:"px,string"`
+	Price         float64 `json:"px,string,omitempty"`
 	Tag           string  `json:"tag,omitempty"`
 }
 
@@ -2934,10 +2934,14 @@ func (arg *SpreadOrderParam) Validate() error {
 	if arg.OrderType == "" {
 		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
 	}
+	arg.OrderType = strings.ToLower(arg.OrderType)
 	if arg.Size <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if arg.Price <= 0 {
+	// Market orders carry no px, and the px of a spread order is the
+	// differential between its legs, which can be negative: only a missing
+	// price on a price-bearing order type is an error.
+	if arg.OrderType != orderMarket && arg.Price == 0 {
 		return limits.ErrPriceBelowMin
 	}
 	arg.Side = strings.ToLower(arg.Side)

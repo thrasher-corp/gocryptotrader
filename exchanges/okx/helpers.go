@@ -104,6 +104,36 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	}
 }
 
+// spreadOrderTypeString returns the ordType a spread order places for the
+// order type and time in force. The spread endpoints document only market,
+// limit, post_only and ioc: fok is rejected outright rather than silently
+// downgraded to a resting limit order, and order types the spread book does
+// not list, such as trigger-style orders, are rejected too.
+func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
+	switch orderType {
+	case order.Market:
+		if tif == order.FillOrKill {
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+		}
+		return orderMarket, nil // an ioc market order is already immediate
+	case order.Limit, order.LimitMaker:
+		switch tif {
+		case order.PostOnly:
+			return orderPostOnly, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		case order.FillOrKill:
+			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay:
+			if orderType == order.LimitMaker {
+				return orderPostOnly, nil
+			}
+			return orderLimit, nil
+		}
+	}
+	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
+}
+
 // orderTypeFilter returns the ordType filter for the OKX order types that
 // orderTypeFromString reads back as orderType, and as tif when one is set, as
 // the comma-separated list OKX accepts: a limit order without a time in force

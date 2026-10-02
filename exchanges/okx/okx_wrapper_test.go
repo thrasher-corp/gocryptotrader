@@ -3265,3 +3265,156 @@ func TestSpreadOrdersUseRESTWithAuthenticatedWebsocket(t *testing.T) {
 		"SubmitOrder should send the spread ID OKX lists")
 	assert.Empty(t, wsOps, "no spread operation should be sent over the websocket")
 }
+
+// TestSubmitSpreadOrderMarketPriceAndType guards the spread submit wire
+// format: the ordType follows the order type and time in force, a market
+// order carries no px, and rejected submits never reach OKX.
+func TestSubmitSpreadOrderMarketPriceAndType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		orderType  order.Type
+		tif        order.TimeInForce
+		price      float64
+		expOrdType string
+		expPX      bool
+	}{
+		{"market carries no price", order.Market, order.UnknownTIF, 0, orderMarket, false},
+		{"limit follows the maker type", order.LimitMaker, order.UnknownTIF, 2, orderPostOnly, true},
+		{"ioc follows the time in force", order.Limit, order.ImmediateOrCancel, 2, orderIOC, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/sprd/order" {
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the spread order body should not error")
+				mu.Lock()
+				body = b
+				mu.Unlock()
+				writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+			}))
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:    e.Name,
+				Pair:        spreadPair,
+				AssetType:   asset.Spread,
+				Side:        order.Buy,
+				Type:        tc.orderType,
+				TimeInForce: tc.tif,
+				Amount:      1,
+				Price:       tc.price,
+			})
+			require.NoError(t, err, "SubmitOrder must not error")
+			mu.Lock()
+			defer mu.Unlock()
+			var sent map[string]any
+			require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+			assert.Equal(t, tc.expOrdType, sent["ordType"], "the spread order should send the documented ordType")
+			_, has := sent["px"]
+			assert.Equal(t, tc.expPX, has, "px should follow the documented applicability")
+		})
+	}
+	// A limit order without a price is still rejected by the spread price
+	// guard, and fok is refused outright rather than silently downgraded to
+	// a resting limit order; both are refused client-side, so nothing
+	// reaches OKX.
+	for _, tc := range []struct {
+		name   string
+		tif    order.TimeInForce
+		price  float64
+		expErr error
+	}{
+		{"limit without a price", order.UnknownTIF, 0, limits.ErrPriceBelowMin},
+		{"fok limit", order.FillOrKill, 2, order.ErrUnsupportedOrderType},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Errorf("a rejected spread order should not reach OKX: %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:    e.Name,
+				Pair:        spreadPair,
+				AssetType:   asset.Spread,
+				Side:        order.Buy,
+				Type:        order.Limit,
+				TimeInForce: tc.tif,
+				Amount:      1,
+				Price:       tc.price,
+			})
+			require.ErrorIs(t, err, tc.expErr, "the rejected spread order must return its own error")
+		})
+	}
+}
+
+// TestPlaceSpreadOrderPriceGuard guards the spread price validation on the
+// REST helper: the px of a spread is the differential between its legs, which
+// can be negative, while a price-bearing order without any price is rejected.
+func TestPlaceSpreadOrderPriceGuard(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var body []byte
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/order" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		b, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "reading the spread order body should not error")
+		mu.Lock()
+		body = b
+		mu.Unlock()
+		writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+	}))
+	_, err := e.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+		SpreadID:  spreadPair.String(),
+		Side:      "buy",
+		OrderType: orderLimit,
+		Size:      1,
+		Price:     -41.2,
+	})
+	require.NoError(t, err, "a negative-priced spread order must place")
+	mu.Lock()
+	var sent map[string]any
+	require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+	mu.Unlock()
+	assert.Equal(t, "-41.2", sent["px"], "a negative spread price should send verbatim")
+	_, err = e.PlaceSpreadOrder(t.Context(), &SpreadOrderParam{
+		SpreadID:  spreadPair.String(),
+		Side:      "buy",
+		OrderType: orderLimit,
+		Size:      1,
+	})
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "a price-bearing spread order without a price must be rejected")
+}
+
+// TestSubmitSpreadOrderReportsRowError guards the spread order error shape:
+// OKX's top-level reply only says all operations failed, so the failed row's
+// own code and reason must be reported beside it.
+func TestSubmitSpreadOrderReportsRowError(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/order" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"1","msg":"All operations failed","data":[{"sCode":"51008","sMsg":"Order placement failed due to insufficient balance.","ordId":"","clOrdId":""}]}`))
+	}))
+	_, err := e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange: e.Name, Pair: spreadPair, AssetType: asset.Spread,
+		Side: order.Buy, Type: order.Limit, Amount: 1, Price: 2,
+	})
+	require.Error(t, err, "a failed spread row must error")
+	assert.ErrorContains(t, err, "51008", "the error should report the row's sCode")
+	assert.ErrorContains(t, err, "insufficient balance", "the error should report the row's sMsg")
+}

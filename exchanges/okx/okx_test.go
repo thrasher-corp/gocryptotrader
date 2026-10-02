@@ -6619,6 +6619,45 @@ func TestOrderTypeString(t *testing.T) {
 	}
 }
 
+// TestSpreadOrderTypeString pins the ordType a spread order places: the
+// spread endpoints document only market, limit, post_only and ioc, so fok
+// and trigger-style types are rejected instead of downgraded.
+func TestSpreadOrderTypeString(t *testing.T) {
+	t.Parallel()
+	type OrderTypeWithTIF struct {
+		OrderType order.Type
+		TIF       order.TimeInForce
+	}
+	spreadOrderTypesToStringMap := map[OrderTypeWithTIF]struct {
+		Expected string
+		Error    error
+	}{
+		{OrderType: order.Market, TIF: order.UnknownTIF}:            {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:     {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:             {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.GoodTillCancel}:         {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.GoodTillDay}:            {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:               {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:      {Expected: orderIOC},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:             {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:        {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.PostOnly}:          {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.ImmediateOrCancel}: {Expected: orderIOC},
+		{OrderType: order.LimitMaker, TIF: order.FillOrKill}:        {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Stop, TIF: order.UnknownTIF}:              {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:   {Error: order.ErrUnsupportedOrderType},
+	}
+	for tc, val := range spreadOrderTypesToStringMap {
+		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
+			t.Parallel()
+			spreadOrderType, err := spreadOrderTypeString(tc.OrderType, tc.TIF)
+			require.ErrorIs(t, err, val.Error)
+			assert.Equal(t, val.Expected, spreadOrderType)
+		})
+	}
+}
+
 func TestGetMarkPriceCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetMarkPriceCandlesticks(contextGenerate(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
@@ -7110,12 +7149,19 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
 	p.SpreadID = spreadPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
-	p.OrderType = order.Market.String()
+	p.OrderType = order.Limit.String()
 	require.ErrorIs(t, p.Validate(), limits.ErrAmountBelowMin)
 	p.Size = 1
 	require.ErrorIs(t, p.Validate(), limits.ErrPriceBelowMin)
 	p.Price = 1
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
+	require.NoError(t, p.Validate())
+	// The px of a spread order is the differential between its legs, so a
+	// negative price is valid, and a market order carries no price at all.
+	p.Price = -41.2
+	require.NoError(t, p.Validate())
+	p.OrderType = order.Market.String()
+	p.Price = 0
 	require.NoError(t, p.Validate())
 }
