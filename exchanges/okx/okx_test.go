@@ -503,6 +503,126 @@ func TestGetOpenInterestData(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// TestOptionInstrumentFamilies pins the family extraction behind the option
+// open interest queries: every family of the tick bands table survives in
+// first-seen order, familyless rows and duplicates do not, and the
+// no-response sentinel is directly covered.
+func TestOptionInstrumentFamilies(t *testing.T) {
+	t.Parallel()
+
+	tickBandsTable := func(rows ...string) string {
+		return `{"code":"0","msg":"","data":[` + strings.Join(rows, ",") + `]}`
+	}
+	tickBandRow := func(instFamily string) string {
+		return fmt.Sprintf(`{"instType":%q,"instFamily":%q,"tickBand":[{"minPx":"0","maxPx":"100","tickSz":"0.1"}]}`, instTypeOption, instFamily)
+	}
+
+	for _, tc := range []struct {
+		name      string
+		response  string
+		cancelled bool
+		families  []string
+		err       error
+		errText   string
+	}{
+		{
+			// An underlying spans several families (BTC-USD spans BTC-USD
+			// and BTC-USD_UM), so every family of the table must survive;
+			// duplicates and familyless rows must not.
+			name: "each family once, in first-seen order",
+			response: tickBandsTable(
+				tickBandRow("BTC-USD"),
+				tickBandRow(""),
+				tickBandRow("ETH-USD_UM"),
+				tickBandRow("BTC-USD"),
+				tickBandRow("SOL-USD_UM"),
+			),
+			families: []string{"BTC-USD", "ETH-USD_UM", "SOL-USD_UM"},
+		},
+		{
+			name:     "single family",
+			response: tickBandsTable(tickBandRow("BTC-USD")),
+			families: []string{"BTC-USD"},
+		},
+		{
+			name:      "cancelled context",
+			response:  tickBandsTable(tickBandRow("BTC-USD")),
+			cancelled: true,
+			err:       context.Canceled,
+		},
+		{
+			name:     "empty tick bands table",
+			response: tickBandsTable(),
+			err:      common.ErrNoResponse,
+		},
+		{
+			// The tick bands response documents instFamily:"" rows for other
+			// instrument types, so a table of familyless rows must not
+			// masquerade as option coverage.
+			name:     "table without any family",
+			response: tickBandsTable(tickBandRow(""), tickBandRow("")),
+			err:      common.ErrNoResponse,
+		},
+		{
+			name:     "error response",
+			response: `{"code":"1","msg":"mock: tick bands request failed","data":[]}`,
+			errText:  "error code: `1`",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+			var mu sync.Mutex
+			var gotPath string
+			var gotQuery url.Values
+			srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				gotPath = r.URL.Path
+				gotQuery = r.URL.Query()
+				mu.Unlock()
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.response))
+			}))
+
+			b := e.GetBase()
+			b.SkipAuthCheck = true
+			require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+			for k := range b.API.Endpoints.GetURLMap() {
+				require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+			}
+
+			ctx := t.Context()
+			if tc.cancelled {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+
+			families, err := e.optionInstrumentFamilies(ctx)
+			if tc.err != nil || tc.errText != "" {
+				require.Error(t, err, "optionInstrumentFamilies must error")
+				if tc.err != nil {
+					require.ErrorIs(t, err, tc.err, "optionInstrumentFamilies must wrap the expected sentinel")
+				}
+				if tc.errText != "" {
+					require.ErrorContains(t, err, tc.errText, "optionInstrumentFamilies must surface the response error")
+				}
+				return
+			}
+			mu.Lock()
+			path, query := gotPath, gotQuery
+			mu.Unlock()
+			require.NoError(t, err, "optionInstrumentFamilies must not error")
+			assert.Equal(t, tc.families, families, "optionInstrumentFamilies should return the deduplicated families in first-seen order")
+			assert.Equal(t, "/public/instrument-tick-bands", path, "optionInstrumentFamilies should query the documented tick bands endpoint")
+			assert.Equal(t, instTypeOption, query.Get("instType"), "the tick bands query should be scoped to OPTION")
+			assert.Empty(t, query.Get("instFamily"), "the tick bands query should not pre-filter a family")
+		})
+	}
+}
+
 func TestGetSingleFundingRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSingleFundingRate(contextGenerate(), "")
@@ -4999,10 +5119,13 @@ func TestGetHistoricalFundingRatesPaymentsPagination(t *testing.T) {
 	// bills-to-funding-time matching below relies on.
 	fundingTime := now.Truncate(8 * time.Hour).Add(-8 * time.Hour)
 
-	billsPage := func(firstBillID string, count int, ts time.Time, pnl string) string {
+	billRow := func(billID string, ts time.Time, pnl, instID string) string {
+		return fmt.Sprintf(`{"billId":%q,"ccy":"USDT","type":"8","subType":"173","pnl":%q,"ts":"%d","instId":%q}`, billID, pnl, ts.UnixMilli(), instID)
+	}
+	billsPage := func(firstBillID string, count int, ts time.Time, pnl, instID string) string {
 		bills := make([]string, 0, count)
 		for i := range count {
-			bills = append(bills, fmt.Sprintf(`{"billId":%q,"ccy":"USDT","type":"8","subType":"173","pnl":%q,"ts":"%d"}`, firstBillID+strconv.Itoa(i), pnl, ts.UnixMilli()))
+			bills = append(bills, billRow(firstBillID+strconv.Itoa(i), ts, pnl, instID))
 		}
 		return `{"code":"0","msg":"","data":[` + strings.Join(bills, ",") + `]}`
 	}
@@ -5025,12 +5148,20 @@ func TestGetHistoricalFundingRatesPaymentsPagination(t *testing.T) {
 				_, _ = w.Write([]byte(`{"code":"1","msg":"mock: bills pagination did not advance past the first page"}`))
 				return
 			}
+			// The bills endpoints scope by instrument: a sibling swap settling
+			// funding in the same currency rides the unfiltered page and, being
+			// last, would overwrite this pair's payment.
+			sibling := r.URL.Query().Get("instId") == ""
 			switch r.URL.Query().Get("after") {
 			case "":
-				_, _ = w.Write([]byte(billsPage("a", 100, fundingTime, "-1.5")))
+				if sibling {
+					_, _ = w.Write([]byte(billsPage("a", 99, fundingTime, "-1.5", "BTC-USDT-SWAP") + "," + billRow("a99", fundingTime, "-150", "ETH-USDT-SWAP")))
+					return
+				}
+				_, _ = w.Write([]byte(billsPage("a", 100, fundingTime, "-1.5", "BTC-USDT-SWAP")))
 			case "a99":
 				// A short page strictly older than the cursor ends the loop.
-				_, _ = w.Write([]byte(billsPage("b", 50, fundingTime.Add(-8*time.Hour), "0.5")))
+				_, _ = w.Write([]byte(billsPage("b", 50, fundingTime.Add(-8*time.Hour), "0.5", "BTC-USDT-SWAP")))
 			default:
 				_, _ = w.Write([]byte(`{"code":"1","msg":"mock: unexpected bills cursor"}`))
 			}
@@ -5063,17 +5194,133 @@ func TestGetHistoricalFundingRatesPaymentsPagination(t *testing.T) {
 	queries := slices.Clone(billsQueries)
 	mu.Unlock()
 	require.Len(t, queries, 2, "the bills query must stop after the short page")
-	assert.Equal(t, "8", queries[0].Get("type"), "funding fee bills should be filtered by the documented type")
-	assert.Equal(t, "SWAP", queries[0].Get("instType"), "bills should be scoped to the perpetual swap instrument type")
-	assert.Equal(t, "USDT", queries[0].Get("ccy"), "bills should be scoped to the payment currency")
-	assert.Equal(t, strconv.FormatInt(start.UnixMilli(), 10), queries[0].Get("begin"), "bills should be windowed to the requested start")
-	assert.Equal(t, strconv.FormatInt(end.UnixMilli(), 10), queries[0].Get("end"), "bills should be windowed to the requested end")
-	assert.Empty(t, queries[0].Get("after"), "the first bills page should not carry a cursor")
-	assert.Equal(t, "a99", queries[1].Get("after"), "the second bills page should page older via the last bill ID")
+	// Both pages are pinned exactly: the documented filter names, the
+	// requested window and this instrument's ID, with the second page keeping
+	// the first page's filters and paging older via the last bill ID.
+	firstPage := url.Values{
+		"instType": {"SWAP"},
+		"instId":   {perpetualSwapPair.String()},
+		"ccy":      {"USDT"},
+		"type":     {"8"},
+		"begin":    {strconv.FormatInt(start.UnixMilli(), 10)},
+		"end":      {strconv.FormatInt(end.UnixMilli(), 10)},
+		"limit":    {"100"},
+	}
+	assert.Equal(t, firstPage, queries[0], "the first bills page should ask for this instrument's funding fee bills in the requested window")
+	firstPage.Set("after", "a99")
+	assert.Equal(t, firstPage, queries[1], "the second bills page should keep the first page's filters and page older via the last bill ID")
 
 	require.Len(t, result.FundingRates, 1, "the funding rate history must keep its single entry")
 	assert.Equal(t, "-1.5", result.FundingRates[0].Payment.String(), "the payment should come from the matching funding fee bills")
 	assert.Equal(t, "-1.5", result.PaymentSum.String(), "the payment sum should only include in-window funding fee bills")
+}
+
+// TestGetHistoricalFundingRatesRatesPagination guards the funding rate
+// history pages: the history arrives newest first, so after is the cursor
+// for records older than the page's oldest funding time, the window floor
+// stays on before, and a boundary-inclusive server repeating the previous
+// page's last record must not duplicate a rate or strand the oldest ones.
+func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	var rateQueries []url.Values
+	rateCalls := 0
+
+	end := time.Now().Add(-time.Hour)
+	rateCount := 230
+	rateTime := func(i int) time.Time {
+		// 8h-aligned funding times, index 0 the newest, within the requested
+		// window.
+		return end.Add(-time.Duration(i+1) * 8 * time.Hour)
+	}
+	start := rateTime(rateCount - 1).Add(-8 * time.Hour)
+
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/funding-rate-history":
+			mu.Lock()
+			rateCalls++
+			calls := rateCalls
+			rateQueries = append(rateQueries, r.URL.Query())
+			mu.Unlock()
+			if calls > 4 {
+				// The pagination failed to advance; refuse to feed the storm.
+				_, _ = w.Write([]byte(`{"code":"1","msg":"mock: rate pagination did not advance past the first page"}`))
+				return
+			}
+			q := r.URL.Query()
+			before, _ := strconv.ParseInt(q.Get("before"), 10, 64)
+			after, _ := strconv.ParseInt(q.Get("after"), 10, 64)
+			rows := make([]string, 0, 100)
+			for i := range rateCount {
+				ms := rateTime(i).UnixMilli()
+				if before != 0 && ms <= before {
+					continue // the endpoint returns records newer than before
+				}
+				if after != 0 && ms >= after {
+					continue // the endpoint returns records earlier than after
+				}
+				if len(rows) == 100 {
+					break
+				}
+				rows = append(rows, fmt.Sprintf(`{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}`, ms))
+			}
+			if calls > 1 && after != 0 && len(rows) > 0 {
+				// A boundary-inclusive server repeats the previous page's last
+				// record; the wrapper must not duplicate the rate.
+				keep := min(99, len(rows))
+				rows = append([]string{fmt.Sprintf(`{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}`, after)}, rows[:keep]...)
+			}
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[` + strings.Join(rows, ",") + `]}`))
+		case "/public/funding-rate":
+			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, end.Add(7*time.Hour).UnixMilli(), end.Add(15*time.Hour).UnixMilli())
+		default:
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
+		}
+	}))
+
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.PerpetualSwap,
+		Pair:            perpetualSwapPair,
+		StartDate:       start,
+		EndDate:         end,
+		IncludePayments: false,
+	})
+	require.NoError(t, err, "rate pagination must terminate without error")
+
+	mu.Lock()
+	queries := slices.Clone(rateQueries)
+	mu.Unlock()
+	require.Len(t, queries, 3, "230 rates at 100 per page must take three requests")
+	for i, after := range []string{
+		strconv.FormatInt(end.UnixMilli(), 10),
+		strconv.FormatInt(rateTime(99).UnixMilli(), 10),
+		strconv.FormatInt(rateTime(198).UnixMilli(), 10),
+	} {
+		assert.Equal(t, after, queries[i].Get("after"), "each page should cursor after the previous page's oldest funding time")
+		assert.Equal(t, strconv.FormatInt(start.UnixMilli(), 10), queries[i].Get("before"), "every page should keep the requested window floor")
+		assert.Equal(t, "100", queries[i].Get("limit"), "every page should carry the request limit")
+	}
+
+	require.Len(t, result.FundingRates, rateCount, "every funding rate in the window must be kept exactly once")
+	seen := make(map[int64]struct{}, rateCount)
+	for i := range result.FundingRates {
+		ms := result.FundingRates[i].Time.UnixMilli()
+		require.NotContains(t, seen, ms, "a repeated boundary record must not duplicate a rate")
+		seen[ms] = struct{}{}
+	}
+	assert.Equal(t, rateTime(0).UnixMilli(), result.FundingRates[0].Time.UnixMilli(), "the newest rate should come first")
+	assert.Equal(t, rateTime(rateCount-1).UnixMilli(), result.FundingRates[rateCount-1].Time.UnixMilli(), "the oldest rate should be reached, not stranded behind repeated pages")
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

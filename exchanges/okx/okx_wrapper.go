@@ -2276,7 +2276,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
 	requestLimit := 100
-	sd := r.StartDate
 	maxLookback := time.Now().Add(-e.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
 		if r.RespectHistoryLimits {
@@ -2303,9 +2302,15 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	}
 	// map of time indexes, allowing for easy lookup of slice index from unix time data
 	mti := make(map[int64]int)
-	for sd.Before(r.EndDate) {
+	// The history arrives newest first, so after is the documented cursor for
+	// records earlier than the page's oldest funding time, while before holds
+	// the requested window floor.
+	sd := r.StartDate
+	afterTS := r.EndDate
+	seen := make(map[int64]struct{})
+	for {
 		var frh []FundingRateResponse
-		frh, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
+		frh, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, afterTS, int64(requestLimit))
 		if err != nil {
 			return nil, err
 		}
@@ -2313,8 +2318,13 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			break
 		}
 		for i := range frh {
+			ft := frh[i].FundingTime.Time().Unix()
+			if _, dup := seen[ft]; dup {
+				continue
+			}
+			seen[ft] = struct{}{}
 			if r.IncludePayments {
-				mti[frh[i].FundingTime.Time().Unix()] = i
+				mti[ft] = len(pairRate.FundingRates)
 			}
 			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
 				Time: frh[i].FundingTime.Time(),
@@ -2324,7 +2334,14 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if len(frh) < requestLimit {
 			break
 		}
-		sd = frh[len(frh)-1].FundingTime.Time()
+		oldest := frh[len(frh)-1].FundingTime.Time()
+		if !oldest.Before(afterTS) {
+			break
+		}
+		if !sd.Before(oldest) {
+			break
+		}
+		afterTS = oldest
 	}
 	var fr *FundingRateResponse
 	fr, err = e.GetSingleFundingRate(ctx, fPair.String())
@@ -2367,6 +2384,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: GetInstrumentTypeFromAssetItem(r.Asset),
+				InstrumentID:   fPair.String(),
 				Currency:       pairRate.PaymentCurrency,
 				BillType:       billTypeFundingFee,
 				BeginTime:      r.StartDate,
@@ -2966,7 +2984,6 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	}
 	if len(k) != 1 {
 		var resp []futures.OpenInterest
-		// TODO: Options support
 		instTypes := map[string]asset.Item{
 			instTypeSwap:    asset.PerpetualSwap,
 			instTypeFutures: asset.Futures,
@@ -3028,6 +3045,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	instTypes := map[asset.Item]string{
 		asset.PerpetualSwap: "SWAP",
 		asset.Futures:       "FUTURES",
+		asset.Options:       instTypeOption,
 	}
 	pFmt, err := e.FormatSymbol(k[0].Pair(), k[0].Asset)
 	if err != nil {
@@ -3036,6 +3054,9 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	var oid []OpenInterest
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
+		// An option pair is a full instrument ID, and instFamily is the
+		// documented open interest filter for OPTION, so the tick bands
+		// families are iterated with the requested instrument pinned by ID.
 		var families []string
 		families, err = e.optionInstrumentFamilies(ctx)
 		if err != nil {
@@ -3043,7 +3064,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 		for u := range families {
 			var incOID []OpenInterest
-			incOID, err = e.GetOpenInterestData(ctx, instTypeOption, families[u], "")
+			incOID, err = e.GetOpenInterestData(ctx, instTypeOption, families[u], pFmt)
 			if err != nil {
 				return nil, err
 			}
