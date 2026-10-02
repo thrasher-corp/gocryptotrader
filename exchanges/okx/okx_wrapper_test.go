@@ -952,11 +952,143 @@ func TestGetSpreadOrderHistoryPaginatesWithEndIDCursor(t *testing.T) {
 	assert.Contains(t, ids, "SPD-149", "orders past the first page should be returned")
 }
 
+// TestGetSpreadOrderHistoryFromOrderIDSeedsTheEndIDCursor guards the
+// FromOrderID request field for spread order history: the endId cursor
+// returns records earlier than the requested order ID like the standard
+// archive's after cursor, so the first request must carry FromOrderID as the
+// endId cursor, and beginId, which returns records newer than an order ID,
+// must never be sent.
+func TestGetSpreadOrderHistoryFromOrderIDSeedsTheEndIDCursor(t *testing.T) {
+	t.Parallel()
+
+	fillPage := func(first, count int) []map[string]string {
+		ords := make([]map[string]string, 0, count)
+		for x := range count {
+			ords = append(ords, map[string]string{
+				"sprdId":    "BTC-USDT_BTC-USDT",
+				"ordId":     fmt.Sprintf("SPD-%03d", first+x),
+				"cTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"uTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"state":     "filled",
+				"ordType":   "limit",
+				"side":      "buy",
+				"sz":        "1",
+				"px":        "42000",
+				"accFillSz": "1",
+				"avgPx":     "42000",
+			})
+		}
+		return ords
+	}
+	pages := map[string][]map[string]string{
+		"SEED-1":  fillPage(0, orderListPageSize),
+		"SPD-099": fillPage(orderListPageSize, 50),
+	}
+
+	var mu sync.Mutex
+	var endIDCursors []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/orders-history" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		assert.Empty(t, r.URL.Query().Get("beginId"), "beginId returns records newer than the order ID and should never be sent")
+		endID := r.URL.Query().Get("endId")
+		mu.Lock()
+		repeated := slices.Contains(endIDCursors, endID)
+		endIDCursors = append(endIDCursors, endID)
+		page := pages[endID]
+		mu.Unlock()
+		if repeated {
+			// Nothing here fails a request, so a repeat means the cursor never advanced.
+			t.Errorf("endId %q requested again", endID)
+			http.Error(w, "repeated endId", http.StatusBadRequest)
+			return
+		}
+		writeOKXData(t, w, page)
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType:   asset.Spread,
+		Type:        order.AnyType,
+		Side:        order.AnySide,
+		FromOrderID: "SEED-1",
+		// A recent start time keeps the crawl inside the 21 day listing.
+		StartTime: time.Now().Add(-24 * time.Hour),
+	})
+	require.NoError(t, err, "GetOrderHistory must not error when FromOrderID seeds the spread crawl")
+
+	mu.Lock()
+	cursors := make([]string, len(endIDCursors))
+	copy(cursors, endIDCursors)
+	mu.Unlock()
+	assert.Equal(t, []string{"SEED-1", "SPD-099"}, cursors, "the crawl should start from FromOrderID and advance with each page's last order ID")
+	assert.Len(t, history, orderListPageSize+50, "a crawl seeded by FromOrderID should return every earlier spread order")
+}
+
+// TestGetSpreadOrderHistoryStopsWhenAFullPageIsSeen guards the no-progress
+// stop: a full page whose last order ID repeats the requested endId cursor
+// must not loop forever on the same page.
+func TestGetSpreadOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
+	t.Parallel()
+
+	page := make([]map[string]string, 0, orderListPageSize)
+	for i := range orderListPageSize {
+		page = append(page, map[string]string{
+			"sprdId":    "BTC-USDT_BTC-USDT",
+			"ordId":     fmt.Sprintf("SPD-%03d", i),
+			"cTime":     strconv.FormatInt(1700000000000, 10),
+			"uTime":     strconv.FormatInt(1700000000000, 10),
+			"state":     "filled",
+			"ordType":   "limit",
+			"side":      "buy",
+			"sz":        "1",
+			"px":        "42000",
+			"accFillSz": "1",
+			"avgPx":     "42000",
+		})
+	}
+	var mu sync.Mutex
+	var endIDCursors []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/orders-history" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		endID := r.URL.Query().Get("endId")
+		mu.Lock()
+		repeated := slices.Contains(endIDCursors, endID)
+		endIDCursors = append(endIDCursors, endID)
+		mu.Unlock()
+		if repeated {
+			// Nothing here fails a request, so a repeat means the cursor never advanced.
+			t.Errorf("endId %q requested again", endID)
+			http.Error(w, "repeated endId", http.StatusBadRequest)
+			return
+		}
+		// The mock keeps returning the same full page whatever the cursor.
+		writeOKXData(t, w, page)
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spread,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		// A recent start time keeps the crawl inside the 21 day listing.
+		StartTime: time.Now().Add(-24 * time.Hour),
+	})
+	require.NoError(t, err, "GetOrderHistory must stop when a full page holds no new spread order")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"", "SPD-099"}, endIDCursors, "the crawl should stop when the endId cursor stops advancing")
+	assert.Len(t, history, orderListPageSize, "the first page's orders should be returned once")
+}
+
 // TestGetSpreadOrderHistoryFallsBackToArchive guards the documented 3 month
-// spread order history window: sprd/orders-history alone lists only the last
-// 21 days, so a start time older than that must also crawl
-// sprd/orders-history-archive, and the overlap between the two listings must
-// not duplicate orders.
+// spread order history window: the sprd/orders-history begin filter is
+// truncated to 7 days server side, so a start time older than that must also
+// crawl sprd/orders-history-archive, and the overlap between the two listings
+// must not duplicate orders.
 func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 	t.Parallel()
 
@@ -998,7 +1130,7 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		mu.Lock()
 		crawls := archiveCrawls
 		mu.Unlock()
-		assert.Equal(t, 1, crawls, "the archive should be crawled when the start time passes the 21 day listing")
+		assert.Equal(t, 1, crawls, "the archive should be crawled when the start time passes the listing's 7 day begin reach")
 		ids := make([]string, 0, len(resp))
 		for x := range resp {
 			ids = append(ids, resp[x].OrderID)
@@ -1021,9 +1153,297 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 			StartTime: time.Now().Add(-time.Hour),
 		})
 		require.NoError(t, err, "GetOrderHistory must not error when the 21 day listing covers the start time")
-		require.Len(t, resp, 1, "a recent start time should not need the archive")
+		require.Len(t, resp, 1, "a recent start time must not need the archive")
 		assert.Equal(t, "SPD-NEW", resp[0].OrderID)
 	})
+
+	t.Run("start time past the listing's truncated week also crawls the archive", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var archiveCrawls int
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/sprd/orders-history":
+				writeOKXData(t, w, []map[string]string{recent})
+			case "/sprd/orders-history-archive":
+				mu.Lock()
+				archiveCrawls++
+				mu.Unlock()
+				writeOKXData(t, w, []map[string]string{old})
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		resp, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
+			// Ten days back sits inside the listing's 21 day window but past
+			// its 7 day begin truncation, so the archive must cover the head.
+			StartTime: time.Now().Add(-10 * 24 * time.Hour),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when the archive covers the truncated week")
+		mu.Lock()
+		crawls := archiveCrawls
+		mu.Unlock()
+		assert.Equal(t, 1, crawls, "the archive should be crawled when the start time is older than the listing's 7 day begin reach")
+		ids := make([]string, 0, len(resp))
+		for x := range resp {
+			ids = append(ids, resp[x].OrderID)
+		}
+		assert.ElementsMatch(t, []string{"SPD-NEW", "SPD-OLD"}, ids, "the archive crawl should add the order past the listing's begin reach")
+	})
+}
+
+// TestGetSpreadOrderHistoryFromOrderIDSeedsTheArchiveCrawl guards the
+// FromOrderID request field across both spread listings: when the requested
+// window reaches the archive, both crawls must start from FromOrderID as
+// their endId cursor, and the archive's overlapping row must not duplicate
+// the listing's.
+func TestGetSpreadOrderHistoryFromOrderIDSeedsTheArchiveCrawl(t *testing.T) {
+	t.Parallel()
+
+	fillPage := func(first, count int) []map[string]string {
+		ords := make([]map[string]string, 0, count)
+		for x := range count {
+			ords = append(ords, map[string]string{
+				"sprdId":    "BTC-USDT_BTC-USDT",
+				"ordId":     fmt.Sprintf("SPD-%03d", first+x),
+				"cTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"uTime":     strconv.FormatInt(1700000000000+int64(first+x), 10),
+				"state":     "filled",
+				"ordType":   "limit",
+				"side":      "buy",
+				"sz":        "1",
+				"px":        "42000",
+				"accFillSz": "1",
+				"avgPx":     "42000",
+			})
+		}
+		return ords
+	}
+	pages := map[string][]map[string]string{
+		"SEED-1":  fillPage(0, orderListPageSize),
+		"SPD-099": fillPage(orderListPageSize, 50),
+	}
+
+	var mu sync.Mutex
+	cursors := map[string][]string{}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		endID := r.URL.Query().Get("endId")
+		mu.Lock()
+		pathCursors := cursors[r.URL.Path]
+		repeated := slices.Contains(pathCursors, endID)
+		cursors[r.URL.Path] = append(pathCursors, endID)
+		mu.Unlock()
+		if repeated {
+			// Nothing here fails a request, so a repeat means the cursor never advanced.
+			t.Errorf("%s endId %q requested again", r.URL.Path, endID)
+			http.Error(w, "repeated endId", http.StatusBadRequest)
+			return
+		}
+		assert.Empty(t, r.URL.Query().Get("beginId"), "beginId returns records newer than the order ID and should never be sent")
+		switch r.URL.Path {
+		case "/sprd/orders-history":
+			writeOKXData(t, w, pages[endID])
+		case "/sprd/orders-history-archive":
+			if endID == "SEED-1" {
+				// The archive repeats the listing's SPD-099 and adds the old order.
+				writeOKXData(t, w, []map[string]string{pages["SEED-1"][orderListPageSize-1], {
+					"sprdId": "BTC-USDT_BTC-USDT", "ordId": "SPD-OLD", "ordType": "limit",
+					"side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "px": "42000",
+					"cTime": strconv.FormatInt(1600000000000, 10),
+					"uTime": strconv.FormatInt(1600000000000, 10),
+				}})
+				return
+			}
+			writeOKXData(t, w, []map[string]string{})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType:   asset.Spread,
+		Type:        order.AnyType,
+		Side:        order.AnySide,
+		FromOrderID: "SEED-1",
+		StartTime:   time.Now().Add(-kline.OneMonth.Duration()),
+	})
+	require.NoError(t, err, "GetOrderHistory must not error when FromOrderID seeds both spread crawls")
+
+	mu.Lock()
+	listing := slices.Clone(cursors["/sprd/orders-history"])
+	archive := slices.Clone(cursors["/sprd/orders-history-archive"])
+	mu.Unlock()
+	assert.Equal(t, []string{"SEED-1", "SPD-099"}, listing, "the 21 day crawl should start from FromOrderID and advance with each page's last order ID")
+	assert.Equal(t, []string{"SEED-1"}, archive, "the archive crawl should also start from FromOrderID")
+	require.Len(t, history, orderListPageSize+51, "both crawls must return every earlier spread order")
+	ids := make(map[string]struct{}, len(history))
+	for x := range history {
+		ids[history[x].OrderID] = struct{}{}
+	}
+	assert.Len(t, ids, len(history), "the archive overlap should not duplicate orders across the seeded crawls")
+	assert.Contains(t, ids, "SPD-OLD", "the archive crawl should add the order past the listing's reach")
+}
+
+// TestGetSpreadOrderHistoryStopsWhenTheArchivePageStalls guards the archive
+// crawl's no-progress stop: a full archive page whose last order ID repeats
+// the requested endId cursor must not loop forever.
+func TestGetSpreadOrderHistoryStopsWhenTheArchivePageStalls(t *testing.T) {
+	t.Parallel()
+
+	page := make([]map[string]string, 0, orderListPageSize)
+	for i := range orderListPageSize {
+		page = append(page, map[string]string{
+			"sprdId":    "BTC-USDT_BTC-USDT",
+			"ordId":     fmt.Sprintf("SPD-%03d", i),
+			"cTime":     strconv.FormatInt(1700000000000, 10),
+			"uTime":     strconv.FormatInt(1700000000000, 10),
+			"state":     "filled",
+			"ordType":   "limit",
+			"side":      "buy",
+			"sz":        "1",
+			"px":        "42000",
+			"accFillSz": "1",
+			"avgPx":     "42000",
+		})
+	}
+	var mu sync.Mutex
+	var archiveEndIDs []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/sprd/orders-history":
+			writeOKXData(t, w, []map[string]string{})
+		case "/sprd/orders-history-archive":
+			endID := r.URL.Query().Get("endId")
+			mu.Lock()
+			repeated := slices.Contains(archiveEndIDs, endID)
+			archiveEndIDs = append(archiveEndIDs, endID)
+			mu.Unlock()
+			if repeated {
+				// Nothing here fails a request, so a repeat means the cursor never advanced.
+				t.Errorf("endId %q requested again", endID)
+				http.Error(w, "repeated endId", http.StatusBadRequest)
+				return
+			}
+			// The mock keeps returning the same full page whatever the cursor.
+			writeOKXData(t, w, page)
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spread,
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		StartTime: time.Now().Add(-kline.OneMonth.Duration()),
+	})
+	require.NoError(t, err, "GetOrderHistory must stop when the archive page holds no new spread order")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"", "SPD-099"}, archiveEndIDs, "the archive crawl should stop when the endId cursor stops advancing")
+	assert.Len(t, history, orderListPageSize, "the archive's orders should be recorded once")
+}
+
+// TestGetOrderHistoryIncludesZeroFillCanceledFromTheSevenDayListing guards
+// the 7 day listing beside the archive: the archive does not contain canceled
+// orders without any fills, so a zero-fill canceled order must come from the
+// 7 day listing without duplicating the archive's rows.
+func TestGetOrderHistoryIncludesZeroFillCanceledFromTheSevenDayListing(t *testing.T) {
+	t.Parallel()
+
+	start := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+	filled := map[string]string{
+		"instId": mainPair.String(), "ordId": "FILLED-1", "ordType": orderLimit, "side": "buy",
+		"state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "42000", "px": "42000",
+		"cTime": strconv.FormatInt(start.Add(time.Minute).UnixMilli(), 10),
+	}
+	zeroFillCanceled := map[string]string{
+		"instId": mainPair.String(), "ordId": "CANCELED-1", "ordType": orderLimit, "side": "buy",
+		"state": "canceled", "sz": "1", "accFillSz": "0", "avgPx": "0", "px": "42000",
+		"cTime": strconv.FormatInt(start.Add(2*time.Minute).UnixMilli(), 10),
+	}
+
+	t.Run("the zero-fill canceled order comes from the 7 day listing", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/trade/orders-history-archive":
+				writeOKXData(t, w, []map[string]string{filled})
+			case "/trade/orders-history":
+				// Only the 7 day listing keeps canceled orders without fills.
+				writeOKXData(t, w, []map[string]string{zeroFillCanceled, filled})
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+			StartTime: start, Pairs: currency.Pairs{mainPair},
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when the 7 day listing adds the zero-fill canceled order")
+		ids := make([]string, 0, len(history))
+		for i := range history {
+			ids = append(ids, history[i].OrderID)
+		}
+		assert.ElementsMatch(t, []string{"FILLED-1", "CANCELED-1"}, ids, "the crawl should keep the zero-fill canceled order beside the archive's rows without duplicating them")
+	})
+
+	t.Run("a window closed past the 7 day listing skips it", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/trade/orders-history-archive" {
+				t.Errorf("the 7 day listing should not be requested for a window closed past its reach, got %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			writeOKXData(t, w, []map[string]string{filled})
+		}))
+		_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+			StartTime: time.Now().Add(-9 * 24 * time.Hour), EndTime: time.Now().Add(-8 * 24 * time.Hour),
+			Pairs: currency.Pairs{mainPair},
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when the window closes past the 7 day listing")
+	})
+}
+
+// TestGetOrderHistoryKeepsRowsInTheSecondBeforeStartTime guards the crawl's
+// end margin: rows arrive newest first and the crawl stops at StartTime, but
+// the stop compares a second wide so a row created within the second before
+// StartTime survives for the time filter to judge instead of being dropped by
+// a millisecond-exact comparison.
+func TestGetOrderHistoryKeepsRowsInTheSecondBeforeStartTime(t *testing.T) {
+	t.Parallel()
+	start := time.Now().Truncate(time.Second).Add(500 * time.Millisecond)
+	row := func(id string, created time.Time) map[string]string {
+		return map[string]string{"instId": mainPair.String(), "ordId": id, "ordType": orderLimit, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": strconv.FormatInt(created.UnixMilli(), 10)}
+	}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/trade/orders-history" {
+			writeOKXData(t, w, []map[string]string{})
+			return
+		}
+		if r.URL.Path != "/trade/orders-history-archive" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		// Rows arrive newest first; the margin row shares StartTime's second.
+		writeOKXData(t, w, []map[string]string{row("MARGIN", start.Add(-200*time.Millisecond)), row("OLDER", start.Add(-2*time.Second))})
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+		StartTime: start, Pairs: currency.Pairs{mainPair},
+	})
+	require.NoError(t, err, "GetOrderHistory must not error when a row shares StartTime's second")
+	ids := make([]string, 0, len(history))
+	for i := range history {
+		ids = append(ids, history[i].OrderID)
+	}
+	assert.ElementsMatch(t, []string{"MARGIN"}, ids, "the crawl should keep the row in the second before StartTime for the time filter to judge")
 }
 
 // TestPendingOrderTypeFilter guards the pending order type filter through both
@@ -2117,13 +2537,27 @@ func TestSpreadOrderDetails(t *testing.T) {
 // TestSpreadOrderHistoryAnyType guards the spread GetOrderHistory path: an
 // AnyType request reaches OKX without an ordType filter instead of being
 // rejected before sending, and its rows keep orderTypeFromString's typing.
+// TestSpreadOrderHistoryAnyType guards an AnyType spread history request and
+// the spread order row mapping: the ordType filter is dropped, and every
+// order.Detail field comes from the listing row.
 func TestSpreadOrderHistoryAnyType(t *testing.T) {
 	t.Parallel()
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/sprd/orders-history":
 			assert.Empty(t, r.URL.Query().Get("ordType"), "an AnyType request should not send an ordType filter")
-			writeOKXData(t, w, []map[string]string{{"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderPostOnly, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "px": "100"}})
+			writeOKXData(t, w, []map[string]string{
+				{
+					"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderPostOnly, "side": "buy", "state": "live",
+					"sz": "1", "accFillSz": "0.3", "px": "100", "avgPx": "90",
+					"cTime": "1700000000000", "uTime": "1700000000000",
+				},
+				{
+					"sprdId": "BTC-USDT_BTC-USDT", "ordId": "2", "ordType": orderLimit, "side": "sell", "state": "filled",
+					"sz": "2", "accFillSz": "2", "px": "90", "avgPx": "88",
+					"cTime": "1700000000001", "uTime": "1700000000001",
+				},
+			})
 		case "/sprd/orders-history-archive":
 			// A zero StartTime reaches back past the 21 day listing, so the archive is also crawled.
 			writeOKXData(t, w, []map[string]string{})
@@ -2134,9 +2568,27 @@ func TestSpreadOrderHistoryAnyType(t *testing.T) {
 	}))
 	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide})
 	require.NoError(t, err, "GetOrderHistory must not reject order.AnyType")
-	require.Len(t, history, 1, "GetOrderHistory must return the spread order")
-	assert.Equal(t, order.Limit, history[0].Type, "GetOrderHistory should read the order type")
-	assert.Equal(t, order.PostOnly, history[0].TimeInForce, "GetOrderHistory should preserve the time in force")
+	require.Len(t, history, 2, "GetOrderHistory must return every spread order")
+	rows := make(map[string]order.Detail, len(history))
+	for i := range history {
+		rows[history[i].OrderID] = history[i]
+	}
+	first := rows["1"]
+	assert.Equal(t, order.Limit, first.Type, "GetOrderHistory should read the order type")
+	assert.Equal(t, order.PostOnly, first.TimeInForce, "GetOrderHistory should preserve the time in force")
+	assert.Equal(t, order.Buy, first.Side, "GetOrderHistory should read the order side")
+	assert.Equal(t, order.Active, first.Status, "GetOrderHistory should read the order state")
+	assert.Equal(t, 100.0, first.Price, "GetOrderHistory should read the limit price")
+	assert.Equal(t, 90.0, first.AverageExecutedPrice, "GetOrderHistory should read the average filled price")
+	assert.Equal(t, 1.0, first.Amount, "GetOrderHistory should read the order size")
+	assert.Equal(t, 0.3, first.ExecutedAmount, "GetOrderHistory should read the accumulated fill size")
+	assert.InDelta(t, 0.7, first.RemainingAmount, 1e-9, "an unfilled spread order should keep its remaining amount")
+	assert.Equal(t, asset.Spread, first.AssetType, "GetOrderHistory should tag the spread asset type")
+	assert.Equal(t, "BTC", first.Pair.Base.String(), "the pair base should be the spread ID head under the dash delimiter")
+	assert.Equal(t, "USDT_BTC-USDT", first.Pair.Quote.String(), "the pair quote should keep the remainder of the spread ID")
+	second := rows["2"]
+	assert.Equal(t, order.Filled, second.Status, "GetOrderHistory should read the filled state")
+	assert.Equal(t, 0.0, second.RemainingAmount, "a filled spread order should have nothing remaining")
 }
 
 // TestOCOStopLossTriggerPrice guards the OCO submit path: the stop loss leg
@@ -2567,6 +3019,12 @@ func TestGetOrderHistoryPaginatesWithAfterCursor(t *testing.T) {
 	var mu sync.Mutex
 	var afterCursors []string
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/trade/orders-history" {
+			// The window reaches the 7 day listing, which has nothing to add
+			// to the archive's rows here.
+			writeOKXData(t, w, []map[string]string{})
+			return
+		}
 		if r.URL.Path != "/trade/orders-history-archive" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -2627,6 +3085,12 @@ func TestGetOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 	var mu sync.Mutex
 	var afterCursors []string
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/trade/orders-history" {
+			// The window reaches the 7 day listing, which has nothing to add
+			// to the archive's rows here.
+			writeOKXData(t, w, []map[string]string{})
+			return
+		}
 		if r.URL.Path != "/trade/orders-history-archive" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -2654,6 +3118,12 @@ func TestGetOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 func TestGetOrderHistoryFromOrderIDSeedsTheAfterCursor(t *testing.T) {
 	t.Parallel()
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/trade/orders-history" {
+			// The 7 day listing is crawled with the same seed and adds
+			// nothing here.
+			writeOKXData(t, w, []map[string]string{})
+			return
+		}
 		if r.URL.Path != "/trade/orders-history-archive" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
