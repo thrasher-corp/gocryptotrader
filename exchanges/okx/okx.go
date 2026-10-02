@@ -1826,11 +1826,22 @@ func (e *Exchange) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (
 	if arg.InstrumentID == "" && arg.Currency.IsEmpty() {
 		return nil, errEitherInstIDOrCcyIsRequired
 	}
-	switch arg.AssetType {
-	case asset.Futures, asset.PerpetualSwap:
-		if arg.PositionSide == "" && arg.MarginMode == "isolated" {
-			return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
-		}
+	switch arg.MarginMode {
+	case TradeModeCross, TradeModeIsolated:
+	default:
+		return nil, fmt.Errorf("%w: %q", margin.ErrMarginTypeUnsupported, arg.MarginMode)
+	}
+	if arg.InstrumentID == "" && arg.MarginMode != TradeModeCross {
+		// OKX uses instId when both are sent, so a currency-scoped setting is
+		// always cross margin.
+		return nil, fmt.Errorf("%w: a currency-scoped leverage requires %q margin", margin.ErrMarginTypeUnsupported, arg.MarginMode)
+	}
+	switch arg.PositionSide {
+	case "", positionSideLong, positionSideShort, positionSideNet:
+		// OKX requires posSide only for isolated futures and perpetual swap
+		// leverage in long/short mode, which this layer cannot see.
+	default:
+		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
 	var resp *SetLeverageResponse
@@ -1924,7 +1935,7 @@ func (e *Exchange) GetLeverageRate(ctx context.Context, instrumentID, marginMode
 		return nil, errMissingInstrumentID
 	}
 	switch marginMode {
-	case TradeModeCross, TradeModeIsolated, TradeModeCash:
+	case TradeModeCross, TradeModeIsolated:
 	default:
 		return nil, margin.ErrMarginTypeUnsupported
 	}

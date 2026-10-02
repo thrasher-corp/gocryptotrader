@@ -2322,10 +2322,26 @@ func TestSetLeverageRate(t *testing.T) {
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
 	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
-		Currency:     currency.USDT,
+		Leverage:     5,
+		MarginMode:   "cash",
+		InstrumentID: perpetualSwapPair.String(),
+		AssetType:    asset.PerpetualSwap,
+	})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
+		Currency:   currency.USDT,
+		Leverage:   5,
+		MarginMode: "isolated",
+		AssetType:  asset.Margin,
+	})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
 		Leverage:     5,
 		MarginMode:   "isolated",
 		InstrumentID: perpetualSwapPair.String(),
+		PositionSide: "reverse",
 		AssetType:    asset.PerpetualSwap,
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
@@ -5136,8 +5152,12 @@ func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
+	_, err = e.GetLeverage(contextGenerate(), asset.Options, pp[0], margin.Multi, order.UnknownSide)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, order.UnknownSide)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, order.UnknownSide)
@@ -5156,12 +5176,14 @@ func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.CouldNotBuy)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	err = e.SetLeverage(contextGenerate(), asset.Options, pp[0], margin.Multi, 5, order.UnknownSide)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 	err = e.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, 5, order.UnknownSide)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5, order.UnknownSide)

@@ -3428,83 +3428,101 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
 func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, orderSide order.Side) error {
-	posSide := "net"
 	switch item {
-	case asset.Futures, asset.PerpetualSwap:
-		if marginType == margin.Isolated {
-			switch {
-			case orderSide == order.UnknownSide:
-				return order.ErrSideIsInvalid
-			case orderSide.IsLong():
-				posSide = "long"
-			case orderSide.IsShort():
-				posSide = "short"
-			default:
-				return fmt.Errorf("%w %v requires long/short", order.ErrSideIsInvalid, orderSide)
-			}
-		}
-		fallthrough
-	case asset.Margin, asset.Options:
-		instrumentID, err := e.FormatSymbol(pair, item)
-		if err != nil {
-			return err
-		}
-
-		marginMode := e.marginTypeToString(marginType)
-		_, err = e.SetLeverageRate(ctx, &SetLeverageInput{
-			Leverage:     amount,
-			MarginMode:   marginMode,
-			InstrumentID: instrumentID,
-			PositionSide: posSide,
-		})
-		return err
+	case asset.Futures, asset.PerpetualSwap, asset.Margin:
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
+	marginMode := e.marginTypeToString(marginType)
+	if marginMode == "" {
+		return fmt.Errorf("%w: %v", margin.ErrMarginTypeUnsupported, marginType)
+	}
+	var posSide string
+	if marginMode == TradeModeIsolated && item != asset.Margin {
+		// OKX requires posSide for isolated contract leverage only in
+		// long/short mode, where the side selects the position; net mode
+		// leaves it unset, which OKX reads as net.
+		mode, err := e.contractPositionMode(ctx)
+		if err != nil {
+			return err
+		}
+		if mode == positionModeLongShort {
+			switch {
+			case orderSide.IsLong():
+				posSide = positionSideLong
+			case orderSide.IsShort():
+				posSide = positionSideShort
+			default:
+				return fmt.Errorf("%w: %v, isolated leverage in long/short mode requires a long or short side", order.ErrSideIsInvalid, orderSide)
+			}
+		}
+	}
+	instrumentID, err := e.FormatSymbol(pair, item)
+	if err != nil {
+		return err
+	}
+	_, err = e.SetLeverageRate(ctx, &SetLeverageInput{
+		Leverage:     amount,
+		MarginMode:   marginMode,
+		InstrumentID: instrumentID,
+		PositionSide: posSide,
+	})
+	return err
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
 func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error) {
-	var inspectLeverage bool
 	switch item {
-	case asset.Futures, asset.PerpetualSwap:
-		if marginType == margin.Isolated {
-			switch {
-			case orderSide == order.UnknownSide:
-				return 0, order.ErrSideIsInvalid
-			case orderSide.IsLong(), orderSide.IsShort():
-				inspectLeverage = true
-			default:
-				return 0, fmt.Errorf("%w '%v', requires long/short", order.ErrSideIsInvalid, orderSide)
-			}
-		}
-		fallthrough
-	case asset.Margin, asset.Options:
-		instrumentID, err := e.FormatSymbol(pair, item)
-		if err != nil {
-			return -1, err
-		}
-		marginMode := e.marginTypeToString(marginType)
-		lev, err := e.GetLeverageRate(ctx, instrumentID, marginMode, currency.EMPTYCODE)
-		if err != nil {
-			return -1, err
-		}
-		if len(lev) == 0 {
-			return -1, fmt.Errorf("%w %v %v %s", futures.ErrPositionNotFound, item, pair, marginType)
-		}
-		if inspectLeverage {
-			for i := range lev {
-				if lev[i].PositionSide == orderSide.Lower() {
-					return lev[i].Leverage.Float64(), nil
-				}
-			}
-		}
-
-		// leverage is the same across positions
-		return lev[0].Leverage.Float64(), nil
+	case asset.Futures, asset.PerpetualSwap, asset.Margin:
 	default:
 		return -1, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
+	marginMode := e.marginTypeToString(marginType)
+	if marginMode == "" {
+		return -1, fmt.Errorf("%w: %v", margin.ErrMarginTypeUnsupported, marginType)
+	}
+	var posSide string
+	if marginMode == TradeModeIsolated && item != asset.Margin {
+		// Isolated contract leverage is reported per position side in
+		// long/short mode and as a single net row in net mode.
+		mode, err := e.contractPositionMode(ctx)
+		if err != nil {
+			return -1, err
+		}
+		if mode == positionModeLongShort {
+			switch {
+			case orderSide.IsLong():
+				posSide = positionSideLong
+			case orderSide.IsShort():
+				posSide = positionSideShort
+			default:
+				return -1, fmt.Errorf("%w: %v, isolated leverage in long/short mode requires a long or short side", order.ErrSideIsInvalid, orderSide)
+			}
+		} else {
+			posSide = positionSideNet
+		}
+	}
+	instrumentID, err := e.FormatSymbol(pair, item)
+	if err != nil {
+		return -1, err
+	}
+	lev, err := e.GetLeverageRate(ctx, instrumentID, marginMode, currency.EMPTYCODE)
+	if err != nil {
+		return -1, err
+	}
+	if len(lev) == 0 {
+		return -1, fmt.Errorf("%w %v %v %s", futures.ErrPositionNotFound, item, pair, marginType)
+	}
+	if posSide != "" {
+		for i := range lev {
+			if lev[i].PositionSide == posSide {
+				return lev[i].Leverage.Float64(), nil
+			}
+		}
+	}
+
+	// leverage is the same across positions
+	return lev[0].Leverage.Float64(), nil
 }
 
 // GetFuturesContractDetails returns details about futures contracts

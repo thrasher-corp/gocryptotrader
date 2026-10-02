@@ -3167,6 +3167,102 @@ func TestSetPositionModeRefreshesOrderPlacement(t *testing.T) {
 	}
 }
 
+// TestLeverageFollowsContractPositionMode guards the leverage wrappers
+// against OKX's documented posSide rule: isolated contract leverage takes a
+// posSide only in long/short mode, where the side selects the position; net
+// mode and cross margin leave it unset. Options carry no leverage setting.
+func TestLeverageFollowsContractPositionMode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		mode      string // empty when no account configuration fetch is expected
+		margin    margin.Type
+		side      order.Side
+		expPos    string // expected posSide in the set-leverage body; "" means absent
+		expGet    float64
+		expSetErr error
+	}{
+		{"long/short mode isolated long", positionModeLongShort, margin.Isolated, order.Long, positionSideLong, 5, nil},
+		{"long/short mode isolated short", positionModeLongShort, margin.Isolated, order.Short, positionSideShort, 10, nil},
+		{"long/short mode isolated without a side", positionModeLongShort, margin.Isolated, order.UnknownSide, "", 0, order.ErrSideIsInvalid},
+		{"net mode isolated without a side", positionModeNet, margin.Isolated, order.UnknownSide, "", 3, nil},
+		{"cross sends no position side and fetches no mode", "", margin.Multi, order.UnknownSide, "", 7, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var body []byte
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/account/config":
+					if tc.mode == "" {
+						t.Errorf("unexpected account configuration fetch for %s margin", tc.margin)
+					}
+					writeOKXData(t, w, []map[string]string{{"posMode": tc.mode}})
+				case "/account/set-leverage":
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "reading the set leverage body should not error")
+					mu.Lock()
+					body = b
+					mu.Unlock()
+					writeOKXData(t, w, []map[string]string{{"lever": "5", "mgnMode": "isolated", "posSide": tc.expPos, "instId": perpetualSwapPair.String()}})
+				case "/account/leverage-info":
+					if r.URL.Query().Get("mgnMode") == TradeModeCross {
+						writeOKXData(t, w, []map[string]string{
+							{"instId": perpetualSwapPair.String(), "mgnMode": "cross", "posSide": "", "lever": "7"},
+						})
+						return
+					}
+					writeOKXData(t, w, []map[string]string{
+						{"instId": perpetualSwapPair.String(), "mgnMode": "isolated", "posSide": positionSideLong, "lever": "5"},
+						{"instId": perpetualSwapPair.String(), "mgnMode": "isolated", "posSide": positionSideShort, "lever": "10"},
+						{"instId": perpetualSwapPair.String(), "mgnMode": "isolated", "posSide": positionSideNet, "lever": "3"},
+					})
+				default:
+					t.Errorf("unexpected request path %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			err := e.SetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, tc.margin, 5, tc.side)
+			if tc.expSetErr != nil {
+				require.ErrorIsf(t, err, tc.expSetErr, "SetLeverage must reject %s", tc.name)
+				assert.Empty(t, body, "a rejected leverage setting should not reach OKX")
+			} else {
+				require.NoError(t, err, "SetLeverage must not error")
+				mu.Lock()
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal(body, &sent), "the set leverage body must decode")
+				mu.Unlock()
+				if tc.expPos == "" {
+					_, has := sent["posSide"]
+					assert.False(t, has, "posSide should be omitted")
+				} else {
+					assert.Equal(t, tc.expPos, sent["posSide"], "the leverage should target the position side the mode requires")
+				}
+			}
+
+			got, err := e.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, tc.margin, tc.side)
+			if tc.expSetErr != nil {
+				require.ErrorIsf(t, err, tc.expSetErr, "GetLeverage must reject %s", tc.name)
+			} else {
+				require.NoError(t, err, "GetLeverage must not error")
+				assert.Equalf(t, tc.expGet, got, "GetLeverage should return the row for %s", tc.name)
+			}
+		})
+	}
+	t.Run("options carry no leverage setting", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}))
+		err := e.SetLeverage(t.Context(), asset.Options, mainPair, margin.Multi, 5, order.UnknownSide)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "SetLeverage should reject options, which OKX gives no leverage setting")
+		_, err = e.GetLeverage(t.Context(), asset.Options, mainPair, margin.Multi, order.UnknownSide)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLeverage should reject options, which OKX gives no leverage setting")
+	})
+}
+
 // TestLimitMakerOrdersAmendAndCancelByType guards the order types the amend
 // and cancel switches accept: SubmitOrder places LimitMaker orders as
 // post_only, so amending or cancelling one by the type it was submitted with
