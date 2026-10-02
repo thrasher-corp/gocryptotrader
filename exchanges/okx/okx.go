@@ -692,12 +692,12 @@ func (e *Exchange) GetEasyConvertHistory(ctx context.Context, after, before time
 
 // GetOneClickRepayCurrencyList retrieves list of debt currency data and repay currencies. Debt currencies include both cross and isolated debts.
 // debt level "cross", and "isolated" are allowed
-func (e *Exchange) GetOneClickRepayCurrencyList(ctx context.Context, debtType string) ([]CurrencyOneClickRepay, error) {
+func (e *Exchange) GetOneClickRepayCurrencyList(ctx context.Context, debtType string) ([]OneClickRepayCurrencyListResponse, error) {
 	params := url.Values{}
 	if debtType != "" {
 		params.Set("debtType", debtType)
 	}
-	var resp []CurrencyOneClickRepay
+	var resp []OneClickRepayCurrencyListResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, oneClickRepayCurrencyListEPL, http.MethodGet,
 		common.EncodeURLValues("trade/one-click-repay-currency-list", params), nil, &resp, request.AuthenticatedRequest)
 }
@@ -2950,7 +2950,7 @@ func (e *Exchange) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, a
 }
 
 // GetGridAlgoSubOrders retrieves grid algo sub orders
-func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, subOrderType, groupID, after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
+func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, subOrderType, groupID, after, before string, limit int64) ([]GridSubOrderData, error) {
 	if algoOrderType != AlgoOrdTypeGrid &&
 		algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
@@ -2977,7 +2977,7 @@ func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algo
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []GridAlgoOrderResponse
+	var resp []GridSubOrderData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
 }
 

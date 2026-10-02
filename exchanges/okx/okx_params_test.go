@@ -29,6 +29,22 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	var gotPath string
 	var gotQuery url.Values
 
+	payloads := map[string]string{
+		"/trade/orders-algo-pending":                     `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"test-algo-client-id","clOrdId":"ord-client-1","cTime":"1724751378980","uTime":"1724751378999","attachAlgoOrds":[{"attachAlgoClOrdId":"attach-client-1","tpTriggerPx":"50000","tpOrdPx":"-1","slTriggerPx":"40000"}]}]}`,
+		"/tradingBot/recurring/orders-algo-details":      `{"code":"0","msg":"","data":[{"algoId":"560473220642766848","state":"running","amt":"100","period":"hourly","recurringList":[{"ccy":"BTC","px":"36683.2","avgPx":"36500.1","profit":"12.5","ratio":"0.5","totalAmt":"100"}]}]}`,
+		"/fiat/deposit":                                  `{"code":"0","msg":"","data":[{}]}`,
+		"/trade/one-click-repay-currency-list":           `{"code":"0","msg":"","data":[{"debtType":"cross","debtData":[{"debtCcy":"BTC","debtAmt":"1.5"}],"repayData":[{"repayCcy":"USDT","repayAmt":"100"}]}]}`,
+		"/tradingBot/grid/sub-orders":                    `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"grid-client-1","ordId":"grid-ord-1","instId":"BTC-USDT","algoOrdType":"grid","groupId":"grid-group-1","px":"42000","sz":"0.1","avgPx":"41900","accFillSz":"0.1","pnl":"12.5","ccy":"USDT","rebate":"0.01","rebateCcy":"USDT","lever":"5","ctVal":"0.01","posSide":"net","side":"buy","state":"filled","ordType":"market","tdMode":"cross","cTime":"1724751378980","uTime":"1724751378999"}]}`,
+		"/market/index-components":                       `{"code":"0","msg":"","data":[{"index":"BTC-USDT","last":"42000","ts":"1724751378980","components":[{"exch":"binance","symbol":"BTC/USDT","symPx":"42000.5","wgt":"0.9","cnvPx":"42000"}]}]}`,
+		"/public/discount-rate-interest-free-quota":      `{"code":"0","msg":"","data":[{"ccy":"BTC","colRes":"0","amt":"1","details":[{"discountRate":"0.98","maxAmt":"10","minAmt":"0","tier":"1","liqPenaltyRate":"0.01","disCcyEq":"0.5"}]}]}`,
+		"/account/position-tiers":                        `{"code":"0","msg":"","data":[{"maxSz":"1000","posType":"1","uly":"BTC-USD","instFamily":"BTC-USD"}]}`,
+		"/asset/convert/currencies":                      `{"code":"0","msg":"","data":[{"ccy":"BTC","min":"0.0001","max":"100"}]}`,
+		"/rfq/maker-instrument-settings":                 `{"code":"0","msg":"","data":[{"instType":"OPTION","includeAll":true,"data":[{"instFamily":"BTC-USD","maxBlockSz":"10000","makerPxBand":"5"}]}]}`,
+		"/copytrading/unrealized-profit-sharing-details": `{"code":"0","msg":"","data":[{"ccy":"USDT","nickName":"Potato","unrealizedProfitSharingAmt":"0.455472","instType":"SWAP","ts":"1669901824779"}]}`,
+		"/account/risk-state":                            `{"code":"0","msg":"","data":[{"atRisk":true,"atRiskIdx":[],"atRiskMgn":[],"ts":"1635745078794"}]}`,
+		"/tradingBot/signal/event-history":               `{"code":"0","msg":"","data":[{"algoId":"12345","alertMsg":"price alert","eventCtime":"1724751378980","eventProcessMsg":"done","state":"done","triggerTime":"1724751378999"}]}`,
+	}
+
 	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		gotPath = r.URL.Path
@@ -36,17 +52,8 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		data := `{"code":"0","msg":"","data":[]}`
-		if r.URL.Path == "/trade/orders-algo-pending" {
-			// the item echoes the algoClOrdId filter the pending case sends
-			data = `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"test-algo-client-id","clOrdId":"ord-client-1","cTime":"1724751378980","uTime":"1724751378999"}]}`
-		}
-		if r.URL.Path == "/tradingBot/recurring/orders-algo-details" {
-			// GetRecurringOrderDetails decodes a single item from the array
-			data = `{"code":"0","msg":"","data":[{"algoId":"560473220642766848","state":"running","amt":"100","period":"hourly","recurringList":[{"ccy":"BTC","px":"36683.2","avgPx":"36500.1","profit":"12.5","ratio":"0.5","totalAmt":"100"}]}]}`
-		}
-		if r.URL.Path == "/fiat/deposit" {
-			// GetDepositOrderDetail decodes a single item from the array
-			data = `{"code":"0","msg":"","data":[{}]}`
+		if payload, ok := payloads[r.URL.Path]; ok {
+			data = payload
 		}
 		_, _ = w.Write([]byte(data))
 	}))
@@ -66,6 +73,16 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 
 	var pendingAlgoOrders []AlgoOrderResponse
 	var recurringOrderDetails *RecurringOrderDetailResponse
+	var oneClickRepayCurrencyList []OneClickRepayCurrencyListResponse
+	var gridSubOrders []GridSubOrderData
+	var indexComponents *IndexComponent
+	var discountRates []DiscountRate
+	var pmPositionLimitations []PMLimitationResponse
+	var convertCurrencies []ConvertCurrency
+	var quoteProducts []QuoteProduct
+	var unrealizedProfitSharing []ProfitSharingItem
+	var accountRiskState []AccountRiskState
+	var signalBotEventHistory []SignalBotEventHistory
 
 	for _, tc := range []struct {
 		name   string
@@ -213,6 +230,11 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "test-algo-client-id", pendingAlgoOrders[0].AlgoClOrdID, "the response should echo the algoClOrdId this filter narrows on")
 				assert.Equal(t, "ord-client-1", pendingAlgoOrders[0].ClientOrderID, "the documented clOrdId should decode")
 				assert.True(t, pendingAlgoOrders[0].UpdateTime.Time().Equal(time.UnixMilli(1724751378999)), "the documented uTime should decode")
+				require.Len(t, pendingAlgoOrders[0].AttachAlgoOrds, 1, "the documented attached algo order objects must decode")
+				assert.Equal(t, "attach-client-1", pendingAlgoOrders[0].AttachAlgoOrds[0].AttachAlgoClientOrderID, "the attached algo client order ID should decode")
+				assert.Equal(t, 50000.0, pendingAlgoOrders[0].AttachAlgoOrds[0].TPTriggerPrice.Float64(), "the attached take-profit trigger price should decode")
+				assert.Equal(t, -1.0, pendingAlgoOrders[0].AttachAlgoOrds[0].TPOrderPrice.Float64(), "the attached take-profit market-price sentinel should decode")
+				assert.Equal(t, 40000.0, pendingAlgoOrders[0].AttachAlgoOrds[0].SLTriggerPrice.Float64(), "the attached stop-loss trigger price should decode")
 			},
 		},
 		{
@@ -264,6 +286,165 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			path:   "/fiat/deposit",
 			params: map[string]string{"ordId": "12345"},
 			absent: []string{"ordID"},
+		},
+		{
+			// The currency list is a different response schema from the
+			// one-click repay and history endpoints it previously shared a
+			// struct with: it returns debt and repay currency lists.
+			name: "One-click repay currency list decodes debts and repay balances",
+			call: func() error {
+				var err error
+				oneClickRepayCurrencyList, err = e.GetOneClickRepayCurrencyList(t.Context(), "")
+				return err
+			},
+			path: "/trade/one-click-repay-currency-list",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, oneClickRepayCurrencyList, 1, "the response item must decode")
+				assert.Equal(t, "cross", oneClickRepayCurrencyList[0].DebtType, "the documented debt type should decode")
+				require.Len(t, oneClickRepayCurrencyList[0].Debts, 1, "the documented debt list must decode")
+				assert.Equal(t, "BTC", oneClickRepayCurrencyList[0].Debts[0].Currency, "the debt currency should decode")
+				assert.Equal(t, 1.5, oneClickRepayCurrencyList[0].Debts[0].Amount.Float64(), "the debt amount should decode")
+				require.Len(t, oneClickRepayCurrencyList[0].Repays, 1, "the documented repay list must decode")
+				assert.Equal(t, "USDT", oneClickRepayCurrencyList[0].Repays[0].Currency, "the repay currency should decode")
+				assert.Equal(t, 100.0, oneClickRepayCurrencyList[0].Repays[0].Amount.Float64(), "the repay amount should decode")
+			},
+		},
+		{
+			// Sub orders are order-level rows, not grid-algo-level rows: the
+			// previously shared struct decoded every sub order field to zero.
+			name: "Grid sub orders decode the sub order rows",
+			call: func() error {
+				var err error
+				gridSubOrders, err = e.GetGridAlgoSubOrders(t.Context(), AlgoOrdTypeGrid, "12345", "live", "", "", "", 0)
+				return err
+			},
+			path: "/tradingBot/grid/sub-orders",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, gridSubOrders, 1, "the sub order row must decode")
+				assert.Equal(t, "grid-ord-1", gridSubOrders[0].OrderID, "the sub order ID should decode")
+				assert.Equal(t, "grid-client-1", gridSubOrders[0].AlgoClientOrderID, "the documented algoClOrdId should decode")
+				assert.Equal(t, 42000.0, gridSubOrders[0].Price.Float64(), "the sub order price should decode")
+				assert.Equal(t, 12.5, gridSubOrders[0].ProfitAndLoss.Float64(), "the sub order PnL should decode")
+				assert.Equal(t, "USDT", gridSubOrders[0].Currency, "the documented ccy should decode")
+				assert.Equal(t, 0.01, gridSubOrders[0].Rebate.Float64(), "the documented rebate should decode")
+			},
+		},
+		{
+			name: "Index components decode the component price",
+			call: func() error {
+				var err error
+				indexComponents, err = e.GetIndexComponents(t.Context(), "BTC-USDT")
+				return err
+			},
+			path: "/market/index-components",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.NotNil(t, indexComponents, "the index component response must decode")
+				require.Len(t, indexComponents.Components, 1, "the documented components must decode")
+				assert.Equal(t, "42000.5", indexComponents.Components[0].SymbolPairPrice, "the documented symPx component price should decode")
+			},
+		},
+		{
+			name: "Discount rate decodes the discount tiers",
+			call: func() error {
+				var err error
+				discountRates, err = e.GetDiscountRateAndInterestFreeQuota(t.Context(), currency.BTC, 0)
+				return err
+			},
+			path: "/public/discount-rate-interest-free-quota",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, discountRates, 1, "the discount rate row must decode")
+				require.Len(t, discountRates[0].Details, 1, "the documented discount tier details must decode")
+				assert.Equal(t, 0.98, discountRates[0].Details[0].DiscountRate.Float64(), "the tier discount rate should decode")
+				assert.Equal(t, "1", discountRates[0].Details[0].Tiers, "the tier number should decode")
+			},
+		},
+		{
+			name: "Portfolio margin position tiers decode posType",
+			call: func() error {
+				var err error
+				pmPositionLimitations, err = e.GetPMPositionLimitation(t.Context(), "SWAP", "BTC-USD", "")
+				return err
+			},
+			path: "/account/position-tiers",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, pmPositionLimitations, 1, "the position tier row must decode")
+				assert.Equal(t, "1", pmPositionLimitations[0].PositionType, "the documented posType should decode")
+			},
+		},
+		{
+			name: "Convert currencies decode the currency ID",
+			call: func() error {
+				var err error
+				convertCurrencies, err = e.GetConvertCurrencies(t.Context())
+				return err
+			},
+			path: "/asset/convert/currencies",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, convertCurrencies, 1, "the convert currency row must decode")
+				assert.Equal(t, "BTC", convertCurrencies[0].Currency, "the documented ccy should decode")
+			},
+		},
+		{
+			name: "Maker instrument settings decode includeAll",
+			call: func() error {
+				var err error
+				quoteProducts, err = e.GetQuoteProducts(t.Context())
+				return err
+			},
+			path: "/rfq/maker-instrument-settings",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, quoteProducts, 1, "the quote product row must decode")
+				assert.True(t, quoteProducts[0].IncludeAll, "the documented includeAll should decode")
+			},
+		},
+		{
+			name: "Unrealized profit sharing decodes the unrealized amount",
+			call: func() error {
+				var err error
+				unrealizedProfitSharing, err = e.GetUnrealizedProfitSharingDetails(t.Context(), "SWAP")
+				return err
+			},
+			path: "/copytrading/unrealized-profit-sharing-details",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, unrealizedProfitSharing, 1, "the profit sharing row must decode")
+				assert.Equal(t, 0.455472, unrealizedProfitSharing[0].UnrealizedProfitSharingAmount.Float64(), "the documented unrealizedProfitSharingAmt should decode")
+			},
+		},
+		{
+			name: "Account risk state decodes the atRisk boolean",
+			call: func() error {
+				var err error
+				accountRiskState, err = e.GetAccountRiskState(t.Context())
+				return err
+			},
+			path: "/account/risk-state",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, accountRiskState, 1, "the risk state row must decode")
+				assert.True(t, accountRiskState[0].IsTheAccountAtRisk, "the documented atRisk boolean should decode")
+			},
+		},
+		{
+			name: "Signal bot event history decodes the alert message",
+			call: func() error {
+				var err error
+				signalBotEventHistory, err = e.GetSignalBotEventHistory(t.Context(), "12345", time.Time{}, time.Time{}, 0)
+				return err
+			},
+			path: "/tradingBot/signal/event-history",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, signalBotEventHistory, 1, "the event history row must decode")
+				assert.Equal(t, "price alert", signalBotEventHistory[0].AlertMsg, "the documented alertMsg string should decode")
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

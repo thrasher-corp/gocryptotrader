@@ -354,7 +354,7 @@ type IndexComponent struct {
 // IndexComponentItem an item representing the index component item
 type IndexComponentItem struct {
 	Symbol          string `json:"symbol"`
-	SymbolPairPrice string `json:"symbolPx"`
+	SymbolPairPrice string `json:"symPx"`
 	Weights         string `json:"wgt"`
 	ConvertToPrice  string `json:"cnvPx"`
 	ExchangeName    string `json:"exch"`
@@ -484,7 +484,7 @@ type DiscountRate struct {
 	Currency          string                 `json:"ccy"`
 	DiscountRateLevel string                 `json:"discountLv"`
 	MinDiscountRate   types.Number           `json:"minDiscountRate"`
-	DiscountInfo      []DiscountRateInfoItem `json:"discountInfo"`
+	Details           []DiscountRateInfoItem `json:"details"`
 }
 
 // DiscountRateInfoItem represents discount info list item for discount rate response
@@ -924,49 +924,49 @@ type OrderDetailRequestParam struct {
 
 // OrderDetail holds detailed information about an order.
 type OrderDetail struct {
-	InstrumentType             string       `json:"instType"`
-	InstrumentID               string       `json:"instId"`
-	Currency                   string       `json:"ccy"`
-	OrderID                    string       `json:"ordId"`
-	ClientOrderID              string       `json:"clOrdId"`
-	Tag                        string       `json:"tag"`
-	ProfitAndLoss              types.Number `json:"pnl"`
-	OrderType                  string       `json:"ordType"`
-	Side                       order.Side   `json:"side"`
-	PositionSide               string       `json:"posSide"`
-	TradeMode                  string       `json:"tdMode"`
-	TradeID                    string       `json:"tradeId"`
-	FillTime                   types.Time   `json:"fillTime"`
-	Source                     string       `json:"source"`
-	State                      string       `json:"state"`
-	TakeProfitTriggerPriceType string       `json:"tpTriggerPxType"`
-	StopLossTriggerPriceType   string       `json:"slTriggerPxType"`
-	StopLossOrderPrice         types.Number `json:"slOrdPx"`
-	RebateCurrency             string       `json:"rebateCcy"`
-	QuantityType               string       `json:"tgtCcy"`   // base_ccy and quote_ccy
-	Category                   string       `json:"category"` // normal, twap, adl, full_liquidation, partial_liquidation, delivery, ddh
-	AccumulatedFillSize        types.Number `json:"accFillSz"`
-	FillPrice                  types.Number `json:"fillPx"`
-	FillSize                   types.Number `json:"fillSz"`
-	RebateAmount               types.Number `json:"rebate"`
-	FeeCurrency                string       `json:"feeCcy"`
-	TransactionFee             types.Number `json:"fee"`
-	AveragePrice               types.Number `json:"avgPx"`
-	Leverage                   types.Number `json:"lever"`
-	Price                      types.Number `json:"px"`
-	Size                       types.Number `json:"sz"`
-	TakeProfitTriggerPrice     types.Number `json:"tpTriggerPx"`
-	TakeProfitOrderPrice       types.Number `json:"tpOrdPx"`
-	StopLossTriggerPrice       types.Number `json:"slTriggerPx"`
-	UpdateTime                 types.Time   `json:"uTime"`
-	CreationTime               types.Time   `json:"cTime"`
-	AlgoClOrdID                string       `json:"algoClOrdId"`
-	AlgoID                     string       `json:"algoId"`
-	AttachAlgoClOrdID          string       `json:"attachAlgoClOrdId"`
-	AttachAlgoOrds             []any        `json:"attachAlgoOrds"`
-	CancelSource               string       `json:"cancelSource"`
-	CancelSourceReason         string       `json:"cancelSourceReason"`
-	IsTakeProfitLimit          string       `json:"isTpLimit"`
+	InstrumentType             string          `json:"instType"`
+	InstrumentID               string          `json:"instId"`
+	Currency                   string          `json:"ccy"`
+	OrderID                    string          `json:"ordId"`
+	ClientOrderID              string          `json:"clOrdId"`
+	Tag                        string          `json:"tag"`
+	ProfitAndLoss              types.Number    `json:"pnl"`
+	OrderType                  string          `json:"ordType"`
+	Side                       order.Side      `json:"side"`
+	PositionSide               string          `json:"posSide"`
+	TradeMode                  string          `json:"tdMode"`
+	TradeID                    string          `json:"tradeId"`
+	FillTime                   types.Time      `json:"fillTime"`
+	Source                     string          `json:"source"`
+	State                      string          `json:"state"`
+	TakeProfitTriggerPriceType string          `json:"tpTriggerPxType"`
+	StopLossTriggerPriceType   string          `json:"slTriggerPxType"`
+	StopLossOrderPrice         types.Number    `json:"slOrdPx"`
+	RebateCurrency             string          `json:"rebateCcy"`
+	QuantityType               string          `json:"tgtCcy"`   // base_ccy and quote_ccy
+	Category                   string          `json:"category"` // normal, twap, adl, full_liquidation, partial_liquidation, delivery, ddh
+	AccumulatedFillSize        types.Number    `json:"accFillSz"`
+	FillPrice                  types.Number    `json:"fillPx"`
+	FillSize                   types.Number    `json:"fillSz"`
+	RebateAmount               types.Number    `json:"rebate"`
+	FeeCurrency                string          `json:"feeCcy"`
+	TransactionFee             types.Number    `json:"fee"`
+	AveragePrice               types.Number    `json:"avgPx"`
+	Leverage                   types.Number    `json:"lever"`
+	Price                      types.Number    `json:"px"`
+	Size                       types.Number    `json:"sz"`
+	TakeProfitTriggerPrice     types.Number    `json:"tpTriggerPx"`
+	TakeProfitOrderPrice       types.Number    `json:"tpOrdPx"`
+	StopLossTriggerPrice       types.Number    `json:"slTriggerPx"`
+	UpdateTime                 types.Time      `json:"uTime"`
+	CreationTime               types.Time      `json:"cTime"`
+	AlgoClOrdID                string          `json:"algoClOrdId"`
+	AlgoID                     string          `json:"algoId"`
+	AttachAlgoClOrdID          string          `json:"attachAlgoClOrdId"`
+	AttachAlgoOrds             []AttachAlgoOrd `json:"attachAlgoOrds"`
+	CancelSource               string          `json:"cancelSource"`
+	CancelSourceReason         string          `json:"cancelSourceReason"`
+	IsTakeProfitLimit          string          `json:"isTpLimit"`
 	LinkedAlgoOrd              struct {
 		AlgoID string `json:"algoId"`
 	} `json:"linkedAlgoOrd"`
@@ -1187,51 +1187,51 @@ type AmendAlgoResponse struct {
 
 // AlgoOrderDetail represents an algo order detail
 type AlgoOrderDetail struct {
-	InstrumentType          string       `json:"instType"`
-	InstrumentID            string       `json:"instId"`
-	OrderID                 string       `json:"ordId"`
-	OrderIDList             []string     `json:"ordIdList"`
-	Currency                string       `json:"ccy"`
-	ClientOrderID           string       `json:"clOrdId"`
-	AlgoID                  string       `json:"algoId"`
-	AttachAlgoOrds          []string     `json:"attachAlgoOrds"`
-	Size                    types.Number `json:"sz"`
-	CloseFraction           string       `json:"closeFraction"`
-	OrderType               string       `json:"ordType"`
-	Side                    string       `json:"side"`
-	PositionSide            string       `json:"posSide"`
-	TradeMode               string       `json:"tdMode"`
-	TargetCurrency          string       `json:"tgtCcy"`
-	State                   string       `json:"state"`
-	Leverage                types.Number `json:"lever"`
-	TpTriggerPrice          types.Number `json:"tpTriggerPx"`
-	TpTriggerPriceType      string       `json:"tpTriggerPxType"`
-	TpOrdPrice              types.Number `json:"tpOrdPx"`
-	SlTriggerPrice          types.Number `json:"slTriggerPx"`
-	SlTriggerPriceType      string       `json:"slTriggerPxType"`
-	TriggerPrice            types.Number `json:"triggerPx"`
-	TriggerPriceType        string       `json:"triggerPxType"`
-	OrderPrice              types.Number `json:"ordPx"`
-	ActualSize              types.Number `json:"actualSz"`
-	ActualPrice             types.Number `json:"actualPx"`
-	ActualSide              string       `json:"actualSide"`
-	PriceVar                string       `json:"pxVar"`
-	PriceSpread             types.Number `json:"pxSpread"`
-	PriceLimit              types.Number `json:"pxLimit"`
-	SizeLimit               types.Number `json:"szLimit"`
-	Tag                     string       `json:"tag"`
-	TimeInterval            string       `json:"timeInterval"`
-	CallbackRatio           types.Number `json:"callbackRatio"`
-	CallbackSpread          string       `json:"callbackSpread"`
-	ActivePrice             types.Number `json:"activePx"`
-	MoveTriggerPrice        types.Number `json:"moveTriggerPx"`
-	ReduceOnly              string       `json:"reduceOnly"`
-	TriggerTime             types.Time   `json:"triggerTime"`
-	Last                    types.Number `json:"last"` // Last filled price while placing
-	FailCode                string       `json:"failCode"`
-	AlgoClOrdID             string       `json:"algoClOrdId"`
-	AmendPriceOnTriggerType string       `json:"amendPxOnTriggerType"`
-	CreationTime            types.Time   `json:"cTime"`
+	InstrumentType          string          `json:"instType"`
+	InstrumentID            string          `json:"instId"`
+	OrderID                 string          `json:"ordId"`
+	OrderIDList             []string        `json:"ordIdList"`
+	Currency                string          `json:"ccy"`
+	ClientOrderID           string          `json:"clOrdId"`
+	AlgoID                  string          `json:"algoId"`
+	AttachAlgoOrds          []AttachAlgoOrd `json:"attachAlgoOrds"`
+	Size                    types.Number    `json:"sz"`
+	CloseFraction           string          `json:"closeFraction"`
+	OrderType               string          `json:"ordType"`
+	Side                    string          `json:"side"`
+	PositionSide            string          `json:"posSide"`
+	TradeMode               string          `json:"tdMode"`
+	TargetCurrency          string          `json:"tgtCcy"`
+	State                   string          `json:"state"`
+	Leverage                types.Number    `json:"lever"`
+	TpTriggerPrice          types.Number    `json:"tpTriggerPx"`
+	TpTriggerPriceType      string          `json:"tpTriggerPxType"`
+	TpOrdPrice              types.Number    `json:"tpOrdPx"`
+	SlTriggerPrice          types.Number    `json:"slTriggerPx"`
+	SlTriggerPriceType      string          `json:"slTriggerPxType"`
+	TriggerPrice            types.Number    `json:"triggerPx"`
+	TriggerPriceType        string          `json:"triggerPxType"`
+	OrderPrice              types.Number    `json:"ordPx"`
+	ActualSize              types.Number    `json:"actualSz"`
+	ActualPrice             types.Number    `json:"actualPx"`
+	ActualSide              string          `json:"actualSide"`
+	PriceVar                string          `json:"pxVar"`
+	PriceSpread             types.Number    `json:"pxSpread"`
+	PriceLimit              types.Number    `json:"pxLimit"`
+	SizeLimit               types.Number    `json:"szLimit"`
+	Tag                     string          `json:"tag"`
+	TimeInterval            string          `json:"timeInterval"`
+	CallbackRatio           types.Number    `json:"callbackRatio"`
+	CallbackSpread          string          `json:"callbackSpread"`
+	ActivePrice             types.Number    `json:"activePx"`
+	MoveTriggerPrice        types.Number    `json:"moveTriggerPx"`
+	ReduceOnly              string          `json:"reduceOnly"`
+	TriggerTime             types.Time      `json:"triggerTime"`
+	Last                    types.Number    `json:"last"` // Last filled price while placing
+	FailCode                string          `json:"failCode"`
+	AlgoClOrdID             string          `json:"algoClOrdId"`
+	AmendPriceOnTriggerType string          `json:"amendPxOnTriggerType"`
+	CreationTime            types.Time      `json:"cTime"`
 }
 
 // AlgoOrderCancelParams algo order request parameter
@@ -1242,44 +1242,68 @@ type AlgoOrderCancelParams struct {
 
 // AlgoOrderResponse holds algo order information
 type AlgoOrderResponse struct {
-	InstrumentType             string       `json:"instType"`
-	InstrumentID               string       `json:"instId"`
-	OrderID                    string       `json:"ordId"`
-	Currency                   string       `json:"ccy"`
-	ClientOrderID              string       `json:"clOrdId"`
-	AlgoOrderID                string       `json:"algoId"`
-	Quantity                   types.Number `json:"sz"`
-	OrderType                  string       `json:"ordType"`
-	Side                       order.Side   `json:"side"`
-	PositionSide               string       `json:"posSide"`
-	TradeMode                  string       `json:"tdMode"`
-	QuantityType               string       `json:"tgtCcy"`
-	State                      string       `json:"state"`
-	Lever                      types.Number `json:"lever"`
-	TakeProfitTriggerPrice     types.Number `json:"tpTriggerPx"`
-	TakeProfitTriggerPriceType string       `json:"tpTriggerPxType"`
-	TakeProfitOrdPrice         types.Number `json:"tpOrdPx"`
-	StopLossTriggerPriceType   string       `json:"slTriggerPxType"`
-	StopLossTriggerPrice       types.Number `json:"slTriggerPx"`
-	TriggerPrice               types.Number `json:"triggerPx"`
-	TriggerPriceType           string       `json:"triggerPxType"`
-	OrderPrice                 types.Number `json:"ordPx"`
-	ActualSize                 types.Number `json:"actualSz"`
-	ActualPrice                types.Number `json:"actualPx"`
-	ActualSide                 string       `json:"actualSide"`
-	PriceVar                   types.Number `json:"pxVar"`
-	PriceSpread                types.Number `json:"pxSpread"`
-	PriceLimit                 types.Number `json:"pxLimit"`
-	SizeLimit                  types.Number `json:"szLimit"`
-	TimeInterval               string       `json:"timeInterval"`
-	TriggerTime                types.Time   `json:"triggerTime"`
-	CallbackRatio              types.Number `json:"callbackRatio"`
-	CallbackSpread             string       `json:"callbackSpread"`
-	ActivePrice                types.Number `json:"activePx"`
-	MoveTriggerPrice           types.Number `json:"moveTriggerPx"`
-	AlgoClOrdID                string       `json:"algoClOrdId"`
-	CreationTime               types.Time   `json:"cTime"`
-	UpdateTime                 types.Time   `json:"uTime"`
+	InstrumentType             string          `json:"instType"`
+	InstrumentID               string          `json:"instId"`
+	OrderID                    string          `json:"ordId"`
+	Currency                   string          `json:"ccy"`
+	ClientOrderID              string          `json:"clOrdId"`
+	AlgoOrderID                string          `json:"algoId"`
+	Quantity                   types.Number    `json:"sz"`
+	OrderType                  string          `json:"ordType"`
+	Side                       order.Side      `json:"side"`
+	PositionSide               string          `json:"posSide"`
+	TradeMode                  string          `json:"tdMode"`
+	QuantityType               string          `json:"tgtCcy"`
+	State                      string          `json:"state"`
+	Lever                      types.Number    `json:"lever"`
+	TakeProfitTriggerPrice     types.Number    `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string          `json:"tpTriggerPxType"`
+	TakeProfitOrdPrice         types.Number    `json:"tpOrdPx"`
+	StopLossTriggerPriceType   string          `json:"slTriggerPxType"`
+	StopLossTriggerPrice       types.Number    `json:"slTriggerPx"`
+	TriggerPrice               types.Number    `json:"triggerPx"`
+	TriggerPriceType           string          `json:"triggerPxType"`
+	OrderPrice                 types.Number    `json:"ordPx"`
+	ActualSize                 types.Number    `json:"actualSz"`
+	ActualPrice                types.Number    `json:"actualPx"`
+	ActualSide                 string          `json:"actualSide"`
+	PriceVar                   types.Number    `json:"pxVar"`
+	PriceSpread                types.Number    `json:"pxSpread"`
+	PriceLimit                 types.Number    `json:"pxLimit"`
+	SizeLimit                  types.Number    `json:"szLimit"`
+	TimeInterval               string          `json:"timeInterval"`
+	TriggerTime                types.Time      `json:"triggerTime"`
+	CallbackRatio              types.Number    `json:"callbackRatio"`
+	CallbackSpread             string          `json:"callbackSpread"`
+	ActivePrice                types.Number    `json:"activePx"`
+	MoveTriggerPrice           types.Number    `json:"moveTriggerPx"`
+	AlgoClOrdID                string          `json:"algoClOrdId"`
+	AttachAlgoOrds             []AttachAlgoOrd `json:"attachAlgoOrds"`
+	CreationTime               types.Time      `json:"cTime"`
+	UpdateTime                 types.Time      `json:"uTime"`
+}
+
+// AttachAlgoOrd represents the attached TP/SL or trailing stop order info
+// returned beside an order or algo order row.
+type AttachAlgoOrd struct {
+	AttachAlgoID            string       `json:"attachAlgoId"`
+	AttachAlgoClientOrderID string       `json:"attachAlgoClOrdId"`
+	TPTriggerPrice          types.Number `json:"tpTriggerPx"`
+	TPTriggerRatio          types.Number `json:"tpTriggerRatio"`
+	TPTriggerPriceType      string       `json:"tpTriggerPxType"`
+	TPOrderPrice            types.Number `json:"tpOrdPx"`
+	TPOrderKind             string       `json:"tpOrdKind"`
+	SLTriggerPrice          types.Number `json:"slTriggerPx"`
+	SLTriggerRatio          types.Number `json:"slTriggerRatio"`
+	SLTriggerPriceType      string       `json:"slTriggerPxType"`
+	SLOrderPrice            types.Number `json:"slOrdPx"`
+	Size                    types.Number `json:"sz"`
+	AmendPxOnTriggerType    string       `json:"amendPxOnTriggerType"`
+	CallbackRatio           types.Number `json:"callbackRatio"`
+	CallbackSpread          types.Number `json:"callbackSpread"`
+	ActivePrice             types.Number `json:"activePx"`
+	FailCode                string       `json:"failCode"`
+	FailReason              string       `json:"failReason"`
 }
 
 // CurrencyResponse represents a currency item detail response data
@@ -1583,7 +1607,7 @@ type PublicBorrowHistory struct {
 
 // ConvertCurrency represents currency conversion detailed data
 type ConvertCurrency struct {
-	Currency string       `json:"currency"`
+	Currency string       `json:"ccy"`
 	Min      types.Number `json:"min"`
 	Max      types.Number `json:"max"`
 }
@@ -2183,7 +2207,7 @@ type MaximumWithdrawal struct {
 
 // AccountRiskState represents account risk state
 type AccountRiskState struct {
-	IsTheAccountAtRisk string     `json:"atRisk"`
+	IsTheAccountAtRisk bool       `json:"atRisk"`
 	AtRiskIdx          []any      `json:"atRiskIdx"` // derivatives risk unit list
 	AtRiskMgn          []any      `json:"atRiskMgn"` // margin risk unit list
 	Timestamp          types.Time `json:"ts"`
@@ -2346,7 +2370,7 @@ type ExecuteQuoteResponse struct {
 // QuoteProduct represents products which makers want to quote and receive RFQs for
 type QuoteProduct struct {
 	InstrumentType string `json:"instType,omitempty"`
-	IncludeALL     bool   `json:"includeALL"`
+	IncludeAll     bool   `json:"includeAll"`
 	Data           []struct {
 		Underlying     string       `json:"uly"`
 		MaxBlockSize   types.Number `json:"maxBlockSz"`
@@ -3475,11 +3499,13 @@ type WsGridSubOrderData struct {
 // GridSubOrderData represents a single sub order detailed info
 type GridSubOrderData struct {
 	AccumulatedFillSize types.Number `json:"accFillSz"`
+	AlgoClientOrderID   string       `json:"algoClOrdId"`
 	AlgoID              string       `json:"algoId"`
 	AlgoOrderType       string       `json:"algoOrdType"`
 	AveragePrice        types.Number `json:"avgPx"`
 	CreationTime        types.Time   `json:"cTime"`
 	ContractValue       string       `json:"ctVal"`
+	Currency            string       `json:"ccy"`
 	Fee                 types.Number `json:"fee"`
 	FeeCurrency         string       `json:"feeCcy"`
 	GroupID             string       `json:"groupId"`
@@ -3492,6 +3518,8 @@ type GridSubOrderData struct {
 	ProfitAndLoss       types.Number `json:"pnl"`
 	PositionSide        string       `json:"posSide"`
 	Price               types.Number `json:"px"`
+	Rebate              types.Number `json:"rebate"`
+	RebateCurrency      string       `json:"rebateCcy"`
 	Side                order.Side   `json:"side"`
 	State               string       `json:"state"`
 	Size                types.Number `json:"sz"`
@@ -3611,7 +3639,7 @@ type PublicBlockTrades struct {
 // PMLimitationResponse represents portfolio margin mode limitation for specific underlying
 type PMLimitationResponse struct {
 	MaximumSize      types.Number `json:"maxSz"`
-	PositionType     string       `json:"postType"`
+	PositionType     string       `json:"posType"`
 	Underlying       string       `json:"uly"`
 	InstrumentFamily string       `json:"instFamily"`
 }
@@ -3677,6 +3705,28 @@ type CurrencyOneClickRepay struct {
 	RepayCurrency string       `json:"repayCcy"`
 	Status        string       `json:"status"`
 	UpdateTime    types.Time   `json:"uTime"`
+}
+
+// OneClickRepayCurrencyListResponse represents one debt type entry of the
+// one-click repay currency list.
+type OneClickRepayCurrencyListResponse struct {
+	DebtType string                           `json:"debtType"`
+	Debts    []OneClickRepayCurrencyListDebt  `json:"debtData"`
+	Repays   []OneClickRepayCurrencyListRepay `json:"repayData"`
+}
+
+// OneClickRepayCurrencyListDebt represents one currency's debt, including
+// principal and interest.
+type OneClickRepayCurrencyListDebt struct {
+	Currency string       `json:"debtCcy"`
+	Amount   types.Number `json:"debtAmt"`
+}
+
+// OneClickRepayCurrencyListRepay represents one currency's available balance
+// amount for one-click repayment.
+type OneClickRepayCurrencyListRepay struct {
+	Currency string       `json:"repayCcy"`
+	Amount   types.Number `json:"repayAmt"`
 }
 
 // CancelMMPResponse holds the result of a cancel MMP response.
@@ -3897,7 +3947,7 @@ type SubOrder struct {
 
 // SignalBotEventHistory holds history information for signal bot
 type SignalBotEventHistory struct {
-	AlertMsg            time.Time  `json:"alertMsg"`
+	AlertMsg            string     `json:"alertMsg"`
 	AlgoID              string     `json:"algoId"`
 	EventCreationTime   types.Time `json:"eventCtime"`
 	EventProcessMessage string     `json:"eventProcessMsg"`
@@ -4077,12 +4127,13 @@ type LeadingInstrumentItem struct {
 
 // ProfitSharingItem holds profit sharing information
 type ProfitSharingItem struct {
-	Currency            string       `json:"ccy"`
-	NickName            string       `json:"nickName"`
-	ProfitSharingAmount types.Number `json:"profitSharingAmt"`
-	ProfitSharingID     string       `json:"profitSharingId"`
-	InstrumentType      string       `json:"instType"`
-	Timestamp           types.Time   `json:"ts"`
+	Currency                      string       `json:"ccy"`
+	NickName                      string       `json:"nickName"`
+	ProfitSharingAmount           types.Number `json:"profitSharingAmt"`
+	UnrealizedProfitSharingAmount types.Number `json:"unrealizedProfitSharingAmt"`
+	ProfitSharingID               string       `json:"profitSharingId"`
+	InstrumentType                string       `json:"instType"`
+	Timestamp                     types.Time   `json:"ts"`
 }
 
 // TotalProfitSharing holds information about total amount of profit shared since joining the platform
