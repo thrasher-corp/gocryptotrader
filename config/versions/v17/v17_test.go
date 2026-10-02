@@ -3,6 +3,7 @@ package v17_test
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
@@ -89,6 +90,23 @@ func TestDowngradeExchange(t *testing.T) {
 			out, err := new(v17.Version).DowngradeExchange(t.Context(), []byte(tc.input))
 			require.NoError(t, err, "DowngradeExchange must not error")
 			assert.JSONEq(t, tc.expected, string(out), "DowngradeExchange should restore only missing legacy buffer defaults")
+		})
+	}
+}
+
+func TestDowngradeExchangeErrors(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		input string
+	}{
+		{name: "orderbook without a value", input: `{"name":"Kraken","orderbook":}`},
+		{name: "setting without a value", input: `{"name":"Kraken","orderbook":{"websocketBufferLimit":}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := new(v17.Version).DowngradeExchange(t.Context(), []byte(tc.input))
+			require.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "DowngradeExchange must return the parser error")
 		})
 	}
 }

@@ -102,7 +102,7 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 				b.Fatal(err)
 			}
 			cache.state = cacheStateQueuing
-			if err := manager.applyPendingUpdates(b.Context(), &cache); err != nil {
+			if err := manager.applyPendingUpdates(&cache); err != nil {
 				b.Fatal(err)
 			}
 			if cache.state != cacheStateSynced {
@@ -126,7 +126,7 @@ func BenchmarkApplyPendingUpdates(b *testing.B) {
 					b.Fatal(err)
 				}
 				cache.state = cacheStateQueuing
-				if err := manager.applyPendingUpdates(b.Context(), &cache); err != nil {
+				if err := manager.applyPendingUpdates(&cache); err != nil {
 					b.Fatal(err)
 				}
 				for range updateCount + 1 {
