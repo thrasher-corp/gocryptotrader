@@ -1246,6 +1246,7 @@ type AlgoOrderResponse struct {
 	InstrumentID               string       `json:"instId"`
 	OrderID                    string       `json:"ordId"`
 	Currency                   string       `json:"ccy"`
+	ClientOrderID              string       `json:"clOrdId"`
 	AlgoOrderID                string       `json:"algoId"`
 	Quantity                   types.Number `json:"sz"`
 	OrderType                  string       `json:"ordType"`
@@ -1276,7 +1277,9 @@ type AlgoOrderResponse struct {
 	CallbackSpread             string       `json:"callbackSpread"`
 	ActivePrice                types.Number `json:"activePx"`
 	MoveTriggerPrice           types.Number `json:"moveTriggerPx"`
+	AlgoClOrdID                string       `json:"algoClOrdId"`
 	CreationTime               types.Time   `json:"cTime"`
+	UpdateTime                 types.Time   `json:"uTime"`
 }
 
 // CurrencyResponse represents a currency item detail response data
@@ -3989,7 +3992,9 @@ type RecurringOrderItem struct {
 
 // RecurringOrderDetailResponse holds detailed information about recurring order
 type RecurringOrderDetailResponse struct {
-	RecurringListItem
+	// RecurringList shadows the promoted RecurringOrderItem.RecurringList:
+	// the details endpoint returns the detailed item type.
+	RecurringOrderItem
 	RecurringList []RecurringListItemDetailed `json:"recurringList"`
 }
 

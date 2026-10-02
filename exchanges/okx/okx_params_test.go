@@ -18,7 +18,9 @@ import (
 // TestDocsPinnedRequestParameters pins the wire parameter names and endpoint
 // routes against the OKX v5 documentation. OKX silently ignores unknown query
 // parameters, so a misnamed filter fails quietly: every case asserts the
-// documented name is sent and the previously sent name stays absent.
+// documented name is sent and the previously sent name stays absent. Cases
+// with a verify hook additionally pin that the documented response fields
+// decode.
 func TestDocsPinnedRequestParameters(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
@@ -34,9 +36,13 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		data := `{"code":"0","msg":"","data":[]}`
+		if r.URL.Path == "/trade/orders-algo-pending" {
+			// the item echoes the algoClOrdId filter the pending case sends
+			data = `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"test-algo-client-id","clOrdId":"ord-client-1","cTime":"1724751378980","uTime":"1724751378999"}]}`
+		}
 		if r.URL.Path == "/tradingBot/recurring/orders-algo-details" {
 			// GetRecurringOrderDetails decodes a single item from the array
-			data = `{"code":"0","msg":"","data":[{}]}`
+			data = `{"code":"0","msg":"","data":[{"algoId":"560473220642766848","state":"running","amt":"100","period":"hourly","recurringList":[{"ccy":"BTC","px":"36683.2","avgPx":"36500.1","profit":"12.5","ratio":"0.5","totalAmt":"100"}]}]}`
 		}
 		if r.URL.Path == "/fiat/deposit" {
 			// GetDepositOrderDetail decodes a single item from the array
@@ -58,12 +64,16 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		return gotPath, gotQuery
 	}
 
+	var pendingAlgoOrders []AlgoOrderResponse
+	var recurringOrderDetails *RecurringOrderDetailResponse
+
 	for _, tc := range []struct {
 		name   string
 		call   func() error
 		path   string
 		params map[string]string
 		absent []string
+		verify func(t *testing.T)
 	}{
 		{
 			name: "RFQs send clRfqId",
@@ -190,12 +200,20 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			// still narrows on it, and the old clOrdId name no longer filters.
 			name: "Pending algo order list sends algoClOrdId",
 			call: func() error {
-				_, err := e.GetAlgoOrderList(t.Context(), "conditional", "", "test-algo-client-id", "", "", time.Time{}, time.Time{}, 1)
+				var err error
+				pendingAlgoOrders, err = e.GetAlgoOrderList(t.Context(), "conditional", "", "test-algo-client-id", "", "", time.Time{}, time.Time{}, 1)
 				return err
 			},
 			path:   "/trade/orders-algo-pending",
 			params: map[string]string{"ordType": "conditional", "algoClOrdId": "test-algo-client-id"},
 			absent: []string{"clOrdId"},
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, pendingAlgoOrders, 1, "the response item must decode")
+				assert.Equal(t, "test-algo-client-id", pendingAlgoOrders[0].AlgoClOrdID, "the response should echo the algoClOrdId this filter narrows on")
+				assert.Equal(t, "ord-client-1", pendingAlgoOrders[0].ClientOrderID, "the documented clOrdId should decode")
+				assert.True(t, pendingAlgoOrders[0].UpdateTime.Time().Equal(time.UnixMilli(1724751378999)), "the documented uTime should decode")
+			},
 		},
 		{
 			name: "Recurring buy order list drops state",
@@ -210,12 +228,22 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Recurring order details drop state",
 			call: func() error {
-				_, err := e.GetRecurringOrderDetails(t.Context(), "560473220642766848")
+				var err error
+				recurringOrderDetails, err = e.GetRecurringOrderDetails(t.Context(), "560473220642766848")
 				return err
 			},
 			path:   "/tradingBot/recurring/orders-algo-details",
 			params: map[string]string{"algoId": "560473220642766848"},
 			absent: []string{"state"},
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.NotNil(t, recurringOrderDetails, "the recurring order detail response must decode")
+				assert.Equal(t, "560473220642766848", recurringOrderDetails.AlgoID, "the documented algoId should decode")
+				assert.Equal(t, "running", recurringOrderDetails.State, "the documented state should decode")
+				assert.Equal(t, "100", recurringOrderDetails.Amount.String(), "the documented amt should decode")
+				require.Len(t, recurringOrderDetails.RecurringList, 1, "the detailed recurring list must decode")
+				assert.Equal(t, "36683.2", recurringOrderDetails.RecurringList[0].Price.String(), "the documented purchase price should decode")
+			},
 		},
 		{
 			name: "Taker volume drops instFamily",
@@ -247,6 +275,9 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			}
 			for _, name := range tc.absent {
 				assert.NotContainsf(t, query, name, "OKX ignores an undocumented %s parameter, so it should not be sent", name)
+			}
+			if tc.verify != nil {
+				tc.verify(t)
 			}
 		})
 	}
