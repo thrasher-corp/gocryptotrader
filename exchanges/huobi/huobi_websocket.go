@@ -186,7 +186,7 @@ func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subs
 	case subscription.TickerChannel:
 		return e.wsHandleTickerMsg(ctx, s, respRaw)
 	case subscription.OrderbookChannel:
-		return e.wsHandleOrderbookMsg(s, respRaw)
+		return e.wsHandleOrderbookMsg(ctx, s, respRaw)
 	case subscription.CandlesChannel:
 		return e.wsHandleCandleMsg(ctx, s, respRaw)
 	case subscription.AllTradesChannel:
@@ -299,7 +299,7 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
-func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleOrderbookMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -348,7 +348,7 @@ func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	newOrderBook.ValidateOrderbook = e.ValidateOrderbook
 	newOrderBook.LastUpdated = update.Timestamp.Time()
 
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &newOrderBook)
 }
 
 func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
