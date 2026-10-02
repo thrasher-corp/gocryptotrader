@@ -403,7 +403,7 @@ type Instrument struct {
 	InitialPriceLimitPercent        types.Number               `json:"initPxLmtPct"`
 	FloatingPriceLimitPercent       types.Number               `json:"floatPxLmtPct"`
 	MaximumPriceLimitPercent        types.Number               `json:"maxPxLmtPct"`
-	InstrumentIDCode                types.Number               `json:"instIdCode"`
+	InstrumentIDCode                uint64                     `json:"instIdCode"`
 	InstrumentCategory              string                     `json:"instCategory"`
 	SeriesID                        string                     `json:"seriesId"`
 	RPIMinimumLevel                 types.Number               `json:"rpiMinLevel"`
@@ -5171,7 +5171,7 @@ type AccountInstrument struct {
 	PreMarketSwitchTime         types.Time                 `json:"preMktSwTime"`
 	TradingFeeGroupID           string                     `json:"groupId"`
 	SeriesID                    string                     `json:"seriesId"`
-	InstIDCode                  types.Number               `json:"instIdCode"`
+	InstIDCode                  uint64                     `json:"instIdCode"`
 	InstrumentCategory          string                     `json:"instCategory"`
 	ELPPermission               types.Number               `json:"elp"`
 	RPIPermission               types.Number               `json:"rpi"`
