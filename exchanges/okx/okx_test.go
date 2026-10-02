@@ -310,14 +310,6 @@ func TestGet24HTotalVolume(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetOracle(t *testing.T) {
-	t.Parallel()
-	t.Skip("Skipping test: The server endpoint has a rate-limiting issue that needs to be fixed.")
-	result, err := e.GetOracle(contextGenerate())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetExchangeRate(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetExchangeRate(contextGenerate())
@@ -5078,54 +5070,6 @@ func TestGetLeverateEstimatedInfo(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetLeverageEstimatedInfo(contextGenerate(), "MARGIN", "cross", "1", "", mainPair.String(), currency.BTC)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
-	t.Parallel()
-	_, err := e.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
-		InstrumentID: mainPair.String(),
-		LoanCcy:      currency.USDT,
-		Side:         "borrow",
-	})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
-		Amount:       1,
-		InstrumentID: mainPair.String(),
-		Side:         "borrow",
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
-		Amount:       1,
-		InstrumentID: mainPair.String(),
-		LoanCcy:      currency.USDT,
-	})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	_, err = e.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
-		Amount:  1,
-		LoanCcy: currency.USDT,
-		Side:    "borrow",
-	})
-	require.ErrorIs(t, err, errMissingInstrumentID)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
-		Amount:       1,
-		InstrumentID: mainPair.String(),
-		LoanCcy:      currency.USDT,
-		Side:         "borrow",
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetBorrowAndRepayHistoryInQuickMarginMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetBorrowAndRepayHistoryInQuickMarginMode(contextGenerate(), currency.EMPTYPAIR, currency.BTC, "borrow", "", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

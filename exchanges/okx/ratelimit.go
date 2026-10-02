@@ -124,8 +124,6 @@ const (
 	isolatedMarginTradingSettingsEPL
 	getMaximumWithdrawalsEPL
 	getAccountRiskStateEPL
-	manualBorrowAndRepayEPL
-	getBorrowAndRepayHistoryEPL
 	vipLoansBorrowAnsRepayEPL
 	getBorrowAnsRepayHistoryHistoryEPL
 	getVIPInterestAccruedDataEPL
@@ -230,7 +228,6 @@ const (
 	getCandlesticksEPL
 	getTradesRequestEPL
 	get24HTotalVolumeEPL
-	getOracleEPL
 	getExchangeRateRequestEPL
 	getIndexComponentsEPL
 	getBlockTickersEPL
@@ -428,8 +425,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		isolatedMarginTradingSettingsEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getMaximumWithdrawalsEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAccountRiskStateEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		manualBorrowAndRepayEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getBorrowAndRepayHistoryEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		vipLoansBorrowAnsRepayEPL:            request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getBorrowAnsRepayHistoryHistoryEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getVIPInterestAccruedDataEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -553,7 +548,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getEstimatedDeliveryPriceEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getTradesRequestEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 100, 1),
 		get24HTotalVolumeEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getOracleEPL:                 request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
 		getExchangeRateRequestEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
 		getIndexComponentsEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getBlockTickersEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),

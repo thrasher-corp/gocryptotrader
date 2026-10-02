@@ -331,14 +331,6 @@ type TradingVolumeIn24HR struct {
 	Timestamp          types.Time   `json:"ts"`
 }
 
-// OracleSmartContractResponse represents the cryptocurrency price signed using the Open Oracle smart contract.
-type OracleSmartContractResponse struct {
-	Messages   []string          `json:"messages"`
-	Prices     map[string]string `json:"prices"`
-	Signatures []string          `json:"signatures"`
-	Timestamp  types.Time        `json:"timestamp"`
-}
-
 // UsdCnyExchangeRate the exchange rate for converting from USD to CNV
 type UsdCnyExchangeRate struct {
 	UsdCny types.Number `json:"usdCny"`

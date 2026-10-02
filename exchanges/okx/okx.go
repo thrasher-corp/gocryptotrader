@@ -2085,58 +2085,6 @@ func (e *Exchange) IsolatedMarginTradingSettings(ctx context.Context, arg *Isola
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, "account/set-isolated-mode", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// ManualBorrowAndRepayInQuickMarginMode initiates a new manual borrow and repayment process in Quick Margin mode
-func (e *Exchange) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *BorrowAndRepay) (*BorrowAndRepay, error) {
-	if *arg == (BorrowAndRepay{}) {
-		return nil, common.ErrEmptyParams
-	}
-	if arg.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
-	}
-	if arg.LoanCcy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if arg.Side == "" {
-		return nil, fmt.Errorf("%w, possible values are 'borrow' and 'repay'", order.ErrSideIsInvalid)
-	}
-	if arg.InstrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	var resp *BorrowAndRepay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, request.AuthenticatedRequest)
-}
-
-// GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick margin mode
-func (e *Exchange) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context, instrumentID currency.Pair, ccy currency.Code, side, afterPaginationID, beforePaginationID string, beginTime, endTime time.Time, limit int64) ([]BorrowRepayHistoryItem, error) {
-	params := url.Values{}
-	if !instrumentID.IsEmpty() {
-		params.Set("instId", instrumentID.String())
-	}
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	if side != "" {
-		params.Set("side", side)
-	}
-	if afterPaginationID != "" {
-		params.Set("after", afterPaginationID)
-	}
-	if beforePaginationID != "" {
-		params.Set("before", beforePaginationID)
-	}
-	if !beginTime.IsZero() {
-		params.Set("begin", strconv.FormatInt(beginTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []BorrowRepayHistoryItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAndRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/quick-margin-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
-}
-
 // GetMaximumWithdrawals retrieves the maximum transferable amount from a trading account to a funding account for quick margin borrowing and repayment
 func (e *Exchange) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code) ([]MaximumWithdrawal, error) {
 	params := url.Values{}
@@ -4312,12 +4260,6 @@ func (e *Exchange) GetOptionTrades(ctx context.Context, instrumentID, instrument
 func (e *Exchange) Get24HTotalVolume(ctx context.Context) (*TradingVolumeIn24HR, error) {
 	var resp *TradingVolumeIn24HR
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, get24HTotalVolumeEPL, http.MethodGet, "market/platform-24-volume", nil, &resp, request.UnauthenticatedRequest)
-}
-
-// GetOracle Get the crypto price of signing using Open Oracle smart contract
-func (e *Exchange) GetOracle(ctx context.Context) (*OracleSmartContractResponse, error) {
-	var resp *OracleSmartContractResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOracleEPL, http.MethodGet, "market/open-oracle", nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetExchangeRate this interface provides the average exchange rate data for 2 weeks
