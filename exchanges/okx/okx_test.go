@@ -840,6 +840,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "reverse"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -920,6 +921,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "reverse"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -6581,6 +6583,13 @@ func TestOrderTypeString(t *testing.T) {
 		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:          {Expected: orderIOC},
 		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:            {Expected: orderPostOnly},
 		{OrderType: order.Stop, TIF: order.ImmediateOrCancel}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.StopLimit, TIF: order.FillOrKill}:             {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.StopMarket, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TakeProfit, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TakeProfitMarket, TIF: order.FillOrKill}:      {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TrailingStopLimit, TIF: order.FillOrKill}:     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Bracket, TIF: order.FillOrKill}:               {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Liquidation, TIF: order.FillOrKill}:           {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.Market, TIF: order.FillOrKill}:                {Expected: orderFOK},
 		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:         {Expected: orderIOC},
 		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}:   {Expected: orderOptimalLimitIOC},
@@ -7068,6 +7077,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	p.PositionSide = "reverse"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -7079,16 +7089,17 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
 
-	// Perpetual swap: the account's position mode decides the position side,
-	// so empty and net pass alongside long and short.
-	p.AssetType = asset.PerpetualSwap
-	require.NoError(t, p.Validate())
-	p.PositionSide = positionSideNet
-	require.NoError(t, p.Validate())
-	p.PositionSide = ""
-	require.NoError(t, p.Validate())
-	p.PositionSide = "reverse"
-	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
+	// The account's position mode decides the position side of futures and
+	// perpetual swap orders, so empty and net pass alongside long and short.
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+		p.AssetType = a
+		for _, posSide := range []string{positionSideLong, positionSideShort, positionSideNet, ""} {
+			p.PositionSide = posSide
+			require.NoErrorf(t, p.Validate(), "Validate must accept position side %q for %s", posSide, a)
+		}
+		p.PositionSide = "reverse"
+		require.ErrorIsf(t, p.Validate(), order.ErrSideIsInvalid, "Validate must reject an unknown position side for %s", a)
+	}
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {

@@ -825,14 +825,10 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		allowed := []string{"long", "short"}
-		if arg.AssetType == asset.PerpetualSwap {
-			// The account's position mode decides the required value, which
-			// only the caller knows: net mode defaults to net and may omit
-			// the field entirely, so empty is accepted too.
-			allowed = append(allowed, "", positionSideNet)
-		}
-		if !slices.Contains(allowed, arg.PositionSide) {
+		// The account's position mode decides the required value, which only
+		// the caller knows: net mode defaults to net and may omit the field
+		// entirely, so empty is accepted too.
+		if !slices.Contains([]string{"", positionSideNet, positionSideLong, positionSideShort}, arg.PositionSide) {
 			return fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}

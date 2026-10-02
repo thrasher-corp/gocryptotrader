@@ -86,7 +86,7 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
-	case order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.Bracket, order.Liquidation:
+	case order.Stop, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket, order.Liquidation:
 		// A trigger order cannot ride the time-in-force fallback below: it
 		// would reach OKX as a plain limit-style order with no trigger
 		// attached.

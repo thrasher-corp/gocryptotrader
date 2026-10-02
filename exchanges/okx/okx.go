@@ -39,8 +39,8 @@ type Exchange struct {
 	// websocket order operations which identify instruments by code.
 	instrumentIDCodeMap map[string]uint64
 	// accountPositionMode caches the account's contract position mode, which
-	// decides the placement of perpetual swap orders. It is fetched on first
-	// use and refreshed by SetPositionMode.
+	// decides the placement of futures and perpetual swap orders. It is
+	// fetched on first use and refreshed by SetPositionMode.
 	accountPositionModeMu sync.RWMutex
 	accountPositionMode   string
 }

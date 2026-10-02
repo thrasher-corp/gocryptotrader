@@ -968,10 +968,10 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 			p.positionSide = s.Side.Lower()
 		}
 	}
-	if s.AssetType == asset.PerpetualSwap {
-		// Perpetual swap placement branches on the account's position mode:
-		// net mode pairs reduceOnly with posSide net, long/short mode pairs
-		// the side with the position side instead.
+	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {
+		// Futures and perpetual swap placement branches on the account's
+		// position mode: net mode pairs reduceOnly with posSide net, long/short
+		// mode pairs the side with the position side instead.
 		mode, err := e.contractPositionMode(ctx)
 		if err != nil {
 			return nil, err
@@ -1026,28 +1026,21 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 	switch s.AssetType {
 	case asset.Margin:
 		orderRequest.ReduceOnly = s.ReduceOnly
-	case asset.PerpetualSwap:
+	case asset.Futures, asset.PerpetualSwap:
 		// The account's position mode decides the placement: net mode pairs
 		// reduceOnly with posSide net, and long/short mode pairs the side
 		// with the position side, expressing the close through it.
 		orderRequest.PositionSide = positionSideForMode(s.Side, s.ReduceOnly, p.positionMode)
 		orderRequest.ReduceOnly = s.ReduceOnly && p.positionMode == positionModeNet
-	case asset.Futures:
-		orderRequest.ReduceOnly = s.ReduceOnly
-		if s.Side.IsLong() {
-			orderRequest.PositionSide = positionSideLong
-		} else {
-			orderRequest.PositionSide = positionSideShort
-		}
 	}
 	return orderRequest
 }
 
-// positionSideForMode returns the posSide a perpetual swap order sends under
-// the account's position mode. Net mode takes net, where reduceOnly carries
-// the close intent. Long/short mode pairs the side with the position side
-// instead: an open points at its own direction and a close at the opposite
-// one, so sell plus long closes a long position.
+// positionSideForMode returns the posSide a futures or perpetual swap order
+// sends under the account's position mode. Net mode takes net, where
+// reduceOnly carries the close intent. Long/short mode pairs the side with
+// the position side instead: an open points at its own direction and a close
+// at the opposite one, so sell plus long closes a long position.
 func positionSideForMode(side order.Side, reduceOnly bool, mode string) string {
 	if mode != positionModeLongShort {
 		return positionSideNet
@@ -1081,19 +1074,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	// Algo orders carry posSide only for futures and perpetual swap: the
-	// perpetual swap branch follows the account's position mode, the futures
-	// branch keeps its own direction mapping.
+	// Algo orders carry posSide only for futures and perpetual swap, where the
+	// account's position mode decides it.
 	var positionSide string
-	switch s.AssetType {
-	case asset.PerpetualSwap:
+	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {
 		positionSide = positionSideForMode(s.Side, s.ReduceOnly, p.positionMode)
-	case asset.Futures:
-		if s.Side.IsLong() {
-			positionSide = positionSideLong
-		} else {
-			positionSide = positionSideShort
-		}
 	}
 	var result *AlgoOrder
 	switch orderTypeStr {
@@ -1238,7 +1223,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // contractPositionMode returns the account's contract position mode,
 // fetching and caching it on first use: net mode and long/short mode place
-// perpetual swap orders differently.
+// futures and perpetual swap orders differently.
 func (e *Exchange) contractPositionMode(ctx context.Context) (string, error) {
 	e.accountPositionModeMu.RLock()
 	mode := e.accountPositionMode
@@ -1249,6 +1234,9 @@ func (e *Exchange) contractPositionMode(ctx context.Context) (string, error) {
 	accountConfig, err := e.GetAccountConfiguration(ctx)
 	if err != nil {
 		return "", fmt.Errorf("error fetching the account position mode: %w", err)
+	}
+	if accountConfig == nil {
+		return "", fmt.Errorf("error fetching the account position mode: %w", common.ErrNoResponse)
 	}
 	if accountConfig.PositionMode != positionModeNet && accountConfig.PositionMode != positionModeLongShort {
 		return "", fmt.Errorf("%w %q", errInvalidPositionMode, accountConfig.PositionMode)
@@ -1326,7 +1314,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	}
 	instrumentID := pairFormat.Format(action.Pair)
 	switch action.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+	case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
 		_, err = e.AmendOrder(ctx, &AmendOrderRequestParams{
 			InstrumentID:  instrumentID,
 			NewQuantity:   action.Amount,
@@ -1424,7 +1412,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+	case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
 		_, err = e.CancelSingleOrder(ctx, &CancelOrderRequestParam{
 			InstrumentID:  instrumentID,
 			OrderID:       ord.OrderID,
@@ -1491,7 +1479,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			continue
 		}
 		switch ord.Type {
-		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+		case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
 			if o[x].ClientOrderID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
@@ -1756,7 +1744,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	}
 	instrumentID := pairFormat.Format(action.Pair)
 	switch action.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+	case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
 		code, err := e.requireWebsocketInstrumentIDCode(instrumentID)
 		if err != nil {
 			return nil, err
@@ -1800,7 +1788,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+	case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
 		code, err := e.requireWebsocketInstrumentIDCode(instrumentID)
 		if err != nil {
 			return err
@@ -1847,7 +1835,7 @@ func (e *Exchange) WebsocketCancelBatchOrders(ctx context.Context, o []order.Can
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		switch ord.Type {
-		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+		case order.UnknownType, order.Market, order.Limit, order.LimitMaker, order.OptimalLimit, order.MarketMakerProtection:
 			if ord.OrderID == "" && ord.ClientOrderID == "" {
 				return nil, fmt.Errorf("%w: order ID required for order of type %v", order.ErrOrderIDNotSet, ord.Type)
 			}

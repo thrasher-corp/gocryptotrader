@@ -2211,7 +2211,7 @@ func TestSubmitOrderContractSendsSideAndReduceOnly(t *testing.T) {
 		expReduceOnly any // nil when the field must be absent
 	}{
 		{"perpetual swap reduce only sell", asset.PerpetualSwap, order.Sell, true, "sell", positionSideNet, "true"},
-		{"futures long", asset.Futures, order.Long, false, "buy", "long", nil},
+		{"futures long", asset.Futures, order.Long, false, "buy", positionSideNet, nil},
 		{"margin reduce only", asset.Margin, order.Sell, true, "sell", nil, "true"},
 		{"options send side", asset.Options, order.Buy, false, "buy", nil, nil},
 	} {
@@ -2673,6 +2673,30 @@ func TestSubmitOrderPerpetualSwapPositionMode(t *testing.T) {
 		})
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "a failed position mode fetch must stop the submit")
 	})
+	t.Run("empty reply", func(t *testing.T) {
+		t.Parallel()
+		for _, data := range []any{nil, []any{nil}} {
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/account/config" {
+					writeOKXData(t, w, data)
+					return
+				}
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}))
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:   e.Name,
+				Pair:       mainPair,
+				AssetType:  asset.PerpetualSwap,
+				Side:       order.Buy,
+				Type:       order.Limit,
+				Amount:     1,
+				Price:      1,
+				MarginType: margin.Multi,
+			})
+			require.ErrorIsf(t, err, common.ErrNoResponse, "a %v account configuration reply must stop the submit", data)
+		}
+	})
 }
 
 // TestWebsocketSubmitOrderPerpetualSwapPositionMode guards the same
@@ -2995,4 +3019,142 @@ func TestWSPlaceMultipleOrdersLimitsBatchSize(t *testing.T) {
 	args := make([]PlaceOrderRequestParam, 21)
 	_, err := e.WSPlaceMultipleOrders(t.Context(), args)
 	assert.ErrorIs(t, err, errExceedLimit, "an oversized websocket batch should be rejected before transmission")
+}
+
+// TestSubmitOrderContractsFollowPositionMode guards the position side of
+// futures and perpetual swap orders, plain and algo: OKX's position mode
+// covers FUTURES and SWAP alike, and in long/short mode a close is expressed
+// by the position side, since reduceOnly does not apply there.
+func TestSubmitOrderContractsFollowPositionMode(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+		for _, oType := range []order.Type{order.Limit, order.ConditionalStop} {
+			for _, tc := range []struct {
+				mode          string
+				side          order.Side
+				reduceOnly    bool
+				expPosSide    string
+				expReduceOnly any // nil when the field must be absent
+			}{
+				{positionModeNet, order.Buy, false, positionSideNet, nil},
+				{positionModeNet, order.Sell, false, positionSideNet, nil},
+				{positionModeNet, order.Sell, true, positionSideNet, "true"},
+				{positionModeNet, order.Buy, true, positionSideNet, "true"},
+				{positionModeLongShort, order.Buy, false, positionSideLong, nil},
+				{positionModeLongShort, order.Sell, false, positionSideShort, nil},
+				{positionModeLongShort, order.Sell, true, positionSideLong, nil},
+				{positionModeLongShort, order.Buy, true, positionSideShort, nil},
+			} {
+				t.Run(fmt.Sprintf("%s %s %s %s reduce only %t", a, oType, tc.mode, tc.side, tc.reduceOnly), func(t *testing.T) {
+					t.Parallel()
+					var mu sync.Mutex
+					var body []byte
+					e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						switch r.URL.Path {
+						case "/account/config":
+							writeOKXData(t, w, []map[string]string{{"posMode": tc.mode}})
+							return
+						case "/trade/order", "/trade/order-algo":
+						default:
+							t.Errorf("unexpected request path %s", r.URL.Path)
+							http.NotFound(w, r)
+							return
+						}
+						b, err := io.ReadAll(r.Body)
+						assert.NoError(t, err, "reading the order body should not error")
+						mu.Lock()
+						body = b
+						mu.Unlock()
+						writeOKXData(t, w, []map[string]string{{"ordId": "1", "algoId": "1", "sCode": "0"}})
+					}))
+					_, err := e.SubmitOrder(t.Context(), &order.Submit{
+						Exchange:     e.Name,
+						Pair:         mainPair,
+						AssetType:    a,
+						Side:         tc.side,
+						Type:         oType,
+						Amount:       1,
+						Price:        1,
+						TriggerPrice: 2,
+						MarginType:   margin.Multi,
+						ReduceOnly:   tc.reduceOnly,
+					})
+					require.NoError(t, err, "SubmitOrder must not error")
+					mu.Lock()
+					defer mu.Unlock()
+					var sent map[string]any
+					require.NoError(t, json.Unmarshal(body, &sent), "the order request body must decode")
+					assert.Equal(t, tc.expPosSide, sent["posSide"], "the order should send the position side the account's mode requires")
+					if oType == order.Limit {
+						assert.Equal(t, tc.expReduceOnly, sent["reduceOnly"], "reduceOnly should follow the position mode")
+					}
+				})
+			}
+		}
+	}
+}
+
+// TestLimitMakerOrdersAmendAndCancelByType guards the order types the amend
+// and cancel switches accept: SubmitOrder places LimitMaker orders as
+// post_only, so amending or cancelling one by the type it was submitted with
+// must reach OKX on every transport.
+func TestLimitMakerOrdersAmendAndCancelByType(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	var restPaths, wsOps []string
+	var submitBody []byte
+	e := newMockWebsocketExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		restPaths = append(restPaths, r.URL.Path)
+		mu.Unlock()
+		if r.URL.Path == "/trade/order" {
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "reading the place order body should not error")
+			mu.Lock()
+			submitBody = b
+			mu.Unlock()
+		}
+		writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+	}, func(op string, _ json.RawMessage) (string, any) {
+		mu.Lock()
+		wsOps = append(wsOps, op)
+		mu.Unlock()
+		return "0", []map[string]string{{"ordId": "1", "sCode": "0"}}
+	})
+	sent := func() (rest, ws []string) {
+		mu.Lock()
+		defer mu.Unlock()
+		rest, ws = restPaths, wsOps
+		restPaths, wsOps = nil, nil
+		return rest, ws
+	}
+	submit := &order.Submit{Exchange: e.Name, Pair: mainPair, AssetType: asset.Spot, Side: order.Buy, Type: order.LimitMaker, Amount: 1, Price: 1}
+	modify := &order.Modify{Pair: mainPair, AssetType: asset.Spot, OrderID: "1", Type: order.LimitMaker, Amount: 2, Price: 1}
+	cancel := &order.Cancel{Pair: mainPair, AssetType: asset.Spot, OrderID: "1", Type: order.LimitMaker}
+
+	_, err := e.SubmitOrder(t.Context(), submit)
+	require.NoError(t, err, "SubmitOrder must not error")
+	_, err = e.ModifyOrder(t.Context(), modify)
+	require.NoError(t, err, "ModifyOrder must accept a LimitMaker type")
+	require.NoError(t, e.CancelOrder(t.Context(), cancel), "CancelOrder must accept a LimitMaker type")
+	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{*cancel})
+	require.NoError(t, err, "CancelBatchOrders must accept a LimitMaker type")
+	rest, ws := sent()
+	assert.Equal(t, []string{"/trade/order", "/trade/amend-order", "/trade/cancel-order", "/trade/cancel-batch-orders"}, rest, "each standard order method should reach its REST endpoint")
+	assert.Empty(t, ws, "no standard order method should send a websocket operation")
+	mu.Lock()
+	var placed map[string]any
+	require.NoError(t, json.Unmarshal(submitBody, &placed), "the place order request body must decode")
+	mu.Unlock()
+	assert.Equal(t, orderPostOnly, placed["ordType"], "a LimitMaker submit should place a post_only order")
+
+	_, err = e.WebsocketModifyOrder(t.Context(), modify)
+	require.NoError(t, err, "WebsocketModifyOrder must accept a LimitMaker type")
+	require.NoError(t, e.WebsocketCancelOrder(t.Context(), cancel), "WebsocketCancelOrder must accept a LimitMaker type")
+	_, err = e.WebsocketCancelBatchOrders(t.Context(), []order.Cancel{*cancel})
+	require.NoError(t, err, "WebsocketCancelBatchOrders must accept a LimitMaker type")
+	rest, ws = sent()
+	assert.Empty(t, rest, "no websocket order method should send a REST request")
+	assert.Equal(t, []string{"amend-order", "cancel-order", "batch-cancel-orders"}, ws, "each websocket order method should send its websocket operation")
 }
