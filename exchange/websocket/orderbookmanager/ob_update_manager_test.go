@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -134,7 +135,6 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 
 	cache.m.Lock()
 	cache.state = cacheStateQueuing
-	cache.ch = make(chan int64, 1)
 	cache.m.Unlock()
 	err = m.ProcessOrderbookUpdate(t.Context(), 1337, &orderbook.Update{
 		Pair:       pair,
@@ -694,6 +694,35 @@ func TestWaitForUpdate(t *testing.T) {
 	cache.ch <- 1337 // A stale notification must not hide the latest queued update.
 	err = cache.waitForUpdate(t.Context(), 1338)
 	assert.NoError(t, err, "waitForUpdate should observe the latest queued update despite a stale notification")
+}
+
+func TestWaitForUpdateRechecksQueue(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		cache := &updateCache{ch: make(chan int64, 1), updates: []pendingUpdate{{update: &orderbook.Update{UpdateID: 1337}}}}
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		errCh := make(chan error, 1)
+		go func() { errCh <- cache.waitForUpdate(ctx, 1339) }()
+		synctest.Wait()
+
+		cache.ch <- 1337 // A stale notification must not end the wait.
+		synctest.Wait()
+		require.Empty(t, errCh, "waitForUpdate must keep waiting after a stale notification")
+
+		cache.m.Lock()
+		cache.updates = append(cache.updates, pendingUpdate{update: &orderbook.Update{UpdateID: 1338}})
+		cache.m.Unlock()
+		cache.ch <- 1338
+		synctest.Wait()
+		require.Empty(t, errCh, "waitForUpdate must keep waiting until the queue reaches the update")
+
+		cache.m.Lock()
+		cache.updates = append(cache.updates, pendingUpdate{update: &orderbook.Update{UpdateID: 1340}})
+		cache.m.Unlock()
+		cache.ch <- 1337 // A stale notification must not hide the latest queued update.
+		assert.NoError(t, <-errCh, "waitForUpdate should observe the latest queued update despite a stale notification")
+	})
 }
 
 func TestClearWithLock(t *testing.T) {

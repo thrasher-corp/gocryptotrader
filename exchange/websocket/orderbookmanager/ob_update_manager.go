@@ -123,7 +123,7 @@ func (m *UpdateManager) ProcessOrderbookUpdate(ctx context.Context, firstUpdateI
 	case cacheStateQueuing:
 		cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID, ctx: common.FreezeContext(ctx)})
 		select {
-		case cache.ch <- update.UpdateID: // Notify syncOrderbook of most recent update ID for inspection
+		case cache.ch <- update.UpdateID: // Wake syncOrderbook to recheck the queue
 		default:
 		}
 	default:
