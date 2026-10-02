@@ -275,7 +275,7 @@ func (e *Exchange) Get7DayOrderHistory(ctx context.Context, arg *OrderHistoryReq
 	return e.getOrderHistory(ctx, arg, "trade/orders-history", getOrderHistory7DaysEPL)
 }
 
-// Get3MonthOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours
+// Get3MonthOrderHistory retrieves the completed order data for the last 3 months
 func (e *Exchange) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]OrderDetail, error) {
 	return e.getOrderHistory(ctx, arg, "trade/orders-history-archive", getOrderHistory3MonthsEPL)
 }

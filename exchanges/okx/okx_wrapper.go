@@ -2488,35 +2488,64 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
 	var resp []order.Detail
-	// For Spread orders.
+	var err error
 	if req.AssetType == asset.Spread {
-		var spreadOrderType string
+		resp, err = e.getSpreadOrderHistoryDetails(ctx, req)
+	} else {
+		resp, err = e.getStandardOrderHistoryDetails(ctx, req)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return req.Filter(e.Name, resp), nil
+}
+
+// getSpreadOrderHistoryDetails retrieves completed spread orders, paging the
+// 21 day listing and, when the requested window reaches beyond it, the 3 month
+// archive, de-duplicating the overlap between the two listings.
+func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
+	var spreadOrderType string
+	if req.Type != order.UnknownType && req.Type != order.AnyType {
 		var err error
-		if req.Type != order.UnknownType && req.Type != order.AnyType {
-			spreadOrderType, err = spreadOrderTypeFilter(req.Type, req.TimeInForce)
-			if err != nil {
-				return nil, err
-			}
+		spreadOrderType, err = spreadOrderTypeFilter(req.Type, req.TimeInForce)
+		if err != nil {
+			return nil, err
 		}
-		// OKX caps the spread order history response at orderListPageSize
-		// records and pages the remainder with the same earlier-than order ID
-		// endId cursor as the pending spread order listing. The 21 day listing
-		// carries the freshest orders, which the archive lags, while the
-		// archive alone reaches the orders between 21 days and 3 months old.
-		var spreadOrders []SpreadOrder
-		seen := make(map[string]struct{})
-		record := func(page []SpreadOrder) {
-			for i := range page {
-				if _, ok := seen[page[i].OrderID]; ok {
-					continue
-				}
-				seen[page[i].OrderID] = struct{}{}
-				spreadOrders = append(spreadOrders, page[i])
+	}
+	// OKX caps the spread order history response at orderListPageSize
+	// records and pages the remainder with the same earlier-than order ID
+	// endId cursor as the pending spread order listing. The 21 day listing
+	// carries the freshest orders, which the archive lags, while the
+	// archive alone reaches the orders between 21 days and 3 months old.
+	var spreadOrders []SpreadOrder
+	seen := make(map[string]struct{})
+	record := func(page []SpreadOrder) {
+		for i := range page {
+			if _, ok := seen[page[i].OrderID]; ok {
+				continue
 			}
+			seen[page[i].OrderID] = struct{}{}
+			spreadOrders = append(spreadOrders, page[i])
 		}
+	}
+	for endID := ""; ; {
+		var page []SpreadOrder
+		page, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", spreadOrderType, "", req.FromOrderID, endID, req.StartTime, req.EndTime, 0)
+		if err != nil {
+			return nil, err
+		}
+		record(page)
+		if len(page) < orderListPageSize {
+			break
+		}
+		endID = page[len(page)-1].OrderID
+	}
+	if req.StartTime.IsZero() || req.StartTime.Before(time.Now().Add(-kline.ThreeWeek.Duration())) {
+		// The 21 day listing cannot reach the requested start; the archive
+		// covers the remainder of the documented 3 month window.
 		for endID := ""; ; {
 			var page []SpreadOrder
-			page, err = e.GetCompletedSpreadOrdersLast7Days(ctx, "", spreadOrderType, "", req.FromOrderID, endID, req.StartTime, req.EndTime, 0)
+			page, err := e.GetCompletedSpreadOrdersLast3Months(ctx, "", spreadOrderType, "", req.FromOrderID, endID, req.StartTime, req.EndTime, 0)
 			if err != nil {
 				return nil, err
 			}
@@ -2526,90 +2555,89 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 			endID = page[len(page)-1].OrderID
 		}
-		if req.StartTime.IsZero() || req.StartTime.Before(time.Now().Add(-kline.ThreeWeek.Duration())) {
-			// The 21 day listing cannot reach the requested start; the archive
-			// covers the remainder of the documented 3 month window.
-			for endID := ""; ; {
-				var page []SpreadOrder
-				page, err = e.GetCompletedSpreadOrdersLast3Months(ctx, "", spreadOrderType, "", req.FromOrderID, endID, req.StartTime, req.EndTime, 0)
-				if err != nil {
-					return nil, err
-				}
-				record(page)
-				if len(page) < orderListPageSize {
-					break
-				}
-				endID = page[len(page)-1].OrderID
-			}
-		}
-		for x := range spreadOrders {
-			var format currency.PairFormat
-			format, err = e.GetPairFormat(asset.Spread, true)
-			if err != nil {
-				return nil, err
-			}
-			var pair currency.Pair
-			pair, err = currency.NewPairDelimiter(spreadOrders[x].SpreadID, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
-			oType, tif, err := orderTypeFromString(spreadOrders[x].OrderType)
-			if err != nil {
-				return nil, err
-			}
-			oSide, err := order.StringToOrderSide(spreadOrders[x].Side)
-			if err != nil {
-				return nil, err
-			}
-			oStatus, err := order.StringToOrderStatus(spreadOrders[x].State)
-			if err != nil {
-				return nil, err
-			}
-			spreadAmt := spreadOrders[x].Size.Float64()
-			spreadExec := spreadOrders[x].AccFillSize.Float64()
-			spreadRemaining := float64(0)
-			if oStatus != order.Filled && spreadAmt > spreadExec {
-				spreadRemaining = spreadAmt - spreadExec
-			}
-			resp = append(resp, order.Detail{
-				Price:                spreadOrders[x].Price.Float64(),
-				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
-				Amount:               spreadAmt,
-				ExecutedAmount:       spreadExec,
-				RemainingAmount:      spreadRemaining,
-				Exchange:             e.Name,
-				OrderID:              spreadOrders[x].OrderID,
-				ClientOrderID:        spreadOrders[x].ClientOrderID,
-				Type:                 oType,
-				Side:                 oSide,
-				Status:               oStatus,
-				AssetType:            req.AssetType,
-				Date:                 spreadOrders[x].CreationTime.Time(),
-				LastUpdated:          spreadOrders[x].UpdateTime.Time(),
-				Pair:                 pair,
-				TimeInForce:          tif,
-			})
-		}
-		return req.Filter(e.Name, resp), nil
 	}
+	format, err := e.GetPairFormat(asset.Spread, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp []order.Detail
+	for x := range spreadOrders {
+		detail, err := e.spreadOrderToDetail(&spreadOrders[x], req.AssetType, format)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, detail)
+	}
+	return resp, nil
+}
 
+// spreadOrderToDetail converts a completed spread order listing row into an
+// order Detail.
+func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, format currency.PairFormat) (order.Detail, error) {
+	pair, err := currency.NewPairDelimiter(so.SpreadID, format.Delimiter)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	oType, tif, err := orderTypeFromString(so.OrderType)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	oSide, err := order.StringToOrderSide(so.Side)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	oStatus, err := order.StringToOrderStatus(so.State)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	amount := so.Size.Float64()
+	executed := so.AccFillSize.Float64()
+	remaining := float64(0)
+	if oStatus != order.Filled && amount > executed {
+		remaining = amount - executed
+	}
+	return order.Detail{
+		Price:                so.Price.Float64(),
+		AverageExecutedPrice: so.AveragePrice.Float64(),
+		Amount:               amount,
+		ExecutedAmount:       executed,
+		RemainingAmount:      remaining,
+		Exchange:             e.Name,
+		OrderID:              so.OrderID,
+		ClientOrderID:        so.ClientOrderID,
+		Type:                 oType,
+		Side:                 oSide,
+		Status:               oStatus,
+		AssetType:            assetType,
+		Date:                 so.CreationTime.Time(),
+		LastUpdated:          so.UpdateTime.Time(),
+		Pair:                 pair,
+		TimeInForce:          tif,
+	}, nil
+}
+
+// getStandardOrderHistoryDetails retrieves the standard order history archive
+// for the requested asset type, filtered to the requested pairs.
+func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
 	if len(req.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
-	endTime := req.EndTime
-	// OKX returns the archive newest first and several orders can share one
-	// creation millisecond, so a full page's last creation time can reappear
-	// at the head of the next page when OKX reads the end timestamp
-	// inclusively. Track the order IDs and skip the overlap instead of
-	// stopping at the first row on the boundary millisecond, which drops the
-	// rest of that millisecond's orders and everything older.
+	// OKX returns the archive newest first and pages the remainder with the
+	// after cursor, which returns the records earlier than the requested
+	// order ID. Unlike the end timestamp, the order ID cursor is exclusive,
+	// so orders sharing one creation millisecond cannot straddle a page
+	// boundary and reappear at the head of the next page. The seen set only
+	// guards against OKX repeating a row the cursor already passed.
+	var resp []order.Detail
 	seen := make(map[string]struct{})
 allOrders:
-	for {
+	for after := req.FromOrderID; ; {
 		orderList, err := e.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
 			InstrumentType: instrumentType,
-			End:            endTime,
+			After:          after,
+			Start:          req.StartTime,
+			End:            req.EndTime,
 		})
 		if err != nil {
 			return nil, err
@@ -2617,7 +2645,6 @@ allOrders:
 		if len(orderList) == 0 {
 			break
 		}
-		var progressed bool
 		for i := range orderList {
 			if orderList[i].CreationTime.Time().Before(req.StartTime) {
 				// Reached the end of the crawl: rows arrive newest first, so
@@ -2628,7 +2655,6 @@ allOrders:
 				continue
 			}
 			seen[orderList[i].OrderID] = struct{}{}
-			progressed = true
 			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
@@ -2674,14 +2700,18 @@ allOrders:
 				})
 			}
 		}
-		// A full page holding no new order means OKX keeps returning the
-		// boundary millisecond's rows; stop rather than loop forever.
-		if len(orderList) < 100 || !progressed {
+		if len(orderList) < orderListPageSize {
 			break
 		}
-		endTime = orderList[len(orderList)-1].CreationTime.Time()
+		next := orderList[len(orderList)-1].OrderID
+		if next == after {
+			// The page did not advance past the cursor; stop rather than
+			// request the same page forever.
+			break
+		}
+		after = next
 	}
-	return req.Filter(e.Name, resp), nil
+	return resp, nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

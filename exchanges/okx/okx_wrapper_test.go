@@ -2520,20 +2520,21 @@ func TestCancelBatchOrdersAlgoChunkContinuesAfterPartialSuccess(t *testing.T) {
 	}
 }
 
-// TestGetOrderHistoryCrawlsAcrossEndTimeBoundary guards the order history
-// crawl: OKX can return the boundary millisecond's orders again at the head of
-// the next page, so the crawl must skip the overlap instead of stopping at the
-// first row on the boundary millisecond, which would drop the rest of that
-// millisecond's orders and everything older.
-func TestGetOrderHistoryCrawlsAcrossEndTimeBoundary(t *testing.T) {
+// TestGetOrderHistoryPaginatesWithAfterCursor guards the order history
+// crawl: OKX caps the archive response at orderListPageSize records and
+// pages the remainder with the after cursor, which returns the records
+// earlier than the requested order ID. Unlike the end timestamp, the order
+// ID cursor is exclusive, so orders sharing one creation millisecond across
+// the page boundary cannot repeat on the next page.
+func TestGetOrderHistoryPaginatesWithAfterCursor(t *testing.T) {
 	t.Parallel()
 	base := time.Now().Add(-24 * time.Hour).Truncate(time.Millisecond)
 	endTime := base.Add(128 * time.Millisecond)
-	// ORD-129 shares ORD-128's millisecond: several orders can share one
-	// boundary millisecond.
+	// ORD-099 and ORD-100 share one creation millisecond across the page
+	// boundary: the after cursor must page past them without overlap.
 	cTime := func(i int) time.Time {
-		if i == 129 {
-			return base.Add(128 * time.Millisecond)
+		if i == 100 {
+			return base.Add(99 * time.Millisecond)
 		}
 		return base.Add(time.Duration(i) * time.Millisecond)
 	}
@@ -2549,39 +2550,38 @@ func TestGetOrderHistoryCrawlsAcrossEndTimeBoundary(t *testing.T) {
 			"rebateCcy": "DOGE",
 		}
 	}
-	// The mock reads the end timestamp inclusively: the first page holds the
-	// 100 newest orders at or before the end timestamp, and the second page
-	// repeats the first page's last order before the older ones.
+	// The mock pages by the after order ID cursor: the first page holds the
+	// 100 newest orders, and the second page holds the 30 older ones.
 	page1 := make([]map[string]string, 0, orderListPageSize)
 	for i := 129; i >= 30; i-- {
 		page1 = append(page1, row(i))
 	}
-	page2 := make([]map[string]string, 0, 31)
-	for i := 30; i >= 0; i-- {
+	page2 := make([]map[string]string, 0, 30)
+	for i := 29; i >= 0; i-- {
 		page2 = append(page2, row(i))
 	}
 	pages := map[string][]map[string]string{
-		strconv.FormatInt(endTime.UnixMilli(), 10):                       page1,
-		strconv.FormatInt(base.Add(30*time.Millisecond).UnixMilli(), 10): page2,
+		"":        page1,
+		"ORD-030": page2,
 	}
 	var mu sync.Mutex
-	var endCursors []string
+	var afterCursors []string
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/trade/orders-history-archive" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
 			return
 		}
-		end := r.URL.Query().Get("end")
+		after := r.URL.Query().Get("after")
 		mu.Lock()
-		repeated := slices.Contains(endCursors, end)
-		endCursors = append(endCursors, end)
-		page := pages[end]
+		repeated := slices.Contains(afterCursors, after)
+		afterCursors = append(afterCursors, after)
+		page := pages[after]
 		mu.Unlock()
 		if repeated {
-			// A repeat means the end timestamp cursor never advanced.
-			t.Errorf("end %q requested again", end)
-			http.Error(w, "repeated end", http.StatusBadRequest)
+			// A repeat means the after cursor never advanced.
+			t.Errorf("after %q requested again", after)
+			http.Error(w, "repeated after", http.StatusBadRequest)
 			return
 		}
 		writeOKXData(t, w, page)
@@ -2593,33 +2593,30 @@ func TestGetOrderHistoryCrawlsAcrossEndTimeBoundary(t *testing.T) {
 	})
 	require.NoError(t, err, "GetOrderHistory must not error when the archive spans pages")
 	mu.Lock()
-	cursors := slices.Clone(endCursors)
+	cursors := slices.Clone(afterCursors)
 	mu.Unlock()
-	assert.Equal(t, []string{
-		strconv.FormatInt(endTime.UnixMilli(), 10),
-		strconv.FormatInt(base.Add(30*time.Millisecond).UnixMilli(), 10),
-	}, cursors, "the second page should be requested with the first page's last creation time")
-	require.Len(t, history, 130, "a paginated crawl must return every order at or before the end timestamp")
+	assert.Equal(t, []string{"", "ORD-030"}, cursors, "the second page should be requested with the first page's last order ID as the after cursor")
+	require.Len(t, history, 130, "a paginated crawl must return every order")
 	ids := make(map[string]struct{}, len(history))
 	for x := range history {
 		ids[history[x].OrderID] = struct{}{}
 	}
 	assert.Len(t, ids, len(history), "a paginated crawl should not duplicate orders")
-	assert.Contains(t, ids, "ORD-129", "orders sharing the boundary millisecond should all be returned")
+	assert.Contains(t, ids, "ORD-100", "orders sharing a millisecond across the page boundary should all be returned")
 	assert.Contains(t, ids, "ORD-000", "orders past the first page should be returned")
 	assert.Equal(t, mainPair.Quote, history[0].CostAsset, "the cost asset should be the pair quote, not the order's rebate currency")
 }
 
 // TestGetOrderHistoryStopsWhenAFullPageIsSeen guards the no-progress stop: a
-// full page whose orders all repeat must not loop forever on the same end
-// timestamp.
+// full page whose last order ID repeats the requested after cursor must not
+// loop forever on the same page.
 func TestGetOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 	t.Parallel()
 	created := strconv.FormatInt(time.Now().Add(-24*time.Hour).Truncate(time.Millisecond).UnixMilli(), 10)
 	page := make([]map[string]string, 0, orderListPageSize)
 	for i := range orderListPageSize {
-		// Every order shares the one creation millisecond, so a full page
-		// cannot advance the end timestamp cursor.
+		// Every order shares the one creation millisecond, and the mock keeps
+		// returning the page the after cursor already passed.
 		page = append(page, map[string]string{
 			"instId": mainPair.String(), "ordId": fmt.Sprintf("ORD-%03d", i),
 			"cTime": created, "uTime": created, "state": "filled",
@@ -2628,24 +2625,16 @@ func TestGetOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 		})
 	}
 	var mu sync.Mutex
-	var endCursors []string
+	var afterCursors []string
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/trade/orders-history-archive" {
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
 			return
 		}
-		end := r.URL.Query().Get("end")
 		mu.Lock()
-		repeated := slices.Contains(endCursors, end)
-		endCursors = append(endCursors, end)
+		afterCursors = append(afterCursors, r.URL.Query().Get("after"))
 		mu.Unlock()
-		if repeated {
-			// A repeat means the end timestamp cursor never advanced.
-			t.Errorf("end %q requested again", end)
-			http.Error(w, "repeated end", http.StatusBadRequest)
-			return
-		}
 		writeOKXData(t, w, page)
 	}))
 	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
@@ -2655,8 +2644,31 @@ func TestGetOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistory must stop when a full page holds no new order")
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Len(t, endCursors, 2, "the crawl should stop without a third request")
+	assert.Equal(t, []string{"", "ORD-099"}, afterCursors, "the crawl should stop when the after cursor stops advancing")
 	assert.Len(t, history, orderListPageSize, "the first page's orders should be returned once")
+}
+
+// TestGetOrderHistoryFromOrderIDSeedsTheAfterCursor guards the FromOrderID
+// request field: OKX pages the archive from an order ID with the after
+// cursor, so the first request must carry FromOrderID as the after cursor.
+func TestGetOrderHistoryFromOrderIDSeedsTheAfterCursor(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/orders-history-archive" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		assert.Equal(t, "SEED-1", r.URL.Query().Get("after"), "the first request should carry FromOrderID as the after cursor")
+		writeOKXData(t, w, []map[string]string{})
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+		FromOrderID: "SEED-1",
+		Pairs:       currency.Pairs{mainPair},
+	})
+	require.NoError(t, err, "GetOrderHistory must not error when FromOrderID seeds the crawl")
+	assert.Empty(t, history, "an empty archive page should return no orders")
 }
 
 // TestSubmitOrderPerpetualSwapPositionMode guards the placement of perpetual
