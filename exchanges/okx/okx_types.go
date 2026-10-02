@@ -121,7 +121,6 @@ var (
 	errMissingQuantity                      = errors.New("invalid quantity to buy or sell")
 	errAddressRequired                      = errors.New("address is required")
 	errMaxRFQOrdersToCancel                 = errors.New("no more than 100 RFQ cancel order parameter is allowed")
-	errInvalidUnderlying                    = errors.New("invalid underlying")
 	errInstrumentFamilyOrUnderlyingRequired = errors.New("either underlying or instrument family is required")
 	errMissingRequiredParameter             = errors.New("missing required parameter")
 	errMissingMakerInstrumentSettings       = errors.New("missing maker instrument settings")
@@ -501,16 +500,16 @@ type DiscountRateInfoItem struct {
 
 // LiquidationOrderRequestParams holds information to request liquidation orders
 type LiquidationOrderRequestParams struct {
-	InstrumentType string
-	MarginMode     string // values are either isolated or crossed
-	InstrumentID   string
-	Currency       currency.Code
-	Underlying     string
-	Alias          string
-	State          string
-	Before         time.Time
-	After          time.Time
-	Limit          int64
+	InstrumentType   string
+	MarginMode       string // values are either isolated or crossed
+	InstrumentID     string
+	Currency         currency.Code
+	InstrumentFamily string
+	Alias            string
+	State            string
+	Before           time.Time
+	After            time.Time
+	Limit            uint64
 }
 
 // LiquidationOrder represents liquidation order item detailed information
@@ -591,12 +590,11 @@ type VIPInterestRateAndLoanQuotaInformation struct {
 type InsuranceFundInformationRequestParams struct {
 	InstrumentType   string        `json:"instType"`
 	InsuranceType    string        `json:"type"` //  Type values allowed are `liquidation_balance_deposit, bankruptcy_loss, and platform_revenue`
-	Underlying       string        `json:"uly"`
 	InstrumentFamily string        `json:"instFamily"`
 	Currency         currency.Code `json:"ccy"`
 	Before           time.Time     `json:"before"`
 	After            time.Time     `json:"after"`
-	Limit            int64         `json:"limit"`
+	Limit            uint64        `json:"limit"`
 }
 
 // InsuranceFundInformation holds insurance fund information data
@@ -983,16 +981,16 @@ type OrderDetail struct {
 
 // OrderListRequestParams represents order list requesting parameters
 type OrderListRequestParams struct {
-	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
-	Underlying     string    `json:"uly"`
-	InstrumentID   string    `json:"instId"`
-	OrderType      string    `json:"orderType"`
-	State          string    `json:"state"`            // live, partially_filled
-	Before         string    `json:"before,omitempty"` // used for order IDs
-	After          string    `json:"after,omitempty"`  // used for order IDs
-	Start          time.Time `json:"begin"`
-	End            time.Time `json:"end"`
-	Limit          int64     `json:"limit,omitempty"`
+	InstrumentType   string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
+	InstrumentFamily string    `json:"instFamily"`
+	InstrumentID     string    `json:"instId"`
+	OrderType        string    `json:"orderType"`
+	State            string    `json:"state"`            // live, partially_filled
+	Before           string    `json:"before,omitempty"` // used for order IDs
+	After            string    `json:"after,omitempty"`  // used for order IDs
+	Start            time.Time `json:"begin"`
+	End              time.Time `json:"end"`
+	Limit            uint64    `json:"limit,omitempty"`
 }
 
 // OrderHistoryRequestParams holds parameters to request order data history of last 7 days
@@ -1043,17 +1041,17 @@ type PendingOrderItem struct {
 
 // TransactionDetailRequestParams retrieve recently-filled transaction details in the last 3 day
 type TransactionDetailRequestParams struct {
-	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , option
-	Underlying     string    `json:"uly"`
-	InstrumentID   string    `json:"instId"`
-	OrderID        string    `json:"ordId"`
-	OrderType      string    `json:"orderType"`
-	SubType        string    `json:"subType,omitempty"`
-	After          string    `json:"after"`  // after billid
-	Before         string    `json:"before"` // before billid
-	Begin          time.Time `json:"begin"`
-	End            time.Time `json:"end"`
-	Limit          int64     `json:"limit"`
+	InstrumentType   string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , option
+	InstrumentFamily string    `json:"instFamily"`
+	InstrumentID     string    `json:"instId"`
+	OrderID          string    `json:"ordId"`
+	OrderType        string    `json:"orderType"`
+	SubType          string    `json:"subType,omitempty"`
+	After            string    `json:"after"`  // after billid
+	Before           string    `json:"before"` // before billid
+	Begin            time.Time `json:"begin"`
+	End              time.Time `json:"end"`
+	Limit            uint64    `json:"limit"`
 }
 
 // TransactionDetail holds recently-filled transaction detail data
@@ -1879,6 +1877,10 @@ type AccountAndPositionRisk struct {
 	PosData            []PositionData       `json:"posData"`
 	Timestamp          types.Time           `json:"ts"`
 }
+
+// billTypeFundingFee filters account bills down to funding fee entries,
+// bill type 8 per the BillsDetailQueryParameter.BillType mapping
+const billTypeFundingFee = 8
 
 // BillsDetailQueryParameter represents bills detail query parameter
 type BillsDetailQueryParameter struct {
@@ -3117,7 +3119,6 @@ type SubscriptionInfo struct {
 	InstrumentID     currency.Pair `json:"instId,omitzero"`
 	InstrumentFamily string        `json:"instFamily,omitempty"`
 	InstrumentType   string        `json:"instType,omitempty"`
-	Underlying       string        `json:"uly,omitempty"`
 	UID              string        `json:"uid,omitempty"` // user identifier
 
 	// For Algo Orders
@@ -3728,10 +3729,10 @@ type SetQuoteProductParam struct {
 
 // MakerInstrumentSetting represents set quote product setting info
 type MakerInstrumentSetting struct {
-	Underlying     string       `json:"uly"`
-	InstrumentID   string       `json:"instId"`
-	MaxBlockSize   types.Number `json:"maxBlockSz"`
-	MakerPriceBand types.Number `json:"makerPxBand"`
+	InstrumentFamily string       `json:"instFamily"`
+	InstrumentID     string       `json:"instId"`
+	MaxBlockSize     types.Number `json:"maxBlockSz"`
+	MakerPriceBand   types.Number `json:"makerPxBand"`
 }
 
 // SetQuoteProductsResult represents set quote products result
