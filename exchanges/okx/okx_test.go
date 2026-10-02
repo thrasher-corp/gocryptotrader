@@ -2357,15 +2357,15 @@ func TestSetLeverageRate(t *testing.T) {
 	assert.Truef(t, err == nil || errors.Is(err, common.ErrNoResponse), "SetLeverageRate should not error: %s", err)
 }
 
-func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
+func TestGetMaximumBuySellAmountOrOpenAmount(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, "", "cross", "", 5)
+	_, err := e.GetMaximumBuySellAmountOrOpenAmount(contextGenerate(), currency.BTC, "", "cross", "", 5)
 	require.ErrorIs(t, err, errMissingInstrumentID)
-	_, err = e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "", "", 5)
+	_, err = e.GetMaximumBuySellAmountOrOpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "", "", 5)
 	require.ErrorIs(t, err, errInvalidTradeModeValue)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMaximumBuySellAmountOROpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "cross", "", 5)
+	result, err := e.GetMaximumBuySellAmountOrOpenAmount(contextGenerate(), currency.BTC, mainPair.String(), "cross", "", 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

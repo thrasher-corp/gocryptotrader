@@ -1814,8 +1814,8 @@ func (e *Exchange) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, "account/set-leverage", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// GetMaximumBuySellAmountOROpenAmount retrieves the maximum buy or sell amount for an instrument ID
-func (e *Exchange) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode, leverage string, price float64) ([]MaximumBuyAndSell, error) {
+// GetMaximumBuySellAmountOrOpenAmount retrieves the maximum buy or sell amount for an instrument ID
+func (e *Exchange) GetMaximumBuySellAmountOrOpenAmount(ctx context.Context, ccy currency.Code, instrumentID, tradeMode, leverage string, price float64) ([]MaximumBuyAndSell, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -4923,7 +4923,7 @@ func (e *Exchange) GetMarkPrice(ctx context.Context, instrumentType, underlying,
 }
 
 // GetPositionTiers retrieves position tiers information，maximum leverage depends on your borrowings and margin ratio
-func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, underlying, instrumentFamily, instrumentID, tiers string, ccy currency.Code) ([]PositionTiers, error) {
+func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, underlying, instrumentFamily, instrumentID, tier string, ccy currency.Code) ([]PositionTiers, error) {
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -4962,8 +4962,8 @@ func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMo
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
-	if tiers != "" {
-		params.Set("tier", tiers)
+	if tier != "" {
+		params.Set("tier", tier)
 	}
 	var response []PositionTiers
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, getPositionTiersEPL, http.MethodGet, common.EncodeURLValues("public/position-tiers", params), nil, &response, request.UnauthenticatedRequest)

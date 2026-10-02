@@ -177,7 +177,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Max buy or sell amount drops unSpotOffset",
 			call: func() error {
-				_, err := e.GetMaximumBuySellAmountOROpenAmount(t.Context(), currency.BTC, "BTC-USDT", "cash", "", 5)
+				_, err := e.GetMaximumBuySellAmountOrOpenAmount(t.Context(), currency.BTC, "BTC-USDT", "cash", "", 5)
 				return err
 			},
 			path:   "/account/max-size",
