@@ -35,6 +35,14 @@ type Exchange struct {
 
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
+	// instrumentIDCodeMap caches instrument ID codes by instrument ID for
+	// websocket order operations which identify instruments by code.
+	instrumentIDCodeMap map[string]uint64
+	// accountPositionMode caches the account's contract position mode, which
+	// decides the placement of futures and perpetual swap orders. It is
+	// fetched on first use and refreshed by SetPositionMode.
+	accountPositionModeMu sync.RWMutex
+	accountPositionMode   string
 }
 
 const (
@@ -71,6 +79,9 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
 	}
+	if len(args) > 20 {
+		return nil, fmt.Errorf("%w, cannot place more than 20 orders", errExceedLimit)
+	}
 	for x := range args {
 		if err := args[x].Validate(); err != nil {
 			return nil, err
@@ -86,7 +97,7 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 		for x := range resp {
 			errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 		}
-		return nil, common.AppendError(err, errs)
+		return resp, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -136,11 +147,14 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 		}
 		var errs error
 		for x := range resp {
-			if resp[x].StatusCode != 0 {
+			if resp[x] != nil && resp[x].StatusCode != 0 {
 				errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 			}
 		}
-		return nil, common.AppendError(err, errs)
+		// A partially successful batch returns its per-order results alongside
+		// the error, as the websocket variant does, so callers can report the
+		// cancellations that succeeded.
+		return resp, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -238,7 +252,7 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 		params.Set("uly", arg.Underlying)
 	}
 	if arg.OrderType != "" {
-		params.Set("orderType", strings.ToLower(arg.OrderType))
+		params.Set("ordType", strings.ToLower(arg.OrderType))
 	}
 	if arg.State != "" {
 		params.Set("state", arg.State)
@@ -261,7 +275,7 @@ func (e *Exchange) Get7DayOrderHistory(ctx context.Context, arg *OrderHistoryReq
 	return e.getOrderHistory(ctx, arg, "trade/orders-history", getOrderHistory7DaysEPL)
 }
 
-// Get3MonthOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours
+// Get3MonthOrderHistory retrieves the completed order data for the last 3 months. It does not contain canceled orders without any fills; the 7 day listing retains those for 2 hours
 func (e *Exchange) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]OrderDetail, error) {
 	return e.getOrderHistory(ctx, arg, "trade/orders-history-archive", getOrderHistory3MonthsEPL)
 }
@@ -283,7 +297,7 @@ func (e *Exchange) getOrderHistory(ctx context.Context, arg *OrderHistoryRequest
 		params.Set("uly", arg.Underlying)
 	}
 	if arg.OrderType != "" {
-		params.Set("orderType", strings.ToLower(arg.OrderType))
+		params.Set("ordType", strings.ToLower(arg.OrderType))
 	}
 	if arg.State != "" {
 		params.Set("state", arg.State)
@@ -449,7 +463,7 @@ func (e *Exchange) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*A
 	if arg.LimitPrice <= 0 {
 		return nil, errInvalidPriceLimit
 	}
-	if IntervalFromString(arg.TimeInterval, true) == "" {
+	if arg.TimeInterval == "" {
 		return nil, errMissingIntervalValue
 	}
 	return e.PlaceAlgoOrder(ctx, arg)
@@ -510,28 +524,19 @@ func (e *Exchange) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderPara
 	return e.PlaceAlgoOrder(ctx, arg)
 }
 
-// CancelAdvanceAlgoOrder Cancel unfilled algo orders
-// A maximum of 10 orders can be cancelled at a time.
+// CancelAlgoOrder cancels unfilled algo orders.
+// A maximum of 10 orders can be cancelled per request.
 // Request parameters should be passed in the form of an array
-func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
-	if len(args) == 0 {
-		return nil, common.ErrEmptyParams
-	}
-	return e.cancelAlgoOrder(ctx, args, "trade/cancel-advance-algos", cancelAdvanceAlgoOrderEPL)
-}
-
-// CancelAlgoOrder to cancel unfilled algo orders (not including Iceberg order, TWAP order, Trailing Stop order).
-// A maximum of 10 orders can be cancelled at a time.
-// Request parameters should be passed in the form of an array
-func (e *Exchange) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
+func (e *Exchange) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) ([]AlgoOrder, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
 	return e.cancelAlgoOrder(ctx, args, "trade/cancel-algos", cancelAlgoOrderEPL)
 }
 
-// cancelAlgoOrder to cancel unfilled algo orders
-func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string, rateLimit request.EndpointLimit) (*AlgoOrder, error) {
+// cancelAlgoOrder to cancel unfilled algo orders. OKX returns one result per
+// requested algo order, and a batch can partially succeed.
+func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams, route string, rateLimit request.EndpointLimit) ([]AlgoOrder, error) {
 	for x := range args {
 		if args[x] == (AlgoOrderCancelParams{}) {
 			return nil, common.ErrEmptyParams
@@ -542,15 +547,15 @@ func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelPa
 			return nil, errMissingInstrumentID
 		}
 	}
-	var resp *AlgoOrder
+	var resp []AlgoOrder
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
-	if err != nil {
-		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
-		}
+	if err != nil && !errors.Is(err, errPartialSuccess) {
 		return nil, err
 	}
-	return resp, nil
+	// A partially successful batch returns its per-order results alongside the
+	// error, as CancelMultipleOrders does, so callers can report the
+	// cancellations that succeeded.
+	return resp, err
 }
 
 // AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
@@ -1789,13 +1794,28 @@ func (e *Exchange) GetAccountConfiguration(ctx context.Context) (*AccountConfigu
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
 // Position mode 'long_short_mode': long/short, only applicable to  FUTURES/SWAP'net_mode': net
 func (e *Exchange) SetPositionMode(ctx context.Context, positionMode string) (*PositionMode, error) {
-	if positionMode != "long_short_mode" && positionMode != "net_mode" {
-		return nil, errInvalidPositionMode
+	if positionMode != positionModeLongShort && positionMode != positionModeNet {
+		return nil, fmt.Errorf("%w: %q", errInvalidPositionMode, positionMode)
 	}
 	var resp *PositionMode
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
 		PositionMode: positionMode,
 	}, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("%w setting the account position mode", common.ErrNoResponse)
+	}
+	if resp.PositionMode != positionModeLongShort && resp.PositionMode != positionModeNet {
+		return nil, fmt.Errorf("%w %q", errInvalidPositionMode, resp.PositionMode)
+	}
+	// The mode switch succeeded, so the cached mode the order placement
+	// branches on is refreshed with the mode OKX confirms.
+	e.accountPositionModeMu.Lock()
+	e.accountPositionMode = resp.PositionMode
+	e.accountPositionModeMu.Unlock()
+	return resp, nil
 }
 
 // SetLeverageRate sets a leverage setting for instrument id
@@ -1806,11 +1826,22 @@ func (e *Exchange) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (
 	if arg.InstrumentID == "" && arg.Currency.IsEmpty() {
 		return nil, errEitherInstIDOrCcyIsRequired
 	}
-	switch arg.AssetType {
-	case asset.Futures, asset.PerpetualSwap:
-		if arg.PositionSide == "" && arg.MarginMode == "isolated" {
-			return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
-		}
+	switch arg.MarginMode {
+	case TradeModeCross, TradeModeIsolated:
+	default:
+		return nil, fmt.Errorf("%w: %q", margin.ErrMarginTypeUnsupported, arg.MarginMode)
+	}
+	if arg.InstrumentID == "" && arg.MarginMode != TradeModeCross {
+		// OKX uses instId when both are sent, so a currency-scoped setting is
+		// always cross margin.
+		return nil, fmt.Errorf("%w: a currency-scoped leverage requires %q margin", margin.ErrMarginTypeUnsupported, arg.MarginMode)
+	}
+	switch arg.PositionSide {
+	case "", positionSideLong, positionSideShort, positionSideNet:
+		// OKX requires posSide only for isolated futures and perpetual swap
+		// leverage in long/short mode, which this layer cannot see.
+	default:
+		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
 	var resp *SetLeverageResponse
@@ -1904,7 +1935,7 @@ func (e *Exchange) GetLeverageRate(ctx context.Context, instrumentID, marginMode
 		return nil, errMissingInstrumentID
 	}
 	switch marginMode {
-	case TradeModeCross, TradeModeIsolated, TradeModeCash:
+	case TradeModeCross, TradeModeIsolated:
 	default:
 		return nil, margin.ErrMarginTypeUnsupported
 	}
@@ -2992,7 +3023,7 @@ func (e *Exchange) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAme
 	var resp *GridAlgoOrderIDResponse
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
-		if resp != nil && resp.StatusMessage == "" {
+		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
 		return nil, err
@@ -4603,12 +4634,20 @@ func (e *Exchange) GetPublicBlockTrades(ctx context.Context, instrumentID string
 
 // PlaceSpreadOrder places new spread order
 func (e *Exchange) PlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
-	err := e.validatePlaceSpreadOrderParam(arg)
-	if err != nil {
+	if err := e.validatePlaceSpreadOrderParam(arg); err != nil {
 		return nil, err
 	}
 	var resp *SpreadOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodPost, "sprd/order", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodPost, "sprd/order", arg, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		if resp != nil {
+			// OKX's top-level reply only says all operations failed; the row
+			// carries the code and reason, such as 51008 for a balance reject.
+			err = common.AppendError(err, resp.Error())
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (e *Exchange) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
@@ -4621,10 +4660,14 @@ func (e *Exchange) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
 	if arg.OrderType == "" {
 		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
 	}
+	arg.OrderType = strings.ToLower(arg.OrderType)
 	if arg.Size <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if arg.Price <= 0 {
+	// Market orders carry no px, and the px of a spread order is the
+	// differential between its legs, which can be negative: only a missing
+	// price on a price-bearing order type is an error.
+	if arg.OrderType != orderMarket && arg.Price == 0 {
 		return limits.ErrPriceBelowMin
 	}
 	arg.Side = strings.ToLower(arg.Side)
@@ -4649,12 +4692,20 @@ func (e *Exchange) CancelSpreadOrder(ctx context.Context, orderID, clientOrderID
 		arg["clOrdId"] = clientOrderID
 	}
 	var resp *SpreadOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		if resp != nil {
+			err = common.AppendError(err, resp.Error())
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
-// CancelAllSpreadOrders cancels all spread orders and return success message
-// spreadID is optional
-// the function returns success status and error message
+// CancelAllSpreadOrders cancels all spread orders and returns whether OKX
+// accepted the request. spreadID is the spread pair, such as
+// BTC-USDT_BTC-USDT-SWAP, and is optional: omitting it cancels every spread
+// order on the account.
 func (e *Exchange) CancelAllSpreadOrders(ctx context.Context, spreadID string) (bool, error) {
 	arg := make(map[string]string, 1)
 	if spreadID != "" {
@@ -4678,7 +4729,14 @@ func (e *Exchange) AmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPa
 		return nil, errSizeOrPriceIsRequired
 	}
 	var resp *SpreadOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, request.AuthenticatedRequest)
+	if err != nil {
+		if resp != nil {
+			err = common.AppendError(err, resp.Error())
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 // GetSpreadOrderDetails retrieves spread order details
@@ -4722,8 +4780,18 @@ func (e *Exchange) GetActiveSpreadOrders(ctx context.Context, spreadID, orderTyp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getActiveSpreadOrdersEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been cancelled are only reserved for 2 hours. Results are returned in counter chronological order
+// GetCompletedSpreadOrdersLast7Days retrieves the completed spread orders of the last 21 days. Results are returned in counter chronological order
 func (e *Exchange) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history", getSpreadOrders7DaysEPL)
+}
+
+// GetCompletedSpreadOrdersLast3Months retrieves the completed spread orders of the last 3 months. Recent orders can lag behind the 21 day listing while they reach the archive. Results are returned in counter chronological order
+func (e *Exchange) GetCompletedSpreadOrdersLast3Months(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history-archive", getSpreadOrders3MonthsEPL)
+}
+
+// getSpreadOrderHistory retrieves completed spread orders from route
+func (e *Exchange) getSpreadOrderHistory(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64, route string, rateLimit request.EndpointLimit) ([]SpreadOrder, error) {
 	params := url.Values{}
 	if spreadID != "" {
 		params.Set("sprdId", spreadID)
@@ -4750,7 +4818,7 @@ func (e *Exchange) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spread
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SpreadOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrders7DaysEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetSpreadTradesOfLast7Days retrieve historical transaction details for the last 7 days. Results are returned in counter chronological order
@@ -5934,8 +6002,21 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		return err
 	}
 	if resp.Code.Int64() != 0 {
+		// A failed batch reply can still carry per-order results for the parts
+		// that succeeded; decode best-effort so callers can report them.
+		decodeErr := unmarshalResponseData(resp.Data, result)
 		if requestType == request.AuthenticatedRequest {
 			err = request.ErrAuthRequestFailed
+		}
+		// OKX sends a partial success with a message, which would return below
+		// without the sentinel callers match to record the per-order results.
+		// Rows that failed to decode can be half populated, so they are not
+		// vouched for.
+		if resp.Code.Int64() == 2 {
+			if decodeErr != nil {
+				return common.AppendError(err, fmt.Errorf("error code: `2`; message: %q: %w", resp.Msg, decodeErr))
+			}
+			return common.AppendError(err, errPartialSuccess)
 		}
 		if resp.Msg != "" {
 			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: %q", resp.Code.Int64(), resp.Msg))
@@ -5945,16 +6026,22 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		}
 		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
+	return unmarshalResponseData(resp.Data, result)
+}
 
+// unmarshalResponseData decodes response data into result, which is usually
+// the data itself; some endpoints wrap a single item in an array for a
+// non-slice result.
+func unmarshalResponseData(data json.RawMessage, result any) error {
 	// Most endpoints can be unmarshalled directly (objects and full arrays).
-	directErr := json.Unmarshal(resp.Data, result)
+	directErr := json.Unmarshal(data, result)
 	if directErr == nil {
 		return nil
 	}
 
 	// Some endpoints return a single item wrapped in data:[{...}] for a non-slice result.
 	var dataSlice []json.RawMessage
-	if sliceErr := json.Unmarshal(resp.Data, &dataSlice); sliceErr != nil {
+	if sliceErr := json.Unmarshal(data, &dataSlice); sliceErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
 	}
 	if len(dataSlice) != 1 {

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -67,7 +68,7 @@ var (
 	mainPair          = currency.NewPairWithDelimiter("BTC", "USDT", "-") // Is used for spot, margin symbols and underlying contracts
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
 	perpetualSwapPair = currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-")
-	spreadPair        = currency.NewPairWithDelimiter("BTC-USDT", "BTC-USDT-SWAP", "_")
+	spreadPair        = currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter)
 )
 
 func TestMain(m *testing.M) {
@@ -839,6 +840,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "reverse"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -919,6 +921,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "reverse"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -1258,7 +1261,7 @@ func TestPlaceTWAPOrder(t *testing.T) {
 		TradeMode:         "cross",
 		Side:              order.Sell.Lower(),
 		Size:              6,
-		TimeInterval:      kline.ThreeDay,
+		TimeInterval:      strconv.FormatInt(int64(kline.ThreeDay.Duration().Seconds()), 10),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1293,7 +1296,7 @@ func TestPlaceTakeProfitStopLossOrder(t *testing.T) {
 		TradeMode:                "cross",
 		Side:                     order.Sell.Lower(),
 		Size:                     6,
-		TimeInterval:             kline.ThreeDay,
+		TimeInterval:             strconv.FormatInt(int64(kline.ThreeDay.Duration().Seconds()), 10),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1421,26 +1424,6 @@ func TestCancelAlgoOrder(t *testing.T) {
 			AlgoOrderID:  "90994943",
 		},
 	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestCancelAdvanceAlgoOrder(t *testing.T) {
-	t.Parallel()
-	_, err := e.CancelAdvanceAlgoOrder(contextGenerate(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{}})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{InstrumentID: "90994943"}})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{AlgoOrderID: "90994943"}})
-	require.ErrorIs(t, err, errMissingInstrumentID)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelAdvanceAlgoOrder(contextGenerate(), []AlgoOrderCancelParams{{
-		InstrumentID: mainPair.String(),
-		AlgoOrderID:  "90994943",
-	}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2339,10 +2322,26 @@ func TestSetLeverageRate(t *testing.T) {
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
 	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
-		Currency:     currency.USDT,
+		Leverage:     5,
+		MarginMode:   "cash",
+		InstrumentID: perpetualSwapPair.String(),
+		AssetType:    asset.PerpetualSwap,
+	})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
+		Currency:   currency.USDT,
+		Leverage:   5,
+		MarginMode: "isolated",
+		AssetType:  asset.Margin,
+	})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	_, err = e.SetLeverageRate(contextGenerate(), &SetLeverageInput{
 		Leverage:     5,
 		MarginMode:   "isolated",
 		InstrumentID: perpetualSwapPair.String(),
+		PositionSide: "reverse",
 		AssetType:    asset.PerpetualSwap,
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
@@ -3873,6 +3872,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	spreadCancel := order.Cancel{
+		AssetType: asset.Spread,
+		Pair:      spreadPair,
+	}
+	_, err = e.CancelBatchOrders(contextGenerate(), []order.Cancel{spreadCancel})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellationParams := []order.Cancel{
 		{
@@ -4543,6 +4549,45 @@ func TestOrderPushData(t *testing.T) {
 	}
 }
 
+// TestWsOrderPushesParseEveryOrderType guards the order channel: a push for
+// each OKX order type that reads back as a GCT type with a time in force
+// reaches the data handler with both set, rather than erroring.
+func TestWsOrderPushesParseEveryOrderType(t *testing.T) {
+	t.Parallel()
+	for ordType, exp := range map[string]struct {
+		oType order.Type
+		tif   order.TimeInForce
+	}{
+		orderPostOnly:                         {order.Limit, order.PostOnly},
+		orderFOK:                              {order.Limit, order.FillOrKill},
+		orderIOC:                              {order.Limit, order.ImmediateOrCancel},
+		orderOptionFOK:                        {order.Limit, order.FillOrKill},
+		orderOptimalLimitIOC:                  {order.OptimalLimit, order.ImmediateOrCancel},
+		orderMarketMakerProtection:            {order.MarketMakerProtection, order.UnknownTIF},
+		orderMarketMakerProtectionAndPostOnly: {order.MarketMakerProtection, order.PostOnly},
+		orderRPI:                              {order.Limit, order.UnknownTIF},
+		orderELP:                              {order.Limit, order.UnknownTIF},
+	} {
+		t.Run(ordType, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			push := []byte(`{"arg":{"channel":"orders","instType":"SPOT"},"data":[{"instId":"BTC-USDT","ordId":"1","ordType":"` + ordType + `","side":"buy","state":"live","sz":"1","accFillSz":"0","cTime":"1700000000000"}]}`)
+			require.NoErrorf(t, e.wsProcessOrders(t.Context(), push), "a %s order push must not error", ordType)
+			e.Websocket.DataHandler.Close()
+			var got *order.Detail
+			for resp := range e.Websocket.DataHandler.C {
+				d, ok := resp.Data.(*order.Detail)
+				require.True(t, ok, "the order push must reach the data handler as an order detail")
+				got = d
+			}
+			require.NotNil(t, got, "the order push must reach the data handler")
+			assert.Equal(t, exp.oType, got.Type, "the push should read the order type")
+			assert.Equal(t, exp.tif, got.TimeInForce, "the push should preserve the time in force")
+		})
+	}
+}
+
 var pushDataMap = map[string]string{
 	"Algo Orders":                           `{"arg": {"channel": "orders-algo","uid": "77982378738415879","instType": "FUTURES","instId": "BTC-USD-200329"},"data": [{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","px": "999","sz": "3","tdMode": "cross","tgtCcy": "","notionalUsd": "","ordType": "trigger","side": "buy","posSide": "long","state": "live","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","tag": "adadadadad","actualSide": "","triggerTime": "1597026383085","cTime": "1597026383000"}]}`,
 	"Advanced Algo Order":                   `{"arg": {"channel":"algo-advance","uid": "77982378738415879","instType":"SPOT","instId":"BTC-USDT"},"data":[{"actualPx":"","actualSide":"","actualSz":"0","algoId":"355056228680335360","cTime":"1630924001545","ccy":"","count":"1","instId":"BTC-USDT","instType":"SPOT","lever":"0","notionalUsd":"","ordPx":"","ordType":"iceberg","pTime":"1630924295204","posSide":"net","pxLimit":"10","pxSpread":"1","pxVar":"","side":"buy","slOrdPx":"","slTriggerPx":"","state":"pause","sz":"0.1","szLimit":"0.1","tdMode":"cash","timeInterval":"","tpOrdPx":"","tpTriggerPx":"","tag": "adadadadad","triggerPx":"","triggerTime":"","callbackRatio":"","callbackSpread":"","activePx":"","moveTriggerPx":""}]}`,
@@ -5107,8 +5152,12 @@ func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
+	_, err = e.GetLeverage(contextGenerate(), asset.Options, pp[0], margin.Multi, order.UnknownSide)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, order.UnknownSide)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, order.UnknownSide)
@@ -5127,12 +5176,14 @@ func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	pp, err := e.CurrencyPairs.GetPairs(asset.Futures, true)
 	require.NoError(t, err)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.CouldNotBuy)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	err = e.SetLeverage(contextGenerate(), asset.Options, pp[0], margin.Multi, 5, order.UnknownSide)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 	err = e.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, 5, order.UnknownSide)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5, order.UnknownSide)
@@ -6550,6 +6601,17 @@ func TestOrderTypeString(t *testing.T) {
 		{OrderType: order.Market, TIF: order.UnknownTIF}:                {Expected: orderMarket},
 		{OrderType: order.Limit, TIF: order.UnknownTIF}:                 {Expected: orderLimit},
 		{OrderType: order.Limit, TIF: order.PostOnly}:                   {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:                 {Expected: orderFOK},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:          {Expected: orderIOC},
+		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:            {Expected: orderPostOnly},
+		{OrderType: order.Stop, TIF: order.ImmediateOrCancel}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.StopLimit, TIF: order.FillOrKill}:             {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.StopMarket, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TakeProfit, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TakeProfitMarket, TIF: order.FillOrKill}:      {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.TrailingStopLimit, TIF: order.FillOrKill}:     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Bracket, TIF: order.FillOrKill}:               {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Liquidation, TIF: order.FillOrKill}:           {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.Market, TIF: order.FillOrKill}:                {Expected: orderFOK},
 		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:         {Expected: orderIOC},
 		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}:   {Expected: orderOptimalLimitIOC},
@@ -6575,6 +6637,45 @@ func TestOrderTypeString(t *testing.T) {
 			orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
 			require.ErrorIs(t, err, val.Error)
 			assert.Equal(t, val.Expected, orderTypeString)
+		})
+	}
+}
+
+// TestSpreadOrderTypeString pins the ordType a spread order places: the
+// spread endpoints document only market, limit, post_only and ioc, so fok
+// and trigger-style types are rejected instead of downgraded.
+func TestSpreadOrderTypeString(t *testing.T) {
+	t.Parallel()
+	type OrderTypeWithTIF struct {
+		OrderType order.Type
+		TIF       order.TimeInForce
+	}
+	spreadOrderTypesToStringMap := map[OrderTypeWithTIF]struct {
+		Expected string
+		Error    error
+	}{
+		{OrderType: order.Market, TIF: order.UnknownTIF}:            {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:     {Expected: orderMarket},
+		{OrderType: order.Market, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:             {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.GoodTillCancel}:         {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.GoodTillDay}:            {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:               {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:      {Expected: orderIOC},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:             {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:        {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.PostOnly}:          {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.ImmediateOrCancel}: {Expected: orderIOC},
+		{OrderType: order.LimitMaker, TIF: order.FillOrKill}:        {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.Stop, TIF: order.UnknownTIF}:              {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:   {Error: order.ErrUnsupportedOrderType},
+	}
+	for tc, val := range spreadOrderTypesToStringMap {
+		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
+			t.Parallel()
+			spreadOrderType, err := spreadOrderTypeString(tc.OrderType, tc.TIF)
+			require.ErrorIs(t, err, val.Error)
+			assert.Equal(t, val.Expected, spreadOrderType)
 		})
 	}
 }
@@ -6948,6 +7049,9 @@ func TestOrderTypeFromString(t *testing.T) {
 		"post_only":         {OType: order.Limit, TIF: order.PostOnly},
 		"fok":               {OType: order.Limit, TIF: order.FillOrKill},
 		"ioc":               {OType: order.Limit, TIF: order.ImmediateOrCancel},
+		"op_fok":            {OType: order.Limit, TIF: order.FillOrKill},
+		"rpi":               {OType: order.Limit},
+		"elp":               {OType: order.Limit},
 		"optimal_limit_ioc": {OType: order.OptimalLimit, TIF: order.ImmediateOrCancel},
 		"mmp":               {OType: order.MarketMakerProtection},
 		"mmp_and_post_only": {OType: order.MarketMakerProtection, TIF: order.PostOnly},
@@ -7034,6 +7138,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	p.PositionSide = "reverse"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -7044,6 +7149,18 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
+
+	// The account's position mode decides the position side of futures and
+	// perpetual swap orders, so empty and net pass alongside long and short.
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+		p.AssetType = a
+		for _, posSide := range []string{positionSideLong, positionSideShort, positionSideNet, ""} {
+			p.PositionSide = posSide
+			require.NoErrorf(t, p.Validate(), "Validate must accept position side %q for %s", posSide, a)
+		}
+		p.PositionSide = "reverse"
+		require.ErrorIsf(t, p.Validate(), order.ErrSideIsInvalid, "Validate must reject an unknown position side for %s", a)
+	}
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {
@@ -7054,12 +7171,19 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
 	p.SpreadID = spreadPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
-	p.OrderType = order.Market.String()
+	p.OrderType = order.Limit.String()
 	require.ErrorIs(t, p.Validate(), limits.ErrAmountBelowMin)
 	p.Size = 1
 	require.ErrorIs(t, p.Validate(), limits.ErrPriceBelowMin)
 	p.Price = 1
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
+	require.NoError(t, p.Validate())
+	// The px of a spread order is the differential between its legs, so a
+	// negative price is valid, and a market order carries no price at all.
+	p.Price = -41.2
+	require.NoError(t, p.Validate())
+	p.OrderType = order.Market.String()
+	p.Price = 0
 	require.NoError(t, p.Validate())
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -41,6 +40,10 @@ const (
 	positionSideLong  = "long"
 	positionSideShort = "short"
 	positionSideNet   = "net"
+
+	// Position modes for placing perpetual swap orders
+	positionModeNet       = "net_mode"
+	positionModeLongShort = "long_short_mode"
 )
 
 // order types, margin balance types, and instrument types constants
@@ -59,6 +62,9 @@ const (
 	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
 	orderMarketMakerProtection            = "mmp"
 	orderOCO                              = "oco"
+	orderRPI                              = "rpi"
+	orderELP                              = "elp"
+	orderOptionFOK                        = "op_fok"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
@@ -77,12 +83,18 @@ const (
 	operationSubscribe   = "subscribe"
 	operationUnsubscribe = "unsubscribe"
 	operationLogin       = "login"
+
+	// orderListPageSize is OKX's maximum, and default, records per pending
+	// order list request, used to page through accounts holding more open
+	// orders than a single page.
+	orderListPageSize = 100
 )
 
 var (
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
+	errMissingInstrumentIDCode              = errors.New("missing instrument ID code")
 	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
@@ -374,6 +386,7 @@ type InstrumentsFetchParams struct {
 type Instrument struct {
 	InstrumentType                  string        `json:"instType"`
 	InstrumentID                    currency.Pair `json:"instId"`
+	InstrumentIDCode                uint64        `json:"instIdCode"`
 	InstrumentFamily                string        `json:"instFamily"`
 	Underlying                      string        `json:"uly"`
 	Category                        string        `json:"category"`
@@ -769,17 +782,18 @@ func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
 
 // PlaceOrderRequestParam requesting parameter for placing an order
 type PlaceOrderRequestParam struct {
-	AssetType     asset.Item `json:"-"`
-	InstrumentID  string     `json:"instId"`
-	TradeMode     string     `json:"tdMode"` // cash isolated
-	ClientOrderID string     `json:"clOrdId,omitempty"`
-	Currency      string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
-	OrderTag      string     `json:"tag,omitempty"`
-	Side          string     `json:"side"`
-	PositionSide  string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
-	OrderType     string     `json:"ordType"`           // Time in force for the order
-	Amount        float64    `json:"sz,string"`
-	Price         float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
+	AssetType        asset.Item `json:"-"`
+	InstrumentID     string     `json:"instId"`
+	InstrumentIDCode uint64     `json:"instIdCode,omitempty"` // Instrument ID code, required for WS order placement
+	TradeMode        string     `json:"tdMode"`               // cash isolated
+	ClientOrderID    string     `json:"clOrdId,omitempty"`
+	Currency         string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
+	OrderTag         string     `json:"tag,omitempty"`
+	Side             string     `json:"side"`
+	PositionSide     string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
+	OrderType        string     `json:"ordType"`           // Time in force for the order
+	Amount           float64    `json:"sz,string"`
+	Price            float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
 	// Options orders
 	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"` // Place options orders in USD
 	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"` // Place options orders based on implied volatility, where 1 represents 100%
@@ -799,7 +813,8 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.InstrumentID == "" {
 		return errMissingInstrumentID
 	}
-	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
+	if arg.AssetType == asset.Empty || arg.AssetType == asset.Spot || arg.AssetType == asset.Margin ||
+		arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap || arg.AssetType == asset.Options {
 		arg.Side = strings.ToLower(arg.Side)
 		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
@@ -810,8 +825,11 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+		// The account's position mode decides the required value, which only
+		// the caller knows: net mode defaults to net and may omit the field
+		// entirely, so empty is accepted too.
+		if !slices.Contains([]string{"", positionSideNet, positionSideLong, positionSideShort}, arg.PositionSide) {
+			return fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
@@ -855,9 +873,10 @@ func (r *ResponseResult) Error() error {
 
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
-	InstrumentID  string `json:"instId"`
-	OrderID       string `json:"ordId"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
+	InstrumentID     string `json:"instId"`
+	InstrumentIDCode uint64 `json:"instIdCode,omitempty"`
+	OrderID          string `json:"ordId"`
+	ClientOrderID    string `json:"clOrdId,omitempty"`
 }
 
 // CancelMassReqParam holds MMP batch cancel request parameters
@@ -868,13 +887,14 @@ type CancelMassReqParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
-	InstrumentID    string  `json:"instId"`
-	CancelOnFail    bool    `json:"cxlOnFail,omitempty"`
-	OrderID         string  `json:"ordId,omitempty"`
-	ClientOrderID   string  `json:"clOrdId,omitempty"`
-	ClientRequestID string  `json:"reqId,omitempty"`
-	NewQuantity     float64 `json:"newSz,omitempty,string"`
-	NewPrice        float64 `json:"newPx,omitempty,string"`
+	InstrumentID     string  `json:"instId"`
+	InstrumentIDCode uint64  `json:"instIdCode,omitempty"`
+	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
+	OrderID          string  `json:"ordId,omitempty"`
+	ClientOrderID    string  `json:"clOrdId,omitempty"`
+	ClientRequestID  string  `json:"reqId,omitempty"`
+	NewQuantity      float64 `json:"newSz,omitempty,string"`
+	NewPrice         float64 `json:"newPx,omitempty,string"`
 
 	// Modify options orders using USD prices
 	// Only applicable to options.
@@ -986,7 +1006,7 @@ type OrderListRequestParams struct {
 	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , OPTIONS
 	Underlying     string    `json:"uly"`
 	InstrumentID   string    `json:"instId"`
-	OrderType      string    `json:"orderType"`
+	OrderType      string    `json:"ordType"`
 	State          string    `json:"state"`            // live, partially_filled
 	Before         string    `json:"before,omitempty"` // used for order IDs
 	After          string    `json:"after,omitempty"`  // used for order IDs
@@ -1124,7 +1144,7 @@ type AlgoOrderParams struct {
 	LimitPrice    float64 `json:"pxLimit,string,omitempty"`  // Required
 
 	// TWAPOrder
-	TimeInterval kline.Interval `json:"interval,omitempty"` // Required
+	TimeInterval string `json:"timeInterval,omitempty"` // Required. Time interval in unit of second
 
 	// Chase order
 	ChaseType     string  `json:"chaseType,omitempty"` // Possible values: "distance" and "ratio"
@@ -2899,7 +2919,7 @@ type SpreadOrderParam struct {
 	Side          string  `json:"side"`    // Order side, buy sell
 	OrderType     string  `json:"ordType"` // Order type  'limit': Limit order  'post_only': Post-only order 'ioc': Immediate-or-cancel order
 	Size          float64 `json:"sz,string"`
-	Price         float64 `json:"px,string"`
+	Price         float64 `json:"px,string,omitempty"`
 	Tag           string  `json:"tag,omitempty"`
 }
 
@@ -2914,10 +2934,14 @@ func (arg *SpreadOrderParam) Validate() error {
 	if arg.OrderType == "" {
 		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
 	}
+	arg.OrderType = strings.ToLower(arg.OrderType)
 	if arg.Size <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if arg.Price <= 0 {
+	// Market orders carry no px, and the px of a spread order is the
+	// differential between its legs, which can be negative: only a missing
+	// price on a price-bearing order type is an error.
+	if arg.OrderType != orderMarket && arg.Price == 0 {
 		return limits.ErrPriceBelowMin
 	}
 	arg.Side = strings.ToLower(arg.Side)

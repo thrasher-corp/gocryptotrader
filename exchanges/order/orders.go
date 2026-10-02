@@ -1125,7 +1125,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Open, nil
 	case Closed.String(), "POSITION_CLOSED":
 		return Closed, nil
-	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED", "MMP_CANCELED":
 		return Cancelled, nil
 	case Pending.String():
 		return Pending, nil

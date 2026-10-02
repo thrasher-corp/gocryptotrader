@@ -37,7 +37,6 @@ const (
 	placeAlgoOrderEPL
 	cancelAlgoOrderEPL
 	amendAlgoOrderEPL
-	cancelAdvanceAlgoOrderEPL
 	getAlgoOrderDetailEPL
 	getAlgoOrderListEPL
 	getAlgoOrderHistoryEPL
@@ -259,6 +258,7 @@ const (
 	cancelAllSpreadOrdersAfterEPL
 	getActiveSpreadOrdersEPL
 	getSpreadOrders7DaysEPL
+	getSpreadOrders3MonthsEPL
 	getInstrumentsEPL
 	getDeliveryExerciseHistoryEPL
 	getOpenInterestEPL
@@ -351,7 +351,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		placeAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		cancelAlgoOrderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		amendAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAdvanceAlgoOrderEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderDetailEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderListEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAlgoOrderHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
@@ -593,6 +592,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getSpreadOrderDetailsEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getActiveSpreadOrdersEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getSpreadOrders7DaysEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrders3MonthsEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadOrderTradesEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadsEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadOrderbookEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
