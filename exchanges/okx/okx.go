@@ -4780,8 +4780,18 @@ func (e *Exchange) GetActiveSpreadOrders(ctx context.Context, spreadID, orderTyp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getActiveSpreadOrdersEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been cancelled are only reserved for 2 hours. Results are returned in counter chronological order
+// GetCompletedSpreadOrdersLast7Days retrieves the completed spread orders of the last 21 days. Results are returned in counter chronological order
 func (e *Exchange) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history", getSpreadOrders7DaysEPL)
+}
+
+// GetCompletedSpreadOrdersLast3Months retrieves the completed spread orders of the last 3 months. Recent orders can lag behind the 21 day listing while they reach the archive. Results are returned in counter chronological order
+func (e *Exchange) GetCompletedSpreadOrdersLast3Months(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history-archive", getSpreadOrders3MonthsEPL)
+}
+
+// getSpreadOrderHistory retrieves completed spread orders from route
+func (e *Exchange) getSpreadOrderHistory(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64, route string, rateLimit request.EndpointLimit) ([]SpreadOrder, error) {
 	params := url.Values{}
 	if spreadID != "" {
 		params.Set("sprdId", spreadID)
@@ -4808,7 +4818,7 @@ func (e *Exchange) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spread
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SpreadOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrders7DaysEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetSpreadTradesOfLast7Days retrieve historical transaction details for the last 7 days. Results are returned in counter chronological order

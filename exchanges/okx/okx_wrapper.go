@@ -2500,19 +2500,47 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 		// OKX caps the spread order history response at orderListPageSize
 		// records and pages the remainder with the same earlier-than order ID
-		// endId cursor as the pending spread order listing.
+		// endId cursor as the pending spread order listing. The 21 day listing
+		// carries the freshest orders, which the archive lags, while the
+		// archive alone reaches the orders between 21 days and 3 months old.
 		var spreadOrders []SpreadOrder
+		seen := make(map[string]struct{})
+		record := func(page []SpreadOrder) {
+			for i := range page {
+				if _, ok := seen[page[i].OrderID]; ok {
+					continue
+				}
+				seen[page[i].OrderID] = struct{}{}
+				spreadOrders = append(spreadOrders, page[i])
+			}
+		}
 		for endID := ""; ; {
 			var page []SpreadOrder
 			page, err = e.GetCompletedSpreadOrdersLast7Days(ctx, "", spreadOrderType, "", req.FromOrderID, endID, req.StartTime, req.EndTime, 0)
 			if err != nil {
 				return nil, err
 			}
-			spreadOrders = append(spreadOrders, page...)
+			record(page)
 			if len(page) < orderListPageSize {
 				break
 			}
 			endID = page[len(page)-1].OrderID
+		}
+		if req.StartTime.IsZero() || req.StartTime.Before(time.Now().Add(-kline.ThreeWeek.Duration())) {
+			// The 21 day listing cannot reach the requested start; the archive
+			// covers the remainder of the documented 3 month window.
+			for endID := ""; ; {
+				var page []SpreadOrder
+				page, err = e.GetCompletedSpreadOrdersLast3Months(ctx, "", spreadOrderType, "", req.FromOrderID, endID, req.StartTime, req.EndTime, 0)
+				if err != nil {
+					return nil, err
+				}
+				record(page)
+				if len(page) < orderListPageSize {
+					break
+				}
+				endID = page[len(page)-1].OrderID
+			}
 		}
 		for x := range spreadOrders {
 			var format currency.PairFormat
@@ -2611,7 +2639,7 @@ allOrders:
 				}
 				orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
 				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+					return nil, err
 				}
 				if orderStatus == order.Active {
 					continue
@@ -2641,7 +2669,7 @@ allOrders:
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
+					CostAsset:            pair.Quote,
 					TimeInForce:          tif,
 				})
 			}
