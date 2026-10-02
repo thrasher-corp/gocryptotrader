@@ -68,7 +68,7 @@ var (
 	mainPair          = currency.NewPairWithDelimiter("BTC", "USDT", "-") // Is used for spot, margin symbols and underlying contracts
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
 	perpetualSwapPair = currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-")
-	spreadPair        = currency.NewPairWithDelimiter("BTC-USDT", "BTC-USDT-SWAP", "_")
+	spreadPair        = currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter)
 )
 
 func TestMain(m *testing.M) {
