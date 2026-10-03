@@ -1600,6 +1600,9 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 // a REST requester instance.
 func (b *Base) Shutdown() error {
 	if b.Websocket != nil {
+		if err := b.Websocket.Disable(); err != nil && !errors.Is(err, websocket.ErrAlreadyDisabled) {
+			return err
+		}
 		err := b.Websocket.Shutdown()
 		if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
 			return err

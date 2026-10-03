@@ -337,7 +337,7 @@ func TestWebsocketDataHandlerTickerBatchSyncsPastUntrackedEntries(t *testing.T) 
 		{
 			ExchangeName: t.Name(), Pair: btc, AssetType: asset.Margin, LastUpdated: updated,
 			Last: 2, LastSize: 0.2, High: 2.2, Low: 1.8, Bid: 1.9, BidSize: 1.1, Ask: 2.1, AskSize: 1.2,
-			BaseVolume: 20, QuoteVolume: 40, PriceATH: 3, Open: 1.7, Close: 1.95, OpenInterest: 50,
+			BaseVolume: 20, QuoteVolume: 40, Open: 1.7, Close: 1.95, OpenInterest: 50,
 			MarkPrice: 2.05, IndexPrice: 2.02, FlashReturnRate: 0.01, BidPeriod: 4, AskPeriod: 30, FlashReturnRateAmount: 100,
 		},
 		{ExchangeName: t.Name(), Pair: eth, AssetType: asset.Spot, Last: 5},
