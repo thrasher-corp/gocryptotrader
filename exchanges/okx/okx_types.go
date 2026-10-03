@@ -1645,12 +1645,6 @@ type SavingsPurchaseRedemptionResponse struct {
 	Rate       types.Number `json:"rate"`
 }
 
-// LendingRate represents the response containing the lending rate.
-type LendingRate struct {
-	Currency currency.Code `json:"ccy"`
-	Rate     types.Number  `json:"rate"`
-}
-
 // LendingHistory holds lending history responses
 type LendingHistory struct {
 	Currency  string       `json:"ccy"`

@@ -86,7 +86,6 @@ const (
 	getPublicExchangeListEPL
 	getSavingBalanceEPL
 	savingsPurchaseRedemptionEPL
-	setLendingRateEPL
 	getLendingHistoryEPL
 	getPublicBorrowInfoEPL
 	getPublicBorrowHistoryEPL
@@ -369,7 +368,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getPublicExchangeListEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getSavingBalanceEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		savingsPurchaseRedemptionEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		setLendingRateEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getLendingHistoryEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getPublicBorrowInfoEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getPublicBorrowHistoryEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),

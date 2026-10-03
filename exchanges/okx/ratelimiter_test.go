@@ -80,7 +80,6 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getPublicExchangeList":             getPublicExchangeListEPL,
 		"getSavingBalance":                  getSavingBalanceEPL,
 		"savingsPurchaseRedemption":         savingsPurchaseRedemptionEPL,
-		"setLendingRate":                    setLendingRateEPL,
 		"getLendingHistory":                 getLendingHistoryEPL,
 		"getPublicBorrowInfo":               getPublicBorrowInfoEPL,
 		"getPublicBorrowHistory":            getPublicBorrowHistoryEPL,

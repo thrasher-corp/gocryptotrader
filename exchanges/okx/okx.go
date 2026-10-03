@@ -1378,20 +1378,6 @@ func (e *Exchange) GetLendingHistory(ctx context.Context, ccy currency.Code, bef
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLendingHistoryEPL, http.MethodGet, common.EncodeURLValues("finance/savings/lending-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// SetLendingRate sets an assets lending rate
-func (e *Exchange) SetLendingRate(ctx context.Context, arg *LendingRate) (*LendingRate, error) {
-	if *arg == (LendingRate{}) {
-		return nil, common.ErrEmptyParams
-	}
-	if arg.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
-		return nil, fmt.Errorf("%w, rate value range is between 1 percent (0.01) and 365 percent (3.65)", errRateRequired)
-	}
-	var resp *LendingRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, "finance/savings/set-lending-rate", &arg, &resp, request.AuthenticatedRequest)
-}
-
 // GetPublicBorrowInfo returns the public borrow info
 func (e *Exchange) GetPublicBorrowInfo(ctx context.Context, ccy currency.Code) ([]PublicBorrowInfo, error) {
 	params := url.Values{}
@@ -4279,7 +4265,7 @@ func (e *Exchange) GetPublicSpreadTickers(ctx context.Context, spreadID string) 
 	params := url.Values{}
 	params.Set("sprdId", spreadID)
 	var resp []SpreadTicker
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadTickerEPL, http.MethodGet, common.EncodeURLValues("sprd/ticker", params), nil, &resp, request.UnauthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadTickerEPL, http.MethodGet, common.EncodeURLValues("market/sprd-ticker", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetPublicSpreadTrades retrieve the recent transactions of an instrument (at most 500 records per request). Results are returned in counter chronological order

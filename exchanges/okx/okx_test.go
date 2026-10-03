@@ -1989,21 +1989,6 @@ func TestSavingsPurchase(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestSetLendingRate(t *testing.T) {
-	t.Parallel()
-	_, err := e.SetLendingRate(contextGenerate(), &LendingRate{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: 2})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC})
-	require.ErrorIs(t, err, errRateRequired)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: 2})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetLendingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
