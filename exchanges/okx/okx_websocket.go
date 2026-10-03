@@ -531,9 +531,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			Data      []RecurringBuyOrder `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
-	case liquidationOrders:
-		var resp *LiquidationOrder
-		return e.wsProcessPushData(ctx, respRaw, &resp)
 	case adlWarning:
 		var resp ADLWarning
 		return e.wsProcessPushData(ctx, respRaw, &resp)

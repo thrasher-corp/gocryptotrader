@@ -1186,25 +1186,6 @@ func (e *Exchange) GetAssetBillsDetails(ctx context.Context, ccy currency.Code, 
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, assetBillsDetailsEPL, http.MethodGet, common.EncodeURLValues("asset/bills", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetLightningDeposits users can create up to 10 thousand different invoices within 24 hours.
-// this method fetches list of lightning deposits filtered by a currency and amount
-func (e *Exchange) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to int64) ([]LightningDepositItem, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("ccy", ccy.String())
-	if amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
-	}
-	params.Set("amt", strconv.FormatFloat(amount, 'f', 0, 64))
-	if to == 6 || to == 18 {
-		params.Set("to", strconv.FormatInt(to, 10))
-	}
-	var resp []LightningDepositItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, lightningDepositsEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-lightning", params), nil, &resp, request.AuthenticatedRequest)
-}
-
 // GetCurrencyDepositAddress retrieve the deposit addresses of currencies, including previously-used addresses
 func (e *Exchange) GetCurrencyDepositAddress(ctx context.Context, ccy currency.Code) ([]CurrencyDepositResponseItem, error) {
 	if ccy.IsEmpty() {
@@ -1271,20 +1252,6 @@ func (e *Exchange) Withdrawal(ctx context.Context, arg *WithdrawalInput) (*Withd
 /*
  This API function service is only open to some users. If you need this function service, please send an email to `liz.jensen@okg.com` to apply
 */
-
-// LightningWithdrawal to withdraw a currency from an invoice
-func (e *Exchange) LightningWithdrawal(ctx context.Context, arg *LightningWithdrawalRequestInput) (*LightningWithdrawalResponse, error) {
-	if *arg == (LightningWithdrawalRequestInput{}) {
-		return nil, common.ErrEmptyParams
-	}
-	if arg.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	} else if arg.Invoice == "" {
-		return nil, errInvoiceTextMissing
-	}
-	var resp *LightningWithdrawalResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, "asset/withdrawal-lightning", &arg, &resp, request.AuthenticatedRequest)
-}
 
 // CancelWithdrawal cancels a normal withdrawal request but cannot be used to cancel Lightning withdrawals
 func (e *Exchange) CancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
@@ -1354,12 +1321,6 @@ func (e *Exchange) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.
 	}
 	var resp []DepositWithdrawStatus
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositWithdrawalStatusEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-withdraw-status", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours
-func (e *Exchange) SmallAssetsConvert(ctx context.Context, currencies []string) (*SmallAssetConvertResponse, error) {
-	var resp *SmallAssetConvertResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currencies}, &resp, request.AuthenticatedRequest)
 }
 
 // GetPublicExchangeList retrieves exchanges
@@ -2102,136 +2063,6 @@ func (e *Exchange) GetAccountRiskState(ctx context.Context) ([]AccountRiskState,
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountRiskStateEPL, http.MethodGet, "account/risk-state", nil, &resp, request.AuthenticatedRequest)
 }
 
-// VIPLoansBorrowAndRepay creates VIP borrow or repay for a currency
-func (e *Exchange) VIPLoansBorrowAndRepay(ctx context.Context, arg *LoanBorrowAndReplayInput) (*LoanBorrowAndReplay, error) {
-	if *arg == (LoanBorrowAndReplayInput{}) {
-		return nil, common.ErrEmptyParams
-	}
-	if arg.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
-	}
-	if arg.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
-	}
-	var resp *LoanBorrowAndReplay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, "account/borrow-repay", &arg, &resp, request.AuthenticatedRequest)
-}
-
-// GetBorrowAndRepayHistoryForVIPLoans retrieves borrow and repay history for VIP loans
-func (e *Exchange) GetBorrowAndRepayHistoryForVIPLoans(ctx context.Context, ccy currency.Code, after, before time.Time, limit int64) ([]BorrowRepayHistory, error) {
-	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	if !after.IsZero() {
-		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
-	}
-	if !before.IsZero() {
-		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []BorrowRepayHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAnsRepayHistoryHistoryEPL, http.MethodGet, common.EncodeURLValues("account/borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// GetVIPInterestAccruedData retrieves VIP interest accrued data
-func (e *Exchange) GetVIPInterestAccruedData(ctx context.Context, ccy currency.Code, orderID string, after, before time.Time, limit int64) ([]VIPInterestData, error) {
-	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	if orderID != "" {
-		params.Set("ordId", orderID)
-	}
-	if !after.IsZero() {
-		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
-	}
-	if !before.IsZero() {
-		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []VIPInterestData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPInterestAccruedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-accrued", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// GetVIPInterestDeductedData retrieves a VIP interest deducted data
-func (e *Exchange) GetVIPInterestDeductedData(ctx context.Context, ccy currency.Code, orderID string, after, before time.Time, limit int64) ([]VIPInterestData, error) {
-	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	if orderID != "" {
-		params.Set("ordId", orderID)
-	}
-	if !after.IsZero() {
-		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
-	}
-	if !before.IsZero() {
-		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []VIPInterestData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPInterestDeductedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-deducted", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// GetVIPLoanOrderList retrieves VIP loan order list
-// state: possible values are 1:Borrowing 2:Borrowed 3:Repaying 4:Repaid 5:Borrow failed
-func (e *Exchange) GetVIPLoanOrderList(ctx context.Context, orderID, state string, ccy currency.Code, after, before time.Time, limit int64) ([]VIPLoanOrder, error) {
-	params := url.Values{}
-	if orderID != "" {
-		params.Set("ordId", orderID)
-	}
-	if state != "" {
-		params.Set("state", state)
-	}
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	if !after.IsZero() {
-		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
-	}
-	if !before.IsZero() {
-		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []VIPLoanOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderListEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-list", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// GetVIPLoanOrderDetail retrieves list of loan order details
-func (e *Exchange) GetVIPLoanOrderDetail(ctx context.Context, orderID string, ccy currency.Code, after, before time.Time, limit int64) (*VIPLoanOrderDetail, error) {
-	if orderID == "" {
-		return nil, order.ErrOrderIDNotSet
-	}
-	params := url.Values{}
-	params.Set("ordId", orderID)
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	if !after.IsZero() {
-		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
-	}
-	if !before.IsZero() {
-		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp *VIPLoanOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderDetailEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-detail", params), nil, &resp, request.AuthenticatedRequest)
-}
-
 // GetBorrowInterestAndLimit borrow interest and limit
 func (e *Exchange) GetBorrowInterestAndLimit(ctx context.Context, loanType int64, ccy currency.Code) ([]BorrowInterestAndLimitResponse, error) {
 	params := url.Values{}
@@ -2359,19 +2190,6 @@ func (e *Exchange) GetPMPositionLimitation(ctx context.Context, instrumentType, 
 	}
 	var resp []PMLimitationResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getPMLimitationEPL, http.MethodGet, common.EncodeURLValues("account/position-tiers", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// SetRiskOffsetType configure the risk offset type in portfolio margin mode.
-// riskOffsetType possible values are:
-// 1: Spot-derivatives (USDT) risk offset
-// 2: Spot-derivatives (Crypto) risk offset
-// 3:Derivatives only mode
-func (e *Exchange) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*RiskOffsetType, error) {
-	if riskOffsetType == "" {
-		return nil, errors.New("missing risk offset type")
-	}
-	var resp *RiskOffsetType
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetLimiterEPL, http.MethodPost, "account/set-riskOffset-type", &map[string]string{"type": riskOffsetType}, &resp, request.AuthenticatedRequest)
 }
 
 // ActivateOption activates option
@@ -2636,43 +2454,6 @@ func (e *Exchange) GetCustodyTradingSubaccountList(ctx context.Context, subaccou
 	}
 	var resp []SubaccountName
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getCustodyTradingSubaccountListEPL, http.MethodGet, common.EncodeURLValues("users/entrust-subaccount-list", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// SetSubAccountVIPLoanAllocation set the VIP loan allocation of sub-accounts. Only Applicable to master account API keys with Trade access
-func (e *Exchange) SetSubAccountVIPLoanAllocation(ctx context.Context, arg *SubAccountLoanAllocationParam) (bool, error) {
-	if len(arg.Alloc) == 0 {
-		return false, common.ErrEmptyParams
-	}
-	for a := range arg.Alloc {
-		if arg.Alloc[a] == (subAccountVIPLoanAllocationInfo{}) {
-			return false, common.ErrEmptyParams
-		}
-		if arg.Alloc[a].SubAcct == "" {
-			return false, errInvalidSubAccountName
-		}
-		if arg.Alloc[a].LoanAlloc < 0 {
-			return false, errInvalidLoanAllocationValue
-		}
-	}
-	resp := &struct {
-		Result bool `json:"result"`
-	}{}
-	return resp.Result, e.SendHTTPRequest(ctx, exchange.RestSpot, setSubAccountVIPLoanAllocationEPL, http.MethodPost, "account/subaccount/set-loan-allocation", arg, resp, request.AuthenticatedRequest)
-}
-
-// GetSubAccountBorrowInterestAndLimit retrieves sub-account borrow interest and limit
-// Only applicable to master account API keys. Only return VIP loan information
-func (e *Exchange) GetSubAccountBorrowInterestAndLimit(ctx context.Context, subAccount string, ccy currency.Code) ([]SubAccounBorrowInterestAndLimit, error) {
-	if subAccount == "" {
-		return nil, errInvalidSubAccountName
-	}
-	params := url.Values{}
-	params.Set("subAcct", subAccount)
-	if !ccy.IsEmpty() {
-		params.Set("ccy", ccy.String())
-	}
-	var resp []SubAccounBorrowInterestAndLimit
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/subaccount/interest-limits", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 /*************************************** Grid Trading Endpoints ***************************************************/
@@ -3519,42 +3300,6 @@ func (e *Exchange) GetCopySettings(ctx context.Context, instrumentType, uniqueCo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getCopySettingsEPL, http.MethodGet, common.EncodeURLValues("copytrading/copy-settings", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetMultipleLeverages retrieve leverages that belong to the lead trader and you
-func (e *Exchange) GetMultipleLeverages(ctx context.Context, marginMode, uniqueCode, instrumentID string) ([]Leverages, error) {
-	if marginMode == "" {
-		return nil, margin.ErrInvalidMarginType
-	}
-	if uniqueCode == "" {
-		return nil, errUniqueCodeRequired
-	}
-	params := url.Values{}
-	params.Set("mgnMode", marginMode)
-	params.Set("uniqueCode", uniqueCode)
-	if instrumentID != "" {
-		params.Set("instId", instrumentID)
-	}
-	var resp []Leverages
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMultipleLeveragesEPL, http.MethodGet, common.EncodeURLValues("copytrading/batch-leverage-info", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// SetMultipleLeverages set Multiple leverages
-func (e *Exchange) SetMultipleLeverages(ctx context.Context, arg *SetLeveragesParam) (*SetMultipleLeverageResponse, error) {
-	if *arg == (SetLeveragesParam{}) {
-		return nil, common.ErrEmptyParams
-	}
-	if arg.MarginMode == "" {
-		return nil, margin.ErrInvalidMarginType
-	}
-	if arg.Leverage <= 0 {
-		return nil, errInvalidLeverage
-	}
-	if arg.InstrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	var resp *SetMultipleLeverageResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setBatchLeverageEPL, http.MethodPost, "copytrading/batch-set-leverage", arg, &resp, request.AuthenticatedRequest)
-}
-
 // GetMyLeadTraders retrieve my lead traders
 func (e *Exchange) GetMyLeadTraders(ctx context.Context, instrumentType string) ([]CopyTradingLeadTrader, error) {
 	params := url.Values{}
@@ -3563,25 +3308,6 @@ func (e *Exchange) GetMyLeadTraders(ctx context.Context, instrumentType string) 
 	}
 	var resp []CopyTradingLeadTrader
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/current-lead-traders", params), nil, &resp, request.AuthenticatedRequest)
-}
-
-// GetHistoryLeadTraders retrieve my history lead traders
-func (e *Exchange) GetHistoryLeadTraders(ctx context.Context, instrumentType, after, before string, limit int64) ([]CopyTradingLeadTrader, error) {
-	params := url.Values{}
-	if instrumentType != "" {
-		params.Set("instType", instrumentType)
-	}
-	if after != "" {
-		params.Set("after", after)
-	}
-	if before != "" {
-		params.Set("before", before)
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []CopyTradingLeadTrader
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/lead-traders-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetLeadTradersRanks retrieves lead trader ranks
@@ -4805,45 +4531,6 @@ func (e *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
 	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, "public/time", nil, resp, request.UnauthenticatedRequest)
 }
 
-// GetLiquidationOrders retrieves information on liquidation orders in the last day
-func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
-	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
-	if arg.InstrumentType == "" {
-		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
-	}
-	params := url.Values{}
-	params.Set("instType", arg.InstrumentType)
-	arg.MarginMode = strings.ToLower(arg.MarginMode)
-	if arg.MarginMode != "" {
-		params.Set("mgnMode", arg.MarginMode)
-	}
-	switch {
-	case arg.InstrumentType == instTypeMargin && arg.InstrumentID != "":
-		params.Set("instId", arg.InstrumentID)
-	case arg.InstrumentType == instTypeMargin && arg.Currency.String() != "":
-		params.Set("ccy", arg.Currency.String())
-	default:
-		return nil, errEitherInstIDOrCcyIsRequired
-	}
-	if arg.InstrumentType != instTypeMargin && arg.Underlying != "" {
-		params.Set("uly", arg.Underlying)
-	}
-	if arg.InstrumentType == instTypeFutures && arg.Alias != "" {
-		params.Set("alias", arg.Alias)
-	}
-	if !arg.Before.IsZero() {
-		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
-	}
-	if !arg.After.IsZero() {
-		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
-	}
-	if arg.Limit > 0 && arg.Limit < 100 {
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
-	}
-	var resp *LiquidationOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, common.EncodeURLValues("public/liquidation-orders", params), nil, &resp, request.UnauthenticatedRequest)
-}
-
 // GetMarkPrice  retrieve mark price
 func (e *Exchange) GetMarkPrice(ctx context.Context, instrumentType, underlying, instrumentFamily, instrumentID string) ([]MarkPrice, error) {
 	if instrumentType == "" {
@@ -4915,12 +4602,6 @@ func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMo
 func (e *Exchange) GetInterestRateAndLoanQuota(ctx context.Context) ([]InterestRateLoanQuotaItem, error) {
 	var resp []InterestRateLoanQuotaItem
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getInterestRateAndLoanQuotaEPL, http.MethodGet, "public/interest-rate-loan-quota", nil, &resp, request.UnauthenticatedRequest)
-}
-
-// GetInterestRateAndLoanQuotaForVIPLoans retrieves an interest rate and loan quota information for VIP users of various currencies
-func (e *Exchange) GetInterestRateAndLoanQuotaForVIPLoans(ctx context.Context) ([]VIPInterestRateAndLoanQuotaInformation, error) {
-	var response []VIPInterestRateAndLoanQuotaInformation
-	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, getInterestRateAndLoanQuoteForVIPLoansEPL, http.MethodGet, "public/vip-interest-rate-loan-quota", nil, &response, request.UnauthenticatedRequest)
 }
 
 // GetPublicUnderlyings returns list of underlyings for various instrument types

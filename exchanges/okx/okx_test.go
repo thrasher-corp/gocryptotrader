@@ -584,19 +584,6 @@ func TestGetSystemTime(t *testing.T) {
 	assert.False(t, result.Time().IsZero(), "GetSystemTime should not return a zero time")
 }
 
-func TestGetLiquidationOrders(t *testing.T) {
-	t.Parallel()
-
-	result, err := e.GetLiquidationOrders(contextGenerate(), &LiquidationOrderRequestParams{
-		InstrumentType: instTypeMargin,
-		Underlying:     mainPair.String(),
-		Currency:       currency.BTC,
-		Limit:          2,
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetMarkPrice(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetMarkPrice(contextGenerate(), "", "", "", mainPair.String())
@@ -629,13 +616,6 @@ func TestGetPositionTiers(t *testing.T) {
 func TestGetInterestRateAndLoanQuota(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetInterestRateAndLoanQuota(contextGenerate())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetInterestRateAndLoanQuotaForVIPLoans(t *testing.T) {
-	t.Parallel()
-	result, err := e.GetInterestRateAndLoanQuotaForVIPLoans(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1885,19 +1865,6 @@ func TestGetAssetBillsDetails(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetLightningDeposits(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetLightningDeposits(contextGenerate(), currency.EMPTYCODE, 1.00, 0)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.GetLightningDeposits(contextGenerate(), currency.BTC, 0, 0)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetLightningDeposits(contextGenerate(), currency.BTC, 1.00, 0)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetCurrencyDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetCurrencyDepositAddress(contextGenerate(), currency.EMPTYCODE)
@@ -1953,28 +1920,6 @@ func TestWithdrawal(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestLightningWithdrawal(t *testing.T) {
-	t.Parallel()
-	_, err := e.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	_, err = e.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{
-		Invoice: "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hz", Currency: currency.EMPTYCODE,
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{Invoice: "", Currency: currency.BTC})
-	require.ErrorIs(t, err, errInvoiceTextMissing)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{
-		Currency: currency.BTC,
-		Invoice:  "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hz",
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestCancelWithdrawal(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelWithdrawal(contextGenerate(), "")
@@ -1990,14 +1935,6 @@ func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetWithdrawalHistory(contextGenerate(), currency.BTC, "", "", "", "", time.Time{}, time.Time{}, 1)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestSmallAssetsConvert(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SmallAssetsConvert(contextGenerate(), []string{"BTC", "USDT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2503,31 +2440,6 @@ func TestGetAccountRiskState(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestVIPLoansBorrowAndRepay(t *testing.T) {
-	t.Parallel()
-	_, err := e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{Currency: currency.EMPTYCODE, Side: "borrow", Amount: 12})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "", Amount: 12})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	_, err = e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "borrow", Amount: 0})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "borrow", Amount: 12})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetBorrowAndRepayHistoryForVIPLoans(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetBorrowAndRepayHistoryForVIPLoans(contextGenerate(), currency.EMPTYCODE, time.Time{}, time.Time{}, 3)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetBorrowInterestAndLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2779,49 +2691,6 @@ func TestGetCustodyTradingSubaccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetCustodyTradingSubaccountList(contextGenerate(), "")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestSetSubAccountVIPLoanAllocation(t *testing.T) {
-	t.Parallel()
-	_, err := e.SetSubAccountVIPLoanAllocation(contextGenerate(), &SubAccountLoanAllocationParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	arg := subAccountVIPLoanAllocationInfo{}
-	_, err = e.SetSubAccountVIPLoanAllocation(contextGenerate(), &SubAccountLoanAllocationParam{Alloc: []subAccountVIPLoanAllocationInfo{arg}})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	arg.LoanAlloc = 123
-	_, err = e.SetSubAccountVIPLoanAllocation(contextGenerate(), &SubAccountLoanAllocationParam{Alloc: []subAccountVIPLoanAllocationInfo{arg}})
-	require.ErrorIs(t, err, errInvalidSubAccountName)
-
-	arg.LoanAlloc = -1
-	arg.SubAcct = "sams"
-	_, err = e.SetSubAccountVIPLoanAllocation(contextGenerate(), &SubAccountLoanAllocationParam{Alloc: []subAccountVIPLoanAllocationInfo{arg}})
-	require.ErrorIs(t, err, errInvalidLoanAllocationValue)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetSubAccountVIPLoanAllocation(contextGenerate(), &SubAccountLoanAllocationParam{
-		Enable: true,
-		Alloc: []subAccountVIPLoanAllocationInfo{
-			{
-				SubAcct:   "subAcct1",
-				LoanAlloc: 20.01,
-			},
-		},
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetSubAccountBorrowInterestAndLimit(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetSubAccountBorrowInterestAndLimit(contextGenerate(), "", currency.ETH)
-	require.ErrorIs(t, err, errInvalidSubAccountName)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetSubAccountBorrowInterestAndLimit(contextGenerate(), "123456", currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5074,46 +4943,6 @@ func TestGetLeverateEstimatedInfo(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetVIPInterestAccruedData(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetVIPInterestAccruedData(contextGenerate(), currency.ETH, "", time.Time{}, time.Time{}, 10)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetVIPInterestDeductedData(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetVIPInterestDeductedData(contextGenerate(), currency.ETH, "", time.Time{}, time.Time{}, 10)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetVIPLoanOrderList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetVIPLoanOrderList(contextGenerate(), "", "1", currency.BTC, time.Time{}, time.Now(), 20)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetVIPLoanOrderDetail(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetVIPLoanOrderDetail(contextGenerate(), "123456", currency.BTC, time.Time{}, time.Time{}, 10)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestSetRiskOffsetType(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetRiskOffsetType(contextGenerate(), "3")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestActivateOption(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -5778,55 +5607,10 @@ func TestGetCopySettings(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetMultipleLeverages(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetMultipleLeverages(contextGenerate(), "", "213E8C92DC61EFAC", "")
-	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
-	_, err = e.GetMultipleLeverages(contextGenerate(), "isolated", "", "")
-	require.ErrorIs(t, err, errUniqueCodeRequired)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMultipleLeverages(contextGenerate(), "isolated", "213E8C92DC61EFAC", "")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestSetMultipleLeverages(t *testing.T) {
-	t.Parallel()
-	_, err := e.SetMultipleLeverages(contextGenerate(), &SetLeveragesParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.SetMultipleLeverages(contextGenerate(), &SetLeveragesParam{Leverage: 5})
-	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
-	_, err = e.SetMultipleLeverages(contextGenerate(), &SetLeveragesParam{MarginMode: "cross"})
-	require.ErrorIs(t, err, errInvalidLeverage)
-	_, err = e.SetMultipleLeverages(contextGenerate(), &SetLeveragesParam{
-		MarginMode: "cross",
-		Leverage:   5,
-	})
-	require.ErrorIs(t, err, errMissingInstrumentID)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.SetMultipleLeverages(contextGenerate(), &SetLeveragesParam{
-		MarginMode:   "cross",
-		Leverage:     5,
-		InstrumentID: mainPair.String(),
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetMyLeadTraders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetMyLeadTraders(contextGenerate(), "SWAP")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetHistoryLeadTraders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetHistoryLeadTraders(contextGenerate(), "", "", "", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

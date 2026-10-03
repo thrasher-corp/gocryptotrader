@@ -109,7 +109,6 @@ var (
 	errMissingLegs                          = errors.New("missing legs")
 	errMissingSizeOfQuote                   = errors.New("missing size of quote leg")
 	errMissingLegsQuotePrice                = errors.New("error missing quote price")
-	errInvalidLoanAllocationValue           = errors.New("invalid loan allocation value, must be between 0 to 100")
 	errInvalidSubaccount                    = errors.New("invalid sub-account type")
 	errMissingAlgoOrderType                 = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
 	errInvalidGridQuantity                  = errors.New("invalid grid quantity (grid number)")
@@ -157,7 +156,6 @@ var (
 	errIDNotSet                             = errors.New("ID is not set")
 	errMonthNameRequired                    = errors.New("month name is required")
 	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
-	errInvoiceTextMissing                   = errors.New("missing invoice text")
 	errFeeTypeUnsupported                   = errors.New("fee type is not supported")
 )
 
@@ -623,15 +621,6 @@ type InterestAndLoanDetail struct {
 	InterestRateDiscount types.Number `json:"irDiscount"`
 	LoanQuotaCoefficient types.Number `json:"loanQuotaCoef"`
 	UserLevel            string       `json:"level"`
-}
-
-// VIPInterestRateAndLoanQuotaInformation holds interest rate and loan quoata information for VIP users
-type VIPInterestRateAndLoanQuotaInformation struct {
-	InterestRateLoanQuotaBasic
-	LevelList []struct {
-		Level     string       `json:"level"`
-		LoanQuota types.Number `json:"loanQuota"`
-	} `json:"levelList"`
 }
 
 // InsuranceFundInformationRequestParams insurance fund balance information
@@ -1524,12 +1513,6 @@ type AssetBillDetail struct {
 	Timestamp      types.Time   `json:"ts"`
 }
 
-// LightningDepositItem for creating an invoice
-type LightningDepositItem struct {
-	CreationTime types.Time `json:"cTime"`
-	Invoice      string     `json:"invoice"`
-}
-
 // CurrencyDepositResponseItem represents the deposit address information item
 type CurrencyDepositResponseItem struct {
 	Tag                      string            `json:"tag"`
@@ -1595,19 +1578,6 @@ type WithdrawalResponse struct {
 	Chain        string       `json:"chain"`
 }
 
-// LightningWithdrawalRequestInput to request Lightning Withdrawal requests
-type LightningWithdrawalRequestInput struct {
-	Currency currency.Code `json:"ccy"`     // REQUIRED Token symbol. Currently only BTC is supported.
-	Invoice  string        `json:"invoice"` // REQUIRED Invoice text
-	Memo     string        `json:"memo"`    // Lightning withdrawal memo
-}
-
-// LightningWithdrawalResponse response item for holding lightning withdrawal requests
-type LightningWithdrawalResponse struct {
-	WithdrawalID string     `json:"wdId"`
-	CreationTime types.Time `json:"cTime"`
-}
-
 // WithdrawalHistoryResponse represents the withdrawal response history
 type WithdrawalHistoryResponse struct {
 	Currency             string       `json:"ccy"`
@@ -1645,17 +1615,6 @@ type DepositWithdrawStatus struct {
 type ExchangeInfo struct {
 	ExchID       string `json:"exchId"`
 	ExchangeName string `json:"exchName"`
-}
-
-// SmallAssetConvertResponse represents a response of converting a small asset to OKB
-type SmallAssetConvertResponse struct {
-	Details []struct {
-		Amount        types.Number `json:"amt"`    // Quantity of currency assets before conversion
-		Currency      string       `json:"ccy"`    //
-		ConvertAmount types.Number `json:"cnvAmt"` // Quantity of OKB after conversion
-		ConversionFee types.Number `json:"fee"`    // Fee for conversion, unit in OKB
-	} `json:"details"`
-	TotalConvertAmount types.Number `json:"totalCnvAmt"` // Total quantity of OKB after conversion
 }
 
 // SavingBalanceResponse holds the response data for a savings balance.
@@ -2320,40 +2279,6 @@ type InterestAccruedData struct {
 	InterestFreeLiability types.Number `json:"interestFreeLiab"`
 }
 
-// VIPInterestData holds interest accrued/deducted data
-type VIPInterestData struct {
-	OrderID      string       `json:"ordId"`
-	Currency     string       `json:"ccy"`
-	Interest     types.Number `json:"interest"`
-	InterestRate types.Number `json:"interestRate"`
-	Liability    types.Number `json:"liab"`
-	Timestamp    types.Time   `json:"ts"`
-}
-
-// VIPLoanOrder holds VIP loan items
-type VIPLoanOrder struct {
-	OrderID         string       `json:"ordId"`
-	Currency        string       `json:"ccy"`
-	State           string       `json:"state"`
-	BorrowAmount    types.Number `json:"borrowAmt"`
-	CurrentRate     types.Number `json:"curRate"`
-	DueAmount       types.Number `json:"dueAmt"`
-	NextRefreshTime types.Time   `json:"nextRefreshTime"`
-	OriginalRate    types.Number `json:"origRate"`
-	RepayAmount     types.Number `json:"repayAmt"`
-	Timestamp       types.Time   `json:"ts"`
-}
-
-// VIPLoanOrderDetail holds vip loan order detail
-type VIPLoanOrderDetail struct {
-	Amount     types.Number `json:"amt"`
-	Currency   string       `json:"ccy"`
-	FailReason string       `json:"failReason"`
-	Rate       types.Number `json:"rate"`
-	Timestamp  types.Time   `json:"ts"`
-	Type       string       `json:"type"` // Operation Type: 1:Borrow 2:Repayment 3:System Repayment 4:Interest Rate Refresh
-}
-
 // InterestRateResponse represents interest rate response
 type InterestRateResponse struct {
 	InterestRate types.Number `json:"interestRate"`
@@ -2405,33 +2330,6 @@ type AccountRiskState struct {
 	AtRiskIdx          []any      `json:"atRiskIdx"` // derivatives risk unit list
 	AtRiskMgn          []any      `json:"atRiskMgn"` // margin risk unit list
 	Timestamp          types.Time `json:"ts"`
-}
-
-// LoanBorrowAndReplayInput represents currency VIP borrow or repay request params
-type LoanBorrowAndReplayInput struct {
-	Currency currency.Code `json:"ccy"`
-	Side     string        `json:"side,omitempty"`
-	Amount   float64       `json:"amt,string,omitempty"`
-}
-
-// LoanBorrowAndReplay loans borrow and repay
-type LoanBorrowAndReplay struct {
-	Amount        types.Number `json:"amt"`
-	AvailableLoan types.Number `json:"availLoan"`
-	Currency      string       `json:"ccy"`
-	LoanQuota     types.Number `json:"loanQuota"`
-	PosLoan       string       `json:"posLoan"`
-	Side          string       `json:"side"` // borrow or repay
-	UsedLoan      string       `json:"usedLoan"`
-}
-
-// BorrowRepayHistory represents borrow and repay history item data
-type BorrowRepayHistory struct {
-	Currency   string     `json:"ccy"`
-	TradedLoan string     `json:"tradedLoan"`
-	Timestamp  types.Time `json:"ts"`
-	Type       string     `json:"type"`
-	UsedLoan   string     `json:"usedLoan"`
 }
 
 // BorrowInterestAndLimitResponse represents borrow interest and limit rate for different loan type
@@ -2932,43 +2830,6 @@ type PermissionOfTransfer struct {
 // SubaccountName represents single subaccount name
 type SubaccountName struct {
 	SubaccountName string `json:"subAcct"`
-}
-
-// SubAccountLoanAllocationParam holds parameter for VIP sub-account loan allocation
-type SubAccountLoanAllocationParam struct {
-	Enable bool                              `json:"enable"`
-	Alloc  []subAccountVIPLoanAllocationInfo `json:"alloc"`
-}
-
-type subAccountVIPLoanAllocationInfo struct {
-	SubAcct   string  `json:"subAcct"`
-	LoanAlloc float64 `json:"loanAlloc,string"`
-}
-
-// SubAccounBorrowInterestAndLimit represents sub-account borrow interest and limit
-type SubAccounBorrowInterestAndLimit struct {
-	SubAcct          string       `json:"subAcct"`
-	Debt             types.Number `json:"debt"`
-	Interest         types.Number `json:"interest"`
-	NextDiscountTime types.Time   `json:"nextDiscountTime"`
-	NextInterestTime types.Time   `json:"nextInterestTime"`
-	LoanAlloc        types.Number `json:"loanAlloc"`
-	Records          []struct {
-		AvailLoan         types.Number `json:"availLoan"`
-		Currency          string       `json:"ccy"`
-		Interest          types.Number `json:"interest"`
-		LoanQuota         types.Number `json:"loanQuota"`
-		PosLoan           string       `json:"posLoan"`
-		Rate              types.Number `json:"rate"`
-		SurplusLmt        string       `json:"surplusLmt"`
-		SurplusLmtDetails struct {
-			AllAcctRemainingQuota types.Number `json:"allAcctRemainingQuota"`
-			CurAcctRemainingQuota types.Number `json:"curAcctRemainingQuota"`
-			PlatRemainingQuota    types.Number `json:"platRemainingQuota"`
-		} `json:"surplusLmtDetails"`
-		UsedLmt  types.Number `json:"usedLmt"`
-		UsedLoan types.Number `json:"usedLoan"`
-	} `json:"records"`
 }
 
 // GridAlgoOrder represents grid algo order
@@ -4061,11 +3922,6 @@ type PMLimitationResponse struct {
 	InstrumentFamily string       `json:"instFamily"`
 }
 
-// RiskOffsetType represents risk offset type value
-type RiskOffsetType struct {
-	Type string `json:"type"`
-}
-
 // AutoLoan holds auto loan information
 type AutoLoan struct {
 	AutoLoan bool `json:"autoLoan"`
@@ -5083,32 +4939,10 @@ type CopySetting struct {
 	TakeProfitRatio types.Number `json:"tpRatio"`
 }
 
-// Leverages holds batch leverage info
-type Leverages struct {
-	LeadTraderLevers []LeverageInfo `json:"leadTraderLevers"`
-	MyLevers         []LeverageInfo `json:"myLevers"`
-	InstrumentID     string         `json:"instId"`
-	MarginMode       string         `json:"mgnMode"`
-}
-
 // LeverageInfo holds leverage information
 type LeverageInfo struct {
 	Leverage     types.Number `json:"lever"`
 	PositionSide string       `json:"posSide"`
-}
-
-// SetMultipleLeverageResponse represents multiple leverage response
-type SetMultipleLeverageResponse struct {
-	FailInstrumentID string `json:"failInstId"`
-	Result           string `json:"result"`
-	SuccInstrumentID string `json:"succInstId"`
-}
-
-// SetLeveragesParam sets leverage parameter
-type SetLeveragesParam struct {
-	MarginMode   string `json:"mgnMode"`
-	Leverage     int64  `json:"lever,string"`
-	InstrumentID string `json:"instId,omitempty"` // Instrument ID. If there are multiple instruments, separate them with commas. Maximum of 200 instruments can be selected
 }
 
 // CopyTradingLeadTrader represents a lead trader information
