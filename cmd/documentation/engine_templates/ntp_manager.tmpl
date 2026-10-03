@@ -107,8 +107,8 @@ Checks run at startup and then every 15 to 16 minutes.
 Failed checks never make the next check come sooner.
 The schedule uses a clock that keeps counting during sleep, on Linux, macOS, Windows and OpenBSD.
 After the computer wakes, one overdue check runs, without replaying every missed check.
-A result is discarded if the clock changed or the computer slept while it was being measured.
-A clock change right after a check can therefore leave the result unknown until the next scheduled check.
+A result is discarded if the clock readings taken before and after it was measured show a clock change or sleep of more than about 50 ms, or a monotonic clock running backwards.
+A discarded result leaves the reported state unchanged and does not count as an unclear check.
 The monitor samples the clock periodically and does not prove continuous accuracy or financial regulatory compliance.
 
 ### Server and DNS handling

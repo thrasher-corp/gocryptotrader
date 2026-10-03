@@ -137,10 +137,11 @@ func FuzzNTPIntervalAgreement(f *testing.F) {
 
 func TestNTPDefaultServerGeometry(t *testing.T) {
 	t.Parallel()
-	// Root distances in milliseconds, estimated from median ping times of three probes per city in September 2026.
-	// These are zero-offset examples, not measured clock accuracy.
-	// A correct clock should get a verdict in these cities, also when any one server does not answer.
-	// Nairobi and Dubai have only Cloudflare nearby, so they need local servers.
+	// Half round-trip times in milliseconds, from median ping times of three probes per city in September 2026.
+	// Real root distances also include the server's root delay/2 and root dispersion, which ping cannot measure.
+	// These zero-offset examples test agreement geometry, not measured NTP accuracy or guaranteed coverage in these cities.
+	// They check verdicts with all servers answering and with any one missing.
+	// The Nairobi and Dubai examples remain unclear because only Cloudflare is nearby.
 	for city, tc := range map[string]struct {
 		distances map[string]float64
 		state     ntpClockState
