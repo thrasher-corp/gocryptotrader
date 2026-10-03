@@ -77,19 +77,15 @@ const (
 	fundsTransferEPL
 	getFundsTransferStateEPL
 	assetBillsDetailsEPL
-	lightningDepositsEPL
 	getDepositAddressEPL
 	getDepositHistoryEPL
 	withdrawalEPL
-	lightningWithdrawalsEPL
 	cancelWithdrawalEPL
 	getWithdrawalHistoryEPL
 	getDepositWithdrawalStatusEPL
-	smallAssetsConvertEPL
 	getPublicExchangeListEPL
 	getSavingBalanceEPL
 	savingsPurchaseRedemptionEPL
-	setLendingRateEPL
 	getLendingHistoryEPL
 	getPublicBorrowInfoEPL
 	getPublicBorrowHistoryEPL
@@ -124,24 +120,7 @@ const (
 	isolatedMarginTradingSettingsEPL
 	getMaximumWithdrawalsEPL
 	getAccountRiskStateEPL
-	manualBorrowAndRepayEPL
-	getBorrowAndRepayHistoryEPL
-	vipLoansBorrowAnsRepayEPL
-	getBorrowAnsRepayHistoryHistoryEPL
-	getVIPInterestAccruedDataEPL
-	getVIPInterestDeductedDataEPL
-	getVIPLoanOrderListEPL
-	getVIPLoanOrderDetailEPL
 	getBorrowInterestAndLimitEPL
-	getFixedLoanBorrowLimitEPL
-	getFixedLoanBorrowQuoteEPL
-	placeFixedLoanBorrowingOrderEPL
-	amendFixedLaonBorrowingOrderEPL
-	manualRenewFixedLoanBorrowingOrderEPL
-	repayFixedLoanBorrowingOrderEPL
-	convertFixedLoanToMarketLoanEPL
-	reduceLiabilitiesForFixedLoanEPL
-	getFixedLoanBorrowOrderListEPL
 	manualBorrowOrRepayEPL
 	setAutoRepayEPL
 	getBorrowRepayHistoryEPL
@@ -150,7 +129,6 @@ const (
 	positionBuilderEPL
 	getGreeksEPL
 	getPMLimitationEPL
-	setRiskOffsetLimiterEPL
 	activateOptionEPL
 	setAutoLoanEPL
 	setAccountLevelEPL
@@ -165,8 +143,6 @@ const (
 	masterAccountsManageTransfersBetweenSubaccountEPL
 	setPermissionOfTransferOutEPL
 	getCustodyTradingSubaccountListEPL
-	setSubAccountVIPLoanAllocationEPL
-	getSubAccountBorrowInterestAndLimitEPL
 	gridTradingEPL
 	amendGridAlgoOrderEPL
 	stopGridAlgoOrderEPL
@@ -206,9 +182,6 @@ const (
 	amendFirstCopySettingsEPL
 	stopCopyingEPL
 	getCopySettingsEPL
-	getMultipleLeveragesEPL
-	setBatchLeverageEPL
-	getMyLeadTradersEPL
 	getLeadTraderRanksEPL
 	getLeadTraderWeeklyPNLEPL
 	getLeadTraderDailyPNLEPL
@@ -239,7 +212,6 @@ const (
 	getCandlesticksEPL
 	getTradesRequestEPL
 	get24HTotalVolumeEPL
-	getOracleEPL
 	getExchangeRateRequestEPL
 	getIndexComponentsEPL
 	getBlockTickersEPL
@@ -269,11 +241,9 @@ const (
 	getEstimatedDeliveryExercisePriceEPL
 	getDiscountRateAndInterestFreeQuotaEPL
 	getSystemTimeEPL
-	getLiquidationOrdersEPL
 	getMarkPriceEPL
 	getPositionTiersEPL
 	getInterestRateAndLoanQuotaEPL
-	getInterestRateAndLoanQuoteForVIPLoansEPL
 	getUnderlyingEPL
 	getInsuranceFundEPL
 	unitConvertEPL
@@ -294,18 +264,11 @@ const (
 	getIndexCandlesticksHistoryEPL
 	getMarkPriceCandlesticksHistoryEPL
 	getEconomicCalendarEPL
+	getMyLeadTradersEPL
 	getEstimatedDeliveryPriceEPL
 
 	getAffiliateInviteesDetailEPL
 	getUserAffiliateRebateInformationEPL
-
-	placeLendingOrderEPL
-	amendLendingOrderEPL
-	lendingOrderListEPL
-	lendingSubOrderListEPL
-	lendingPublicOfferEPL
-	lendingAPYHistoryEPL
-	lendingVolumeEPL
 
 	rubikGetContractOpenInterestHistoryEPL
 	rubikContractTakerVolumeEPL
@@ -396,19 +359,15 @@ var rateLimits = func() request.RateLimitDefinitions {
 		fundsTransferEPL:              request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 		getFundsTransferStateEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 		assetBillsDetailsEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		lightningDepositsEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
 		getDepositAddressEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getDepositHistoryEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		withdrawalEPL:                 request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		lightningWithdrawalsEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
 		cancelWithdrawalEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getWithdrawalHistoryEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getDepositWithdrawalStatusEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		smallAssetsConvertEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 		getPublicExchangeListEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getSavingBalanceEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		savingsPurchaseRedemptionEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		setLendingRateEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getLendingHistoryEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getPublicBorrowInfoEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getPublicBorrowHistoryEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
@@ -421,60 +380,42 @@ var rateLimits = func() request.RateLimitDefinitions {
 		convertTradeEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
 		getConvertHistoryEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		// Account
-		getAccountBalanceEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPositionsEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPositionsHistoryEPL:                request.NewRateLimitWithWeight(tenSecondsInterval, 1, 1),
-		getAccountAndPositionRiskEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getBillsDetailsEPL:                    request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
-		getBillsDetailArchiveEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		billHistoryArchiveEPL:                 request.NewRateLimitWithWeight(time.Hour*24, 12, 1),
-		getBillHistoryArchiveEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getAccountConfigurationEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setPositionModeEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setLeverageEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getMaximumBuyOrSellAmountEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getMaximumAvailableTradableAmountEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		increaseOrDecreaseMarginEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getLeverageEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getLeverateEstimatedInfoEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getTheMaximumLoanOfInstrumentEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getFeeRatesEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getInterestAccruedDataEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getInterestRateEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setGreeksEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		isolatedMarginTradingSettingsEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getMaximumWithdrawalsEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getAccountRiskStateEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		manualBorrowAndRepayEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getBorrowAndRepayHistoryEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		vipLoansBorrowAnsRepayEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		getBorrowAnsRepayHistoryHistoryEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPInterestAccruedDataEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPInterestDeductedDataEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPLoanOrderListEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getVIPLoanOrderDetailEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getBorrowInterestAndLimitEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getFixedLoanBorrowLimitEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getFixedLoanBorrowQuoteEPL:            request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		placeFixedLoanBorrowingOrderEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		amendFixedLaonBorrowingOrderEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		manualRenewFixedLoanBorrowingOrderEPL: request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		repayFixedLoanBorrowingOrderEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		convertFixedLoanToMarketLoanEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		reduceLiabilitiesForFixedLoanEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		getFixedLoanBorrowOrderListEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		manualBorrowOrRepayEPL:                request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
-		setAutoRepayEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getBorrowRepayHistoryEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		newPositionBuilderEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		setRiskOffsetAmountEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		positionBuilderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getGreeksEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPMLimitationEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		setRiskOffsetLimiterEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		activateOptionEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setAutoLoanEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setAccountLevelEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getAccountBalanceEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getPositionsEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getPositionsHistoryEPL:               request.NewRateLimitWithWeight(tenSecondsInterval, 1, 1),
+		getAccountAndPositionRiskEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getBillsDetailsEPL:                   request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
+		getBillsDetailArchiveEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		billHistoryArchiveEPL:                request.NewRateLimitWithWeight(time.Hour*24, 12, 1),
+		getBillHistoryArchiveEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getAccountConfigurationEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setPositionModeEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setLeverageEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getMaximumBuyOrSellAmountEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getMaximumAvailableTradableAmountEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		increaseOrDecreaseMarginEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getLeverageEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getLeverateEstimatedInfoEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getTheMaximumLoanOfInstrumentEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getFeeRatesEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getInterestAccruedDataEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getInterestRateEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setGreeksEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		isolatedMarginTradingSettingsEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getMaximumWithdrawalsEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAccountRiskStateEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getBorrowInterestAndLimitEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		manualBorrowOrRepayEPL:               request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		setAutoRepayEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getBorrowRepayHistoryEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		newPositionBuilderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		setRiskOffsetAmountEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		positionBuilderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getGreeksEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getPMLimitationEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		activateOptionEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setAutoLoanEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setAccountLevelEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
 		// Sub Account Endpoints
 
@@ -488,8 +429,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		masterAccountsManageTransfersBetweenSubaccountEPL: request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 		setPermissionOfTransferOutEPL:                     request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 		getCustodyTradingSubaccountListEPL:                request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
-		setSubAccountVIPLoanAllocationEPL:                 request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
-		getSubAccountBorrowInterestAndLimitEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		// Grid Trading Endpoints
 
 		gridTradingEPL:                             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
@@ -535,9 +474,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		amendFirstCopySettingsEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		stopCopyingEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getCopySettingsEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getMultipleLeveragesEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setBatchLeverageEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getMyLeadTradersEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getLeadTraderRanksEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getLeadTraderWeeklyPNLEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getLeadTraderDailyPNLEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -576,10 +512,10 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getMarkPriceCandlesticksHistoryEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getEconomicCalendarEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
 		// getIndexCandlesticksEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getMyLeadTradersEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getEstimatedDeliveryPriceEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getTradesRequestEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 100, 1),
 		get24HTotalVolumeEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getOracleEPL:                 request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
 		getExchangeRateRequestEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
 		getIndexComponentsEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getBlockTickersEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
@@ -603,26 +539,24 @@ var rateLimits = func() request.RateLimitDefinitions {
 		cancelAllSpreadOrdersAfterEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 
 		// Public Data Endpoints
-		getInstrumentsEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getDeliveryExerciseHistoryEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
-		getOpenInterestEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getFundingEPL:                             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getFundingRateHistoryEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getLimitPriceEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getOptionMarketDateEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getEstimatedDeliveryExercisePriceEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getDiscountRateAndInterestFreeQuotaEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getSystemTimeEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getLiquidationOrdersEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1), // Missing from documentation
-		getMarkPriceEPL:                           request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPositionTiersEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getInterestRateAndLoanQuotaEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getInterestRateAndLoanQuoteForVIPLoansEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getUnderlyingEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getInsuranceFundEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		unitConvertEPL:                            request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		optionTickBandsEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getIndexTickerEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getInstrumentsEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getDeliveryExerciseHistoryEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
+		getOpenInterestEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getFundingEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getFundingRateHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getLimitPriceEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getOptionMarketDateEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getEstimatedDeliveryExercisePriceEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getDiscountRateAndInterestFreeQuotaEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getSystemTimeEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getMarkPriceEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getPositionTiersEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getInterestRateAndLoanQuotaEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getUnderlyingEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getInsuranceFundEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		unitConvertEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		optionTickBandsEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getIndexTickerEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		// Trading Data Endpoints
 
@@ -641,14 +575,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getEventStatusEPL:                    request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
 		getAffiliateInviteesDetailEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getUserAffiliateRebateInformationEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-
-		placeLendingOrderEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		amendLendingOrderEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
-		lendingOrderListEPL:    request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
-		lendingSubOrderListEPL: request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
-		lendingPublicOfferEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
-		lendingAPYHistoryEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
-		lendingVolumeEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 
 		rubikGetContractOpenInterestHistoryEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		rubikContractTakerVolumeEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),

@@ -459,7 +459,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		var response WsContractGridAlgoOrder
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridPositions:
-		var response WsContractGridAlgoOrder
+		var response WsGridPosition
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridSubOrders:
 		var response WsGridSubOrderData
@@ -475,8 +475,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
 		return e.wsProcessPushData(ctx, respRaw, &response)
-	case channelMarkPrice, channelPriceLimit:
+	case channelMarkPrice:
 		var response WsMarkPrice
+		return e.wsProcessPushData(ctx, respRaw, &response)
+	case channelPriceLimit:
+		var response WsLimitPrice
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelOrderBooks5:
 		return e.wsProcessOrderbook5(respRaw)
@@ -512,14 +515,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessSpreadTrades(respRaw)
 	case okxWithdrawalInfo:
 		resp := &struct {
-			Arguments SubscriptionInfo `json:"arg"`
-			Data      []WsDepositInfo  `json:"data"`
+			Arguments SubscriptionInfo   `json:"arg"`
+			Data      []WsWithdrawalInfo `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case okxDepositInfo:
 		resp := &struct {
-			Arguments SubscriptionInfo   `json:"arg"`
-			Data      []WsWithdrawalInfo `json:"data"`
+			Arguments SubscriptionInfo `json:"arg"`
+			Data      []WsDepositInfo  `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case channelRecurringBuy:
