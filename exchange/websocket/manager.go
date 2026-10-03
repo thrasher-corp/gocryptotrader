@@ -431,7 +431,6 @@ func (m *Manager) snapshotManagedConnections(ws *websocket) []Connection {
 	if ws == nil {
 		return nil
 	}
-
 	m.connectionManagerMu.RLock()
 	defer m.connectionManagerMu.RUnlock()
 	return slices.Clone(ws.connections)
@@ -904,7 +903,6 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		if defaultVals {
 			u = m.defaultURL
 		}
-
 		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
@@ -924,7 +922,6 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, u)
 		return m.Shutdown()
 	}
-
 	return nil
 }
 
@@ -1041,7 +1038,6 @@ func checkWebsocketURL(s string) error {
 	if u.Scheme != "ws" && u.Scheme != "wss" {
 		return fmt.Errorf("cannot set %w %s", errInvalidWebsocketURL, s)
 	}
-
 	return nil
 }
 

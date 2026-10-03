@@ -156,6 +156,9 @@ func (m *Manager) resubscribeToChannel(ctx context.Context, conn Connection, s *
 	setResubscribingState(l)
 	wsStore := m.subscriptionStore(conn)
 	connStore := connectionSubscriptionStore(conn)
+	if connStore != nil && connStore.Get(s) != s {
+		connStore = nil
+	}
 	var origKey any
 	if wsStore != nil {
 		if origSub := wsStore.Get(s); origSub != nil {
@@ -354,7 +357,6 @@ func (m *Manager) SubscribeToChannels(ctx context.Context, conn Connection, subs
 	if err := m.Subscriber(subs); err != nil {
 		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
 	}
-
 	return nil
 }
 
@@ -365,7 +367,6 @@ func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscr
 		return fmt.Errorf("%w: AddSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
 	subscriptionStore := m.initSubscriptionStore(conn)
-
 	var errs error
 	for _, s := range subs {
 		if s.State() == subscription.InactiveState {
@@ -432,7 +433,6 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 	if m == nil || key == nil {
 		return nil
 	}
-
 	for _, ws := range m.snapshotConnectionManager() {
 		m.connectionManagerMu.RLock()
 		store := ws.subscriptions
@@ -448,7 +448,6 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 	if store := m.subscriptionStore(nil); store != nil {
 		return store.Get(key)
 	}
-
 	return nil
 }
 
@@ -613,7 +612,6 @@ func (m *Manager) updateChannelSubscriptions(ctx context.Context, store *subscri
 			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
 		}
 	}
-
 	return nil
 }
 
@@ -634,7 +632,6 @@ func (m *Manager) applyTrackedSubscriptions(conn Connection, tracked subscriptio
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -793,7 +790,6 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 		}
 	}
-
 	return nil
 }
 
@@ -881,16 +877,8 @@ func (m *Manager) resubscribeFromConnection(ctx context.Context, conn Connection
 		return err
 	}
 	if len(missing) > 0 {
-		var notRemoved subscription.List
-		for _, s := range missing {
-			if s.State() != subscription.UnsubscribedState {
-				notRemoved = append(notRemoved, s)
-			}
-		}
-		if len(notRemoved) > 0 {
-			resErr = fmt.Errorf("%w: %q", ErrSubscriptionsNotRemoved, notRemoved)
-			return resErr
-		}
+		resErr = fmt.Errorf("%w: %q", ErrSubscriptionsNotRemoved, missing)
+		return resErr
 	}
 	remaining, err := m.subscribeToConnection(ctx, conn, subs)
 	if err != nil {
@@ -914,15 +902,6 @@ func (m *Manager) resubscribeFromConnection(ctx context.Context, conn Connection
 	}
 
 	return nil
-}
-
-func allSubscriptionsState(subs subscription.List, state subscription.State) bool {
-	for _, sub := range subs {
-		if sub.State() != state {
-			return false
-		}
-	}
-	return true
 }
 
 // unsubscribeFromConnection unsubscribes for a connection and removes subscriptions from the connection's store
@@ -983,18 +962,11 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 	if err != nil {
 		return nil, err
 	}
-	tracked := make(map[*subscription.Subscription]bool, len(toSubscribe))
-	for _, s := range toSubscribe {
-		tracked[s] = store.Get(s) != nil && s.State() == subscription.ResubscribingState
-	}
 	if err := m.SubscribeToChannels(ctx, conn, toSubscribe); err != nil {
 		return nil, common.AppendError(err, recordConnectionSubscriptions(store, managerStore, pending))
 	}
 
 	for _, s := range toSubscribe {
-		if tracked[s] {
-			continue
-		}
 		if err := store.Add(s); err != nil {
 			return nil, err
 		}

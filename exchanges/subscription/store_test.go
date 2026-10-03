@@ -182,10 +182,10 @@ func TestStoreDiff(t *testing.T) {
 		require.NoError(t, s.Add(resub))
 		require.NoError(t, resub.SetState(ResubscribingState))
 		added, removed := s.Diff(List{resub})
-		assert.Empty(t, added, "the same resubscribing pointer is already in the store")
+		assert.Empty(t, added, "the same resubscribing pointer should already be in the store")
 		assert.Empty(t, removed, "still-wanted resubscribing entry should not be removed")
 	})
-	t.Run("same-key different pointer in ResubscribingState is added", func(t *testing.T) {
+	t.Run("same-key different pointer in ResubscribingState is not a new add", func(t *testing.T) {
 		t.Parallel()
 		s := NewStore()
 		existing := &Subscription{Channel: TickerChannel}
@@ -193,7 +193,7 @@ func TestStoreDiff(t *testing.T) {
 		require.NoError(t, existing.SetState(ResubscribingState))
 		incoming := &Subscription{Channel: TickerChannel}
 		added, removed := s.Diff(List{incoming})
-		assert.Empty(t, added, "the same-key entry is already in the store")
+		assert.Empty(t, added, "a same-key entry should already be in the store")
 		assert.Empty(t, removed, "still-wanted resubscribing entry should not be removed")
 	})
 }
