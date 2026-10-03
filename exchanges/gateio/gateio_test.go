@@ -4456,6 +4456,10 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 
 func (d *FixtureConnection) GetURL() string { return "wss://test" }
 
+func (d *FixtureConnection) Subscriptions() *subscription.Store {
+	return subscription.NewStore()
+}
+
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 
