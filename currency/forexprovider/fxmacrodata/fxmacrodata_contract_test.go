@@ -194,6 +194,9 @@ func TestCurrencyScopedEndpointsWithoutAnAPIKey(t *testing.T) {
 	t.Run("announcements", func(t *testing.T) {
 		provider, closeServer := newKeylessContractProvider(t, "/api/v1/announcements/usd/inflation", `{
 			"currency":"USD","indicator":"inflation","value_metadata":{"source_unit":"%YoY","normalization_applied":true},
+			"freemium_delay":{"applied":true,"delay_seconds":900,"delay_minutes":15,"cutoff":1790823600,
+			"cutoff_iso":"2026-10-01T03:00:00Z","withheld_count":1,"message":"Free access is delayed by 15 minutes.",
+			"subscribe_url":"https://fxmacrodata.com/subscribe"},
 			"data":[{"date":"2026-07-31","val":2.7}]
 		}`)
 		defer closeServer()
@@ -204,9 +207,19 @@ func TestCurrencyScopedEndpointsWithoutAnAPIKey(t *testing.T) {
 			Currency:      usd,
 			Indicator:     inflation,
 			ValueMetadata: ValueMetadata{NormalizationApplied: true, SourceUnit: "%YoY"},
-			Data:          []AnnouncementDataPoint{{Date: calendarDay(2026, time.July, 31), Val: 2.7}},
+			FreemiumDelay: FreemiumDelayNotice{
+				Applied:       true,
+				DelaySeconds:  900,
+				DelayMinutes:  15,
+				Cutoff:        unixSeconds(1790823600),
+				CutoffISO:     utcTime(t, "2026-10-01T03:00:00Z"),
+				WithheldCount: 1,
+				Message:       "Free access is delayed by 15 minutes.",
+				SubscribeURL:  "https://fxmacrodata.com/subscribe",
+			},
+			Data: []AnnouncementDataPoint{{Date: calendarDay(2026, time.July, 31), Val: 2.7}},
 		}
-		assert.Equal(t, exp, response, "keyless Announcements should decode every fixture field")
+		assert.Equal(t, exp, response, "keyless Announcements should decode every fixture field, including the delay notice")
 
 		_, err = provider.Announcements(t.Context(), "AUD", inflation, nil)
 		assert.ErrorIs(t, err, errAPIKeyNotConfigured, "a non-USD Announcements request should require an API key")

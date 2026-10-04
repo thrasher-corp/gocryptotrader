@@ -513,6 +513,7 @@ type AnnouncementResponse struct {
 	ValueMetadata  ValueMetadata           `json:"value_metadata"`
 	Pagination     PaginationInfo          `json:"pagination"`
 	FreemiumWindow FreemiumWindow          `json:"freemium_window"`
+	FreemiumDelay  FreemiumDelayNotice     `json:"freemium_delay"`
 	Data           []AnnouncementDataPoint `json:"data"`
 }
 

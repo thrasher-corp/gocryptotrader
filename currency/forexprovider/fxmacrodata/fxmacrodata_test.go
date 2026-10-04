@@ -57,21 +57,17 @@ func liveTestAPIKey() string {
 
 func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData, closeServer func()) {
 	t.Helper()
-	server := httptest.NewServer(handler)
+	server := httptest.NewTestServer(t, handler)
 	provider = &FXMacroData{}
-	err := provider.Setup(base.Settings{
+	require.NoError(t, provider.Setup(base.Settings{
 		Name:            providerName,
 		Enabled:         true,
 		APIKey:          "placeholder",
 		PrimaryProvider: true,
-	})
-	if err != nil {
-		server.Close()
-		require.NoError(t, err, "Setup must not error")
-	}
+	}), "Setup must not error")
+	require.NoError(t, provider.Requester.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	provider.APIURL = server.URL + "/api/v1/"
-	err = provider.Requester.DisableRateLimiter()
-	require.NoError(t, err, "rate limiter must disable for local httptest provider")
+	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 	return provider, server.Close
 }
 
