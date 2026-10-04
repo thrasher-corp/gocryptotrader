@@ -35,7 +35,7 @@ func TestProtoTypesAreUsable(t *testing.T) {
 			assert.NotPanicsf(t, func() {
 				_, err := proto.Marshal(mt.New().Interface())
 				assert.NoErrorf(t, err, "%s should marshal", name)
-			}, "%s must not panic: its Go field types must match its descriptor", name)
+			}, "%s should not panic: its Go field types should match its descriptor", name)
 		}
 		return true
 	})
