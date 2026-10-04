@@ -924,6 +924,8 @@ func TestConnectReturnsTeardownError(t *testing.T) {
 
 	ws := NewManager()
 	require.NoError(t, ws.Setup(newDefaultSetup()), "Setup must not error")
+	// The failed Connect below starts the connection monitor, which retries until the websocket is disabled
+	t.Cleanup(func() { assert.NoError(t, ws.Disable(), "Disable should not error") })
 	ws.Conn = &struct{ *connection }{&connection{}}
 	ws.connector = func() error { return errDastardlyReason }
 
