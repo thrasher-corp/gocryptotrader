@@ -574,3 +574,24 @@ func TestWsMiniTickersPublishesEnabledPairsOnly(t *testing.T) {
 	require.True(t, ok, "the relayed data must be a ticker")
 	assert.Equal(t, btc, got.Pair, "the ticker should be for the enabled pair")
 }
+
+// TestWsHandleLimitDepthValidatesTheBook applies the configured orderbook verification to the limit depth push, as
+// the REST snapshot already does: a zero-priced level is refused rather than stored.
+func TestWsHandleLimitDepthValidatesTheBook(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.ValidateOrderbook = true
+	btc := currency.NewBTCUSDT()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, false), "storing available pairs must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, true), "storing enabled pairs must not error")
+	raw := wsPushFrame(t, "spot@"+channelLimitDepthV3+"@BTCUSDT@5", 1736411838730,
+		&mexc_proto_types.PublicLimitDepthsV3Api{
+			Asks: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93180.18", Quantity: "0.21976424"}},
+			Bids: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "0", Quantity: "2.82651000"}},
+		})
+	require.ErrorIs(t, ex.WsHandleData(t.Context(), nil, raw), orderbook.ErrPriceZero, "a zero-priced level must be refused")
+	_, err := orderbook.Get(ex.Name, btc, asset.Spot)
+	assert.Error(t, err, "the refused book should not be stored")
+}

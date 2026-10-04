@@ -706,13 +706,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			}
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Exchange:     e.Name,
-			Asset:        asset.Spot,
-			Bids:         bids,
-			Asks:         asks,
-			Pair:         cp,
-			LastUpdated:  wsSendTime(result),
-			LastUpdateID: lastUpdateID,
+			Exchange:          e.Name,
+			Asset:             asset.Spot,
+			Bids:              bids,
+			Asks:              asks,
+			Pair:              cp,
+			LastUpdated:       wsSendTime(result),
+			LastUpdateID:      lastUpdateID,
+			ValidateOrderbook: e.ValidateOrderbook,
 		})
 	case channelBookTickerBatch:
 		cp, err := e.MatchSymbolWithAvailablePairs(result.GetSymbol(), asset.Spot, false)
