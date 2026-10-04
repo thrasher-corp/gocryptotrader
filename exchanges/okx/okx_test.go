@@ -7120,7 +7120,12 @@ func TestMarginTypeToString(t *testing.T) {
 		margin.Multi:        "cross",
 		margin.NoMargin:     "cash",
 		margin.SpotIsolated: "spot_isolated",
-		margin.Unset:        "",
+		// Unset must map to an empty trade mode by design: its zero value
+		// would otherwise pass the mask subset check in marginTypeToString.
+		margin.Unset: "",
+		// An unsupported type falls through to an empty trade mode, which
+		// the leverage wrappers reject with margin.ErrMarginTypeUnsupported.
+		margin.Type(99): "",
 	}
 	var marginTypeString string
 	for m := range marginTypeToStringMap {

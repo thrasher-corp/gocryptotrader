@@ -1285,9 +1285,13 @@ func priceTypeString(pt order.PriceType) string {
 var allowedMarginTypes = margin.Isolated | margin.NoMargin | margin.SpotIsolated
 
 func (e *Exchange) marginTypeToString(m margin.Type) string {
-	if allowedMarginTypes&m == m {
+	// Unset is the zero value, so the mask subset check alone would let it
+	// through and its empty String() would only coincidentally be rejected
+	// downstream; exclude it explicitly.
+	if m != margin.Unset && allowedMarginTypes&m == m {
 		return m.String()
-	} else if margin.Multi == m {
+	}
+	if margin.Multi == m {
 		return TradeModeCross
 	}
 	return ""
@@ -3625,6 +3629,9 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 				return lev[i].Leverage.Float64(), nil
 			}
 		}
+		// A per-side request must not silently fall back to a row belonging
+		// to the opposite side or a stale net row.
+		return -1, fmt.Errorf("%w %v %v %s posSide %s", futures.ErrPositionNotFound, item, pair, marginType, posSide)
 	}
 
 	// leverage is the same across positions

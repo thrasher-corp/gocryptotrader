@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -4206,4 +4207,105 @@ func TestSubmitSpreadOrderReportsRowError(t *testing.T) {
 	require.Error(t, err, "a failed spread row must error")
 	assert.ErrorContains(t, err, "51008", "the error should report the row's sCode")
 	assert.ErrorContains(t, err, "insufficient balance", "the error should report the row's sMsg")
+}
+
+// TestGetLeverageRateSendsCurrency guards the optional ccy parameter: a set
+// currency must be forwarded to the leverage-info endpoint.
+func TestGetLeverageRateSendsCurrency(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var gotCcy string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/account/leverage-info" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		mu.Lock()
+		gotCcy = r.URL.Query().Get("ccy")
+		mu.Unlock()
+		writeOKXData(t, w, []map[string]string{})
+	}))
+	_, err := e.GetLeverageRate(t.Context(), mainPair.String(), TradeModeCross, currency.BTC)
+	require.NoError(t, err, "GetLeverageRate must not error with a currency set")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, "BTC", gotCcy, "the currency should be sent as the ccy parameter")
+}
+
+// TestGetLeverageWithoutConfiguredLeverage guards the sentinel error for an
+// instrument that has no configured leverage rows.
+func TestGetLeverageWithoutConfiguredLeverage(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/account/leverage-info" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []map[string]string{})
+	}))
+	_, err := e.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, order.AnySide)
+	require.ErrorIs(t, err, futures.ErrPositionNotFound, "a query for an instrument without configured leverage must report the missing position")
+}
+
+// TestGetLeveragePropagatesRequestErrors guards the propagation of upstream
+// leverage-info failures to the caller.
+func TestGetLeveragePropagatesRequestErrors(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/account/leverage-info" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, `{"code":"51000","data":[],"msg":"Parameter instId error"}`, http.StatusBadRequest)
+	}))
+	_, err := e.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, order.AnySide)
+	require.ErrorContains(t, err, "51000", "upstream leverage-info errors must propagate to the caller")
+}
+
+// TestGetLeverageRequiresMatchingPositionSideRow guards the per-side row
+// matching: a side without its own leverage row must not silently read the
+// opposite side's or a stale row's leverage.
+func TestGetLeverageRequiresMatchingPositionSideRow(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/account/config":
+			writeOKXData(t, w, []map[string]string{{"posMode": positionModeLongShort}})
+		case "/account/leverage-info":
+			writeOKXData(t, w, []map[string]string{{
+				"instId": "BTC-USDT-SWAP", "mgnMode": "isolated", "posSide": "short", "lever": "3",
+			}})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	_, err := e.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Isolated, order.Long)
+	require.ErrorIs(t, err, futures.ErrPositionNotFound, "a per-side query without the requested side's row must not fall back to another side's leverage")
+	lever, err := e.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Isolated, order.Short)
+	require.NoError(t, err, "GetLeverage isolated short must not error")
+	assert.Equal(t, 3.0, lever, "the short side should read its own leverage row")
+}
+
+// TestLeverageRejectsUnformattablePairs guards the pair format failure paths
+// in the leverage wrappers: a store without request formats must surface the
+// formatting error and must not reach the API.
+func TestLeverageRejectsUnformattablePairs(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request %s", r.URL.Path)
+		http.NotFound(w, r)
+	}))
+	err := e.CurrencyPairs.Store(asset.PerpetualSwap, &currency.PairStore{AssetEnabled: true})
+	// The mock setup shares a global pair format; a per-asset store with nil
+	// formats must be authoritative for the failure to surface.
+	e.CurrencyPairs.UseGlobalFormat = false
+	require.NoError(t, err, "storing a formatless pair store must not error")
+	err = e.SetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, 3, order.AnySide)
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "SetLeverage must surface the pair format failure")
+	_, err = e.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, order.AnySide)
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetLeverage must surface the pair format failure")
 }
