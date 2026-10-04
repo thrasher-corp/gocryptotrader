@@ -1770,34 +1770,46 @@ func TestConnectionShutdownTLSWithStalledPeer(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "Shutdown must not write to a peer which has stopped reading")
 	}
+	select {
+	case <-conn.closed:
+	default:
+		assert.Fail(t, "Shutdown should close the connection beneath TLS before returning")
+	}
 }
 
 func TestConnectionShutdownWaitsForWriteInProgress(t *testing.T) {
 	t.Parallel()
 
-	wc, conn := dialStalledWriteConn(t, false)
-	// Holding writeControl stands in for a write in progress, which a reconnect must not be able to overtake
-	wc.writeControl.Lock()
-	shutdownErr := make(chan error, 1)
-	go func() { shutdownErr <- wc.Shutdown() }()
-	select {
-	case <-conn.closed:
-	case <-time.After(5 * time.Second):
-		wc.writeControl.Unlock()
-		require.FailNow(t, "Shutdown must close the connection without waiting for writeControl")
-	}
-	select {
-	case <-shutdownErr:
-		wc.writeControl.Unlock()
-		require.FailNow(t, "Shutdown must not return while a write holds writeControl")
-	case <-time.After(100 * time.Millisecond):
-	}
-	wc.writeControl.Unlock()
-	select {
-	case err := <-shutdownErr:
-		require.NoError(t, err, "Shutdown must not error")
-	case <-time.After(5 * time.Second):
-		require.FailNow(t, "Shutdown must return once writeControl is released")
+	for _, useTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("tls=%t", useTLS), func(t *testing.T) {
+			t.Parallel()
+
+			wc, conn := dialStalledWriteConn(t, useTLS)
+			conn.stalled.Store(true) // The peer has stopped reading, so a TLS close_notify would block
+			// Holding writeControl stands in for a write in progress, which a reconnect must not be able to overtake
+			wc.writeControl.Lock()
+			shutdownErr := make(chan error, 1)
+			go func() { shutdownErr <- wc.Shutdown() }()
+			select {
+			case <-conn.closed:
+			case <-time.After(5 * time.Second):
+				wc.writeControl.Unlock()
+				require.FailNow(t, "Shutdown must close the connection without waiting for writeControl")
+			}
+			select {
+			case <-shutdownErr:
+				wc.writeControl.Unlock()
+				require.FailNow(t, "Shutdown must not return while a write holds writeControl")
+			case <-time.After(100 * time.Millisecond):
+			}
+			wc.writeControl.Unlock()
+			select {
+			case err := <-shutdownErr:
+				require.NoError(t, err, "Shutdown must not error")
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "Shutdown must return once writeControl is released")
+			}
+		})
 	}
 }
 
