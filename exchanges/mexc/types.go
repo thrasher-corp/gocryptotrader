@@ -241,9 +241,33 @@ type SubAccountsAPIs struct {
 	SubAccount []*SubAccountAPIDetail `json:"subAccount"`
 }
 
-// AssetTransferResponse represents an asset transfer response
+// AssetTransferResponse holds the id of a sub-account universal transfer
 type AssetTransferResponse struct {
-	TransferID uint64 `json:"tranId"`
+	TransferID string `json:"tranId"`
+}
+
+// UnmarshalJSON decodes an AssetTransferResponse. The field table documents tranId as a string while the example
+// sends a bare number, so both are read; a bare number keeps its digits as sent.
+func (a *AssetTransferResponse) UnmarshalJSON(data []byte) error {
+	var resp struct {
+		TransferID json.RawMessage `json:"tranId"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return err
+	}
+	a.TransferID = ""
+	if len(resp.TransferID) == 0 || string(resp.TransferID) == "null" {
+		return nil
+	}
+	if resp.TransferID[0] == '"' {
+		return json.Unmarshal(resp.TransferID, &a.TransferID)
+	}
+	var id uint64
+	if err := json.Unmarshal(resp.TransferID, &id); err != nil {
+		return err
+	}
+	a.TransferID = string(resp.TransferID)
+	return nil
 }
 
 // InternalTransferResponse holds the id of an internal transfer, which the venue sends as a string
@@ -740,7 +764,7 @@ type AffiliateCommission struct {
 	Futures          string       `json:"futures"`
 	Total            types.Number `json:"total"`
 	Deposit          types.Number `json:"deposit"`
-	FirstDepositTime types.Time   `json:"firstDepositTime"`
+	FirstDepositTime string       `json:"firstDepositTime"`
 }
 
 // AffiliateWithdrawRecords holds a list of withdrawal records
@@ -857,21 +881,21 @@ type AffiliateReferralPage struct {
 
 // ReferralData holds a referral detail
 type ReferralData struct {
-	UID              string        `json:"uid"`
-	NickName         string        `json:"nickName"`
-	Email            string        `json:"email"`
-	RegisterTime     types.Time    `json:"registerTime"`
-	InviteCode       string        `json:"inviteCode"`
-	DepositAmount    types.Number  `json:"depositAmount"`
-	TradingAmount    types.Number  `json:"tradingAmount"`
-	Commission       types.Number  `json:"commission"`
-	FirstDepositTime types.Time    `json:"firstDepositTime"`
-	FirstTradeTime   types.Time    `json:"firstTradeTime"`
-	LastDepositTime  types.Time    `json:"lastDepositTime"`
-	LastTradeTime    types.Time    `json:"lastTradeTime"`
-	WithdrawAmount   types.Number  `json:"withdrawAmount"`
-	Asset            currency.Code `json:"asset"`
-	Identification   uint8         `json:"identification"`
+	UID              string       `json:"uid"`
+	NickName         string       `json:"nickName"`
+	Email            string       `json:"email"`
+	RegisterTime     types.Time   `json:"registerTime"`
+	InviteCode       string       `json:"inviteCode"`
+	DepositAmount    types.Number `json:"depositAmount"`
+	TradingAmount    types.Number `json:"tradingAmount"`
+	Commission       types.Number `json:"commission"`
+	FirstDepositTime types.Time   `json:"firstDepositTime"`
+	FirstTradeTime   types.Time   `json:"firstTradeTime"`
+	LastDepositTime  types.Time   `json:"lastDepositTime"`
+	LastTradeTime    types.Time   `json:"lastTradeTime"`
+	WithdrawAmount   types.Number `json:"withdrawAmount"`
+	Asset            string       `json:"asset"`
+	Identification   uint8        `json:"identification"`
 }
 
 // SubAffiliateData represents a sub-affiliate details

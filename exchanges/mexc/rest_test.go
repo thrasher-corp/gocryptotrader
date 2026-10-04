@@ -508,10 +508,17 @@ func TestNewOrder(t *testing.T) {
 
 func TestCreateBatchOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.CreateBatchOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = e.CreateBatchOrder(t.Context(), make([]BatchOrderCreationParam, 0, 1))
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{{}})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
 	arg := BatchOrderCreationParam{
 		NewClientOrderID: "1234",
 	}
-	_, err := e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
+	_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	arg.Symbol = spotTradablePair
@@ -687,6 +694,8 @@ func TestGetMXDeductStatus(t *testing.T) {
 
 func TestGetSymbolTradingFee(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetSymbolTradingFee(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSymbolTradingFee(t.Context(), spotTradablePair)
 	require.NoError(t, err)

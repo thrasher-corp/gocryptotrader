@@ -1625,18 +1625,27 @@ func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 		assert.Truef(t, isPrivateChannel(s), "%s should be private to go on the private connection", s.QualifiedChannel)
 	}
 
-	// A configured private channel need not carry the Authenticated flag, and is only served with the key
-	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel}}
-	private, err = ex.generatePrivateSubscriptions()
-	require.NoError(t, err, "generatePrivateSubscriptions must not error")
-	require.Len(t, private, 1, "a private channel configured without the Authenticated flag must still be subscribed")
-	assert.Equal(t, "spot@"+channelPrivateOrdersAPI, private[0].QualifiedChannel, "the private orders channel should be on the private connection")
-
-	// An already expanded subscription is passed through as it is, so it is placed by its qualified channel
-	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, QualifiedChannel: "spot@" + channelPrivateDealsV3}}
-	private, err = ex.generatePrivateSubscriptions()
-	require.NoError(t, err, "generatePrivateSubscriptions must not error")
-	assert.Len(t, private, 1, "an expanded private subscription should be on the private connection")
+	// A private channel is only served with the key, however it is configured: by its generic name or the venue's,
+	// already expanded, and without the Authenticated flag
+	for _, s := range []*subscription.Subscription{
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel},
+		{Enabled: true, Asset: asset.Spot, Channel: channelPrivateOrdersAPI},
+		{Enabled: true, Asset: asset.Spot, Channel: channelPrivateDealsV3},
+		{Enabled: true, Asset: asset.Spot, Channel: channelAccountV3},
+		{Enabled: true, Asset: asset.Spot, QualifiedChannel: "spot@" + channelPrivateOrdersAPI},
+		{Enabled: true, Asset: asset.Spot, QualifiedChannel: "spot@" + channelPrivateDealsV3},
+		{Enabled: true, Asset: asset.Spot, QualifiedChannel: "spot@" + channelAccountV3},
+	} {
+		ex.Features.Subscriptions = subscription.List{s}
+		private, err = ex.generatePrivateSubscriptions()
+		require.NoError(t, err, "generatePrivateSubscriptions must not error")
+		public, err = ex.generatePublicSubscriptions()
+		require.NoError(t, err, "generatePublicSubscriptions must not error")
+		assert.Lenf(t, private, 1, "%s%s should be on the private connection", s.Channel, s.QualifiedChannel)
+		assert.Emptyf(t, public, "%s%s should not be on a public connection", s.Channel, s.QualifiedChannel)
+	}
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	private, err = ex.generatePrivateSubscriptions()
@@ -1705,9 +1714,16 @@ func TestWebsocketTakesOneListenKeyForThePrivateChannels(t *testing.T) {
 	ex.Features.Subscriptions = subscription.List{
 		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		// A configured subscription can leave the Authenticated flag out, and the channel still needs the key
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel},
 	}
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error") })
+	t.Cleanup(func() {
+		assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error")
+		// Disabled too, or the connection monitor goes on redialling the closed venue after the test
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+	})
 
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
@@ -1715,11 +1731,66 @@ func TestWebsocketTakesOneListenKeyForThePrivateChannels(t *testing.T) {
 	for _, s := range subs {
 		want[s.QualifiedChannel] = []bool{strings.Contains(s.QualifiedChannel, "@private.")}
 	}
-	require.Contains(t, want, "spot@"+channelPrivateOrdersAPI, "the private orders channel must be configured")
+	for _, channel := range []string{channelPrivateOrdersAPI, channelPrivateDealsV3, channelAccountV3} {
+		require.Containsf(t, want, "spot@"+channel, "the %s channel must be configured", channel)
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Equal(t, 1, minted, "one listen key should be minted, for the private connection")
 	assert.Equal(t, want, keyed, "each channel should be subscribed once, over a connection with a listen key only if it is private")
+}
+
+// TestWebsocketMintsNoListenKeyWhenAPublicConnectionFails connects through the websocket manager to a local
+// venue that refuses every connection dialled without a listen key. The public connections are made first,
+// so the connect fails before a key is minted: a key minted first would be held after the manager rolls the
+// connect back, until its renewer next wakes, and every retry would mint another.
+func TestWebsocketMintsNoListenKeyWhenAPublicConnectionFails(t *testing.T) {
+	t.Parallel()
+	var minted atomic.Int64
+	var upgrader gws.Upgrader
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "userDataStream") {
+			if r.Method == http.MethodPost {
+				minted.Add(1)
+			}
+			_, _ = w.Write([]byte(`{"listenKey":"key-1"}`))
+			return
+		}
+		if r.URL.Query().Get("listenKey") == "" {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		go func() {
+			defer c.Close()
+			for {
+				if _, _, err := c.ReadMessage(); err != nil {
+					return
+				}
+			}
+		}()
+	}))
+	t.Cleanup(srv.Close)
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.SetCredentials(&accounts.Credentials{Key: testCredentialKey, Secret: testCredentialSecret})
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(srv.URL, "http")), "SetAllConnectionURLs must not error")
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	}
+	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail when the venue refuses the public connection")
+	assert.Zero(t, minted.Load(), "no listen key should be minted when a public connection fails")
 }
 
 // TestCreateBatchOrderMarketParameters applies the single-order market rules to each batch entry: no
@@ -2164,4 +2235,55 @@ func TestSubAccountAPIKeyDecodesCreateTime(t *testing.T) {
 		`"createTime":1597026383085}]}`), &keys), "the documented example must decode")
 	require.Len(t, keys.SubAccount, 1, "the key must be decoded")
 	assert.Equal(t, int64(1597026383085), keys.SubAccount[0].CreateTime.Time().UnixMilli(), "CreateTime should be decoded from createTime")
+}
+
+// TestAffiliateCommissionDecodesDocumentedExample decodes MEXC's documented affiliate commission example, whose
+// firstDepositTime is a date or null rather than a timestamp
+func TestAffiliateCommissionDecodesDocumentedExample(t *testing.T) {
+	t.Parallel()
+	var resp AffiliateCommissionRecord
+	require.NoError(t, json.Unmarshal([]byte(`{"success":true,"code":0,"message":null,"data":{"pageSize":10,"totalCount":2,"totalPage":1,"currentPage":1,`+
+		`"usdtAmount":null,"totalCommissionUsdtAmount":null,"totalTradeUsdtAmount":null,"finished":null,"resultList":[`+
+		`{"uid":"27121050","account":"","inviteCode":"mexc-12345","inviteTime":1637145911,"spot":"0.00000000","etf":"0.21131086",`+
+		`"futures":"0.74546367","total":"0.95677453","deposit":null,"firstDepositTime":null},`+
+		`{"uid":"52813530","account":"","inviteCode":"mexc-12345","inviteTime":1637145478,"spot":"1.25023599","etf":"0.00000000",`+
+		`"futures":"0.00000000","total":"1.25023599","deposit":"26000.00000000","firstDepositTime":"2021-11-19"}]}}`), &resp), "the documented example must decode")
+	require.Len(t, resp.Data.ResultList, 2, "both records must be decoded")
+	assert.Empty(t, resp.Data.ResultList[0].FirstDepositTime, "a null first deposit date should be empty")
+	assert.Equal(t, "2021-11-19", resp.Data.ResultList[1].FirstDepositTime, "the first deposit date should be decoded")
+}
+
+// TestAssetTransferResponseDecodesTransferID reads the sub-account transfer id in both forms MEXC documents, the
+// field table's string and the example's bare number, and refuses anything else rather than inventing an id
+func TestAssetTransferResponseDecodesTransferID(t *testing.T) {
+	t.Parallel()
+	for body, want := range map[string]string{
+		`{"tranId":11945860693}`:                       "11945860693",
+		`{"tranId":"11945860693"}`:                     "11945860693",
+		`{"tranId":"c45d800a47ba4cbc876a5cd29388319"}`: "c45d800a47ba4cbc876a5cd29388319",
+		`{"tranId":null}`:                              "",
+		`{}`:                                           "",
+	} {
+		var resp AssetTransferResponse
+		require.NoErrorf(t, json.Unmarshal([]byte(body), &resp), "Unmarshal must not error for %s", body)
+		assert.Equalf(t, want, resp.TransferID, "TransferID should be decoded from %s", body)
+	}
+	for _, body := range []string{`{"tranId":true}`, `{"tranId":1.5}`, `{"tranId":-1}`, `{"tranId":{}}`} {
+		var resp AssetTransferResponse
+		assert.Errorf(t, json.Unmarshal([]byte(body), &resp), "Unmarshal should reject %s", body)
+	}
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tranId":"c45d800a47ba4cbc876a5cd29388319"}`))
+	}))
+	resp, err := ex.SubAccountUniversalTransfer(t.Context(), "", "sub1", asset.Spot, asset.Spot, currency.USDT, 1)
+	require.NoError(t, err, "SubAccountUniversalTransfer must not error on a string transfer id")
+	assert.Equal(t, "c45d800a47ba4cbc876a5cd29388319", resp.TransferID, "TransferID should be the id the venue sent")
+}
+
+// TestReferralAssetIsABracket decodes a referral's asset as the balance bracket MEXC documents it to be
+func TestReferralAssetIsABracket(t *testing.T) {
+	t.Parallel()
+	var referral ReferralData
+	require.NoError(t, json.Unmarshal([]byte(`{"uid":"42469975","asset":"1-1,000 USDT","identification":1}`), &referral), "Unmarshal must not error")
+	assert.Equal(t, "1-1,000 USDT", referral.Asset, "Asset should be the bracket label")
 }

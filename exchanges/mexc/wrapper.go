@@ -334,24 +334,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 	return nil
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (e *Exchange) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(e.Name, p, assetType)
-	if err != nil {
-		return e.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (e *Exchange) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
-	ob, err := orderbook.Get(e.Name, pair, assetType)
-	if err != nil {
-		return e.UpdateOrderbook(ctx, pair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
