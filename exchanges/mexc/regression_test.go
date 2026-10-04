@@ -2105,3 +2105,63 @@ func TestGetOrderHistoryAsksForAFullPage(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistory must not error")
 	assert.Equal(t, []string{"1000"}, pageSizes, "GetOrderHistory should ask for the venue's largest page")
 }
+
+// TestSubmitOrderDatesTheOrder stamps each submitted order with its acknowledgement's transactTime, the time the venue
+// created it, whatever the order's type
+func TestSubmitOrderDatesTheOrder(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		ack    string
+		submit order.Submit
+	}{
+		{
+			name:   "limit",
+			ack:    `{"symbol":"BTCUSDT","orderId":"L1","orderListId":-1,"price":"50000","origQty":"0.001","type":"LIMIT","side":"BUY","transactTime":1666676533741}`,
+			submit: order.Submit{Type: order.Limit, Side: order.Buy, Amount: 0.001, Price: 50000},
+		},
+		{
+			name:   "market",
+			ack:    `{"symbol":"BTCUSDT","orderId":"M1","orderListId":-1,"price":"0","origQty":"0.001","type":"MARKET","side":"SELL","transactTime":1666676533741}`,
+			submit: order.Submit{Type: order.Market, Side: order.Sell, Amount: 0.001},
+		},
+		{
+			name:   "post-only",
+			ack:    `{"symbol":"BTCUSDT","orderId":"P1","orderListId":-1,"price":"50000","origQty":"0.001","type":"LIMIT_MAKER","side":"BUY","transactTime":1666676533741}`,
+			submit: order.Submit{Type: order.Limit, TimeInForce: order.PostOnly, Side: order.Buy, Amount: 0.001, Price: 50000},
+		},
+		{
+			name:   "immediate or cancel",
+			ack:    `{"symbol":"BTCUSDT","orderId":"I1","orderListId":-1,"price":"50000","origQty":"0.001","type":"IMMEDIATE_OR_CANCEL","side":"SELL","transactTime":1666676533741}`,
+			submit: order.Submit{Type: order.Limit, TimeInForce: order.ImmediateOrCancel, Side: order.Sell, Amount: 0.001, Price: 50000},
+		},
+		{
+			name:   "fill or kill",
+			ack:    `{"symbol":"BTCUSDT","orderId":"F1","orderListId":-1,"price":"50000","origQty":"0.001","type":"FILL_OR_KILL","side":"BUY","transactTime":1666676533741}`,
+			submit: order.Submit{Type: order.Limit, TimeInForce: order.FillOrKill, Side: order.Buy, Amount: 0.001, Price: 50000},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(tc.ack))
+			}))
+			s := tc.submit
+			s.Exchange, s.Pair, s.AssetType = ex.Name, currency.NewBTCUSDT(), asset.Spot
+			resp, err := ex.SubmitOrder(t.Context(), &s)
+			require.NoError(t, err, "SubmitOrder must not error")
+			assert.Equal(t, int64(1666676533741), resp.Date.UnixMilli(), "Date should be the acknowledgement's transactTime")
+		})
+	}
+}
+
+// TestSubAccountAPIKeyDecodesCreateTime decodes the documented sub-account API key example, whose creation time is
+// createTime
+func TestSubAccountAPIKeyDecodesCreateTime(t *testing.T) {
+	t.Parallel()
+	var keys SubAccountsAPIs
+	require.NoError(t, json.Unmarshal([]byte(`{"subAccount":[{"note":"v5","apiKey":"arg13sdfgs","permissions":"SPOT_ACCOUNT_READ,SPOT_ACCOUNT_WRITE",`+
+		`"createTime":1597026383085}]}`), &keys), "the documented example must decode")
+	require.Len(t, keys.SubAccount, 1, "the key must be decoded")
+	assert.Equal(t, int64(1597026383085), keys.SubAccount[0].CreateTime.Time().UnixMilli(), "CreateTime should be decoded from createTime")
+}

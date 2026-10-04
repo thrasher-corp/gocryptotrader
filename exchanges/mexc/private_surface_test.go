@@ -602,3 +602,53 @@ func TestUpdateOrderExecutionLimitsPercentPriceBySide(t *testing.T) {
 	assert.Zero(t, unbanded.MultiplierUp, "a symbol without the filter should carry no upper band")
 	assert.Zero(t, unbanded.MultiplierDown, "a symbol without the filter should carry no lower band")
 }
+
+// TestWithdrawalHistoryReportsVenueIDs reports a withdrawal under the id the withdraw endpoint returns, with its
+// fee, network and transaction hash. The first record is MEXC's documented example, whose txId is null while the
+// hash is already known; the second carries txId as the hash plus an output index; the third has only txId, which
+// is reported as sent; the fourth, an internal transfer, has neither.
+func TestWithdrawalHistoryReportsVenueIDs(t *testing.T) {
+	t.Parallel()
+	ex := testExchangeFor(t, jsonHandler(t, map[string]string{
+		"capital/withdraw/history": `[{"id":"bb17a2d452684f00a523c015d512a341","txId":null,"coin":"EOS","network":"EOS","address":"zzqqqqqqqqqq",` +
+			`"amount":"10","transferType":0,"status":3,"transactionFee":"0","confirmNo":null,"applyTime":1665300874000,"remark":"",` +
+			`"memo":"MX10086","transHash":"0x0ced593b8b5adc9f600334d0d7335456a7ed772ea5547beda7ffc4f33a065c","updateTime":1712134082000},` +
+			`{"id":"adcd1c8322154de691b815eedcd10c42","txId":"0xc8c918cd69b2246db493ef6225a72ffdc664f15b08da3e25c6879b271d05e9d0:0",` +
+			`"coin":"USDC","network":"MATIC","address":"0xeE6C7a415995312ED52c53a0f8f03e165e0A5D62","amount":"2","transferType":0,` +
+			`"status":7,"transactionFee":"1","applyTime":1664882739000,` +
+			`"transHash":"0xc8c918cd69b2246db493ef6225a72ffdc664f15b08da3e25c6879b271d05e9d0","updateTime":1664882799000},` +
+			`{"id":"f41a7c5e0b8d4e2f9a6c3b1d5e7f9a2c","txId":"b3c1e9d7a5f3e1c9b7a5f3e1c9d7b5a3f1e9c7b5a3d1f9e7c5b3a1d9f7e5c3b1:1",` +
+			`"coin":"USDT","network":"TRX","address":"TXYZ","amount":"20","transferType":0,"status":7,"transactionFee":"0.125",` +
+			`"applyTime":1664882739000,"updateTime":1664882799000},` +
+			`{"id":"9c2d4e6f8a0b1c3d5e7f9a1b3c5d7e9f","txId":null,"coin":"USDT","network":"TRX","address":"someone@example.com",` +
+			`"amount":"5","transferType":1,"status":7,"transactionFee":"0","applyTime":1664882739000,"updateTime":1664882799000}]`,
+		"capital/deposit/hisrec": `[]`,
+	}), liveReadOnly)
+	history, err := ex.GetWithdrawalsHistory(t.Context(), currency.EMPTYCODE, asset.Spot)
+	require.NoError(t, err, "GetWithdrawalsHistory must not error")
+	funding, err := ex.GetAccountFundingHistory(t.Context())
+	require.NoError(t, err, "GetAccountFundingHistory must not error")
+	if !mockTests {
+		for i := range history {
+			assert.NotEmptyf(t, history[i].TransferID, "withdrawal %d should carry its id", i)
+		}
+		return
+	}
+	require.Len(t, history, 4, "every withdrawal must be returned")
+	assert.Equal(t, "bb17a2d452684f00a523c015d512a341", history[0].TransferID, "TransferID should be the withdrawal id, not its txId")
+	assert.Equal(t, "0x0ced593b8b5adc9f600334d0d7335456a7ed772ea5547beda7ffc4f33a065c", history[0].CryptoTxID, "CryptoTxID should be the hash while txId is null")
+	assert.Equal(t, "EOS", history[0].CryptoChain, "CryptoChain should be the network")
+	assert.Equal(t, "adcd1c8322154de691b815eedcd10c42", history[1].TransferID, "TransferID should be the withdrawal id")
+	assert.Equal(t, "0xc8c918cd69b2246db493ef6225a72ffdc664f15b08da3e25c6879b271d05e9d0", history[1].CryptoTxID, "CryptoTxID should be the bare hash")
+	assert.Equal(t, 1.0, history[1].Fee, "Fee should be the transaction fee")
+	assert.Equal(t, "b3c1e9d7a5f3e1c9b7a5f3e1c9d7b5a3f1e9c7b5a3d1f9e7c5b3a1d9f7e5c3b1:1", history[2].CryptoTxID, "CryptoTxID should fall back to txId as sent")
+	assert.Equal(t, 0.125, history[2].Fee, "Fee should keep a fractional transaction fee")
+	assert.Empty(t, history[3].CryptoTxID, "CryptoTxID should stay empty when neither hash is sent")
+	require.Len(t, funding, 4, "every withdrawal must be in the funding history")
+	for i := range funding {
+		assert.Equalf(t, history[i].TransferID, funding[i].TransferID, "funding record %d should carry the withdrawal id", i)
+		assert.Equalf(t, history[i].CryptoTxID, funding[i].CryptoTxID, "funding record %d should carry the hash", i)
+		assert.Equalf(t, history[i].Fee, funding[i].Fee, "funding record %d should carry the fee", i)
+		assert.Equalf(t, history[i].CryptoChain, funding[i].CryptoChain, "funding record %d should carry the network", i)
+	}
+}

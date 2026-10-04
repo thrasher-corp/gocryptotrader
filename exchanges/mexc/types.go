@@ -233,7 +233,7 @@ type SubAccountAPIDetail struct {
 	SecretKey   string     `json:"secretKey"`
 	Permissions string     `json:"permissions"`
 	IP          string     `json:"ip"`
-	CreatTime   types.Time `json:"creatTime"`
+	CreateTime  types.Time `json:"createTime"`
 }
 
 // SubAccountsAPIs represents a sub-account API keys detail

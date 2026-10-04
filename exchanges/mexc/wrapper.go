@@ -519,15 +519,27 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[depositsLen+w] = exchange.FundingHistory{
 			ExchangeName:    e.Name,
 			Status:          withdrawalStatusToString(withdrawals[w].Status),
-			TransferID:      withdrawals[w].TransactionID,
+			TransferID:      withdrawals[w].ID,
 			Timestamp:       withdrawals[w].UpdateTime.Time(),
 			Currency:        withdrawals[w].Coin.String(),
 			Amount:          withdrawals[w].Amount.Float64(),
+			Fee:             withdrawals[w].TransactionFee.Float64(),
 			CryptoToAddress: withdrawals[w].Address,
+			CryptoTxID:      withdrawalTxID(withdrawals[w]),
+			CryptoChain:     withdrawals[w].Network,
 			TransferType:    "withdrawal",
 		}
 	}
 	return resp, nil
+}
+
+// withdrawalTxID returns a withdrawal's transaction hash: transHash when the venue sends one, otherwise txId, which is
+// null until the withdrawal is broadcast and can carry an output index after the hash.
+func withdrawalTxID(w *WithdrawalInfo) string {
+	if w.TransHash != "" {
+		return w.TransHash
+	}
+	return w.TransactionID
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -540,11 +552,14 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	for w := range withdrawals {
 		resp[w] = exchange.WithdrawalHistory{
 			Status:          withdrawalStatusToString(withdrawals[w].Status),
-			TransferID:      withdrawals[w].TransactionID,
+			TransferID:      withdrawals[w].ID,
 			Timestamp:       withdrawals[w].UpdateTime.Time(),
 			Currency:        withdrawals[w].Coin.String(),
 			Amount:          withdrawals[w].Amount.Float64(),
+			Fee:             withdrawals[w].TransactionFee.Float64(),
 			CryptoToAddress: withdrawals[w].Address,
+			CryptoTxID:      withdrawalTxID(withdrawals[w]),
+			CryptoChain:     withdrawals[w].Network,
 			TransferType:    "withdrawal",
 		}
 	}
@@ -785,6 +800,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			ClientOrderID:   result.ClientOrderID,
 			Price:           result.Price.Float64(),
 			Amount:          result.OrigQty.Float64(),
+			Date:            result.TransactTime.Time(),
 			LastUpdated:     result.TransactTime.Time(),
 			RemainingAmount: result.OrigQty.Float64() - result.ExecutedQty.Float64(),
 			TimeInForce:     tif,
