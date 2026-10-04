@@ -68,7 +68,6 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
 + OHLCV/Candle retrieval support. See [OHLCV](./docs/OHLCV.md).
-+ Scripting support. See [gctscript](./gctscript/README.md).
 + Recent and historic trade processing. See [trades](./exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](./backtester/README.md).
 + Exchange HTTP mock testing. See [mock](./exchanges/mock/README.md).
@@ -175,11 +174,11 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 788 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 488 |
-| [shazbert](https://github.com/shazbert) | 419 |
-| [gloriousCode](https://github.com/gloriousCode) | 247 |
-| [gbjk](https://github.com/gbjk) | 145 |
+| [thrasher-](https://github.com/thrasher-) | 790 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 490 |
+| [shazbert](https://github.com/shazbert) | 424 |
+| [gloriousCode](https://github.com/gloriousCode) | 248 |
+| [gbjk](https://github.com/gbjk) | 146 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
@@ -226,7 +225,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [gopherorg](https://github.com/gopherorg) | 1 |
 | [ginavalent](https://github.com/ginavalent) | 1 |
 | [gcmutator](https://github.com/gcmutator) | 1 |
-| [lookfirst](https://github.com/lookfirst) | 1 |
+| [arttobe](https://github.com/arttobe) | 1 |
 | [fmterrors](https://github.com/fmterrors) | 1 |
 | [findfluctuate](https://github.com/findfluctuate) | 1 |
 | [evgmalkov](https://github.com/evgmalkov) | 1 |
@@ -256,6 +255,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [nuxtreact](https://github.com/nuxtreact) | 1 |
 | [mickychang9](https://github.com/mickychang9) | 1 |
 | [keeghcet](https://github.com/keeghcet) | 1 |
+| [lookfirst](https://github.com/lookfirst) | 1 |
 | [jimexist](https://github.com/jimexist) | 1 |
 | [Jdpurohit](https://github.com/Jdpurohit) | 1 |
 | [gemscng](https://github.com/gemscng) | 1 |
@@ -273,13 +273,13 @@ Binaries will be published once the codebase reaches a stable condition.
 | [blombard](https://github.com/blombard) | 1 |
 | [antonzhukov](https://github.com/antonzhukov) | 1 |
 | [aidan-bailey](https://github.com/aidan-bailey) | 1 |
-| [arttobe](https://github.com/arttobe) | 1 |
 | [vyloy](https://github.com/vyloy) | 1 |
 | [hannut91](https://github.com/hannut91) | 1 |
 | [idealhack](https://github.com/idealhack) | 1 |
 | [varunbhat](https://github.com/varunbhat) | 1 |
 | [tonywangcn](https://github.com/tonywangcn) | 1 |
 | [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
+| [serhiizghama](https://github.com/serhiizghama) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [nolight132](https://github.com/nolight132) | 1 |
 | [Polizo96](https://github.com/Polizo96) | 1 |

@@ -11,6 +11,9 @@ import (
 	"github.com/quagmt/udecimal" //nolint:depguard // Selected implementation for the udecimal_on build.
 )
 
+// MaxFractionalDigits is the fractional precision retained by udecimal arithmetic.
+const MaxFractionalDigits = maxPrecision
+
 // Zero is the zero-value Decimal.
 var Zero Decimal
 
