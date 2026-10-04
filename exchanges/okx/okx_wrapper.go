@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -2636,13 +2637,14 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 }
 
 // getStandardOrderHistoryDetails retrieves the standard order history for the
-// requested asset type, filtered to the requested pairs. The 3 month archive
-// is the primary source; the 7 day listing is crawled beside it when the
-// requested window reaches its reach.
+// requested asset type, filtered to the requested pairs when they are set. The
+// history endpoints require only the instrument type from OKX, so empty pairs
+// returns every instrument the listings carry. Pair narrowing happens in the
+// result set only: instId is a single-value parameter on both endpoints (a
+// comma-separated list is rejected with 51000), so pushing pairs down would
+// multiply the crawls. The 3 month archive is the primary source; the 7 day
+// listing is crawled beside it when the requested window reaches its reach.
 func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
-	if len(req.Pairs) == 0 {
-		return nil, currency.ErrCurrencyPairsEmpty
-	}
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	// OKX returns both listings newest first and pages the remainder with the
 	// after cursor, which returns the records earlier than the requested
@@ -2679,46 +2681,44 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 				if err != nil {
 					return err
 				}
-				for j := range req.Pairs {
-					if !req.Pairs[j].Equal(pair) {
-						continue
-					}
-					orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
-					if err != nil {
-						return err
-					}
-					if orderStatus == order.Active {
-						continue
-					}
-					oType, tif, err := orderTypeFromString(orderList[i].OrderType)
-					if err != nil {
-						return err
-					}
-					amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
-					resp = append(resp, order.Detail{
-						Price:                orderList[i].Price.Float64(),
-						AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
-						Amount:               amount,
-						ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
-						RemainingAmount:      remaining,
-						QuoteAmount:          quoteAmount,
-						Fee:                  orderList[i].TransactionFee.Float64(),
-						FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
-						Exchange:             e.Name,
-						OrderID:              orderList[i].OrderID,
-						ClientOrderID:        orderList[i].ClientOrderID,
-						Type:                 oType,
-						Side:                 orderList[i].Side,
-						Status:               orderStatus,
-						AssetType:            req.AssetType,
-						Date:                 orderList[i].CreationTime.Time(),
-						LastUpdated:          orderList[i].UpdateTime.Time(),
-						Pair:                 pair,
-						Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-						CostAsset:            pair.Quote,
-						TimeInForce:          tif,
-					})
+				if len(req.Pairs) > 0 && !slices.ContainsFunc(req.Pairs, pair.Equal) {
+					continue
 				}
+				orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
+				if err != nil {
+					return err
+				}
+				if orderStatus == order.Active {
+					continue
+				}
+				oType, tif, err := orderTypeFromString(orderList[i].OrderType)
+				if err != nil {
+					return err
+				}
+				amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
+				resp = append(resp, order.Detail{
+					Price:                orderList[i].Price.Float64(),
+					AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
+					Amount:               amount,
+					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
+					RemainingAmount:      remaining,
+					QuoteAmount:          quoteAmount,
+					Fee:                  orderList[i].TransactionFee.Float64(),
+					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
+					Exchange:             e.Name,
+					OrderID:              orderList[i].OrderID,
+					ClientOrderID:        orderList[i].ClientOrderID,
+					Type:                 oType,
+					Side:                 orderList[i].Side,
+					Status:               orderStatus,
+					AssetType:            req.AssetType,
+					Date:                 orderList[i].CreationTime.Time(),
+					LastUpdated:          orderList[i].UpdateTime.Time(),
+					Pair:                 pair,
+					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
+					CostAsset:            pair.Quote,
+					TimeInForce:          tif,
+				})
 			}
 			if len(orderList) < orderListPageSize {
 				break

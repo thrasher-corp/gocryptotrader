@@ -4095,12 +4095,16 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.Buy,
 	}
-	_, err := e.GetOrderHistory(contextGenerate(), &getOrdersRequest)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
+	// The history endpoints require only the instrument type, so empty pairs
+	// queries every instrument within the window.
+	getOrdersRequest.StartTime = time.Now().Add(-kline.SevenDay.Duration())
 	result, err := e.GetOrderHistory(contextGenerate(), &getOrdersRequest)
+	require.NoError(t, err, "GetOrderHistory must accept empty pairs")
+	assert.NotNil(t, result)
+
+	getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
+	result, err = e.GetOrderHistory(contextGenerate(), &getOrdersRequest)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 

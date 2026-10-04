@@ -3065,6 +3065,52 @@ func TestGetOrderHistoryPaginatesWithAfterCursor(t *testing.T) {
 	assert.Equal(t, mainPair.Quote, history[0].CostAsset, "the cost asset should be the pair quote, not the order's rebate currency")
 }
 
+// TestGetOrderHistoryWithoutPairsReturnsEveryInstrument guards the official
+// request semantics: the history endpoints require only the instrument type,
+// so a request without pairs returns every instrument's orders instead of
+// erroring.
+func TestGetOrderHistoryWithoutPairsReturnsEveryInstrument(t *testing.T) {
+	t.Parallel()
+	created := strconv.FormatInt(time.Now().Add(-24*time.Hour).Truncate(time.Millisecond).UnixMilli(), 10)
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/trade/orders-history" {
+			writeOKXData(t, w, []map[string]string{})
+			return
+		}
+		if r.URL.Path != "/trade/orders-history-archive" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []map[string]string{
+			{
+				"instId": mainPair.String(), "ordId": "ORD-A",
+				"cTime": created, "uTime": created, "state": "filled",
+				"ordType": orderLimit, "side": "buy", "sz": "1",
+				"px": "42000", "accFillSz": "1", "avgPx": "42000",
+			},
+			{
+				"instId": "ETH-USDT", "ordId": "ORD-B",
+				"cTime": created, "uTime": created, "state": "filled",
+				"ordType": orderLimit, "side": "sell", "sz": "2",
+				"px": "3000", "accFillSz": "2", "avgPx": "3000",
+			},
+		})
+	}))
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+		StartTime: time.Now().Add(-25 * time.Hour), EndTime: time.Now().Add(-23 * time.Hour),
+	})
+	require.NoError(t, err, "GetOrderHistory must not error when no pairs are set")
+	require.Len(t, history, 2, "a request without pairs must return every instrument's orders")
+	ids := make(map[string]struct{}, len(history))
+	for x := range history {
+		ids[history[x].OrderID] = struct{}{}
+	}
+	assert.Contains(t, ids, "ORD-A", "the first instrument's orders should be returned without pairs")
+	assert.Contains(t, ids, "ORD-B", "the second instrument's orders should be returned without pairs")
+}
+
 // TestGetOrderHistoryStopsWhenAFullPageIsSeen guards the no-progress stop: a
 // full page whose last order ID repeats the requested after cursor must not
 // loop forever on the same page.
