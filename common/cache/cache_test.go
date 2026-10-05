@@ -28,12 +28,18 @@ func TestContainsOrAdd(t *testing.T) {
 func TestClear(t *testing.T) {
 	t.Parallel()
 	lruCache := New(5)
-	for x := range 5 {
-		lruCache.Add(x, x)
-	}
-	require.Equal(t, uint64(5), lruCache.Len(), "Len must report every added entry")
+	lruCache.Add("a", 1)
+	lruCache.Add("b", 2)
+	require.Equal(t, uint64(2), lruCache.Len(), "Len must report every added entry")
+
 	lruCache.Clear()
 	assert.Zero(t, lruCache.Len(), "Len should be zero after Clear")
+	assert.False(t, lruCache.Contains("a"), "Contains should return false for a cleared key")
+	assert.False(t, lruCache.Contains("b"), "Contains should return false for a cleared key")
+	assert.Nil(t, lruCache.Get("a"), "Get should return nil for a cleared key")
+
+	lruCache.Add("c", 3)
+	assert.Equal(t, 3, lruCache.Get("c"), "Get should return a value added after Clear")
 }
 
 func TestAdd(t *testing.T) {
