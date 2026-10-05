@@ -2520,9 +2520,9 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 	// OKX caps the spread order history response at orderListPageSize
 	// records and pages the remainder with the same earlier-than order ID
 	// endId cursor as the pending spread order listing. The 21 day listing
-	// carries the freshest orders, which the archive lags, while its begin
-	// filter is truncated to the last 7 days server side, where the archive
-	// alone reaches the rest of the documented 3 month window.
+	// carries the freshest orders, which the archive lags, and OKX confirmed
+	// its begin filter reaches the full 21 day window, so the archive is only
+	// crawled when the requested window extends past it.
 	// req.FromOrderID seeds the endId cursor so the crawl returns records
 	// earlier than it, matching the standard history's after semantics;
 	// beginId, which returns records newer than an order ID, is never sent.
@@ -2539,7 +2539,7 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 	}
 	for endID := req.FromOrderID; ; {
 		var page []SpreadOrder
-		page, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", spreadOrderType, "", "", endID, req.StartTime, req.EndTime, 0)
+		page, err := e.GetCompletedSpreadOrdersLast21Days(ctx, "", spreadOrderType, "", "", endID, req.StartTime, req.EndTime, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -2555,9 +2555,9 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 		}
 		endID = next
 	}
-	if req.StartTime.IsZero() || req.StartTime.Before(time.Now().Add(-kline.SevenDay.Duration())) {
-		// The listing's begin filter cannot reach past the last 7 days, so
-		// the archive covers the remainder of the documented 3 month window.
+	if req.StartTime.IsZero() || req.StartTime.Before(time.Now().Add(-kline.ThreeWeek.Duration())) {
+		// The 21 day listing cannot reach past its documented window, so the
+		// archive covers the remainder of the documented 3 month window.
 		for endID := req.FromOrderID; ; {
 			var page []SpreadOrder
 			page, err := e.GetCompletedSpreadOrdersLast3Months(ctx, "", spreadOrderType, "", "", endID, req.StartTime, req.EndTime, 0)

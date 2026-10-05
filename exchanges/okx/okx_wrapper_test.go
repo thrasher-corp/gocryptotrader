@@ -1086,10 +1086,11 @@ func TestGetSpreadOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 }
 
 // TestGetSpreadOrderHistoryFallsBackToArchive guards the documented 3 month
-// spread order history window: the sprd/orders-history begin filter is
-// truncated to 7 days server side, so a start time older than that must also
-// crawl sprd/orders-history-archive, and the overlap between the two listings
-// must not duplicate orders.
+// spread order history window: a start time older than the 21 day listing's
+// window must also crawl sprd/orders-history-archive, and the overlap between
+// the two listings must not duplicate orders. OKX confirmed the listing's
+// begin filter reaches its full 21 day window, so windows inside it need no
+// archive crawl.
 func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 	t.Parallel()
 
@@ -1097,6 +1098,11 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		"sprdId": "BTC-USDT_BTC-USDT", "ordId": "SPD-NEW", "ordType": orderLimit,
 		"side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "px": "100",
 		"cTime": strconv.FormatInt(time.Now().UnixMilli(), 10),
+	}
+	tenDaysOld := map[string]string{
+		"sprdId": "BTC-USDT_BTC-USDT", "ordId": "SPD-TEN", "ordType": orderLimit,
+		"side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "px": "100",
+		"cTime": strconv.FormatInt(time.Now().Add(-10*24*time.Hour).UnixMilli(), 10),
 	}
 	old := map[string]string{
 		"sprdId": "BTC-USDT_BTC-USDT", "ordId": "SPD-OLD", "ordType": orderLimit,
@@ -1131,7 +1137,7 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		mu.Lock()
 		crawls := archiveCrawls
 		mu.Unlock()
-		assert.Equal(t, 1, crawls, "the archive should be crawled when the start time passes the listing's 7 day begin reach")
+		assert.Equal(t, 1, crawls, "the archive should be crawled when the start time passes the listing's 21 day window")
 		ids := make([]string, 0, len(resp))
 		for x := range resp {
 			ids = append(ids, resp[x].OrderID)
@@ -1158,14 +1164,16 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		assert.Equal(t, "SPD-NEW", resp[0].OrderID)
 	})
 
-	t.Run("start time past the listing's truncated week also crawls the archive", func(t *testing.T) {
+	t.Run("start time inside the listing's 21 day window skips the archive", func(t *testing.T) {
 		t.Parallel()
 		var mu sync.Mutex
 		var archiveCrawls int
 		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
 			case "/sprd/orders-history":
-				writeOKXData(t, w, []map[string]string{recent})
+				// OKX confirmed the listing's begin filter reaches its full
+				// 21 day window, so ten day old orders come from the listing.
+				writeOKXData(t, w, []map[string]string{recent, tenDaysOld})
 			case "/sprd/orders-history-archive":
 				mu.Lock()
 				archiveCrawls++
@@ -1178,20 +1186,20 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		}))
 		resp, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
-			// Ten days back sits inside the listing's 21 day window but past
-			// its 7 day begin truncation, so the archive must cover the head.
+			// Ten days back sits inside the listing's 21 day window, so the
+			// listing alone must cover it and the archive must not be crawled.
 			StartTime: time.Now().Add(-10 * 24 * time.Hour),
 		})
-		require.NoError(t, err, "GetOrderHistory must not error when the archive covers the truncated week")
+		require.NoError(t, err, "GetOrderHistory must not error when the 21 day listing covers the start time")
 		mu.Lock()
 		crawls := archiveCrawls
 		mu.Unlock()
-		assert.Equal(t, 1, crawls, "the archive should be crawled when the start time is older than the listing's 7 day begin reach")
+		assert.Equal(t, 0, crawls, "the archive should not be crawled when the start time sits inside the listing's 21 day window")
 		ids := make([]string, 0, len(resp))
 		for x := range resp {
 			ids = append(ids, resp[x].OrderID)
 		}
-		assert.ElementsMatch(t, []string{"SPD-NEW", "SPD-OLD"}, ids, "the archive crawl should add the order past the listing's begin reach")
+		assert.ElementsMatch(t, []string{"SPD-NEW", "SPD-TEN"}, ids, "the listing should carry the orders inside its 21 day window")
 	})
 }
 

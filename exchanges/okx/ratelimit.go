@@ -257,7 +257,7 @@ const (
 	getSpreadCandlesticksHistoryEPL
 	cancelAllSpreadOrdersAfterEPL
 	getActiveSpreadOrdersEPL
-	getSpreadOrders7DaysEPL
+	getSpreadOrders21DaysEPL
 	getSpreadOrders3MonthsEPL
 	getInstrumentsEPL
 	getDeliveryExerciseHistoryEPL
@@ -591,7 +591,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		amendSpreadOrderEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadOrderDetailsEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getActiveSpreadOrdersEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getSpreadOrders7DaysEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrders21DaysEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadOrders3MonthsEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadOrderTradesEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadsEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),

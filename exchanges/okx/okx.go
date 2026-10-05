@@ -4780,9 +4780,9 @@ func (e *Exchange) GetActiveSpreadOrders(ctx context.Context, spreadID, orderTyp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getActiveSpreadOrdersEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCompletedSpreadOrdersLast7Days retrieves the completed spread orders of the last 21 days. Results are returned in counter chronological order
-func (e *Exchange) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
-	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history", getSpreadOrders7DaysEPL)
+// GetCompletedSpreadOrdersLast21Days retrieves the completed spread orders of the last 21 days. Results are returned in counter chronological order
+func (e *Exchange) GetCompletedSpreadOrdersLast21Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+	return e.getSpreadOrderHistory(ctx, spreadID, orderType, state, beginID, endID, begin, end, limit, "sprd/orders-history", getSpreadOrders21DaysEPL)
 }
 
 // GetCompletedSpreadOrdersLast3Months retrieves the completed spread orders of the last 3 months. Recent orders can lag behind the 21 day listing while they reach the archive. Results are returned in counter chronological order

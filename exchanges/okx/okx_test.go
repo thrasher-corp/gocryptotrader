@@ -6226,10 +6226,10 @@ func TestGetActiveSpreadOrders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetCompletedSpreadOrdersLast7Days(t *testing.T) {
+func TestGetCompletedSpreadOrdersLast21Days(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetCompletedSpreadOrdersLast7Days(contextGenerate(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
+	result, err := e.GetCompletedSpreadOrdersLast21Days(contextGenerate(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

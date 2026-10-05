@@ -228,7 +228,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getSpreadTicker":                                getSpreadTickerEPL,
 		"getSpreadPublicTrades":                          getSpreadPublicTradesEPL,
 		"getActiveSpreadOrders":                          getActiveSpreadOrdersEPL,
-		"getSpreadOrders7Days":                           getSpreadOrders7DaysEPL,
+		"getSpreadOrders21Days":                          getSpreadOrders21DaysEPL,
 		"getSpreadOrders3Months":                         getSpreadOrders3MonthsEPL,
 		"getInstruments":                                 getInstrumentsEPL,
 		"getDeliveryExerciseHistory":                     getDeliveryExerciseHistoryEPL,
