@@ -2537,23 +2537,27 @@ func (e *Exchange) getSpreadOrderHistoryDetails(ctx context.Context, req *order.
 			spreadOrders = append(spreadOrders, page[i])
 		}
 	}
-	for endID := req.FromOrderID; ; {
-		var page []SpreadOrder
-		page, err := e.GetCompletedSpreadOrdersLast21Days(ctx, "", spreadOrderType, "", "", endID, req.StartTime, req.EndTime, 0)
-		if err != nil {
-			return nil, err
+	// The 21 day listing cannot hold orders older than its window, so it is
+	// crawled only when the requested window reaches into it.
+	if req.EndTime.IsZero() || req.EndTime.After(time.Now().Add(-kline.ThreeWeek.Duration())) {
+		for endID := req.FromOrderID; ; {
+			var page []SpreadOrder
+			page, err := e.GetCompletedSpreadOrdersLast21Days(ctx, "", spreadOrderType, "", "", endID, req.StartTime, req.EndTime, 0)
+			if err != nil {
+				return nil, err
+			}
+			record(page)
+			if len(page) < orderListPageSize {
+				break
+			}
+			next := page[len(page)-1].OrderID
+			if next == endID {
+				// The page did not advance past the cursor; stop rather than
+				// request the same page forever.
+				break
+			}
+			endID = next
 		}
-		record(page)
-		if len(page) < orderListPageSize {
-			break
-		}
-		next := page[len(page)-1].OrderID
-		if next == endID {
-			// The page did not advance past the cursor; stop rather than
-			// request the same page forever.
-			break
-		}
-		endID = next
 	}
 	if req.StartTime.IsZero() || req.StartTime.Before(time.Now().Add(-kline.ThreeWeek.Duration())) {
 		// The 21 day listing cannot reach past its documented window, so the

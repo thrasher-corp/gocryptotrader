@@ -2981,7 +2981,6 @@ type AmendSpreadOrderParam struct {
 // SpreadOrder holds spread order details
 type SpreadOrder struct {
 	TradeID           string       `json:"tradeId"`
-	InstrumentID      string       `json:"instId"`
 	OrderID           string       `json:"ordId"`
 	SpreadID          string       `json:"sprdId"`
 	ClientOrderID     string       `json:"clOrdId"`

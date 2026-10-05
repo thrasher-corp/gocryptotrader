@@ -1201,6 +1201,32 @@ func TestGetSpreadOrderHistoryFallsBackToArchive(t *testing.T) {
 		}
 		assert.ElementsMatch(t, []string{"SPD-NEW", "SPD-TEN"}, ids, "the listing should carry the orders inside its 21 day window")
 	})
+
+	t.Run("end time older than the listing's window skips the listing", func(t *testing.T) {
+		t.Parallel()
+		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/sprd/orders-history":
+				t.Error("the 21 day listing must not be crawled when the window ends before it")
+				http.NotFound(w, r)
+			case "/sprd/orders-history-archive":
+				writeOKXData(t, w, []map[string]string{old})
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		resp, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
+			// A window entirely older than the 21 day listing can only be
+			// served by the archive.
+			StartTime: time.Now().Add(-40 * 24 * time.Hour),
+			EndTime:   time.Now().Add(-30 * 24 * time.Hour),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error when only the archive covers the window")
+		require.Len(t, resp, 1, "the archive must be the only source for a window older than the listing")
+		assert.Equal(t, "SPD-OLD", resp[0].OrderID)
+	})
 }
 
 // TestGetSpreadOrderHistoryFromOrderIDSeedsTheArchiveCrawl guards the
