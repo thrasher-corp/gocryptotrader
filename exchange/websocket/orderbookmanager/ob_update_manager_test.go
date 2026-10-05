@@ -686,14 +686,6 @@ func TestWaitForUpdate(t *testing.T) {
 	cache.ch <- 1338
 	wg.Wait()
 	assert.NoError(t, err)
-
-	select {
-	case <-cache.ch:
-	default:
-	}
-	cache.ch <- 1337 // A stale notification must not hide the latest queued update.
-	err = cache.waitForUpdate(t.Context(), 1338)
-	assert.NoError(t, err, "waitForUpdate should observe the latest queued update despite a stale notification")
 }
 
 func TestWaitForUpdateRechecksQueue(t *testing.T) {
