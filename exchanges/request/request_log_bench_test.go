@@ -5,8 +5,7 @@ import (
 	"testing"
 )
 
-// These fixtures also run unchanged against PR #2387's original head, ea6e1d07.
-// Compare both revisions with the same Go version, JSON backend and command:
+// Compare revisions with the same Go version, JSON backend and command, for example:
 // go test ./exchanges/request -run '^$' -bench 'Benchmark(RedactEncodedValues|PathForLog|BodyForLog)$' -benchmem -benchtime=200ms -count=5
 // Add -tags sonic_on to compare the alternative JSON backend separately.
 // Keep fixture construction outside b.Loop so only filtering is measured.
@@ -66,7 +65,6 @@ func BenchmarkBodyForLog(b *testing.B) {
 			payload := []byte(tc.body)
 			b.ReportAllocs()
 			b.SetBytes(int64(len(payload)))
-			b.ResetTimer()
 			for b.Loop() {
 				_ = bodyForLog(payload, tc.contentType)
 			}

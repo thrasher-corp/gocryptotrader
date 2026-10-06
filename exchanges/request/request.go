@@ -404,6 +404,8 @@ func bodyForLog(payload []byte, contentType string) []byte {
 			if filtered, err := redactJSONBody(redacted); err == nil {
 				return filtered
 			}
+			// A JSON-shaped body the JSON pass cannot read may still carry credentials.
+			return []byte("[REDACTED INVALID JSON BODY]")
 		}
 		return redacted
 	}

@@ -266,6 +266,8 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 		{name: "declared form carrying unchanged JSON", contentType: "application/x-www-form-urlencoded", body: `{"orderId":1234567890123456789,"note":"a\u0026b"}`, expected: `{"orderId":1234567890123456789,"note":"a\u0026b"}`},
 		{name: "declared form carrying JSON credentials", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret"}`, expected: `{"password":"[REDACTED]"}`},
 		{name: "declared form readable as both", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","note":"&key=form-secret&x="}`, expected: `{"password":"[REDACTED]","note":"&key=[REDACTED]&x="}`},
+		{name: "declared form whose form pass breaks its JSON", contentType: "application/x-www-form-urlencoded", body: `{"passphrase":"secret","redirect":"https://example.com/?api_key=1"}`, expected: "[REDACTED INVALID JSON BODY]"},
+		{name: "declared form carrying a number outside float64's range", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","n":1e9999}`, expected: "[REDACTED INVALID JSON BODY]"},
 		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
 	}
 	for _, tc := range tests {

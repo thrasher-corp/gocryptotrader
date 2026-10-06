@@ -2,13 +2,13 @@ package request
 
 import (
 	"bytes"
+	jsonv1 "encoding/json"   //nolint:depguard // Decodes with the standard library, whatever the build's JSON backend.
 	"encoding/json/jsontext" //nolint:depguard // Tests the token-based redactor directly.
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestRedactJSONBody(t *testing.T) {
@@ -50,9 +50,11 @@ func TestRedactJSONBody(t *testing.T) {
 }
 
 func FuzzRedactJSONBody(f *testing.F) {
-	for _, seed := range []string{`{}`, `[]`, `{"password":"example"}`, `{"pass\u0077ord":{}}`, `[{"key":1},{"nonce":2}]`, `{"key":1,"key":2}`, `{"value":1e9999}`, "{\"\x00\":0}"} {
+	for _, seed := range []string{`{}`, `[]`, `{"password":"example"}`, `{"pass\u0077ord":{}}`, `[{"key":1},{"nonce":2}]`, `{"key":1,"key":2}`, `{"value":1e9999}`} {
 		f.Add([]byte(seed))
 	}
+	// Sonic rejects nesting this deep, which jsontext accepts.
+	f.Add([]byte(strings.Repeat("[", 5000) + "0" + strings.Repeat("]", 5000)))
 	f.Fuzz(func(t *testing.T, payload []byte) {
 		t.Parallel()
 		got, err := redactJSONBody(payload)
@@ -60,8 +62,9 @@ func FuzzRedactJSONBody(f *testing.F) {
 			return
 		}
 		var original, filtered any
-		require.NoError(t, json.Unmarshal(payload, &original), "accepted input must decode")
-		require.NoError(t, json.Unmarshal(got, &filtered), "filtered output must decode")
+		// The build's JSON backend may reject input that jsontext accepts.
+		require.NoError(t, jsonv1.Unmarshal(payload, &original), "accepted input must decode")
+		require.NoError(t, jsonv1.Unmarshal(got, &filtered), "filtered output must decode")
 		redactJSONValueForTest(original, nil)
 		assert.Equal(t, original, filtered, "raw redaction should match the decoded traversal")
 	})
