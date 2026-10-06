@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,35 +14,38 @@ import (
 
 var orderbookCommonFlags = []cli.Flag{
 	&cli.StringFlag{
-		Name:  "exchange",
-		Usage: "the exchange to get the orderbook for",
+		Name:     exchangeFlag,
+		Required: true,
+		Usage:    "the exchange to get the orderbook for",
 	},
 	&cli.StringFlag{
-		Name:  "pair",
-		Usage: "the currency pair to get the orderbook for",
+		Name:     pairFlag,
+		Required: true,
+		Usage:    "the currency pair to get the orderbook for",
 	},
 	&cli.StringFlag{
-		Name:  "asset",
-		Usage: "the asset type of the currency pair to get the orderbook for",
+		Name:     assetFlag,
+		Required: true,
+		Usage:    "the asset type of the currency pair to get the orderbook for",
 	},
 }
 
 var orderbookCommand = &cli.Command{
 	Name:      "orderbook",
 	Usage:     "orderbook system simulations and analytics command",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
 			Name:        "sell",
 			Usage:       "simulates sell to derive orderbook liquidity impact information",
-			ArgsUsage:   "<command> <args>",
+			ArgsUsage:   commandArgsUsage,
 			Subcommands: []*cli.Command{nominal, impact, base, quoteRequired},
 			Flags:       []cli.Flag{&cli.BoolFlag{Name: "sell", Hidden: true, Value: true}},
 		},
 		{
 			Name:        "buy",
 			Usage:       "simulates buy to derive orderbook liquidity impact information",
-			ArgsUsage:   "<command> <args>",
+			ArgsUsage:   commandArgsUsage,
 			Subcommands: []*cli.Command{nominal, impact, quote, baseRequired},
 		},
 		getOrderbookCommand,
@@ -55,10 +57,9 @@ var orderbookCommand = &cli.Command{
 }
 
 var nominal = &cli.Command{
-	Name:      "nominal",
-	Usage:     "simulates a buy or sell based off the percentage between the reference price and the average order cost",
-	ArgsUsage: "<exchange> <pair> <asset> <percent>",
-	Action:    getNominal,
+	Name:   "nominal",
+	Usage:  "simulates a buy or sell based off the percentage between the reference price and the average order cost",
+	Action: getNominal,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
 		Name:  "percent",
 		Usage: "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
@@ -67,22 +68,18 @@ var nominal = &cli.Command{
 
 func getNominal(c *cli.Context) error {
 	isSelling := c.Bool("sell")
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
 	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 
 	if !validPair(currencyPair) {
@@ -90,10 +87,8 @@ func getNominal(c *cli.Context) error {
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -107,10 +102,8 @@ func getNominal(c *cli.Context) error {
 	}
 
 	var percentage float64
-	if c.IsSet("asset") {
+	if c.IsSet("percent") {
 		percentage = c.Float64("percent")
-	} else {
-		percentage, _ = strconv.ParseFloat(c.Args().Get(3), 64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -140,34 +133,30 @@ func getNominal(c *cli.Context) error {
 }
 
 var impact = &cli.Command{
-	Name:      "impact",
-	Usage:     "simulates a buy or sell based off the reference price and the orderbook impact slippage",
-	ArgsUsage: "<exchange> <pair> <asset> <percent>",
-	Action:    getImpact,
+	Name:   "impact",
+	Usage:  "simulates a buy or sell based off the reference price and the orderbook impact slippage",
+	Action: getImpact,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:  "percent",
-		Usage: "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
+		Name:     "percent",
+		Required: true,
+		Usage:    "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
 	}),
 }
 
 func getImpact(c *cli.Context) error {
 	isSelling := c.Bool("sell")
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
 	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 
 	if !validPair(currencyPair) {
@@ -175,10 +164,8 @@ func getImpact(c *cli.Context) error {
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -192,10 +179,8 @@ func getImpact(c *cli.Context) error {
 	}
 
 	var percentage float64
-	if c.IsSet("asset") {
+	if c.IsSet("percent") {
 		percentage = c.Float64("percent")
-	} else {
-		percentage, _ = strconv.ParseFloat(c.Args().Get(3), 64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -231,66 +216,62 @@ var purchase = &cli.BoolFlag{
 }
 
 var quote = &cli.Command{
-	Name:      "quote",
-	Usage:     "simulates a buy using quotation amount",
-	ArgsUsage: "<exchange> <pair> <asset> <amount>",
-	Action:    getMovement,
+	Name:   "quote",
+	Usage:  "simulates a buy using quotation amount",
+	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:  "amount",
-		Usage: "the amount of quotation currency lifting the asks",
+		Name:     amountFlag,
+		Required: true,
+		Usage:    "the amount of quotation currency lifting the asks",
 	}),
 }
 
 var baseRequired = &cli.Command{
-	Name:      "baserequired",
-	Usage:     "simulates a buy with a required base amount to be purchased",
-	ArgsUsage: "<exchange> <pair> <asset> <amount>",
-	Action:    getMovement,
+	Name:   "baserequired",
+	Usage:  "simulates a buy with a required base amount to be purchased",
+	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:  "amount",
-		Usage: "the amount of base currency required to be purchased when lifting the asks",
+		Name:     amountFlag,
+		Required: true,
+		Usage:    "the amount of base currency required to be purchased when lifting the asks",
 	}, purchase),
 }
 
 var base = &cli.Command{
-	Name:      "base",
-	Usage:     "simulates a sell using base amount",
-	ArgsUsage: "<exchange> <pair> <asset> <amount>",
-	Action:    getMovement,
+	Name:   "base",
+	Usage:  "simulates a sell using base amount",
+	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:  "amount",
-		Usage: "the amount of base currency hitting the bids",
+		Name:     amountFlag,
+		Required: true,
+		Usage:    "the amount of base currency hitting the bids",
 	}),
 }
 
 var quoteRequired = &cli.Command{
-	Name:      "quoterequired",
-	Usage:     "simulates a sell with a required quote amount to be purchased",
-	ArgsUsage: "<exchange> <pair> <asset> <amount>",
-	Action:    getMovement,
+	Name:   "quoterequired",
+	Usage:  "simulates a sell with a required quote amount to be purchased",
+	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:  "amount",
-		Usage: "the amount of quotation currency required to be purchased when hitting the bids",
+		Name:     amountFlag,
+		Required: true,
+		Usage:    "the amount of quotation currency required to be purchased when hitting the bids",
 	}, purchase),
 }
 
 func getMovement(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
 	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 
 	if !validPair(currencyPair) {
@@ -298,10 +279,8 @@ func getMovement(c *cli.Context) error {
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -315,10 +294,8 @@ func getMovement(c *cli.Context) error {
 	}
 
 	var amount float64
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
-	} else {
-		amount, _ = strconv.ParseFloat(c.Args().Get(3), 64)
+	if c.IsSet(amountFlag) {
+		amount = c.Float64(amountFlag)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -349,10 +326,9 @@ func getMovement(c *cli.Context) error {
 }
 
 var getOrderbookCommand = &cli.Command{
-	Name:      "getorderbook",
-	Usage:     "gets the orderbook for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <pair> <asset> <exchangestyle> <depthlimit>",
-	Action:    getOrderbook,
+	Name:   "getorderbook",
+	Usage:  "gets the orderbook for a specific currency pair and exchange",
+	Action: getOrderbook,
 	Flags: append(orderbookCommonFlags,
 		&cli.BoolFlag{
 			Name:  "exchangestyle",
@@ -365,7 +341,7 @@ var getOrderbookCommand = &cli.Command{
 }
 
 func getOrderbook(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
@@ -375,47 +351,30 @@ func getOrderbook(c *cli.Context) error {
 		err                           error
 	)
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("pair") {
-		pair = c.String("pair")
-	} else {
-		pair = c.Args().Get(1)
+	if c.IsSet(pairFlag) {
+		pair = c.String(pairFlag)
 	}
 
 	if !validPair(pair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	if c.IsSet("exchangestyle") {
 		exchangeStyle = c.Bool("exchangestyle")
-	} else if c.Args().Get(3) != "" {
-		exchangeStyle, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
 	}
 
 	const depthCeiling uint64 = 100 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
 	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
 		depthLimit = d
-	} else if d := c.Args().Get(4); d != "" {
-		if du, err := strconv.ParseUint(d, 10, 64); err != nil {
-			return err
-		} else if du > 0 && du < depthCeiling {
-			depthLimit = du
-		}
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -485,10 +444,9 @@ func getOrderbooks(c *cli.Context) error {
 }
 
 var getOrderbookStreamCommand = &cli.Command{
-	Name:      "getorderbookstream",
-	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <pair> <asset> <exchangestyle> <depthlimit>",
-	Action:    getOrderbookStream,
+	Name:   "getorderbookstream",
+	Usage:  "gets the orderbook stream for a specific currency pair and exchange",
+	Action: getOrderbookStream,
 	Flags: append(orderbookCommonFlags,
 		&cli.BoolFlag{
 			Name:  "exchangestyle",
@@ -501,7 +459,7 @@ var getOrderbookStreamCommand = &cli.Command{
 }
 
 func getOrderbookStream(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
@@ -511,47 +469,30 @@ func getOrderbookStream(c *cli.Context) error {
 		err                           error
 	)
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("pair") {
-		pair = c.String("pair")
-	} else {
-		pair = c.Args().Get(1)
+	if c.IsSet(pairFlag) {
+		pair = c.String(pairFlag)
 	}
 
 	if !validPair(pair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	if c.IsSet("exchangestyle") {
 		exchangeStyle = c.Bool("exchangestyle")
-	} else if c.Args().Get(3) != "" {
-		exchangeStyle, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
 	}
 
 	const depthCeiling uint64 = 50 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
 	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
 		depthLimit = d
-	} else if d := c.Args().Get(4); d != "" {
-		if du, err := strconv.ParseUint(d, 10, 64); err != nil {
-			return err
-		} else if du > 0 && du < depthCeiling {
-			depthLimit = du
-		}
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -673,28 +614,26 @@ func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, 
 }
 
 var getExchangeOrderbookStreamCommand = &cli.Command{
-	Name:      "getexchangeorderbookstream",
-	Usage:     "gets a stream for all orderbooks associated with an exchange",
-	ArgsUsage: "<exchange>",
-	Action:    getExchangeOrderbookStream,
+	Name:   "getexchangeorderbookstream",
+	Usage:  "gets a stream for all orderbooks associated with an exchange",
+	Action: getExchangeOrderbookStream,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the orderbook from",
+			Name:     exchangeFlag,
+			Required: true,
+			Usage:    "the exchange to get the orderbook from",
 		},
 	},
 }
 
 func getExchangeOrderbookStream(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -731,26 +670,29 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 }
 
 var whaleBombCommand = &cli.Command{
-	Name:      "whalebomb",
-	Usage:     "whale bomb finds the amount required to reach a price target",
-	ArgsUsage: "<exchange> <pair> <side> <asset> <price>",
-	Action:    whaleBomb,
+	Name:   "whalebomb",
+	Usage:  "whale bomb finds the amount required to reach a price target",
+	Action: whaleBomb,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to whale bomb",
+			Name:     exchangeFlag,
+			Required: true,
+			Usage:    "the exchange to whale bomb",
 		},
 		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
+			Name:     pairFlag,
+			Required: true,
+			Usage:    pairUsage,
 		},
 		&cli.StringFlag{
-			Name:  "side",
-			Usage: "the order side to use (BUY OR SELL)",
+			Name:     sideFlag,
+			Required: true,
+			Usage:    "the order side to use (BUY OR SELL)",
 		},
 		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair to get the orderbook for",
+			Name:     assetFlag,
+			Required: true,
+			Usage:    "the asset type of the currency pair to get the orderbook for",
 		},
 		&cli.Float64Flag{
 			Name:  "price",
@@ -760,7 +702,7 @@ var whaleBombCommand = &cli.Command{
 }
 
 func whaleBomb(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
@@ -769,26 +711,20 @@ func whaleBomb(c *cli.Context) error {
 	var orderSide string
 	var price float64
 
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
-	} else {
-		orderSide = c.Args().Get(2)
+	if c.IsSet(sideFlag) {
+		orderSide = c.String(sideFlag)
 	}
 
 	if orderSide == "" {
@@ -796,20 +732,12 @@ func whaleBomb(c *cli.Context) error {
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(3)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	if c.IsSet("price") {
 		price = c.Float64("price")
-	} else if c.Args().Get(4) != "" {
-		var err error
-		price, err = strconv.ParseFloat(c.Args().Get(4), 64)
-		if err != nil {
-			return err
-		}
 	}
 
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)

@@ -3,8 +3,8 @@ package order
 import (
 	"errors"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -78,6 +78,9 @@ type Submit struct {
 	// The system will first borrow you funds at the optimal interest rate and then place an order for you.
 	// see kucoin_wrapper.go
 	AutoBorrow bool
+	// AutoRepay when enabled the system will automatically repay the borrowed funds after the order is filled.
+	// Used in conjunction with margin trading to close/reduce short positions.
+	AutoRepay bool
 
 	// MarginType such as isolated or cross margin for when an exchange
 	// supports margin type definition when submitting an order eg okx
@@ -90,12 +93,6 @@ type Submit struct {
 	// and cannot retrieve fees data immediately
 	RetrieveFeeDelay    time.Duration
 	RiskManagementModes RiskManagementModes
-
-	// Hidden when enabled orders not displaying in order book.
-	Hidden bool
-
-	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
-	Iceberg bool
 
 	// EndTime is the moment which a good til date order is valid until
 	EndTime time.Time
@@ -481,21 +478,6 @@ const (
 	CouldNotCloseLong
 	MissingData
 )
-
-// ByPrice used for sorting orders by price
-type ByPrice []Detail
-
-// ByOrderType used for sorting orders by order type
-type ByOrderType []Detail
-
-// ByCurrency used for sorting orders by order currency
-type ByCurrency []Detail
-
-// ByDate used for sorting orders by order date
-type ByDate []Detail
-
-// ByOrderSide used for sorting orders by order side (buy sell)
-type ByOrderSide []Detail
 
 // ClassificationError returned when an order status
 // side or type cannot be recognised

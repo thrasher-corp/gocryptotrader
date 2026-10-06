@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -208,6 +208,17 @@ func TestSetStream(t *testing.T) {
 	require.ErrorIs(t, err, errMismatchedEvent)
 
 	err = b.SetStream([]Event{nil})
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
+	err = b.SetStream([]Event{
+		&fakeEvent{Base: &event.Base{
+			Time:         time.Now(),
+			Exchange:     "test",
+			AssetType:    asset.Spot,
+			CurrencyPair: cp,
+		}},
+		nil,
+	})
 	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	b = nil

@@ -3,12 +3,12 @@ package funding
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestCollateralCanPlaceOrder(t *testing.T) {
@@ -134,14 +134,13 @@ func TestCollateralUpdateContracts(t *testing.T) {
 
 func TestCollateralReleaseContracts(t *testing.T) {
 	t.Parallel()
-	b := gctorder.Buy
 	c := &CollateralPair{
 		collateral: &Item{
 			asset:        asset.Futures,
 			isCollateral: true,
 		},
 		contract:         &Item{asset: asset.Futures},
-		currentDirection: &b,
+		currentDirection: new(gctorder.Buy),
 	}
 
 	err := c.ReleaseContracts(decimal.Zero)

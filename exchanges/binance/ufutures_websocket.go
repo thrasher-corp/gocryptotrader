@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -119,7 +120,7 @@ func (e *Exchange) wsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case forceOrderAllChan, "forceOrder":
 		return e.processForceOrder(ctx, result.Data, asset.USDTMarginedFutures)
 	case bookTickerAllChan, "bookTicker":
-		return e.processBookTicker(result.Data, asset.USDTMarginedFutures)
+		return e.processBookTicker(ctx, result.Data, asset.USDTMarginedFutures)
 	case tickerAllChan:
 		return e.processMarketTicker(ctx, result.Data, true, asset.USDTMarginedFutures)
 	case "ticker":
@@ -135,7 +136,7 @@ func (e *Exchange) wsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case "!markPrice@arr":
 		return e.processMarkPriceUpdate(ctx, result.Data, true)
 	case "depth":
-		return e.processOrderbookDepthUpdate(result.Data, asset.USDTMarginedFutures)
+		return e.processOrderbookDepthUpdate(ctx, result.Data, asset.USDTMarginedFutures)
 	case "compositeIndex":
 		return e.processCompositeIndex(ctx, result.Data)
 	case continuousKline:
@@ -199,6 +200,10 @@ func (e *Exchange) processContinuousKlineUpdate(ctx context.Context, respRaw []b
 	if err != nil {
 		return err
 	}
+	var validationIssues string
+	if !resp.KlineData.IsKlineClosed {
+		validationIssues = kline.PartialCandle
+	}
 	return e.Websocket.DataHandler.Send(ctx, kline.Item{
 		Pair:     cp,
 		Exchange: e.Name,
@@ -206,12 +211,13 @@ func (e *Exchange) processContinuousKlineUpdate(ctx context.Context, respRaw []b
 		Asset:    assetType,
 		Candles: []kline.Candle{
 			{
-				Time:   resp.EventTime.Time(),
-				Open:   resp.KlineData.OpenPrice.Float64(),
-				Close:  resp.KlineData.ClosePrice.Float64(),
-				High:   resp.KlineData.HighPrice.Float64(),
-				Low:    resp.KlineData.LowPrice.Float64(),
-				Volume: resp.KlineData.Volume.Float64(),
+				Time:             resp.EventTime.Time(),
+				Open:             resp.KlineData.OpenPrice.Float64(),
+				Close:            resp.KlineData.ClosePrice.Float64(),
+				High:             resp.KlineData.HighPrice.Float64(),
+				Low:              resp.KlineData.LowPrice.Float64(),
+				Volume:           resp.KlineData.Volume.Float64(),
+				ValidationIssues: validationIssues,
 			},
 		},
 	})
@@ -231,7 +237,7 @@ var (
 	bookTickerSymbolsLock sync.Mutex
 )
 
-func (e *Exchange) processOrderbookDepthUpdate(respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) processOrderbookDepthUpdate(ctx context.Context, respRaw []byte, assetType asset.Item) error {
 	var resp FuturesDepthOrderbook
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -244,7 +250,7 @@ func (e *Exchange) processOrderbookDepthUpdate(respRaw []byte, assetType asset.I
 	defer bookTickerSymbolsLock.Unlock()
 	if _, okay := bookTickerSymbolsMap[resp.Symbol]; !okay {
 		bookTickerSymbolsMap[strings.ToUpper(resp.Symbol)] = struct{}{}
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Bids:         resp.Bids.Levels(),
 			Asks:         resp.Asks.Levels(),
 			Exchange:     e.Name,
@@ -254,7 +260,7 @@ func (e *Exchange) processOrderbookDepthUpdate(respRaw []byte, assetType asset.I
 			LastUpdateID: resp.LastUpdateID,
 		})
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		UpdateID:   resp.LastUpdateID,
 		UpdateTime: resp.TransactionTime.Time(),
 		Asset:      asset.USDTMarginedFutures,
@@ -319,7 +325,7 @@ func (e *Exchange) processMiniTickers(ctx context.Context, respRaw []byte, array
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, tickerPrices)
+		return e.processAndSendTickers(ctx, tickerPrices)
 	}
 	var resp FutureMiniTickerPrice
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
@@ -329,17 +335,7 @@ func (e *Exchange) processMiniTickers(ctx context.Context, respRaw []byte, array
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
-		Pair:         cp,
-		High:         resp.HighPrice.Float64(),
-		Low:          resp.LowPrice.Float64(),
-		Volume:       resp.Volume.Float64(),
-		QuoteVolume:  resp.QuoteVolume.Float64(),
-		Open:         resp.OpenPrice.Float64(),
-		ExchangeName: e.Name,
-		AssetType:    assetType,
-		LastUpdated:  resp.EventTime.Time(),
-	})
+	return e.processAndSendTicker(ctx, miniTickerPrice(&resp, cp, e.Name, assetType))
 }
 
 func (e *Exchange) getMiniTickers(miniTickers []FutureMiniTickerPrice, assetType asset.Item) ([]ticker.Price, error) {
@@ -349,19 +345,30 @@ func (e *Exchange) getMiniTickers(miniTickers []FutureMiniTickerPrice, assetType
 		if err != nil {
 			return nil, err
 		}
-		tickerPrices[i] = ticker.Price{
-			Pair:         cp,
-			High:         miniTickers[i].HighPrice.Float64(),
-			Low:          miniTickers[i].LowPrice.Float64(),
-			Volume:       miniTickers[i].Volume.Float64(),
-			QuoteVolume:  miniTickers[i].QuoteVolume.Float64(),
-			Open:         miniTickers[i].OpenPrice.Float64(),
-			ExchangeName: e.Name,
-			AssetType:    assetType,
-			LastUpdated:  miniTickers[i].EventTime.Time(),
-		}
+		tickerPrices[i] = *miniTickerPrice(&miniTickers[i], cp, e.Name, assetType)
 	}
 	return tickerPrices, nil
+}
+
+// miniTickerPrice converts a mini ticker. Coin margined futures counts v in contracts and sends
+// the base asset volume as q, so it reports no quote volume
+func miniTickerPrice(t *FutureMiniTickerPrice, cp currency.Pair, exchangeName string, assetType asset.Item) *ticker.Price {
+	p := &ticker.Price{
+		Pair:         cp,
+		High:         t.HighPrice.Float64(),
+		Low:          t.LowPrice.Float64(),
+		Open:         t.OpenPrice.Float64(),
+		ExchangeName: exchangeName,
+		AssetType:    assetType,
+		LastUpdated:  t.EventTime.Time(),
+	}
+	if assetType == asset.CoinMarginedFutures {
+		p.BaseVolume = t.QuoteVolume.Float64()
+		return p
+	}
+	p.BaseVolume = t.Volume.Float64()
+	p.QuoteVolume = t.QuoteVolume.Float64()
+	return p
 }
 
 func (e *Exchange) processMarketTicker(ctx context.Context, respRaw []byte, array bool, assetType asset.Item) error {
@@ -374,7 +381,7 @@ func (e *Exchange) processMarketTicker(ctx context.Context, respRaw []byte, arra
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, tickerPrices)
+		return e.processAndSendTickers(ctx, tickerPrices)
 	}
 	var resp UFutureMarketTicker
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
@@ -384,12 +391,12 @@ func (e *Exchange) processMarketTicker(ctx context.Context, respRaw []byte, arra
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	return e.processAndSendTicker(ctx, &ticker.Price{
 		Pair:         cp,
 		Last:         resp.LastPrice.Float64(),
 		High:         resp.HighPrice.Float64(),
 		Low:          resp.LowPrice.Float64(),
-		Volume:       resp.TotalTradeBaseVolume.Float64(),
+		BaseVolume:   resp.TotalTradeBaseVolume.Float64(),
 		QuoteVolume:  resp.TotalQuoteAssetVolume.Float64(),
 		Open:         resp.OpenPrice.Float64(),
 		ExchangeName: e.Name,
@@ -410,7 +417,7 @@ func (e *Exchange) getTickerInfos(marketTickers []UFutureMarketTicker) ([]ticker
 			Last:         marketTickers[a].LastPrice.Float64(),
 			High:         marketTickers[a].HighPrice.Float64(),
 			Low:          marketTickers[a].LowPrice.Float64(),
-			Volume:       marketTickers[a].TotalTradeBaseVolume.Float64(),
+			BaseVolume:   marketTickers[a].TotalTradeBaseVolume.Float64(),
 			QuoteVolume:  marketTickers[a].TotalQuoteAssetVolume.Float64(),
 			Open:         marketTickers[a].OpenPrice.Float64(),
 			ExchangeName: e.Name,
@@ -421,7 +428,7 @@ func (e *Exchange) getTickerInfos(marketTickers []UFutureMarketTicker) ([]ticker
 	return tickerPrices, nil
 }
 
-func (e *Exchange) processBookTicker(respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) processBookTicker(ctx context.Context, respRaw []byte, assetType asset.Item) error {
 	var resp FuturesBookTicker
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -434,7 +441,7 @@ func (e *Exchange) processBookTicker(respRaw []byte, assetType asset.Item) error
 	defer bookTickerSymbolsLock.Unlock()
 	if _, okay := bookTickerSymbolsMap[resp.Symbol]; !okay {
 		bookTickerSymbolsMap[strings.ToUpper(resp.Symbol)] = struct{}{}
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Bids: orderbook.Levels{{
 				Amount: resp.BestBidQty.Float64(),
 				Price:  resp.BestBidPrice.Float64(),
@@ -450,7 +457,7 @@ func (e *Exchange) processBookTicker(respRaw []byte, assetType asset.Item) error
 			LastUpdateID: resp.OrderbookUpdateID,
 		})
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		UpdateID:   resp.OrderbookUpdateID,
 		UpdateTime: resp.TransactionTime.Time(),
 		Asset:      assetType,
@@ -698,4 +705,21 @@ func (e *Exchange) SetProperty(ctx context.Context, conn websocket.Connection, p
 		return err
 	}
 	return json.Unmarshal(respRaw, &resp)
+}
+
+// processAndSendTicker stores a ticker before relaying it, so a ticker that fails processing is never relayed
+func (e *Exchange) processAndSendTicker(ctx context.Context, p *ticker.Price) error {
+	if err := ticker.ProcessTicker(p); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, p)
+}
+
+// processAndSendTickers stores a batch of tickers and relays only those that were processed
+func (e *Exchange) processAndSendTickers(ctx context.Context, prices []ticker.Price) error {
+	processed, err := ticker.ProcessBatch(prices)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }

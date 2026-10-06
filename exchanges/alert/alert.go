@@ -55,7 +55,7 @@ type Notice struct {
 	forAlert chan struct{}
 	// Lets the updater functions know if there are any routines waiting for an
 	// alert.
-	sema uint32
+	sema atomic.Uint32
 	// After closing the forAlert channel this will notify when all the routines
 	// that have waited, have completed their checks.
 	wg sync.WaitGroup
@@ -74,7 +74,7 @@ func (n *Notice) Alert() {
 	// CompareAndSwap is used to swap from 1 -> 2 so we don't keep actuating
 	// the opposing compare and swap in method wait. This function can return
 	// freely when an alert operation is in process.
-	if !atomic.CompareAndSwapUint32(&n.sema, active, alerting) {
+	if !n.sema.CompareAndSwap(active, alerting) {
 		// Return if no waiting routines or currently alerting.
 		return
 	}
@@ -101,7 +101,7 @@ func (n *Notice) actuate() {
 		close(n.forAlert)
 		// Wait for waiting routines to receive alert and return.
 		n.wg.Wait()
-		atomic.SwapUint32(&n.sema, inactive) // Swap back to neutral state.
+		n.sema.Swap(inactive) // Swap back to neutral state.
 		n.mu.Unlock()
 	}
 }
@@ -125,7 +125,7 @@ func (n *Notice) Wait(kick <-chan struct{}) chan bool {
 		reply = make(chan bool)
 	}
 	n.mu.Lock()
-	if atomic.CompareAndSwapUint32(&n.sema, inactive, active) {
+	if n.sema.CompareAndSwap(inactive, active) {
 		if n.alerters == nil {
 			mu.RLock()
 			n.alerters = make(chan chan struct{}, preAllocBufferSize)

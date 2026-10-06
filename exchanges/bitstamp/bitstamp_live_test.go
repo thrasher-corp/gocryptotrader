@@ -9,20 +9,29 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-var mockTests = false
+var (
+	mockTests = false
+	// Please supply your own credentials here to do authenticated endpoint testing.
+	apiCredentials = &accounts.Credentials{
+		Key:      "",
+		Secret:   "",
+		ClientID: "", // customerID used to log in
+	}
+)
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bitstamp Setup error: %s", err)
 	}
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, customerID, "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
 	os.Exit(m.Run())

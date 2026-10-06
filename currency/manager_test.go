@@ -465,7 +465,7 @@ func TestAssetEnabled(t *testing.T) {
 	assert.NoError(t, err, "IsAssetEnabled should not error")
 }
 
-// TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
+// TestFullStoreUnmarshalMarshal tests JSON Marshal and Unmarshal
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	um := make(FullStore)
@@ -764,7 +764,6 @@ func TestReindex(t *testing.T) {
 		{
 			name: "replaces stale matcher entries on reindex",
 			setup: func() *PairsManager {
-				stale := NewPairWithDelimiter("OLD", "PAIR", "-")
 				return &PairsManager{
 					Pairs: FullStore{
 						asset.Spot: {
@@ -772,7 +771,7 @@ func TestReindex(t *testing.T) {
 						},
 					},
 					matcher: map[key]*Pair{
-						{Symbol: "oldpair", Asset: asset.Spot}: &stale,
+						{Symbol: "oldpair", Asset: asset.Spot}: new(NewPairWithDelimiter("OLD", "PAIR", "-")),
 					},
 				}
 			},

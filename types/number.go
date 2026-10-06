@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 var errInvalidNumberValue = errors.New("invalid value for Number type")
@@ -71,7 +71,7 @@ func (f Number) Int64() int64 {
 
 // Decimal returns a decimal.Decimal
 func (f Number) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(f))
+	return decimal.MustFromFloat(float64(f))
 }
 
 // String returns a string representation of the number

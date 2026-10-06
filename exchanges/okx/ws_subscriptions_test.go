@@ -2,6 +2,8 @@ package okx
 
 import (
 	"context"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -111,6 +113,7 @@ func TestNeedsOutboundSubscription(t *testing.T) {
 type subscriptionRecorderConnection struct {
 	websocket.Connection
 	subscriptions *subscription.Store
+	mu            sync.Mutex
 	requests      []WSSubscriptionInformationList
 }
 
@@ -119,11 +122,32 @@ func (c *subscriptionRecorderConnection) SendJSONMessage(_ context.Context, _ re
 	if !ok {
 		return nil
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.requests = append(c.requests, req)
 	return nil
 }
 
 func (c *subscriptionRecorderConnection) Subscriptions() *subscription.Store { return c.subscriptions }
+
+// Requests returns a snapshot of recorded subscription requests.
+func (c *subscriptionRecorderConnection) Requests() []WSSubscriptionInformationList {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.requests)
+}
+
+func TestSubscriptionRecorderConnectionRequests(t *testing.T) {
+	t.Parallel()
+
+	conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+	require.NoError(t, conn.SendJSONMessage(t.Context(), 0, WSSubscriptionInformationList{Operation: operationSubscribe}), "SendJSONMessage must not error")
+
+	requests := conn.Requests()
+	require.Len(t, requests, 1, "Requests must return the recorded request")
+	requests[0].Operation = operationUnsubscribe
+	require.Equal(t, operationSubscribe, conn.Requests()[0].Operation, "Requests must return an independent slice")
+}
 
 func TestInverseSpotMarginSubscription(t *testing.T) {
 	t.Parallel()
@@ -169,7 +193,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Asset:            asset.Spot,
 			Pairs:            []currency.Pair{pair},
 			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
 		}
 		marginSub := &subscription.Subscription{
 			Asset:            asset.Margin,
@@ -187,7 +211,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Asks:              orderbook.Levels{{Price: 100, Amount: 1}},
 			ValidateOrderbook: tracked.ValidateOrderbook,
 		}
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 			Exchange:          exp.Exchange,
 			Pair:              spotSub.Pairs[0],
 			Asset:             spotSub.Asset,
@@ -197,7 +221,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Asks:              exp.Asks,
 			ValidateOrderbook: exp.ValidateOrderbook,
 		}))
-		require.NoError(t, tracked.refreshEquivalentOrderbookSnapshot(marginSub))
+		require.NoError(t, tracked.refreshEquivalentOrderbookSnapshot(t.Context(), marginSub))
 
 		book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
 		require.NoError(t, err)
@@ -214,11 +238,11 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked))
 
-		err := tracked.refreshEquivalentOrderbookSnapshot(&subscription.Subscription{
+		err := tracked.refreshEquivalentOrderbookSnapshot(t.Context(), &subscription.Subscription{
 			Asset:            asset.Margin,
 			Pairs:            []currency.Pair{currency.NewBTCUSDT()},
 			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
 		})
 		require.NoError(t, err)
 		_, err = tracked.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Margin)
@@ -231,7 +255,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		pair := currency.NewBTCUSDT()
 		marginSub := &subscription.Subscription{Asset: asset.Margin, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
 		spotSub := &subscription.Subscription{Asset: asset.Spot, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
-		marginSub.QualifiedChannel = `{"channel":"tickers","instID":"BTC-USDT"}`
+		marginSub.QualifiedChannel = `{"channel":"tickers","instId":"BTC-USDT"}`
 		spotSub.QualifiedChannel = marginSub.QualifiedChannel
 		return marginSub, spotSub
 	}
@@ -250,7 +274,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		require.Empty(t, remaining, "equivalent spot subscription must be tracked on the existing connection")
 		require.Len(t, trackedSubs, 1)
 		require.Same(t, spotSub, trackedSubs[0])
-		require.Empty(t, existingConn.requests, "tracking on an existing connection must not emit a new outbound subscribe request")
+		require.Empty(t, existingConn.Requests(), "tracking on an existing connection must not emit a new outbound subscribe request")
 		require.Nil(t, tracked.Websocket.GetSubscription(spotSub), "hook must not mutate manager-level tracking state directly")
 		require.Len(t, existingConn.subscriptions.List(), 1, "hook must not mutate connection subscription stores directly")
 	})
@@ -285,7 +309,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 			Asset:            asset.Spot,
 			Pairs:            []currency.Pair{pair},
 			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+			QualifiedChannel: `{"channel":"books","instId":"BTC-USDT"}`,
 		}
 		marginSub := &subscription.Subscription{
 			Asset:            asset.Margin,
@@ -308,8 +332,8 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 			Asks:              orderbook.Levels{{Price: 100, Amount: 1}},
 			ValidateOrderbook: tracked.ValidateOrderbook,
 		}
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(spotSnapshot))
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), spotSnapshot))
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 			Exchange:          tracked.Name,
 			Pair:              pair,
 			Asset:             asset.Margin,
@@ -325,7 +349,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		require.Empty(t, remaining)
 		require.Len(t, trackedSubs, 1)
 		require.Same(t, marginSub, trackedSubs[0])
-		require.Empty(t, existingConn.requests, "equivalent re-enable remains a logical track, not a new outbound subscribe")
+		require.Empty(t, existingConn.Requests(), "equivalent re-enable remains a logical track, not a new outbound subscribe")
 
 		marginBook, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
 		require.NoError(t, err)
@@ -334,4 +358,28 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		require.Equal(t, spotSnapshot.Bids, marginBook.Bids)
 		require.Equal(t, spotSnapshot.Asks, marginBook.Asks)
 	})
+}
+
+// Casing drift between the template and the tag drops the instrument silently.
+func TestChunkRequestsCarriesInstrumentID(t *testing.T) {
+	t.Parallel()
+	subs, err := e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+
+	var checked int
+	for _, sub := range subs {
+		if len(sub.Pairs) == 0 {
+			continue // channel is not pair specific, so it carries no instrument
+		}
+		reqs, err := e.chunkRequests(subscription.List{sub}, "subscribe")
+		require.NoError(t, err, "chunkRequests must not error")
+		for _, req := range reqs {
+			for _, arg := range req.Arguments {
+				require.Falsef(t, arg.InstrumentID.IsEmpty(),
+					"%s must keep its instrument through the template round-trip; got %q", sub.Channel, sub.QualifiedChannel)
+				checked++
+			}
+		}
+	}
+	require.Positive(t, checked, "must exercise at least one pair specific subscription")
 }

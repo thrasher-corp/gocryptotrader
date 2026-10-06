@@ -1,8 +1,9 @@
 package stats
 
 import (
+	"cmp"
 	"errors"
-	"sort"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -95,11 +96,7 @@ func SortExchangesByVolume(p currency.Pair, assetType asset.Item, reverse bool) 
 		}
 	}
 
-	if reverse {
-		sort.Sort(sort.Reverse(byVolume(result)))
-	} else {
-		sort.Sort(byVolume(result))
-	}
+	sortItems(result, reverse, func(a, b Item) int { return cmp.Compare(a.Volume, b.Volume) })
 	return result
 }
 
@@ -117,34 +114,15 @@ func SortExchangesByPrice(p currency.Pair, assetType asset.Item, reverse bool) [
 		}
 	}
 
-	if reverse {
-		sort.Sort(sort.Reverse(byPrice(result)))
-	} else {
-		sort.Sort(byPrice(result))
-	}
+	sortItems(result, reverse, func(a, b Item) int { return cmp.Compare(a.Price, b.Price) })
 	return result
 }
 
-func (b byPrice) Len() int {
-	return len(b)
-}
-
-func (b byPrice) Less(i, j int) bool {
-	return b[i].Price < b[j].Price
-}
-
-func (b byPrice) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func (b byVolume) Len() int {
-	return len(b)
-}
-
-func (b byVolume) Less(i, j int) bool {
-	return b[i].Volume < b[j].Volume
-}
-
-func (b byVolume) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+// sortItems sorts in place by cmpFn, or by its inverse when reverse is set
+func sortItems(items []Item, reverse bool, cmpFn func(a, b Item) int) {
+	if reverse {
+		slices.SortFunc(items, func(a, b Item) int { return cmpFn(b, a) })
+		return
+	}
+	slices.SortFunc(items, cmpFn)
 }

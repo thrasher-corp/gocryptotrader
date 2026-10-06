@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -42,14 +43,18 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                      = ""
-	apiSecret                   = ""
 	canManipulateRealOrders     = false
 	canManipulateAPICredentials = false
 	useTestNet                  = false
 
 	apiStreamingIsNotConnected = "API streaming is not connected"
 )
+
+// apiCredentials holds the credentials used for due diligence testing; please supply your own
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e *Exchange
@@ -2302,39 +2307,39 @@ func TestEnableLeverageTokenForSubAccount(t *testing.T) {
 
 func TestGetIPRestrictionForSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetIPRestrictionForSubAccountAPIKeyV2(t.Context(), "emailaddress", apiKey)
+	_, err := e.GetIPRestrictionForSubAccountAPIKeyV2(t.Context(), "emailaddress", apiCredentials.Key)
 	require.ErrorIs(t, err, errValidEmailRequired)
 	_, err = e.GetIPRestrictionForSubAccountAPIKeyV2(t.Context(), "emailaddress@thrasher.io", "")
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetIPRestrictionForSubAccountAPIKeyV2(t.Context(), "emailaddress@thrasher.io", apiKey)
+	result, err := e.GetIPRestrictionForSubAccountAPIKeyV2(t.Context(), "emailaddress@thrasher.io", apiCredentials.Key)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestDeleteIPListForSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := e.DeleteIPListForSubAccountAPIKey(t.Context(), "emailaddress", apiKey, "196.168.4.1")
+	_, err := e.DeleteIPListForSubAccountAPIKey(t.Context(), "emailaddress", apiCredentials.Key, "196.168.4.1")
 	require.ErrorIs(t, err, errValidEmailRequired)
 	_, err = e.DeleteIPListForSubAccountAPIKey(t.Context(), "emailaddress@thrasher.io", "", "196.168.4.1")
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.DeleteIPListForSubAccountAPIKey(t.Context(), "emailaddress@thrasher.io", apiKey, "196.168.4.1")
+	result, err := e.DeleteIPListForSubAccountAPIKey(t.Context(), "emailaddress@thrasher.io", apiCredentials.Key, "196.168.4.1")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestAddIPRestrictionForSubAccountAPIkey(t *testing.T) {
 	t.Parallel()
-	_, err := e.AddIPRestrictionForSubAccountAPIkey(t.Context(), "addressthrasher", apiKey, "", true)
+	_, err := e.AddIPRestrictionForSubAccountAPIkey(t.Context(), "addressthrasher", apiCredentials.Key, "", true)
 	require.ErrorIs(t, err, errValidEmailRequired)
 	_, err = e.AddIPRestrictionForSubAccountAPIkey(t.Context(), "address@thrasher.io", "", "", true)
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.AddIPRestrictionForSubAccountAPIkey(t.Context(), "address@thrasher.io", apiKey, "", true)
+	result, err := e.AddIPRestrictionForSubAccountAPIkey(t.Context(), "address@thrasher.io", apiCredentials.Key, "", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3542,6 +3547,71 @@ func TestWsTickerUpdate(t *testing.T) {
 	}
 }
 
+func TestWsKlineUpdate(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name           string
+		klineClosed    string
+		expectedIssues string
+	}{
+		{name: "StillForming", klineClosed: "false", expectedIssues: kline.PartialCandle},
+		{name: "Closed", klineClosed: "true", expectedIssues: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			pressXToJSON := fmt.Appendf(nil, `{"stream":"btcusdt@kline_1m","data":{
+			  "e": "kline",
+			  "E": 1234567891,
+			  "s": "BTCUSDT",
+			  "k": {
+				"t": 1234000001,
+				"T": 1234600001,
+				"s": "BTCUSDT",
+				"i": "1m",
+				"f": 100,
+				"L": 200,
+				"o": "0.0010",
+				"c": "0.0020",
+				"h": "0.0025",
+				"l": "0.0015",
+				"v": "1000",
+				"n": 100,
+				"x": %s,
+				"q": "1.0000",
+				"V": "500",
+				"Q": "0.500",
+				"B": "123456"
+			  }
+			}}`, tt.klineClosed)
+			require.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData must not error")
+			require.Len(t, e.Websocket.DataHandler.C, 1, "wsHandleData must relay one payload")
+			res := <-e.Websocket.DataHandler.C
+			require.IsType(t, kline.Item{}, res.Data, "Relay payload must be a kline.Item")
+			k, _ := res.Data.(kline.Item)
+			require.Len(t, k.Candles, 1, "kline.Item must carry a single candle")
+			exp := kline.Item{
+				Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+				Asset:    asset.Spot,
+				Exchange: e.Name,
+				Interval: kline.OneMin,
+				Candles: []kline.Candle{{
+					Time:             time.Unix(1234000001, 0),
+					Open:             0.001,
+					Close:            0.002,
+					High:             0.0025,
+					Low:              0.0015,
+					Volume:           1000,
+					ValidationIssues: tt.expectedIssues,
+				}},
+			}
+			assert.Equal(t, exp, res.Data, "Relayed kline should match")
+		})
+	}
+}
+
 func TestWsDepthUpdate(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -3579,7 +3649,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	update1 := []byte(`{"stream":"btcusdt@depth","data":{ "e": "depthUpdate", "E": 1234567881, "s": "BTCUSDT", "U": 157, "u": 160, "b": [ ["6621.45", "0.3"] ], "a": [ ["6622.46", "1.5"] ] }}`)
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	err := e.SeedLocalCacheWithBook(p, &book)
+	err := e.SeedLocalCacheWithBook(t.Context(), p, &book)
 	require.NoError(t, err)
 
 	if err := e.wsHandleData(t.Context(), nil, update1); err != nil {
@@ -3742,7 +3812,6 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err)
 	wsFmt := currency.PairFormat{Uppercase: false, Delimiter: ""}
@@ -3752,6 +3821,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.TickerChannel, QualifiedChannel: "ticker", Asset: asset.Spot},
 		{Channel: subscription.AllTradesChannel, QualifiedChannel: "trade", Asset: asset.Spot},
 	}
+	exp := make(subscription.List, 0, len(baseExp)*len(pairs))
 	for _, p := range pairs {
 		for _, baseSub := range baseExp {
 			sub := baseSub.Clone()
@@ -3877,16 +3947,6 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Pair:                 currency.NewBTCUSDT(),
 		TimeInForce:          order.GoodTillCancel,
 	}
-	// empty the channel. otherwise mock_test will fail
-drain:
-	for {
-		select {
-		case <-e.Websocket.DataHandler.C:
-		default:
-			break drain
-		}
-	}
-
 	err := e.wsHandleData(t.Context(), nil, payload)
 	if err != nil {
 		t.Fatal(err)
@@ -10777,4 +10837,189 @@ func TestSendHTTPRequestErrorResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateAccountBalancesMocked(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		asset asset.Item
+		path  string
+		input string
+		alias string
+		want  accounts.Balance
+	}{
+		{
+			asset: asset.Spot,
+			path:  "/api/v3/account",
+			input: `{
+  "balances": [
+    {
+      "asset": "USDT",
+      "free": "3.5",
+      "locked": "1.25"
+    }
+  ]
+}`,
+			want: accounts.Balance{
+				Currency: currency.USDT,
+				Total:    4.75,
+				Hold:     1.25,
+				Free:     3.5,
+			},
+		},
+		{
+			asset: asset.CoinMarginedFutures,
+			path:  "/dapi/v1/account",
+			input: `{
+  "assets": [
+    {
+      "asset": "BTC",
+      "walletBalance": "5.5",
+      "availableBalance": "4.25"
+    }
+  ]
+}`,
+			want: accounts.Balance{
+				Currency: currency.BTC,
+				Total:    5.5,
+				Hold:     1.25,
+				Free:     4.25,
+			},
+		},
+		{
+			asset: asset.USDTMarginedFutures,
+			path:  "/fapi/v2/balance",
+			input: `[
+  {
+    "accountAlias": "test-account",
+    "asset": "USDT",
+    "balance": 125.5,
+    "availableBalance": 115.75
+  }
+]`,
+			alias: "test-account",
+			want: accounts.Balance{
+				Currency: currency.USDT,
+				Total:    125.5,
+				Hold:     9.75,
+				Free:     115.75,
+			},
+		},
+		{
+			asset: asset.Margin,
+			path:  "/sapi/v1/margin/account",
+			input: `{
+  "userAssets": [
+    {
+      "asset": "USDT",
+      "free": "5.5",
+      "locked": "1.25",
+      "borrowed": "2.25"
+    }
+  ]
+}`,
+			want: accounts.Balance{
+				Currency:               currency.USDT,
+				Total:                  6.75,
+				Hold:                   1.25,
+				Free:                   5.5,
+				AvailableWithoutBorrow: 3.25,
+				Borrowed:               2.25,
+			},
+		},
+	} {
+		for _, mode := range []string{"balances", "empty", "error"} {
+			t.Run(tc.asset.String()+"/"+mode, func(t *testing.T) {
+				t.Parallel()
+				e := new(Exchange)
+				require.NoError(t, testexch.Setup(e), "Setup must not error")
+				e.SkipAuthCheck = true
+				e.SetCredentials(&accounts.Credentials{
+					Key:    "test-key",
+					Secret: "test-secret",
+				})
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, http.MethodGet, r.Method, "balances should use GET")
+					assert.Equal(t, tc.path, r.URL.Path, "balances should use the asset endpoint")
+					body := tc.input
+					switch mode {
+					case "error":
+						body = `{
+  "code": -1,
+  "msg": "balance rejected"
+}`
+					case "empty":
+						body = `{}`
+						if tc.asset == asset.USDTMarginedFutures {
+							body = `[]`
+						}
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "the mock response should be written")
+				}))
+				require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				for endpoint := range e.API.Endpoints.GetURLMap() {
+					require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL), "SetRunningURL must not error")
+				}
+				started := time.Now()
+				got, err := e.UpdateAccountBalances(t.Context(), tc.asset)
+				if mode == "error" {
+					assert.ErrorContains(t, err, "balance rejected", "UpdateAccountBalances should propagate the API error")
+					assert.Nil(t, got, "a failed request should return no balances")
+					return
+				}
+				require.NoError(t, err, "UpdateAccountBalances must not error")
+				if mode == "empty" {
+					exp := accounts.SubAccounts{accounts.NewSubAccount(tc.asset, tc.alias)}
+					if tc.asset == asset.USDTMarginedFutures {
+						exp = accounts.SubAccounts{}
+					}
+					assert.Equal(t, exp, got, "UpdateAccountBalances should accept empty balances")
+					return
+				}
+				require.Len(t, got, 1, "UpdateAccountBalances must return one account")
+				want := tc.want
+				want.UpdatedAt = got[0].Balances[want.Currency].UpdatedAt
+				assert.WithinRange(t, want.UpdatedAt, started, time.Now(), "the balance timestamp should reflect this update")
+				exp := accounts.SubAccounts{{
+					ID:        tc.alias,
+					AssetType: tc.asset,
+					Balances:  accounts.CurrencyBalances{want.Currency: want},
+				}}
+				assert.Equal(t, exp, got, "UpdateAccountBalances should preserve the decoded balances")
+				if tc.asset == asset.USDTMarginedFutures {
+					e.Accounts = nil
+					_, err = e.UpdateAccountBalances(t.Context(), tc.asset)
+					assert.ErrorIs(t, err, common.ErrNilPointer, "UpdateAccountBalances should propagate a save failure")
+				}
+			})
+		}
+	}
+
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "Setup must not error")
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			assert.Fail(t, "validation should not make HTTP requests")
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		require.NoError(t, e.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		for endpoint := range e.API.Endpoints.GetURLMap() {
+			require.NoError(t, e.API.Endpoints.SetRunningURL(endpoint, server.URL), "SetRunningURL must not error")
+		}
+		e.LoadedByConfig = false
+		e.SetCredentials(&accounts.Credentials{})
+		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should reject missing credentials")
+		e.SkipAuthCheck = true
+		e.SetCredentials(&accounts.Credentials{
+			Key:        "test-key",
+			SubAccount: "test-subaccount",
+		})
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, common.ErrNotYetImplemented, "UpdateAccountBalances should reject spot subaccounts")
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Futures)
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances should reject unsupported assets")
+	})
 }

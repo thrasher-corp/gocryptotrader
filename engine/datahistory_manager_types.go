@@ -2,9 +2,10 @@ package engine
 
 import (
 	"errors"
+	"sync/atomic"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
@@ -127,8 +128,8 @@ const (
 type DataHistoryManager struct {
 	exchangeManager            iExchangeManager
 	databaseConnectionInstance database.IDatabase
-	started                    int32
-	processing                 int32
+	started                    atomic.Bool
+	processing                 atomic.Bool
 	shutdown                   chan struct{}
 	interval                   *time.Ticker
 	jobDB                      datahistoryjob.IDBService

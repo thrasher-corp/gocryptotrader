@@ -32,6 +32,11 @@ minimize->minimise
 minimized->minimised
 minimizes->minimises
 mmethod->method
+normalize->normalise
+normalized->normalised
+normalizes->normalises
+normalizing->normalising
+normalization->normalisation
 openinig->opening
 optimize->optimise
 optimized->optimised
@@ -51,6 +56,11 @@ serializing->serialising
 serparated->separated
 snapshooooot->snapshot
 sream->stream
+standardize->standardise
+standardized->standardised
+standardizes->standardises
+standardizing->standardising
+standardization->standardisation
 suabccount->subaccount
 subrcribe->subscribe
 summarize->summarise

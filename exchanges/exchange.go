@@ -7,14 +7,14 @@ import (
 	"maps"
 	"net"
 	"net/url"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
 	"unicode"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -49,8 +49,6 @@ const (
 	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 50
 	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
-	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
-	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
 // Public Errors
@@ -536,13 +534,14 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	b.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
 	b.API.credentials.SubAccount = exch.API.Credentials.Subaccount
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		b.SetCredentials(exch.API.Credentials.Key,
-			exch.API.Credentials.Secret,
-			exch.API.Credentials.ClientID,
-			exch.API.Credentials.Subaccount,
-			exch.API.Credentials.PEMKey,
-			exch.API.Credentials.OTPSecret,
-		)
+		b.SetCredentials(&accounts.Credentials{
+			Key:             exch.API.Credentials.Key,
+			Secret:          exch.API.Credentials.Secret,
+			ClientID:        exch.API.Credentials.ClientID,
+			SubAccount:      exch.API.Credentials.Subaccount,
+			PEMKey:          exch.API.Credentials.PEMKey,
+			OneTimePassword: exch.API.Credentials.OTPSecret,
+		})
 	}
 
 	if exch.HTTPTimeout <= time.Duration(0) {
@@ -796,11 +795,7 @@ func (b *Base) SetAPIURL() error {
 		if strings.Contains(endpoint, "https") || strings.Contains(endpoint, "wss") {
 			return
 		}
-		log.Warnf(log.ExchangeSys,
-			"%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an"+
-				" attacker could eavesdrop on this connection. Use at your"+
-				" own risk.",
-			b.Name, endpoint)
+		log.Warnf(log.ExchangeSys, "%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an attacker could eavesdrop on this connection. Use at your own risk.", b.Name, endpoint)
 	}
 	var err error
 	if b.Config.API.OldEndPoints != nil {
@@ -843,12 +838,7 @@ func (b *Base) SetAPIURL() error {
 			var defaultURL string
 			defaultURL, err = b.API.Endpoints.GetURL(u)
 			if err != nil {
-				log.Warnf(
-					log.ExchangeSys,
-					"%s: Config cannot match with default endpoint URL: [%s] with key: [%s], please remove or update core support endpoints.",
-					b.Name,
-					val,
-					u)
+				log.Warnf(log.ExchangeSys, "%s: Config cannot match with default endpoint URL: [%s] with key: [%s], please remove or update core support endpoints.", b.Name, val, u)
 				continue
 			}
 
@@ -856,13 +846,7 @@ func (b *Base) SetAPIURL() error {
 				continue
 			}
 
-			log.Warnf(
-				log.ExchangeSys,
-				"%s: Config is overwriting default endpoint URL values from: [%s] to: [%s] for: [%s]",
-				b.Name,
-				defaultURL,
-				val,
-				u)
+			log.Warnf(log.ExchangeSys, "%s: Config is overwriting default endpoint URL values from: [%s] to: [%s] for: [%s]", b.Name, defaultURL, val, u)
 
 			checkInsecureEndpoint(val)
 
@@ -1313,9 +1297,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 				OpenInterest: ticks[i].OpenInterest,
 			})
 		}
-		sort.Slice(resp, func(i, j int) bool {
-			return resp[i].Key.Base.Symbol < resp[j].Key.Base.Symbol
-		})
+		slices.SortFunc(resp, func(a, b futures.OpenInterest) int { return strings.Compare(a.Key.Base.Symbol, b.Key.Base.Symbol) })
 		return resp, nil
 	}
 	resp := make([]futures.OpenInterest, len(k))
@@ -1978,7 +1960,7 @@ func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
 // MessageID returns a universally unique id using UUID V7
 // In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
 func (b *Base) MessageID() string {
-	return uuid.Must(uuid.NewV7()).String()
+	return uuid.NewV7().String()
 }
 
 // MessageSequence returns a sequential message sequence number from common.Counter

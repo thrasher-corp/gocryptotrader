@@ -151,7 +151,7 @@ func (e *Exchange) GetMostRecentTrades(ctx context.Context, rtr *RecentTradeRequ
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.FormatInt(rtr.Limit, 10))
+	params.Set("limit", strconv.FormatUint(rtr.Limit, 10))
 	var resp []*RecentTrade
 	return resp, e.SendHTTPRequest(ctx,
 		exchange.RestSpot, common.EncodeURLValues("/api/v3/trades", params), getRecentTradesListRate, &resp)
@@ -162,14 +162,14 @@ func (e *Exchange) GetMostRecentTrades(ctx context.Context, rtr *RecentTradeRequ
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
 // fromID:
-func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol currency.Pair, limit, fromID int64) ([]*HistoricalTrade, error) {
+func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol currency.Pair, limit uint64, fromID int64) ([]*HistoricalTrade, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
@@ -197,7 +197,7 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, arg *AggregatedTrade
 	needBatch := true // Need to batch unless user has specified a limit
 	if arg.Limit > 0 && arg.Limit <= 1000 {
 		needBatch = false
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if arg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
@@ -268,7 +268,7 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 	params.Del("startTime")
 	params.Del("endTime")
 outer:
-	for ; arg.Limit == 0 || len(resp) < arg.Limit; fromID = resp[len(resp)-1].ATradeID {
+	for ; arg.Limit == 0 || uint64(len(resp)) < arg.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 		var additionalTrades []*AggregatedTrade
@@ -297,7 +297,7 @@ outer:
 		}
 		resp = append(resp, additionalTrades...)
 	}
-	if arg.Limit > 0 && len(resp) > arg.Limit {
+	if arg.Limit > 0 && uint64(len(resp)) > arg.Limit {
 		resp = resp[:arg.Limit]
 	}
 	return resp, nil
@@ -2116,7 +2116,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, cryptoAsset currency.Code
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]*DepositHistory, error) {
+func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit uint64) ([]*DepositHistory, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -2145,10 +2145,10 @@ func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status s
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if offset != 0 {
-		params.Set("offset", strconv.Itoa(offset))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit != 0 {
-		params.Set("limit", strconv.Itoa(limit))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var response []*DepositHistory
 	return response, e.SendAuthHTTPRequest(ctx,
@@ -2159,7 +2159,7 @@ func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status s
 
 // WithdrawHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]*WithdrawStatusResponse, error) {
+func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit uint64) ([]*WithdrawStatusResponse, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -2189,10 +2189,10 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status 
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if offset != 0 {
-		params.Set("offset", strconv.Itoa(offset))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit != 0 {
-		params.Set("limit", strconv.Itoa(limit))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var withdrawStatus []*WithdrawStatusResponse
 	return withdrawStatus, e.SendAuthHTTPRequest(ctx,

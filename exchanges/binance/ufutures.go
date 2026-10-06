@@ -102,7 +102,7 @@ func (e *Exchange) URecentTrades(ctx context.Context, symbol currency.Pair, from
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -119,7 +119,7 @@ func (e *Exchange) UFuturesHistoricalTrades(ctx context.Context, symbol currency
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -141,7 +141,7 @@ func (e *Exchange) UCompressedTrades(ctx context.Context, symbol currency.Pair, 
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -1136,7 +1136,7 @@ func (e *Exchange) UAccountTradesHistory(ctx context.Context, symbol currency.Pa
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

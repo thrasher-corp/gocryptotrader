@@ -1,12 +1,11 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
+<img src="../docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 ## This is still in active development
 
@@ -22,7 +21,7 @@ This document is from a perspective of adding a new exchange called Binance to t
 
 #### Linux/macOS
 
-GoCryptoTrader is built using [Go Modules](https://go.dev/wiki/Modules) and requires Go 1.11 or above
+GoCryptoTrader is built using [Go Modules](https://go.dev/wiki/Modules) and requires Go 1.27 or above
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```console
@@ -91,30 +90,30 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 ```go
     fmt1 := currency.PairStore{
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "_"},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
-	}
+        AssetEnabled:  true,
+        RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+        ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+    }
 
-	fmt2 := currency.PairStore{
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
-	}
+    fmt2 := currency.PairStore{
+        AssetEnabled:  true,
+        RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
+        ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+    }
 
-	if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
-	}
-	if err := e.SetAssetPairStore(asset.Futures, fmt2); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Futures, err)
-	}
+    if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+        log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
+    }
+    if err := e.SetAssetPairStore(asset.Futures, fmt2); err != nil {
+        log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Futures, err)
+    }
 ```
 
 ### Document the addition of the new exchange (Binance exchange is used as an example below)
 
 **Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported by the exchange
 
-#### Add exchange to the [root README template](/cmd/documentation/root_templates/root_readme.tmpl) file
+#### Add exchange to the [root README template](../cmd/documentation/root_templates/root_readme.tmpl) file
 
 ```go
 | Exchange | REST API | Websocket API | FIX API |
@@ -123,14 +122,12 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
-| BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
 | Bybit | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
-| Exmo | Yes | NA | NA |
 | Coinbase | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
@@ -152,7 +149,6 @@ var Exchanges = []string{
     "bitfinex",
     "bitflyer",
     "bithumb",
-    "bitmex",
     "bitstamp",
     "btc markets",
     "btse",
@@ -160,7 +156,6 @@ var Exchanges = []string{
     "coinbase",
     "coinut",
     "deribit",
-    "exmo",
     "gateio",
     "gemini",
     "hitbtc",
@@ -176,25 +171,25 @@ var Exchanges = []string{
 #### Setup and run the [documentation tool](../cmd/documentation)
 
 - Create a new file named *exchangename*.tmpl
-- Copy contents of template from another exchange example here being Exmo
+- Copy contents of a template from another exchange, with Okx used here as an example
 - Replace names and variables as shown:
 
 ```go
-{{define "exchanges exmo" -}} // exmo -> binance
+{{define "exchanges okx" -}} // okx -> binance
 {{template "header" .}}
-## Exmo Exchange
+## Okx Exchange
 
-#### Current Features
+### Current Features
 
 + REST Support // if websocket or fix are supported, add that in too
 ```
 
 ```go
-var e exchange.IBotExchange
+var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-  if bot.Exchanges[i].GetName() == "Exmo" { // Exmo -> Binance
-    e = bot.Exchanges[i]
+  if bot.Exchanges[i].GetName() == "Okx" { // Okx -> Binance
+    o = bot.Exchanges[i]
   }
 }
 
@@ -203,13 +198,13 @@ for i := range bot.Exchanges {
 pair := currency.NewBTCUSD()
 
 // Fetches current ticker information
-tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot)
+tick, err := o.GetCachedTicker(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := e.GetCachedOrderbook(context.Background(), pair, asset.Spot)
+ob, err := o.GetCachedOrderbook(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }
@@ -226,7 +221,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ### Code Consistency Guidelines
 
-Please refer to our [coding guidelines](/docs/CODING_GUIDELINES.md).
+Please refer to our [coding guidelines](../docs/CODING_GUIDELINES.md).
 
 ### Create functions supported by the exchange
 
@@ -344,9 +339,9 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 
 #### Message IDs
 
-* e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
-* e.MessageSequence() to get a simple integer ID if uniqueness is not critical
-* Otherwise override MessageID with a suitable alternative
+- e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
+- e.MessageSequence() to get a simple integer ID if uniqueness is not critical
+- Otherwise override MessageID with a suitable alternative
 
 #### Authenticated functions
 
@@ -871,7 +866,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
         if err := json.Unmarshal(respRaw, &resultData);err != nil {
             return err
         }
-        return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+        tickPrice := &ticker.Price{
             ExchangeName: e.Name,
             Bid:          resultData.Ticker.Bid,
             Ask:          resultData.Ticker.Ask,
@@ -879,7 +874,11 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
             LastUpdated:  resultData.Ticker.Time,
             Pair:         p,
             AssetType:    a,
-        })
+        }
+        if err := ticker.ProcessTicker(tickPrice); err != nil {
+            return err
+        }
+        return e.Websocket.DataHandler.Send(ctx, tickPrice)
     }
 ```
 
@@ -1022,12 +1021,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         // appropriately if we have a pair/asset enable/disable change. This is 
         // outlined below.
         Features:               &e.Features.Supports.WebsocketCapabilities, 
-
-        // Orderbook buffer specific variables for processing orderbook updates 
-        // via websocket feed: 
-        // SortBuffer            bool 
-        // SortBufferByUpdateIDs bool 
-        // UpdateEntriesByID     bool 
     })
     if err != nil {
         return err

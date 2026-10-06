@@ -646,3 +646,51 @@ func BenchmarkNewCode(b *testing.B) {
 		_ = NewCode("someCode")
 	}
 }
+
+func TestCodeMarshalText(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		code Code
+		exp  string
+	}{
+		{"upper", BTC, "BTC"},
+		{"lower", NewCode("BTC").Lower(), "btc"},
+		{"empty", EMPTYCODE, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			b, err := tc.code.MarshalText()
+			require.NoError(t, err, "MarshalText must not error")
+			assert.Equal(t, tc.exp, string(b), "MarshalText should return the symbol unquoted")
+		})
+	}
+}
+
+func TestCodeUnmarshalText(t *testing.T) {
+	t.Parallel()
+	var c Code
+	require.NoError(t, c.UnmarshalText([]byte("BTC")), "UnmarshalText must not error")
+	assert.True(t, c.Equal(BTC), "UnmarshalText should resolve to the same item as the constant")
+	assert.Equal(t, "BTC", c.String(), "UnmarshalText should preserve the case it was given")
+
+	require.NoError(t, c.UnmarshalText(nil), "UnmarshalText must not error on empty input")
+	assert.True(t, c.IsEmpty(), "empty input should unmarshal to an empty code")
+
+	require.NoError(t, c.UnmarshalText([]byte("btc")), "UnmarshalText must not error")
+	assert.Equal(t, "btc", c.String(), "UnmarshalText should preserve the case it was given")
+	assert.True(t, c.Equal(BTC), "case should not change which item the code resolves to")
+}
+
+// TestCodeAsMapKey guards the text methods, which only sonic needs: it ignores MarshalJSON for
+// map keys where json/v2 under this package's options calls it
+func TestCodeAsMapKey(t *testing.T) {
+	t.Parallel()
+	var got map[Code]int
+	require.NoError(t, json.Unmarshal([]byte(`{"BTC":1,"USDT":2}`), &got), "Unmarshal must not error")
+	assert.Equal(t, map[Code]int{BTC: 1, USDT: 2}, got, "a map keyed by Code should decode")
+
+	b, err := json.Marshal(map[Code]int{BTC: 1})
+	require.NoError(t, err, "Marshal must not error")
+	assert.JSONEq(t, `{"BTC":1}`, string(b), "a map keyed by Code should marshal")
+}

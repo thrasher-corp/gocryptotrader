@@ -243,7 +243,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 8. JSON config format (sorted exchanges)
+# 8. Repository-relative Markdown destinations
+# ---------------------------------------------------------------------------
+info "Check Markdown destinations are relative to their source files"
+if go test ./cmd/documentation -run '^TestMarkdownDestinationsAreRepositoryRelative$' -count=1; then
+    pass "Markdown destinations are source-file relative"
+else
+    fail "Replace repository-root Markdown destinations with source-file relative paths"
+fi
+
+# ---------------------------------------------------------------------------
+# 9. JSON config format (sorted exchanges)
 # ---------------------------------------------------------------------------
 info "Check configs JSON format"
 if ! command -v jq &>/dev/null; then

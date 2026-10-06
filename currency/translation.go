@@ -46,7 +46,7 @@ func (t Translations) Translate(incoming Code) Code {
 	if len(t) == 0 {
 		return incoming
 	}
-	val, ok := (t)[incoming.Item]
+	val, ok := t[incoming.Item]
 	if !ok {
 		return incoming
 	}

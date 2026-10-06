@@ -311,7 +311,7 @@ func (e *Exchange) wsHandleEOptionsData(ctx context.Context, conn websocket.Conn
 	case "option_pair":
 		return e.processOptionsPair(ctx, respRaw)
 	case "depth":
-		return e.processOptionsOrderbook(respRaw)
+		return e.processOptionsOrderbook(ctx, respRaw)
 	case cnlOptionSymbol:
 		return e.processOptionsSymbol(ctx, respRaw)
 	default:
@@ -324,7 +324,7 @@ func (e *Exchange) wsHandleEOptionsData(ctx context.Context, conn websocket.Conn
 // orderbookSnapshotLoadedPairsMap used for validation of whether the symbol has snapshot orderbook data in the buffer or not.
 var orderbookSnapshotLoadedPairsMap = map[string]bool{}
 
-func (e *Exchange) processOptionsOrderbook(data []byte) error {
+func (e *Exchange) processOptionsOrderbook(ctx context.Context, data []byte) error {
 	var resp WsOptionsOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -338,7 +338,7 @@ func (e *Exchange) processOptionsOrderbook(data []byte) error {
 	}
 	okay := orderbookSnapshotLoadedPairsMap[resp.OptionSymbol]
 	if !okay {
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Pair:         pair,
 			Exchange:     e.Name,
 			Asset:        asset.Options,
@@ -348,7 +348,7 @@ func (e *Exchange) processOptionsOrderbook(data []byte) error {
 			Bids:         resp.Bids.Levels(),
 		})
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       pair,
 		Asks:       resp.Asks.Levels(),
 		Bids:       resp.Bids.Levels(),
@@ -397,18 +397,23 @@ func (e *Exchange) processOptionsKline(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
+	var validationIssues string
+	if !resp.KlineData.ContractCompleted {
+		validationIssues = kline.PartialCandle
+	}
 	return e.Websocket.DataHandler.Send(ctx, kline.Item{
 		Pair:     pair,
 		Exchange: e.Name,
 		Asset:    asset.Options,
 		Interval: interval,
 		Candles: []kline.Candle{{
-			Time:   resp.EventTime.Time(),
-			Open:   resp.KlineData.Open.Float64(),
-			Close:  resp.KlineData.Close.Float64(),
-			High:   resp.KlineData.High.Float64(),
-			Low:    resp.KlineData.Low.Float64(),
-			Volume: resp.KlineData.ContractVolume.Float64(),
+			Time:             resp.EventTime.Time(),
+			Open:             resp.KlineData.Open.Float64(),
+			Close:            resp.KlineData.Close.Float64(),
+			High:             resp.KlineData.High.Float64(),
+			Low:              resp.KlineData.Low.Float64(),
+			Volume:           resp.KlineData.ContractVolume.Float64(),
+			ValidationIssues: validationIssues,
 		}},
 	})
 }
@@ -447,12 +452,12 @@ func (e *Exchange) processOptionsTicker(ctx context.Context, data []byte, isSlic
 		if err != nil {
 			return err
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		if err := e.processAndSendTicker(ctx, &ticker.Price{
 			High:         resp[a].HightPrice.Float64(),
 			Low:          resp[a].LowPrice.Float64(),
 			Bid:          resp[a].BestBuyPrice.Float64(),
 			Ask:          resp[a].BestSellPrice.Float64(),
-			Volume:       resp[a].TradingVolume.Float64(),
+			BaseVolume:   resp[a].TradingVolume.Float64(),
 			QuoteVolume:  resp[a].TradingAmount.Float64(),
 			Open:         resp[a].OpeningPrice.Float64(),
 			Close:        resp[a].ClosingPrice.Float64(),

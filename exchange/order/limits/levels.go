@@ -3,8 +3,8 @@ package limits
 import (
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Validate ensures MinMaxLevel fields are valid
@@ -21,8 +21,8 @@ func (m *MinMaxLevel) Validate(price, amount float64, orderType order.Type) erro
 		return fmt.Errorf("%w min: %.8f supplied %.8f", ErrAmountExceedsMax, m.MaximumBaseAmount, amount)
 	}
 	if m.AmountStepIncrementSize != 0 {
-		dAmount := decimal.NewFromFloat(amount)
-		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
+		dAmount := decimal.MustFromFloat(amount)
+		dStep := decimal.MustFromFloat(m.AmountStepIncrementSize)
 		if !dAmount.Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f", ErrAmountExceedsStep, m.AmountStepIncrementSize, amount)
 		}
@@ -58,9 +58,9 @@ func (m *MinMaxLevel) Validate(price, amount float64, orderType order.Type) erro
 			return fmt.Errorf("%w minimum notional: %.8f value of order %.8f", ErrNotionalValue, m.MinNotional, amount*price)
 		}
 		if m.PriceStepIncrementSize != 0 {
-			dPrice := decimal.NewFromFloat(price)
-			dMinPrice := decimal.NewFromFloat(m.MinPrice)
-			dStep := decimal.NewFromFloat(m.PriceStepIncrementSize)
+			dPrice := decimal.MustFromFloat(price)
+			dMinPrice := decimal.MustFromFloat(m.MinPrice)
+			dStep := decimal.MustFromFloat(m.PriceStepIncrementSize)
 			if !dPrice.Sub(dMinPrice).Mod(dStep).IsZero() {
 				return fmt.Errorf("%w stepSize: %.8f supplied %.8f", ErrPriceExceedsStep, m.PriceStepIncrementSize, price)
 			}
@@ -75,9 +75,9 @@ func (m *MinMaxLevel) Validate(price, amount float64, orderType order.Type) erro
 		return fmt.Errorf("%w max: %.8f supplied %.8f", ErrMarketAmountExceedsMax, m.MarketMaxQty, amount)
 	}
 	if m.MarketStepIncrementSize != 0 && m.AmountStepIncrementSize != m.MarketStepIncrementSize {
-		dAmount := decimal.NewFromFloat(amount)
-		dMinMAmount := decimal.NewFromFloat(m.MarketMinQty)
-		dStep := decimal.NewFromFloat(m.MarketStepIncrementSize)
+		dAmount := decimal.MustFromFloat(amount)
+		dMinMAmount := decimal.MustFromFloat(m.MarketMinQty)
+		dStep := decimal.MustFromFloat(m.MarketStepIncrementSize)
 		if !dAmount.Sub(dMinMAmount).Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f", ErrMarketAmountExceedsStep, m.MarketStepIncrementSize, amount)
 		}
@@ -91,7 +91,7 @@ func (m *MinMaxLevel) FloorAmountToStepIncrementDecimal(amount decimal.Decimal) 
 		return amount
 	}
 
-	dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
+	dStep := decimal.MustFromFloat(m.AmountStepIncrementSize)
 	if dStep.IsZero() || amount.Equal(dStep) {
 		return amount
 	}
@@ -118,8 +118,8 @@ func (m *MinMaxLevel) FloorAmountToStepIncrement(amount float64) float64 {
 		return 0
 	}
 
-	dAmount := decimal.NewFromFloat(amount)
-	dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
+	dAmount := decimal.MustFromFloat(amount)
+	dStep := decimal.MustFromFloat(m.AmountStepIncrementSize)
 	mod := dAmount.Mod(dStep)
 	// subtract to get the floor
 	return dAmount.Sub(mod).InexactFloat64()
@@ -139,8 +139,8 @@ func (m *MinMaxLevel) FloorPriceToStepIncrement(price float64) float64 {
 		return 0
 	}
 
-	dPrice := decimal.NewFromFloat(price)
-	dStep := decimal.NewFromFloat(m.PriceStepIncrementSize)
+	dPrice := decimal.MustFromFloat(price)
+	dStep := decimal.MustFromFloat(m.PriceStepIncrementSize)
 	mod := dPrice.Mod(dStep)
 	// subtract to get the floor
 	return dPrice.Sub(mod).InexactFloat64()

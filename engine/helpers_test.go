@@ -21,19 +21,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -99,7 +98,7 @@ func CreateTestBot(tb testing.TB) *Engine {
 }
 
 func TestGetSubsystemsStatus(t *testing.T) {
-	assert.Len(t, (&Engine{}).GetSubsystemsStatus(), 13, "GetSubsystemStatus should return the correct number of subsystems")
+	assert.Len(t, (&Engine{}).GetSubsystemsStatus(), 12, "GetSubsystemStatus should return the correct number of subsystems")
 }
 
 func TestGetRPCEndpoints(t *testing.T) {
@@ -147,7 +146,7 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		},
 		{
 			Subsystem:    NTPManagerName,
-			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: convert.BoolPtr(false)}}},
+			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: new(false)}}},
 			EnableError:  errNilNTPConfigValues,
 			DisableError: ErrNilSubsystem,
 		},
@@ -186,12 +185,6 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  database.ErrNilInstance,
 			DisableError: ErrNilSubsystem,
-		},
-		{
-			Subsystem:    vm.Name,
-			Engine:       &Engine{Config: &config.Config{}},
-			EnableError:  nil,
-			DisableError: nil,
 		},
 	}
 
@@ -297,7 +290,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 
 	b := exch.GetBase()
 	b.API.AuthenticatedWebsocketSupport = true
-	b.SetCredentials("test", "test", "", "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
 	if result := e.GetAuthAPISupportedExchanges(); len(result) != 1 {
 		t.Fatal("Unexpected result", result)
 	}
@@ -1007,19 +1000,16 @@ func TestCheckAndGenCerts(t *testing.T) {
 func TestNewSupportedExchangeByName(t *testing.T) {
 	t.Parallel()
 
-	for x := range exchange.Exchanges {
-		exch, err := NewSupportedExchangeByName(exchange.Exchanges[x])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if exch == nil {
-			t.Fatalf("received nil exchange")
-		}
+	for _, name := range exchange.Exchanges {
+		exch, err := NewSupportedExchangeByName(name)
+		require.NoErrorf(t, err, "NewSupportedExchangeByName must not error for %s", name)
+		require.NotNilf(t, exch, "NewSupportedExchangeByName must return an exchange for %s", name)
 	}
 
-	_, err := NewSupportedExchangeByName("")
-	assert.ErrorIs(t, err, ErrExchangeNotFound)
+	for _, name := range []string{"", "Bitmex"} {
+		_, err := NewSupportedExchangeByName(name)
+		assert.ErrorIsf(t, err, ErrExchangeNotFound, "NewSupportedExchangeByName should reject %q", name)
+	}
 }
 
 func TestNewExchangeByNameWithDefaults(t *testing.T) {

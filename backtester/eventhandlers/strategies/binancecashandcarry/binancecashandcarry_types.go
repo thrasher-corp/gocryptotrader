@@ -3,8 +3,8 @@ package binancecashandcarry
 import (
 	"errors"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (

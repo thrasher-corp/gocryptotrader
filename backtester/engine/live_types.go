@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -57,8 +58,8 @@ type Handler interface {
 type dataChecker struct {
 	m                 sync.Mutex
 	wg                sync.WaitGroup
-	started           uint32
-	updatingFunding   uint32
+	started           atomic.Bool
+	updatingFunding   atomic.Bool
 	verboseDataCheck  bool
 	realOrders        bool
 	hasUpdatedFunding bool

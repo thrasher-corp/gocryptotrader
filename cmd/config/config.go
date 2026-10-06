@@ -149,7 +149,7 @@ func parseCommand(a []string) (cmd string, args []string) {
 
 // usage prints command usage and exits 1
 func usage(fs *flag.FlagSet) {
-	//nolint:dupword // deliberate duplication  of commands
+	//nolint:dupword // deliberate duplication of commands
 	fmt.Fprintln(os.Stderr, `
 Usage:
 config [arguments] <command>

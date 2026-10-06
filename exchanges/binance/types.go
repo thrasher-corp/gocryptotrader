@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // withdrawals status codes description
@@ -258,7 +258,7 @@ const (
 
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
-	Code            int64            `json:"code"`
+	Code            int64            `json:"code"` // Signed because Binance error codes are negative
 	Msg             string           `json:"msg"`
 	Timezone        string           `json:"timezone"`
 	ServerTime      types.Time       `json:"serverTime"`
@@ -272,9 +272,9 @@ type SymbolInfo struct {
 	Symbol                          string        `json:"symbol"`
 	Status                          string        `json:"status"`
 	BaseAsset                       string        `json:"baseAsset"`
-	BaseAssetPrecision              int64         `json:"baseAssetPrecision"`
+	BaseAssetPrecision              uint64        `json:"baseAssetPrecision"`
 	QuoteAsset                      string        `json:"quoteAsset"`
-	QuotePrecision                  int64         `json:"quotePrecision"`
+	QuotePrecision                  uint64        `json:"quotePrecision"`
 	OrderTypes                      []string      `json:"orderTypes"`
 	IcebergAllowed                  bool          `json:"icebergAllowed"`
 	OCOAllowed                      bool          `json:"ocoAllowed"`
@@ -371,13 +371,6 @@ type RPIResponse struct {
 	Asks              orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
-// DepthUpdateParams is used as an embedded type for WebsocketDepthStream
-type DepthUpdateParams []struct {
-	PriceLevel float64
-	Quantity   float64
-	ignore     []any
-}
-
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
 	Event         string                           `json:"e"`
@@ -392,7 +385,7 @@ type WebsocketDepthStream struct {
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
-	Limit  int64         `json:"limit"`  // Default 500; max 500.
+	Limit  uint64        `json:"limit"`  // Default 500; max 500.
 	FromID int64         `json:"fromId,omitempty"`
 }
 
@@ -497,7 +490,7 @@ type AggregatedTradeRequestParams struct {
 	StartTime time.Time
 	EndTime   time.Time
 	// Default 500; max 1000.
-	Limit int
+	Limit uint64
 }
 
 // WsAggregateTradeRequestParams holds request parameters for aggregate trades
@@ -577,29 +570,34 @@ type AveragePrice struct {
 // PriceChangesWrapper to be used when the response is either a single PriceChangeStats instance or a slice.
 type PriceChangesWrapper []*PriceChangeStats
 
-// PriceChangeStats contains statistics for the last 24 hours trade
+// PriceChangeStats contains statistics for the last 24 hours trade, for spot and coin margined
+// futures. Coin margined futures alone sends BaseVolume and Pair, and counts Volume in contracts
+// rather than base asset; spot alone sends QuoteVolume, PreviousClosePrice, BidPrice, BidQuantity,
+// AskPrice and AskQuantity
 type PriceChangeStats struct {
-	Symbol             string       `json:"symbol"`
-	PriceChange        types.Number `json:"priceChange"`
-	PriceChangePercent types.Number `json:"priceChangePercent"`
-	WeightedAvgPrice   types.Number `json:"weightedAvgPrice"`
-	PrevClosePrice     types.Number `json:"prevClosePrice"`
-	LastPrice          types.Number `json:"lastPrice"`
-	OpenPrice          types.Number `json:"openPrice"`
-	HighPrice          types.Number `json:"highPrice"`
-	LowPrice           types.Number `json:"lowPrice"`
-	Volume             types.Number `json:"volume"`
-	QuoteVolume        types.Number `json:"quoteVolume"`
-	OpenTime           types.Time   `json:"openTime"`
-	CloseTime          types.Time   `json:"closeTime"`
-	FirstID            int64        `json:"firstId"`
-	LastID             int64        `json:"lastId"`
-	Count              int64        `json:"count"`
-	LastQty            types.Number `json:"lastQty"`
-	BidPrice           types.Number `json:"bidPrice"`
-	BidQty             types.Number `json:"bidQty"`
-	AskPrice           types.Number `json:"askPrice"`
-	AskQty             types.Number `json:"askQty"`
+	Symbol               string       `json:"symbol"`
+	Pair                 string       `json:"pair"`
+	PriceChange          types.Number `json:"priceChange"`
+	PriceChangePercent   types.Number `json:"priceChangePercent"`
+	WeightedAveragePrice types.Number `json:"weightedAvgPrice"`
+	PreviousClosePrice   types.Number `json:"prevClosePrice"`
+	LastPrice            types.Number `json:"lastPrice"`
+	LastQuantity         types.Number `json:"lastQty"`
+	BidPrice             types.Number `json:"bidPrice"`
+	AskPrice             types.Number `json:"askPrice"`
+	BidQuantity          types.Number `json:"bidQty"`
+	AskQuantity          types.Number `json:"askQty"`
+	OpenPrice            types.Number `json:"openPrice"`
+	HighPrice            types.Number `json:"highPrice"`
+	LowPrice             types.Number `json:"lowPrice"`
+	Volume               types.Number `json:"volume"`
+	BaseVolume           types.Number `json:"baseVolume"`
+	QuoteVolume          types.Number `json:"quoteVolume"`
+	OpenTime             types.Time   `json:"openTime"`
+	CloseTime            types.Time   `json:"closeTime"`
+	FirstID              int64        `json:"firstId"`
+	LastID               int64        `json:"lastId"`
+	Count                int64        `json:"count"`
 }
 
 // SymbolPrice holds basic symbol price
@@ -641,7 +639,7 @@ type NewOrderRequest struct {
 
 // NewOrderResponse is the return structured response from the exchange
 type NewOrderResponse struct {
-	Code            int64      `json:"code"`
+	Code            int64      `json:"code"` // Signed because Binance error codes are negative
 	Msg             string     `json:"msg"`
 	Symbol          string     `json:"symbol"`
 	OrderID         int64      `json:"orderId"`
@@ -795,7 +793,7 @@ type CancelAndReplaceResponse struct {
 
 // QueryOrderData holds query order data
 type QueryOrderData struct {
-	Code               int        `json:"code"`
+	Code               int64      `json:"code"` // Signed because Binance error codes are negative
 	Msg                string     `json:"msg"`
 	Symbol             string     `json:"symbol"`
 	OrderID            int64      `json:"orderId"`
@@ -824,16 +822,17 @@ type Balance struct {
 	Locked decimal.Decimal `json:"locked"`
 }
 
-// Account holds the account data
+// Account holds the account data. The commissions are in basis points and signed, since a
+// liquidity provider's maker rebate is reported as a negative commission
 type Account struct {
-	UID              int64        `json:"uid"`
-	MakerCommission  types.Number `json:"makerCommission"`
-	TakerCommission  types.Number `json:"takerCommission"`
-	BuyerCommission  types.Number `json:"buyerCommission"`
-	SellerCommission types.Number `json:"sellerCommission"`
-	CanTrade         bool         `json:"canTrade"`
-	CanWithdraw      bool         `json:"canWithdraw"`
-	CanDeposit       bool         `json:"canDeposit"`
+	UID              int64 `json:"uid"`
+	MakerCommission  int64 `json:"makerCommission"`
+	TakerCommission  int64 `json:"takerCommission"`
+	BuyerCommission  int64 `json:"buyerCommission"`
+	SellerCommission int64 `json:"sellerCommission"`
+	CanTrade         bool  `json:"canTrade"`
+	CanWithdraw      bool  `json:"canWithdraw"`
+	CanDeposit       bool  `json:"canDeposit"`
 	CommissionRates  struct {
 		Maker  types.Number `json:"maker"`
 		Taker  types.Number `json:"taker"`
@@ -1399,22 +1398,6 @@ type WsPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
 	ID     string   `json:"id"`
-}
-
-// CrossMarginInterestData stores cross margin data for borrowing
-type CrossMarginInterestData struct {
-	Code          int64  `json:"code,string"`
-	Message       string `json:"message"`
-	MessageDetail string `json:"messageDetail"`
-	Data          []struct {
-		AssetName string `json:"assetName"`
-		Specs     []struct {
-			VipLevel          string       `json:"vipLevel"`
-			DailyInterestRate types.Number `json:"dailyInterestRate"`
-			BorrowLimit       types.Number `json:"borrowLimit"`
-		} `json:"specs"`
-	} `json:"data"`
-	Success bool `json:"success"`
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation
@@ -2003,7 +1986,7 @@ type RateLimitItem struct {
 	RateLimitType  string `json:"rateLimitType"`
 	Interval       string `json:"interval"`
 	IntervalNumber int64  `json:"intervalNum"`
-	Limit          int64  `json:"limit"`
+	Limit          uint64 `json:"limit"`
 	Count          int64  `json:"count"`
 }
 

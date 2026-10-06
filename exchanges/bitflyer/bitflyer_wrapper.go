@@ -3,7 +3,6 @@ package bitflyer
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -169,11 +168,14 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	err = ticker.ProcessTicker(&ticker.Price{
 		Pair:         fPair,
 		Ask:          tickerNew.BestAsk,
+		AskSize:      tickerNew.BestAskSize,
 		Bid:          tickerNew.BestBid,
+		BidSize:      tickerNew.BestBidSize,
 		Last:         tickerNew.Last,
-		Volume:       tickerNew.Volume,
+		BaseVolume:   tickerNew.VolumeByProduct,
 		ExchangeName: e.Name,
 		AssetType:    a,
+		LastUpdated:  tickerNew.TimeStamp.Time(),
 	})
 	if err != nil {
 		return nil, err
@@ -291,7 +293,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

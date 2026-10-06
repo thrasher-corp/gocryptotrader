@@ -108,19 +108,25 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		// Ticker messages aggregate over the subscribed tick type, 30 minutes by default, so these figures differ from the
+		// REST ticker's, whose volume covers 24 hours
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
-			Last:         tick.PreviousClosePrice,
+			Last:         tick.ClosePrice,
 			Pair:         tick.Symbol,
 			Open:         tick.OpenPrice,
 			Close:        tick.ClosePrice,
 			Low:          tick.LowPrice,
 			High:         tick.HighPrice,
 			QuoteVolume:  tick.Value,
-			Volume:       tick.Volume,
+			BaseVolume:   tick.Volume,
 			LastUpdated:  lu,
-		})
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, tickPrice)
 	case "transaction":
 		if !e.IsSaveTradeDataEnabled() {
 			return nil
@@ -160,7 +166,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		init, err := e.UpdateLocalBuffer(&orderbooks)
+		init, err := e.UpdateLocalBuffer(ctx, &orderbooks)
 		if err != nil && !init {
 			return fmt.Errorf("%v - UpdateLocalCache error: %s", e.Name, err)
 		}

@@ -6,17 +6,14 @@ import (
 	"runtime"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-var (
-	errTest      = errors.New("test error")
-	nonEmptyUUID = [uuid.Size]byte{108, 105, 99, 107, 77, 121, 72, 97, 105, 114, 121, 66, 97, 108, 108, 115}
-)
+var nonEmptyUUID = uuid.UUID{108, 105, 99, 107, 77, 121, 72, 97, 105, 114, 121, 66, 97, 108, 108, 115}
 
 func TestGlobalDispatcher(t *testing.T) {
 	err := Start(0, 0)
@@ -84,12 +81,12 @@ func TestStartStop(t *testing.T) {
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	var d *Dispatcher
-	_, err := d.subscribe(uuid.Nil)
+	_, err := d.subscribe(uuid.Nil())
 	assert.ErrorIs(t, err, common.ErrNilPointer, "subscribe should error correctly")
 
 	d = NewDispatcher()
 
-	_, err = d.subscribe(uuid.Nil)
+	_, err = d.subscribe(uuid.Nil())
 	assert.ErrorIs(t, err, errIDNotSet, "subscribe should error correctly")
 
 	_, err = d.subscribe(nonEmptyUUID)
@@ -118,12 +115,12 @@ func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
 	var d *Dispatcher
 
-	err := d.unsubscribe(uuid.Nil, nil)
+	err := d.unsubscribe(uuid.Nil(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "unsubscribe should error correctly")
 
 	d = NewDispatcher()
 
-	err = d.unsubscribe(uuid.Nil, nil)
+	err = d.unsubscribe(uuid.Nil(), nil)
 	assert.ErrorIs(t, err, errIDNotSet, "unsubscribe should error correctly")
 
 	err = d.unsubscribe(nonEmptyUUID, nil)
@@ -162,7 +159,7 @@ func TestPublish(t *testing.T) {
 	t.Parallel()
 	var d *Dispatcher
 
-	err := d.publish(uuid.Nil, nil)
+	err := d.publish(uuid.Nil(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "publish should error correctly")
 
 	d = NewDispatcher()
@@ -173,7 +170,7 @@ func TestPublish(t *testing.T) {
 	err = d.start(2, 10)
 	require.NoError(t, err, "start must not error")
 
-	err = d.publish(uuid.Nil, "test")
+	err = d.publish(uuid.Nil(), "test")
 	assert.ErrorIs(t, err, errIDNotSet, "publish should error correctly")
 
 	err = d.publish(nonEmptyUUID, nil)
@@ -235,23 +232,20 @@ func TestGetNewID(t *testing.T) {
 	_, err = d.getNewID(nil)
 	assert.ErrorIs(t, err, errUUIDGeneratorFunctionIsNil, "getNewID should error correctly")
 
-	_, err = d.getNewID(func() (uuid.UUID, error) { return uuid.Nil, errTest })
-	assert.ErrorIs(t, err, errTest, "getNewID should error correctly")
-
-	_, err = d.getNewID(func() (uuid.UUID, error) { return [uuid.Size]byte{254}, nil })
+	_, err = d.getNewID(func() uuid.UUID { return uuid.UUID{254} })
 	assert.NoError(t, err, "getNewID should not error")
 
-	_, err = d.getNewID(func() (uuid.UUID, error) { return [uuid.Size]byte{254}, nil })
+	_, err = d.getNewID(func() uuid.UUID { return uuid.UUID{254} })
 	assert.ErrorIs(t, err, errUUIDCollision, "getNewID should error correctly")
 }
 
 func TestMux(t *testing.T) {
 	t.Parallel()
 	var mux *Mux
-	_, err := mux.Subscribe(uuid.Nil)
+	_, err := mux.Subscribe(uuid.Nil())
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Subscribe should error correctly")
 
-	err = mux.Unsubscribe(uuid.Nil, nil)
+	err = mux.Unsubscribe(uuid.Nil(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Unsubscribe should error correctly")
 
 	err = mux.Publish(nil)
@@ -275,7 +269,7 @@ func TestMux(t *testing.T) {
 	id, err := mux.GetID()
 	require.NoError(t, err, "GetID must not error")
 
-	_, err = mux.Subscribe(uuid.Nil)
+	_, err = mux.Subscribe(uuid.Nil())
 	assert.ErrorIs(t, err, errIDNotSet, "Subscribe should error correctly")
 
 	pipe, err := mux.Subscribe(id)

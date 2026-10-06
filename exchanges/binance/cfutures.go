@@ -74,7 +74,7 @@ func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol curren
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	if fromID != "" {
-		params.Set("fromID", fromID)
+		params.Set("fromId", fromID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -94,7 +94,7 @@ func (e *Exchange) GetPastPublicTrades(ctx context.Context, symbol currency.Pair
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if fromID != 0 {
-		params.Set("fromID", strconv.FormatUint(fromID, 10))
+		params.Set("fromId", strconv.FormatUint(fromID, 10))
 	}
 	var resp []*FuturesPublicTradesData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/trades", params), cFuturesDefaultRate, &resp)
@@ -117,7 +117,7 @@ func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol cu
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if fromID != 0 {
-		params.Set("fromID", strconv.FormatUint(fromID, 10))
+		params.Set("fromId", strconv.FormatUint(fromID, 10))
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -808,7 +808,7 @@ func (e *Exchange) GetAllFuturesOrders(ctx context.Context, symbol, pair currenc
 		params.Set("pair", pair.String())
 	}
 	if orderID != 0 {
-		params.Set("orderID", strconv.FormatUint(orderID, 10))
+		params.Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))

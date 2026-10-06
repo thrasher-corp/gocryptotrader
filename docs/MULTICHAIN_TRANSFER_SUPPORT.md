@@ -42,12 +42,11 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 
 | Exchange | Deposits | Withdrawals | Notes|
 |----------|----------|-------------|------|
-| Binance.US | Yes  | Yes        | | 
+| Binance.US | Yes  | Yes        | |
 | Binance | Yes | Yes | |
 | Bitfinex | Yes | Yes | Only supports USDT |
 | Bitflyer | No | No | |
 | Bithumb | No | No | |
-| BitMEX | No | No | Supports BTC only |
 | Bitstamp | No | No | |
 | BTCMarkets | No | No| NA  |
 | BTSE | No | No | Only through website |
@@ -55,7 +54,6 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Coinbase | No | No | No|
 | COINUT | No | No | NA |
 | Deribit | Yes | Yes | |
-| Exmo | Yes | Yes | Addresses must be created via their website first |
 | GateIO | Yes | Yes | |
 | Gemini | No | No | |
 | HitBTC | No | No | |

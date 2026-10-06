@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/urfave/cli/v2"
 )
@@ -38,7 +39,5 @@ func TestLoad(t *testing.T) {
 	fs := &flag.FlagSet{}
 	fs.String("config", testConfig, "")
 	newCtx := cli.NewContext(testApp, fs, &cli.Context{})
-	if err := load(newCtx); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, load(newCtx), "load must not error")
 }
