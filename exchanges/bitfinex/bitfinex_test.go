@@ -2065,7 +2065,7 @@ func TestWSNotifications(t *testing.T) {
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
 
-	for _, payload := range []string{"[]", "[1]", `[0,"n"]`, `[0,"ps"]`, `[0,"pn"]`, `[0,"te"]`, `[0,"os"]`, `[0,"on"]`, `[0,"fos"]`, `[0,"fcs"]`} {
+	for _, payload := range []string{"[]", "[1]", `[0,"n"]`, `[0,"ps"]`, `[0,"pn"]`, `[0,"` + wsTradeExecuted + `"]`, `[0,"os"]`, `[0,"on"]`, `[0,"fos"]`, `[0,"fcs"]`} {
 		t.Run(payload, func(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
