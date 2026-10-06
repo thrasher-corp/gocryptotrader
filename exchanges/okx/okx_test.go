@@ -6234,6 +6234,14 @@ func TestGetCompletedSpreadOrdersLast21Days(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetCompletedSpreadOrdersLast3Months(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetCompletedSpreadOrdersLast3Months(contextGenerate(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err, "GetCompletedSpreadOrdersLast3Months must not error")
+	assert.NotNil(t, result, "GetCompletedSpreadOrdersLast3Months should return a result")
+}
+
 func TestGetSpreadTradesOfLast7Days(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -6608,6 +6616,8 @@ func TestOrderTypeString(t *testing.T) {
 		{OrderType: order.Limit, TIF: order.FillOrKill}:                 {Expected: orderFOK},
 		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:          {Expected: orderIOC},
 		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:            {Expected: orderPostOnly},
+		{OrderType: order.LimitMaker, TIF: order.ImmediateOrCancel}:     {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.LimitMaker, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.Stop, TIF: order.ImmediateOrCancel}:           {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.StopLimit, TIF: order.FillOrKill}:             {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.StopMarket, TIF: order.FillOrKill}:            {Error: order.ErrUnsupportedOrderType},
@@ -6669,7 +6679,7 @@ func TestSpreadOrderTypeString(t *testing.T) {
 		{OrderType: order.Limit, TIF: order.FillOrKill}:             {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.LimitMaker, TIF: order.UnknownTIF}:        {Expected: orderPostOnly},
 		{OrderType: order.LimitMaker, TIF: order.PostOnly}:          {Expected: orderPostOnly},
-		{OrderType: order.LimitMaker, TIF: order.ImmediateOrCancel}: {Expected: orderIOC},
+		{OrderType: order.LimitMaker, TIF: order.ImmediateOrCancel}: {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.LimitMaker, TIF: order.FillOrKill}:        {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.Stop, TIF: order.UnknownTIF}:              {Error: order.ErrUnsupportedOrderType},
 		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:   {Error: order.ErrUnsupportedOrderType},
@@ -7120,8 +7130,9 @@ func TestMarginTypeToString(t *testing.T) {
 		margin.Multi:        "cross",
 		margin.NoMargin:     "cash",
 		margin.SpotIsolated: "spot_isolated",
-		// Unset must map to an empty trade mode by design: its zero value
-		// would otherwise pass the mask subset check in marginTypeToString.
+		// Unset must map to an empty trade mode so the submit path can tell
+		// the zero margin type, which takes a per-asset default, apart from
+		// the types it refuses.
 		margin.Unset: "",
 		// An unsupported type falls through to an empty trade mode, which
 		// the leverage wrappers reject with margin.ErrMarginTypeUnsupported.

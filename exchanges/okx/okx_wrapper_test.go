@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -153,6 +154,7 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 	var pages map[string][]map[string]string
 	var cancelled []CancelOrderRequestParam
 	var pendingQuery string
+	var afterCursors []string
 
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -160,6 +162,13 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 			after := r.URL.Query().Get("after")
 			mu.Lock()
 			defer mu.Unlock()
+			if slices.Contains(afterCursors, after) {
+				// Nothing here fails a request, so a repeat means the cursor never advanced.
+				t.Errorf("after %q requested again", after)
+				http.Error(w, "repeated after", http.StatusBadRequest)
+				return
+			}
+			afterCursors = append(afterCursors, after)
 			pendingQuery = r.URL.RawQuery
 			if pages != nil {
 				writeOKXData(t, w, pages[after])
@@ -207,6 +216,7 @@ func TestCancelAllOrdersMatchesOnlyRequestedOrders(t *testing.T) {
 		defer mu.Unlock()
 		cancelled = nil
 		pendingQuery = ""
+		afterCursors = nil
 	}
 	cancelledIDs := func() []string {
 		mu.Lock()
@@ -1426,59 +1436,35 @@ func TestGetOrderHistoryIncludesZeroFillCanceledFromTheSevenDayListing(t *testin
 		assert.ElementsMatch(t, []string{"FILLED-1", "CANCELED-1"}, ids, "the crawl should keep the zero-fill canceled order beside the archive's rows without duplicating them")
 	})
 
-	t.Run("a window closed past the 7 day listing skips it", func(t *testing.T) {
+	t.Run("a window closed past the 7 day listing still reads it", func(t *testing.T) {
 		t.Parallel()
+		// OKX lists an order there for 7 days after it completes, so an older
+		// order cancelled without fills within the last 2 hours is only there.
+		oldCanceled := map[string]string{
+			"instId": mainPair.String(), "ordId": "OLD-CANCELED", "ordType": orderLimit, "side": "buy",
+			"state": "canceled", "sz": "1", "accFillSz": "0", "avgPx": "0", "px": "42000",
+			"cTime": strconv.FormatInt(time.Now().Add(-10*24*time.Hour).UnixMilli(), 10),
+		}
 		e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/trade/orders-history-archive" {
-				t.Errorf("the 7 day listing should not be requested for a window closed past its reach, got %s", r.URL.Path)
+			switch r.URL.Path {
+			case "/trade/orders-history-archive":
+				writeOKXData(t, w, []map[string]string{})
+			case "/trade/orders-history":
+				writeOKXData(t, w, []map[string]string{oldCanceled})
+			default:
+				t.Errorf("unexpected request path %s", r.URL.Path)
 				http.NotFound(w, r)
-				return
 			}
-			writeOKXData(t, w, []map[string]string{filled})
 		}))
-		_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 			AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
-			StartTime: time.Now().Add(-9 * 24 * time.Hour), EndTime: time.Now().Add(-8 * 24 * time.Hour),
+			StartTime: time.Now().Add(-11 * 24 * time.Hour), EndTime: time.Now().Add(-9 * 24 * time.Hour),
 			Pairs: currency.Pairs{mainPair},
 		})
 		require.NoError(t, err, "GetOrderHistory must not error when the window closes past the 7 day listing")
+		require.Len(t, history, 1, "the 7 day listing must supply an older order cancelled without fills")
+		assert.Equal(t, "OLD-CANCELED", history[0].OrderID, "the 7 day listing's order should be returned")
 	})
-}
-
-// TestGetOrderHistoryKeepsRowsInTheSecondBeforeStartTime guards the crawl's
-// end margin: rows arrive newest first and the crawl stops at StartTime, but
-// the stop compares a second wide so a row created within the second before
-// StartTime survives for the time filter to judge instead of being dropped by
-// a millisecond-exact comparison.
-func TestGetOrderHistoryKeepsRowsInTheSecondBeforeStartTime(t *testing.T) {
-	t.Parallel()
-	start := time.Now().Truncate(time.Second).Add(500 * time.Millisecond)
-	row := func(id string, created time.Time) map[string]string {
-		return map[string]string{"instId": mainPair.String(), "ordId": id, "ordType": orderLimit, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": strconv.FormatInt(created.UnixMilli(), 10)}
-	}
-	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/trade/orders-history" {
-			writeOKXData(t, w, []map[string]string{})
-			return
-		}
-		if r.URL.Path != "/trade/orders-history-archive" {
-			t.Errorf("unexpected request path %s", r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
-		// Rows arrive newest first; the margin row shares StartTime's second.
-		writeOKXData(t, w, []map[string]string{row("MARGIN", start.Add(-200*time.Millisecond)), row("OLDER", start.Add(-2*time.Second))})
-	}))
-	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-		AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
-		StartTime: start, Pairs: currency.Pairs{mainPair},
-	})
-	require.NoError(t, err, "GetOrderHistory must not error when a row shares StartTime's second")
-	ids := make([]string, 0, len(history))
-	for i := range history {
-		ids = append(ids, history[i].OrderID)
-	}
-	assert.ElementsMatch(t, []string{"MARGIN"}, ids, "the crawl should keep the row in the second before StartTime for the time filter to judge")
 }
 
 // TestPendingOrderTypeFilter guards the pending order type filter through both
@@ -3177,9 +3163,17 @@ func TestGetOrderHistoryStopsWhenAFullPageIsSeen(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
+		after := r.URL.Query().Get("after")
 		mu.Lock()
-		afterCursors = append(afterCursors, r.URL.Query().Get("after"))
+		repeated := slices.Contains(afterCursors, after)
+		afterCursors = append(afterCursors, after)
 		mu.Unlock()
+		if repeated {
+			// A repeat means the after cursor never advanced.
+			t.Errorf("after %q requested again", after)
+			http.Error(w, "repeated after", http.StatusBadRequest)
+			return
+		}
 		writeOKXData(t, w, page)
 	}))
 	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
@@ -4342,4 +4336,415 @@ func TestLeverageRejectsUnformattablePairs(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "SetLeverage must surface the pair format failure")
 	_, err = e.GetLeverage(t.Context(), asset.PerpetualSwap, perpetualSwapPair, margin.Multi, order.AnySide)
 	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetLeverage must surface the pair format failure")
+}
+
+// TestPendingOrderPagersStopOnARepeatedPage guards the stop on a page that
+// does not advance: a venue answering every cursor with the same full page
+// must not keep the pending order pagers, or cancel-all, requesting it until
+// the context ends.
+func TestPendingOrderPagersStopOnARepeatedPage(t *testing.T) {
+	t.Parallel()
+	page := make([]map[string]string, 0, orderListPageSize)
+	for i := range orderListPageSize {
+		page = append(page, map[string]string{"instId": mainPair.String(), "sprdId": spreadPair.String(), "ordId": fmt.Sprintf("ORD-%03d", i), "ordType": orderLimit, "side": "buy", "state": "live", "sz": "1", "px": "1", "cTime": "1700000000000"})
+	}
+	var mu sync.Mutex
+	listings := make(map[string]int)
+	var cancelled []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trade/orders-pending", "/sprd/orders-pending":
+			mu.Lock()
+			listings[r.URL.Path]++
+			mu.Unlock()
+			writeOKXData(t, w, page)
+		case "/trade/cancel-batch-orders":
+			var reqs []CancelOrderRequestParam
+			if err := json.NewDecoder(r.Body).Decode(&reqs); err != nil {
+				t.Errorf("decoding cancel request body should not error: %v", err)
+				return
+			}
+			rows := make([]map[string]string, 0, len(reqs))
+			mu.Lock()
+			for x := range reqs {
+				cancelled = append(cancelled, reqs[x].OrderID)
+				rows = append(rows, map[string]string{"ordId": reqs[x].OrderID, "sCode": "0"})
+			}
+			mu.Unlock()
+			writeOKXData(t, w, rows)
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	// A pager that never stops fails at this deadline instead of hanging.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	for _, a := range []asset.Item{asset.Spot, asset.Spread} {
+		active, err := e.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: a, Type: order.AnyType, Side: order.AnySide})
+		require.NoErrorf(t, err, "GetActiveOrders must stop at a repeated page for %s", a)
+		assert.Lenf(t, active, orderListPageSize, "GetActiveOrders should keep the repeated page once for %s", a)
+	}
+	_, err := e.CancelAllOrders(ctx, &order.Cancel{AssetType: asset.Spot})
+	require.NoError(t, err, "CancelAllOrders must stop at a repeated page")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, map[string]int{"/trade/orders-pending": 4, "/sprd/orders-pending": 2}, listings, "each pager should stop at the first repeated page")
+	assert.Len(t, cancelled, orderListPageSize, "cancel-all should cancel each order once")
+}
+
+// TestListOrdersByLimitMakerType guards listing by the LimitMaker type that
+// SubmitOrder places as post_only: OKX reads a post_only order back as a
+// post-only Limit, which a LimitMaker query must still return.
+func TestListOrdersByLimitMakerType(t *testing.T) {
+	t.Parallel()
+	row := func(id, ordType, state string) map[string]string {
+		return map[string]string{"instId": mainPair.String(), "sprdId": spreadPair.String(), "ordId": id, "ordType": ordType, "side": "buy", "state": state, "sz": "1", "px": "1", "cTime": "1700000000000"}
+	}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		state := "canceled"
+		switch r.URL.Path {
+		case "/trade/orders-pending", "/sprd/orders-pending":
+			state = "live"
+		case "/trade/orders-history-archive", "/trade/orders-history", "/sprd/orders-history", "/sprd/orders-history-archive":
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []map[string]string{row("LIMIT-1", orderLimit, state), row("POST-1", orderPostOnly, state), row("IOC-1", orderIOC, state)})
+	}))
+	for _, a := range []asset.Item{asset.Spot, asset.Spread} {
+		req := &order.MultiOrderRequest{AssetType: a, Type: order.LimitMaker, Side: order.AnySide}
+		active, err := e.GetActiveOrders(t.Context(), req)
+		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
+		history, err := e.GetOrderHistory(t.Context(), req)
+		require.NoErrorf(t, err, "GetOrderHistory must not error for %s", a)
+		for _, got := range []order.FilteredOrders{active, history} {
+			require.Lenf(t, got, 1, "a LimitMaker query must return the post-only order for %s", a)
+			assert.Equalf(t, "POST-1", got[0].OrderID, "the post-only order should be returned for %s", a)
+			assert.Equalf(t, order.LimitMaker, got[0].Type, "the order should report the requested type for %s", a)
+		}
+	}
+}
+
+// TestSubmitOrderRejectsUnsupportedMarginType guards the trade mode default:
+// only the zero margin type defaults, so an explicit margin type OKX cannot
+// express fails before any request instead of trading in another mode.
+func TestSubmitOrderRejectsUnsupportedMarginType(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request path %s", r.URL.Path)
+		http.NotFound(w, r)
+	}))
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures} {
+		for _, mt := range []margin.Type{
+			margin.Unknown,
+			margin.Isolated | margin.Multi,
+			margin.Isolated | margin.NoMargin,
+			margin.Isolated | margin.SpotIsolated,
+			margin.NoMargin | margin.SpotIsolated,
+			margin.Isolated | margin.NoMargin | margin.SpotIsolated,
+		} {
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: mainPair, AssetType: a, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1, MarginType: mt})
+			assert.ErrorIsf(t, err, margin.ErrMarginTypeUnsupported, "SubmitOrder should reject margin type %d for %s", mt, a)
+		}
+	}
+}
+
+// TestSetLeverageRateNormalisesPositionSide guards the posSide case
+// normalisation: any case is accepted and sent lower case, as OKX requires.
+func TestSetLeverageRateNormalisesPositionSide(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var body []byte
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/account/set-leverage" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		b, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "reading the set leverage body should not error")
+		mu.Lock()
+		body = b
+		mu.Unlock()
+		writeOKXData(t, w, []map[string]string{{"lever": "5", "mgnMode": TradeModeIsolated, "posSide": positionSideLong, "instId": perpetualSwapPair.String()}})
+	}))
+	_, err := e.SetLeverageRate(t.Context(), &SetLeverageInput{Leverage: 5, MarginMode: TradeModeIsolated, InstrumentID: perpetualSwapPair.String(), PositionSide: "LONG"})
+	require.NoError(t, err, "SetLeverageRate must accept an upper-case position side")
+	mu.Lock()
+	var sent map[string]any
+	err = json.Unmarshal(body, &sent)
+	mu.Unlock()
+	require.NoError(t, err, "the set leverage body must decode")
+	assert.Equal(t, positionSideLong, sent["posSide"], "the position side should be sent in lower case")
+
+	_, err = e.SetLeverageRate(t.Context(), &SetLeverageInput{Leverage: 5, MarginMode: TradeModeIsolated, Currency: currency.USDT})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "a currency-scoped isolated leverage must be rejected")
+	assert.ErrorContains(t, err, `requires "cross" margin`, "the error should name the margin mode a currency-scoped leverage requires")
+}
+
+// TestContractPositionModeKeepsConfirmedSwitch guards the cached position mode
+// against a first-use fetch that returns after SetPositionMode confirmed a
+// switch: the older fetched mode must not replace the confirmed one.
+func TestContractPositionModeKeepsConfirmedSwitch(t *testing.T) {
+	t.Parallel()
+	getStarted := make(chan struct{})
+	startOnce := sync.OnceFunc(func() { close(getStarted) })
+	release := make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/account/config":
+			startOnce()
+			<-release
+			writeOKXData(t, w, []map[string]string{{"posMode": positionModeNet}})
+		case "/account/set-position-mode":
+			writeOKXData(t, w, []map[string]string{{"posMode": positionModeLongShort}})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	// Registered after the mock server's cleanup, so it runs first and frees
+	// a handler still waiting on release.
+	t.Cleanup(releaseOnce)
+	fetched := make(chan error, 1)
+	go func() {
+		_, err := e.contractPositionMode(t.Context())
+		fetched <- err
+	}()
+	select {
+	case <-getStarted:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the account configuration fetch must start")
+	}
+	_, err := e.SetPositionMode(t.Context(), positionModeLongShort)
+	require.NoError(t, err, "SetPositionMode must not error")
+	releaseOnce()
+	select {
+	case err := <-fetched:
+		require.NoError(t, err, "the in-flight fetch must not error")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the in-flight fetch must return")
+	}
+	mode, err := e.contractPositionMode(t.Context())
+	require.NoError(t, err, "contractPositionMode must not error")
+	assert.Equal(t, positionModeLongShort, mode, "a confirmed switch should outlive an older fetch")
+}
+
+// TestGetOrderHistoryWindowPaging guards the history crawl against OKX's
+// documented pagination: begin and end are inclusive filters applied first,
+// after then pages to older order IDs, and past the page limit OKX answers
+// begin without end or after with the records closest to begin, the oldest.
+// Each listing holds orders the other lacks, and older ones before the window.
+func TestGetOrderHistoryWindowPaging(t *testing.T) {
+	t.Parallel()
+	base := time.Now().Add(-2 * time.Hour).Truncate(time.Second)
+	created := func(id int64) time.Time { return base.Add(time.Duration(id) * time.Second) }
+	// The archive holds orders 1 to 150 and the 7 day listing 151 to 300.
+	listings := map[string][2]int64{"/trade/orders-history-archive": {1, 150}, "/trade/orders-history": {151, 300}}
+	venue := func(w http.ResponseWriter, r *http.Request) {
+		ids, ok := listings[r.URL.Path]
+		if !ok {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		q := r.URL.Query()
+		param := func(k string) (int64, bool) {
+			v, err := strconv.ParseInt(q.Get(k), 10, 64)
+			return v, err == nil
+		}
+		begin, hasBegin := param("begin")
+		end, hasEnd := param("end")
+		after, hasAfter := param("after")
+		var page []int64
+		for id := ids[0]; id <= ids[1]; id++ {
+			c := created(id).UnixMilli()
+			if (hasBegin && c < begin) || (hasEnd && c > end) || (hasAfter && id >= after) {
+				continue
+			}
+			page = append(page, id)
+		}
+		if len(page) > orderListPageSize {
+			if hasBegin && !hasEnd && !hasAfter {
+				page = page[:orderListPageSize]
+			} else {
+				page = page[len(page)-orderListPageSize:]
+			}
+		}
+		rows := make([]map[string]string, 0, len(page))
+		for _, id := range slices.Backward(page) {
+			c := strconv.FormatInt(created(id).UnixMilli(), 10)
+			rows = append(rows, map[string]string{
+				"instId": mainPair.String(), "ordId": strconv.FormatInt(id, 10), "ordType": orderLimit, "side": "buy",
+				"state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": c, "uTime": c,
+			})
+		}
+		writeOKXData(t, w, rows)
+	}
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		first      int64
+		last       int64
+	}{
+		{"start only", created(31), time.Time{}, 31, 300},
+		{"end only", time.Time{}, created(120), 1, 120},
+		{"start and end", created(31), created(200), 31, 200},
+		{"neither", time.Time{}, time.Time{}, 1, 300},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newMockExchange(t, http.HandlerFunc(venue))
+			history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+				StartTime: tc.start, EndTime: tc.end, Pairs: currency.Pairs{mainPair},
+			})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			got := make([]int64, 0, len(history))
+			for i := range history {
+				id, err := strconv.ParseInt(history[i].OrderID, 10, 64)
+				require.NoError(t, err, "order IDs must parse")
+				got = append(got, id)
+			}
+			slices.Sort(got)
+			exp := make([]int64, 0, tc.last-tc.first+1)
+			for id := tc.first; id <= tc.last; id++ {
+				exp = append(exp, id)
+			}
+			assert.Equal(t, exp, got, "GetOrderHistory should return exactly the orders in the window")
+		})
+	}
+}
+
+// TestGetOrderHistoryRejectsUnmappedStates guards the history crawl's state
+// mapping: a state the wrapper cannot map must fail the request instead of
+// reporting an order with an unknown status.
+func TestGetOrderHistoryRejectsUnmappedStates(t *testing.T) {
+	t.Parallel()
+	created := strconv.FormatInt(time.Now().Add(-time.Hour).UnixMilli(), 10)
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/orders-history-archive" && r.URL.Path != "/trade/orders-history" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []map[string]string{{
+			"instId": mainPair.String(), "ordId": "ORD-1", "ordType": orderLimit, "side": "buy",
+			"state": "bogus", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": created,
+		}})
+	}))
+	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{mainPair},
+	})
+	require.ErrorContains(t, err, "unrecognised order status", "an unmapped order state must fail the request")
+}
+
+// TestGetActiveSpreadOrdersFromOrderIDSeedsTheEndIDCursor guards the
+// FromOrderID request field for pending spread orders: it must seed the
+// endId cursor, orders earlier than the ID, the direction the spread
+// history crawls and the standard listing's after cursor use, and beginId,
+// which returns records newer than the ID, must never go out.
+func TestGetActiveSpreadOrdersFromOrderIDSeedsTheEndIDCursor(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/orders-pending" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		assert.Equal(t, "SEED-1", r.URL.Query().Get("endId"), "the first request should carry FromOrderID as the endId cursor")
+		assert.Empty(t, r.URL.Query().Get("beginId"), "beginId returns records newer than the order ID and should never be sent")
+		writeOKXData(t, w, []map[string]string{{
+			"sprdId": spreadPair.String(), "ordId": "SPD-1", "ordType": orderLimit,
+			"side": "buy", "state": "live", "sz": "1", "px": "1", "accFillSz": "0", "cTime": "1700000000000",
+		}})
+	}))
+	active, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide, FromOrderID: "SEED-1",
+	})
+	require.NoError(t, err, "GetActiveOrders must not error when FromOrderID seeds the spread crawl")
+	require.Len(t, active, 1, "the seeded crawl must return the listing's orders")
+	assert.Equal(t, "SPD-1", active[0].OrderID, "the pending spread order should be returned")
+}
+
+// TestSubmitSpreadOrderNegativeLimitPrice guards the negative spread price
+// round trip: a spread price is the differential between its legs, so a
+// negative limit price must pass order validation and reach OKX as-is.
+func TestSubmitSpreadOrderNegativeLimitPrice(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var body []byte
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/order" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		b, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "reading the spread order body should not error")
+		mu.Lock()
+		body = b
+		mu.Unlock()
+		writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+	}))
+	_, err := e.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  e.Name,
+		Pair:      spreadPair,
+		AssetType: asset.Spread,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     -41.2,
+	})
+	require.NoError(t, err, "SubmitOrder must accept a negative spread limit price")
+	mu.Lock()
+	defer mu.Unlock()
+	var sent map[string]any
+	require.NoError(t, json.Unmarshal(body, &sent), "the spread order body must decode")
+	assert.Equal(t, "-41.2", sent["px"], "the negative spread price should be sent as-is")
+}
+
+// TestGetOrderHistoryNarrowsByRequestedTimeInForce guards the history result
+// set's time in force narrowing: the crawls send no ordType, so a post-only
+// Limit query must not return IOC or resting limit orders too.
+func TestGetOrderHistoryNarrowsByRequestedTimeInForce(t *testing.T) {
+	t.Parallel()
+	row := func(id, ordType string) map[string]string {
+		return map[string]string{"instId": mainPair.String(), "ordId": id, "ordType": ordType, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": "1700000000000"}
+	}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trade/orders-history-archive", "/trade/orders-history":
+			writeOKXData(t, w, []map[string]string{row("LIMIT-1", orderLimit), row("POST-1", orderPostOnly), row("IOC-1", orderIOC)})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	for _, tc := range []struct {
+		name string
+		tif  order.TimeInForce
+		exp  []string
+	}{
+		{"post only query returns post only orders", order.PostOnly, []string{"POST-1"}},
+		{"immediate or cancel query returns ioc orders", order.ImmediateOrCancel, []string{"IOC-1"}},
+		{"no time in force returns every limit order", order.UnknownTIF, []string{"LIMIT-1", "POST-1", "IOC-1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				AssetType: asset.Spot, Type: order.Limit, TimeInForce: tc.tif, Side: order.AnySide,
+			})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			ids := make([]string, 0, len(history))
+			for i := range history {
+				ids = append(ids, history[i].OrderID)
+			}
+			assert.ElementsMatch(t, tc.exp, ids, "the history should return exactly the orders carrying the requested time in force")
+		})
+	}
 }

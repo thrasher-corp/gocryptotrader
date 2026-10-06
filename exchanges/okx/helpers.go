@@ -81,6 +81,11 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		order.OCO:
 		return orderType.Lower(), nil
 	case order.LimitMaker:
+		// A LimitMaker order must never take liquidity, so a time in force
+		// that fills immediately contradicts it.
+		if tif == order.ImmediateOrCancel || tif == order.FillOrKill {
+			return "", fmt.Errorf("%w: %q with %q", order.ErrUnsupportedOrderType, orderType, tif)
+		}
 		return orderPostOnly, nil
 	case order.ConditionalStop:
 		return orderConditional, nil
@@ -116,7 +121,14 @@ func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string,
 			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 		}
 		return orderMarket, nil // an ioc market order is already immediate
-	case order.Limit, order.LimitMaker:
+	case order.LimitMaker:
+		// A LimitMaker order must never take liquidity, so it places as
+		// post_only, and a time in force that fills immediately is refused.
+		switch tif {
+		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay, order.PostOnly:
+			return orderPostOnly, nil
+		}
+	case order.Limit:
 		switch tif {
 		case order.PostOnly:
 			return orderPostOnly, nil
@@ -125,9 +137,6 @@ func spreadOrderTypeString(orderType order.Type, tif order.TimeInForce) (string,
 		case order.FillOrKill:
 			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 		case order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay:
-			if orderType == order.LimitMaker {
-				return orderPostOnly, nil
-			}
 			return orderLimit, nil
 		}
 	}

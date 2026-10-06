@@ -1834,8 +1834,9 @@ func (e *Exchange) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (
 	if arg.InstrumentID == "" && arg.MarginMode != TradeModeCross {
 		// OKX uses instId when both are sent, so a currency-scoped setting is
 		// always cross margin.
-		return nil, fmt.Errorf("%w: a currency-scoped leverage requires %q margin", margin.ErrMarginTypeUnsupported, arg.MarginMode)
+		return nil, fmt.Errorf("%w: a currency-scoped leverage requires %q margin, got %q", margin.ErrMarginTypeUnsupported, TradeModeCross, arg.MarginMode)
 	}
+	arg.PositionSide = strings.ToLower(arg.PositionSide)
 	switch arg.PositionSide {
 	case "", positionSideLong, positionSideShort, positionSideNet:
 		// OKX requires posSide only for isolated futures and perpetual swap
@@ -1843,7 +1844,6 @@ func (e *Exchange) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (
 	default:
 		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 	}
-	arg.PositionSide = strings.ToLower(arg.PositionSide)
 	var resp *SetLeverageResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, "account/set-leverage", &arg, &resp, request.AuthenticatedRequest)
 }

@@ -938,6 +938,11 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 	}
 	tradeMode := e.marginTypeToString(s.MarginType)
 	if tradeMode == "" {
+		if s.MarginType != margin.Unset {
+			// Only the zero margin type takes a default: an explicit one OKX
+			// cannot express must not silently become another margin mode.
+			return nil, fmt.Errorf("%w: %v", margin.ErrMarginTypeUnsupported, s.MarginType)
+		}
 		// OKX requires tdMode, and the zero margin type leaves it empty: spot
 		// defaults to cash and perpetual swap to cross.
 		switch s.AssetType {
@@ -1250,9 +1255,13 @@ func (e *Exchange) contractPositionMode(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("%w %q", errInvalidPositionMode, accountConfig.PositionMode)
 	}
 	e.accountPositionModeMu.Lock()
-	e.accountPositionMode = accountConfig.PositionMode
-	e.accountPositionModeMu.Unlock()
-	return accountConfig.PositionMode, nil
+	defer e.accountPositionModeMu.Unlock()
+	if e.accountPositionMode == "" {
+		// A switch SetPositionMode confirmed while this fetch was in flight
+		// is newer than the fetched mode, so it is kept.
+		e.accountPositionMode = accountConfig.PositionMode
+	}
+	return e.accountPositionMode, nil
 }
 
 // chaseTypeString maps the tracking mode to OKX's maxChaseType values, which
@@ -1281,19 +1290,17 @@ func priceTypeString(pt order.PriceType) string {
 	}
 }
 
-var allowedMarginTypes = margin.Isolated | margin.NoMargin | margin.SpotIsolated
-
+// marginTypeToString returns the OKX trade mode for a single margin type, and
+// empty for anything else: a combination of margin types names no mode.
 func (e *Exchange) marginTypeToString(m margin.Type) string {
-	// Unset is the zero value, so the mask subset check alone would let it
-	// through and its empty String() would only coincidentally be rejected
-	// downstream; exclude it explicitly.
-	if m != margin.Unset && allowedMarginTypes&m == m {
+	switch m {
+	case margin.Isolated, margin.NoMargin, margin.SpotIsolated:
 		return m.String()
-	}
-	if margin.Multi == m {
+	case margin.Multi:
 		return TradeModeCross
+	default:
+		return ""
 	}
-	return ""
 }
 
 // ModifyOrder modifies an existing order via the exchange REST API.
@@ -1987,6 +1994,11 @@ func (e *Exchange) pendingOrdersToCancel(ctx context.Context, c *order.Cancel) (
 		if err != nil {
 			return nil, err
 		}
+		if len(page) > 0 && page[len(page)-1].OrderID == after {
+			// The after cursor is exclusive, so a page ending at it repeats
+			// the one already kept; stop rather than request it forever.
+			break
+		}
 		myOrders = append(myOrders, page...)
 		if len(page) < orderListPageSize {
 			break
@@ -2326,13 +2338,20 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		// records and pages the remainder with the endId cursor: endId returns
 		// records earlier than the order ID, the direction the newest-first
 		// listing pages. beginId returns records newer than the order ID and
-		// cannot walk the pages.
+		// cannot walk the pages. req.FromOrderID seeds the endId cursor so the
+		// crawl returns records earlier than it, matching the standard listing's
+		// after cursor and the spread history crawls.
 		var spreads []SpreadOrder
-		for endID := ""; ; {
+		for endID := req.FromOrderID; ; {
 			var page []SpreadOrder
-			page, err = e.GetActiveSpreadOrders(ctx, "", spreadOrderType, "", req.FromOrderID, endID, 0)
+			page, err = e.GetActiveSpreadOrders(ctx, "", spreadOrderType, "", "", endID, 0)
 			if err != nil {
 				return nil, err
+			}
+			if len(page) > 0 && page[len(page)-1].OrderID == endID {
+				// The endId cursor is exclusive, so a page ending at it repeats
+				// the one already kept; stop rather than request it forever.
+				break
 			}
 			spreads = append(spreads, page...)
 			if len(page) < orderListPageSize {
@@ -2393,6 +2412,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				TimeInForce:     tif,
 			})
 		}
+		asLimitMaker(req, resp)
 		return req.Filter(e.Name, resp), nil
 	}
 
@@ -2418,7 +2438,9 @@ allOrders:
 		if err != nil {
 			return nil, err
 		}
-		if len(orderList) == 0 {
+		if len(orderList) == 0 || orderList[len(orderList)-1].OrderID == after {
+			// The after cursor is exclusive, so a page ending at it repeats
+			// the one already kept; stop rather than request it forever.
 			break
 		}
 		for i := range orderList {
@@ -2477,7 +2499,22 @@ allOrders:
 		}
 		after = orderList[len(orderList)-1].OrderID
 	}
+	asLimitMaker(req, resp)
 	return req.Filter(e.Name, resp), nil
+}
+
+// asLimitMaker reports post-only Limit orders as LimitMaker when the request
+// asks for LimitMaker: OKX places a LimitMaker order as post_only, which reads
+// back as a post-only Limit, so the request filter would otherwise drop it.
+func asLimitMaker(req *order.MultiOrderRequest, orders []order.Detail) {
+	if req.Type != order.LimitMaker {
+		return
+	}
+	for i := range orders {
+		if orders[i].Type == order.Limit && orders[i].TimeInForce == order.PostOnly {
+			orders[i].Type = order.LimitMaker
+		}
+	}
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
@@ -2500,6 +2537,19 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	if err != nil {
 		return nil, err
+	}
+	asLimitMaker(req, resp)
+	if req.TimeInForce != order.UnknownTIF {
+		// The crawls send no ordType and req.Filter narrows by type only, so
+		// the requested time in force narrows the result set itself: a
+		// post-only Limit query must not return IOC orders too.
+		narrowed := resp[:0]
+		for i := range resp {
+			if resp[i].TimeInForce == req.TimeInForce {
+				narrowed = append(narrowed, resp[i])
+			}
+		}
+		resp = narrowed
 	}
 	return req.Filter(e.Name, resp), nil
 }
@@ -2650,7 +2700,7 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 // result set only: instId is a single-value parameter on both endpoints (a
 // comma-separated list is rejected with 51000), so pushing pairs down would
 // multiply the crawls. The 3 month archive is the primary source; the 7 day
-// listing is crawled beside it when the requested window reaches its reach.
+// listing is crawled beside it.
 func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	// OKX returns both listings newest first and pages the remainder with the
@@ -2673,11 +2723,11 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 				break
 			}
 			for i := range orderList {
-				if orderList[i].CreationTime.Time().Before(req.StartTime.Add(-time.Second)) {
-					// Reached the end of the crawl: rows arrive newest
-					// first, so every row after is older than StartTime.
-					// The one second margin keeps rows the second-granular
-					// time filter in req.Filter would accept.
+				if orderList[i].CreationTime.Time().Before(req.StartTime.Truncate(time.Millisecond)) {
+					// Reached the end of the crawl: rows arrive newest first,
+					// so every row after is older than StartTime. Without
+					// begin this is the window's only lower bound, so it
+					// matches begin's inclusive millisecond.
 					break allOrders
 				}
 				if _, ok := seen[orderList[i].OrderID]; ok {
@@ -2740,11 +2790,13 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 		}
 		return nil
 	}
+	// OKX answers begin without end or after with the records closest to
+	// begin, the oldest, and the crawl pages towards older ones, so begin is
+	// left out and the crawl's own StartTime stop bounds the window instead.
 	if err := crawl(func(after string) ([]OrderDetail, error) {
 		return e.Get3MonthOrderHistory(ctx, &OrderHistoryRequestParams{
 			InstrumentType: instrumentType,
 			After:          after,
-			Start:          req.StartTime,
 			End:            req.EndTime,
 		})
 	}); err != nil {
@@ -2752,19 +2804,17 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 	}
 	// The archive does not contain canceled orders without any fills; the
 	// 7 day listing does, retaining them for 2 hours, and carries the
-	// freshest orders before they reach the archive. It is crawled when the
-	// requested window reaches the listing's 7 day reach.
-	if req.EndTime.IsZero() || req.EndTime.After(time.Now().Add(-kline.SevenDay.Duration())) {
-		if err := crawl(func(after string) ([]OrderDetail, error) {
-			return e.Get7DayOrderHistory(ctx, &OrderHistoryRequestParams{
-				InstrumentType: instrumentType,
-				After:          after,
-				Start:          req.StartTime,
-				End:            req.EndTime,
-			})
-		}); err != nil {
-			return nil, err
-		}
+	// freshest orders before they reach the archive. It holds every order
+	// completed in the last 7 days whenever it was created, so the window's
+	// creation time bounds cannot rule it out.
+	if err := crawl(func(after string) ([]OrderDetail, error) {
+		return e.Get7DayOrderHistory(ctx, &OrderHistoryRequestParams{
+			InstrumentType: instrumentType,
+			After:          after,
+			End:            req.EndTime,
+		})
+	}); err != nil {
+		return nil, err
 	}
 	return resp, nil
 }
