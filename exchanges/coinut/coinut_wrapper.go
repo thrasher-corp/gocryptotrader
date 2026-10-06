@@ -586,17 +586,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 		return nil, err
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		openOrders, err := e.wsGetOpenOrders(ctx, details.Pair.String())
+		fPair, err := e.FormatExchangeCurrency(details.Pair, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		openOrders, err := e.wsGetOpenOrders(ctx, fPair.String())
 		if err != nil {
 			return nil, err
 		}
 		var ordersToCancel []WsCancelOrderParameters
 		for i := range openOrders.Orders {
-			var fPair currency.Pair
-			fPair, err = e.FormatExchangeCurrency(details.Pair, asset.Spot)
-			if err != nil {
-				return nil, err
-			}
 			if openOrders.Orders[i].InstrumentID == e.instrumentMap.LookupID(fPair.String()) {
 				ordersToCancel = append(ordersToCancel, WsCancelOrderParameters{
 					Currency: details.Pair,

@@ -86,8 +86,8 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 }
 
 // getAssetsFromInstrumentIDWithCheck parses an instrument ID and returns assets
-// depending on whether enabled-only checks are requested.
-func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string, enabledOnly bool) ([]asset.Item, error) {
+// with available pairs on enabled assets.
+func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -106,14 +106,14 @@ func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string, enabl
 	switch {
 	case len(splitSymbol) == 2:
 		resp := make([]asset.Item, 0, 2)
-		isMatch, err := e.pairMatchesRequirement(pair, asset.Spot, enabledOnly)
+		isMatch, err := e.IsPairAvailable(pair, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		if isMatch && e.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 			resp = append(resp, asset.Spot)
 		}
-		isMatch, err = e.pairMatchesRequirement(pair, asset.Margin, enabledOnly)
+		isMatch, err = e.IsPairAvailable(pair, asset.Margin)
 		if err != nil {
 			return nil, err
 		}
@@ -133,26 +133,14 @@ func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string, enabl
 		default:
 			aType = asset.Futures
 		}
-		isMatch, err := e.pairMatchesRequirement(pair, aType, enabledOnly)
+		isMatch, err := e.IsPairAvailable(pair, aType)
 		if err != nil {
 			return nil, err
 		} else if isMatch && e.CurrencyPairs.IsAssetEnabled(aType) == nil {
 			return []asset.Item{aType}, nil
 		}
 	}
-	assetState := "available"
-	if enabledOnly {
-		assetState = "enabled"
-	}
-	return nil, fmt.Errorf("%w: no %s asset found for instrument ID `%v`", asset.ErrNotSupported, assetState, instrumentID)
-}
-
-// pairMatchesRequirement checks whether a pair/asset satisfies enabled-only or available checks.
-func (e *Exchange) pairMatchesRequirement(pair currency.Pair, a asset.Item, enabledOnly bool) (bool, error) {
-	if enabledOnly {
-		return e.IsPairEnabled(pair, a)
-	}
-	return e.IsPairAvailable(pair, a)
+	return nil, fmt.Errorf("%w: no available asset found for instrument ID `%v`", asset.ErrNotSupported, instrumentID)
 }
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string

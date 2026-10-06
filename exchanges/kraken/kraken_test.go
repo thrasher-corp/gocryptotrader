@@ -1146,6 +1146,15 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 
+	for _, a := range []asset.Item{asset.Empty, asset.All, asset.Options} {
+		t.Run("unsupported scope "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "unsupported scope should fail before any network request")
+		})
+	}
+
 	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
 	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out when native websocket cancel all is unavailable")
 

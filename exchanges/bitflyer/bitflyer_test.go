@@ -388,7 +388,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 			request: &order.Cancel{
 				AssetType: asset.Spot,
 			},
-			expected: order.ErrPairRequiredForCancelAllFanout,
+			expected: common.ErrNotYetImplemented,
 		},
 		{
 			name: "explicit pair",

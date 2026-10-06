@@ -395,17 +395,13 @@ func (e *Exchange) GetOrders(ctx context.Context, marketID string, before, after
 // CancelAllOpenOrdersByPairs cancels all open orders unless pairs are specified
 func (e *Exchange) CancelAllOpenOrdersByPairs(ctx context.Context, marketIDs []string) ([]CancelOrderResp, error) {
 	var resp []CancelOrderResp
-	req := make(map[string]any)
-	if len(marketIDs) > 0 {
-		var strTemp strings.Builder
-		for x := range marketIDs {
-			strTemp.WriteString("marketId=" + marketIDs[x] + "&")
-		}
-		req["marketId"] = strTemp.String()[:strTemp.Len()-1]
+	params := url.Values{}
+	for _, marketID := range marketIDs {
+		params.Add("marketId", marketID)
 	}
 	return resp, e.SendAuthenticatedRequest(ctx, http.MethodDelete,
-		btcMarketsOrders,
-		req,
+		common.EncodeURLValues(btcMarketsOrders, params),
+		nil,
 		&resp,
 		request.Auth)
 }

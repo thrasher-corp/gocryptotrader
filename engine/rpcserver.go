@@ -1187,6 +1187,16 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	if err := checkParamsWithAvailable(exch, a, p); err != nil {
 		return nil, err
 	}
+	if err := exch.GetBase().CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return nil, err
+	}
+	enabled, err := exch.IsPairEnabled(p, a)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, fmt.Errorf("%s %w", p, errCurrencyNotEnabled)
+	}
 
 	side, err := order.StringToOrderSide(r.Side)
 	if err != nil {
@@ -1461,7 +1471,7 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 		}
 	}
 	if req.AssetType.IsValid() {
-		if err := checkParamsWithAvailable(exch, req.AssetType, req.Pair); err != nil {
+		if req.Pair, err = checkParamsWithAvailablePair(exch, req.AssetType, req.Pair); err != nil {
 			return nil, err
 		}
 	}
@@ -1510,6 +1520,16 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 
 	if err := checkParamsWithAvailable(exch, assetType, pair); err != nil {
 		return nil, err
+	}
+	if err := exch.GetBase().CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, err
+	}
+	enabled, err := exch.IsPairEnabled(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, fmt.Errorf("%s %w", pair, errCurrencyNotEnabled)
 	}
 	resp, err := s.OrderManager.Modify(ctx, &order.Modify{
 		Exchange:  r.Exchange,
@@ -3256,7 +3276,7 @@ func checkParamsWithAvailablePair(e exchange.IBotExchange, a asset.Item, p curre
 	if p.IsEmpty() {
 		return currency.EMPTYPAIR, nil
 	}
-	return e.MatchSymbolWithAvailablePairs(p.String(), a, p.Delimiter != "")
+	return e.MatchSymbolWithAvailablePairs(p.Base.String()+p.Quote.String(), a, false)
 }
 
 func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {

@@ -1183,6 +1183,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		for y := range a.Data.Errors {
 			cancelAllOrdersResponse.Add(strconv.FormatInt(a.Data.Errors[y].OrderID, 10), "fail: "+a.Data.Errors[y].ErrMsg)
 		}
+	default:
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, orderCancellation.AssetType)
 	}
 	return &cancelAllOrdersResponse, nil
 }

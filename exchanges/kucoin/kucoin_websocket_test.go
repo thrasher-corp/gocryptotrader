@@ -2021,6 +2021,22 @@ func TestManageSubscriptions(t *testing.T) {
 func TestProcessFuturesKline(t *testing.T) {
 	t.Parallel()
 
+	for _, disabled := range []bool{false, true} {
+		t.Run(fmt.Sprint("unavailable or disabled ", disabled), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Futures, !disabled), "asset state must update")
+			err := ex.processFuturesKline(t.Context(), []byte(`{"symbol":"UNKNOWN"}`), "1hour")
+			if disabled {
+				assert.ErrorIs(t, err, asset.ErrNotEnabled, "disabled futures should reject data")
+			} else {
+				assert.ErrorIs(t, err, currency.ErrPairNotFound, "unavailable symbol should reject data")
+			}
+			assert.Empty(t, ex.Websocket.DataHandler.C, "rejected data should not emit candles")
+		})
+	}
+
 	ku := new(Exchange)
 	require.NoError(t, testexch.Setup(ku), "Test instance Setup must not error")
 
@@ -2035,7 +2051,7 @@ func TestProcessFuturesKline(t *testing.T) {
 		assert.Equal(t, &kline.Item{
 			Asset:    asset.Futures,
 			Exchange: ku.Name,
-			Pair:     futuresTradablePair,
+			Pair:     futuresTradablePair.Format(currency.PairFormat{Delimiter: "_", Uppercase: true}),
 			Interval: kline.OneHour,
 			Candles: []kline.Candle{{
 				Time:   time.Unix(1714964400, 0),

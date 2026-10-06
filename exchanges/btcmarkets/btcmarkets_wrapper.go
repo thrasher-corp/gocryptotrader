@@ -544,8 +544,18 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
+	if req.AssetType != asset.Empty && req.AssetType != asset.Spot {
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, req.AssetType)
+	}
 	if req.Pair.IsEmpty() {
-		return nil, order.ErrPairRequiredForCancelAllFanout
+		cancelled, err := e.CancelAllOpenOrdersByPairs(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		for _, cancelledOrder := range cancelled {
+			resp.Add(cancelledOrder.OrderID, order.Cancelled.String())
+		}
+		return &resp, nil
 	}
 	fPair, err := e.FormatExchangeCurrency(req.Pair, req.AssetType)
 	if err != nil {

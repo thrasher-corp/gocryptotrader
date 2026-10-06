@@ -1162,6 +1162,15 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding} {
+		t.Run("unsupported scope "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+			assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "unsupported scope should fail before any network request")
+		})
+	}
 	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{Pair: currency.NewBTCUSD()})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders should reject pair-scoped requests")
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -1175,6 +1184,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	orderCancellation.Pair = currency.EMPTYPAIR
+	orderCancellation.AssetType = asset.Empty
 	resp, err := e.CancelAllOrders(t.Context(), orderCancellation)
 
 	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {

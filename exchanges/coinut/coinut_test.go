@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -728,6 +729,42 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+
+	for _, delimiter := range []string{"-", "/", ""} {
+		t.Run("formatted websocket lookup "+delimiter, func(t *testing.T) {
+			t.Parallel()
+			var lookups atomic.Int32
+			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
+				var req WsGetOpenOrdersRequest
+				if err := json.Unmarshal(payload, &req); err != nil {
+					return err
+				}
+				if req.Request == "user_open_orders" {
+					lookups.Add(1)
+					assert.Equal(t, int64(123), req.InstrumentID, "lookup should use formatted venue symbol")
+				}
+				response, err := json.Marshal(map[string]any{"nonce": req.Nonce, "reply": req.Request, "status": []string{"OK"}, "orders": []any{}, "results": []any{}})
+				if err != nil {
+					return err
+				}
+				return conn.WriteMessage(gws.TextMessage, response)
+			}))
+			server.Start()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.instrumentMap.Seed("BTCUSD", 123)
+			ex.API.AuthenticatedWebsocketSupport = false
+			ex.Features.Subscriptions = nil
+			require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket URL must update")
+			ex.Websocket.SetSubscriptionsNotRequired()
+			require.NoError(t, ex.Websocket.Enable(t.Context()), "mock websocket must connect")
+			t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "websocket should shut down") })
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USD", delimiter)})
+			require.NoError(t, err, "formatted websocket cancellation must succeed")
+			assert.Equal(t, int32(1), lookups.Load(), "wrapper should issue one websocket lookup")
+		})
+	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)

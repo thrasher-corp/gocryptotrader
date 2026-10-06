@@ -3,6 +3,8 @@ package btcmarkets
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -247,8 +249,46 @@ func TestGetOrders(t *testing.T) {
 	assert.NoError(t, err, "GetOrders should not error")
 }
 
-func TestCancelOpenOrders(t *testing.T) {
+func TestCancelAllOpenOrdersByPairs(t *testing.T) {
 	t.Parallel()
+
+	for _, scoped := range []bool{false, true} {
+		t.Run(fmt.Sprint("native cancellation ", scoped), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: base64.StdEncoding.EncodeToString([]byte("test-secret"))})
+			ex.API.AuthenticatedSupport = true
+			var marketIDs []string
+			if scoped {
+				marketIDs = []string{"BTC-AUD", "ETH-AUD"}
+			}
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodDelete, r.Method, "native cancellation should use DELETE")
+				assert.Equal(t, "/v3/orders", r.URL.Path, "native cancellation should use orders endpoint")
+				assert.Equal(t, marketIDs, r.URL.Query()["marketId"], "market scopes should be query parameters")
+				body, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "body should read")
+				assert.Empty(t, body, "DELETE request should not send a JSON body")
+				_, err = w.Write([]byte(`[{"orderId":"1"},{"orderId":"2"}]`))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+
+			transport, ok := server.Client().Transport.(*http.Transport)
+			require.True(t, ok, "standard transport must be available")
+			transport = transport.Clone()
+			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+			transport.TLSClientConfig.ServerName = "example.com"
+			transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+			}
+			require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: transport}), "test client must be installed")
+			resp, err := ex.CancelAllOpenOrdersByPairs(t.Context(), marketIDs)
+			require.NoError(t, err, "native cancellation must succeed")
+			assert.Len(t, resp, 2, "cancelled IDs should decode")
+		})
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	pairs := []string{spotTestPair.String(), spotTestPair.String()}
@@ -435,6 +475,46 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 
+	for _, scoped := range []bool{false, true} {
+		t.Run(fmt.Sprint("native cancellation ", scoped), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: base64.StdEncoding.EncodeToString([]byte("test-secret"))})
+			ex.API.AuthenticatedSupport = true
+			var marketIDs []string
+			a := asset.Empty
+			if scoped {
+				a = asset.Spot
+			}
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodDelete, r.Method, "native cancellation should use DELETE")
+				assert.Equal(t, "/v3/orders", r.URL.Path, "native cancellation should use orders endpoint")
+				assert.Equal(t, marketIDs, r.URL.Query()["marketId"], "market scopes should be query parameters")
+				body, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "body should read")
+				assert.Empty(t, body, "DELETE request should not send a JSON body")
+				_, err = w.Write([]byte(`[{"orderId":"1"},{"orderId":"2"}]`))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+
+			transport, ok := server.Client().Transport.(*http.Transport)
+			require.True(t, ok, "standard transport must be available")
+			transport = transport.Clone()
+			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+			transport.TLSClientConfig.ServerName = "example.com"
+			transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+			}
+			require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: transport}), "test client must be installed")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+			require.NoError(t, err, "unscoped native cancellation must succeed")
+			require.NotNil(t, resp, "native cancellation must return results")
+			assert.Equal(t, map[string]string{"1": order.Cancelled.String(), "2": order.Cancelled.String()}, resp.Status, "native cancelled IDs should be retained")
+		})
+	}
+
 	t.Run("partial batch failure", func(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
@@ -479,8 +559,8 @@ func TestCancelAllOrders(t *testing.T) {
 		assert.Len(t, response.Status, 20, "all successful cancellations should be retained")
 	})
 
-	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
-	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures})
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders should reject unsupported assets")
 }
 
 func TestGetBatchTrades(t *testing.T) {

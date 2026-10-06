@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 	"uuid"
@@ -2711,6 +2712,38 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+
+	for _, completed := range []bool{false, true} {
+		t.Run(fmt.Sprint("stop cancellation fails after limits ", completed), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := `{"code":"200000","data":{"cancelledOrderIds":[]}}`
+				if completed {
+					body = `{"code":"200000","data":{"cancelledOrderIds":["111","222"]}}`
+				}
+				if strings.Contains(r.URL.Path, "stopOrders") {
+					w.WriteHeader(http.StatusInternalServerError)
+					body = `{"code":"500000","msg":"stop cancellation failed"}`
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures})
+			require.Error(t, err, "stop cancellation failure must remain an error")
+			if completed {
+				require.NotNil(t, resp, "limit cancellations must survive")
+				assert.Equal(t, map[string]string{"111": order.Cancelled.String(), "222": order.Cancelled.String()}, resp.Status, "completed IDs should survive")
+			} else {
+				assert.Nil(t, resp, "no completed cancellations should return no results")
+			}
+		})
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(t.Context(), &order.Cancel{
 		AssetType:  asset.Futures,

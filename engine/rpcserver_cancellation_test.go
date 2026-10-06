@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"testing"
 
@@ -53,6 +54,7 @@ func TestRPCServerCancelAllOrders(t *testing.T) {
 		{name: "unavailable asset", request: &gctrpc.CancelAllOrdersRequest{AssetType: "futures"}, wantErr: asset.ErrNotSupported},
 		{name: "unavailable pair", request: &gctrpc.CancelAllOrdersRequest{AssetType: "spot", Pair: &gctrpc.CurrencyPair{Base: "AAA", Quote: "BBB", Delimiter: "-"}}, wantErr: currency.ErrPairNotFound},
 		{name: "available disabled scope", request: &gctrpc.CancelAllOrdersRequest{AssetType: "spot", Pair: pair}, response: &order.CancelAllResponse{Status: map[string]string{"1": "Cancelled"}}, called: true},
+		{name: "canonical delimiter", request: &gctrpc.CancelAllOrdersRequest{AssetType: "spot", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD", Delimiter: "/"}}, response: &order.CancelAllResponse{}, called: true},
 		{name: "unscoped", request: &gctrpc.CancelAllOrdersRequest{}, response: &order.CancelAllResponse{}, called: true},
 		{name: "asset only", request: &gctrpc.CancelAllOrdersRequest{AssetType: "spot"}, response: &order.CancelAllResponse{}, called: true},
 		{name: "nil exchange response", request: &gctrpc.CancelAllOrdersRequest{}, wantErr: common.ErrInvalidResponse, called: true},
@@ -71,7 +73,7 @@ func TestRPCServerCancelAllOrders(t *testing.T) {
 			base.SetDefaults()
 			base.SetEnabled(true)
 			require.NoError(t, base.GetBase().CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-				Available:     currency.Pairs{currency.NewBTCUSD()},
+				Available:     currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")},
 				ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "-"},
 				RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
 			}), "disabled available asset must be stored")
@@ -92,6 +94,7 @@ func TestRPCServerCancelAllOrders(t *testing.T) {
 					assert.Equal(t, int64(len(tc.response.Status)), response.Count, "count should match retained statuses")
 					if tc.request.Pair != nil {
 						assert.True(t, ex.request.Pair.Equal(currency.NewBTCUSD()), "requested pair should reach the exchange")
+						assert.Equal(t, "-", ex.request.Pair.Delimiter, "stored delimiter should reach the exchange")
 					}
 				}
 				return
@@ -121,6 +124,70 @@ func TestRPCServerCancelAllOrders(t *testing.T) {
 			require.True(t, ok, "detail must decode as a cancellation response")
 			assert.Equal(t, tc.response.Status, partial.Orders[0].OrderStatus, "completed cancellations should survive transport")
 			assert.Equal(t, int64(2), partial.Count, "partial count should survive transport")
+		})
+	}
+}
+
+func TestRPCServerSubmitOrder(t *testing.T) {
+	t.Parallel()
+	for _, assetEnabled := range []bool{false, true} {
+		t.Run(fmt.Sprint("asset enabled ", assetEnabled), func(t *testing.T) {
+			t.Parallel()
+			manager := NewExchangeManager()
+			base, err := manager.NewExchangeByName(testExchange)
+			require.NoError(t, err, "exchange must be created")
+			base.SetDefaults()
+			base.SetEnabled(true)
+			require.NoError(t, base.GetBase().CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+				AssetEnabled:  assetEnabled,
+				Available:     currency.Pairs{currency.NewBTCUSD()},
+				ConfigFormat:  &currency.PairFormat{Uppercase: true},
+				RequestFormat: &currency.PairFormat{Uppercase: true},
+			}), "available disabled pair must be stored")
+			require.NoError(t, manager.Add(base), "exchange must be registered")
+			server := &RPCServer{Engine: &Engine{ExchangeManager: manager}}
+			_, err = server.SubmitOrder(t.Context(), &gctrpc.SubmitOrderRequest{Exchange: base.GetName(), AssetType: "spot", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}})
+			if assetEnabled {
+				assert.ErrorIs(t, err, errCurrencyNotEnabled, "disabled pair should be rejected before order management")
+			} else {
+				assert.ErrorIs(t, err, asset.ErrNotEnabled, "disabled asset should be rejected before order management")
+			}
+			require.NoError(t, base.GetBase().CurrencyPairs.SetAssetEnabled(asset.Spot, true), "asset must enable")
+			require.NoError(t, base.GetBase().CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "pair must enable")
+			_, err = server.SubmitOrder(t.Context(), &gctrpc.SubmitOrderRequest{Exchange: base.GetName(), AssetType: "spot", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}})
+			assert.ErrorIs(t, err, order.ErrSideIsInvalid, "enabled pair should reach the next validation stage")
+		})
+	}
+}
+
+func TestRPCServerModifyOrder(t *testing.T) {
+	t.Parallel()
+	for _, assetEnabled := range []bool{false, true} {
+		t.Run(fmt.Sprint("asset enabled ", assetEnabled), func(t *testing.T) {
+			t.Parallel()
+			manager := NewExchangeManager()
+			base, err := manager.NewExchangeByName(testExchange)
+			require.NoError(t, err, "exchange must be created")
+			base.SetDefaults()
+			base.SetEnabled(true)
+			require.NoError(t, base.GetBase().CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+				AssetEnabled:  assetEnabled,
+				Available:     currency.Pairs{currency.NewBTCUSD()},
+				ConfigFormat:  &currency.PairFormat{Uppercase: true},
+				RequestFormat: &currency.PairFormat{Uppercase: true},
+			}), "available disabled pair must be stored")
+			require.NoError(t, manager.Add(base), "exchange must be registered")
+			server := &RPCServer{Engine: &Engine{ExchangeManager: manager}}
+			_, err = server.ModifyOrder(t.Context(), &gctrpc.ModifyOrderRequest{Exchange: base.GetName(), Asset: "spot", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}})
+			if assetEnabled {
+				assert.ErrorIs(t, err, errCurrencyNotEnabled, "disabled pair should be rejected before order management")
+			} else {
+				assert.ErrorIs(t, err, asset.ErrNotEnabled, "disabled asset should be rejected before order management")
+			}
+			require.NoError(t, base.GetBase().CurrencyPairs.SetAssetEnabled(asset.Spot, true), "asset must enable")
+			require.NoError(t, base.GetBase().CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "pair must enable")
+			_, err = server.ModifyOrder(t.Context(), &gctrpc.ModifyOrderRequest{Exchange: base.GetName(), Asset: "spot", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"}})
+			assert.ErrorIs(t, err, ErrNilSubsystem, "enabled pair should reach the next validation stage")
 		})
 	}
 }

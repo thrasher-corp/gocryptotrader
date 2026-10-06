@@ -869,6 +869,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*ord
 		for x := range cancelData.CancelStatus.CancelledOrders {
 			resp.Add(cancelData.CancelStatus.CancelledOrders[x].OrderID, "cancelled")
 		}
+	default:
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, req.AssetType)
 	}
 	return &resp, nil
 }

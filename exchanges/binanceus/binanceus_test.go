@@ -2,6 +2,7 @@ package binanceus
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -240,6 +241,50 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "unscoped cancellation should not fan out")
+	for _, failAt := range []int{0, 1, 2} {
+		t.Run(fmt.Sprint("cancel failure ", failAt), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "BTCUSDT", r.URL.Query().Get("symbol"), "request should be pair scoped")
+				body := `[{"symbol":"BTCUSDT","orderId":1},{"symbol":"BTCUSDT","orderId":2}]`
+				if r.Method == http.MethodDelete {
+					calls++
+					if calls == failAt {
+						w.WriteHeader(http.StatusBadRequest)
+						body = `{"code":-2011,"msg":"cancel failed"}`
+					} else {
+						body = `{"orderId":1}`
+					}
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT()})
+			if failAt == 0 {
+				require.NoError(t, err, "all cancellations must succeed")
+				require.NotNil(t, resp, "response must exist")
+				assert.Len(t, resp.Status, 2, "every cancellation should be recorded")
+			} else {
+				require.Error(t, err, "failed cancellation must be reported")
+				if failAt == 1 {
+					assert.Nil(t, resp, "first failure should have no results")
+				} else {
+					require.NotNil(t, resp, "earlier cancellation must be preserved")
+					assert.Equal(t, map[string]string{"1": order.Cancelled.String()}, resp.Status, "completed cancellation should survive")
+				}
+			}
+		})
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
 		Pair:      currency.NewPair(currency.LTC, currency.BTC),

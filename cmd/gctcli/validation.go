@@ -17,6 +17,11 @@ var (
 )
 
 func validPair(pair string) bool {
+	if pairDelimiter != "" {
+		if base, quote, ok := strings.Cut(pair, pairDelimiter); ok {
+			return base != "" && quote != ""
+		}
+	}
 	if !strings.ContainsFunc(pair, unicode.IsPunct) {
 		return false
 	}

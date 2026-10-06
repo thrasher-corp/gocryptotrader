@@ -659,7 +659,7 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order.CancelAllResponse, error) {
-	if o != nil && !o.Pair.IsEmpty() {
+	if o != nil && (!o.Pair.IsEmpty() || o.AssetType != asset.Empty) {
 		return nil, common.ErrFunctionNotSupported
 	}
 	var err error

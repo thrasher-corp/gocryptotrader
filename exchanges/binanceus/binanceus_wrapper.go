@@ -534,6 +534,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if err := orderCancellation.Validate(); err != nil {
 		return nil, err
 	}
+	if orderCancellation.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	if orderCancellation.AssetType == asset.Spot {
 		symbolValue, err := e.FormatSymbol(orderCancellation.Pair, asset.Spot)
@@ -544,19 +547,23 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if err != nil {
 			return nil, err
 		}
-		for ind := range openOrders {
-			pair, err := currency.NewPairFromString(openOrders[ind].Symbol)
+		for i := range openOrders {
+			openOrder := &openOrders[i]
+			pair, err := currency.NewPairFromString(openOrder.Symbol)
+			if err == nil {
+				_, err = e.CancelExistingOrder(ctx, &CancelOrderRequestParams{
+					Symbol:                pair,
+					OrderID:               strconv.FormatUint(openOrder.OrderID, 10),
+					ClientSuppliedOrderID: openOrder.ClientOrderID,
+				})
+			}
 			if err != nil {
+				if len(cancelAllOrdersResponse.Status) > 0 {
+					return &cancelAllOrdersResponse, err
+				}
 				return nil, err
 			}
-			_, err = e.CancelExistingOrder(ctx, &CancelOrderRequestParams{
-				Symbol:                pair,
-				OrderID:               strconv.FormatUint(openOrders[ind].OrderID, 10),
-				ClientSuppliedOrderID: openOrders[ind].ClientOrderID,
-			})
-			if err != nil {
-				return nil, err
-			}
+			cancelAllOrdersResponse.Add(strconv.FormatUint(openOrder.OrderID, 10), order.Cancelled.String())
 		}
 	} else {
 		return nil, fmt.Errorf("%w '%v'", asset.ErrNotSupported, orderCancellation.AssetType)

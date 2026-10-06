@@ -1231,7 +1231,7 @@ func TestUpdateTicker(t *testing.T) {
 // TestUpdateOrderbook does not run in parallel; being parallel causes intermittent errors with another test for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
 	for _, disabledAsset := range []bool{false, true} {
-		t.Run(fmt.Sprintf("mocked available pair disabled asset %t", disabledAsset), func(t *testing.T) {
+		t.Run(fmt.Sprintf("live available pair disabled asset %t", disabledAsset), func(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "setup must succeed")
 			ex.Name += "-" + t.Name()
@@ -1243,7 +1243,7 @@ func TestUpdateOrderbook(t *testing.T) {
 			require.NoError(t, err, "explicit available pair must return an orderbook")
 			require.NotNil(t, book, "orderbook must be returned")
 			assert.True(t, book.Pair.Equal(testPairFiat), "orderbook should retain the requested pair")
-			assert.NotEmpty(t, book.Bids, "orderbook should contain fixture bids")
+			assert.NotEmpty(t, book.Bids, "live orderbook should contain bids")
 		})
 	}
 

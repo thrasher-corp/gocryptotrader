@@ -327,9 +327,6 @@ func (e *Exchange) CancelAllOrders(_ context.Context, req *order.Cancel) (*order
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	if req.Pair.IsEmpty() {
-		return nil, order.ErrPairRequiredForCancelAllFanout
-	}
 	return nil, common.ErrNotYetImplemented
 }
 

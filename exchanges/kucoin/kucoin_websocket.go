@@ -566,6 +566,9 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 
 // processFuturesKline represents a futures instrument kline data update.
 func (e *Exchange) processFuturesKline(ctx context.Context, respData []byte, intervalStr string) error {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+		return err
+	}
 	resp := WsFuturesKline{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -576,7 +579,7 @@ func (e *Exchange) processFuturesKline(ctx context.Context, respData []byte, int
 		return err
 	}
 	var pair currency.Pair
-	pair, err = currency.NewPairFromString(resp.Symbol)
+	pair, err = e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}

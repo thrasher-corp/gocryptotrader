@@ -1418,12 +1418,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 
 	// For asset.Spread asset orders cancellation
 	if orderCancellation.AssetType == asset.Spread {
+		var spreadID string
+		if orderCancellation.Pair.IsPopulated() {
+			spreadID = orderCancellation.Pair.Upper().String()
+		}
 		var success bool
-		success, err = e.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
+		success, err = e.CancelAllSpreadOrders(ctx, spreadID)
 		if err != nil {
 			return nil, err
 		}
-		cancelAllResponse.Add(orderCancellation.OrderID, strconv.FormatBool(success))
+		cancelAllResponse.Add(spreadID, strconv.FormatBool(success))
 		return &cancelAllResponse, nil
 	}
 
@@ -1497,6 +1501,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			if len(cancelAllResponse.Status) == 0 {
 				return nil, err
 			}
+			return &cancelAllResponse, err
 		}
 		for y := range response {
 			if response[y].StatusCode == 0 {

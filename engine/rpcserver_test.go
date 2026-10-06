@@ -1520,6 +1520,23 @@ func TestCheckParamsWithAvailablePair(t *testing.T) {
 
 	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewPair(currency.BTC, currency.MAD))
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "checkParamsWithAvailablePair should error for unavailable pairs")
+	for _, delimiter := range []string{"-", "|", "+", "—", "::", ""} {
+		t.Run("delimiter "+delimiter, func(t *testing.T) {
+			t.Parallel()
+			ex := new(binance.Exchange)
+			ex.SetDefaults()
+			ex.SetEnabled(true)
+			stored := currency.NewPairWithDelimiter("K_SATS", "USDT", "-")
+			require.NoError(t, ex.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+				Available:     currency.Pairs{stored},
+				ConfigFormat:  &currency.PairFormat{Delimiter: "-", Uppercase: true},
+				RequestFormat: &currency.PairFormat{Uppercase: true},
+			}), "available pair must be stored")
+			got, err := checkParamsWithAvailablePair(ex, asset.Spot, currency.NewPairWithDelimiter("K_SATS", "USDT", delimiter))
+			require.NoError(t, err, "pair components must match independently of delimiter")
+			assert.Equal(t, stored, got, "stored pair and delimiter should be returned")
+		})
+	}
 }
 
 func TestParseEvents(t *testing.T) {

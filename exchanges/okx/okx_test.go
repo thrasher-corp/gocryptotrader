@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -3928,6 +3929,79 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+
+	for _, failAt := range []int{1, 2} {
+		t.Run(fmt.Sprint("batch failure ", failAt), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "cancel-batch-orders") {
+					calls++
+					if calls == failAt {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					var args []CancelOrderRequestParam
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&args), "request should decode") {
+						return
+					}
+					data := make([]map[string]string, len(args))
+					for i, arg := range args {
+						data[i] = map[string]string{"ordId": arg.OrderID, "sCode": "0"}
+					}
+					assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"code": "0", "data": data}), "response should encode")
+					return
+				}
+				data := make([]map[string]string, 41)
+				for i := range data {
+					data[i] = map[string]string{"ordId": strconv.Itoa(i + 1), "instId": "BTC-USDT"}
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"code": "0", "data": data}), "orders should encode")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USDT", "-")})
+			require.Error(t, err, "failed batch must remain an error")
+			assert.Equal(t, failAt, calls, "cancellation should stop on failure")
+			if failAt == 1 {
+				assert.Nil(t, resp, "first failure should have no results")
+			} else {
+				require.NotNil(t, resp, "successful batch must survive")
+				assert.Len(t, resp.Status, 20, "first batch should be retained")
+			}
+		})
+	}
+	for _, scoped := range []bool{false, true} {
+		t.Run(fmt.Sprint("spread scoped ", scoped), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			pair := currency.EMPTYPAIR
+			wantID := ""
+			if scoped {
+				pair = currency.NewPairWithDelimiter("BCH", "USDT_BCH-USDT-SWAP", "-")
+				wantID = pair.String()
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Contains(t, r.URL.Path, "sprd/mass-cancel", "spread endpoint should be used")
+				var args map[string]string
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&args), "request should decode")
+				assert.Equal(t, wantID, args["sprdId"], "spread scope should come from the pair")
+				_, err := w.Write([]byte(`{"code":"0","data":[{"result":true}]}`))
+				assert.NoError(t, err, "response should write")
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spread, Pair: pair, OrderID: "not-a-spread"})
+			require.NoError(t, err, "spread cancellation must succeed")
+		})
+	}
 	for _, tc := range []struct {
 		name, id, clientID string
 		noMatch            bool
@@ -4837,7 +4911,7 @@ func TestWSProcessTrades(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	assets, err := e.getAssetsFromInstrumentIDWithCheck(mainPair.String(), false)
+	assets, err := e.getAssetsFromInstrumentIDWithCheck(mainPair.String())
 	require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
@@ -5061,11 +5135,11 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	_, err := e.getAssetsFromInstrumentIDWithCheck("", false)
+	_, err := e.getAssetsFromInstrumentIDWithCheck("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String(), false)
+		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		switch a {
 		case asset.Spot, asset.Margin:
@@ -5077,18 +5151,18 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
 	}
 
-	_, err = e.getAssetsFromInstrumentIDWithCheck("test", false)
+	_, err = e.getAssetsFromInstrumentIDWithCheck("test")
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = e.getAssetsFromInstrumentIDWithCheck("test-test", false)
+	_, err = e.getAssetsFromInstrumentIDWithCheck("test-test")
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String(), false)
+		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		assert.Contains(t, assets, a)
 	}
 
-	t.Run("EnabledLookupCanDifferFromAvailableLookup", func(t *testing.T) {
+	t.Run("AvailableLookupIncludesDisabledPair", func(t *testing.T) {
 		t.Parallel()
 
 		ex := new(Exchange)
@@ -5097,13 +5171,9 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		pair := ex.CurrencyPairs.Pairs[asset.Spot].Enabled[0]
 		require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Spot, pair), "DisablePair must not error")
 
-		availableAssets, err := ex.getAssetsFromInstrumentIDWithCheck(pair.String(), false)
+		availableAssets, err := ex.getAssetsFromInstrumentIDWithCheck(pair.String())
 		require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
 		assert.Contains(t, availableAssets, asset.Spot, "available lookup should still include spot")
-
-		enabledAssets, err := ex.getAssetsFromInstrumentIDWithCheck(pair.String(), true)
-		require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
-		assert.NotContains(t, enabledAssets, asset.Spot, "enabled lookup should not include disabled spot pair")
 	})
 }
 

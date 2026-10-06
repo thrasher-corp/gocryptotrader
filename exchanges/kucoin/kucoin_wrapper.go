@@ -960,7 +960,13 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		stopOrders, err := e.CancelAllFuturesStopOrders(ctx, orderCancellation.Pair.String())
 		if err != nil {
-			return nil, err
+			if len(values) == 0 {
+				return nil, err
+			}
+			for _, id := range values {
+				result.Add(id, order.Cancelled.String())
+			}
+			return &result, err
 		}
 		values = append(values, stopOrders...)
 	default:

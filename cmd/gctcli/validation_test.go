@@ -7,8 +7,6 @@ import (
 )
 
 func TestValidPair(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name  string
 		pair  string
@@ -51,9 +49,19 @@ func TestValidPair(t *testing.T) {
 		},
 	}
 
+	originalDelimiter := pairDelimiter
+	t.Cleanup(func() { pairDelimiter = originalDelimiter })
+	for _, delimiter := range []string{"|", "+", "x", "::", "—"} {
+		t.Run("configured "+delimiter, func(t *testing.T) {
+			pairDelimiter = delimiter
+			require.True(t, validPair("BTC"+delimiter+"USDT"), "configured delimiter must be accepted")
+			require.False(t, validPair("BTC"+delimiter), "missing quote must be rejected")
+			require.False(t, validPair(delimiter+"USDT"), "missing base must be rejected")
+		})
+	}
+	pairDelimiter = "-"
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			require.Equal(t, tc.valid, validPair(tc.pair))
 		})
 	}
