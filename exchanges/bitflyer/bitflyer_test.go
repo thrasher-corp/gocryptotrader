@@ -142,14 +142,16 @@ func TestUpdateTickerMocked(t *testing.T) {
 	exp := &ticker.Price{
 		Pair:         pair,
 		Ask:          11910855,
+		AskSize:      0.01,
 		Bid:          11907656,
+		BidSize:      0.1032,
 		Last:         11905672,
 		BaseVolume:   196.60087808,
 		ExchangeName: t.Name(),
 		AssetType:    asset.Spot,
-		LastUpdated:  got.LastUpdated,
+		LastUpdated:  time.Date(2026, time.September, 17, 5, 53, 16, 770000000, time.UTC),
 	}
-	assert.Equal(t, exp, got, "UpdateTicker should record the product's own volume rather than every BTC product's combined")
+	assert.Equal(t, exp, got, "UpdateTicker should record the product's own volume, sizes and the response timestamp")
 }
 
 func TestGetExecutionHistory(t *testing.T) {

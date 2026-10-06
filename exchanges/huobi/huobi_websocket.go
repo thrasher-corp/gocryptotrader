@@ -186,7 +186,7 @@ func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subs
 	case subscription.TickerChannel:
 		return e.wsHandleTickerMsg(ctx, s, respRaw)
 	case subscription.OrderbookChannel:
-		return e.wsHandleOrderbookMsg(s, respRaw)
+		return e.wsHandleOrderbookMsg(ctx, s, respRaw)
 	case subscription.CandlesChannel:
 		return e.wsHandleCandleMsg(ctx, s, respRaw)
 	case subscription.AllTradesChannel:
@@ -276,7 +276,7 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
 		return err
 	}
-	price := &ticker.Price{
+	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Open:         wsTicker.Tick.Open,
 		Last:         wsTicker.Tick.Close,
@@ -291,12 +291,15 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 	// vol is the quote currency on spot but counts contracts on the derivative channels, where the
 	// quote figure is served as trade_turnover and this message carries none
 	if s.Asset == asset.Spot {
-		price.QuoteVolume = wsTicker.Tick.Volume
+		tickPrice.QuoteVolume = wsTicker.Tick.Volume
 	}
-	return e.Websocket.DataHandler.Send(ctx, price)
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
-func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleOrderbookMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -345,7 +348,7 @@ func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	newOrderBook.ValidateOrderbook = e.ValidateOrderbook
 	newOrderBook.LastUpdated = update.Timestamp.Time()
 
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &newOrderBook)
 }
 
 func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
