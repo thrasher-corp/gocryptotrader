@@ -276,24 +276,80 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 	require.ErrorIs(t, err, errOrderSubmitResponseIsNil)
 
 	id := uuid.NewV4()
-
-	s = &SubmitResponse{
-		AverageExecutedPrice: 2,
-		ExecutedAmount:       3,
-		ExecutedQuoteAmount:  4,
-		RemainingAmount:      5,
-		Fee:                  6,
-		FeeAsset:             currency.USDT,
+	createdAt := time.Date(2025, time.January, 2, 3, 4, 5, 0, time.UTC)
+	updatedAt := createdAt.Add(time.Minute)
+	trade := TradeHistory{
+		Price:     18,
+		Amount:    19,
+		Fee:       20,
+		Exchange:  "trade-exchange",
+		TID:       "trade-id",
+		Timestamp: createdAt.Add(time.Second),
 	}
-	deets, err := s.DeriveDetail(id)
+	s = &SubmitResponse{
+		Exchange:             "exchange",
+		Type:                 Limit,
+		Side:                 Buy,
+		Pair:                 currency.NewBTCUSDT(),
+		AssetType:            asset.Margin,
+		TimeInForce:          GoodTillCancel,
+		ReduceOnly:           true,
+		Leverage:             2,
+		Price:                3,
+		Amount:               4,
+		QuoteAmount:          5,
+		ExecutedAmount:       6,
+		ExecutedQuoteAmount:  7,
+		RemainingAmount:      8,
+		TriggerPrice:         9,
+		ClientID:             "client-id",
+		ClientOrderID:        "client-order-id",
+		AverageExecutedPrice: 10,
+		LastUpdated:          updatedAt,
+		Date:                 createdAt,
+		Status:               PartiallyFilled,
+		OrderID:              "order-id",
+		Trades:               []TradeHistory{trade},
+		Fee:                  11,
+		FeeAsset:             currency.USDT,
+		BorrowSize:           12,
+		LoanApplyID:          "loan-apply-id",
+		MarginType:           margin.Isolated,
+	}
+	got, err := s.DeriveDetail(id)
 	require.NoError(t, err)
-	assert.Equal(t, id, deets.InternalOrderID)
-	assert.Equal(t, 2.0, deets.AverageExecutedPrice)
-	assert.Equal(t, 3.0, deets.ExecutedAmount)
-	assert.Equal(t, 4.0, deets.ExecutedQuoteAmount)
-	assert.Zero(t, deets.RemainingAmount, "DeriveDetail should not seed RemainingAmount from a submission response")
-	assert.Equal(t, 6.0, deets.Fee)
-	assert.Equal(t, currency.USDT, deets.FeeAsset)
+	exp := &Detail{
+		TimeInForce:          GoodTillCancel,
+		ReduceOnly:           true,
+		Leverage:             2,
+		Price:                3,
+		Amount:               4,
+		TriggerPrice:         9,
+		AverageExecutedPrice: 10,
+		QuoteAmount:          5,
+		ExecutedAmount:       6,
+		RemainingAmount:      8,
+		ExecutedQuoteAmount:  7,
+		Fee:                  11,
+		FeeAsset:             currency.USDT,
+		Exchange:             "exchange",
+		InternalOrderID:      id,
+		OrderID:              "order-id",
+		ClientOrderID:        "client-order-id",
+		ClientID:             "client-id",
+		Type:                 Limit,
+		Side:                 Buy,
+		Status:               PartiallyFilled,
+		AssetType:            asset.Margin,
+		Date:                 createdAt,
+		LastUpdated:          updatedAt,
+		Pair:                 currency.NewBTCUSDT(),
+		MarginType:           margin.Isolated,
+		BorrowSize:           12,
+		LoanApplyID:          "loan-apply-id",
+		Trades:               []TradeHistory{trade},
+	}
+	assert.Equal(t, exp, got, "DeriveDetail should preserve submission response fields")
 }
 
 func TestOrderSides(t *testing.T) {
@@ -425,7 +481,7 @@ func TestInferExecutionAndTimes(t *testing.T) {
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
 	detail.InferExecutionAndTimes()
-	assert.Zero(t, detail.ExecutedQuoteAmount, "average execution price should not synthesize an authoritative executed quote amount")
+	assert.Zero(t, detail.ExecutedQuoteAmount, "average execution price should not synthesise an authoritative executed quote amount")
 }
 
 func TestFilterOrdersByType(t *testing.T) {

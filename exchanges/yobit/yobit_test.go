@@ -540,6 +540,17 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
+func TestTradeHistoryToOrderDetailExecutionMappings(t *testing.T) {
+	t.Parallel()
+	got, err := tradeHistoryToOrderDetail(&TradeHistory{
+		OrderID: 42, Amount: 2, Rate: 60, Pair: "btc_usd", Type: "buy",
+	}, currency.PairFormat{Delimiter: "_"}, "Yobit")
+	require.NoError(t, err, "tradeHistoryToOrderDetail must not error")
+	assert.Equal(t, 2.0, got.ExecutedAmount, "conversion should retain the reported fill quantity")
+	assert.Equal(t, 60.0, got.AverageExecutedPrice, "conversion should retain the reported fill price")
+	assert.Zero(t, got.ExecutedQuoteAmount, "conversion should not invent an unavailable quote total")
+}
+
 // TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()

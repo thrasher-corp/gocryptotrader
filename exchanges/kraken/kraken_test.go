@@ -871,8 +871,13 @@ func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	args := OrderInfoOptions{Trades: true}
-	_, err := e.QueryOrdersInfo(t.Context(), args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
+	resp, err := e.QueryOrdersInfo(t.Context(), args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
 	assert.NoError(t, err)
+	for id, source := range resp {
+		got, err := e.GetOrderInfo(t.Context(), id, currency.EMPTYPAIR, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must map the queried order")
+		assert.Equal(t, source.Cost, got.ExecutedQuoteAmount, "GetOrderInfo should retain the reported cost")
+	}
 }
 
 func TestGetTradesHistory(t *testing.T) {
@@ -1063,8 +1068,13 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	assert.NoError(t, err)
+	source, err := e.GetClosedOrders(t.Context(), GetClosedOrdersOptions{})
+	require.NoError(t, err, "GetClosedOrders must not error")
+	for i := range got {
+		assert.Equal(t, source.Closed[got[i].OrderID].Cost, got[i].ExecutedQuoteAmount, "GetOrderHistory should retain the reported cost")
+	}
 }
 
 // TestGetOrderInfo exercises GetOrderInfo

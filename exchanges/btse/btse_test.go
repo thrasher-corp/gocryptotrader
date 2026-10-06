@@ -406,8 +406,12 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	assert.NoError(t, err, "GetOrderHistory should not error")
+	require.NotEmpty(t, got, "GetOrderHistory must return mocked orders")
+	assert.NotZero(t, got[0].ExecutedAmount, "GetOrderHistory should retain the reported filled quantity")
+	assert.NotZero(t, got[0].AverageExecutedPrice, "GetOrderHistory should retain the reported average fill price")
+	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should not invent an unavailable quote total")
 }
 
 func TestTradeHistory(t *testing.T) {

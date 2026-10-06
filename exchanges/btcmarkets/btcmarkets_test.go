@@ -451,7 +451,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+	got, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 		Side:      order.Buy,
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
@@ -459,6 +459,10 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	require.NotEmpty(t, got, "GetOrderHistory must return mocked orders")
+	assert.NotZero(t, got[0].Price, "GetOrderHistory should retain the requested order price")
+	assert.Zero(t, got[0].AverageExecutedPrice, "GetOrderHistory should leave an unavailable fill price unknown")
+	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should leave an unavailable quote total unknown")
 }
 
 func TestUpdateOrderbook(t *testing.T) {

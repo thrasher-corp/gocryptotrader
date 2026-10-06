@@ -15,10 +15,13 @@ This document outlines the coding, formatting, and testing standards for impleme
     reports an American spelling, use the replacement in the
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
-- Treat review feedback as a standards-gap audit. Cross-reference each reusable
-    expectation against these guidelines and update this document when the rule
-    is missing or ambiguous. Keep domain-specific behaviour in the relevant
-    implementation and its tests rather than promoting one-off details into a
+- Apply these guidelines to the code being changed and test the behaviour the
+    change affects. When review feedback or implementation work reveals a
+    missing or ambiguous reusable standard, update these guidelines when the
+    appropriate wording is clear. If the proposed rule or related implementation
+    would materially broaden the current change, identify that scope and confirm
+    whether it belongs here or in separate work. Keep domain-specific behaviour
+    in the relevant implementation and tests rather than presenting it as a
     project-wide rule.
 
 ## Security
@@ -81,35 +84,37 @@ Never relay an empty batch.
 
 ### Exchange Adapter Boundary
 
-- Exchange implementations must translate authoritative API fields into the
-  corresponding generic GoCryptoTrader fields without discarding available
-  execution state. This includes executed and remaining quantities, average
-  execution price, fees, fee currency, status, and exchange timestamps when
-  the API supplies them.
-- Keep adapters free of consumer policy. Do not calculate strategy positions,
-  fee-adjusted exposure, profitability, hedge outcomes, or recovery actions in
-  an exchange wrapper. Those decisions belong to the consuming engine or
-  application, where they can be applied consistently across exchanges.
-- Structural normalisation required by a documented generic field is allowed,
-  such as parsing side and status, converting signed contracts to side plus
-  absolute quantity, or calculating executed quantity from authoritative total
-  and remaining quantities. Do not infer an execution from the submitted
-  request price, requested amount, an acknowledgement, or a zero value.
-- Prefer direct source-field mapping over reconstructing an equivalent value.
-  If the generic contract has no lossless representation for an authoritative
-  field, extend that contract or document the omission; do not overload a field
-  with different units or semantics. In particular, fees must populate fee
-  fields and must not be stored as execution cost.
-- Generic execution fields must have stable units and meaning across side and
-  transport. Do not expose direction-dependent convenience values, such as one
-  field meaning purchased base for buys and received quote for sells. Preserve
-  unit-stable exchange facts and leave derived execution counterparts to the
-  consumer. Ambiguous generic `Cost`, `CostAsset`, and `Purchased` execution
-  fields are prohibited; use explicit requested and executed quantity fields.
-- REST and websocket adapters for the same exchange must expose compatible
-  units and semantics. Tests must cover both mappings when either path is
-  changed. Missing or contradictory execution facts must remain visible so the
-  consumer can reconcile them authoritatively.
+- Copy the exchange's reported order information into fields with matching
+  meanings and units. If the generic order type cannot hold some information,
+  explain what is missing and why, or add a suitable field.
+- Exchange code should report what the exchange says happened. The engine or
+  consuming application should calculate trading exposure, profit, hedge
+  results and recovery actions. For example, report a fill of 1 BTC and a fee
+  of 0.001 BTC separately; do not replace the fill with 0.999 BTC for a
+  strategy that wants the amount after fees.
+- Simple conversions are allowed when they keep the same meaning. Examples
+  include reading a status string, separating direction from a signed contract
+  count, and subtracting reported remaining quantity from reported total
+  quantity when their units match. An order request or acknowledgement does
+  not prove a fill.
+- Use the exchange's reported value before reconstructing an equivalent value.
+  If the generic contract cannot represent an authoritative field without
+  losing information, extend it or document exactly what is omitted and how a
+  caller can obtain the full response. Do not overload a field with different
+  units or semantics. In particular, fees belong in fee fields, not execution
+  totals.
+- A quantity field must use the same unit for buys and sells. If an exchange
+  field changes unit with the side, put its values into separate fields with
+  clear units. For example, a buy that fills 1 BTC for 60,000 USDT and a sell
+  that fills 1 BTC for 61,000 USDT both have an executed base amount of 1 BTC;
+  their executed quote amounts are 60,000 and 61,000 USDT respectively. Do not
+  use one field for purchased BTC on buys and received USDT on sells.
+- REST and websocket code must use each generic field for the same kind of
+  information. Keep each fee with its reported currency and distinguish a
+  cumulative fee from a fee for the latest fill. If an update replaces a stored
+  fee, replace its currency with it; do not combine amounts in different
+  currencies. Leave unavailable execution information unknown rather than
+  calculating it from the order request.
 
 ### TestMain usage
 
@@ -259,24 +264,29 @@ Use `require` and `assert` appropriately:
 - When resolving review feedback, fix the underlying source of truth, add
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
-- Test changed REST and websocket mappings at their direct conversion boundary.
-    When fields have similar meanings, use deliberately different fixture values
-    that prove the intended source was selected, such as cumulative execution
-    value versus the latest fill value. Do not rely solely on downstream tests
-    that would continue to pass if the mapping were removed.
-- For merge and upsert logic, preserve consistency between authoritative fields
-    and their dependent aggregates. When an authoritative component changes and
-    an update omits a previously stored dependent value, recompute it from
-    values the update supplies, or clear it if its zero reads as unknown. Keep
-    values whose zero is itself meaningful, such as a fee or a remaining
-    quantity, until an update establishes them. Cover advancement with and
-    without the dependent value, and an update where the authoritative
-    component does not change.
+- Test affected order fields at each conversion boundary where an exchange
+    response is mapped into the generic order type. A shared decoder test is
+    sufficient only when every transport uses that decoder without subsequently
+    reassigning the fields. If REST and websocket decode or assign fields
+    separately, test both paths directly. Test shared helpers once, then add
+    caller tests where inputs, units or post-processing differ. Use distinct
+    fixture values that fail when an assignment is removed or reads the wrong
+    field, and include omitted optional fields where practical. Unaffected
+    transports and unrelated fields need no new coverage.
+- In merge and upsert logic, keep a stored value when an update omits it unless
+    a newer fill makes the value stale. For example, when a stored order has
+    filled 0.01 BTC for 600 USDT and a new update reports 0.02 BTC filled without
+    a quote total or average, clear only the old total and average. Recalculate
+    an average only from supplied fill values with matching units. Keep the fee
+    and remaining quantity, and keep all fill values on a status-only update.
+    Document which zero-valued fields mean unknown rather than none.
 - When an external API deprecates a mapped field, verify the replacement against
     current authoritative documentation and, where credentials are required,
     distinguish documented behaviour from live verification. If the replacement
-    is richer than the common model, define an explicit lossless or documented
-    reduction policy before mapping it; do not silently select or combine values.
+    contains more information than the generic type can hold, preserve it in a
+    suitable field or explain exactly what is omitted and how callers can get
+    it. For example, fees of 0.001 BTC and 0.20 USDT cannot be added or stored in
+    one `Fee` and `FeeAsset` pair without losing their currencies.
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.

@@ -499,8 +499,13 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	require.NoError(t, err)
+	require.NotEmpty(t, got, "GetOrderHistory must return mocked spot orders")
+	assert.NotZero(t, got[0].ExecutedAmount, "GetOrderHistory should retain the reported filled quantity")
+	assert.NotZero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should retain the reported filled cash total")
+	assert.Equal(t, got[0].ExecutedQuoteAmount/got[0].ExecutedAmount, got[0].AverageExecutedPrice, "GetOrderHistory should derive average price from confirmed fill values")
+	assert.NotEqual(t, got[0].Price, got[0].AverageExecutedPrice, "GetOrderHistory should not use the requested price as the fill average")
 
 	getOrdersRequest.Pairs = []currency.Pair{btcusdPair}
 	getOrdersRequest.AssetType = asset.CoinMarginedFutures

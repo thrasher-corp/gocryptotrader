@@ -680,33 +680,27 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				continue
 			}
 
-			orderDetail := order.Detail{
-				Amount:          resp.Data[i].Units,
-				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
-				RemainingAmount: resp.Data[i].UnitsRemaining,
-				Exchange:        e.Name,
-				OrderID:         resp.Data[i].OrderID,
-				Date:            resp.Data[i].OrderDate.Time(),
-				Price:           resp.Data[i].Price,
-				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
-					resp.Data[i].PaymentCurrency,
-					format.Delimiter),
-			}
-
-			switch resp.Data[i].Type {
-			case "bid":
-				orderDetail.Side = order.Buy
-			case "ask":
-				orderDetail.Side = order.Sell
-			}
-
-			// Bithumb documents Price as the order price and no longer documents
-			// the legacy Total field, so neither is an authoritative execution value.
-			orderDetail.InferExecutionAndTimes()
+			orderDetail := orderDataToDetail(&resp.Data[i], format.Delimiter, e.Name)
 			orders = append(orders, orderDetail)
 		}
 	}
 	return req.Filter(e.Name, orders), nil
+}
+
+func orderDataToDetail(data *OrderData, delimiter, exchangeName string) order.Detail {
+	detail := order.Detail{
+		Amount: data.Units, ExecutedAmount: data.Units - data.UnitsRemaining, RemainingAmount: data.UnitsRemaining,
+		Exchange: exchangeName, OrderID: data.OrderID, Date: data.OrderDate.Time(), Price: data.Price,
+		Pair: currency.NewPairWithDelimiter(data.OrderCurrency, data.PaymentCurrency, delimiter),
+	}
+	switch data.Type {
+	case "bid":
+		detail.Side = order.Buy
+	case "ask":
+		detail.Side = order.Sell
+	}
+	detail.InferExecutionAndTimes()
+	return detail
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

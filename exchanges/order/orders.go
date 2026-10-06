@@ -603,24 +603,24 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 	}
 
 	return &Detail{
-		Exchange:  s.Exchange,
-		Type:      s.Type,
-		Side:      s.Side,
-		Pair:      s.Pair,
-		AssetType: s.AssetType,
-
-		TimeInForce:   s.TimeInForce,
-		ReduceOnly:    s.ReduceOnly,
-		Leverage:      s.Leverage,
-		Price:         s.Price,
-		Amount:        s.Amount,
-		QuoteAmount:   s.QuoteAmount,
-		TriggerPrice:  s.TriggerPrice,
-		ClientID:      s.ClientID,
-		ClientOrderID: s.ClientOrderID,
-
-		InternalOrderID: internal,
-
+		Exchange:             s.Exchange,
+		Type:                 s.Type,
+		Side:                 s.Side,
+		Pair:                 s.Pair,
+		AssetType:            s.AssetType,
+		TimeInForce:          s.TimeInForce,
+		ReduceOnly:           s.ReduceOnly,
+		Leverage:             s.Leverage,
+		Price:                s.Price,
+		Amount:               s.Amount,
+		QuoteAmount:          s.QuoteAmount,
+		TriggerPrice:         s.TriggerPrice,
+		ClientID:             s.ClientID,
+		ClientOrderID:        s.ClientOrderID,
+		MarginType:           s.MarginType,
+		BorrowSize:           s.BorrowSize,
+		LoanApplyID:          s.LoanApplyID,
+		InternalOrderID:      internal,
 		LastUpdated:          s.LastUpdated,
 		Date:                 s.Date,
 		Status:               s.Status,
@@ -630,6 +630,7 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		FeeAsset:             s.FeeAsset,
 		AverageExecutedPrice: s.AverageExecutedPrice,
 		ExecutedAmount:       s.ExecutedAmount,
+		RemainingAmount:      s.RemainingAmount,
 		ExecutedQuoteAmount:  s.ExecutedQuoteAmount,
 	}, nil
 }

@@ -1796,7 +1796,7 @@ func TestGetManagedOrders(t *testing.T) {
 	assert.NoError(t, err)
 
 	om.started.Store(true)
-	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
+	s := RPCServer{Engine: &Engine{Config: &config.Config{}, ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
@@ -1832,15 +1832,36 @@ func TestGetManagedOrders(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
+	createdAt := time.Date(2025, time.January, 2, 3, 4, 5, 0, time.UTC)
+	updatedAt := createdAt.Add(time.Minute)
 	o := order.Detail{
-		Price:     100000,
-		Amount:    0.002,
-		Exchange:  "Binance",
-		Type:      order.Limit,
-		Side:      order.Sell,
-		Status:    order.New,
-		AssetType: asset.Spot,
-		Pair:      currency.NewBTCUSDT(),
+		Price:               60,
+		Amount:              7,
+		ExecutedAmount:      2,
+		RemainingAmount:     5,
+		ExecutedQuoteAmount: 120,
+		Fee:                 3,
+		Exchange:            "Binance",
+		OrderID:             "order-id",
+		ClientOrderID:       "client-order-id",
+		Type:                order.Limit,
+		Side:                order.Sell,
+		Status:              order.New,
+		AssetType:           asset.Spot,
+		Pair:                currency.NewBTCUSDT(),
+		Date:                createdAt,
+		LastUpdated:         updatedAt,
+		Trades: []order.TradeHistory{
+			{
+				Timestamp: createdAt.Add(time.Second),
+				TID:       "trade-id",
+				Price:     61,
+				Amount:    4,
+				Side:      order.Buy,
+				Fee:       6,
+				Total:     244,
+			},
+		},
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -1852,11 +1873,40 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: "spot",
 		Pair:      p,
 	})
-	if err != nil {
-		t.Errorf("non expected Error: %v", err)
-	} else if oo == nil || len(oo.GetOrders()) != 1 {
-		t.Errorf("unexpected order result: %v", oo)
+	require.NoError(t, err, "GetManagedOrders must not error")
+	require.Len(t, oo.GetOrders(), 1, "GetManagedOrders must return one order")
+	exp := &gctrpc.OrderDetails{
+		Exchange:            exchName,
+		Id:                  "order-id",
+		ClientOrderId:       "client-order-id",
+		BaseCurrency:        currency.BTC.String(),
+		QuoteCurrency:       currency.USDT.String(),
+		AssetType:           asset.Spot.String(),
+		OrderSide:           order.Sell.String(),
+		OrderType:           order.Limit.String(),
+		CreationTime:        createdAt.Format(common.SimpleTimeFormatWithTimezone),
+		UpdateTime:          updatedAt.Format(common.SimpleTimeFormatWithTimezone),
+		Status:              order.New.String(),
+		Price:               60,
+		Amount:              7,
+		OpenVolume:          5,
+		Fee:                 3,
+		ExecutedQuoteAmount: 120,
+		Trades: []*gctrpc.TradeHistory{
+			{
+				CreationTime: createdAt.Add(time.Second).Unix(),
+				Id:           "trade-id",
+				Price:        61,
+				Amount:       4,
+				Exchange:     exchName,
+				AssetType:    asset.Spot.String(),
+				OrderSide:    order.Buy.String(),
+				Fee:          6,
+				Total:        244,
+			},
+		},
 	}
+	assert.Equal(t, exp, oo.Orders[0], "returned order should match the managed order")
 }
 
 func TestRPCServer_unixTimestamp(t *testing.T) {
@@ -3017,38 +3067,83 @@ func TestGetManagedPosition(t *testing.T) {
 	_, err = s.GetManagedPosition(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrPositionNotFound)
 
+	createdAt := time.Date(2025, time.February, 3, 4, 5, 6, 0, time.UTC)
+	updatedAt := createdAt.Add(time.Minute)
 	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
-		Leverage:             1337,
-		Price:                1337,
-		Amount:               1337,
-		LimitPriceUpper:      1337,
-		LimitPriceLower:      1337,
-		TriggerPrice:         1337,
-		AverageExecutedPrice: 1337,
-		QuoteAmount:          1337,
-		ExecutedAmount:       1337,
-		RemainingAmount:      1337,
-		ExecutedQuoteAmount:  1337,
+		Leverage:             9,
+		Price:                60,
+		Amount:               7,
+		LimitPriceUpper:      70,
+		LimitPriceLower:      50,
+		TriggerPrice:         55,
+		AverageExecutedPrice: 60,
+		QuoteAmount:          420,
+		ExecutedAmount:       2,
+		RemainingAmount:      5,
+		ExecutedQuoteAmount:  120,
+		Fee:                  3,
 		Exchange:             fakeExchangeName,
-		OrderID:              "1337",
+		OrderID:              "order-id",
+		ClientOrderID:        "client-order-id",
 		Type:                 order.Market,
 		Side:                 order.Buy,
 		Status:               order.Filled,
 		AssetType:            asset.Futures,
-		Date:                 time.Now(),
-		LastUpdated:          time.Now(),
+		Date:                 createdAt,
+		LastUpdated:          updatedAt,
 		Pair:                 cp2,
 		Trades: []order.TradeHistory{
 			{
-				Timestamp: time.Now(),
-				Side:      order.Buy,
+				Timestamp: createdAt.Add(time.Second),
+				TID:       "trade-id",
+				Price:     61,
+				Amount:    4,
+				Exchange:  fakeExchangeName,
+				Side:      order.Sell,
+				Fee:       6,
+				Total:     244,
 			},
 		},
 	})
 	assert.NoError(t, err)
 
-	_, err = s.GetManagedPosition(t.Context(), request)
-	assert.NoError(t, err)
+	request.IncludeFullOrderData = true
+	response, err := s.GetManagedPosition(t.Context(), request)
+	require.NoError(t, err, "GetManagedPosition must not error")
+	require.Len(t, response.Positions, 1, "response must contain one position")
+	require.Len(t, response.Positions[0].Orders, 1, "position must contain one order")
+	exp := &gctrpc.OrderDetails{
+		Exchange:            fakeExchangeName,
+		Id:                  "order-id",
+		ClientOrderId:       "client-order-id",
+		BaseCurrency:        cp2.Base.String(),
+		QuoteCurrency:       cp2.Quote.String(),
+		AssetType:           asset.Futures.String(),
+		OrderSide:           order.Buy.String(),
+		OrderType:           order.Market.String(),
+		CreationTime:        createdAt.Format(common.SimpleTimeFormatWithTimezone),
+		UpdateTime:          updatedAt.Format(common.SimpleTimeFormatWithTimezone),
+		Status:              order.Filled.String(),
+		Price:               60,
+		Amount:              7,
+		OpenVolume:          5,
+		Fee:                 3,
+		ExecutedQuoteAmount: 120,
+		Trades: []*gctrpc.TradeHistory{
+			{
+				CreationTime: createdAt.Add(time.Second).Unix(),
+				Id:           "trade-id",
+				Price:        61,
+				Amount:       4,
+				Exchange:     fakeExchangeName,
+				AssetType:    asset.Futures.String(),
+				OrderSide:    order.Sell.String(),
+				Fee:          6,
+				Total:        244,
+			},
+		},
+	}
+	assert.Equal(t, exp, response.Positions[0].Orders[0], "returned order should match the managed position order")
 }
 
 func TestGetAllManagedPositions(t *testing.T) {
@@ -3117,26 +3212,30 @@ func TestGetAllManagedPositions(t *testing.T) {
 	_, err = s.GetAllManagedPositions(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrNoPositionsFound)
 
+	createdAt := time.Date(2025, time.March, 4, 5, 6, 7, 0, time.UTC)
+	updatedAt := createdAt.Add(time.Minute)
 	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
-		Leverage:             1337,
-		Price:                1337,
-		Amount:               7331,
-		LimitPriceUpper:      1337,
-		LimitPriceLower:      1337,
-		TriggerPrice:         1337,
-		AverageExecutedPrice: 1337,
-		QuoteAmount:          1337,
-		ExecutedAmount:       1337,
-		RemainingAmount:      1337,
-		ExecutedQuoteAmount:  1337,
+		Leverage:             9,
+		Price:                60,
+		Amount:               7,
+		LimitPriceUpper:      70,
+		LimitPriceLower:      50,
+		TriggerPrice:         55,
+		AverageExecutedPrice: 60,
+		QuoteAmount:          420,
+		ExecutedAmount:       2,
+		RemainingAmount:      5,
+		ExecutedQuoteAmount:  120,
+		Fee:                  3,
 		Exchange:             fakeExchangeName,
-		OrderID:              "1337",
+		OrderID:              "order-id",
+		ClientOrderID:        "client-order-id",
 		Type:                 order.Market,
 		Side:                 order.Buy,
 		Status:               order.Filled,
 		AssetType:            asset.Futures,
-		Date:                 time.Now(),
-		LastUpdated:          time.Now(),
+		Date:                 createdAt,
+		LastUpdated:          updatedAt,
 		Pair:                 cp2,
 	})
 	assert.NoError(t, err, "TrackNewOrder should not error")
@@ -3149,8 +3248,25 @@ func TestGetAllManagedPositions(t *testing.T) {
 	require.NoError(t, err, "GetAllManagedPositions must not error")
 	require.Len(t, response.Positions, 1, "response must contain one position")
 	require.Len(t, response.Positions[0].Orders, 1, "position must contain one order")
-	assert.Equal(t, 7331.0, response.Positions[0].Orders[0].Amount, "Amount should retain the managed order value")
-	assert.Equal(t, 1337.0, response.Positions[0].Orders[0].ExecutedQuoteAmount, "ExecutedQuoteAmount should retain the managed order value")
+	exp := &gctrpc.OrderDetails{
+		Exchange:            fakeExchangeName,
+		Id:                  "order-id",
+		ClientOrderId:       "client-order-id",
+		BaseCurrency:        cp2.Base.String(),
+		QuoteCurrency:       cp2.Quote.String(),
+		AssetType:           asset.Futures.String(),
+		OrderSide:           order.Buy.String(),
+		OrderType:           order.Market.String(),
+		CreationTime:        createdAt.Format(common.SimpleTimeFormatWithTimezone),
+		UpdateTime:          updatedAt.Format(common.SimpleTimeFormatWithTimezone),
+		Status:              order.Filled.String(),
+		Price:               60,
+		Amount:              7,
+		OpenVolume:          5,
+		Fee:                 3,
+		ExecutedQuoteAmount: 120,
+	}
+	assert.Equal(t, exp, response.Positions[0].Orders[0], "returned order should match the managed position order")
 }
 
 func TestGetOrderbookMovement(t *testing.T) {

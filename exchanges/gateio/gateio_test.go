@@ -2684,7 +2684,7 @@ func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
 		"StorePairs must enable the test pair")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`[{"currency_pair":"BTC_USDT","total":"1","orders":[{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":"spot","side":"buy","amount":"2","price":"10","time_in_force":"gtc","left":"1.5","avg_deal_price":"10","fee":"0.001","fee_currency":"BTC","filled_amount":"0.5","filled_total":"5"}]}]`))
+		_, err := w.Write([]byte(`[{"currency_pair":"BTC_USDT","total":"2","orders":[{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":"spot","side":"buy","amount":"2","price":"10","time_in_force":"gtc","left":"1.5","avg_deal_price":"10","fee":"0.001","fee_currency":"BTC","filled_amount":"0.5","filled_total":"5"},{"id":"1235","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"open","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","fee":"0.000000398","fee_currency":"BTC","filled_amount":"0.000199","filled_total":"9.95"}]}]`))
 		assert.NoError(t, err, "mock active spot orders response should be written")
 	}))
 	t.Cleanup(server.Close)
@@ -2702,12 +2702,17 @@ func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
 		AssetType: asset.Spot,
 	})
 	require.NoError(t, err, "GetActiveOrders must not error")
-	require.Len(t, orders, 1, "GetActiveOrders must return the mocked order")
+	require.Len(t, orders, 2, "GetActiveOrders must return the mocked orders")
 	assert.Equal(t, 0.5, orders[0].ExecutedAmount, "executed amount should retain the filled base quantity")
 	assert.Equal(t, 5.0, orders[0].ExecutedQuoteAmount, "executed quote amount should retain the filled quote total")
 	assert.Equal(t, 1.5, orders[0].RemainingAmount, "remaining amount should retain the exchange value")
 	assert.Equal(t, 0.001, orders[0].Fee, "fee should retain the exchange value")
 	assert.Equal(t, currency.BTC, orders[0].FeeAsset, "fee asset should retain the exchange value")
+	assert.Zero(t, orders[1].Amount, "spot market-buy Amount should remain unknown when Gate reports the request in quote currency")
+	assert.Equal(t, 10.0, orders[1].QuoteAmount, "spot market-buy QuoteAmount should retain the requested quote size")
+	assert.Equal(t, 0.000199, orders[1].ExecutedAmount, "spot market-buy ExecutedAmount should retain the filled base quantity")
+	assert.Equal(t, 9.95, orders[1].ExecutedQuoteAmount, "spot market-buy ExecutedQuoteAmount should retain the filled quote total")
+	assert.Zero(t, orders[1].RemainingAmount, "spot market-buy RemainingAmount should remain unknown when Gate reports it in quote currency")
 }
 
 func TestIsQuoteDenominatedMarketBuy(t *testing.T) {

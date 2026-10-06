@@ -412,8 +412,20 @@ func TestGetOrderHistory(t *testing.T) {
 		Pairs:     currency.Pairs{testPair},
 	}
 
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	require.NoError(t, err, "GetOrderHistory must not error")
+	require.NotEmpty(t, got, "GetOrderHistory must return mocked orders")
+	assert.NotZero(t, got[0].Price, "GetOrderHistory should retain the requested order price")
+	assert.Zero(t, got[0].AverageExecutedPrice, "GetOrderHistory should not treat the requested price as a fill price")
+	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should not invent an executed quote total")
+}
+
+func TestOrderDataToDetailExecutionMappings(t *testing.T) {
+	t.Parallel()
+	got := orderDataToDetail(&OrderData{Units: 7, UnitsRemaining: 5, Price: 60, Type: "bid", OrderCurrency: "BTC", PaymentCurrency: "KRW"}, "_", "Bithumb")
+	assert.Equal(t, 2.0, got.ExecutedAmount, "conversion should retain the reported filled quantity")
+	assert.Zero(t, got.AverageExecutedPrice, "conversion should not treat the requested price as a fill price")
+	assert.Zero(t, got.ExecutedQuoteAmount, "conversion should not invent an executed quote total")
 }
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them

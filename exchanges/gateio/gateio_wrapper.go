@@ -1592,16 +1592,27 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 				}
+				amount := spotOrders[x].Orders[y].Amount.Float64()
+				quoteAmount := 0.0
+				executedAmount := amount - spotOrders[x].Orders[y].RemainingAmount.Float64()
+				remainingAmount := spotOrders[x].Orders[y].RemainingAmount.Float64()
+				if isQuoteDenominatedMarketBuy(req.AssetType, side, oType) {
+					quoteAmount = amount
+					amount = 0
+					executedAmount = spotOrders[x].Orders[y].FilledAmount.Float64()
+					remainingAmount = 0
+				}
 				orders = append(orders, order.Detail{
 					Side:                 side,
 					Type:                 oType,
 					Status:               status,
 					Pair:                 symbol,
 					OrderID:              spotOrders[x].Orders[y].OrderID,
-					Amount:               spotOrders[x].Orders[y].Amount.Float64(),
-					ExecutedAmount:       spotOrders[x].Orders[y].Amount.Float64() - spotOrders[x].Orders[y].RemainingAmount.Float64(),
+					Amount:               amount,
+					QuoteAmount:          quoteAmount,
+					ExecutedAmount:       executedAmount,
 					ExecutedQuoteAmount:  spotOrders[x].Orders[y].FilledTotal.Float64(),
-					RemainingAmount:      spotOrders[x].Orders[y].RemainingAmount.Float64(),
+					RemainingAmount:      remainingAmount,
 					Price:                spotOrders[x].Orders[y].Price.Float64(),
 					AverageExecutedPrice: spotOrders[x].Orders[y].AverageFillPrice.Float64(),
 					Fee:                  spotOrders[x].Orders[y].FeeDeducted.Float64(),

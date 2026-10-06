@@ -866,19 +866,20 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					}
 
 					detail := order.Detail{
-						Exchange:        e.Name,
-						OrderID:         strconv.FormatInt(trades.Trades[x].OrderID, 10),
-						Pair:            p,
-						Side:            side,
-						Date:            trades.Trades[x].Timestamp.Time(),
-						Status:          order.Filled,
-						Price:           trades.Trades[x].Price,
-						Amount:          trades.Trades[x].Quantity,
-						ExecutedAmount:  trades.Trades[x].Quantity - trades.Trades[x].OpenQuantity,
-						RemainingAmount: trades.Trades[x].OpenQuantity,
+						Exchange:             e.Name,
+						OrderID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
+						Pair:                 p,
+						Side:                 side,
+						Date:                 trades.Trades[x].Timestamp.Time(),
+						Status:               order.Filled,
+						Price:                trades.Trades[x].Price,
+						Amount:               trades.Trades[x].Quantity,
+						AverageExecutedPrice: trades.Trades[x].FillPrice,
+						ExecutedAmount:       trades.Trades[x].FillQuantity,
+						RemainingAmount:      trades.Trades[x].OpenQuantity,
+						Fee:                  trades.Trades[x].Commission.Amount,
+						FeeAsset:             currency.NewCode(trades.Trades[x].Commission.Currency),
 					}
-					// The legacy flat decoder does not capture the documented fill_price
-					// and fill_qty fields, so do not derive execution value from its zeros.
 					detail.InferExecutionAndTimes()
 					allOrders = append(allOrders, detail)
 				}
@@ -938,13 +939,19 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				}
 
 				allOrders = append(allOrders, order.Detail{
-					OrderID:  strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
-					Amount:   orders.Trades[y].Order.Quantity,
-					Price:    orders.Trades[y].Order.Price,
-					Exchange: e.Name,
-					Side:     side,
-					Date:     orders.Trades[y].Order.Timestamp.Time(),
-					Pair:     p,
+					OrderID:              strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
+					Amount:               orders.Trades[y].Order.Quantity,
+					Price:                orders.Trades[y].Order.Price,
+					AverageExecutedPrice: orders.Trades[y].FillPrice,
+					ExecutedAmount:       orders.Trades[y].FillQuantity,
+					RemainingAmount:      orders.Trades[y].Order.OpenQuantity,
+					Fee:                  orders.Trades[y].Commission.Amount,
+					FeeAsset:             currency.NewCode(orders.Trades[y].Commission.Currency),
+					Exchange:             e.Name,
+					Side:                 side,
+					Status:               order.Filled,
+					Date:                 orders.Trades[y].Order.Timestamp.Time(),
+					Pair:                 p,
 				})
 			}
 		}

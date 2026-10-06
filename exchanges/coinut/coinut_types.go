@@ -474,6 +474,9 @@ type WsUserBalanceResponse struct {
 // WsOrderData ws response data
 type WsOrderData struct {
 	ClientOrderID int64      `json:"client_ord_id"`
+	Commission    Commission `json:"commission"`
+	FillPrice     float64    `json:"fill_price,string"`
+	FillQuantity  float64    `json:"fill_qty,string"`
 	InstrumentID  int64      `json:"inst_id"`
 	OpenQuantity  float64    `json:"open_qty,string"`
 	OrderID       int64      `json:"order_id"`

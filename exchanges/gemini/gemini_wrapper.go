@@ -710,31 +710,33 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, len(trades))
 	for i := range trades {
-		var side order.Side
-		side, err = order.StringToOrderSide(trades[i].Type)
+		orders[i], err = tradeHistoryToOrderDetail(&trades[i], format, e.Name)
 		if err != nil {
 			return nil, err
 		}
-		detail := order.Detail{
-			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
-			Amount:               trades[i].Amount,
-			ExecutedAmount:       trades[i].Amount,
-			Exchange:             e.Name,
-			Date:                 trades[i].Timestamp.Time(),
-			Side:                 side,
-			Fee:                  trades[i].FeeAmount,
-			Price:                trades[i].Price,
-			AverageExecutedPrice: trades[i].Price,
-			Pair: currency.NewPairWithDelimiter(
-				trades[i].BaseCurrency,
-				trades[i].QuoteCurrency,
-				format.Delimiter,
-			),
-		}
-		detail.InferExecutionAndTimes()
-		orders[i] = detail
 	}
 	return req.Filter(e.Name, orders), nil
+}
+
+func tradeHistoryToOrderDetail(history *TradeHistory, format currency.PairFormat, exchangeName string) (order.Detail, error) {
+	side, err := order.StringToOrderSide(history.Type)
+	if err != nil {
+		return order.Detail{}, err
+	}
+	detail := order.Detail{
+		OrderID:              strconv.FormatInt(history.OrderID, 10),
+		Amount:               history.Amount,
+		ExecutedAmount:       history.Amount,
+		Exchange:             exchangeName,
+		Date:                 history.Timestamp.Time(),
+		Side:                 side,
+		Fee:                  history.FeeAmount,
+		Price:                history.Price,
+		AverageExecutedPrice: history.Price,
+		Pair:                 currency.NewPairWithDelimiter(history.BaseCurrency, history.QuoteCurrency, format.Delimiter),
+	}
+	detail.InferExecutionAndTimes()
+	return detail, nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

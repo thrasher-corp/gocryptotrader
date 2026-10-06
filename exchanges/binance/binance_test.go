@@ -1538,6 +1538,43 @@ func TestNonNegativeExecutedQuoteAmount(t *testing.T) {
 	assert.Equal(t, 10.0, nonNegativeExecutedQuoteAmount(10), "available historical quote amount should be retained")
 }
 
+func TestGetOrderExecutionQuoteMappings(t *testing.T) {
+	t.Parallel()
+	for _, cumulativeQuote := range []float64{120, -1} {
+		t.Run(fmt.Sprintf("cumulative quote %v", cumulativeQuote), func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				response := fmt.Sprintf(`{"symbol":"BTCUSDT","orderId":42,"clientOrderId":"client","price":"60","origQty":"7","executedQty":"2","cummulativeQuoteQty":"%v","status":"PARTIALLY_FILLED","timeInForce":"GTC","type":"LIMIT","side":"BUY","time":1700000000000,"updateTime":1700000001000}`, cumulativeQuote)
+				if r.URL.Path == "/api/v3/allOrders" {
+					response = "[" + response + "]"
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "writing order response should not error")
+			}))
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+			pair := currency.NewBTCUSDT()
+			got, err := ex.GetOrderInfo(t.Context(), "42", pair, asset.Spot)
+			require.NoError(t, err, "GetOrderInfo must not error")
+			exp := cumulativeQuote
+			if exp < 0 {
+				exp = 0
+			}
+			assert.Equal(t, exp, got.ExecutedQuoteAmount, "GetOrderInfo should map the reported cumulative quote amount")
+
+			history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Pairs: currency.Pairs{pair}, AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			require.Len(t, history, 1, "GetOrderHistory must return one order")
+			assert.Equal(t, exp, history[0].ExecutedQuoteAmount, "GetOrderHistory should map the reported cumulative quote amount")
+		})
+	}
+}
+
 func TestNewOrderTest(t *testing.T) {
 	t.Parallel()
 

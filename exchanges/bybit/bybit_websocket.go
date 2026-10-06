@@ -364,7 +364,6 @@ func (e *Exchange) wsProcessOrder(ctx context.Context, resp *WebsocketResponse) 
 			Side:                 result[x].Side,
 			Type:                 orderType,
 			Pair:                 cp,
-			Fee:                  result[x].CumulativeExecutedFee.Float64(),
 			AssetType:            a,
 			Status:               StringToOrderStatus(result[x].OrderStatus),
 			Price:                result[x].Price.Float64(),
@@ -373,6 +372,7 @@ func (e *Exchange) wsProcessOrder(ctx context.Context, resp *WebsocketResponse) 
 			Date:                 result[x].CreatedTime.Time(),
 			LastUpdated:          result[x].UpdatedTime.Time(),
 		}
+		execution[x].Fee, execution[x].FeeAsset = getOrderFee(result[x].CumulativeFeeDetail, result[x].CumulativeExecutedFee)
 		if a != asset.CoinMarginedFutures {
 			execution[x].ExecutedQuoteAmount = result[x].CumulativeExecutedValue.Float64()
 		}

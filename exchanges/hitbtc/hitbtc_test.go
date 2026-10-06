@@ -269,11 +269,17 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	if sharedtestvalues.AreAPICredentialsSet(e) && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
 		t.Error("Expecting an error when no keys are set")
+	}
+	if err == nil {
+		require.NotEmpty(t, got, "GetOrderHistory must return mocked orders")
+		assert.NotZero(t, got[0].ExecutedAmount, "GetOrderHistory should retain the reported filled quantity")
+		assert.NotZero(t, got[0].AverageExecutedPrice, "GetOrderHistory should retain the reported average fill price")
+		assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should not invent an unavailable quote total")
 	}
 }
 

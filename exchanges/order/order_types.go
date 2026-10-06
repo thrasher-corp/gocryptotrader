@@ -251,6 +251,8 @@ type Detail struct {
 	LastUpdated          time.Time
 	Pair                 currency.Pair
 	MarginType           margin.Type
+	BorrowSize           float64
+	LoanApplyID          string
 	Trades               []TradeHistory
 	SettlementCurrency   currency.Code
 }

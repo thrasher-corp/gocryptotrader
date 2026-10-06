@@ -384,13 +384,18 @@ func TestGetOrderHistory(t *testing.T) {
 			enabledPairs: currency.Pairs{currency.NewBTCUSD()},
 			response:     validTradeHistoryResponse,
 			wantOrders: order.FilteredOrders{{
-				OrderID:  "42",
-				Amount:   2,
-				Price:    10,
-				Exchange: "COINUT",
-				Side:     order.Buy,
-				Date:     time.Unix(1700000000, 0),
-				Pair:     currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+				OrderID:              "42",
+				Amount:               2,
+				Price:                10,
+				AverageExecutedPrice: 10,
+				ExecutedAmount:       2,
+				Fee:                  0.1,
+				FeeAsset:             currency.USD,
+				Exchange:             "COINUT",
+				Side:                 order.Buy,
+				Status:               order.Filled,
+				Date:                 time.Unix(1700000000, 0),
+				Pair:                 currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
 			}},
 			wantRequestCount:       1,
 			wantTradeInstrumentIDs: []float64{123},
@@ -603,6 +608,9 @@ func TestGetOrderHistory(t *testing.T) {
 				for i := range tradeCount {
 					trades = append(trades, map[string]any{
 						"client_ord_id": i + 1000,
+						"commission":    map[string]any{"currency": "USD", "amount": "0.1"},
+						"fill_price":    "11",
+						"fill_qty":      "1.5",
 						"inst_id":       instrumentID,
 						"open_qty":      "0.5",
 						"order_id":      i + 42,
@@ -662,6 +670,10 @@ func TestGetOrderHistory(t *testing.T) {
 				assert.Equal(t, "42", orders[0].OrderID, "GetOrderHistory should return the correct websocket order ID")
 				assert.Equal(t, currency.NewBTCUSD(), orders[0].Pair, "GetOrderHistory should return the correct websocket pair")
 				assert.Equal(t, order.Buy, orders[0].Side, "GetOrderHistory should return the correct websocket side")
+				assert.Equal(t, 1.5, orders[0].ExecutedAmount, "GetOrderHistory should retain the websocket fill quantity")
+				assert.Equal(t, 11.0, orders[0].AverageExecutedPrice, "GetOrderHistory should retain the websocket fill price")
+				assert.Equal(t, 0.1, orders[0].Fee, "GetOrderHistory should retain the websocket fee")
+				assert.Equal(t, currency.USD, orders[0].FeeAsset, "GetOrderHistory should retain the websocket fee currency")
 			}
 
 			requestMutex.Lock()

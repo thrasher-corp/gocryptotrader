@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -916,7 +917,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	resp.ExecutedAmount = orderDetails.CumulativeExecutedQuantity.Float64()
 	resp.AverageExecutedPrice = orderDetails.AveragePrice.Float64()
 	resp.ClientOrderID = orderDetails.OrderLinkID
-	resp.Fee = orderDetails.CumulativeExecutedFee.Float64()
+	resp.Fee, resp.FeeAsset = getOrderFee(orderDetails.CumulativeFeeDetail, orderDetails.CumulativeExecutedFee)
 	if s.AssetType != asset.CoinMarginedFutures {
 		// Cumulative executed value is settlement/base-denominated for inverse
 		// contracts and therefore is not an executed quote amount.
@@ -1122,10 +1123,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			ExecutedAmount:       resp.List[0].CumulativeExecQuantity.Float64(),
 			AverageExecutedPrice: resp.List[0].AveragePrice.Float64(),
 			RemainingAmount:      remainingAmt,
-			Fee:                  resp.List[0].CumulativeExecFee.Float64(),
 			Date:                 resp.List[0].CreatedTime.Time(),
 			LastUpdated:          resp.List[0].UpdatedTime.Time(),
 		}
+		detail.Fee, detail.FeeAsset = getOrderFee(resp.List[0].CumulativeFeeDetail, resp.List[0].CumulativeExecFee)
 		if assetType != asset.CoinMarginedFutures {
 			detail.ExecutedQuoteAmount = resp.List[0].CumulativeExecValue.Float64()
 		}
@@ -1299,8 +1300,8 @@ func (e *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType ass
 			RemainingAmount:      tradeOrders[x].LeavesQuantity.Float64(),
 			TriggerPrice:         tradeOrders[x].TriggerPrice.Float64(),
 			AverageExecutedPrice: tradeOrders[x].AveragePrice.Float64(),
-			Fee:                  tradeOrders[x].CumulativeExecFee.Float64(),
 		}
+		detail.Fee, detail.FeeAsset = getOrderFee(tradeOrders[x].CumulativeFeeDetail, tradeOrders[x].CumulativeExecFee)
 		if assetType != asset.CoinMarginedFutures {
 			detail.ExecutedQuoteAmount = tradeOrders[x].CumulativeExecValue.Float64()
 		}
@@ -1365,10 +1366,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
-				Fee:                  resp.List[i].CumulativeExecFee.Float64(),
 				ClientOrderID:        resp.List[i].OrderLinkID,
 				AssetType:            req.AssetType,
 			}
+			detail.Fee, detail.FeeAsset = getOrderFee(resp.List[i].CumulativeFeeDetail, resp.List[i].CumulativeExecFee)
 			if req.AssetType != asset.CoinMarginedFutures {
 				detail.ExecutedQuoteAmount = resp.List[i].CumulativeExecValue.Float64()
 			}
@@ -1423,6 +1424,21 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return req.Filter(e.Name, orders), nil
+}
+
+// getOrderFee prefers Bybit's current currency-keyed cumulative fee detail.
+// Detail cannot represent several fee currencies without losing information,
+// so the generic fee remains unknown when more than one currency is reported.
+func getOrderFee(details FeeDetail, legacy types.Number) (float64, currency.Code) {
+	if len(details) == 1 {
+		for code, fee := range details {
+			return fee.Float64(), currency.NewCode(code)
+		}
+	}
+	if len(details) > 1 {
+		return 0, currency.EMPTYCODE
+	}
+	return legacy.Float64(), currency.EMPTYCODE
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
