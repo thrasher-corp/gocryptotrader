@@ -321,8 +321,10 @@ func applyHeaders(destination, headers http.Header) {
 // caught while KC-API-KEY-VERSION, SignatureMethod and signTimestamp stay readable. BTSE sends its API key as btse-api,
 // and Bitstamp's v2 authentication sends it as X-Auth.
 func isSensitiveLogKey(name string) bool {
-	name = strings.ToLower(name)
-	if i := strings.LastIndexAny(name, "-_"); i >= 0 && (name[i+1:] == "api" || name[i+1:] == "auth") {
+	// None of the suffixes span a separator, so only normalise the final segment.
+	separator := strings.LastIndexAny(name, "-_")
+	name = strings.ToLower(name[separator+1:])
+	if separator >= 0 && (name == "api" || name == "auth") {
 		return true
 	}
 	for _, suffix := range sensitiveLogKeySuffixes {
@@ -337,18 +339,31 @@ var sensitiveLogKeySuffixes = []string{"key", "keyid", "sign", "signature", "aut
 
 // redactEncodedValues keeps field order and non-sensitive values so a redacted query or form body still reads like the request that was sent.
 func redactEncodedValues(encoded string) string {
-	fields := strings.Split(encoded, "&")
-	for i, field := range fields {
+	var redacted strings.Builder
+	var offset, copied int
+	for field := range strings.SplitSeq(encoded, "&") {
+		start := offset
+		offset += len(field) + 1
 		name, _, ok := strings.Cut(field, "=")
 		if !ok {
 			continue
 		}
 		unescaped, err := url.QueryUnescape(name)
 		if err != nil || isSensitiveLogKey(unescaped) {
-			fields[i] = name + "=[REDACTED]"
+			// Copy untouched spans only when a value needs redacting.
+			if copied == 0 {
+				redacted.Grow(len(encoded))
+			}
+			redacted.WriteString(encoded[copied : start+len(name)+1])
+			redacted.WriteString("[REDACTED]")
+			copied = start + len(field)
 		}
 	}
-	return strings.Join(fields, "&")
+	if copied == 0 {
+		return encoded
+	}
+	redacted.WriteString(encoded[copied:])
+	return redacted.String()
 }
 
 func pathForLog(path string) string {
@@ -356,7 +371,11 @@ func pathForLog(path string) string {
 	if !ok {
 		return path
 	}
-	return base + "?" + redactEncodedValues(query)
+	redacted := redactEncodedValues(query)
+	if redacted == query {
+		return path
+	}
+	return base + "?" + redacted
 }
 
 func isFormEncoded(contentType string) bool {
@@ -381,23 +400,16 @@ func bodyForLog(payload []byte, contentType string) []byte {
 		// Redact as a form first because that is how the receiver interprets it,
 		// then as JSON when the body also has that shape.
 		redacted := []byte(redactEncodedValues(string(payload)))
-		var value any
-		if looksLikeJSON && json.Unmarshal(redacted, &value) == nil && redactJSONValue(value) {
-			if remarshalled, err := json.Marshal(value); err == nil {
-				return remarshalled
+		if looksLikeJSON {
+			if filtered, err := redactJSONBody(redacted); err == nil {
+				return filtered
 			}
 		}
 		return redacted
 	}
 	if isJSONEncoded(contentType) || looksLikeJSON || json.Valid(payload) {
-		var value any
-		if err := json.Unmarshal(payload, &value); err == nil {
-			if !redactJSONValue(value) {
-				return payload
-			}
-			if redacted, err := json.Marshal(value); err == nil {
-				return redacted
-			}
+		if redacted, err := redactJSONBody(payload); err == nil {
+			return redacted
 		}
 		return []byte("[REDACTED INVALID JSON BODY]")
 	}
@@ -405,26 +417,6 @@ func bodyForLog(payload []byte, contentType string) []byte {
 		return []byte(redactEncodedValues(string(payload)))
 	}
 	return []byte("[REDACTED NON-FORM BODY]")
-}
-
-func redactJSONValue(value any) bool {
-	redacted := false
-	switch typed := value.(type) {
-	case map[string]any:
-		for key, nested := range typed {
-			if isSensitiveLogKey(key) {
-				typed[key] = "[REDACTED]"
-				redacted = true
-				continue
-			}
-			redacted = redactJSONValue(nested) || redacted
-		}
-	case []any:
-		for _, nested := range typed {
-			redacted = redactJSONValue(nested) || redacted
-		}
-	}
-	return redacted
 }
 
 type replayReader struct {

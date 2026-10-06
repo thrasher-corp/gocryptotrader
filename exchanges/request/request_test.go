@@ -78,11 +78,87 @@ func BenchmarkHeaderValuesForLog(b *testing.B) {
 	}
 }
 
-func TestRedactEncodedValuesFailsClosed(t *testing.T) {
+func TestIsSensitiveLogKey(t *testing.T) {
 	t.Parallel()
-	redacted := redactEncodedValues("%ZZ=secret-value&nonce=1")
-	expected := "%ZZ=[REDACTED]&nonce=1"
-	assert.Equal(t, expected, redacted, "a malformed field name should have its value redacted")
+	for _, tc := range []struct {
+		name      string
+		sensitive bool
+	}{
+		{name: ""},
+		{name: "KEY", sensitive: true},
+		{name: "listenKey", sensitive: true},
+		{name: "OK-ACCESS-KEY", sensitive: true},
+		{name: "prefix_refresh_TOKEN", sensitive: true},
+		{name: "Btse-Api", sensitive: true},
+		{name: "X-Auth", sensitive: true},
+		{name: "prefix_AuTh", sensitive: true},
+		{name: "_api", sensitive: true},
+		{name: "api"},
+		{name: "auth"},
+		{name: "gAuth"},
+		{name: "X-Auth-Nonce"},
+		{name: "KC-API-KEY-VERSION"},
+		{name: "SignatureMethod"},
+		{name: "signTimestamp"},
+		{name: "key-"},
+		{name: "token_"},
+		{name: "pass-word"},
+		{name: "prefix_KEY", sensitive: true},
+		{name: "prefix_ſign"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.sensitive, isSensitiveLogKey(tc.name), "key matching should preserve suffix and separator rules")
+		})
+	}
+}
+
+func TestRedactEncodedValues(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		encoded  string
+		expected string
+	}{
+		{name: "empty"},
+		{name: "public", encoded: "symbol=BTC%2FUSD&limit=100", expected: "symbol=BTC%2FUSD&limit=100"},
+		{name: "malformed name", encoded: "%ZZ=secret-value&nonce=1", expected: "%ZZ=[REDACTED]&nonce=1"},
+		{name: "first field", encoded: "key=secret&nonce=1", expected: "key=[REDACTED]&nonce=1"},
+		{name: "last field", encoded: "nonce=1&key=secret", expected: "nonce=1&key=[REDACTED]"},
+		{name: "consecutive fields", encoded: "key=one&signature=two&nonce=1", expected: "key=[REDACTED]&signature=[REDACTED]&nonce=1"},
+		{name: "separated fields", encoded: "key=one&nonce=1&key=two", expected: "key=[REDACTED]&nonce=1&key=[REDACTED]"},
+		{name: "empty values", encoded: "key=&token=&nonce=", expected: "key=[REDACTED]&token=[REDACTED]&nonce="},
+		{name: "empty fields", encoded: "&key=secret&&nonce=1&", expected: "&key=[REDACTED]&&nonce=1&"},
+		{name: "no equals", encoded: "key&nonce=1&token", expected: "key&nonce=1&token"},
+		{name: "embedded equals", encoded: "key=one=two&note=a=b", expected: "key=[REDACTED]&note=a=b"},
+		{name: "encoded name", encoded: "api%5Fkey=secret&note=a+b", expected: "api%5Fkey=[REDACTED]&note=a+b"},
+		{name: "encoded separators", encoded: "note=a%26b%3Dc&key=secret", expected: "note=a%26b%3Dc&key=[REDACTED]"},
+		{name: "already redacted", encoded: "key=[REDACTED]&nonce=1", expected: "key=[REDACTED]&nonce=1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, redactEncodedValues(tc.encoded), "redaction should preserve field order and non-sensitive bytes")
+		})
+	}
+}
+
+func TestPathForLog(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		path     string
+		expected string
+	}{
+		{path: "https://example.com/api", expected: "https://example.com/api"},
+		{path: "https://example.com/api?", expected: "https://example.com/api?"},
+		{path: "https://example.com/api?symbol=BTC%2FUSD&limit=100", expected: "https://example.com/api?symbol=BTC%2FUSD&limit=100"},
+		{path: "https://example.com/api?nonce=1&key=secret", expected: "https://example.com/api?nonce=1&key=[REDACTED]"},
+		{path: "https://example.com/api?key=[REDACTED]", expected: "https://example.com/api?key=[REDACTED]"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, pathForLog(tc.path), "logged path should preserve non-sensitive bytes")
+		})
+	}
 }
 
 type partialErrorReader struct {
@@ -136,7 +212,7 @@ func TestDumpRequestForLog(t *testing.T) {
 	require.NoError(t, err, "NewRequestWithContext must not error for a JSON body")
 	dump, err = dumpRequestForLog(req, "application/json")
 	require.NoError(t, err, "dumpRequestForLog must not error for a JSON body")
-	assert.Contains(t, string(dump), `{"nested":{"passphrase":"[REDACTED]"},"note":"a\u0026key=b"}`, "request dump should redact nested JSON credentials")
+	assert.Contains(t, string(dump), `{"note":"a&key=b","nested":{"passphrase":"[REDACTED]"}}`, "request dump should redact nested JSON credentials")
 	assert.NotContains(t, string(dump), "secret", "request dump should not expose JSON credentials")
 
 	req, err = http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com/api", strings.NewReader(`{"password":"secret"`))
@@ -189,7 +265,7 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 		{name: "declared form resembling JSON object", contentType: "application/x-www-form-urlencoded", body: `{"a":1}`, expected: `{"a":1}`},
 		{name: "declared form carrying unchanged JSON", contentType: "application/x-www-form-urlencoded", body: `{"orderId":1234567890123456789,"note":"a\u0026b"}`, expected: `{"orderId":1234567890123456789,"note":"a\u0026b"}`},
 		{name: "declared form carrying JSON credentials", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret"}`, expected: `{"password":"[REDACTED]"}`},
-		{name: "declared form readable as both", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","note":"&key=form-secret&x="}`, expected: `{"note":"\u0026key=[REDACTED]\u0026x=","password":"[REDACTED]"}`},
+		{name: "declared form readable as both", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","note":"&key=form-secret&x="}`, expected: `{"password":"[REDACTED]","note":"&key=[REDACTED]&x="}`},
 		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
 	}
 	for _, tc := range tests {
@@ -400,7 +476,7 @@ func TestExecuteRequestVerboseRedactsCredentials(t *testing.T) {
 		`cause: Post "https://example.com/api?timestamp=1&signature=[REDACTED]": transport failure`,
 		`test response header [Set-Cookie]: [[REDACTED]]`,
 		`{"nested":{"password":"[REDACTED]"},"value":1}`,
-		`{"nonce":1,"note":"a\u0026key=b","password":"[REDACTED]"}`,
+		`{"note":"a&key=b","password":"[REDACTED]","nonce":1}`,
 	} {
 		assert.Containsf(t, out, line, "verbose log should contain %s", line)
 	}
@@ -618,7 +694,7 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		lowerCaseJSON,
 		"key=[REDACTED]&nonce=4",
 		"key=[REDACTED]&nonce=5",
-		`{"nonce":6,"password":"[REDACTED]"}`,
+		`{"password":"[REDACTED]","nonce":6}`,
 		`{"secret":"[REDACTED]","value":1}`,
 	} {
 		assert.Containsf(t, out, line, "HTTPDebugging log should contain %s", line)
