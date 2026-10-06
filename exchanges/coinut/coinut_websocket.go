@@ -246,14 +246,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		return e.WsProcessOrderbookSnapshot(&orderbookSnapshot)
+		return e.WsProcessOrderbookSnapshot(ctx, &orderbookSnapshot)
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
 		err := json.Unmarshal(respRaw, &orderbookUpdate)
 		if err != nil {
 			return err
 		}
-		return e.WsProcessOrderbookUpdate(&orderbookUpdate)
+		return e.WsProcessOrderbookUpdate(ctx, &orderbookUpdate)
 	case "inst_trade":
 		if !e.IsSaveTradeDataEnabled() {
 			return nil
@@ -450,7 +450,7 @@ func (e *Exchange) WsGetInstruments(ctx context.Context) (Instruments, error) {
 }
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
-func (e *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
+func (e *Exchange) WsProcessOrderbookSnapshot(ctx context.Context, ob *WsOrderbookSnapshot) error {
 	bids := make([]orderbook.Level, len(ob.Buy))
 	for i := range ob.Buy {
 		bids[i] = orderbook.Level{
@@ -482,11 +482,11 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	newOrderBook.Exchange = e.Name
 	newOrderBook.LastUpdated = time.Now() // No time sent
 
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &newOrderBook)
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
-func (e *Exchange) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
+func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrderbookUpdate) error {
 	p, err := e.MatchSymbolWithAvailablePairs(e.instrumentMap.LookupInstrument(update.InstID), asset.Spot, false)
 	if err != nil {
 		return err
@@ -503,7 +503,7 @@ func (e *Exchange) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	} else {
 		bufferUpdate.Asks = []orderbook.Level{{Price: update.Price, Amount: update.Volume}}
 	}
-	return e.Websocket.Orderbook.Update(bufferUpdate)
+	return e.Websocket.Orderbook.Update(ctx, bufferUpdate)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

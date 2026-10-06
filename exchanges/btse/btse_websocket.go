@@ -341,7 +341,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		newOB.Asks.Reverse() // Reverse asks for correct alignment
 		newOB.ValidateOrderbook = e.ValidateOrderbook
 		newOB.LastUpdated = time.Now() // NOTE: Temp to fix test.
-		err = e.Websocket.Orderbook.LoadSnapshot(&newOB)
+		err = e.Websocket.Orderbook.LoadSnapshot(ctx, &newOB)
 		if err != nil {
 			return err
 		}
