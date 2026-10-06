@@ -62,6 +62,7 @@ var (
 	errUIDRequired                          = errors.New("at least one uid is required")
 	errTradesExceedPage                     = errors.New("more aggregated trades share one second than a page holds")
 	errTooManyDustAssets                    = errors.New("at most 15 assets can be converted in one dust transfer")
+	errAnnouncementsRejected                = errors.New("announcements request rejected")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
@@ -117,10 +118,18 @@ func (e *Exchange) GetAnnouncements(ctx context.Context, language string, page, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp struct {
-		Data []*AnnouncementPage `json:"data"`
+	var resp *AnnouncementsResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, announcementsEPL, http.MethodGet, "announcements", params, nil, &resp); err != nil {
+		return nil, err
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, announcementsEPL, http.MethodGet, "announcements", params, nil, &resp)
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	// A rejected parameter, such as a language the venue does not serve, is answered with HTTP 200, a non-zero code and no data
+	if resp.Code != 0 {
+		return nil, fmt.Errorf("%w: code %d: %s", errAnnouncementsRejected, resp.Code, resp.Message)
+	}
+	return resp.Data, nil
 }
 
 // GetOrderbook retrieves orderbook data of a symbol

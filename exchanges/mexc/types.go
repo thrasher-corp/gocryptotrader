@@ -69,6 +69,14 @@ type OfflineSymbol struct {
 	OfflineTime types.Time `json:"offlineTime"`
 }
 
+// AnnouncementsResponse is the announcements reply. A rejected request is answered with a non-zero code, its reason in
+// msg and no data.
+type AnnouncementsResponse struct {
+	Code    int64               `json:"code"`
+	Message string              `json:"msg"`
+	Data    []*AnnouncementPage `json:"data"`
+}
+
 // AnnouncementPage is one page of venue announcements
 type AnnouncementPage struct {
 	TotalPage types.Number   `json:"totalPage"`
