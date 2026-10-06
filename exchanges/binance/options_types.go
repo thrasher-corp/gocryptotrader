@@ -1,555 +1,499 @@
 package binance
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// EOptionExchangeInfo represents an exchange information.
-type EOptionExchangeInfo struct {
-	Timezone        string     `json:"timezone"`
-	ServerTime      types.Time `json:"serverTime"`
-	OptionContracts []struct {
-		ID          int64  `json:"id"`
-		BaseAsset   string `json:"baseAsset"`
-		QuoteAsset  string `json:"quoteAsset"`
-		Underlying  string `json:"underlying"`
-		SettleAsset string `json:"settleAsset"`
-	} `json:"optionContracts"`
-	OptionAssets []struct {
-		ID   int64  `json:"id"`
-		Name string `json:"name"`
-	} `json:"optionAssets"`
-	OptionSymbols []*OptionsSymbolDetail `json:"optionSymbols"`
-	RateLimits    []RateLimitInfo        `json:"rateLimits"`
+// OptionsAccountFundingFlowRequest holds the parameters for querying options account funding flows
+type OptionsAccountFundingFlowRequest struct {
+	Currency  currency.Code
+	RecordID  uint64
+	StartTime time.Time
+	EndTime   time.Time
+	Limit     uint64
 }
 
-// OptionsSymbolDetail represents an option market symbol detail
-type OptionsSymbolDetail struct {
-	ContractID int64      `json:"contractId"`
-	ExpiryDate types.Time `json:"expiryDate"`
-	Filters    []struct {
-		FilterType string       `json:"filterType"` // possible values are: PRICE_FILTER, LOT_SIZE
-		MinPrice   types.Number `json:"minPrice,omitempty"`
-		MaxPrice   types.Number `json:"maxPrice,omitempty"`
-		TickSize   types.Number `json:"tickSize,omitempty"`
-		MinQty     types.Number `json:"minQty,omitempty"`
-		MaxQty     types.Number `json:"maxQty,omitempty"`
-		StepSize   types.Number `json:"stepSize,omitempty"`
-	} `json:"filters"`
-	ID                   int64         `json:"id"`
-	Symbol               currency.Pair `json:"symbol"`
-	Side                 string        `json:"side"`
-	StrikePrice          types.Number  `json:"strikePrice"`
-	Underlying           string        `json:"underlying"`
-	Unit                 int64         `json:"unit"`
-	MakerFeeRate         types.Number  `json:"makerFeeRate"`
-	TakerFeeRate         types.Number  `json:"takerFeeRate"`
-	MaxQuantity          types.Number  `json:"maxQty"`
-	MinQuantity          types.Number  `json:"minQty"`
-	InitialMargin        types.Number  `json:"initialMargin"`
-	MaintenanceMargin    types.Number  `json:"maintenanceMargin"`
-	MinInitialMargin     types.Number  `json:"minInitialMargin"`
-	MinMaintenanceMargin types.Number  `json:"minMaintenanceMargin"`
-	PriceScale           float64       `json:"priceScale"`
-	QuantityScale        float64       `json:"quantityScale"`
-	Status               string        `json:"status"`
-	QuoteAsset           currency.Code `json:"quoteAsset"`
-}
-
-// EOptionsOrderbook represents an european orderbook option information.
-type EOptionsOrderbook struct {
-	TransactionTime types.Time                       `json:"T"`
-	UpdateID        int64                            `json:"u"`
-	Asks            orderbook.LevelsArrayPriceAmount `json:"asks"`
-	Bids            orderbook.LevelsArrayPriceAmount `json:"bids"`
-}
-
-// EOptionsTradeItem represents a recent trade information
-type EOptionsTradeItem struct {
-	ID       int64        `json:"id"`
-	Symbol   string       `json:"symbol"`
-	Price    types.Number `json:"price"`
-	Quantity types.Number `json:"qty"`
-	QuoteQty types.Number `json:"quoteQty"`
-	Side     tradeSide    `json:"side"` // Completed trade direction（-1 Sell，1 Buy）
-	Time     types.Time   `json:"time"`
-}
-
-type tradeSide int64
-
-const (
-	sellSide tradeSide = -1
-	buySide  tradeSide = 1
-)
-
-// String returns a string representation of side value in eoptions recent trades.
-func (s tradeSide) String() string {
-	switch s {
-	case sellSide:
-		return "Sell"
-	case buySide:
-		return "Buy"
-	default:
-		return ""
-	}
-}
-
-// EOptionsCandlestick represents candlestick bar for options symbols.
-type EOptionsCandlestick struct {
-	Open        types.Number `json:"open"`
-	High        types.Number `json:"high"`
-	Low         types.Number `json:"low"`
-	Close       types.Number `json:"close"`
-	Volume      types.Number `json:"volume"`
-	Amount      types.Number `json:"amount"`
-	Interval    string       `json:"interval"`
-	TradeCount  int64        `json:"tradeCount"`
-	TakerVolume types.Number `json:"takerVolume"`
-	TakerAmount types.Number `json:"takerAmount"`
-	OpenTime    types.Time   `json:"openTime"`
-	CloseTime   types.Time   `json:"closeTime"`
-}
-
-// UnmarshalJSON deserialises incoming object or slice into EOptionsCandlestick instance.
-func (a *EOptionsCandlestick) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[12]any{&a.OpenTime, &a.Open, &a.High, &a.Low, &a.Close, &a.Volume, &a.CloseTime, &a.Amount, &a.TradeCount, &a.TakerVolume, &a.TakerAmount, nil})
-}
-
-// OptionMarkPrice represents an option mark price
-type OptionMarkPrice struct {
-	Symbol         string       `json:"symbol"`
-	MarkPrice      types.Number `json:"markPrice"`
-	BidIV          types.Number `json:"bidIV"`
-	AskIV          types.Number `json:"askIV"`
-	MarkIV         types.Number `json:"markIV"`
-	Delta          types.Number `json:"delta"`
-	Theta          types.Number `json:"theta"`
-	Gamma          types.Number `json:"gamma"`
-	Vega           types.Number `json:"vega"`
-	HighPriceLimit types.Number `json:"highPriceLimit"`
-	LowPriceLimit  types.Number `json:"lowPriceLimit"`
-}
-
-// EOptionTicker represents a ticker information for an european option instance.
-type EOptionTicker struct {
-	Symbol             string       `json:"symbol"`
-	PriceChange        types.Number `json:"priceChange"`
-	PriceChangePercent types.Number `json:"priceChangePercent"`
-	LastPrice          types.Number `json:"lastPrice"`
-	LastQty            types.Number `json:"lastQty"`
-	Open               types.Number `json:"open"`
-	High               types.Number `json:"high"`
-	Low                types.Number `json:"low"`
-	Volume             types.Number `json:"volume"`
-	Amount             types.Number `json:"amount"`
-	BidPrice           types.Number `json:"bidPrice"`
-	AskPrice           types.Number `json:"askPrice"`
-	OpenTime           types.Time   `json:"openTime"`
-	CloseTime          types.Time   `json:"closeTime"`
-	FirstTradeID       int64        `json:"firstTradeId"`
-	TradeCount         int64        `json:"tradeCount"`
-	StrikePrice        types.Number `json:"strikePrice"`
-	ExercisePrice      types.Number `json:"exercisePrice"`
-}
-
-// EOptionIndexSymbolPriceTicker represents spot index price
-type EOptionIndexSymbolPriceTicker struct {
-	Time       types.Time `json:"time"`
-	IndexPrice string     `json:"indexPrice"`
-}
-
-// ExerciseHistoryItem represents an exercise history
-// REALISTIC_VALUE_STRICKEN -> Exercised
-// EXTRINSIC_VALUE_EXPIRED -> Expired OTM
-type ExerciseHistoryItem struct {
-	Symbol          string       `json:"symbol"`
-	ExpiryDate      int64        `json:"expiryDate"`
-	StrikeResult    string       `json:"strikeResult"`
-	StrikePrice     types.Number `json:"strikePrice"`
-	RealStrikePrice types.Number `json:"realStrikePrice"`
-}
-
-// OpenInterest represents an instance open interest
-type OpenInterest struct {
-	Symbol             string       `json:"symbol"`
-	Timestamp          types.Time   `json:"timestamp"`
-	SumOpenInterest    types.Number `json:"sumOpenInterest"`
-	SumOpenInterestUSD types.Number `json:"sumOpenInterestUsd"`
-}
-
-// EOptionsAccountInformation represents current account information.
-type EOptionsAccountInformation struct {
-	Asset []struct {
-		AssetType      currency.Code `json:"asset"`
-		MarginBalance  types.Number  `json:"marginBalance"`
-		AccountEquity  types.Number  `json:"equity"`
-		AvailableFunds types.Number  `json:"available"`
-		Locked         types.Number  `json:"locked"`        // locked balance for order and position
-		UnrealizedPNL  types.Number  `json:"unrealizedPNL"` // Unrealized profit/loss
-	} `json:"asset"`
-	Greek []struct {
-		Underlying string       `json:"underlying"`
-		Delta      types.Number `json:"delta"`
-		Gamma      types.Number `json:"gamma"`
-		Theta      types.Number `json:"theta"`
-		Vega       types.Number `json:"vega"`
-	} `json:"greek"`
-	RiskLevel string     `json:"riskLevel"`
-	Time      types.Time `json:"time"`
-}
-
-// OptionsOrderParams represents an options order instance.
-type OptionsOrderParams struct {
-	Symbol                  currency.Pair `json:"symbol"`
-	Side                    string        `json:"side"`
-	OrderType               string        `json:"type"`
-	Amount                  float64       `json:"quantity"`
-	Price                   float64       `json:"price,omitempty"`
-	TimeInForce             string        `json:"timeInForce,omitempty"`
-	ReduceOnly              bool          `json:"reduceOnly,omitempty"`
-	PostOnly                bool          `json:"postOnly,omitempty"`
-	NewOrderResponseType    string        `json:"newOrderRespType,omitempty"`
-	ClientOrderID           string        `json:"clientOrderId,omitempty"`
-	IsMarketMakerProtection bool          `json:"isMmp,omitempty"`
-}
-
-// OptionOrder represents an options order instance.
-type OptionOrder struct {
-	OrderID               int64             `json:"orderId"`
-	ClientOrderID         string            `json:"clientOrderId"`
-	Symbol                string            `json:"symbol"`
-	Price                 types.Number      `json:"price"`
-	Quantity              types.Number      `json:"quantity"`
-	Side                  string            `json:"side"`
-	Type                  string            `json:"type"`
-	CreateDate            types.Time        `json:"createDate"`
-	UpdateTime            types.Time        `json:"updateTime"`
-	ExecutedQty           types.Number      `json:"executedQty"`
-	Fee                   types.Number      `json:"fee"`
-	TimeInForce           order.TimeInForce `json:"timeInForce"`
-	ReduceOnly            bool              `json:"reduceOnly"`
-	PostOnly              bool              `json:"postOnly"`
-	Source                string            `json:"source"`
-	CreateTime            types.Time        `json:"createTime"`
-	Status                string            `json:"status"`
-	AvgPrice              types.Number      `json:"avgPrice"`
-	PriceScale            int64             `json:"priceScale"`
-	QuantityScale         int64             `json:"quantityScale"`
-	OptionSide            string            `json:"optionSide"`
-	QuoteAsset            string            `json:"quoteAsset"`
-	MarketMakerProtection bool              `json:"mmp"` // is market maker protection order, true/false
-}
-
-// OptionPosition represents current position information.
-type OptionPosition struct {
-	AverageEntryPrice string       `json:"entryPrice"`
-	Symbol            string       `json:"symbol"`
-	Side              string       `json:"side"`         // Position Direction
-	Quantity          types.Number `json:"quantity"`     // Number of positions (positive numbers represent long positions, negative number represent short positions)
-	ReducibleQty      string       `json:"reducibleQty"` //// Number of positions that can be reduced
-	MarkValue         string       `json:"markValue"`
-	Ror               string       `json:"ror"`
-	UnrealizedPNL     types.Number `json:"unrealizedPNL"` // Unrealized profit/loss
-	MarkPrice         types.Number `json:"markPrice"`
-	StrikePrice       types.Number `json:"strikePrice"`
-	PositionCost      types.Number `json:"positionCost"`
-	ExpiryTime        types.Time   `json:"expiryDate"`
-	PriceScale        int64        `json:"priceScale"`
-	QuantityScale     int64        `json:"quantityScale"`
-	OptionSide        string       `json:"optionSide"`
-	QuoteAsset        string       `json:"quoteAsset"`
-}
-
-// OptionsAccountTradeItem represents an options account trade item
-type OptionsAccountTradeItem struct {
-	ID             int64        `json:"id"`
-	TradeID        int64        `json:"tradeId"`
-	OrderID        int64        `json:"orderId"`
-	Symbol         string       `json:"symbol"`
-	Price          types.Number `json:"price"`
-	Quantity       types.Number `json:"quantity"`
-	Fee            types.Number `json:"fee"`
-	RealizedProfit types.Number `json:"realizedProfit"`
-	Side           string       `json:"side"`
-	Type           string       `json:"type"`
-	Volatility     string       `json:"volatility"`
-	Liquidity      string       `json:"liquidity"`
-	QuoteAsset     string       `json:"quoteAsset"`
-	Time           types.Time   `json:"time"`
-	PriceScale     int64        `json:"priceScale"`
-	QuantityScale  int64        `json:"quantityScale"`
-	OptionSide     string       `json:"optionSide"`
-}
-
-// UserOptionsExerciseRecord represents options users exercise records
-type UserOptionsExerciseRecord struct {
-	ID            string       `json:"id"`
-	Currency      string       `json:"currency"`
-	Symbol        string       `json:"symbol"`
-	ExercisePrice types.Number `json:"exercisePrice"`
-	MarkPrice     types.Number `json:"markPrice"`
-	Quantity      types.Number `json:"quantity"`
-	Amount        types.Number `json:"amount"`
-	Fee           types.Number `json:"fee"`
-	CreateDate    types.Time   `json:"createDate"`
-	PriceScale    int64        `json:"priceScale"`
-	QuantityScale int64        `json:"quantityScale"`
-	OptionSide    string       `json:"optionSide"`
-	PositionSide  string       `json:"positionSide"`
-	QuoteAsset    string       `json:"quoteAsset"`
-}
-
-// AccountFunding represents account funding flow
-type AccountFunding struct {
-	ID         int64        `json:"id"`
-	Asset      string       `json:"asset"`
+// OptionsAccountFunding holds an options account funding flow
+type OptionsAccountFunding struct {
+	ID    uint64        `json:"id"`
+	Asset currency.Code `json:"asset"`
+	// Amount is positive for inflows and negative for outflows
 	Amount     types.Number `json:"amount"`
 	Type       string       `json:"type"`
 	CreateDate types.Time   `json:"createDate"`
 }
 
-// DownloadIDOfOptionsTransaction represents download id information for options transaction.
-type DownloadIDOfOptionsTransaction struct {
-	AvgCostTimestampOfLast30D int64  `json:"avgCostTimestampOfLast30d"`
-	DownloadID                string `json:"downloadId"`
+// OptionsMarginAccountInformationResponse holds the options margin account information
+type OptionsMarginAccountInformationResponse struct {
+	Asset       []OptionsMarginAccountAsset `json:"asset"`
+	Greek       []OptionsGreek              `json:"greek"`
+	Time        types.Time                  `json:"time"`
+	CanTrade    bool                        `json:"canTrade"`
+	CanDeposit  bool                        `json:"canDeposit"`
+	CanWithdraw bool                        `json:"canWithdraw"`
+	ReduceOnly  bool                        `json:"reduceOnly"`
+	// TradeGroupID is -1 when the account is not in a trade group
+	TradeGroupID int64 `json:"tradeGroupId"`
 }
 
-// DownloadIDTransactionHistory represents a transaction history download link information.
-type DownloadIDTransactionHistory struct {
-	DownloadID          string     `json:"downloadId"`
-	Status              string     `json:"status"`
-	URL                 string     `json:"url"`
-	Notified            bool       `json:"notified"`
-	ExpirationTimestamp types.Time `json:"expirationTimestamp"`
-	IsExpired           any        `json:"isExpired"`
+// OptionsMarginAccountAsset holds an options margin account asset balance
+type OptionsMarginAccountAsset struct {
+	Asset             currency.Code `json:"asset"`
+	MarginBalance     types.Number  `json:"marginBalance"`
+	Equity            types.Number  `json:"equity"`
+	Available         types.Number  `json:"available"`
+	InitialMargin     types.Number  `json:"initialMargin"`
+	MaintenanceMargin types.Number  `json:"maintMargin"`
+	UnrealizedPNL     types.Number  `json:"unrealizedPNL"`
+	AdjustedEquity    types.Number  `json:"adjustedEquity"`
 }
 
-// OptionMarginAccountInfo represents an account information.
-type OptionMarginAccountInfo struct {
-	Asset []struct {
-		AssetType     string       `json:"asset"`
-		MarginBalance types.Number `json:"marginBalance"`
-		Equity        types.Number `json:"equity"`
-		Available     types.Number `json:"available"`
-		InitialMargin types.Number `json:"initialMargin"`
-		MaintMargin   types.Number `json:"maintMargin"`
-		UnrealizedPNL types.Number `json:"unrealizedPNL"`
-		LpProfit      types.Number `json:"lpProfit"` // Unrealized profit for long position
-	} `json:"asset"`
-	Greek []struct {
-		Underlying string       `json:"underlying"`
-		Delta      types.Number `json:"delta"`
-		Gamma      types.Number `json:"gamma"`
-		Theta      types.Number `json:"theta"`
-		Vega       types.Number `json:"vega"`
-	} `json:"greek"`
-	RiskLevel string     `json:"riskLevel"`
-	Time      types.Time `json:"time"`
+// OptionsGreek holds the options account greeks of an underlying
+type OptionsGreek struct {
+	Underlying string       `json:"underlying"`
+	Delta      types.Number `json:"delta"`
+	Gamma      types.Number `json:"gamma"`
+	Theta      types.Number `json:"theta"`
+	Vega       types.Number `json:"vega"`
 }
 
-// MarketMakerProtectionConfig represents a market maker protection for option market maker.
-type MarketMakerProtectionConfig struct {
-	Underlying               string  `json:"underlying"`
-	WindowTimeInMilliseconds int64   `json:"windowTimeInMilliseconds"`
-	FrozenTimeInMilliseconds int64   `json:"frozenTimeInMilliseconds"`
-	QuantityLimit            float64 `json:"qtyLimit"`
-	NetDeltaLimit            float64 `json:"deltaLimit"`
+// OptionsTransactionHistoryDownloadIDResponse holds the download ID of an options transaction history file
+type OptionsTransactionHistoryDownloadIDResponse struct {
+	// AverageCostTimestampOfLast30Days is the average time in milliseconds a download took over the last 30 days
+	AverageCostTimestampOfLast30Days uint64 `json:"avgCostTimestampOfLast30d"`
+	DownloadID                       string `json:"downloadId"`
 }
 
-// MarketMakerProtection represents a market maker protection mechanism for option market maker.
-type MarketMakerProtection struct {
-	UnderlyingID             int64        `json:"underlyingId"`
-	Underlying               string       `json:"underlying"`
-	WindowTimeInMilliseconds types.Time   `json:"windowTimeInMilliseconds"`
-	FrozenTimeInMilliseconds types.Time   `json:"frozenTimeInMilliseconds"`
-	QtyLimit                 types.Number `json:"qtyLimit"`
+// OptionsTransactionHistoryDownloadLinkResponse holds the download link of an options transaction history file
+type OptionsTransactionHistoryDownloadLinkResponse struct {
+	DownloadID string `json:"downloadId"`
+	// Status is processing until the file is ready and completed after
+	Status   string `json:"status"`
+	URL      string `json:"url"`
+	Notified bool   `json:"notified"`
+	// ExpirationTimestamp is a Unix timestamp in milliseconds, or -1 while the file is processing
+	ExpirationTimestamp int64 `json:"expirationTimestamp"`
+	IsExpired           bool  `json:"isExpired"`
+}
+
+// OptionsServerTimeResponse holds the options server time
+type OptionsServerTimeResponse struct {
+	ServerTime types.Time `json:"serverTime"`
+}
+
+// OptionsExchangeInformationResponse holds the options trading rules and symbol information
+type OptionsExchangeInformationResponse struct {
+	Timezone        string                `json:"timezone"`
+	ServerTime      types.Time            `json:"serverTime"`
+	OptionContracts []OptionsContract     `json:"optionContracts"`
+	OptionAssets    []OptionsAsset        `json:"optionAssets"`
+	OptionSymbols   []OptionsSymbolDetail `json:"optionSymbols"`
+	RateLimits      []RateLimitInfo       `json:"rateLimits"`
+}
+
+// OptionsContract holds an options contract underlying
+type OptionsContract struct {
+	BaseAsset   currency.Code `json:"baseAsset"`
+	QuoteAsset  currency.Code `json:"quoteAsset"`
+	Underlying  string        `json:"underlying"`
+	SettleAsset currency.Code `json:"settleAsset"`
+	// NakedSell is sent here but documented on the option symbols
+	NakedSell bool `json:"nakedSell"`
+}
+
+// OptionsAsset holds an options asset
+type OptionsAsset struct {
+	Name currency.Code `json:"name"`
+}
+
+// OptionsSymbolDetail holds the trading rules of an option symbol
+type OptionsSymbolDetail struct {
+	ExpiryDate types.Time            `json:"expiryDate"`
+	Filters    []OptionsSymbolFilter `json:"filters"`
+	Symbol     string                `json:"symbol"`
+	// Side is CALL or PUT
+	Side        string       `json:"side"`
+	StrikePrice types.Number `json:"strikePrice"`
+	Underlying  string       `json:"underlying"`
+	// Unit is the quantity of the underlying a contract represents
+	Unit                 uint64        `json:"unit"`
+	LiquidationFeeRate   types.Number  `json:"liquidationFeeRate"`
+	MinQuantity          types.Number  `json:"minQty"`
+	MaxQuantity          types.Number  `json:"maxQty"`
+	InitialMargin        types.Number  `json:"initialMargin"`
+	MaintenanceMargin    types.Number  `json:"maintenanceMargin"`
+	MinInitialMargin     types.Number  `json:"minInitialMargin"`
+	MinMaintenanceMargin types.Number  `json:"minMaintenanceMargin"`
+	PriceScale           uint64        `json:"priceScale"`
+	QuantityScale        uint64        `json:"quantityScale"`
+	QuoteAsset           currency.Code `json:"quoteAsset"`
+	ContractType         string        `json:"contractType"`
+	UnderlyingType       string        `json:"underlyingType"`
+	// NakedSell is documented here but sent on the option contracts
+	NakedSell bool   `json:"nakedSell"`
+	Status    string `json:"status"`
+}
+
+// OptionsSymbolFilter holds an option symbol filter; the fields set depend on FilterType
+type OptionsSymbolFilter struct {
+	FilterType  string       `json:"filterType"`
+	MinPrice    types.Number `json:"minPrice"`
+	MaxPrice    types.Number `json:"maxPrice"`
+	TickSize    types.Number `json:"tickSize"`
+	MinQuantity types.Number `json:"minQty"`
+	MaxQuantity types.Number `json:"maxQty"`
+	StepSize    types.Number `json:"stepSize"`
+}
+
+// OptionsExerciseHistoryRequest holds the parameters for querying options historical exercise records
+type OptionsExerciseHistoryRequest struct {
+	Underlying string
+	StartTime  time.Time
+	EndTime    time.Time
+	Limit      uint64
+}
+
+// ExerciseHistoryItem holds an option's exercise record. StrikeResult is REALISTIC_VALUE_STRICKEN when the option was
+// exercised and EXTRINSIC_VALUE_EXPIRED when it expired out of the money
+type ExerciseHistoryItem struct {
+	Symbol          string       `json:"symbol"`
+	StrikePrice     types.Number `json:"strikePrice"`
+	RealStrikePrice types.Number `json:"realStrikePrice"`
+	ExpiryDate      types.Time   `json:"expiryDate"`
+	StrikeResult    string       `json:"strikeResult"`
+}
+
+// OptionsIndexPriceResponse holds the spot index price of an options underlying
+type OptionsIndexPriceResponse struct {
+	Time       types.Time   `json:"time"`
+	IndexPrice types.Number `json:"indexPrice"`
+}
+
+// OptionsKlineRequest holds the parameters for querying option klines
+type OptionsKlineRequest struct {
+	Symbol    currency.Pair
+	Interval  kline.Interval
+	StartTime time.Time
+	EndTime   time.Time
+	Limit     uint64
+}
+
+// EOptionsCandlestick holds an option kline
+type EOptionsCandlestick struct {
+	OpenTime                 types.Time
+	Open                     types.Number
+	High                     types.Number
+	Low                      types.Number
+	Close                    types.Number
+	Volume                   types.Number
+	CloseTime                types.Time
+	QuoteAssetVolume         types.Number
+	NumberOfTrades           uint64
+	TakerBuyBaseAssetVolume  types.Number
+	TakerBuyQuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON decodes an option kline from its array form
+func (c *EOptionsCandlestick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[12]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume, &c.NumberOfTrades, &c.TakerBuyBaseAssetVolume, &c.TakerBuyQuoteAssetVolume, nil})
+}
+
+// OptionsOpenInterest holds the open interest of an option
+type OptionsOpenInterest struct {
+	Symbol             string       `json:"symbol"`
+	SumOpenInterest    types.Number `json:"sumOpenInterest"`
+	SumOpenInterestUSD types.Number `json:"sumOpenInterestUsd"`
+	// Timestamp is quoted on the wire
+	Timestamp types.Time `json:"timestamp"`
+}
+
+// OptionMarkPrice holds an option's mark price and greeks
+type OptionMarkPrice struct {
+	Symbol    string       `json:"symbol"`
+	MarkPrice types.Number `json:"markPrice"`
+	// BidIV, AskIV and MarkIV are implied volatilities
+	BidIV            types.Number `json:"bidIV"`
+	AskIV            types.Number `json:"askIV"`
+	MarkIV           types.Number `json:"markIV"`
+	Delta            types.Number `json:"delta"`
+	Theta            types.Number `json:"theta"`
+	Gamma            types.Number `json:"gamma"`
+	Vega             types.Number `json:"vega"`
+	HighPriceLimit   types.Number `json:"highPriceLimit"`
+	LowPriceLimit    types.Number `json:"lowPriceLimit"`
+	RiskFreeInterest types.Number `json:"riskFreeInterest"`
+}
+
+// OptionsOrderBookResponse holds an option order book
+type OptionsOrderBookResponse struct {
+	Bids            orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks            orderbook.LevelsArrayPriceAmount `json:"asks"`
+	TransactionTime types.Time                       `json:"T"`
+	LastUpdateID    uint64                           `json:"lastUpdateId"`
+}
+
+// OptionsTrade holds an option market trade
+type OptionsTrade struct {
+	ID            uint64       `json:"id"`
+	TradeID       uint64       `json:"tradeId"`
+	Symbol        string       `json:"symbol"`
+	Price         types.Number `json:"price"`
+	Quantity      types.Number `json:"qty"`
+	QuoteQuantity types.Number `json:"quoteQty"`
+	// Side is the taker's direction: -1 sell, 1 buy
+	Side int64      `json:"side"`
+	Time types.Time `json:"time"`
+}
+
+// EOptionTicker holds an option's 24 hour price change statistics
+type EOptionTicker struct {
+	Symbol             string       `json:"symbol"`
+	PriceChange        types.Number `json:"priceChange"`
+	PriceChangePercent types.Number `json:"priceChangePercent"`
+	LastPrice          types.Number `json:"lastPrice"`
+	LastQuantity       types.Number `json:"lastQty"`
+	Open               types.Number `json:"open"`
+	High               types.Number `json:"high"`
+	Low                types.Number `json:"low"`
+	// Volume counts contracts and Amount is in the quote asset
+	Volume   types.Number `json:"volume"`
+	Amount   types.Number `json:"amount"`
+	BidPrice types.Number `json:"bidPrice"`
+	AskPrice types.Number `json:"askPrice"`
+	// OpenTime and CloseTime are the times of the first and last trade in the window
+	OpenTime     types.Time   `json:"openTime"`
+	CloseTime    types.Time   `json:"closeTime"`
+	FirstTradeID uint64       `json:"firstTradeId"`
+	TradeCount   uint64       `json:"tradeCount"`
+	StrikePrice  types.Number `json:"strikePrice"`
+	// ExercisePrice is the estimated settlement price in the hour before exercise and the index price otherwise
+	ExercisePrice types.Number `json:"exercisePrice"`
+}
+
+// OptionsAutoCancelAllOpenOrdersHeartbeatResponse holds the underlyings whose auto-cancel countdown a heartbeat reset
+type OptionsAutoCancelAllOpenOrdersHeartbeatResponse struct {
+	Underlyings []string `json:"underlyings"`
+}
+
+// OptionsAutoCancelAllOpenOrdersConfigResponse holds the auto-cancel countdown of an options underlying
+type OptionsAutoCancelAllOpenOrdersConfigResponse struct {
+	Underlying string `json:"underlying"`
+	// CountdownTime is in milliseconds
+	CountdownTime uint64 `json:"countdownTime"`
+}
+
+// OptionsMarketMakerProtectionResponse holds the market maker protection config of an options underlying
+type OptionsMarketMakerProtectionResponse struct {
+	UnderlyingID uint64 `json:"underlyingId"`
+	Underlying   string `json:"underlying"`
+	// WindowTimeInMilliseconds and FrozenTimeInMilliseconds are durations in milliseconds
+	WindowTimeInMilliseconds uint64       `json:"windowTimeInMilliseconds"`
+	FrozenTimeInMilliseconds uint64       `json:"frozenTimeInMilliseconds"`
+	QuantityLimit            types.Number `json:"qtyLimit"`
 	DeltaLimit               types.Number `json:"deltaLimit"`
 	LastTriggerTime          types.Time   `json:"lastTriggerTime"`
 }
 
-// UnderlyingCountdown represents a response for cancelling open orders.
-type UnderlyingCountdown struct {
-	Underlying    string     `json:"underlying"`
-	CountdownTime types.Time `json:"countdownTime"`
+// OptionsMarketMakerProtectionConfigRequest holds the parameters for setting the market maker protection config of an
+// options underlying. A zero FrozenTime keeps protection triggered until it is reset
+type OptionsMarketMakerProtectionConfigRequest struct {
+	Underlying    string
+	WindowTime    time.Duration
+	FrozenTime    time.Duration
+	QuantityLimit float64
+	DeltaLimit    float64
 }
 
-// EOptionsWsTrade represents an european options
-type EOptionsWsTrade struct {
-	EventType          string       `json:"e"`
-	EventTime          types.Time   `json:"E"`
-	Symbol             string       `json:"s"`
-	TradeID            int64        `json:"t"`
-	Price              types.Number `json:"p"`
-	Quantity           types.Number `json:"q"`
-	BuyOrderID         int64        `json:"b"`
-	SellOrderID        int64        `json:"a"`
-	TradeCompletedTime types.Time   `json:"T"`
-	Direction          string       `json:"S"` // direction, -1 for taker sell, 1 for taker buy
+// OptionsAccountTradeListRequest holds the parameters for querying options account trades
+type OptionsAccountTradeListRequest struct {
+	Symbol    currency.Pair
+	FromID    uint64
+	StartTime time.Time
+	EndTime   time.Time
+	Limit     uint64
 }
 
-// EOptionSubscriptionParam represents a subscription/unsubscription parameter used to
-type EOptionSubscriptionParam struct {
-	Method string   `json:"method"`
-	Params []string `json:"params"`
-	ID     int64    `json:"id"`
+// OptionsAccountTradeItem holds an options account trade
+type OptionsAccountTradeItem struct {
+	ID       uint64       `json:"id"`
+	TradeID  uint64       `json:"tradeId"`
+	OrderID  uint64       `json:"orderId"`
+	Symbol   string       `json:"symbol"`
+	Price    types.Number `json:"price"`
+	Quantity types.Number `json:"quantity"`
+	// Fee is negative when it was deducted
+	Fee            types.Number  `json:"fee"`
+	RealizedProfit types.Number  `json:"realizedProfit"`
+	Side           string        `json:"side"`
+	Type           string        `json:"type"`
+	Liquidity      string        `json:"liquidity"`
+	Time           types.Time    `json:"time"`
+	PriceScale     uint64        `json:"priceScale"`
+	QuantityScale  uint64        `json:"quantityScale"`
+	OptionSide     string        `json:"optionSide"`
+	QuoteAsset     currency.Code `json:"quoteAsset"`
 }
 
-// EOptionsOperationResponse represents response coming through the websocket stream
-type EOptionsOperationResponse struct {
-	Error struct {
-		Code    int64  `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
-	Result any   `json:"result"`
-	ID     int64 `json:"id"`
+// OptionsOrderRequest holds the parameters for placing an options order
+type OptionsOrderRequest struct {
+	Symbol                  currency.Pair
+	Side                    string
+	OrderType               string
+	Quantity                float64
+	Price                   float64
+	TimeInForce             string
+	ReduceOnly              bool
+	PostOnly                bool
+	NewOrderResponseType    string
+	ClientOrderID           string
+	IsMarketMakerProtection bool
+	SelfTradePreventionMode string
 }
 
-// OptionsTicker24Hr represents 24-hour ticker data
-type OptionsTicker24Hr struct {
-	EventType                  string       `json:"e"`
-	EventTime                  types.Time   `json:"E"`
-	TransactionTime            types.Time   `json:"T"`
-	Symbol                     string       `json:"s"`
-	OpeningPrice               types.Number `json:"o"`
-	HightPrice                 types.Number `json:"h"`
-	LowPrice                   types.Number `json:"l"`
-	ClosingPrice               types.Number `json:"c"`
-	TradingVolume              types.Number `json:"V"` // Trading volume in contract
-	TradingAmount              types.Number `json:"A"` // Trading volume in quote asset
-	PriceChangesPercent        types.Number `json:"P"`
-	PriceChange                string       `json:"p"`
-	VolumeOfLastCompletedTrade string       `json:"Q"` // In contract asset
-	FirstTradeID               string       `json:"F"`
-	LastTradeID                string       `json:"L"`
-	NumberOfTrade              int64        `json:"n"`
-	BestBuyPrice               types.Number `json:"bo"`
-	BestSellPrice              types.Number `json:"ao"`
-	BestBuyQuantity            types.Number `json:"bq"`
-	BestSellQuantity           types.Number `json:"aq"`
-	BuyImpliedVolatility       types.Number `json:"b"`
-	SellImpliedVolatility      types.Number `json:"a"`
-	Delta                      types.Number `json:"d"`
-	Theta                      types.Number `json:"t"`
-	Gamma                      types.Number `json:"g"`
-	Vega                       types.Number `json:"v"`
-	ImpliedVolatility          types.Number `json:"vo"`
-	MarkPrice                  types.Number `json:"mp"`
-	BuyMaximumPrice            types.Number `json:"hl"`
-	SellMaximumPrice           types.Number `json:"ll"`
-	EstimatedStrikePrice       types.Number `json:"eep"`
+// OptionsOrder holds the order fields every options order endpoint returns
+type OptionsOrder struct {
+	OrderID          uint64       `json:"orderId"`
+	Symbol           string       `json:"symbol"`
+	Price            types.Number `json:"price"`
+	Quantity         types.Number `json:"quantity"`
+	ExecutedQuantity types.Number `json:"executedQty"`
+	Side             string       `json:"side"`
+	Type             string       `json:"type"`
+	TimeInForce      string       `json:"timeInForce"`
+	ReduceOnly       bool         `json:"reduceOnly"`
+	UpdateTime       types.Time   `json:"updateTime"`
+	Status           string       `json:"status"`
+	AveragePrice     types.Number `json:"avgPrice"`
+	ClientOrderID    string       `json:"clientOrderId"`
+	PriceScale       uint64       `json:"priceScale"`
+	QuantityScale    uint64       `json:"quantityScale"`
+	// OptionSide is CALL or PUT
+	OptionSide            string        `json:"optionSide"`
+	QuoteAsset            currency.Code `json:"quoteAsset"`
+	MarketMakerProtection bool          `json:"mmp"`
 }
 
-// OptionsIndexInfo represents options index price information.
-type OptionsIndexInfo struct {
-	EventType        string       `json:"e"`
-	EventTime        types.Time   `json:"E"`
-	UnderlyingSymbol string       `json:"s"`
-	Price            types.Number `json:"p"`
+// OptionsOrderResponse holds an options order as order placement returns it
+type OptionsOrderResponse struct {
+	OptionsOrder
+	Fee                     types.Number `json:"fee"`
+	PostOnly                bool         `json:"postOnly"`
+	CreateTime              types.Time   `json:"createTime"`
+	Source                  string       `json:"source"`
+	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
 }
 
-// WsOptionsMarkPrice represents a push data from options mark price.
-type WsOptionsMarkPrice struct {
-	EventType string       `json:"e"`
-	EventTime types.Time   `json:"E"`
-	Symbol    string       `json:"s"`
-	MarkPrice types.Number `json:"mp"`
+// OptionsCancelledOrder holds an entry of an options batch cancellation
+type OptionsCancelledOrder struct {
+	OptionsOrder
+	Fee                     types.Number `json:"fee"`
+	CreateTime              types.Time   `json:"createTime"`
+	Source                  string       `json:"source"`
+	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
 }
 
-// WsOptionsKlineData represents an options kline push data
-type WsOptionsKlineData struct {
-	EventType string     `json:"e"`
-	EventTime types.Time `json:"E"`
-	Symbol    string     `json:"s"`
-	KlineData struct {
-		StartTime                 types.Time   `json:"t"`
-		EndTime                   types.Time   `json:"T"`
-		Symbol                    string       `json:"s"`
-		CandlePeriod              string       `json:"i"`
-		FirstTradeID              int64        `json:"F"`
-		LastID                    int64        `json:"L"`
-		Open                      types.Number `json:"o"`
-		Close                     types.Number `json:"c"`
-		High                      types.Number `json:"h"`
-		Low                       types.Number `json:"l"`
-		ContractVolume            types.Number `json:"v"` // Contract or Base
-		NumberOfTrades            int64        `json:"n"`
-		ContractCompleted         bool         `json:"x"`
-		CompletedTradeAmount      string       `json:"q"` // In quote asset
-		TakerCompletedTradeVolume types.Number `json:"V"`
-		TakerTradeAmount          types.Number `json:"Q"`
-	} `json:"k"`
+// OptionsOrderStatusResponse holds an options order as Query Single Order returns it
+type OptionsOrderStatusResponse struct {
+	OptionsOrder
+	PostOnly                bool       `json:"postOnly"`
+	CreateTime              types.Time `json:"createTime"`
+	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
 }
 
-// WsOptionIncomingResp used by wsHandleEOptionsData
-type WsOptionIncomingResp struct {
-	ID        int64           `json:"id"`
-	EventType string          `json:"e"`
-	Result    json.RawMessage `json:"result"`
-	Stream    string          `json:"stream"`
-	Data      json.RawMessage `json:"data"`
+// OptionsCancelOrderResponse holds an options order as Cancel Option Order returns it
+type OptionsCancelOrderResponse struct {
+	OptionsOrder
+	CreateDate              types.Time `json:"createDate"`
+	Source                  string     `json:"source"`
+	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
 }
 
-// WsOptionIncomingResps list of WsOptionIncomingResp
-type WsOptionIncomingResps struct {
-	Instances []*WsOptionIncomingResp
-
-	// To record the information about whether the incoming data was a slice or sing object instance.
-	// Reason: Some slices may have a single element, which creates uncertainty about whether the incoming data is slice or object instance.
-	IsSlice bool
+// OptionPosition holds an options position
+type OptionPosition struct {
+	EntryPrice types.Number `json:"entryPrice"`
+	Symbol     string       `json:"symbol"`
+	Side       string       `json:"side"`
+	// Quantity is positive for long positions and negative for short positions
+	Quantity      types.Number  `json:"quantity"`
+	MarkValue     types.Number  `json:"markValue"`
+	UnrealizedPNL types.Number  `json:"unrealizedPNL"`
+	MarkPrice     types.Number  `json:"markPrice"`
+	StrikePrice   types.Number  `json:"strikePrice"`
+	ExpiryDate    types.Time    `json:"expiryDate"`
+	PriceScale    uint64        `json:"priceScale"`
+	QuantityScale uint64        `json:"quantityScale"`
+	OptionSide    string        `json:"optionSide"`
+	QuoteAsset    currency.Code `json:"quoteAsset"`
+	Time          types.Time    `json:"time"`
+	// BidQuantity and AskQuantity are the open buy and sell order quantities
+	BidQuantity types.Number `json:"bidQuantity"`
+	AskQuantity types.Number `json:"askQuantity"`
 }
 
-// WsOpenInterest represents a single open interest instance.
-type WsOpenInterest struct {
-	EventType              string     `json:"e"`
-	EventTime              types.Time `json:"E"`
-	Symbol                 string     `json:"s"`
-	OpenInterestInContract string     `json:"o"` // Base
-	OpenInterestInUSDT     string     `json:"h"`
+// OptionsOpenOrdersRequest holds the parameters for querying current open options orders
+type OptionsOpenOrdersRequest struct {
+	Symbol    currency.Pair
+	OrderID   uint64
+	StartTime time.Time
+	EndTime   time.Time
 }
 
-// WsOptionsNewPair represents a new options pair update information
-type WsOptionsNewPair struct {
-	ID                        int64        `json:"id"`
-	EventType                 string       `json:"e"`
-	EventTime                 types.Time   `json:"E"`
-	UnderlyingAssetID         int64        `json:"cid"`
-	UnderlyingIndexOfContract string       `json:"u"`
-	QuotationAsset            string       `json:"qa"`
-	TradingPairName           string       `json:"s"`
-	Unit                      int64        `json:"unit"` // Conversion ratio, the quantity of the underlying asset represented by a single contract
-	MinimumTradeVolume        string       `json:"mq"`   // Minimum trade volume of the underlying asset
-	OptionType                string       `json:"d"`
-	StrikePrice               types.Number `json:"sp"`
-	ExpirationTime            types.Time   `json:"ed"`
+// OptionsOpenOrder holds a current open options order
+type OptionsOpenOrder struct {
+	OptionsOrder
+	CreateTime              types.Time `json:"createTime"`
+	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
 }
 
-// WsOptionSymbol represents a new symbol information sent through websocket stream
-type WsOptionSymbol struct {
-	Event                    string        `json:"e"`
-	EventTime                types.Time    `json:"E"`
-	Symbol                   currency.Pair `json:"s"`
-	Underlying               string        `json:"ps"`
-	QuoteAsset               currency.Code `json:"qa"`
-	OptionType               string        `json:"d"`
-	StrikePrice              types.Number  `json:"sp"`
-	DeliveryTime             types.Time    `json:"dt"`
-	UnderlyingAssetUQuantity uint64        `json:"u"`
-	OnboardDateTime          types.Time    `json:"ot"`
-	ContractStatus           string        `json:"cs"`
+// OptionsOrderHistoryRequest holds the parameters for querying options order history
+type OptionsOrderHistoryRequest struct {
+	Symbol    currency.Pair
+	OrderID   uint64
+	StartTime time.Time
+	EndTime   time.Time
+	Limit     uint64
 }
 
-// WsOptionsOrderbook represents a partial orderbook websocket stream data
-type WsOptionsOrderbook struct {
-	EventType       string                           `json:"e"`
-	EventTime       types.Time                       `json:"E"`
-	TransactionTime types.Time                       `json:"T"`
-	OptionSymbol    string                           `json:"symbol"`
-	UpdateID        int64                            `json:"u"`  // update id in event
-	PUpdateID       int64                            `json:"pu"` // same as update id in event
-	Bids            orderbook.LevelsArrayPriceAmount `json:"b"`  // 0: Price 1: Quantity
-	Asks            orderbook.LevelsArrayPriceAmount `json:"a"`
+// OptionsOrderHistoryItem holds a finished options order
+type OptionsOrderHistoryItem struct {
+	OptionsOrder
+	CreateTime types.Time `json:"createTime"`
+}
+
+// OptionsUserExerciseRecordRequest holds the parameters for querying the account's options exercise records
+type OptionsUserExerciseRecordRequest struct {
+	Symbol    currency.Pair
+	StartTime time.Time
+	EndTime   time.Time
+	Limit     uint64
+}
+
+// UserOptionsExerciseRecord holds an options exercise record of the account
+type UserOptionsExerciseRecord struct {
+	// ID is quoted on the wire and exceeds float64 precision
+	ID            string        `json:"id"`
+	Currency      currency.Code `json:"currency"`
+	Symbol        string        `json:"symbol"`
+	ExercisePrice types.Number  `json:"exercisePrice"`
+	Quantity      types.Number  `json:"quantity"`
+	Amount        types.Number  `json:"amount"`
+	Fee           types.Number  `json:"fee"`
+	CreateDate    types.Time    `json:"createDate"`
+	PriceScale    uint64        `json:"priceScale"`
+	QuantityScale uint64        `json:"quantityScale"`
+	OptionSide    string        `json:"optionSide"`
+	PositionSide  string        `json:"positionSide"`
+	QuoteAsset    currency.Code `json:"quoteAsset"`
+}
+
+// OptionsListenKeyResponse holds the listen key of an options user data stream and when it expires
+type OptionsListenKeyResponse struct {
+	ListenKey  string     `json:"listenKey"`
+	Expiration types.Time `json:"expiration"`
 }

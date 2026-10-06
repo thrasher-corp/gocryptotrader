@@ -690,8 +690,6 @@ func (t Type) String() string {
 		return orderConditionalStop
 	case TWAP:
 		return orderTWAP
-	case VolumeParticipation:
-		return orderVolumeParticipation
 	case Chase:
 		return orderChase
 	case TakeProfit:
@@ -710,10 +708,6 @@ func (t Type) String() string {
 		return orderLiquidation
 	case Trigger:
 		return orderTrigger
-	case OTO:
-		return orderOTO
-	case SOR:
-		return orderSOR
 	case LimitMaker:
 		return orderLimitMaker
 	case OCO:
@@ -1085,10 +1079,6 @@ func StringToOrderType(oType string) (Type, error) {
 		return LimitMaker, nil
 	case orderTrigger:
 		return Trigger, nil
-	case orderOTO:
-		return OTO, nil
-	case orderSOR:
-		return SOR, nil
 	case orderOptimalLimit:
 		return OptimalLimit, nil
 	case orderOCO:
@@ -1099,8 +1089,6 @@ func StringToOrderType(oType string) (Type, error) {
 		return MarketMakerProtection, nil
 	case orderTWAP:
 		return TWAP, nil
-	case orderVolumeParticipation:
-		return VolumeParticipation, nil
 	case orderChase:
 		return Chase, nil
 	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":

@@ -5,12 +5,12 @@
 package binance
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"os"
+	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,108 +22,56 @@ import (
 
 var mockTests = false
 
+var tradablePairsOnce sync.Once
+
 func TestMain(m *testing.M) {
+	// Binance refuses requests from the US, where CI runs
 	if livetest.ShouldSkip() {
 		log.Printf(livetest.LiveTestingSkipped, "Binance")
 		os.Exit(0)
 	}
-
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Binance Setup error: %s", err)
 	}
-
 	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiCredentials)
 	}
 	if useTestNet {
 		for k, v := range map[exchange.URL]string{
-			exchange.RestUSDTMargined: "https://testnet.binancefuture.com",
-			exchange.RestCoinMargined: "https://testnet.binancefuture.com",
-			exchange.RestSpot:         "https://testnet.binance.vision/api",
+			exchange.RestUSDTMargined:      "https://testnet.binancefuture.com",
+			exchange.RestCoinMargined:      "https://testnet.binancefuture.com",
+			exchange.RestSpotSupplementary: "https://testnet.binance.vision",
 		} {
 			if err := e.API.Endpoints.SetRunningURL(k.String(), v); err != nil {
 				log.Fatalf("Binance SetRunningURL error: %s", err)
 			}
 		}
 	}
-	e.setupOrderbookManager(context.Background())
 	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
-	if err := e.populateTradablePairs(); err != nil {
-		log.Fatal(err)
-	}
-
-	assetToTradablePairMap = map[asset.Item]currency.Pair{
-		asset.Spot:                spotTradablePair,
-		asset.Margin:              marginTradablePair,
-		asset.Options:             optionsTradablePair,
-		asset.USDTMarginedFutures: usdtmTradablePair,
-		asset.CoinMarginedFutures: coinmTradablePair,
-	}
 	os.Exit(m.Run())
 }
 
-func (e *Exchange) populateTradablePairs() error {
-	if err := e.UpdateTradablePairs(context.Background()); err != nil {
-		return err
-	}
-	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Spot)
-	}
-	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
-	if err != nil {
-		return err
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.Margin)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Margin)
-	}
-	marginTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Margin)
-	if err != nil {
-		return err
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) != 0 {
-		usdtmTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.USDTMarginedFutures)
-		if err != nil {
-			return err
+// ensureTradablePairs loads the live tradable pairs on first use, keeping API calls out of TestMain, and sets each
+// asset's test pair to its first enabled pair
+func ensureTradablePairs(tb testing.TB) {
+	tb.Helper()
+	testexch.UpdatePairsOnce(tb, e)
+	tradablePairsOnce.Do(func() {
+		assetToTradablePairMap = make(map[asset.Item]currency.Pair)
+		for _, a := range e.GetAssetTypes(true) {
+			pairs, err := e.GetEnabledPairs(a)
+			require.NoErrorf(tb, err, "GetEnabledPairs must not error for %s", a)
+			require.NotEmptyf(tb, pairs, "GetEnabledPairs must return pairs for %s", a)
+			assetToTradablePairMap[a] = pairs[0]
 		}
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.CoinMarginedFutures)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		coinmTradablePair, err = currency.NewPairFromString("ETHUSD_PERP")
-		if err != nil {
-			return err
-		}
-	} else {
-		coinmTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.CoinMarginedFutures)
-		if err != nil {
-			return err
-		}
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.Options)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Options)
-	}
-	optionsTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Options)
-	return err
+		spotTradablePair = assetToTradablePairMap[asset.Spot]
+		marginTradablePair = assetToTradablePairMap[asset.Margin]
+		usdtmTradablePair = assetToTradablePairMap[asset.USDTMarginedFutures]
+		coinmTradablePair = assetToTradablePairMap[asset.CoinMarginedFutures]
+		optionsTradablePair = assetToTradablePairMap[asset.Options]
+	})
 }

@@ -94,7 +94,6 @@ var (
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
-		FiveHundredMilliseconds,
 		HundredMilliseconds,
 		ThousandMilliseconds,
 		TenSecond,
