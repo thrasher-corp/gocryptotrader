@@ -586,7 +586,7 @@ func TestProcessOrderbookSnapshotEnabledAssetsOnly(t *testing.T) {
 
 	ex := setupExchangeWithSpotOnlyEnabledBTCUSDT(t)
 	pair := currency.NewPairWithDelimiter("BTC", "USDT", "_")
-	err := ex.processOrderbookSnapshot([]byte(`{
+	err := ex.processOrderbookSnapshot(t.Context(), []byte(`{
 		"t":1606295412123,
 		"lastUpdateId":48791820,
 		"s":"BTC_USDT",
