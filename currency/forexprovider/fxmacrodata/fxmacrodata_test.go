@@ -343,7 +343,7 @@ func TestPing(t *testing.T) {
 }
 
 func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("X-API-Key"), "public requests should not include an API key")
 		assert.Equal(t, "/api/v1/data_catalogue/usd", r.URL.Path, "public request should use the requested endpoint")
 		_, _ = w.Write([]byte(`{"inflation":{"name":"Inflation (CPI)","unit":"%YoY","frequency":"Monthly","source":"BLS"}}`))
@@ -353,6 +353,7 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	provider := new(FXMacroData)
 	require.NoError(t, provider.Setup(base.Settings{Name: providerName}), "Setup must allow API-key-free public use")
 	assert.Equal(t, APIURL, provider.APIURL, "Setup should use the canonical FXMacroData API URL")
+	require.NoError(t, provider.Requester.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 
@@ -392,7 +393,7 @@ func TestGetLatestForexRateHonoursCancellation(t *testing.T) {
 }
 
 func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("an API-key-required endpoint should fail before issuing an HTTP request")
 		http.NotFound(w, r)
 	}))
@@ -400,6 +401,7 @@ func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {
 
 	provider := new(FXMacroData)
 	require.NoError(t, provider.Setup(base.Settings{Name: providerName}), "Setup must not error")
+	require.NoError(t, provider.Requester.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 

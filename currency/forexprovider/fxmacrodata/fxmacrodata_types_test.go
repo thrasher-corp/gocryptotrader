@@ -47,6 +47,82 @@ func TestUnixSecondsJSONRejectsNonInteger(t *testing.T) {
 	assert.Error(t, json.Unmarshal([]byte(`"2026-08-14T03:55:54Z"`), &ts), "UnixSeconds should reject an RFC 3339 string")
 }
 
+func TestUnixNanosJSON(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"1990s publication", "916407000000000000", "1999-01-15T13:30:00Z"},
+		{"18-digit boundary", "999999999000000000", "2001-09-09T01:46:39Z"},
+		{"recent publication", "1786105800123456789", "2026-08-07T12:30:00.123456789Z"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var ts UnixNanos
+			require.NoError(t, json.Unmarshal([]byte(tc.raw), &ts), "UnixNanos must decode epoch nanoseconds")
+			assert.Equal(t, tc.want, ts.Time().UTC().Format(time.RFC3339Nano), "UnixNanos should decode the epoch as nanoseconds")
+
+			encoded, err := json.Marshal(ts)
+			require.NoError(t, err, "UnixNanos must encode epoch nanoseconds")
+			assert.Equal(t, tc.raw, string(encoded), "UnixNanos should round-trip the epoch unchanged")
+		})
+	}
+}
+
+func TestUnixNanosJSONZeroValue(t *testing.T) {
+	var ts UnixNanos
+	require.NoError(t, json.Unmarshal([]byte("null"), &ts), "UnixNanos must accept a null optional value")
+	assert.True(t, ts.Time().IsZero(), "UnixNanos should retain its zero value for null")
+
+	encoded, err := json.Marshal(ts)
+	require.NoError(t, err, "UnixNanos must encode its zero value")
+	assert.Equal(t, "null", string(encoded), "UnixNanos should encode its zero value as null")
+}
+
+func TestUnixNanosJSONRejectsNonInteger(t *testing.T) {
+	var ts UnixNanos
+	assert.Error(t, json.Unmarshal([]byte(`1786105800.5`), &ts), "UnixNanos should reject a fractional timestamp")
+	assert.Error(t, json.Unmarshal([]byte(`"1786105800123456789"`), &ts), "UnixNanos should reject a quoted timestamp")
+}
+
+func TestUnixMillisJSON(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"1990s chart point", "916407000000", "1999-01-15T13:30:00Z"},
+		{"12-digit boundary", "999999999000", "2001-09-09T01:46:39Z"},
+		{"recent chart point", "1786105800123", "2026-08-07T12:30:00.123Z"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var ts UnixMillis
+			require.NoError(t, json.Unmarshal([]byte(tc.raw), &ts), "UnixMillis must decode epoch milliseconds")
+			assert.Equal(t, tc.want, ts.Time().UTC().Format(time.RFC3339Nano), "UnixMillis should decode the epoch as milliseconds")
+
+			encoded, err := json.Marshal(ts)
+			require.NoError(t, err, "UnixMillis must encode epoch milliseconds")
+			assert.Equal(t, tc.raw, string(encoded), "UnixMillis should round-trip the epoch unchanged")
+		})
+	}
+}
+
+func TestUnixMillisJSONZeroValue(t *testing.T) {
+	var ts UnixMillis
+	require.NoError(t, json.Unmarshal([]byte("null"), &ts), "UnixMillis must accept a null optional value")
+	assert.True(t, ts.Time().IsZero(), "UnixMillis should retain its zero value for null")
+
+	encoded, err := json.Marshal(ts)
+	require.NoError(t, err, "UnixMillis must encode its zero value")
+	assert.Equal(t, "null", string(encoded), "UnixMillis should encode its zero value as null")
+}
+
+func TestUnixMillisJSONRejectsNonInteger(t *testing.T) {
+	var ts UnixMillis
+	assert.Error(t, json.Unmarshal([]byte(`1786105800123.5`), &ts), "UnixMillis should reject a fractional timestamp")
+	assert.Error(t, json.Unmarshal([]byte(`"1786105800123"`), &ts), "UnixMillis should reject a quoted timestamp")
+}
+
 func TestSourceNamesJSON(t *testing.T) {
 	var single SourceNames
 	require.NoError(t, json.Unmarshal([]byte(`"ECB"`), &single), "SourceNames must decode a single publisher name")

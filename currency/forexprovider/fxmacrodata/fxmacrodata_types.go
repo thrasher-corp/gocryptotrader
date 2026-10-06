@@ -105,6 +105,67 @@ func (u UnixSeconds) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.FormatInt(u.Time().Unix(), 10)), nil
 }
 
+// UnixMillis is a Unix timestamp in milliseconds. Like UnixSeconds it fixes the
+// unit, so source chart times before September 2001 decode correctly.
+type UnixMillis time.Time
+
+// UnmarshalJSON deserialises a Unix timestamp in milliseconds.
+func (u *UnixMillis) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+	millis, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing %q into Unix milliseconds: %w", data, err)
+	}
+	*u = UnixMillis(time.UnixMilli(millis).UTC())
+	return nil
+}
+
+// Time converts UnixMillis to time.Time.
+func (u UnixMillis) Time() time.Time {
+	return time.Time(u)
+}
+
+// MarshalJSON serialises the timestamp as Unix milliseconds.
+func (u UnixMillis) MarshalJSON() ([]byte, error) {
+	if u.Time().IsZero() {
+		return []byte("null"), nil
+	}
+	return []byte(strconv.FormatInt(u.Time().UnixMilli(), 10)), nil
+}
+
+// UnixNanos is a Unix timestamp in nanoseconds. Like UnixSeconds it fixes the
+// unit, so publisher-sourced publication instants before September 2001, which
+// have fewer than 19 digits, decode correctly.
+type UnixNanos time.Time
+
+// UnmarshalJSON deserialises a Unix timestamp in nanoseconds.
+func (u *UnixNanos) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+	nanos, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing %q into Unix nanoseconds: %w", data, err)
+	}
+	*u = UnixNanos(time.Unix(0, nanos).UTC())
+	return nil
+}
+
+// Time converts UnixNanos to time.Time.
+func (u UnixNanos) Time() time.Time {
+	return time.Time(u)
+}
+
+// MarshalJSON serialises the timestamp as Unix nanoseconds.
+func (u UnixNanos) MarshalJSON() ([]byte, error) {
+	if u.Time().IsZero() {
+		return []byte("null"), nil
+	}
+	return []byte(strconv.FormatInt(u.Time().UnixNano(), 10)), nil
+}
+
 // SourceNames is a list of publisher names. The rate-differential contract
 // declares each leg's source as either a single string or a list of strings,
 // so both are accepted and a single name decodes as a one-element list.
@@ -524,7 +585,7 @@ type RevisionEntry struct {
 	Change                   float64     `json:"change"`
 	ObservedAtNS             types.Time  `json:"observed_at_ns"`
 	ObservedAtNSString       string      `json:"observed_at_ns_string"`
-	PublicationAtNS          types.Time  `json:"publication_at_ns"`
+	PublicationAtNS          UnixNanos   `json:"publication_at_ns"`
 	PublicationAtNSString    string      `json:"publication_at_ns_string"`
 	AnnouncementSourceURL    string      `json:"announcement_source_url"`
 	SourceURL                string      `json:"source_url"`
@@ -565,7 +626,7 @@ type AnnouncementDataPoint struct {
 	ObservedAtNS                        types.Time      `json:"observed_at_ns"`
 	ObservedAtNSString                  string          `json:"observed_at_ns_string"`
 	CollectedAtNSString                 string          `json:"collected_at_ns_string"`
-	PublicationAtNS                     types.Time      `json:"publication_at_ns"`
+	PublicationAtNS                     UnixNanos       `json:"publication_at_ns"`
 	PublicationAtNSString               string          `json:"publication_at_ns_string"`
 	AnnouncementSourceURL               string          `json:"announcement_source_url"`
 	SourceArtifactSHA256                string          `json:"source_artifact_sha256"`
@@ -775,6 +836,11 @@ type CalendarResponse struct {
 	EndDate           Date                 `json:"end_date"`
 	DataQuality       DataQuality          `json:"data_quality"`
 	Data              []CalendarReleaseRow `json:"data"`
+	// HistoryTruncated reports that the requested start date precedes
+	// HistoryStartDate, the oldest release still retained, so a short result
+	// does not cover the whole requested window.
+	HistoryStartDate Date `json:"history_start_date"`
+	HistoryTruncated bool `json:"history_truncated"`
 }
 
 // CalendarReleaseRow is one scheduled macroeconomic release.
@@ -806,6 +872,12 @@ type CalendarReleaseRow struct {
 	EventImportance                       string      `json:"event_importance"`
 	MarketTier                            uint64      `json:"market_tier"`
 	TopTierForCurrency                    bool        `json:"top_tier_for_currency"`
+	// TimeAnnounced is true only when AnnouncementDatetime is the publisher's
+	// scheduled release time. When only the date is known, AnnouncementDate
+	// holds it and AnnouncementDatetime is midnight of that date in the
+	// publisher's timezone, a day marker rather than a release time.
+	TimeAnnounced    bool `json:"time_announced"`
+	AnnouncementDate Date `json:"announcement_date"`
 }
 
 // PredictionsResponse contains model and consensus forecasts for announcements.
@@ -1000,7 +1072,7 @@ type CommodityDataPoint struct {
 	SourceType             string      `json:"source_type"`
 	SourcePermissionStatus string      `json:"source_permission_status"`
 	SourceChartTimestamp   UnixSeconds `json:"source_chart_timestamp"`
-	SourceChartTimestampMS types.Time  `json:"source_chart_timestamp_ms"`
+	SourceChartTimestampMS UnixMillis  `json:"source_chart_timestamp_ms"`
 	SourceChartPeriod      string      `json:"source_chart_period"`
 	QuoteTimeStatus        string      `json:"quote_time_status"`
 	SamplingMethod         string      `json:"sampling_method"`
@@ -1022,7 +1094,7 @@ type CommodityObservation struct {
 	SourceType             string      `json:"source_type"`
 	SourcePermissionStatus string      `json:"source_permission_status"`
 	SourceChartTimestamp   UnixSeconds `json:"source_chart_timestamp"`
-	SourceChartTimestampMS types.Time  `json:"source_chart_timestamp_ms"`
+	SourceChartTimestampMS UnixMillis  `json:"source_chart_timestamp_ms"`
 	SourceChartPeriod      string      `json:"source_chart_period"`
 	QuoteTimeStatus        string      `json:"quote_time_status"`
 	SamplingMethod         string      `json:"sampling_method"`
@@ -1182,7 +1254,7 @@ type ForexDataPoint struct {
 	SourceType                   string          `json:"source_type"`
 	SourcePermissionStatus       string          `json:"source_permission_status"`
 	SourceChartTimestamp         UnixSeconds     `json:"source_chart_timestamp"`
-	SourceChartTimestampMS       types.Time      `json:"source_chart_timestamp_ms"`
+	SourceChartTimestampMS       UnixMillis      `json:"source_chart_timestamp_ms"`
 	SourceChartPeriod            string          `json:"source_chart_period"`
 	QuoteTimeStatus              string          `json:"quote_time_status"`
 	SamplingMethod               string          `json:"sampling_method"`
@@ -1419,13 +1491,17 @@ type PressReleaseItem struct {
 
 // RatePathSignal is the hawkish/dovish interpretation supplied with a release.
 type RatePathSignal struct {
-	Score      float64 `json:"score"`
-	Label      string  `json:"label"`
-	BiasAction string  `json:"bias_action"`
-	Confidence string  `json:"confidence"`
-	RawScore   float64 `json:"raw_score"`
-	// Matches stays untyped until the contract settles: the schema declares a
-	// list of strings, while the endpoint's own response example carries
-	// phrase/weight objects and the live endpoint sends an empty list.
-	Matches any `json:"matches"`
+	Score      float64         `json:"score"`
+	Label      string          `json:"label"`
+	BiasAction string          `json:"bias_action"`
+	Confidence string          `json:"confidence"`
+	RawScore   float64         `json:"raw_score"`
+	Matches    []RatePathMatch `json:"matches"`
+}
+
+// RatePathMatch is one scoring phrase found in a release. Positive weights are
+// hawkish and negative weights dovish.
+type RatePathMatch struct {
+	Phrase string  `json:"phrase"`
+	Weight float64 `json:"weight"`
 }

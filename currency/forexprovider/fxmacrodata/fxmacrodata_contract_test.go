@@ -369,7 +369,8 @@ func TestAnnouncements(t *testing.T) {
 		"vintage_status":"captured_snapshot","observed_at_ns":1786105806674741407,
 		"revisions":[{"epoch":1786100000,"val":2.6,"is_first_release":true}],"remap_applied":false},
 		{"announcement_id":"usd_inflation_1999-01-15","date":"1998-12-31","val":1.6,
-		"announcement_datetime":916407000,"release_time_assumed":true},
+		"announcement_datetime":916407000,"release_time_assumed":true,"publication_at_ns":916407000000000000,
+		"revisions":[{"epoch":916407000,"val":1.5,"publication_at_ns":999999999000000000}]},
 		{"announcement_id":"usd_inflation_1914-02-13","date":"1914-01-31","val":2.0,
 		"announcement_datetime":-1763461800,"release_time_assumed":true}]
 	}`, true)
@@ -436,6 +437,8 @@ func TestAnnouncements(t *testing.T) {
 				Val:                  1.6,
 				AnnouncementDatetime: unixSeconds(916407000),
 				ReleaseTimeAssumed:   true,
+				PublicationAtNS:      UnixNanos(time.Unix(0, 916407000000000000).UTC()),
+				Revisions:            []RevisionEntry{{Epoch: unixSeconds(916407000), Val: 1.5, PublicationAtNS: UnixNanos(time.Unix(0, 999999999000000000).UTC())}},
 			},
 			{
 				AnnouncementID:       "usd_inflation_1914-02-13",
@@ -449,6 +452,10 @@ func TestAnnouncements(t *testing.T) {
 	assert.Equal(t, exp, response, "Announcements should decode every fixture field")
 	assert.Equal(t, "1999-01-15T13:30:00Z", response.Data[1].AnnouncementDatetime.Time().Format(time.RFC3339),
 		"Announcements should decode a nine-digit epoch as seconds")
+	assert.Equal(t, "1999-01-15T13:30:00Z", response.Data[1].PublicationAtNS.Time().Format(time.RFC3339),
+		"Announcements should decode an 18-digit publication_at_ns as nanoseconds")
+	assert.Equal(t, "2001-09-09T01:46:39Z", response.Data[1].Revisions[0].PublicationAtNS.Time().Format(time.RFC3339),
+		"Announcements should decode a revision's 18-digit publication_at_ns as nanoseconds")
 	assert.Equal(t, "1914-02-13T13:30:00Z", response.Data[2].AnnouncementDatetime.Time().Format(time.RFC3339),
 		"Announcements should decode a negative epoch as seconds")
 }
@@ -558,12 +565,15 @@ func TestAnnouncementChanges(t *testing.T) {
 func TestCalendar(t *testing.T) {
 	provider, closeServer := newContractProvider(t, "/api/v1/calendar/usd", `{
 		"currency":"USD","timezone":"America/New_York","requested_timezone":"UTC",
-		"data_quality":{"row_count":1},"data":[{"announcement_datetime":1786105800,
+		"history_start_date":"2026-07-27","history_truncated":true,
+		"data_quality":{"row_count":2},"data":[{"announcement_datetime":1786105800,
 		"release":"inflation","calendar_event_id":"usd_inflation_2026-08-07",
 		"announcement_datetime_utc":"2026-08-07T12:30:00Z","announcement_datetime_local":"2026-08-07T12:30:00Z",
-		"release_date_confirmed":true,"release_time_assumed":false,"source":"BLS",
+		"release_date_confirmed":true,"release_time_assumed":false,"time_announced":true,"source":"BLS",
 		"source_url":"https://www.bls.gov/schedule/","date":"2026-07-31","event_importance":"high",
-		"market_tier":1,"top_tier_for_currency":true}]
+		"market_tier":1,"top_tier_for_currency":true},
+		{"announcement_datetime":1786593600,"release":"retail_sales","release_date_confirmed":true,
+		"time_announced":false,"announcement_date":"2026-08-13"}]
 	}`, true)
 	defer closeServer()
 
@@ -573,7 +583,7 @@ func TestCalendar(t *testing.T) {
 		Currency:          usd,
 		Timezone:          "America/New_York",
 		RequestedTimezone: "UTC",
-		DataQuality:       DataQuality{RowCount: 1},
+		DataQuality:       DataQuality{RowCount: 2},
 		Data: []CalendarReleaseRow{{
 			AnnouncementDatetime:      unixSeconds(1786105800),
 			Release:                   inflation,
@@ -581,13 +591,21 @@ func TestCalendar(t *testing.T) {
 			AnnouncementDatetimeUTC:   utcTime(t, "2026-08-07T12:30:00Z"),
 			AnnouncementDatetimeLocal: utcTime(t, "2026-08-07T12:30:00Z"),
 			ReleaseDateConfirmed:      true,
+			TimeAnnounced:             true,
 			Source:                    "BLS",
 			SourceURL:                 "https://www.bls.gov/schedule/",
 			Date:                      calendarDay(2026, time.July, 31),
 			EventImportance:           "high",
 			MarketTier:                1,
 			TopTierForCurrency:        true,
+		}, {
+			AnnouncementDatetime: unixSeconds(1786593600),
+			Release:              "retail_sales",
+			ReleaseDateConfirmed: true,
+			AnnouncementDate:     calendarDay(2026, time.August, 13),
 		}},
+		HistoryStartDate: calendarDay(2026, time.July, 27),
+		HistoryTruncated: true,
 	}
 	assert.Equal(t, exp, response, "Calendar should decode every fixture field")
 }
@@ -1032,7 +1050,8 @@ func TestPressReleases(t *testing.T) {
 		"limit":1,"offset":0,"count":1,"pagination":{"limit":1,"returned_count":1,"total_count":1,"has_more":false},
 		"data":[{"title":"Policy statement","url":"https://example.test/release","date":"2026-07-20",
 		"summary":"Held rates","sentiment":0,"topics":["policy"],"category":"monetary_policy","relevance":0.9,
-		"rate_path":{"score":0,"label":"Neutral","bias_action":"hold","confidence":"low","raw_score":0,"matches":[]}}]
+		"rate_path":{"score":0,"label":"Neutral","bias_action":"hold","confidence":"low","raw_score":0,
+		"matches":[{"phrase":"elevated inflation","weight":0.5},{"phrase":"downside risks","weight":-0.5}]}}]
 	}`, true)
 	defer closeServer()
 
@@ -1053,7 +1072,12 @@ func TestPressReleases(t *testing.T) {
 			Topics:    []string{"policy"},
 			Category:  "monetary_policy",
 			Relevance: 0.9,
-			RatePath:  RatePathSignal{Label: "Neutral", BiasAction: "hold", Confidence: "low", Matches: []any{}},
+			RatePath: RatePathSignal{
+				Label:      "Neutral",
+				BiasAction: "hold",
+				Confidence: "low",
+				Matches:    []RatePathMatch{{Phrase: "elevated inflation", Weight: 0.5}, {Phrase: "downside risks", Weight: -0.5}},
+			},
 		}},
 	}
 	assert.Equal(t, exp, response, "PressReleases should decode every fixture field")
