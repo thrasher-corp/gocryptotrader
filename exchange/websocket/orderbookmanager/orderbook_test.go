@@ -1,6 +1,7 @@
-package buffer
+package orderbookmanager
 
 import (
+	"context"
 	"math/rand/v2"
 	"strconv"
 	"sync"
@@ -11,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -37,7 +37,7 @@ func getExclusivePair() (currency.Pair, error) {
 	return currency.NewPairFromStrings(currency.BTC.String(), currency.USDT.String()+strconv.FormatInt(offset.IncrementAndGet(), 10))
 }
 
-func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook.Levels, err error) {
+func createSnapshot(ctx context.Context, pair currency.Pair) (holder *Orderbook, asks, bids orderbook.Levels, err error) {
 	asks = orderbook.Levels{{Price: 4000, Amount: 1, ID: 6}}
 	bids = orderbook.Levels{{Price: 4000, Amount: 1, ID: 6}}
 
@@ -53,7 +53,7 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 		ValidateOrderbook: true,
 	}
 
-	newBook := make(map[key.PairAsset]*orderbookHolder)
+	newBook := make(map[key.PairAsset]*orderbook.Depth)
 
 	relay := stream.NewRelay(10)
 	go func(relay *stream.Relay) { // reader
@@ -66,101 +66,18 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 		dataHandler:  relay,
 		ob:           newBook,
 	}
-	err = holder.LoadSnapshot(book)
+	err = holder.LoadSnapshot(ctx, book)
 	return holder, asks, bids, err
 }
 
-// BenchmarkBufferPerformance demonstrates buffer more performant than multi
-// process calls
-// 890016	      1688 ns/op	     416 B/op	       3 allocs/op
-func BenchmarkBufferPerformance(b *testing.B) {
+// BenchmarkUpdatePerformance benchmarks applying orderbook updates directly.
+func BenchmarkUpdatePerformance(b *testing.B) {
 	cp, err := getExclusivePair()
 	require.NoError(b, err)
 
-	holder, asks, bids, err := createSnapshot(cp)
+	obl, asks, bids, err := createSnapshot(b.Context(), cp)
 	require.NoError(b, err)
-
-	holder.bufferEnabled = true
-	update := &orderbook.Update{
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       cp,
-		UpdateTime: time.Now(),
-		Asset:      asset.Spot,
-	}
-	for b.Loop() {
-		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
-		update.Asks = itemArray[randomIndex]
-		update.Bids = itemArray[randomIndex]
-		require.NoError(b, holder.Update(update))
-	}
-}
-
-// BenchmarkBufferSortingPerformance benchmark
-//
-//	613964	      2093 ns/op	     440 B/op	       4 allocs/op
-func BenchmarkBufferSortingPerformance(b *testing.B) {
-	cp, err := getExclusivePair()
-	require.NoError(b, err)
-
-	holder, asks, bids, err := createSnapshot(cp)
-	require.NoError(b, err)
-
-	holder.bufferEnabled = true
-	holder.sortBuffer = true
-	update := &orderbook.Update{
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       cp,
-		UpdateTime: time.Now(),
-		Asset:      asset.Spot,
-	}
-	for b.Loop() {
-		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
-		update.Asks = itemArray[randomIndex]
-		update.Bids = itemArray[randomIndex]
-		require.NoError(b, holder.Update(update))
-	}
-}
-
-// 914500	      1599 ns/op	     440 B/op	       4 allocs/op
-func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
-	cp, err := getExclusivePair()
-	require.NoError(b, err)
-
-	holder, asks, bids, err := createSnapshot(cp)
-	require.NoError(b, err)
-
-	holder.bufferEnabled = true
-	holder.sortBuffer = true
-	holder.sortBufferByUpdateIDs = true
-	update := &orderbook.Update{
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       cp,
-		UpdateTime: time.Now(),
-		Asset:      asset.Spot,
-	}
-
-	for b.Loop() {
-		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
-		update.Asks = itemArray[randomIndex]
-		update.Bids = itemArray[randomIndex]
-		require.NoError(b, holder.Update(update))
-	}
-}
-
-// BenchmarkNoBufferPerformance demonstrates orderbook process more performant
-// than buffer
-//   122659	     12792 ns/op	     972 B/op	       7 allocs/op PRIOR
-//  1225924	      1028 ns/op	     240 B/op	       2 allocs/op CURRENT
-
-func BenchmarkNoBufferPerformance(b *testing.B) {
-	cp, err := getExclusivePair()
-	require.NoError(b, err)
-
-	obl, asks, bids, err := createSnapshot(cp)
-	require.NoError(b, err)
+	obl.dataHandler = stream.NewRelay(1)
 
 	update := &orderbook.Update{
 		Bids:       bids,
@@ -174,25 +91,23 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
-		require.NoError(b, obl.Update(update))
+		require.NoError(b, obl.Update(b.Context(), update))
+		<-obl.dataHandler.C
 	}
 }
 
-// TestHittingTheBuffer logic test
-func TestHittingTheBuffer(t *testing.T) {
+func TestUpdatesAppliedImmediately(t *testing.T) {
 	t.Parallel()
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
-	holder, _, _, err := createSnapshot(cp)
+	holder, _, _, err := createSnapshot(t.Context(), cp)
 	require.NoError(t, err)
 
-	holder.bufferEnabled = true
-	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = holder.Update(&orderbook.Update{
+		err = holder.Update(t.Context(), &orderbook.Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -203,13 +118,13 @@ func TestHittingTheBuffer(t *testing.T) {
 	}
 
 	book := holder.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
-	askLen, err := book.ob.GetAskLength()
+	askLen, err := book.GetAskLength()
 	require.NoError(t, err)
-	assert.Equal(t, 3, askLen)
+	assert.Equal(t, 4, askLen)
 
-	bidLen, err := book.ob.GetBidLength()
+	bidLen, err := book.GetBidLength()
 	require.NoError(t, err)
-	assert.Equal(t, 3, bidLen)
+	assert.Equal(t, 4, bidLen)
 }
 
 // TestInsertWithIDs logic test
@@ -218,18 +133,16 @@ func TestInsertWithIDs(t *testing.T) {
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
-	holder, _, _, err := createSnapshot(cp)
+	holder, _, _, err := createSnapshot(t.Context(), cp)
 	require.NoError(t, err)
 
-	holder.bufferEnabled = true
-	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
 		if asks[0].Amount <= 0 {
 			continue
 		}
 		bids := itemArray[i]
-		err = holder.Update(&orderbook.Update{
+		err = holder.Update(t.Context(), &orderbook.Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -241,16 +154,15 @@ func TestInsertWithIDs(t *testing.T) {
 	}
 
 	book := holder.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
-	askLen, err := book.ob.GetAskLength()
+	askLen, err := book.GetAskLength()
 	require.NoError(t, err)
 	assert.Equal(t, 6, askLen)
 
-	bidLen, err := book.ob.GetBidLength()
+	bidLen, err := book.GetBidLength()
 	require.NoError(t, err)
 	assert.Equal(t, 6, bidLen)
 
-	holder.obBufferLimit = 1
-	err = holder.Update(&orderbook.Update{
+	err = holder.Update(t.Context(), &orderbook.Update{
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 		Pair:       cp,
@@ -258,73 +170,27 @@ func TestInsertWithIDs(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrEmptyUpdate)
 }
 
-// TestSortIDs logic test
-func TestSortIDs(t *testing.T) {
+func TestUpdatesAppliedInArrivalOrder(t *testing.T) {
 	t.Parallel()
 	cp, err := getExclusivePair()
-	require.NoError(t, err)
+	require.NoError(t, err, "getExclusivePair must not error")
 
-	holder, _, _, err := createSnapshot(cp)
-	require.NoError(t, err)
+	holder, _, _, err := createSnapshot(t.Context(), cp)
+	require.NoError(t, err, "createSnapshot must not error")
 
-	holder.bufferEnabled = true
-	holder.sortBufferByUpdateIDs = true
-	holder.sortBuffer = true
-	holder.obBufferLimit = 5
-	for i := range itemArray {
-		asks := itemArray[i]
-		bids := itemArray[i]
-		err = holder.Update(&orderbook.Update{
-			Bids:       bids,
-			Asks:       asks,
-			Pair:       cp,
-			UpdateID:   int64(i),
-			Asset:      asset.Spot,
-			UpdateTime: time.Now(),
-		})
-		require.NoError(t, err)
+	now := time.Now()
+	// The higher ID and later time arrive first, so sorting by either would apply them last.
+	for _, update := range []*orderbook.Update{
+		{Pair: cp, Asset: asset.Spot, UpdateID: 69422, UpdateTime: now.Add(time.Second), Asks: orderbook.Levels{{Price: 4000, Amount: 3}}},
+		{Pair: cp, Asset: asset.Spot, UpdateID: 69421, UpdateTime: now, Asks: orderbook.Levels{{Price: 4000, Amount: 2}}},
+	} {
+		require.NoError(t, holder.Update(t.Context(), update), "Update must not error")
 	}
-	book := holder.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
-	askLen, err := book.ob.GetAskLength()
-	require.NoError(t, err)
-	assert.Equal(t, 3, askLen)
 
-	bidLen, err := book.ob.GetBidLength()
-	require.NoError(t, err)
-	assert.Equal(t, 3, bidLen)
-}
-
-// TestOutOfOrderIDs logic test
-func TestOutOfOrderIDs(t *testing.T) {
-	t.Parallel()
-	cp, err := getExclusivePair()
-	require.NoError(t, err)
-
-	holder, _, _, err := createSnapshot(cp)
-	require.NoError(t, err)
-
-	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6, 7}
-	assert.Equal(t, 1000., itemArray[0][0].Price)
-
-	holder.bufferEnabled = true
-	holder.sortBuffer = true
-	holder.obBufferLimit = 5
-	for i := range itemArray {
-		asks := itemArray[i]
-		err = holder.Update(&orderbook.Update{
-			Asks:       asks,
-			Pair:       cp,
-			UpdateID:   outOFOrderIDs[i],
-			Asset:      asset.Spot,
-			UpdateTime: time.Now(),
-		})
-		require.NoError(t, err)
-	}
-	book := holder.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
-	cpy, err := book.ob.Retrieve()
-	require.NoError(t, err)
-	// Index 1 since index 0 is price 7000
-	assert.Equal(t, 2000., cpy.Asks[1].Price)
+	book, err := holder.GetOrderbook(cp, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Len(t, book.Asks, 1, "GetOrderbook must return one ask level")
+	assert.Equal(t, 2.0, book.Asks[0].Amount, "Update should apply updates in arrival order")
 }
 
 func TestOrderbookLastUpdateID(t *testing.T) {
@@ -332,13 +198,13 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
-	holder, _, _, err := createSnapshot(cp)
+	holder, _, _, err := createSnapshot(t.Context(), cp)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1000., itemArray[0][0].Price)
 
 	// this update invalidates the book
-	err = holder.Update(&orderbook.Update{
+	err = holder.Update(t.Context(), &orderbook.Update{
 		Asks:             orderbook.Levels{{Price: 999999}},
 		Pair:             cp,
 		UpdateID:         -1,
@@ -352,12 +218,12 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	cp, err = getExclusivePair()
 	require.NoError(t, err)
 
-	holder, _, _, err = createSnapshot(cp)
+	holder, _, _, err = createSnapshot(t.Context(), cp)
 	require.NoError(t, err)
 
 	for i := range itemArray {
 		asks := itemArray[i]
-		err = holder.Update(&orderbook.Update{
+		err = holder.Update(t.Context(), &orderbook.Update{
 			Asks:                       asks,
 			Pair:                       cp,
 			UpdateID:                   int64(i) + 1 + 69420,
@@ -371,7 +237,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	}
 
 	// out of order
-	err = holder.Update(&orderbook.Update{
+	err = holder.Update(t.Context(), &orderbook.Update{
 		Asks:                       orderbook.Levels{{Price: 999999}},
 		Pair:                       cp,
 		UpdateID:                   1,
@@ -395,7 +261,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	asks := []orderbook.Level{{Price: 4000, Amount: 1, ID: 8}}
 	bids := []orderbook.Level{{Price: 5999, Amount: 1, ID: 8}, {Price: 4000, Amount: 1, ID: 9}}
 	holder.exchangeName = exchangeName
-	err = holder.Update(&orderbook.Update{
+	err = holder.Update(t.Context(), &orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -411,11 +277,11 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
-	holder, _, _, err := createSnapshot(cp)
+	holder, _, _, err := createSnapshot(t.Context(), cp)
 	require.NoError(t, err)
 
 	holder.exchangeName = exchangeName
-	err = holder.Update(&orderbook.Update{
+	err = holder.Update(t.Context(), &orderbook.Update{
 		Bids:       orderbook.Levels{},
 		Asks:       orderbook.Levels{},
 		Pair:       cp,
@@ -425,28 +291,22 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	require.ErrorIs(t, err, orderbook.ErrEmptyUpdate)
 }
 
-func TestUpdateHolder(t *testing.T) {
+func TestUpdateDepth(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
 		name          string
-		bufferEnabled bool
-		bufferLimit   int
 		allowEmpty    bool
 		updateID      int64
 		relayFull     bool
 		wantUpdateID  int64
-		wantBufferLen int
 		wantRelayLen  int
 		wantErr       error
 		wantErrText   string
 		wantLastIDErr error
 	}{
-		{name: "unbuffered", allowEmpty: true, updateID: 69421, wantUpdateID: 69421, wantRelayLen: 1},
-		{name: "unbuffered invalid", wantErr: orderbook.ErrEmptyUpdate, wantLastIDErr: orderbook.ErrOrderbookInvalid},
-		{name: "buffered pending", bufferEnabled: true, bufferLimit: 2, allowEmpty: true, updateID: 69421, wantUpdateID: 69420, wantBufferLen: 1},
-		{name: "buffered applied", bufferEnabled: true, bufferLimit: 1, allowEmpty: true, updateID: 69421, wantUpdateID: 69421, wantRelayLen: 1},
-		{name: "buffered invalid", bufferEnabled: true, bufferLimit: 1, wantErr: orderbook.ErrEmptyUpdate, wantLastIDErr: orderbook.ErrOrderbookInvalid},
+		{name: "valid", allowEmpty: true, updateID: 69421, wantUpdateID: 69421, wantRelayLen: 1},
+		{name: "invalid", wantErr: orderbook.ErrEmptyUpdate, wantLastIDErr: orderbook.ErrOrderbookInvalid},
 		{name: "relay full", allowEmpty: true, updateID: 69421, relayFull: true, wantUpdateID: 69421, wantRelayLen: 1, wantErrText: "channel buffer is full"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -455,8 +315,8 @@ func TestUpdateHolder(t *testing.T) {
 			cp, err := getExclusivePair()
 			require.NoError(t, err, "getExclusivePair must not error")
 			relay := stream.NewRelay(1)
-			obl := &Orderbook{exchangeName: exchangeName, ob: make(map[key.PairAsset]*orderbookHolder), dataHandler: relay}
-			err = obl.LoadSnapshot(&orderbook.Book{
+			obl := &Orderbook{exchangeName: exchangeName, ob: make(map[key.PairAsset]*orderbook.Depth), dataHandler: relay}
+			err = obl.LoadSnapshot(t.Context(), &orderbook.Book{
 				Exchange:     exchangeName,
 				Pair:         cp,
 				Asset:        asset.Spot,
@@ -467,16 +327,14 @@ func TestUpdateHolder(t *testing.T) {
 			<-relay.C
 
 			bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
-			holder := obl.ob[bookKey]
-			require.NotNil(t, holder, "LoadSnapshot must install an orderbook holder")
+			depth := obl.ob[bookKey]
+			require.NotNil(t, depth, "LoadSnapshot must install an orderbook depth")
 			delete(obl.ob, bookKey)
-			obl.bufferEnabled = tc.bufferEnabled
-			obl.obBufferLimit = tc.bufferLimit
 			if tc.relayFull {
 				require.NoError(t, relay.Send(t.Context(), "full"), "Send must not error while filling the relay")
 			}
 
-			err = obl.updateHolder(holder, &orderbook.Update{
+			err = obl.updateDepth(t.Context(), depth, &orderbook.Update{
 				Pair:       cp,
 				Asset:      asset.Spot,
 				AllowEmpty: tc.allowEmpty,
@@ -485,24 +343,54 @@ func TestUpdateHolder(t *testing.T) {
 			})
 			switch {
 			case tc.wantErr != nil:
-				require.ErrorIs(t, err, tc.wantErr, "updateHolder must return the expected error")
+				require.ErrorIs(t, err, tc.wantErr, "updateDepth must return the expected error")
 			case tc.wantErrText != "":
-				require.ErrorContains(t, err, tc.wantErrText, "updateHolder must return the expected relay error")
+				require.ErrorContains(t, err, tc.wantErrText, "updateDepth must return the expected relay error")
 			default:
-				require.NoError(t, err, "updateHolder must not error")
+				require.NoError(t, err, "updateDepth must not error")
 			}
 
-			lastUpdateID, err := holder.ob.LastUpdateID()
+			lastUpdateID, err := depth.LastUpdateID()
 			if tc.wantLastIDErr != nil {
-				require.ErrorIs(t, err, tc.wantLastIDErr, "LastUpdateID must return the expected holder error")
+				require.ErrorIs(t, err, tc.wantLastIDErr, "LastUpdateID must return the expected depth error")
 			} else {
 				require.NoError(t, err, "LastUpdateID must not error")
-				assert.Equal(t, tc.wantUpdateID, lastUpdateID, "updateHolder should leave the expected update ID")
+				assert.Equal(t, tc.wantUpdateID, lastUpdateID, "updateDepth should leave the expected update ID")
 			}
-			assert.Len(t, holder.buffer, tc.wantBufferLen, "updateHolder should leave the expected buffered-update count")
-			assert.Len(t, relay.C, tc.wantRelayLen, "updateHolder should leave the expected relayed-update count")
+			assert.Len(t, relay.C, tc.wantRelayLen, "updateDepth should leave the expected relayed-update count")
 		})
 	}
+}
+
+func TestRelayContext(t *testing.T) {
+	type contextKey string
+	const ctxKey contextKey = "orderbook-manager-test"
+	common.RegisterContextKey(ctxKey)
+	ctx := context.WithValue(t.Context(), ctxKey, "value")
+	pair, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	relay := stream.NewRelay(2)
+	manager := &Orderbook{exchangeName: exchangeName, ob: make(map[key.PairAsset]*orderbook.Depth), dataHandler: relay}
+
+	err = manager.LoadSnapshot(ctx, &orderbook.Book{
+		Exchange:    exchangeName,
+		Pair:        pair,
+		Asset:       asset.Spot,
+		LastUpdated: time.Now(),
+	})
+	require.NoError(t, err, "LoadSnapshot must not error")
+	snapshotPayload := <-relay.C
+	assert.Equal(t, "value", snapshotPayload.Ctx[ctxKey], "LoadSnapshot should relay the caller context")
+
+	err = manager.Update(ctx, &orderbook.Update{
+		Pair:       pair,
+		Asset:      asset.Spot,
+		AllowEmpty: true,
+		UpdateTime: time.Now(),
+	})
+	require.NoError(t, err, "Update must not error")
+	updatePayload := <-relay.C
+	assert.Equal(t, "value", updatePayload.Ctx[ctxKey], "Update should relay the caller context")
 }
 
 // TestRunSnapshotWithNoData logic test
@@ -512,7 +400,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	require.NoError(t, err)
 
 	var obl Orderbook
-	obl.ob = make(map[key.PairAsset]*orderbookHolder)
+	obl.ob = make(map[key.PairAsset]*orderbook.Depth)
 	obl.dataHandler = stream.NewRelay(1)
 	var snapShot1 orderbook.Book
 	snapShot1.Asset = asset.Spot
@@ -520,7 +408,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	snapShot1.Exchange = "test"
 	obl.exchangeName = "test"
 	snapShot1.LastUpdated = time.Now()
-	require.NoError(t, obl.LoadSnapshot(&snapShot1))
+	require.NoError(t, obl.LoadSnapshot(t.Context(), &snapShot1))
 }
 
 // TestLoadSnapshot logic test
@@ -531,15 +419,15 @@ func TestLoadSnapshot(t *testing.T) {
 
 	var obl Orderbook
 	obl.dataHandler = stream.NewRelay(100)
-	obl.ob = make(map[key.PairAsset]*orderbookHolder)
+	obl.ob = make(map[key.PairAsset]*orderbook.Depth)
 
-	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, ValidateOrderbook: true})
+	err = obl.LoadSnapshot(t.Context(), &orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, ValidateOrderbook: true})
 	require.ErrorIs(t, err, orderbook.ErrPriceZero)
 
-	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}})
+	err = obl.LoadSnapshot(t.Context(), &orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}})
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, Exchange: "test", Pair: cp, Asset: asset.Spot})
+	err = obl.LoadSnapshot(t.Context(), &orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, Exchange: "test", Pair: cp, Asset: asset.Spot})
 	require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet)
 
 	var snapShot1 orderbook.Book
@@ -551,17 +439,17 @@ func TestLoadSnapshot(t *testing.T) {
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	snapShot1.LastUpdated = time.Now()
-	require.NoError(t, obl.LoadSnapshot(&snapShot1))
+	require.NoError(t, obl.LoadSnapshot(t.Context(), &snapShot1))
 	bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
-	existingHolder := obl.ob[bookKey]
-	require.NotNil(t, existingHolder, "LoadSnapshot must install an orderbook holder")
+	existingDepth := obl.ob[bookKey]
+	require.NotNil(t, existingDepth, "LoadSnapshot must install an orderbook depth")
 	snapShot1.LastUpdateID = 1
 	snapShot1.LastUpdated = time.Now()
-	require.NoError(t, obl.LoadSnapshot(&snapShot1), "LoadSnapshot must not error for an existing holder")
-	assert.Same(t, existingHolder, obl.ob[bookKey], "LoadSnapshot should reuse an existing holder")
+	require.NoError(t, obl.LoadSnapshot(t.Context(), &snapShot1), "LoadSnapshot must not error for an existing depth")
+	assert.Same(t, existingDepth, obl.ob[bookKey], "LoadSnapshot should reuse an existing depth")
 }
 
-func TestLoadSnapshotConcurrentHolderStability(t *testing.T) {
+func TestLoadSnapshotConcurrentDepthStability(t *testing.T) {
 	t.Parallel()
 
 	cp, err := getExclusivePair()
@@ -571,17 +459,17 @@ func TestLoadSnapshotConcurrentHolderStability(t *testing.T) {
 	obl := Orderbook{
 		dataHandler:  stream.NewRelay(snapshotCount),
 		exchangeName: exchangeName,
-		ob:           make(map[key.PairAsset]*orderbookHolder),
+		ob:           make(map[key.PairAsset]*orderbook.Depth),
 	}
 	bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
 	start := make(chan struct{})
 	errs := make([]error, snapshotCount)
-	holders := make([]*orderbookHolder, snapshotCount)
+	depths := make([]*orderbook.Depth, snapshotCount)
 	var wg sync.WaitGroup
 	for i := range snapshotCount {
 		wg.Go(func() {
 			<-start
-			errs[i] = obl.LoadSnapshot(&orderbook.Book{
+			errs[i] = obl.LoadSnapshot(t.Context(), &orderbook.Book{
 				Exchange:     exchangeName,
 				Pair:         cp,
 				Asset:        asset.Spot,
@@ -589,41 +477,19 @@ func TestLoadSnapshotConcurrentHolderStability(t *testing.T) {
 				LastUpdateID: int64(i + 1),
 			})
 			obl.m.RLock()
-			holders[i] = obl.ob[bookKey]
+			depths[i] = obl.ob[bookKey]
 			obl.m.RUnlock()
 		})
 	}
 	close(start)
 	wg.Wait()
 
-	require.NotNil(t, holders[0], "LoadSnapshot must retain an orderbook holder")
+	require.NotNil(t, depths[0], "LoadSnapshot must retain an orderbook depth")
 	for i := range snapshotCount {
 		require.NoErrorf(t, errs[i], "LoadSnapshot must not error for concurrent snapshot %d", i)
-		assert.Samef(t, holders[0], holders[i], "LoadSnapshot should retain one holder for concurrent snapshot %d", i)
+		assert.Samef(t, depths[0], depths[i], "LoadSnapshot should retain one depth for concurrent snapshot %d", i)
 	}
 	require.Len(t, obl.ob, 1, "LoadSnapshot must retain one orderbook entry")
-}
-
-// TestFlushBuffer logic test
-func TestFlushBuffer(t *testing.T) {
-	t.Parallel()
-	cp, err := getExclusivePair()
-	require.NoError(t, err)
-
-	obl, _, _, err := createSnapshot(cp)
-	require.NoError(t, err, "createSnapshot must not error")
-	require.NotEmpty(t, obl.ob, "createSnapshot must not return empty")
-
-	k := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
-	holder, ok := obl.ob[k]
-	require.Truef(t, ok, "createSnapshot must return a orderbook for %v", k)
-
-	holder.buffer = make([]orderbook.Update, 0, 10)
-	holder.buffer = append(holder.buffer, orderbook.Update{})
-
-	obl.FlushBuffer()
-	assert.Empty(t, holder.buffer, "FlushBuffer should empty buffer")
-	assert.Equal(t, 10, cap(holder.buffer), "FlushBuffer should leave the buffer cap to avoid reallocs")
 }
 
 // TestInsertingSnapShots logic test
@@ -634,7 +500,7 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	var holder Orderbook
 	holder.dataHandler = stream.NewRelay(100)
-	holder.ob = make(map[key.PairAsset]*orderbookHolder)
+	holder.ob = make(map[key.PairAsset]*orderbook.Depth)
 	var snapShot1 orderbook.Book
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
 	asks := []orderbook.Level{
@@ -670,7 +536,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	snapShot1.LastUpdated = time.Now()
-	require.NoError(t, holder.LoadSnapshot(&snapShot1))
+	require.NoError(t, holder.LoadSnapshot(t.Context(), &snapShot1))
 
 	var snapShot2 orderbook.Book
 	snapShot2.Exchange = "WSORDERBOOKTEST2"
@@ -711,7 +577,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	require.NoError(t, err)
 
 	snapShot2.LastUpdated = time.Now()
-	require.NoError(t, holder.LoadSnapshot(&snapShot2))
+	require.NoError(t, holder.LoadSnapshot(t.Context(), &snapShot2))
 
 	var snapShot3 orderbook.Book
 	snapShot3.Exchange = "WSORDERBOOKTEST3"
@@ -752,7 +618,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	require.NoError(t, err)
 
 	snapShot3.LastUpdated = time.Now()
-	require.NoError(t, holder.LoadSnapshot(&snapShot3))
+	require.NoError(t, holder.LoadSnapshot(t.Context(), &snapShot3))
 
 	ob, err := holder.GetOrderbook(snapShot1.Pair, snapShot1.Asset)
 	require.NoError(t, err)
@@ -772,7 +638,7 @@ func TestGetOrderbook(t *testing.T) {
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
-	holder, _, _, err := createSnapshot(cp)
+	holder, _, _, err := createSnapshot(t.Context(), cp)
 	require.NoError(t, err)
 
 	_, err = holder.GetOrderbook(currency.EMPTYPAIR, asset.Spot)
@@ -787,14 +653,14 @@ func TestGetOrderbook(t *testing.T) {
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
 	require.NoError(t, err)
 
-	bufferOb := holder.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
-	b, err := bufferOb.ob.Retrieve()
+	managedBook := holder.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
+	b, err := managedBook.Retrieve()
 	require.NoError(t, err)
 
-	askLen, err := bufferOb.ob.GetAskLength()
+	askLen, err := managedBook.GetAskLength()
 	require.NoError(t, err)
 
-	bidLen, err := bufferOb.ob.GetBidLength()
+	bidLen, err := managedBook.GetBidLength()
 	require.NoError(t, err)
 
 	assert.Equal(t, askLen, len(ob.Asks), "ask length mismatch")
@@ -811,7 +677,7 @@ func TestLastUpdateID(t *testing.T) {
 	cp, err := getExclusivePair()
 	require.NoError(t, err)
 
-	holder, _, _, err := createSnapshot(cp)
+	holder, _, _, err := createSnapshot(t.Context(), cp)
 	require.NoError(t, err)
 
 	_, err = holder.LastUpdateID(currency.EMPTYPAIR, asset.Spot)
@@ -831,34 +697,14 @@ func TestLastUpdateID(t *testing.T) {
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	w := Orderbook{}
-	err := w.Setup(nil, nil, nil)
+	err := w.Setup("", nil, false)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	exchangeConfig := &config.Exchange{}
-	err = w.Setup(exchangeConfig, nil, nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	bufferConf := &Config{}
-	err = w.Setup(exchangeConfig, bufferConf, nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
-	err = w.Setup(exchangeConfig, bufferConf, stream.NewRelay(1))
-	require.ErrorIs(t, err, errIssueBufferEnabledButNoLimit)
-
-	exchangeConfig.Orderbook.WebsocketBufferLimit = 1337
-	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
-	exchangeConfig.Name = "test"
-	bufferConf.SortBuffer = true
-	bufferConf.SortBufferByUpdateIDs = true
-	err = w.Setup(exchangeConfig, bufferConf, stream.NewRelay(1))
+	err = w.Setup("test", stream.NewRelay(1), true)
 	require.NoError(t, err)
 
-	require.Equal(t, 1337, w.obBufferLimit)
-	require.True(t, w.bufferEnabled)
-	require.True(t, w.sortBuffer)
-	require.True(t, w.sortBufferByUpdateIDs)
 	require.Equal(t, "test", w.exchangeName)
+	require.True(t, w.verbose)
 }
 
 func TestInvalidateOrderbook(t *testing.T) {
@@ -867,7 +713,7 @@ func TestInvalidateOrderbook(t *testing.T) {
 	require.NoError(t, err)
 
 	w := &Orderbook{}
-	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, stream.NewRelay(2))
+	err = w.Setup("test", stream.NewRelay(2), false)
 	require.NoError(t, err)
 
 	var snapShot1 orderbook.Book
@@ -888,9 +734,9 @@ func TestInvalidateOrderbook(t *testing.T) {
 	_, err = w.GetOrderbook(cp, asset.Spot)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 
-	require.NoError(t, w.LoadSnapshot(&snapShot1))
+	require.NoError(t, w.LoadSnapshot(t.Context(), &snapShot1))
 	require.NoError(t, w.InvalidateOrderbook(cp, asset.Spot))
 
 	_, err = w.GetOrderbook(cp, asset.Spot)
-	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
+	require.ErrorIs(t, err, errOrderbookInvalidated)
 }
