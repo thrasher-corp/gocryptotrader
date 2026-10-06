@@ -16,18 +16,20 @@ import (
 	v15 "github.com/thrasher-corp/gocryptotrader/config/versions/v15"
 	v16 "github.com/thrasher-corp/gocryptotrader/config/versions/v16"
 	v17 "github.com/thrasher-corp/gocryptotrader/config/versions/v17"
+	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
 	v2 "github.com/thrasher-corp/gocryptotrader/config/versions/v2"
 )
 
 func TestNewManager(t *testing.T) {
 	t.Parallel()
 	m := newManager()
-	require.Len(t, m.versions, 18, "newManager must register every config version through v17")
+	require.Len(t, m.versions, 19, "newManager must register every config version through v18")
 	assert.IsType(t, &v13.Version{}, m.Version(13), "newManager should register v13 at index 13")
 	assert.IsType(t, &v14.Version{}, m.Version(14), "newManager should register v14 at index 14")
 	assert.IsType(t, &v15.Version{}, m.Version(15), "newManager should register v15 at index 15")
 	assert.IsType(t, &v16.Version{}, m.Version(16), "newManager should register v16 at index 16")
 	assert.IsType(t, &v17.Version{}, m.Version(17), "newManager should register v17 at index 17")
+	assert.IsType(t, &v18.Version{}, m.Version(18), "newManager should register v18 at index 18")
 }
 
 func TestDeploy(t *testing.T) {
