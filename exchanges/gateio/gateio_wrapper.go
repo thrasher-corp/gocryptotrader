@@ -1186,7 +1186,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		}
 		modResp.Status = order.Open
 		if resp.Status == statusFinished {
-			if resp.FinishAs == "ioc" || resp.FinishAs == "reduce_only" {
+			if resp.FinishAs == "ioc" || resp.FinishAs == "reduce_only" || resp.FinishAs == "reduce_out" {
 				modResp.Status = order.Cancelled
 			} else {
 				modResp.Status, err = order.StringToOrderStatus(resp.FinishAs)

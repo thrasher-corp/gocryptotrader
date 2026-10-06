@@ -1660,6 +1660,21 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 func TestReadConfigFromReader(t *testing.T) {
 	t.Parallel()
+	for _, name := range []string{"Deribit", "deribit", "Okx", "OKX"} {
+		for _, settings := range []string{``, `,"features":{}`, `,"features":{"subscriptions":null}`, `,"features":{"subscriptions":[]}`} {
+			t.Run(name+settings, func(t *testing.T) {
+				t.Parallel()
+				var migrated Config
+				input := `{"version":17,"exchanges":[{"name":"` + name + `"` + settings + `}]}`
+				require.NoError(t, migrated.readConfig(strings.NewReader(input)), "real config loader must migrate the saved configuration")
+				require.Len(t, migrated.Exchanges, 1, "loaded config must retain the exchange")
+				if migrated.Exchanges[0].Features != nil {
+					assert.Empty(t, migrated.Exchanges[0].Features.Subscriptions, "empty saved subscriptions should retain runtime fallback")
+				}
+			})
+		}
+	}
+
 	c := &Config{}
 	confString := `{"name":"test"}`
 	err := c.readConfig(strings.NewReader(confString))

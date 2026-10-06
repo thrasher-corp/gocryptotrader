@@ -217,6 +217,28 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		finish string
+		status order.Status
+	}{
+		{"filled", order.Filled},
+		{"cancelled", order.Cancelled},
+		{"liquidated", order.Liquidated},
+		{"ioc", order.Cancelled},
+		{"auto_deleveraged", order.AutoDeleverage},
+		{"reduce_only", order.Cancelled},
+		{"position_closed", order.Closed},
+		{"reduce_out", order.Cancelled},
+	} {
+		t.Run(tc.finish, func(t *testing.T) {
+			t.Parallel()
+			ex := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock(statusFinished, tc.finish))
+			response, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{OrderID: "finished-order", AssetType: asset.USDTMarginedFutures, Pair: getPair(t, asset.USDTMarginedFutures), Side: order.Buy, Amount: 1})
+			require.NoError(t, err, "finished amendment must retain its successful response")
+			require.NotNil(t, response, "amendment response must exist")
+			assert.Equal(t, tc.status, response.Status, "finish reason should map consistently")
+		})
+	}
 
 	ex := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
 	t.Run("delivery unsupported", func(t *testing.T) {

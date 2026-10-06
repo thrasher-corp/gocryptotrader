@@ -4282,6 +4282,31 @@ func TestGetFutureOrderSize(t *testing.T) {
 
 func TestProcessFuturesOrdersPushData(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		finish string
+		status order.Status
+	}{
+		{"filled", order.Filled},
+		{"cancelled", order.Cancelled},
+		{"liquidated", order.Liquidated},
+		{"ioc", order.Cancelled},
+		{"auto_deleveraged", order.AutoDeleverage},
+		{"reduce_only", order.Cancelled},
+		{"position_closed", order.Closed},
+		{"reduce_out", order.Cancelled},
+	} {
+		t.Run(tc.finish, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			payload := []byte(`{"result":[{"id":1,"contract":"BTC_USDT","status":"finished","finish_as":"` + tc.finish + `","size":1,"left":0}]}`)
+			response, err := ex.processFuturesOrdersPushData(payload, asset.USDTMarginedFutures)
+			require.NoError(t, err, "finished order update must succeed")
+			require.Len(t, response, 1, "finished update must contain one order")
+			assert.Equal(t, tc.status, response[0].Status, "finish reason should map consistently")
+		})
+	}
+
 	testCases := []struct {
 		incoming string
 		status   order.Status

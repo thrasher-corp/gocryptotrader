@@ -1470,12 +1470,6 @@ func derivePositionSide(s *order.Submit) string {
 	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
 		return ""
 	}
-	switch s.Side {
-	case order.Long:
-		return positionSideLong
-	case order.Short:
-		return positionSideShort
-	}
 	if s.ReduceOnly {
 		if s.Side.IsLong() {
 			return positionSideShort

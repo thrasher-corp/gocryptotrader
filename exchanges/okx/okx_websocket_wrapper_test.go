@@ -2,6 +2,7 @@ package okx
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -606,6 +607,32 @@ func TestDeriveOrderSide(t *testing.T) {
 
 func TestDerivePositionSide(t *testing.T) {
 	t.Parallel()
+
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+		for _, tc := range []struct {
+			side                   order.Side
+			execution, open, close string
+		}{
+			{order.Buy, "buy", "long", "short"},
+			{order.Long, "buy", "long", "short"},
+			{order.Sell, "sell", "short", "long"},
+			{order.Short, "sell", "short", "long"},
+		} {
+			for _, reduce := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%s/reduce=%t", a, tc.side, reduce), func(t *testing.T) {
+					t.Parallel()
+					want := tc.open
+					if reduce {
+						want = tc.close
+					}
+					assert.Equal(t, want, derivePositionSide(&order.Submit{AssetType: a, Side: tc.side, ReduceOnly: reduce}), "position side should follow execution intent")
+					execution, err := deriveOrderSide(tc.side)
+					require.NoError(t, err, "execution side must derive")
+					assert.Equal(t, tc.execution, execution, "aliases should share their execution side")
+				})
+			}
+		}
+	}
 
 	testCases := []struct {
 		name string

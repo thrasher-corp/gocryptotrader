@@ -710,7 +710,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 	for x := range resp.Result {
 		var status order.Status
 		if resp.Result[x].Status == "finished" {
-			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" {
+			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" || resp.Result[x].FinishAs == "reduce_out" {
 				status = order.Cancelled
 			} else {
 				status, err = order.StringToOrderStatus(resp.Result[x].FinishAs)

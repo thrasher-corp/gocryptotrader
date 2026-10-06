@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -3670,6 +3671,53 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	for _, route := range []string{"REST", "websocket"} {
+		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+			for _, tc := range []struct {
+				side                order.Side
+				execution, position string
+			}{
+				{order.Buy, "buy", "short"}, {order.Long, "buy", "short"}, {order.Sell, "sell", "long"}, {order.Short, "sell", "long"},
+			} {
+				t.Run(route+"/"+a.String()+"/"+tc.side.String(), func(t *testing.T) {
+					t.Parallel()
+					var ex *Exchange
+					check := func(payload []byte) {
+						assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
+						assert.Contains(t, string(payload), `"posSide":"`+tc.position+`"`, "wire position side should close the opposite position")
+						assert.Contains(t, string(payload), `"reduceOnly":"true"`, "wire payload should retain reduce-only intent")
+					}
+					if route == "websocket" {
+						ex = connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+							tb.Helper()
+							check(payload)
+							return okxOrderWsMock(tb, payload, conn)
+						})
+					} else {
+						ex = new(Exchange)
+						require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+						ex.API.AuthenticatedSupport = true
+						ex.SkipAuthCheck = true
+						server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							payload, err := io.ReadAll(r.Body)
+							if !assert.NoError(t, err, "request body should be readable") {
+								return
+							}
+							check(payload)
+							_, err = w.Write([]byte(`{"code":"0","data":[{"ordId":"reduce-order","sCode":"0"}]}`))
+							assert.NoError(t, err, "mock response should write")
+						}))
+						t.Cleanup(server.Close)
+						require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+					}
+					response, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: mainPair, Side: tc.side, Type: order.Limit, Amount: 1, Price: 1, ReduceOnly: true})
+					require.NoError(t, err, "reduce-only order must succeed")
+					assert.NotEmpty(t, response.OrderID, "successful order should retain its ID")
+				})
+			}
+		}
+	}
+
 	var resp []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	require.NoError(t, err)

@@ -183,7 +183,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	sell.Side = order.Sell
 	resp, err = ex.WebsocketSubmitOrder(t.Context(), &sell)
 	require.NoError(t, err)
-	require.Equal(t, "sell-order", resp.OrderID)
+	assert.Equal(t, "sell-order", resp.OrderID)
 }
 
 func TestHandleSubscriptionMocked(t *testing.T) {
@@ -201,7 +201,7 @@ func TestHandleSubscriptionMocked(t *testing.T) {
 			Asset:   asset.Futures,
 			Pairs:   currency.Pairs{futuresTradablePair},
 		}})
-		require.ErrorContains(t, err, "subscription response parse failed")
+		assert.ErrorContains(t, err, "subscription response parse failed")
 	})
 
 	t.Run("returns aggregated errors for missing and unexpected channels", func(t *testing.T) {
@@ -263,7 +263,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 
 	resp, err := ex.WebsocketModifyOrder(t.Context(), mod)
 	require.NoError(t, err)
-	require.Equal(t, "edited-order", resp.OrderID)
+	assert.Equal(t, "edited-order", resp.OrderID)
 }
 
 func TestWsLogin(t *testing.T) {
@@ -306,7 +306,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	err = ex.WebsocketCancelOrder(t.Context(), cancel)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestTimeInForceString(t *testing.T) {
