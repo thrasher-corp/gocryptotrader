@@ -4272,11 +4272,8 @@ func (e *Exchange) GetPublicSpreadTickers(ctx context.Context, spreadID string) 
 	// lag the live spread book and can move backwards between polls, so the
 	// top of book comes from the documented sprd/books endpoint while the
 	// last and the 24-hour figures stay here.
-	bookParams := url.Values{}
-	bookParams.Set("sprdId", spreadID)
-	bookParams.Set("sz", "1")
-	var books []SpreadOrderbook
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderbookEPL, http.MethodGet, common.EncodeURLValues("sprd/books", bookParams), nil, &books, request.UnauthenticatedRequest); err != nil {
+	books, err := e.GetPublicSpreadOrderBooks(ctx, spreadID, 1)
+	if err != nil {
 		return nil, err
 	}
 	if len(books) == 0 {

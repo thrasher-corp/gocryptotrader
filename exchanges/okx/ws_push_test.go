@@ -119,7 +119,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		assert.Equal(t, "USDT", row.Currency, "the margin currency should decode")
 		assert.Equal(t, 12.5, row.UnrealisedPNL.Float64(), "the unrealised PnL should decode")
 		assert.Equal(t, 0.012, row.UnrealisedPNLRatio.Float64(), "the unrealised PnL ratio should decode")
-		assert.Equal(t, "35", row.Position, "the position size should decode")
+		assert.Equal(t, 35.0, row.Position.Float64(), "the position size should decode")
 	})
 
 	t.Run("account snapshot decodes the pagination fields", func(t *testing.T) {
@@ -127,7 +127,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		require.Len(t, accountPushes, 1, "the account push must decode into the account push struct")
 		require.Len(t, accountPushes[0].Data, 1, "the account row must decode")
 		assert.Equal(t, "snapshot", accountPushes[0].EventType, "the documented eventType should decode")
-		assert.Equal(t, uint64(1), accountPushes[0].CurPage, "the documented curPage integer should decode")
+		assert.Equal(t, uint64(1), accountPushes[0].CurrentPage, "the documented curPage integer should decode")
 		assert.True(t, accountPushes[0].LastPage, "the documented lastPage boolean should decode")
 	})
 

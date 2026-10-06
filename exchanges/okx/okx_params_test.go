@@ -53,6 +53,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		"/users/subaccount/list":                         `{"code":"0","msg":"","data":[{"subAcct":"sub-one","uid":"123456","frozenFunc":[],"subAcctLv":"1","firstLvSubAcct":"sub-one","ifDma":true,"enable":true,"ts":"1724751378980"}]}`,
 		"/account/mmp-config":                            `{"code":"0","msg":"","data":[{"instFamily":"BTC-USD","timeInterval":"5000","frozenInterval":"2000","qtyLimit":"100","mmpFrozen":false,"mmpFrozenUntil":""}]}`,
 		"/asset/deposit-withdraw-status":                 `{"code":"0","msg":"","data":[{"wdId":"1244","txId":"16f3638329c8a5b1f6acde28b0f0b3c9ethc15a05b53b52b3049a099fea19a92","state":"Pending withdrawal: transaction is being confirmed on-chain.","estCompleteTime":"01/09/2023, 8:10:48 PM"}]}`,
+		"/account/position-builder":                      `{"code":"0","msg":"","data":[{"acctLever":"0.5","riskUnitData":[{"riskUnit":"BTC","portfolios":[]}],"positions":[{"instId":"BTC-USDT-SWAP","instType":"SWAP","amt":"1","posSide":"net","imr":"100","lever":"3","isRealPos":true}],"ts":"1724751378980"}]}`,
 	}
 
 	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +102,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	var subaccountList []SubaccountInfo
 	var mmpConfigs []MMPConfigDetail
 	var depositWithdrawStatuses []DepositWithdrawStatus
+	var positionBuilder *PositionBuilderDetail
 
 	for _, tc := range []struct {
 		name   string
@@ -245,7 +247,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			verify: func(t *testing.T) {
 				t.Helper()
 				require.Len(t, pendingAlgoOrders, 1, "the response item must decode")
-				assert.Equal(t, "test-algo-client-id", pendingAlgoOrders[0].AlgoClOrdID, "the response should echo the algoClOrdId this filter narrows on")
+				assert.Equal(t, "test-algo-client-id", pendingAlgoOrders[0].AlgoClientOrderID, "the response should echo the algoClOrdId this filter narrows on")
 				assert.Equal(t, "ord-client-1", pendingAlgoOrders[0].ClientOrderID, "the documented clOrdId should decode")
 				assert.True(t, pendingAlgoOrders[0].UpdateTime.Time().Equal(time.UnixMilli(1724751378999)), "the documented uTime should decode")
 				require.Len(t, pendingAlgoOrders[0].AttachAlgoOrds, 1, "the documented attached algo order objects must decode")
@@ -377,7 +379,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				t.Helper()
 				require.NotNil(t, indexComponents, "the index component response must decode")
 				require.Len(t, indexComponents.Components, 1, "the documented components must decode")
-				assert.Equal(t, "42000.5", indexComponents.Components[0].SymbolPairPrice, "the documented symPx component price should decode")
+				assert.Equal(t, 42000.5, indexComponents.Components[0].SymbolPairPrice.Float64(), "the documented symPx component price should decode")
 			},
 		},
 		{
@@ -593,7 +595,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			verify: func(t *testing.T) {
 				t.Helper()
 				require.Len(t, mmpConfigs, 1, "the MMP config row must decode")
-				assert.Equal(t, int64(5000), mmpConfigs[0].TimeInterval, "the documented quoted timeInterval should decode")
+				assert.Equal(t, int64(5000), mmpConfigs[0].TimeInterval.Int64(), "the documented quoted timeInterval should decode")
 				assert.Equal(t, "BTC-USD", mmpConfigs[0].InstrumentFamily, "the documented instFamily should decode")
 			},
 		},
@@ -611,6 +613,23 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				require.Len(t, depositWithdrawStatuses, 1, "the deposit withdraw status row must decode")
 				expected := time.Date(2023, time.January, 9, 20, 10, 48, 0, time.FixedZone("UTC+8", 8*60*60))
 				assert.True(t, depositWithdrawStatuses[0].EstCompleteTime.Time().Equal(expected), "the documented estCompleteTime wall-clock form should decode")
+			},
+		},
+		{
+			name: "Position builder decodes the top-level positions",
+			call: func() error {
+				var err error
+				positionBuilder, err = e.NewPositionBuilder(t.Context(), &PositionBuilderParam{InclRealPosAndEq: true})
+				return err
+			},
+			path: "/account/position-builder",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.NotNil(t, positionBuilder, "the position builder response must decode")
+				require.Len(t, positionBuilder.Positions, 1, "the documented top-level positions must decode")
+				assert.Equal(t, "BTC-USDT-SWAP", positionBuilder.Positions[0].InstrumentID, "the position instrument should decode")
+				assert.Equal(t, 1.0, positionBuilder.Positions[0].Amount.Float64(), "the position amount should decode")
+				assert.Equal(t, 0.5, positionBuilder.AccountLeverage.Float64(), "the documented acctLever should decode")
 			},
 		},
 	} {
@@ -705,7 +724,16 @@ func TestEstCompleteTimeUnmarshalJSON(t *testing.T) {
 	}
 	var invalid EstCompleteTime
 	err := json.Unmarshal([]byte(`"not-a-time"`), &invalid)
-	require.ErrorIs(t, err, types.ErrInvalidTimestampFormat, "an unparseable timestamp must wrap the shared sentinel")
+	require.ErrorIs(t, err, types.ErrInvalidTimestampFormat, "an unparsable timestamp must wrap the shared sentinel")
+	err = json.Unmarshal([]byte(`1673266248000`), &invalid)
+	require.ErrorIs(t, err, types.ErrInvalidTimestampFormat, "a non-string estCompleteTime must wrap the shared sentinel")
+	var escaped EstCompleteTime
+	require.NoError(t, json.Unmarshal([]byte(`"01\/09\/2023, 8:10:48 PM"`), &escaped), "a JSON-escaped wall-clock string must decode")
+	assert.True(t, escaped.Time().Equal(expected), "the escaped form should decode to the same time")
+	encoded, err := json.Marshal(estCompleteTime)
+	require.NoError(t, err, "Marshal must not error")
+	assert.Equal(t, `"2023-01-09T20:10:48+08:00"`, string(encoded), "the estimate should serialise as an RFC 3339 timestamp")
+	assert.Equal(t, "2023-01-09 20:10:48 +0800 UTC+8", estCompleteTime.String(), "the estimate should print as its time")
 }
 
 // TestOrderBookSequenceIDDecodesTheBareInteger pins the REST book's seqId
@@ -715,5 +743,61 @@ func TestOrderBookSequenceIDDecodesTheBareInteger(t *testing.T) {
 	t.Parallel()
 	var ob OrderBookResponseDetail
 	require.NoError(t, json.Unmarshal([]byte(`{"asks":[["42000","0.1","0","3"]],"bids":[],"seqId":3235851742,"ts":"1724751378980"}`), &ob), "the books row must decode")
-	assert.Equal(t, int64(3235851742), ob.SequenceID, "the bare seqId integer should decode into the int64 typing the websocket books use")
+	exp := OrderBookResponseDetail{
+		Asks:                []OrderbookItemDetail{{DepthPrice: 42000, Amount: 0.1, NumberOfOrders: 3}},
+		Bids:                []OrderbookItemDetail{},
+		SequenceID:          int64(3235851742),
+		GenerationTimestamp: types.Time(time.UnixMilli(1724751378980)),
+	}
+	assert.Equal(t, exp, ob, "the books row should decode with its bare seqId integer")
+}
+
+// TestGetSpreadTickersBookFailure pins that a failed sprd/books request fails
+// the spread ticker rather than returning market/sprd-ticker's cached top of book.
+func TestGetSpreadTickersBookFailure(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	var paths []string
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/sprd/books" {
+			_, _ = w.Write([]byte(`{"code":"50026","msg":"System error, please try again later.","data":[]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sprdId":"BTC-USDT_BTC-USDT-SWAP","last":"14.5","askPx":"8.5","askSz":"12.0","bidPx":"0.5","bidSz":"12.0","ts":"1715331406485"}]}`))
+	}))
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	_, err := e.GetPublicSpreadTickers(t.Context(), "BTC-USDT_BTC-USDT-SWAP")
+	require.ErrorContains(t, err, "50026", "a sprd/books failure must fail the spread ticker rather than return its cached top of book")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"/market/sprd-ticker", "/sprd/books"}, paths, "the books refresh should fail only after the ticker request succeeds")
+}
+
+// TestMMPConfigTimeIntervalNumberForms pins the timeInterval typing: the
+// documented quoted form decodes, and a types.Number also reads the bare
+// integer and empty forms the old `,string` tag rejected outright.
+func TestMMPConfigTimeIntervalNumberForms(t *testing.T) {
+	t.Parallel()
+	var quoted MMPConfigDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"timeInterval":"5000"}`), &quoted), "the documented quoted timeInterval must decode")
+	assert.Equal(t, int64(5000), quoted.TimeInterval.Int64(), "the quoted timeInterval should decode")
+	var bare MMPConfigDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"timeInterval":5000}`), &bare), "the bare integer form must decode")
+	assert.Equal(t, int64(5000), bare.TimeInterval.Int64(), "the bare timeInterval should decode")
+	var empty MMPConfigDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"timeInterval":""}`), &empty), "the empty form must decode")
+	assert.Equal(t, 0.0, empty.TimeInterval.Float64(), "the empty timeInterval should stay the zero number")
 }
