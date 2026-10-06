@@ -218,14 +218,14 @@ func TestProcessSnapshot(t *testing.T) {
 	t.Run("invalid side", func(t *testing.T) {
 		t.Parallel()
 		req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-		err := e.ProcessSnapshot(&req, time.Time{})
+		err := e.ProcessSnapshot(t.Context(), &req, time.Time{})
 		assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 	})
 
 	t.Run("valid offer", func(t *testing.T) {
 		t.Parallel()
 		req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "offer", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-		err := e.ProcessSnapshot(&req, time.Now())
+		err := e.ProcessSnapshot(t.Context(), &req, time.Now())
 		assert.NoError(t, err)
 	})
 }
@@ -236,14 +236,14 @@ func TestProcessUpdate(t *testing.T) {
 	t.Run("invalid side", func(t *testing.T) {
 		t.Parallel()
 		req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-		err := e.ProcessUpdate(&req, time.Time{})
+		err := e.ProcessUpdate(t.Context(), &req, time.Time{})
 		assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 	})
 
 	t.Run("valid offer", func(t *testing.T) {
 		t.Parallel()
 		req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "offer", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-		err := e.ProcessUpdate(&req, time.Now())
+		err := e.ProcessUpdate(t.Context(), &req, time.Now())
 		assert.NoError(t, err)
 	})
 }
@@ -578,7 +578,7 @@ func TestWsProcessL2(t *testing.T) {
 				]
 			}]`),
 		}
-		require.NoError(t, ex.wsProcessL2(resp), "wsProcessL2 must not error")
+		require.NoError(t, ex.wsProcessL2(t.Context(), resp), "wsProcessL2 must not error")
 		_, err := ex.Websocket.Orderbook.GetOrderbook(aliasPair, asset.Spot)
 		assert.NoError(t, err, "orderbook should be available")
 	})
@@ -588,7 +588,7 @@ func TestWsProcessL2(t *testing.T) {
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Setup must not error")
 		resp := &StandardWebsocketResponse{Events: []byte(`[{"type":"wat","product_id":"BTC-USD","updates":[]}]`)}
-		assert.ErrorIs(t, ex.wsProcessL2(resp), errUnknownL2DataType, "wsProcessL2 should return unknown type error")
+		assert.ErrorIs(t, ex.wsProcessL2(t.Context(), resp), errUnknownL2DataType, "wsProcessL2 should return unknown type error")
 	})
 }
 

@@ -1,4 +1,4 @@
-// Package v17 corrects Gemini's legacy public websocket endpoint override.
+// Package v17 removes obsolete websocket orderbook buffer settings.
 package v17
 
 import (
@@ -8,28 +8,50 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// Version migrates the bare Gemini host which cannot serve market-data upgrades.
+// Version implements ExchangeVersion for the removal of orderbook buffering.
 type Version struct{}
 
-// Exchanges limits the migration to Gemini configurations.
-func (*Version) Exchanges() []string { return []string{"Gemini"} }
+// Exchanges applies this migration to every exchange.
+func (*Version) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange preserves custom endpoints and updates only the old default.
-func (*Version) UpgradeExchange(_ context.Context, data []byte) ([]byte, error) {
-	url, err := jsonparser.GetString(data, "api", "urlEndpoints", "WebsocketSpotURL")
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return data, nil
-	}
-	if err != nil {
-		return data, err
-	}
-	if url != "wss://api.gemini.com" {
-		return data, nil
-	}
-	return jsonparser.Set(data, []byte(`"wss://api.gemini.com/v2/marketdata"`), "api", "urlEndpoints", "WebsocketSpotURL")
+// UpgradeExchange removes buffer settings that are no longer used by the orderbook manager.
+func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	exchange = jsonparser.Delete(exchange, "orderbook", "websocketBufferLimit")
+	exchange = jsonparser.Delete(exchange, "orderbook", "websocketBufferEnabled")
+	return exchange, nil
 }
 
-// DowngradeExchange retains the working URL because the bare host is unusable.
-func (*Version) DowngradeExchange(_ context.Context, data []byte) ([]byte, error) {
-	return data, nil
+// DowngradeExchange restores the v16 buffer defaults when the settings are absent.
+func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	_, valueType, _, err := jsonparser.Get(exchange, "orderbook")
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return exchange, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if valueType != jsonparser.Object {
+		return exchange, nil
+	}
+
+	for _, setting := range []struct {
+		key   string
+		value []byte
+	}{
+		{"websocketBufferLimit", []byte("5")},
+		{"websocketBufferEnabled", []byte("false")},
+	} {
+		_, _, _, err = jsonparser.Get(exchange, "orderbook", setting.key)
+		if err == nil {
+			continue
+		}
+		if !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return nil, err
+		}
+		exchange, err = jsonparser.Set(exchange, setting.value, "orderbook", setting.key)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return exchange, nil
 }
