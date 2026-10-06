@@ -115,7 +115,12 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, su
 	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
 }
 
-func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection) (err error) {
+	defer func() {
+		if err != nil {
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}()
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -534,8 +535,10 @@ func TestWsAuthConnect(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)}
 		assert.Error(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect should error without credentials")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "missing credentials should disable runtime authentication")
 		assert.Zero(t, conn.dialCalls, "wsAuthConnect should not dial without credentials")
 	})
 
@@ -546,9 +549,11 @@ func TestWsAuthConnect(t *testing.T) {
 		ex.API.AuthenticatedWebsocketSupport = true
 		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.WebsocketSpotSupplementary.String(), geminiWebsocketSandboxEndpoint+geminiWsOrderEvents), "SetRunningURL must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)}
 
 		require.NoError(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "successful dial should retain runtime authentication")
 		assert.Equal(t, 1, conn.dialCalls, "wsAuthConnect should dial once")
 		assert.Equal(t, "key", conn.dialHeaders.Get("X-GEMINI-APIKEY"), "wsAuthConnect should set the API key header")
 		assert.NotEmpty(t, conn.dialHeaders.Get("X-GEMINI-PAYLOAD"), "wsAuthConnect should set the payload header")
@@ -562,13 +567,15 @@ func TestWsAuthConnect(t *testing.T) {
 		ex.API.AuthenticatedWebsocketSupport = true
 		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 		errDial := errors.New("dial failure")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		conn := &websocketTestConnection{
 			Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents),
 			dialErr:    errDial,
 		}
 
 		err := ex.wsAuthConnect(t.Context(), conn)
-		assert.ErrorContains(t, err, errDial.Error(), "wsAuthConnect should include the dial failure")
+		assert.ErrorIs(t, err, errDial, "wsAuthConnect should preserve the dial failure")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "failed dial should disable runtime authentication")
 	})
 }
 
@@ -1428,4 +1435,22 @@ func TestManageSubs(t *testing.T) {
 		assert.ErrorIs(t, ex.manageSubs(t.Context(), conn, subs, wsSubscribeOp), errSend, "manageSubs should return the send failure")
 		assert.Empty(t, ex.Websocket.GetSubscriptions(), "manageSubs should not store subscriptions after a send failure")
 	})
+}
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+	cfg := new(config.Config)
+	require.NoError(t, cfg.LoadConfig("../../testdata/configtest.json", true), "test config must load")
+	exch, err := cfg.GetExchangeConfig("Gemini")
+	require.NoError(t, err, "Gemini config must exist")
+	exch.API.AuthenticatedWebsocketSupport = false
+	delete(exch.API.Endpoints, exchange.WebsocketSpotSupplementary.String())
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.API.Endpoints = ex.NewEndpoints()
+	require.NoError(t, ex.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      geminiAPIURL,
+		exchange.WebsocketSpot: geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
+	}), "public endpoints must be configured")
+	assert.NoError(t, ex.Setup(exch), "public-only setup should not require a private endpoint")
 }

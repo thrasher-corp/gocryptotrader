@@ -436,7 +436,7 @@ func setupWsAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	go e.wsReadData(t.Context())
-	err = e.wsLogin(t.Context())
+	err = e.AuthenticateWebsocket(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1192,4 +1192,11 @@ func TestSubToReq(t *testing.T) {
 		func() { subToReq(&subscription.Subscription{Channel: subscription.MyTradesChannel}, p) },
 		"should panic on invalid channel",
 	)
+}
+
+func TestAuthenticateWebsocket(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+	assert.Error(t, ex.AuthenticateWebsocket(t.Context()), "authentication should reject missing credentials or support")
 }

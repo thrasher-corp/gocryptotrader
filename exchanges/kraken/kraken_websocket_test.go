@@ -188,7 +188,6 @@ func TestManageSubs(t *testing.T) {
 			if tc.responseCount > 0 {
 				conn.responses = [][]byte{tc.response}
 			}
-			ex.Websocket.AuthConn = conn
 
 			err := ex.manageSubs(t.Context(), krakenWsSubscribe, subscription.List{{
 				Channel:          tc.channel,

@@ -167,6 +167,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		switch eventType {
 		case wsHeartbeat, pong:
 			return nil
+		}
+		if len(d) < 3 {
+			return fmt.Errorf("%w: websocket channel envelope requires three fields", common.ErrMalformedData)
+		}
+		switch eventType {
 		case wsNotification:
 			return e.handleWSNotification(ctx, conn, d, respRaw)
 		case wsOrderSnapshot:

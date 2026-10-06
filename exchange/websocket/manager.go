@@ -84,7 +84,7 @@ type Manager struct {
 	state                         atomic.Uint32
 	verbose                       bool
 	canUseAuthenticatedEndpoints  atomic.Bool
-	authenticatedSupport          bool
+	authenticatedSupport          atomic.Bool
 	connectionMonitorRunning      atomic.Bool
 	trafficTimeout                time.Duration
 	connectionMonitorDelay        time.Duration
@@ -283,8 +283,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	}
 	m.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
-	m.authenticatedSupport = s.ExchangeConfig.API.AuthenticatedWebsocketSupport
-	m.SetCanUseAuthenticatedEndpoints(m.authenticatedSupport)
+	m.SetAuthenticatedSupport(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
 	if err := m.Orderbook.Setup(s.ExchangeConfig.Name, m.DataHandler, s.ExchangeConfig.Verbose); err != nil {
 		return err
@@ -519,7 +518,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
 	}
 
-	if m.authenticatedSupport {
+	if m.authenticatedSupport.Load() {
 		m.SetCanUseAuthenticatedEndpoints(true)
 	}
 
@@ -716,8 +715,12 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 
 	m.trackConnection(conn, ws)
 
-	m.Wg.Add(1)
-	go m.Reader(ctx, conn, ws.setup.Handler, ws.setup.OnDisconnect)
+	m.Wg.Go(func() {
+		if ws.setup.OnDisconnect != nil {
+			defer ws.setup.OnDisconnect(conn)
+		}
+		m.readMessages(ctx, conn, ws.setup.Handler)
+	})
 
 	var authenticationError error
 	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
@@ -1069,6 +1072,13 @@ func (m *Manager) GetName() string {
 	return m.exchangeName
 }
 
+// SetAuthenticatedSupport sets persistent authentication permission. Transient login
+// failures must use SetCanUseAuthenticatedEndpoints so reconnects can retry.
+func (m *Manager) SetAuthenticatedSupport(enabled bool) {
+	m.authenticatedSupport.Store(enabled)
+	m.SetCanUseAuthenticatedEndpoints(enabled)
+}
+
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in a thread safe manner
 func (m *Manager) SetCanUseAuthenticatedEndpoints(b bool) {
 	m.canUseAuthenticatedEndpoints.Store(b)
@@ -1091,18 +1101,14 @@ func checkWebsocketURL(s string) error {
 	return nil
 }
 
-// Reader reads and handles data from a specific connection. Optional cleanup is
-// captured by the caller so removing the connection mapping cannot suppress it.
-func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error, disconnect ...func(Connection)) {
+// Reader reads and handles data from a specific connection.
+func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(context.Context, Connection, []byte) error) {
 	defer m.Wg.Done()
-	defer func() {
-		for _, cleanup := range disconnect {
-			if cleanup != nil {
-				cleanup(conn)
-			}
-		}
-	}()
+	m.readMessages(ctx, conn, handler)
+}
 
+// readMessages processes frames until the connection closes; callers own reader lifecycle cleanup.
+func (m *Manager) readMessages(ctx context.Context, conn Connection, handler func(context.Context, Connection, []byte) error) {
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {

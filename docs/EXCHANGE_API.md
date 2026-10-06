@@ -88,3 +88,17 @@ supplied meet the requirements to make an authenticated request.
     }
     fmt.Println(resp.OrderID)
 ```
+
+## Managed websocket authentication compatibility
+
+Bitfinex, Deribit, Huobi and Kraken authenticate through their managed connection
+callbacks. Their former `AuthenticateWebsocket` overrides have been removed;
+calling that legacy wrapper now returns `common.ErrFunctionNotSupported`.
+Use the configured websocket manager's `Connect` lifecycle to establish and
+authenticate these connections. HitBTC retains `AuthenticateWebsocket` because
+it still uses the legacy connection lifecycle.
+
+Bybit retains its deprecated `OutboundTradeConnection` and
+`InboundPrivateConnection` constants for source compatibility. Managed connection
+lookup now uses the configured `exchange.WebsocketTrade` and
+`exchange.WebsocketPrivate` endpoint URLs instead of those legacy string keys.

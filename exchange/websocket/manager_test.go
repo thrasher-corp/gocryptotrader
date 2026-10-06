@@ -538,6 +538,28 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.ErrorIs(t, err, errDastardlyReason)
 		})
 
+		t.Run("persistent authentication disable survives reconnect", func(t *testing.T) {
+			t.Parallel()
+			ws := newConfiguredMultiManager(t, nil)
+			attempts := 0
+			ws.connectionManager = []*websocket{
+				{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true}},
+				{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error { attempts++; return nil }}},
+			}
+			ws.SetAuthenticatedSupport(false)
+			for range 2 {
+				require.NoError(t, ws.Connect(t.Context()), "public connection must remain available")
+				assert.True(t, ws.IsConnected(), "public connection should stay connected")
+				assert.False(t, ws.CanUseAuthenticatedEndpoints(), "explicit disable should survive connect")
+				assert.Zero(t, attempts, "explicit disable should prevent authentication attempts")
+				require.NoError(t, ws.Shutdown(), "shutdown must succeed")
+			}
+			ws.SetAuthenticatedSupport(true)
+			require.NoError(t, ws.Connect(t.Context()), "explicit re-enable must allow authentication")
+			assert.Equal(t, 1, attempts, "authentication should resume after explicit re-enable")
+			require.NoError(t, ws.Shutdown(), "shutdown must succeed")
+		})
+
 		t.Run("authentication retries and cleanup survives immediate failure", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
 			attempts := 0
@@ -560,6 +582,33 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.NoError(t, ws.Shutdown(), "shutdown must succeed")
 			assert.Len(t, cleaned, 2, "every disconnected socket should be cleaned")
 		})
+		t.Run("disconnect cleanup precedes wait group completion", func(t *testing.T) {
+			t.Parallel()
+			ws := newConfiguredMultiManager(t, nil)
+			started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			ws.connectionManager = []*websocket{{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+				URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true,
+				OnDisconnect: func(Connection) { close(started); <-release },
+			}}}
+			require.NoError(t, ws.Connect(t.Context()), "connection must succeed")
+			go func() {
+				assert.NoError(t, ws.Shutdown(), "manager shutdown should succeed")
+				close(done)
+			}()
+			<-started
+			select {
+			case <-done:
+				assert.Fail(t, "wait group should remain pending during cleanup")
+			case <-time.After(20 * time.Millisecond):
+			}
+			close(release)
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+				assert.Fail(t, "wait group should complete after cleanup")
+			}
+		})
+
 		t.Run("private-only mixed connection closes after failed authentication", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
 			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }, GenerateSubscriptions: func() (subscription.List, error) {
@@ -2200,4 +2249,62 @@ func TestCreateConnectAndSubscribeRecordsPartialSubscriptions(t *testing.T) {
 			assert.Nil(t, connStore.Get(rejected), "missing subscription should not be recorded against the connection")
 		})
 	}
+}
+
+func TestSetAuthenticatedSupport(t *testing.T) {
+	t.Parallel()
+	m := NewManager()
+	for _, enabled := range []bool{true, false, true} {
+		m.SetAuthenticatedSupport(enabled)
+		assert.Equal(t, enabled, m.authenticatedSupport.Load(), "persistent support should follow explicit permission")
+		assert.Equal(t, enabled, m.CanUseAuthenticatedEndpoints(), "runtime permission should follow explicit permission")
+	}
+	m.SetCanUseAuthenticatedEndpoints(false)
+	assert.True(t, m.authenticatedSupport.Load(), "transient failure should retain permission to retry")
+}
+
+func TestReader(t *testing.T) {
+	t.Parallel()
+	m := NewManager()
+	var _ interface {
+		Reader(context.Context, Connection, func(context.Context, Connection, []byte) error)
+	} = m
+	reader := m.Reader
+	conn := &readerTestConnection{Connection: m.CreateUnmanagedTestConnection("ws://closed")}
+	m.Wg.Add(1)
+	reader(t.Context(), conn, func(context.Context, Connection, []byte) error { return nil })
+	m.Wg.Wait()
+}
+
+func TestReadMessages(t *testing.T) {
+	t.Parallel()
+	m := NewManager()
+	conn := &readerTestConnection{Connection: m.CreateUnmanagedTestConnection("ws://frames"), frames: []Response{{Raw: []byte("frame")}}}
+	m.readMessages(t.Context(), conn, func(_ context.Context, got Connection, frame []byte) error {
+		assert.Same(t, conn, got, "handler should receive the owning connection")
+		assert.Equal(t, []byte("frame"), frame, "handler should receive the frame")
+		return errDastardlyReason
+	})
+	select {
+	case msg := <-m.DataHandler.C:
+		err, ok := msg.Data.(error)
+		require.True(t, ok, "handler failure must be relayed as an error")
+		assert.ErrorIs(t, err, errDastardlyReason, "reader should preserve the handler failure")
+	default:
+		assert.Fail(t, "reader should relay the handler failure")
+	}
+}
+
+type readerTestConnection struct {
+	Connection
+	frames []Response
+}
+
+func (c *readerTestConnection) ReadMessage() Response {
+	if len(c.frames) == 0 {
+		return Response{}
+	}
+	frame := c.frames[0]
+	c.frames = c.frames[1:]
+	return frame
 }

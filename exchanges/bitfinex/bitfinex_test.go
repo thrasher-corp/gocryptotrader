@@ -2065,7 +2065,7 @@ func TestWSNotifications(t *testing.T) {
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
 
-	for _, payload := range []string{"[]", "[1]"} {
+	for _, payload := range []string{"[]", "[1]", `[0,"n"]`, `[0,"ps"]`, `[0,"pn"]`, `[0,"te"]`, `[0,"os"]`, `[0,"on"]`, `[0,"fos"]`, `[0,"fcs"]`} {
 		t.Run(payload, func(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
@@ -2074,20 +2074,8 @@ func TestWsHandleData(t *testing.T) {
 		})
 	}
 
-	t.Run("nil connection notification", func(t *testing.T) {
-		t.Parallel()
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-
-		payload := []byte(`[0,"n",[1575287438.515,"on-req",null,null,[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438515,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,null,null,null,null,"API>BFX",null,null,null],null,"SUCCESS","Submitting limit sell order for -2.5 ETH."]]`)
-		assert.Panics(t,
-			func() {
-				_ = ex.wsHandleData(t.Context(), nil, payload)
-			},
-			"wsHandleData should panic when conn is nil for on-req notifications")
-	})
-
 	for name, payload := range map[string]string{
+		"heartbeat":          `[0,"hb"]`,
 		"wallet snapshot":    `[0,"ws",[["exchange","SAN",19.76,0,null,null,null]]]`,
 		"balance update":     `[0,"bu",[4131.85,4131.85]]`,
 		"margin info update": `[0,"miu",["base",[-13.014640000000007,0,49331.70267297,49318.68803297,27]]]`,

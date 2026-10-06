@@ -315,9 +315,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 func (e *Exchange) checkWSSequence(conn websocket.Connection, sequence uint64) error {
 	e.wsSeqMu.Lock()
 	defer e.wsSeqMu.Unlock()
-	if e.wsSeqState == nil {
-		e.wsSeqState = make(map[websocket.Connection]uint64)
-	}
 	expected, ok := e.wsSeqState[conn]
 	if !ok {
 		e.wsSeqState[conn] = sequence + 1

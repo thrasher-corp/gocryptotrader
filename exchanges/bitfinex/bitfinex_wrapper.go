@@ -226,7 +226,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Authenticate:             e.wsSendAuthConn,
 		Subscriber:               e.subscribeForConnection,
 		Unsubscriber:             e.unsubscribeForConnection,
-		GenerateSubscriptions:    e.generatePrivateSubscriptions,
 		SubscriptionsNotRequired: true,
 		Handler:                  e.wsHandleData,
 		OnDisconnect:             e.wsDisconnected,

@@ -119,6 +119,7 @@ func (e *Exchange) SetDefaults() {
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	e.wsSeqState = make(map[websocket.Connection]uint64)
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

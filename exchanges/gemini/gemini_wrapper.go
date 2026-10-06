@@ -164,12 +164,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	if !exch.API.AuthenticatedWebsocketSupport {
+		return nil
+	}
+
 	authWSURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
-	}
-	if !exch.API.AuthenticatedWebsocketSupport {
-		return nil
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{

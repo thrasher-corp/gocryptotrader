@@ -12,6 +12,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
+const (
+	// OutboundTradeConnection is the legacy trade connection key.
+	//
+	// Deprecated: use the configured exchange.WebsocketTrade endpoint for connection lookup.
+	OutboundTradeConnection = "PRIVATE_TRADE"
+	// InboundPrivateConnection is the legacy private connection key.
+	//
+	// Deprecated: use the configured exchange.WebsocketPrivate endpoint for connection lookup.
+	InboundPrivateConnection = "PRIVATE"
+)
+
 // WSCreateOrder creates an order through the websocket connection
 func (e *Exchange) WSCreateOrder(ctx context.Context, r *PlaceOrderRequest) (*WebsocketOrderDetails, error) {
 	if err := r.Validate(); err != nil {
