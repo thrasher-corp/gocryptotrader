@@ -5155,7 +5155,7 @@ func TestGetHistoricalFundingRatesPaymentsPagination(t *testing.T) {
 			switch r.URL.Query().Get("after") {
 			case "":
 				if sibling {
-					_, _ = w.Write([]byte(billsPage("a", 99, fundingTime, "-1.5", "BTC-USDT-SWAP") + "," + billRow("a99", fundingTime, "-150", "ETH-USDT-SWAP")))
+					_, _ = w.Write([]byte(strings.TrimSuffix(billsPage("a", 99, fundingTime, "-1.5", "BTC-USDT-SWAP"), "]}") + "," + billRow("a99", fundingTime, "-150", "ETH-USDT-SWAP") + "]}"))
 					return
 				}
 				_, _ = w.Write([]byte(billsPage("a", 100, fundingTime, "-1.5", "BTC-USDT-SWAP")))

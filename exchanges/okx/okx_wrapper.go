@@ -3054,21 +3054,26 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	var oid []OpenInterest
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
-		// An option pair is a full instrument ID, and instFamily is the
-		// documented open interest filter for OPTION, so the tick bands
-		// families are iterated with the requested instrument pinned by ID.
+		// OKX rejects a family that doesn't match the instrument with 51002, so
+		// only the instrument's own family, the prefix of its ID, is queried
 		var families []string
 		families, err = e.optionInstrumentFamilies(ctx)
 		if err != nil {
 			return nil, err
 		}
-		for u := range families {
-			var incOID []OpenInterest
-			incOID, err = e.GetOpenInterestData(ctx, instTypeOption, families[u], pFmt)
-			if err != nil {
-				return nil, err
+		var family string
+		for _, f := range families {
+			if strings.HasPrefix(pFmt, f+currency.DashDelimiter) {
+				family = f
+				break
 			}
-			oid = append(oid, incOID...)
+		}
+		if family == "" {
+			return nil, fmt.Errorf("%w for %s", errInstrumentFamilyRequired, pFmt)
+		}
+		oid, err = e.GetOpenInterestData(ctx, instTypeOption, family, pFmt)
+		if err != nil {
+			return nil, err
 		}
 	case instTypeSwap, instTypeFutures:
 		oid, err = e.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
