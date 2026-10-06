@@ -32,8 +32,7 @@ misc_checks:
 
 markdownlint:
 	@if ! command -v npx >/dev/null 2>&1; then \
-		if [ -n "$$CI" ]; then echo "npx not found: Markdown lint cannot run in CI"; exit 1; fi; \
-		echo "npx not found: skipping Markdown lint, which CI still runs"; exit 0; \
+		echo "npx not found: install Node.js to run Markdown lint" >&2; exit 1; \
 	fi; \
 	npx --yes markdownlint-cli2@0.23.2 "**/*.md" "cmd/documentation/**/*.tmpl"
 
@@ -42,8 +41,7 @@ markdownlint:
 workflow_lint:
 	@for tool in shellcheck pipx; do \
 		if ! command -v $$tool >/dev/null 2>&1; then \
-			if [ -n "$$CI" ]; then echo "$$tool not found: workflow lint cannot run in CI"; exit 1; fi; \
-			echo "$$tool not found: skipping workflow lint, which CI still runs"; exit 0; \
+			echo "$$tool not found: install it to run workflow lint" >&2; exit 1; \
 		fi; \
 	done; \
 	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 && \
@@ -54,10 +52,6 @@ proto:
 	bash ./scripts/proto.sh
 
 proto_check:
-	@if ! command -v buf >/dev/null 2>&1; then \
-		if [ -n "$$CI" ]; then echo "buf not found: the generated code check cannot run in CI"; exit 1; fi; \
-		echo "buf not found: skipping the generated code check, which CI still runs"; exit 0; \
-	fi; \
 	bash ./scripts/proto.sh --check
 
 check: lint misc_checks markdownlint workflow_lint proto_check test

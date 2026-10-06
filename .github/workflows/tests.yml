@@ -198,21 +198,38 @@ jobs:
         persist-credentials: false
 
     - name: Set up Docker buildx
+      id: buildx
       uses: docker/setup-buildx-action@v4
 
-    - name: Cache Docker layers
-      uses: actions/cache@v6
+    - name: Resolve Go image digest
+      id: go-image
+      run: |
+        image="golang:$(awk '$1 == "go" { print $2; exit }' go.mod)"
+        digest=$(docker buildx imagetools inspect --raw "$image" |
+          jq -r 'first(.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64")) | .digest')
+        if [[ ! $digest =~ ^sha256:[0-9a-f]{64}$ ]]; then
+          echo "could not resolve $image for linux/amd64" >&2
+          exit 1
+        fi
+        echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Restore Docker layers
+      id: docker-cache
+      uses: actions/cache/restore@v6
       with:
         path: /tmp/.docker-buildx-cache
-        key: ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/amd64.Dockerfile', 'go.mod', 'go.sum') }}
+        key: ${{ runner.os }}-docker-buildx-${{ fromJSON(steps.buildx.outputs.nodes)[0].buildkit }}-${{ steps.go-image.outputs.digest }}-${{ hashFiles('./.github/workflows/amd64.Dockerfile', 'go.mod', 'go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-docker-buildx-
+          ${{ runner.os }}-docker-buildx-${{ fromJSON(steps.buildx.outputs.nodes)[0].buildkit }}-${{ steps.go-image.outputs.digest }}-
     
     - name: Build Docker image
+      env:
+        GO_DIGEST: ${{ steps.go-image.outputs.digest }}
       run: |
         docker buildx build \
           --load \
-          --build-arg GO_VERSION="$(awk '$1 == "go" { print $2; exit }' go.mod)" \
+          --build-arg GO_VERSION="$(awk '$1 == "go" { print $2; exit }' go.mod)@$GO_DIGEST" \
           --cache-to=type=local,dest=/tmp/.docker-buildx-cache-new,mode=max \
           --cache-from=type=local,src=/tmp/.docker-buildx-cache \
           --tag gct-backend-amd64 \
@@ -223,6 +240,13 @@ jobs:
       run: |
         rm -rf /tmp/.docker-buildx-cache
         mv /tmp/.docker-buildx-cache-new /tmp/.docker-buildx-cache
+
+    - name: Save Docker layers
+      if: steps.docker-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: /tmp/.docker-buildx-cache
+        key: ${{ steps.docker-cache.outputs.cache-primary-key }}
     
     - name: Run Docker image
       run: |

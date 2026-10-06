@@ -319,7 +319,8 @@ This ensures proper formatting across the codebase.
     and verify that each referenced repository file exists.
 - When upgrading `markdownlint-cli2` in the `markdownlint` Makefile target,
     review newly introduced rules before changing the config.
-- Lint both Markdown and template sources using the same scope as CI:
+- Lint both Markdown and template sources using the same scope as CI, which
+    needs Node.js installed for `npx`:
 
     ```console
     make markdownlint

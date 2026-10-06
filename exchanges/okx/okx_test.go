@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -773,6 +776,34 @@ func TestGetOpenInterestAndVolumeExpiry(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestExpiryOpenInterestAndVolumeUnmarshal(t *testing.T) {
+	t.Parallel()
+	var got ExpiryOpenInterestAndVolume
+	require.NoError(t, json.Unmarshal([]byte(`["1791216000000","20261006","1275.95","1866.29","863.66","1685.48"]`), &got), "Unmarshal must not error")
+	exp := ExpiryOpenInterestAndVolume{
+		Timestamp:        types.Time(time.UnixMilli(1791216000000)),
+		ExpiryTime:       time.Date(2026, time.October, 6, 0, 0, 0, 0, time.UTC),
+		CallOpenInterest: 1275.95,
+		PutOpenInterest:  1866.29,
+		CallVolume:       863.66,
+		PutVolume:        1685.48,
+	}
+	assert.Equal(t, exp, got, "Unmarshal should decode every field")
+
+	var noExpiry ExpiryOpenInterestAndVolume
+	require.NoError(t, json.Unmarshal([]byte(`["1791216000000","","0","0","0","0"]`), &noExpiry), "Unmarshal must not error without an expiry date")
+	assert.Zero(t, noExpiry.ExpiryTime, "ExpiryTime should stay zero without an expiry date")
+
+	kept := ExpiryOpenInterestAndVolume{ExpiryTime: exp.ExpiryTime}
+	var parseErr *time.ParseError
+	err := json.Unmarshal([]byte(`["1791216000000","2026ab06","0","0","0","0"]`), &kept)
+	assert.ErrorAs(t, err, &parseErr, "Unmarshal should reject a malformed expiry date")
+	assert.Equal(t, exp.ExpiryTime, kept.ExpiryTime, "Unmarshal should keep ExpiryTime when the expiry date is malformed")
+
+	err = json.Unmarshal([]byte(`["1791216000000",20261006,"0","0","0","0"]`), new(ExpiryOpenInterestAndVolume))
+	assert.Error(t, err, "Unmarshal should reject an expiry date that is not a string")
+}
+
 func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Time{}, kline.OneDay)
@@ -784,23 +815,95 @@ func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	})
 	require.NoErrorf(t, err, "GetInstruments for options (underlying: %s) must not error", optionsPair)
 	require.NotEmptyf(t, instruments, "GetInstruments for options (underlying: %s) must return at least one instrument", optionsPair)
-	var selectedExpTime time.Time
-	now := time.Now()
-	today := now.UTC().Truncate(24 * time.Hour)
-	for _, inst := range instruments {
-		expTime := inst.ExpTime.Time()
-		listTime := inst.ListTime.Time()
-		if !strings.EqualFold(inst.State, "live") || expTime.IsZero() || !expTime.After(now) ||
-			!expTime.UTC().Truncate(24*time.Hour).After(today) || listTime.IsZero() || listTime.After(now) {
-			continue
-		}
-		selectedExpTime = expTime
-		break
-	}
-	require.NotZero(t, selectedExpTime, "GetInstruments must return a live, listed instrument with a later expiry date")
+	selectedExpTime := nextListedExpiry(instruments, time.Now())
+	require.NotZero(t, selectedExpTime, "GetInstruments must return a later expiry whose instruments are all live and listed")
 	result, err := e.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, selectedExpTime, kline.OneDay)
 	require.NoErrorf(t, err, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s must not error", selectedExpTime, currency.BTC)
 	assert.NotNilf(t, result, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s should return a non-nil result", selectedExpTime, currency.BTC)
+}
+
+func TestGetOpenInterestAndVolumeStrikeRequest(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v5/rubik/stat/option/open-interest-volume-strike", r.URL.Path, "request path should be the strike endpoint")
+		assert.Equal(t, url.Values{"ccy": {"BTC"}, "expTime": {"20261006"}, "period": {"1D"}}, r.URL.Query(), "query should send the expiry's UTC date")
+		_, err := w.Write([]byte(`{"code":"0","msg":"","data":[["1791216000000","85000","1.5","2.5","3.5","4.5"]]}`))
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+
+	expiry := time.Date(2026, time.October, 6, 8, 0, 0, 0, time.UTC).In(time.FixedZone("UTC-12", -12*60*60))
+	got, err := ex.GetOpenInterestAndVolumeStrike(t.Context(), currency.BTC, expiry, kline.OneDay)
+	require.NoError(t, err, "GetOpenInterestAndVolumeStrike must not error")
+	exp := []StrikeOpenInterestAndVolume{{
+		Timestamp:        types.Time(time.UnixMilli(1791216000000)),
+		Strike:           85000,
+		CallOpenInterest: 1.5,
+		PutOpenInterest:  2.5,
+		CallVolume:       3.5,
+		PutVolume:        4.5,
+	}}
+	assert.Equal(t, exp, got, "GetOpenInterestAndVolumeStrike should decode every row")
+}
+
+const listingSettlePeriod = time.Minute
+
+func nextListedExpiry(instruments []Instrument, now time.Time) time.Time {
+	pendingExpiries := make(map[string]bool)
+	settled := now.Add(-listingSettlePeriod)
+	for i := range instruments {
+		if listTime := instruments[i].ListTime.Time(); !strings.EqualFold(instruments[i].State, instrumentStateLive) || listTime.IsZero() || listTime.After(settled) {
+			pendingExpiries[instruments[i].ExpTime.Time().UTC().Format(expiryDateLayout)] = true
+		}
+	}
+	today := now.UTC().Truncate(24 * time.Hour)
+	for i := range instruments {
+		expTime := instruments[i].ExpTime.Time()
+		if !expTime.UTC().Truncate(24*time.Hour).After(today) || pendingExpiries[expTime.UTC().Format(expiryDateLayout)] {
+			continue
+		}
+		return expTime
+	}
+	return time.Time{}
+}
+
+func TestNextListedExpiry(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.October, 5, 23, 56, 0, 0, time.UTC)
+	nextDay := time.Date(2026, time.October, 6, 8, 0, 0, 0, time.UTC)
+	later := nextDay.AddDate(0, 0, 1)
+	listed := now.Add(-time.Hour)
+	option := func(expiry time.Time, state string, listTime time.Time) Instrument {
+		return Instrument{ExpTime: types.Time(expiry), State: state, ListTime: types.Time(listTime)}
+	}
+	for _, tc := range []struct {
+		name        string
+		instruments []Instrument
+		expected    time.Time
+	}{
+		{"nearest expiry", []Instrument{option(nextDay, "live", listed), option(later, "live", listed)}, nextDay},
+		{"preopen strike", []Instrument{option(nextDay, "live", listed), option(nextDay, "preopen", now.Add(5*time.Minute)), option(later, "live", listed)}, later},
+		{"strike listing later", []Instrument{option(nextDay, "live", listed), option(nextDay, "live", now.Add(time.Minute)), option(later, "live", listed)}, later},
+		{"strike without listing time", []Instrument{option(nextDay, "live", listed), option(nextDay, "live", time.Time{}), option(later, "live", listed)}, later},
+		{"strike listed now", []Instrument{option(nextDay, "live", listed), option(nextDay, "live", now), option(later, "live", listed)}, later},
+		{"strike listed seconds ago", []Instrument{option(nextDay, "live", listed), option(nextDay, "live", now.Add(-8*time.Second)), option(later, "live", listed)}, later},
+		{"strike listed one settle period ago", []Instrument{option(nextDay, "live", listed), option(nextDay, "live", now.Add(-listingSettlePeriod)), option(later, "live", listed)}, nextDay},
+		{"strike listed just under one settle period ago", []Instrument{option(nextDay, "live", listed), option(nextDay, "live", now.Add(-listingSettlePeriod+time.Millisecond)), option(later, "live", listed)}, later},
+		{"preopen strike past its listing time", []Instrument{option(nextDay, "live", listed), option(nextDay, "preopen", listed), option(later, "live", listed)}, later},
+		{"preopen strike in another time zone", []Instrument{option(nextDay, "live", listed), option(nextDay.In(time.FixedZone("UTC-12", -12*60*60)), "preopen", now.Add(5*time.Minute)), option(later, "live", listed)}, later},
+		{"state in upper case", []Instrument{option(nextDay, "LIVE", listed), option(later, "live", listed)}, nextDay},
+		{"expiry later today", []Instrument{option(now.Add(3*time.Minute), "live", listed), option(nextDay, "live", listed)}, nextDay},
+		{"expired", []Instrument{option(now.Add(-time.Minute), "live", listed), option(nextDay, "live", listed)}, nextDay},
+		{"no listed expiry", []Instrument{option(nextDay, "preopen", now.Add(5*time.Minute))}, time.Time{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, nextListedExpiry(tc.instruments, now), "nextListedExpiry should return the expected expiry")
+		})
+	}
 }
 
 func TestGetTakerFlow(t *testing.T) {

@@ -29,6 +29,19 @@ else
     HAS_GNU_GREP=0
 fi
 
+UTF8_LOCALE=''
+if [[ "$HAS_GNU_GREP" -eq 1 ]]; then
+    for candidate in C.UTF-8 en_US.UTF-8; do
+        if [[ "$(LC_ALL="$candidate" locale charmap 2>/dev/null)" == 'UTF-8' ]]; then
+            UTF8_LOCALE="$candidate"
+            break
+        fi
+    done
+    if [[ -z "$UTF8_LOCALE" ]]; then
+        HAS_GNU_GREP=0
+    fi
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -139,6 +152,15 @@ pcre_grep() {
     grep_matches 'P' "$1" "$2" "$strip_dot_prefix" "$search_root"
 }
 
+if [[ "$HAS_GNU_GREP" -eq 0 ]]; then
+    for tool in perl find xargs; do
+        if ! command -v "$tool" &>/dev/null; then
+            fail "$tool is not installed - install it, or GNU grep via: brew install grep (macOS)"
+            exit 1
+        fi
+    done
+fi
+
 # ---------------------------------------------------------------------------
 # 1. currency.NewPair(BTC, USD) usage
 # ---------------------------------------------------------------------------
@@ -219,7 +241,7 @@ info "Check for LLM targeted invisible Unicode"
 # Uses perl -T to skip binary files (equivalent to grep -I in the original CI).
 UNICODE_PATTERN='(?!\x20)[\p{Cf}\p{Z}\p{M}]'
 if [[ "$HAS_GNU_GREP" -eq 1 ]]; then
-    unicode_results=$("$GREP_BIN" -r -n -I --color=always --exclude-dir=.git --exclude-dir=.idea -P "$UNICODE_PATTERN" . 2>/dev/null) || true
+    unicode_results=$(LC_ALL="$UTF8_LOCALE" "$GREP_BIN" -r -n -I --color=always --exclude-dir=.git --exclude-dir=.idea -P "$UNICODE_PATTERN" . 2>/dev/null) || true
 else
     unicode_results=$(find . -not -path './.git/*' -not -path './.idea/*' -type f -print0 2>/dev/null \
         | xargs -0 perl -e '

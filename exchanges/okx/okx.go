@@ -46,6 +46,8 @@ const (
 
 	apiWebsocketPublicURL  = websocketURL + "public"
 	apiWebsocketPrivateURL = websocketURL + "private"
+
+	expiryDateLayout = "20060102"
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -5444,7 +5446,7 @@ func (e *Exchange) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy curre
 		return nil, errMissingExpiryTimeParameter
 	}
 	params := url.Values{}
-	params.Set("expTime", expTime.UTC().Format("20060102"))
+	params.Set("expTime", expTime.UTC().Format(expiryDateLayout))
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
