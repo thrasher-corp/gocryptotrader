@@ -846,7 +846,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return allOrders, err
 				}
 				for x := range trades.Trades {
-					curr := e.instrumentMap.LookupInstrument(trades.Trades[x].InstrumentID)
+					curr := e.instrumentMap.LookupInstrument(trades.Trades[x].Order.InstrumentID)
 					var p currency.Pair
 					p, err = currency.NewPairFromString(curr)
 					if err != nil {
@@ -854,23 +854,24 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					}
 
 					var side order.Side
-					side, err = order.StringToOrderSide(trades.Trades[x].Side)
+					side, err = order.StringToOrderSide(trades.Trades[x].Order.Side)
 					if err != nil {
 						return nil, err
 					}
 
 					detail := order.Detail{
 						Exchange:             e.Name,
-						OrderID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
+						OrderID:              strconv.FormatInt(trades.Trades[x].Order.OrderID, 10),
 						Pair:                 p,
 						Side:                 side,
-						Date:                 trades.Trades[x].Timestamp.Time(),
+						Date:                 trades.Trades[x].Order.Timestamp.Time(),
+						LastUpdated:          trades.Trades[x].Timestamp.Time(),
 						Status:               order.Filled,
-						Price:                trades.Trades[x].Price,
-						Amount:               trades.Trades[x].Quantity,
+						Price:                trades.Trades[x].Order.Price,
+						Amount:               trades.Trades[x].Order.Quantity,
 						AverageExecutedPrice: trades.Trades[x].FillPrice,
 						ExecutedAmount:       trades.Trades[x].FillQuantity,
-						RemainingAmount:      trades.Trades[x].OpenQuantity,
+						RemainingAmount:      trades.Trades[x].Order.OpenQuantity,
 						Fee:                  trades.Trades[x].Commission.Amount,
 						FeeAsset:             currency.NewCode(trades.Trades[x].Commission.Currency),
 					}
@@ -945,6 +946,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Side:                 side,
 					Status:               order.Filled,
 					Date:                 orders.Trades[y].Order.Timestamp.Time(),
+					LastUpdated:          orders.Trades[y].Timestamp.Time(),
 					Pair:                 p,
 				})
 			}

@@ -993,6 +993,16 @@ func futuresFinishStatus(finishAs string) (order.Status, error) {
 	return order.StringToOrderStatus(finishAs)
 }
 
+// spotFinishStatus converts Gate's spot-specific completion reasons. These
+// outcomes all close the order without filling its remaining quantity.
+func spotFinishStatus(finishAs string) (order.Status, error) {
+	switch finishAs {
+	case "ioc", "fok", "poc", "small", "depth_not_enough", "trader_not_enough":
+		return order.Cancelled, nil
+	}
+	return order.StringToOrderStatus(finishAs)
+}
+
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
@@ -2900,7 +2910,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		}
 		status := order.Open
 		if resp.FinishAs != "" && resp.FinishAs != statusOpen {
-			status, err = order.StringToOrderStatus(resp.FinishAs)
+			status, err = spotFinishStatus(resp.FinishAs)
 			if err != nil {
 				return nil, err
 			}

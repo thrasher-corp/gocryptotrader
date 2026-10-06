@@ -3,7 +3,10 @@ package btcmarkets
 import (
 	"encoding/base64"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -451,7 +454,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	got, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 		Side:      order.Buy,
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
@@ -459,10 +462,55 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	require.NotEmpty(t, got, "GetOrderHistory must return mocked orders")
-	assert.NotZero(t, got[0].Price, "GetOrderHistory should retain the requested order price")
-	assert.Zero(t, got[0].AverageExecutedPrice, "GetOrderHistory should leave an unavailable fill price unknown")
-	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should leave an unavailable quote total unknown")
+}
+
+func TestGetOrderHistoryExecutionMappings(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var response string
+		switch {
+		case strings.HasSuffix(r.URL.Path, btcMarketsOrders):
+			response = `[{"orderId":"order-123","marketId":"BTC-AUD","side":"Bid","type":"Limit","creationTime":"2023-11-14T22:13:20Z","price":"61","amount":"2","openAmount":"0.5","status":"Fully Matched","timeInForce":"GTC"}]`
+		case strings.HasSuffix(r.URL.Path, btcMarketsBatchOrders+"/order-123"):
+			response = `{"orders":[{"orderId":"order-123","marketId":"BTC-AUD","side":"Bid","type":"Limit","creationTime":"2023-11-14T22:13:20Z","price":"61","amount":"2","openAmount":"0.5","status":"Fully Matched","clientOrderId":"client-123"}]}`
+		default:
+			assert.Failf(t, "unexpected request", "path: %s", r.URL.Path)
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "writing the order history response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{currency.NewPair(currency.BTC, currency.AUD)},
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, got, 1, "GetOrderHistory must return the fixture order")
+
+	orderTime := time.Unix(1700000000, 0).UTC()
+	exp := order.Detail{
+		Price:           61,
+		Amount:          2,
+		ExecutedAmount:  1.5,
+		RemainingAmount: 0.5,
+		Exchange:        ex.Name,
+		OrderID:         "order-123",
+		Side:            order.Bid,
+		Status:          order.Filled,
+		Date:            orderTime,
+		LastUpdated:     orderTime,
+		Pair:            currency.NewPairWithDelimiter("BTC", "AUD", "-"),
+	}
+	assert.Equal(t, exp, got[0], "GetOrderHistory should map all order fields")
 }
 
 func TestUpdateOrderbook(t *testing.T) {

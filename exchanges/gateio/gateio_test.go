@@ -2585,15 +2585,11 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
 		"StorePairs must enable the test pair")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"limit","account":"spot","side":"buy","amount":"3","price":"10","time_in_force":"gtc","left":"1","avg_deal_price":"10","fee":"0.02","fee_currency":"USDT","filled_total":"20"}`))
 		assert.NoError(t, err, "Mock spot order response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
@@ -2630,15 +2626,11 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 
 	finishAs, left := "cancelled", 4
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := fmt.Fprintf(w, `{"id":123456789,"user":"12870774","contract":"BTC_USDT","create_time":1735787107.449,"size":10,"left":%d,"price":"0","fill_price":"98172.9","tif":"ioc","text":"t-1337","status":"finished","finish_time":1735787107.45,"finish_as":%q,"update_time":1735787107.45}`, left, finishAs)
 		assert.NoError(t, err, "mock futures order response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
@@ -2683,15 +2675,11 @@ func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
 		"StorePairs must enable the test pair")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`[{"currency_pair":"BTC_USDT","total":"2","orders":[{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"open","type":"limit","account":"spot","side":"buy","amount":"2","price":"10","time_in_force":"gtc","left":"1.5","avg_deal_price":"10","fee":"0.001","fee_currency":"BTC","filled_amount":"0.5","filled_total":"5"},{"id":"1235","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"open","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","fee":"0.000000398","fee_currency":"BTC","filled_amount":"0.000199","filled_total":"9.95"}]}]`))
 		assert.NoError(t, err, "mock active spot orders response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
@@ -2790,6 +2778,24 @@ func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
 	}
 }
 
+func TestSpotWebsocketFinishStatusMappings(t *testing.T) {
+	t.Parallel()
+	for _, finishAs := range []string{"ioc", "fok", "poc", "small", "depth_not_enough", "trader_not_enough"} {
+		t.Run(finishAs, func(t *testing.T) {
+			t.Parallel()
+			got, err := e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{
+				Account:     asset.Spot,
+				Side:        "buy",
+				Type:        "limit",
+				TimeInForce: "gtc",
+				FinishAs:    finishAs,
+			})
+			require.NoError(t, err, "deriveSpotWebsocketOrderResponse must accept Gate completion reasons")
+			assert.Equal(t, order.Cancelled, got.Status, "unfilled completion should map to cancelled")
+		})
+	}
+}
+
 func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
@@ -2799,15 +2805,11 @@ func TestSpotMarketBuyExecutionResponseMappings(t *testing.T) {
 			"StorePairs must enable the test pair")
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`{"id":"1234","text":"t-client","create_time_ms":1735720637000,"update_time_ms":1735720638000,"currency_pair":"BTC_USDT","status":"closed","type":"market","account":"spot","side":"buy","amount":"10","price":"0","time_in_force":"ioc","left":"0.05","avg_deal_price":"50000","filled_amount":"0.000199","fee":"0.000000398","fee_currency":"BTC","filled_total":"9.95"}`))
 		assert.NoError(t, err, "Mock spot market-buy response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
@@ -2859,15 +2861,11 @@ func TestGetOrderHistorySpotExecutionPrice(t *testing.T) {
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true),
 		"StorePairs must enable the test pair")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, err := w.Write([]byte(`[{"id":"1","create_time_ms":1735720637000,"currency_pair":"BTC_USDT","order_id":"2","side":"buy","amount":"0.01","price":"60000","fee":"0.1","fee_currency":"USDT"}]`))
 		assert.NoError(t, err, "mock spot trade history response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 

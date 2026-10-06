@@ -1348,6 +1348,29 @@ func TestGetOrders(t *testing.T) {
 	}
 }
 
+func TestGetOrdersOpenVolume(t *testing.T) {
+	t.Parallel()
+	om := OrdersSetup(t)
+	em, ok := om.orderStore.exchangeManager.(*ExchangeManager)
+	require.True(t, ok, "exchange manager must be an *ExchangeManager")
+	exch, err := em.GetExchangeByName(testExchange)
+	require.NoError(t, err, "GetExchangeByName must not error")
+	pair := currency.NewBTCUSD()
+	require.NoError(t, exch.GetBase().CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "StorePairs must not error")
+	require.NoError(t, exch.GetBase().CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
+	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
+	resp, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
+		Exchange:  testExchange,
+		AssetType: asset.Spot.String(),
+		Pair:      &gctrpc.CurrencyPair{Delimiter: "-", Base: currency.BTC.String(), Quote: currency.USD.String()},
+		StartDate: time.Now().UTC().Add(-2 * time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:   time.Now().UTC().Format(common.SimpleTimeFormatWithTimezone),
+	})
+	require.NoError(t, err, "GetOrders must not error")
+	require.Len(t, resp.Orders, 1, "GetOrders must return the fake exchange's active order")
+	assert.Equal(t, 2.0, resp.Orders[0].OpenVolume, "OpenVolume should be the unfilled quantity when no remainder is reported")
+}
+
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
 	exchName := "Binance"
@@ -1838,7 +1861,6 @@ func TestGetManagedOrders(t *testing.T) {
 		Price:               60,
 		Amount:              7,
 		ExecutedAmount:      2,
-		RemainingAmount:     5,
 		ExecutedQuoteAmount: 120,
 		Fee:                 3,
 		Exchange:            "Binance",

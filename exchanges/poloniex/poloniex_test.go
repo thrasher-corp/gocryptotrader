@@ -1620,7 +1620,7 @@ func TestSpotOrderExecutionMappings(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 
 	const orderResponse = `{"id":"1","symbol":"BTC_USDT","state":"FILLED","accountType":"SPOT","side":"BUY","type":"LIMIT","price":"61000","avgPrice":"60000","quantity":"0.01","amount":"610","filledQuantity":"0.01","filledAmount":"600","createTime":1735720637000,"updateTime":1735720638000}`
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var response string
 		switch r.URL.Path {
 		case "/orders/1/trades":
@@ -1636,11 +1636,7 @@ func TestSpotOrderExecutionMappings(t *testing.T) {
 		_, err := w.Write([]byte(response))
 		assert.NoError(t, err, "mock order response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 

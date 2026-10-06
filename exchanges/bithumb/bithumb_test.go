@@ -412,20 +412,47 @@ func TestGetOrderHistory(t *testing.T) {
 		Pairs:     currency.Pairs{testPair},
 	}
 
-	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	require.NoError(t, err, "GetOrderHistory must not error")
-	require.NotEmpty(t, got, "GetOrderHistory must return mocked orders")
-	assert.NotZero(t, got[0].Price, "GetOrderHistory should retain the requested order price")
-	assert.Zero(t, got[0].AverageExecutedPrice, "GetOrderHistory should not treat the requested price as a fill price")
-	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should not invent an executed quote total")
 }
 
-func TestOrderDataToDetailExecutionMappings(t *testing.T) {
+func TestGetOrderHistoryExecutionMappings(t *testing.T) {
 	t.Parallel()
-	got := orderDataToDetail(&OrderData{Units: 7, UnitsRemaining: 5, Price: 60, Type: "bid", OrderCurrency: "BTC", PaymentCurrency: "KRW"}, "_", "Bithumb")
-	assert.Equal(t, 2.0, got.ExecutedAmount, "conversion should retain the reported filled quantity")
-	assert.Zero(t, got.AverageExecutedPrice, "conversion should not treat the requested price as a fill price")
-	assert.Zero(t, got.ExecutedQuoteAmount, "conversion should not invent an executed quote total")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, privateOrders, r.URL.Path, "request path should be the orders endpoint")
+		_, err := w.Write([]byte(`{"status":"0000","data":[{"order_id":"order-123","order_currency":"BTC","order_date":"1576661434072","payment_currency":"KRW","type":"bid","status":"completed","units":"7","units_remaining":"5","price":"60","fee":"0.1","total":"120"}]}`))
+		assert.NoError(t, err, "writing the order history response should not error")
+	}))
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{testPair},
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, got, 1, "GetOrderHistory must return the fixture order")
+
+	orderTime := time.UnixMilli(1576661434072)
+	exp := order.Detail{
+		Price:           60,
+		Amount:          7,
+		ExecutedAmount:  2,
+		RemainingAmount: 5,
+		Exchange:        ex.Name,
+		OrderID:         "order-123",
+		Side:            order.Buy,
+		Date:            orderTime,
+		LastUpdated:     orderTime,
+		Pair:            currency.NewPairWithDelimiter("BTC", "KRW", "-"),
+	}
+	assert.Equal(t, exp, got[0], "GetOrderHistory should map all order fields")
 }
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them

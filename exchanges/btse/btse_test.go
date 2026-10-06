@@ -3,6 +3,8 @@ package btse
 import (
 	"context"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"sync"
 	"testing"
@@ -406,12 +408,41 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	assert.NoError(t, err, "GetOrderHistory should not error")
-	require.NotEmpty(t, got, "GetOrderHistory must return mocked orders")
-	assert.NotZero(t, got[0].ExecutedAmount, "GetOrderHistory should retain the reported filled quantity")
-	assert.NotZero(t, got[0].AverageExecutedPrice, "GetOrderHistory should retain the reported average fill price")
-	assert.Zero(t, got[0].ExecutedQuoteAmount, "GetOrderHistory should not invent an unavailable quote total")
+}
+
+func TestGetOrderHistoryExecutionMappings(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`[{"orderType":76,"price":6100,"size":1,"side":"BUY","filledSize":0.4,"averageFillPrice":6000,"orderValue":6100,"timestamp":1576661434072,"orderID":"abc","clOrderID":"client-123","symbol":"BTC-USD","orderState":"STATUS_ACTIVE"}]`))
+		assert.NoError(t, err, "writing open orders should not error")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, AssetType: asset.Spot, Side: order.AnySide, Pairs: currency.Pairs{spotPair}})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, got, 1, "GetOrderHistory must return the fixture order")
+	orderTime := time.UnixMilli(1576661434072)
+	exp := order.Detail{
+		Price:                6100,
+		Amount:               1,
+		AverageExecutedPrice: 6000,
+		ExecutedAmount:       0.4,
+		RemainingAmount:      0.6,
+		Exchange:             ex.Name,
+		OrderID:              "abc",
+		ClientID:             "client-123",
+		Side:                 order.Buy,
+		Status:               order.Active,
+		Date:                 orderTime,
+		LastUpdated:          orderTime,
+		Pair:                 spotPair,
+	}
+	assert.Equal(t, exp, got[0], "GetOrderHistory should map all order fields")
 }
 
 func TestTradeHistory(t *testing.T) {

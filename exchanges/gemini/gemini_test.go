@@ -166,11 +166,15 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
+	history, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
 	if err != nil && mockTests {
 		t.Error("GetTradeHistory() error", err)
 	} else if err == nil && !mockTests {
 		t.Error("GetTradeHistory() error cannot be nil")
+	}
+	if mockTests {
+		require.NotEmpty(t, history, "trade history must not be empty")
+		assert.Equal(t, currency.USD, history[0].FeeCurrency, "fee currency should be decoded")
 	}
 }
 
@@ -384,12 +388,14 @@ func TestGetOrderHistory(t *testing.T) {
 func TestTradeHistoryToOrderDetailExecutionMappings(t *testing.T) {
 	t.Parallel()
 	got, err := tradeHistoryToOrderDetail(&TradeHistory{
-		Price: 60, Amount: 2, Type: "buy", OrderID: 42, BaseCurrency: "BTC", QuoteCurrency: "USD",
+		Price: 60, Amount: 2, Type: "buy", OrderID: 42, BaseCurrency: "BTC", QuoteCurrency: "USD", FeeAmount: 0.3, FeeCurrency: currency.USD,
 	}, currency.PairFormat{Delimiter: "-"}, "Gemini")
 	require.NoError(t, err, "tradeHistoryToOrderDetail must not error")
 	assert.Equal(t, 2.0, got.ExecutedAmount, "conversion should retain the reported filled quantity")
 	assert.Equal(t, 60.0, got.AverageExecutedPrice, "conversion should retain the reported fill price")
 	assert.Zero(t, got.ExecutedQuoteAmount, "conversion should not invent an unavailable quote total")
+	assert.Equal(t, 0.3, got.Fee, "conversion should retain the reported fee")
+	assert.Equal(t, currency.USD, got.FeeAsset, "conversion should retain the reported fee currency")
 }
 
 // TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them

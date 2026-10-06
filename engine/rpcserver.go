@@ -978,7 +978,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			Status:              resp[x].Status.String(),
 			Price:               resp[x].Price,
 			Amount:              resp[x].Amount,
-			OpenVolume:          resp[x].RemainingAmount,
+			OpenVolume:          resp[x].Amount - resp[x].ExecutedAmount, // TODO: Use the authoritative RemainingAmount once all active-order adapters populate it consistently. See #2386.
 			Fee:                 resp[x].Fee,
 			ExecutedQuoteAmount: resp[x].ExecutedQuoteAmount,
 			Trades:              trades,
@@ -1068,7 +1068,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			Status:              resp[x].Status.String(),
 			Price:               resp[x].Price,
 			Amount:              resp[x].Amount,
-			OpenVolume:          resp[x].RemainingAmount,
+			OpenVolume:          resp[x].Amount - resp[x].ExecutedAmount, // TODO: Use the authoritative RemainingAmount once all active-order adapters populate it consistently. See #2386.
 			Fee:                 resp[x].Fee,
 			ExecutedQuoteAmount: resp[x].ExecutedQuoteAmount,
 			Trades:              trades,

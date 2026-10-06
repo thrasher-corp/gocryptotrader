@@ -1397,7 +1397,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			detail := order.Detail{
 				Amount:               resp.List[i].OrderQuantity.Float64(),
 				ExecutedAmount:       resp.List[i].CumulativeExecQuantity.Float64(),
-				RemainingAmount:      resp.List[i].CumulativeExecQuantity.Float64() - resp.List[i].CumulativeExecQuantity.Float64(),
+				RemainingAmount:      resp.List[i].LeavesQuantity.Float64(),
 				Date:                 resp.List[i].CreatedTime.Time(),
 				LastUpdated:          resp.List[i].UpdatedTime.Time(),
 				Exchange:             e.Name,
@@ -1413,6 +1413,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				ClientOrderID:        resp.List[i].OrderLinkID,
 				AssetType:            req.AssetType,
 			}
+			detail.Fee, detail.FeeAsset = getOrderFee(resp.List[i].CumulativeFeeDetail, resp.List[i].CumulativeExecFee)
 			detail.ExecutedQuoteAmount = resp.List[i].CumulativeExecValue.Float64()
 			orders = append(orders, detail)
 		}
@@ -1426,6 +1427,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 // getOrderFee prefers Bybit's current currency-keyed cumulative fee detail.
 // Detail cannot represent several fee currencies without losing information,
 // so the generic fee remains unknown when more than one currency is reported.
+// UpdateOrderFromDetail treats zero as omitted and may retain an earlier
+// single-currency fee until Detail can represent multiple fee currencies.
+// TODO: Preserve all reported fee currencies through Detail and order updates. See #2456.
 func getOrderFee(details FeeDetail, legacy types.Number) (float64, currency.Code) {
 	if len(details) == 1 {
 		for code, fee := range details {

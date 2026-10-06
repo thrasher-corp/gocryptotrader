@@ -871,13 +871,8 @@ func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	args := OrderInfoOptions{Trades: true}
-	resp, err := e.QueryOrdersInfo(t.Context(), args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
+	_, err := e.QueryOrdersInfo(t.Context(), args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
 	assert.NoError(t, err)
-	for id, source := range resp {
-		got, err := e.GetOrderInfo(t.Context(), id, currency.EMPTYPAIR, asset.Spot)
-		require.NoError(t, err, "GetOrderInfo must map the queried order")
-		assert.Equal(t, source.Cost, got.ExecutedQuoteAmount, "GetOrderInfo should retain the reported cost")
-	}
 }
 
 func TestGetTradesHistory(t *testing.T) {
@@ -1068,13 +1063,87 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	got, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
+	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	assert.NoError(t, err)
-	source, err := e.GetClosedOrders(t.Context(), GetClosedOrdersOptions{})
-	require.NoError(t, err, "GetClosedOrders must not error")
-	for i := range got {
-		assert.Equal(t, source.Closed[got[i].OrderID].Cost, got[i].ExecutedQuoteAmount, "GetOrderHistory should retain the reported cost")
+}
+
+func TestSpotOrderExecutionMappings(t *testing.T) {
+	t.Parallel()
+	const orderResponse = `{"status":"closed","opentm":1700000000,"closetm":1700000060,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"61"},"vol":"2","vol_exec":"1.5","cost":"90","fee":"0.3","price":"60","trades":["trade-1","trade-2"]}`
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var response string
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/"+krakenQueryOrders):
+			response = `{"error":[],"result":{"order-123":` + orderResponse + `}}`
+		case strings.HasSuffix(r.URL.Path, "/"+krakenClosedOrders):
+			response = `{"error":[],"result":{"closed":{"order-123":` + orderResponse + `},"count":1}}`
+		default:
+			assert.Failf(t, "unexpected request", "path: %s", r.URL.Path)
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "writing the order response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTestPair}, true), "spot pair must be enabled")
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0"})
+
+	orderTime := time.Unix(1700000000, 0)
+	closeTime := time.Unix(1700000060, 0)
+	gotInfo, err := ex.GetOrderInfo(t.Context(), "order-123", currency.EMPTYPAIR, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	expInfo := &order.Detail{
+		Price:               60,
+		Amount:              2,
+		ExecutedAmount:      1.5,
+		RemainingAmount:     0.5,
+		ExecutedQuoteAmount: 90,
+		Fee:                 0.3,
+		Exchange:            ex.Name,
+		OrderID:             "order-123",
+		Type:                order.Limit,
+		Side:                order.Buy,
+		Status:              order.Closed,
+		AssetType:           asset.Spot,
+		Date:                orderTime,
+		CloseTime:           closeTime,
+		Pair:                currency.NewPairWithDelimiter("XBT", "USD", "_"),
+		Trades: []order.TradeHistory{
+			{TID: "trade-1"},
+			{TID: "trade-2"},
+		},
 	}
+	assert.Equal(t, expInfo, gotInfo, "GetOrderInfo should map all order fields")
+
+	gotHistory, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, gotHistory, 1, "GetOrderHistory must return the fixture order")
+	expHistory := order.Detail{
+		Price:                61,
+		Amount:               2,
+		AverageExecutedPrice: 60,
+		ExecutedAmount:       1.5,
+		RemainingAmount:      0.5,
+		ExecutedQuoteAmount:  90,
+		Exchange:             ex.Name,
+		OrderID:              "order-123",
+		Type:                 order.Limit,
+		Side:                 order.Buy,
+		Status:               order.Closed,
+		Date:                 orderTime,
+		CloseTime:            closeTime,
+		LastUpdated:          closeTime,
+		Pair:                 currency.NewPairWithDelimiter("XBT", "USD", "_"),
+	}
+	assert.Equal(t, expHistory, gotHistory[0], "GetOrderHistory should map all order fields")
 }
 
 // TestGetOrderInfo exercises GetOrderInfo

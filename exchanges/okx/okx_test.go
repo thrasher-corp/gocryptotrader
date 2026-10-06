@@ -4009,7 +4009,7 @@ func TestRESTOrderExecutionMappings(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		instID, instType := "BTC-USDT", "SPOT"
 		if r.URL.Query().Get("instType") == "SWAP" {
 			instID, instType = "BTC-USDT-SWAP", "SWAP"
@@ -4018,20 +4018,16 @@ func TestRESTOrderExecutionMappings(t *testing.T) {
 			return `{"accFillSz":"0.0015","avgPx":"60000","cTime":"1654084334977","fee":"` + fee + `","feeCcy":"USDT","fillSz":"0.0005","instId":"` + instID + `","instType":"` + instType + `","ordId":"` + orderID + `","ordType":"limit","px":"60000","rebate":"0.0012","side":"buy","state":"partially_filled","sz":"0.002","uTime":"1654084353264"}`
 		}
 		data := row("1", "-0.06") + "," + row("2", "0.02")
-		switch r.URL.Path {
-		case "/public/instruments":
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/public/instruments"):
 			data = `{"instType":"SWAP","instId":"BTC-USDT-SWAP","uly":"BTC-USDT","settleCcy":"USDT","ctVal":"0.01","state":"live"}`
-		case "/trade/order":
+		case strings.HasSuffix(r.URL.Path, "/trade/order"):
 			data = row("1", "-0.06")
 		}
 		_, err := w.Write([]byte(`{"code":"0","msg":"","data":[` + data + `]}`))
 		assert.NoError(t, err, "mock response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
 

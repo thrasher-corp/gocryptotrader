@@ -730,6 +730,7 @@ func tradeHistoryToOrderDetail(history *TradeHistory, format currency.PairFormat
 		Date:                 history.Timestamp.Time(),
 		Side:                 side,
 		Fee:                  history.FeeAmount,
+		FeeAsset:             history.FeeCurrency,
 		Price:                history.Price,
 		AverageExecutedPrice: history.Price,
 		Pair:                 currency.NewPairWithDelimiter(history.BaseCurrency, history.QuoteCurrency, format.Delimiter),

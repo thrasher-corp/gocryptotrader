@@ -341,7 +341,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	const (
 		emptyTradeHistoryResponse = `{"status":["OK"],"total_number":0,"trades":[]}`
-		validTradeHistoryResponse = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"BUY"}}]}`
+		validTradeHistoryResponse = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"BUY"},"timestamp":1700000060}]}`
 		invalidSideResponse       = `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"10","fill_qty":"2","order":{"order_id":42,"open_qty":"0","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"order_price":"10","side":"INVALID"}}]}`
 	)
 
@@ -395,6 +395,7 @@ func TestGetOrderHistory(t *testing.T) {
 				Side:                 order.Buy,
 				Status:               order.Filled,
 				Date:                 time.Unix(1700000000, 0),
+				LastUpdated:          time.Unix(1700000060, 0),
 				Pair:                 currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
 			}},
 			wantRequestCount:       1,
@@ -607,18 +608,21 @@ func TestGetOrderHistory(t *testing.T) {
 				}
 				for i := range tradeCount {
 					trades = append(trades, map[string]any{
-						"client_ord_id": i + 1000,
-						"commission":    map[string]any{"currency": "USD", "amount": "0.1"},
-						"fill_price":    "11",
-						"fill_qty":      "1.5",
-						"inst_id":       instrumentID,
-						"open_qty":      "0.5",
-						"order_id":      i + 42,
-						"price":         "10",
-						"qty":           "2",
-						"side":          side,
-						"status":        []string{"FILLED"},
-						"timestamp":     1700000000,
+						"commission": map[string]any{"currency": "USD", "amount": "0.1"},
+						"fill_price": "11",
+						"fill_qty":   "1.5",
+						"order": map[string]any{
+							"client_ord_id": i + 1000,
+							"inst_id":       instrumentID,
+							"open_qty":      "0.5",
+							"order_id":      i + 42,
+							"price":         "10",
+							"qty":           "2",
+							"side":          side,
+							"timestamp":     1700000000,
+						},
+						"timestamp": 1700000060,
+						"trans_id":  i + 2000,
 					})
 				}
 				response, err := json.Marshal(map[string]any{
@@ -674,6 +678,8 @@ func TestGetOrderHistory(t *testing.T) {
 				assert.Equal(t, 11.0, orders[0].AverageExecutedPrice, "GetOrderHistory should retain the websocket fill price")
 				assert.Equal(t, 0.1, orders[0].Fee, "GetOrderHistory should retain the websocket fee")
 				assert.Equal(t, currency.USD, orders[0].FeeAsset, "GetOrderHistory should retain the websocket fee currency")
+				assert.Equal(t, time.Unix(1700000000, 0), orders[0].Date, "GetOrderHistory should take the order time from the nested order")
+				assert.Equal(t, time.Unix(1700000060, 0), orders[0].LastUpdated, "GetOrderHistory should take the update time from the fill")
 			}
 
 			requestMutex.Lock()

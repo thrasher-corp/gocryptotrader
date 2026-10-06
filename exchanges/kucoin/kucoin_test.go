@@ -2343,7 +2343,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/1") {
 			_, err := w.Write([]byte(`{"code":"200000","data":{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","tradeType":"TRADE","price":"61000","size":"0.02","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}}`))
 			assert.NoError(t, err, "mock order detail response should be written")
@@ -2352,11 +2352,7 @@ func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 		_, err := w.Write([]byte(`{"code":"200000","data":{"currentPage":1,"pageSize":1,"totalNum":1,"totalPage":1,"items":[{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","price":"61000","size":"0.02","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}]}}`))
 		assert.NoError(t, err, "mock order history response should be written")
 	}))
-	t.Cleanup(server.Close)
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	for endpoint := range ex.API.Endpoints.GetURLMap() {
-		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/"), "SetRunningURL must not error")
-	}
 	ex.API.AuthenticatedSupport = true
 	ex.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})

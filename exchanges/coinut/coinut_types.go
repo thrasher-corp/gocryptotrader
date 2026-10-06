@@ -137,6 +137,7 @@ type OrderFilledResponse struct {
 	FillPrice    float64       `json:"fill_price,string"`
 	FillQuantity float64       `json:"fill_qty,string"`
 	Order        OrderResponse `json:"order"`
+	Timestamp    types.Time    `json:"timestamp"`
 }
 
 // OrdersBase contains generic response and order responses
@@ -474,9 +475,6 @@ type WsUserBalanceResponse struct {
 // WsOrderData ws response data
 type WsOrderData struct {
 	ClientOrderID int64      `json:"client_ord_id"`
-	Commission    Commission `json:"commission"`
-	FillPrice     float64    `json:"fill_price,string"`
-	FillQuantity  float64    `json:"fill_qty,string"`
 	InstrumentID  int64      `json:"inst_id"`
 	OpenQuantity  float64    `json:"open_qty,string"`
 	OrderID       int64      `json:"order_id"`
@@ -506,11 +504,11 @@ type WsUserOpenOrdersResponse struct {
 
 // WsTradeHistoryResponse ws response
 type WsTradeHistoryResponse struct {
-	Nonce       int64         `json:"nonce"`
-	Reply       string        `json:"reply"`
-	Status      []string      `json:"status"`
-	TotalNumber int64         `json:"total_number"`
-	Trades      []WsOrderData `json:"trades"`
+	Nonce       int64                 `json:"nonce"`
+	Reply       string                `json:"reply"`
+	Status      []string              `json:"status"`
+	TotalNumber int64                 `json:"total_number"`
+	Trades      []OrderFilledResponse `json:"trades"`
 }
 
 // WsLoginReq Login request message
