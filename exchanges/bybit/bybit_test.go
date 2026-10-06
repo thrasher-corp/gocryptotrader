@@ -3785,7 +3785,7 @@ func TestDeltaUpdateOrderbook(t *testing.T) {
 	var wsResponse WebsocketResponse
 	err = json.Unmarshal(update, &wsResponse)
 	require.NoError(t, err, "Unmarshal must not error")
-	err = e.wsProcessOrderbook(asset.Spot, &wsResponse)
+	err = e.wsProcessOrderbook(t.Context(), asset.Spot, &wsResponse)
 	require.NoError(t, err, "wsProcessOrderbook must not error")
 }
 
