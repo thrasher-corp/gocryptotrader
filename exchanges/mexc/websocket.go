@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -57,6 +58,8 @@ const (
 // privateConnection filters the connection carrying the private channels
 const privateConnection = "private"
 
+var errNoListenKey = errors.New("the private channels need a listen key")
+
 // WsConnect initiates a public websocket connection
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	return e.wsDial(ctx, conn, false)
@@ -75,9 +78,14 @@ func (e *Exchange) wsDial(ctx context.Context, conn websocket.Connection, privat
 	if private && e.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
 		if listenKey, err = e.GenerateListenKey(ctx); err != nil {
-			return err
+			// The manager rolls the public connections back when this one fails, and nothing retries a failed first
+			// connect, so a key that cannot be minted would keep the market data down as well. Carry on without the
+			// private channels instead, as binance does.
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.WebsocketMgr, "%s: private channels unavailable, no listen key: %v", e.Name, err)
+		} else {
+			conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
 		}
-		conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
 	}
 	if err := conn.Dial(ctx, &gws.Dialer{
 		EnableCompression: true,
@@ -159,6 +167,9 @@ func (e *Exchange) releaseListenKey(ctx context.Context, listenKey string) {
 
 // Subscribe subscribes to a channel
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+	if !e.Websocket.CanUseAuthenticatedEndpoints() && slices.ContainsFunc(channelsToSubscribe, isPrivateChannel) {
+		return errNoListenKey
+	}
 	return e.handleSubscription(ctx, conn, "SUBSCRIPTION", channelsToSubscribe)
 }
 
@@ -551,6 +562,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			return e.wsUnhandled(ctx, respRaw)
 		}
 		updated := wsSendTime(result)
+		var errs error
 		for _, item := range body.Items {
 			// The push covers every symbol whose price moved. Only enabled pairs are published: the
 			// engine's sync manager rejects a ticker for any pair it does not track.
@@ -558,11 +570,12 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 			if err != nil || !enabled {
 				continue
 			}
+			// A symbol that fails, or whose ticker cannot be relayed, must not keep the rest of the frame out of the store
 			if err := e.wsUpdateSpotMiniTicker(ctx, cp, updated, item); err != nil {
-				return err
+				errs = common.AppendError(errs, fmt.Errorf("%s: %w", item.Symbol, err))
 			}
 		}
-		return nil
+		return errs
 	case channelAggreDealsV3:
 		// Read both trade settings per frame so a feed switched on after setup takes effect straight
 		// away; skip the work entirely when neither wants the trades. The private deals channel is
@@ -705,7 +718,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 				return err
 			}
 		}
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Exchange:          e.Name,
 			Asset:             asset.Spot,
 			Bids:              bids,
