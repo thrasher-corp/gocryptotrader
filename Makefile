@@ -57,7 +57,7 @@ proto_check:
 check: lint misc_checks markdownlint workflow_lint proto_check test
 
 test:
-	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...
+	go test $(RACE_FLAG) -count=1 -coverprofile=coverage.txt -covermode=atomic  ./...
 
 build:
 	go build $(LDFLAGS)

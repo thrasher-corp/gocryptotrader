@@ -32,7 +32,7 @@ fi
 UTF8_LOCALE=''
 if [[ "$HAS_GNU_GREP" -eq 1 ]]; then
     for candidate in C.UTF-8 en_US.UTF-8; do
-        if [[ "$(LC_ALL="$candidate" locale charmap 2>/dev/null)" == 'UTF-8' ]]; then
+        if printf '\xe2\x80\x8b\n' | LC_ALL="$candidate" "$GREP_BIN" -qP '\p{Cf}' 2>/dev/null; then
             UTF8_LOCALE="$candidate"
             break
         fi
