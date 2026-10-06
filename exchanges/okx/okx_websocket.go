@@ -532,8 +532,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case liquidationOrders:
-		var resp *LiquidationOrder
-		return e.wsProcessPushData(ctx, respRaw, &resp)
+		var response WsLiquidationOrders
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case adlWarning:
 		var resp ADLWarning
 		return e.wsProcessPushData(ctx, respRaw, &resp)
@@ -742,10 +742,15 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 	}
 	tickers := make([]ticker.Price, len(data))
 	for x := range data {
+		// vol24h is deliberately not mapped: OKX reports it in USD on an
+		// inverse spread, so it is not a base volume, mirroring the REST path.
 		tickers[x] = ticker.Price{
 			Last:         data[x].Last.Float64(),
 			Bid:          data[x].BidPrice.Float64(),
 			Ask:          data[x].AskPrice.Float64(),
+			Open:         data[x].OpenPrice24Hour.Float64(),
+			High:         data[x].HighestPrice24Hour.Float64(),
+			Low:          data[x].LowestPrice24Hour.Float64(),
 			Pair:         pair,
 			ExchangeName: e.Name,
 			AssetType:    asset.Spread,

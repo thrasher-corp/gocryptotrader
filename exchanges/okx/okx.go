@@ -4265,7 +4265,42 @@ func (e *Exchange) GetPublicSpreadTickers(ctx context.Context, spreadID string) 
 	params := url.Values{}
 	params.Set("sprdId", spreadID)
 	var resp []SpreadTicker
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadTickerEPL, http.MethodGet, common.EncodeURLValues("market/sprd-ticker", params), nil, &resp, request.UnauthenticatedRequest)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadTickerEPL, http.MethodGet, common.EncodeURLValues("market/sprd-ticker", params), nil, &resp, request.UnauthenticatedRequest); err != nil {
+		return nil, err
+	}
+	// market/sprd-ticker serves a cached snapshot whose bid/ask and timestamp
+	// lag the live spread book and can move backwards between polls, so the
+	// top of book comes from the documented sprd/books endpoint while the
+	// last and the 24-hour figures stay here.
+	bookParams := url.Values{}
+	bookParams.Set("sprdId", spreadID)
+	bookParams.Set("sz", "1")
+	var books []SpreadOrderbook
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderbookEPL, http.MethodGet, common.EncodeURLValues("sprd/books", bookParams), nil, &books, request.UnauthenticatedRequest); err != nil {
+		return nil, err
+	}
+	if len(books) == 0 {
+		return resp, nil
+	}
+	for i := range resp {
+		overlaySpreadBook(&resp[i], books[0])
+	}
+	return resp, nil
+}
+
+// overlaySpreadBook replaces a spread ticker's cached top of book with the
+// fresh best bid/ask from sprd/books, and advances the timestamp to the newer
+// snapshot. Both sides are replaced together: mixing a fresh side with a
+// cached one can yield a crossed book.
+func overlaySpreadBook(tk *SpreadTicker, book SpreadOrderbook) {
+	if len(book.Bids) == 0 || len(book.Asks) == 0 || len(book.Bids[0]) < 2 || len(book.Asks[0]) < 2 {
+		return
+	}
+	tk.BidPrice, tk.BidSize = book.Bids[0][0], book.Bids[0][1]
+	tk.AskPrice, tk.AskSize = book.Asks[0][0], book.Asks[0][1]
+	if book.Timestamp.Time().After(tk.Timestamp.Time()) {
+		tk.Timestamp = book.Timestamp
+	}
 }
 
 // GetPublicSpreadTrades retrieve the recent transactions of an instrument (at most 500 records per request). Results are returned in counter chronological order

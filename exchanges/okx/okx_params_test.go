@@ -11,8 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // TestDocsPinnedRequestParameters pins the wire parameter names and endpoint
@@ -30,8 +32,8 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	var gotQuery url.Values
 
 	payloads := map[string]string{
-		"/trade/orders-algo-pending":                     `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"test-algo-client-id","clOrdId":"ord-client-1","cTime":"1724751378980","uTime":"1724751378999","ordIdList":["680800019749904384"],"advanceOrdType":"chase","chaseType":"distance","chaseVal":"10","maxChaseType":"ratio","maxChaseVal":"0.1","lmtOrderNumber":"5","aggressiveness":"conservative","triggerParams":[{"triggerAction":"start","triggerStrategy":"price","triggerPx":"90000","triggerCond":"cross_down"}],"linkedOrd":{"ordId":"680800019749904385"},"last":"62916.5","reduceOnly":true,"attachAlgoOrds":[{"attachAlgoClOrdId":"attach-client-1","tpTriggerPx":"50000","tpOrdPx":"-1","slTriggerPx":"40000"}]}]}`,
-		"/tradingBot/recurring/orders-algo-details":      `{"code":"0","msg":"","data":[{"algoId":"560473220642766848","state":"running","amt":"100","period":"hourly","recurringList":[{"ccy":"BTC","px":"36683.2","avgPx":"36500.1","profit":"12.5","ratio":"0.5","totalAmt":"100"}]}]}`,
+		"/trade/orders-algo-pending":                     `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"test-algo-client-id","clOrdId":"ord-client-1","cTime":"1724751378980","uTime":"1724751378999","ordIdList":["680800019749904384"],"advanceOrdType":"chase","chaseType":"distance","chaseVal":"10","maxChaseType":"ratio","maxChaseVal":"0.1","lmtOrderNumber":"5","aggressiveness":"conservative","triggerParams":[{"triggerAction":"start","triggerStrategy":"price","triggerPx":"90000","triggerCond":"cross_down"}],"linkedOrd":{"ordId":"680800019749904385"},"last":"62916.5","reduceOnly":"true","attachAlgoOrds":[{"attachAlgoClOrdId":"attach-client-1","tpTriggerPx":"50000","tpOrdPx":"-1","slTriggerPx":"40000"}]}]}`,
+		"/tradingBot/recurring/orders-algo-details":      `{"code":"0","msg":"","data":[{"algoId":"560473220642766848","state":"running","amt":"100","period":"hourly","source":["1"],"tradeQuoteCcy":"USDT","recurringList":[{"ccy":"BTC","px":"36683.2","avgPx":"36500.1","profit":"12.5","ratio":"0.5","totalAmt":"100","minPx":"30000","maxPx":"50000"}]}]}`,
 		"/fiat/deposit":                                  `{"code":"0","msg":"","data":[{}]}`,
 		"/trade/one-click-repay-currency-list":           `{"code":"0","msg":"","data":[{"debtType":"cross","debtData":[{"debtCcy":"BTC","debtAmt":"1.5"}],"repayData":[{"repayCcy":"USDT","repayAmt":"100"}]}]}`,
 		"/tradingBot/grid/sub-orders":                    `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"grid-client-1","ordId":"grid-ord-1","instId":"BTC-USDT","algoOrdType":"grid","groupId":"grid-group-1","px":"42000","sz":"0.1","avgPx":"41900","accFillSz":"0.1","pnl":"12.5","ccy":"USDT","rebate":"0.01","rebateCcy":"USDT","lever":"5","ctVal":"0.01","posSide":"net","side":"buy","state":"filled","ordType":"market","tdMode":"cross","cTime":"1724751378980","uTime":"1724751378999"}]}`,
@@ -43,12 +45,14 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		"/copytrading/unrealized-profit-sharing-details": `{"code":"0","msg":"","data":[{"ccy":"USDT","nickName":"Potato","unrealizedProfitSharingAmt":"0.455472","instType":"SWAP","ts":"1669901824779"}]}`,
 		"/account/risk-state":                            `{"code":"0","msg":"","data":[{"atRisk":true,"atRiskIdx":[],"atRiskMgn":[],"ts":"1635745078794"}]}`,
 		"/tradingBot/signal/event-history":               `{"code":"0","msg":"","data":[{"algoId":"12345","alertMsg":"price alert","eventCtime":"1724751378980","eventProcessMsg":"done","state":"done","triggerTime":"1724751378999"}]}`,
-		"/account/positions":                             `{"code":"0","msg":"","data":[{"instId":"BTC-USDT-SWAP","realizedPnl":"12.5","fundingFee":"-0.1","bePx":"41000","direction":"long","pnl":"5"}]}`,
+		"/account/positions":                             `{"code":"0","msg":"","data":[{"instId":"BTC-USDT-SWAP","realizedPnl":"12.5","fundingFee":"-0.1","bePx":"41000","pnl":"5"}]}`,
 		"/public/funding-rate":                           `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USD-SWAP","formulaType":"withRate","fundingRate":"0.0001","realizedRate":"0.00012","interestRate":"0.00003","impactValue":"1.2","method":"current_period"}]}`,
 		"/tradingBot/grid/orders-algo-details":           `{"code":"0","msg":"","data":[{"algoId":"12345","algoClOrdId":"grid-client-1","instFamily":"BTC-USDT","activeOrdNum":"3","ordFrozen":"100","availEq":"500","tpRatio":"0.1","slRatio":"0.05","fee":"-0.2","feeCcy":"USDT","fundingFee":"-0.3","triggerParams":[{"triggerAction":"start","triggerStrategy":"rsi","timeframe":"15m","thold":"30","triggerCond":"cross_up","timePeriod":"14"}]}]}`,
 		"/copytrading/current-subpositions":              `{"code":"0","msg":"","data":[{"instId":"BTC-USDT-SWAP","margin":"100","ccy":"USDT","uniqueCode":"u1","markPx":"42000","upl":"1.5","uplRatio":"0.015","tpOrdPx":"50000","slOrdPx":"38000","availSubPos":"0.5","pnl":"2","pnlRatio":"0.02"}]}`,
-		"/asset/withdrawal-history":                      `{"code":"0","msg":"","data":[{"ccy":"BTC","toAddrType":"2","note":"w1","amt":"0.1","ts":"1724751378980"}]}`,
-		"/users/subaccount/list":                         `{"code":"0","msg":"","data":[{"subAcct":"sub-one","uid":"123456","frozenFunc":[],"subAcctLv":"1","firstLvSubAcct":false,"ifDma":false,"enable":true,"ts":"1724751378980"}]}`,
+		"/asset/withdrawal-history":                      `{"code":"0","msg":"","data":[{"ccy":"BTC","toAddrType":"2","note":"w1","amt":"0.1","ts":"1724751378980","addrEx":{"comment":"123456"}},{"ccy":"ETH","toAddrType":"1","note":"w2","amt":"2","ts":"1724751378981","addrEx":null}]}`,
+		"/users/subaccount/list":                         `{"code":"0","msg":"","data":[{"subAcct":"sub-one","uid":"123456","frozenFunc":[],"subAcctLv":"1","firstLvSubAcct":"sub-one","ifDma":true,"enable":true,"ts":"1724751378980"}]}`,
+		"/account/mmp-config":                            `{"code":"0","msg":"","data":[{"instFamily":"BTC-USD","timeInterval":"5000","frozenInterval":"2000","qtyLimit":"100","mmpFrozen":false,"mmpFrozenUntil":""}]}`,
+		"/asset/deposit-withdraw-status":                 `{"code":"0","msg":"","data":[{"wdId":"1244","txId":"16f3638329c8a5b1f6acde28b0f0b3c9ethc15a05b53b52b3049a099fea19a92","state":"Pending withdrawal: transaction is being confirmed on-chain.","estCompleteTime":"01/09/2023, 8:10:48 PM"}]}`,
 	}
 
 	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -95,6 +99,8 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	var leadingPositions []PositionInfo
 	var withdrawalHistory []WithdrawalHistoryResponse
 	var subaccountList []SubaccountInfo
+	var mmpConfigs []MMPConfigDetail
+	var depositWithdrawStatuses []DepositWithdrawStatus
 
 	for _, tc := range []struct {
 		name   string
@@ -258,7 +264,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, 90000.0, pendingAlgoOrders[0].TriggerParams[0].TriggerPrice.Float64(), "the trigger price should decode")
 				assert.Equal(t, "680800019749904385", pendingAlgoOrders[0].LinkedOrder.OrderID, "the linked OCO take-profit order ID should decode")
 				assert.Equal(t, 62916.5, pendingAlgoOrders[0].LastPrice.Float64(), "the last filled price should decode")
-				assert.True(t, pendingAlgoOrders[0].ReduceOnly, "the documented reduceOnly boolean should decode")
+				assert.Equal(t, "true", pendingAlgoOrders[0].ReduceOnly, "the documented reduceOnly string should decode")
 			},
 		},
 		{
@@ -287,8 +293,12 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "560473220642766848", recurringOrderDetails.AlgoID, "the documented algoId should decode")
 				assert.Equal(t, "running", recurringOrderDetails.State, "the documented state should decode")
 				assert.Equal(t, "100", recurringOrderDetails.Amount.String(), "the documented amt should decode")
+				assert.Equal(t, []string{"1"}, recurringOrderDetails.Source, "the documented funding source array should decode")
+				assert.Equal(t, "USDT", recurringOrderDetails.TradeQuoteCurrency, "the documented tradeQuoteCcy should decode")
 				require.Len(t, recurringOrderDetails.RecurringList, 1, "the detailed recurring list must decode")
 				assert.Equal(t, "36683.2", recurringOrderDetails.RecurringList[0].Price.String(), "the documented purchase price should decode")
+				assert.Equal(t, 30000.0, recurringOrderDetails.RecurringList[0].MinimumPrice.Float64(), "the documented minPx should decode")
+				assert.Equal(t, 50000.0, recurringOrderDetails.RecurringList[0].MaximumPrice.Float64(), "the documented maxPx should decode")
 			},
 		},
 		{
@@ -484,7 +494,6 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, 12.5, accountPositions[0].RealisedPNL.Float64(), "the documented realizedPnl should decode")
 				assert.Equal(t, -0.1, accountPositions[0].FundingFee.Float64(), "the accumulated funding fee should decode")
 				assert.Equal(t, 41000.0, accountPositions[0].BreakevenPrice.Float64(), "the documented bePx should decode")
-				assert.Equal(t, "long", accountPositions[0].Direction, "the documented direction should decode")
 			},
 		},
 		{
@@ -549,9 +558,11 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			path: "/asset/withdrawal-history",
 			verify: func(t *testing.T) {
 				t.Helper()
-				require.Len(t, withdrawalHistory, 1, "the withdrawal row must decode")
+				require.Len(t, withdrawalHistory, 2, "the withdrawal rows must decode")
 				assert.Equal(t, "2", withdrawalHistory[0].ToAddressType, "the documented toAddrType should decode")
 				assert.Equal(t, "w1", withdrawalHistory[0].WithdrawalNote, "the documented note should decode")
+				assert.Equal(t, "123456", withdrawalHistory[0].AddrEx["comment"], "the documented addrEx attachment object should decode")
+				assert.Nil(t, withdrawalHistory[1].AddrEx, "the documented null addrEx should decode into a nil map")
 			},
 		},
 		{
@@ -567,7 +578,39 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				require.Len(t, subaccountList, 1, "the subaccount row must decode")
 				assert.Equal(t, "123456", subaccountList[0].UID, "the documented uid should decode")
 				assert.Equal(t, "1", subaccountList[0].SubaccountLevel, "the documented subAcctLv should decode")
-				assert.False(t, subaccountList[0].DirectMarketAccess, "the documented ifDma flag should decode")
+				assert.Equal(t, "sub-one", subaccountList[0].FirstLevelSubaccount, "the documented firstLvSubAcct name should decode")
+				assert.True(t, subaccountList[0].DirectMarketAccess, "the documented ifDma flag should decode")
+			},
+		},
+		{
+			name: "MMP config decodes the quoted time interval",
+			call: func() error {
+				var err error
+				mmpConfigs, err = e.GetMMPConfig(t.Context(), "")
+				return err
+			},
+			path: "/account/mmp-config",
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, mmpConfigs, 1, "the MMP config row must decode")
+				assert.Equal(t, int64(5000), mmpConfigs[0].TimeInterval, "the documented quoted timeInterval should decode")
+				assert.Equal(t, "BTC-USD", mmpConfigs[0].InstrumentFamily, "the documented instFamily should decode")
+			},
+		},
+		{
+			name: "Deposit withdraw status decodes the estimated completion time",
+			call: func() error {
+				var err error
+				depositWithdrawStatuses, err = e.GetDepositWithdrawalStatus(t.Context(), currency.EMPTYCODE, "1244", "", "", "")
+				return err
+			},
+			path:   "/asset/deposit-withdraw-status",
+			params: map[string]string{"wdId": "1244"},
+			verify: func(t *testing.T) {
+				t.Helper()
+				require.Len(t, depositWithdrawStatuses, 1, "the deposit withdraw status row must decode")
+				expected := time.Date(2023, time.January, 9, 20, 10, 48, 0, time.FixedZone("UTC+8", 8*60*60))
+				assert.True(t, depositWithdrawStatuses[0].EstCompleteTime.Time().Equal(expected), "the documented estCompleteTime wall-clock form should decode")
 			},
 		},
 	} {
@@ -586,4 +629,91 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGetSpreadTickersOverlayBook pins the spread ticker merge:
+// market/sprd-ticker serves a cached snapshot whose bid/ask and timestamp lag
+// the live book, so the top of book comes from sprd/books?sz=1 while the last
+// and the 24-hour figures stay on the ticker response.
+func TestGetSpreadTickersOverlayBook(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	counts := map[string]int{}
+	var booksQuery url.Values
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		counts[r.URL.Path]++
+		if r.URL.Path == "/sprd/books" {
+			booksQuery = r.URL.Query()
+		}
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/market/sprd-ticker":
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sprdId":"BTC-USDT_BTC-USDT-SWAP","last":"14.5","lastSz":"0.5","askPx":"8.5","askSz":"12.0","bidPx":"0.5","bidSz":"12.0","open24h":"4","high24h":"14.5","low24h":"-2.2","vol24h":"6.67","ts":"1715331406485"}]}`))
+		case "/sprd/books":
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"asks":[["15.2","3.3","1"]],"bids":[["14.8","4.4","2"]],"ts":"1715331407999"}]}`))
+		default:
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
+		}
+	}))
+
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	result, err := e.GetPublicSpreadTickers(t.Context(), "BTC-USDT_BTC-USDT-SWAP")
+	require.NoError(t, err, "GetPublicSpreadTickers must not error")
+	require.NotEmpty(t, result, "GetPublicSpreadTickers must return a ticker")
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, 1, counts["/sprd/books"], "the spread ticker should refresh the top of book from sprd/books")
+	assert.Equal(t, "1", booksQuery.Get("sz"), "the top of book request should ask for a single level")
+	assert.Equal(t, 1, counts["/market/sprd-ticker"], "the last and 24 hour figures should come from market/sprd-ticker")
+	assert.Equal(t, 14.8, result[0].BidPrice.Float64(), "bidPx should come from the sprd/books top of book")
+	assert.Equal(t, 4.4, result[0].BidSize.Float64(), "bidSz should come from the sprd/books top of book")
+	assert.Equal(t, 15.2, result[0].AskPrice.Float64(), "askPx should come from the sprd/books top of book")
+	assert.Equal(t, 3.3, result[0].AskSize.Float64(), "askSz should come from the sprd/books top of book")
+	assert.Equal(t, 14.5, result[0].Last.Float64(), "last should come from market/sprd-ticker")
+	assert.Equal(t, 4.0, result[0].OpenPrice24Hour.Float64(), "open24h should come from market/sprd-ticker")
+	assert.Equal(t, 14.5, result[0].HighestPrice24Hour.Float64(), "high24h should come from market/sprd-ticker")
+	assert.Equal(t, -2.2, result[0].LowestPrice24Hour.Float64(), "low24h should come from market/sprd-ticker")
+	assert.Equal(t, 6.67, result[0].TradingVolume24Hour.Float64(), "vol24h should come from market/sprd-ticker")
+	assert.Equal(t, int64(1715331407999), result[0].Timestamp.Time().UnixMilli(), "the timestamp should advance to the sprd/books generation time")
+}
+
+// TestEstCompleteTimeUnmarshalJSON pins the documented estCompleteTime forms:
+// the wall-clock MM/dd/yyyy, h:mm:ss AM/PM string in UTC+8 decodes, and the
+// null and empty placeholders stay the zero time.
+func TestEstCompleteTimeUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var estCompleteTime EstCompleteTime
+	require.NoError(t, json.Unmarshal([]byte(`"01/09/2023, 8:10:48 PM"`), &estCompleteTime), "the documented wall-clock form must decode")
+	expected := time.Date(2023, time.January, 9, 20, 10, 48, 0, time.FixedZone("UTC+8", 8*60*60))
+	assert.True(t, estCompleteTime.Time().Equal(expected), "the documented UTC+8 wall-clock time should decode")
+	for _, form := range []string{`null`, `""`} {
+		var empty EstCompleteTime
+		require.NoErrorf(t, json.Unmarshal([]byte(form), &empty), "the %s placeholder must decode", form)
+		assert.True(t, empty.Time().IsZero(), "the placeholder should stay the zero time")
+	}
+	var invalid EstCompleteTime
+	err := json.Unmarshal([]byte(`"not-a-time"`), &invalid)
+	require.ErrorIs(t, err, types.ErrInvalidTimestampFormat, "an unparseable timestamp must wrap the shared sentinel")
+}
+
+// TestOrderBookSequenceIDDecodesTheBareInteger pins the REST book's seqId
+// typing: the wire carries a bare integer, so the field is an int64 like the
+// websocket book fields rather than a types.Number.
+func TestOrderBookSequenceIDDecodesTheBareInteger(t *testing.T) {
+	t.Parallel()
+	var ob OrderBookResponseDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"asks":[["42000","0.1","0","3"]],"bids":[],"seqId":3235851742,"ts":"1724751378980"}`), &ob), "the books row must decode")
+	assert.Equal(t, int64(3235851742), ob.SequenceID, "the bare seqId integer should decode into the int64 typing the websocket books use")
 }

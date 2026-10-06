@@ -7,13 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // TestWSPushSchemasDecode guards the websocket push schemas against the
 // documented response fields: price-limit must decode into its own limit
-// fields, withdrawal-info must decode into the withdrawal struct, and the
-// grid-positions and orders pushes must carry their documented fields.
+// fields, withdrawal-info and deposit-info must decode into their structs,
+// the account and rfqs envelopes must carry their documented pagination and
+// timestamp forms, and the grid-positions, orders, algo-order, recurring-buy
+// and spread-ticker pushes must carry their documented fields.
 func TestWSPushSchemasDecode(t *testing.T) {
 	t.Parallel()
 
@@ -34,6 +37,16 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		Data      []WsDepositInfo  `json:"data"`
 	}
 	var gridPositions []*WsGridPosition
+	var accountPushes []*WsAccountChannelPushData
+	var rfqPushes []*WsRFQ
+	var liquidations []*WsLiquidationOrders
+	var algoOrderPushes []*WsAlgoOrder
+	var advancedAlgoOrderPushes []*WsAdvancedAlgoOrder
+	var recurringBuyPushes []*struct {
+		Arguments SubscriptionInfo    `json:"arg"`
+		Data      []RecurringBuyOrder `json:"data"`
+	}
+	var spreadTickerBatches [][]ticker.Price
 
 	for len(e.Websocket.DataHandler.C) > 0 {
 		switch v := (<-e.Websocket.DataHandler.C).Data.(type) {
@@ -51,6 +64,23 @@ func TestWSPushSchemasDecode(t *testing.T) {
 			deposits = append(deposits, v)
 		case *WsGridPosition:
 			gridPositions = append(gridPositions, v)
+		case *WsAccountChannelPushData:
+			accountPushes = append(accountPushes, v)
+		case *WsRFQ:
+			rfqPushes = append(rfqPushes, v)
+		case *WsLiquidationOrders:
+			liquidations = append(liquidations, v)
+		case *WsAlgoOrder:
+			algoOrderPushes = append(algoOrderPushes, v)
+		case *WsAdvancedAlgoOrder:
+			advancedAlgoOrderPushes = append(advancedAlgoOrderPushes, v)
+		case *struct {
+			Arguments SubscriptionInfo    `json:"arg"`
+			Data      []RecurringBuyOrder `json:"data"`
+		}:
+			recurringBuyPushes = append(recurringBuyPushes, v)
+		case []ticker.Price:
+			spreadTickerBatches = append(spreadTickerBatches, v)
 		}
 	}
 
@@ -90,6 +120,74 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		assert.Equal(t, 12.5, row.UnrealisedPNL.Float64(), "the unrealised PnL should decode")
 		assert.Equal(t, 0.012, row.UnrealisedPNLRatio.Float64(), "the unrealised PnL ratio should decode")
 		assert.Equal(t, "35", row.Position, "the position size should decode")
+	})
+
+	t.Run("account snapshot decodes the pagination fields", func(t *testing.T) {
+		t.Parallel()
+		require.Len(t, accountPushes, 1, "the account push must decode into the account push struct")
+		require.Len(t, accountPushes[0].Data, 1, "the account row must decode")
+		assert.Equal(t, "snapshot", accountPushes[0].EventType, "the documented eventType should decode")
+		assert.Equal(t, uint64(1), accountPushes[0].CurPage, "the documented curPage integer should decode")
+		assert.True(t, accountPushes[0].LastPage, "the documented lastPage boolean should decode")
+	})
+
+	t.Run("rfqs push decodes the millisecond timestamps", func(t *testing.T) {
+		t.Parallel()
+		require.Len(t, rfqPushes, 1, "the rfqs push must decode into the RFQ push struct")
+		require.Len(t, rfqPushes[0].Data, 1, "the rfq row must decode")
+		row := rfqPushes[0].Data[0]
+		assert.Equal(t, int64(1611033737572), row.CreationTime.Time().UnixMilli(), "the documented cTime millisecond string should decode")
+		assert.Equal(t, int64(1611033737572), row.UpdateTime.Time().UnixMilli(), "the documented uTime millisecond string should decode")
+		assert.Equal(t, "active", row.State, "the documented state should decode")
+		assert.Equal(t, "22534", row.RFQID, "the documented rfqId should decode")
+	})
+
+	t.Run("liquidation orders decode the envelope data", func(t *testing.T) {
+		t.Parallel()
+		require.Len(t, liquidations, 1, "the liquidation-orders push must decode into the envelope struct")
+		require.Len(t, liquidations[0].Data, 1, "the liquidation order row must decode")
+		row := liquidations[0].Data[0]
+		assert.Equal(t, "IOST-USDT-SWAP", row.InstrumentID, "the instrument id should decode")
+		require.Len(t, row.Details, 1, "the liquidation detail must decode")
+		assert.Equal(t, 0.007831, row.Details[0].BankruptcyPrice.Float64(), "the bankruptcy price should decode")
+	})
+
+	t.Run("orders-algo push decodes the reduceOnly string", func(t *testing.T) {
+		t.Parallel()
+		require.Len(t, algoOrderPushes, 1, "the orders-algo push must decode into the algo order struct")
+		require.Len(t, algoOrderPushes[0].Data, 1, "the algo order row must decode")
+		assert.Equal(t, "true", algoOrderPushes[0].Data[0].ReduceOnly, "the documented reduceOnly string should decode")
+		assert.Equal(t, 62916.5, algoOrderPushes[0].Data[0].LastPrice.Float64(), "the last filled price should decode")
+	})
+
+	t.Run("algo-advance push decodes the empty reduceOnly form", func(t *testing.T) {
+		t.Parallel()
+		require.Len(t, advancedAlgoOrderPushes, 1, "the algo-advance push must decode into the advanced algo order struct")
+		require.Len(t, advancedAlgoOrderPushes[0].Data, 1, "the advanced algo order row must decode")
+		assert.Empty(t, advancedAlgoOrderPushes[0].Data[0].ReduceOnly, "the documented empty reduceOnly form should decode")
+	})
+
+	t.Run("algo-recurring-buy push decodes the funding source array", func(t *testing.T) {
+		t.Parallel()
+		require.Len(t, recurringBuyPushes, 1, "the algo-recurring-buy push must decode into the recurring buy struct")
+		require.Len(t, recurringBuyPushes[0].Data, 1, "the recurring buy row must decode")
+		row := recurringBuyPushes[0].Data[0]
+		assert.Equal(t, []string{"1"}, row.Source, "the documented funding source array should decode")
+		assert.Equal(t, "USDT", row.TradeQuoteCurrency, "the documented tradeQuoteCcy should decode")
+		require.Len(t, row.RecurringList, 1, "the recurring list must decode")
+		assert.Equal(t, 30000.0, row.RecurringList[0].MinimumPrice.Float64(), "the documented minPx should decode")
+		assert.Equal(t, 50000.0, row.RecurringList[0].MaximumPrice.Float64(), "the documented maxPx should decode")
+	})
+
+	t.Run("sprd-tickers push maps the 24 hour figures into the relayed ticker", func(t *testing.T) {
+		t.Parallel()
+		require.Len(t, spreadTickerBatches, 1, "the sprd-tickers push must relay a processed ticker batch")
+		require.Len(t, spreadTickerBatches[0], 1, "the spread ticker row must relay")
+		row := spreadTickerBatches[0][0]
+		assert.Equal(t, 4.0, row.Open, "the documented open24h should map into the relayed ticker")
+		assert.Equal(t, 14.5, row.High, "the documented high24h should map into the relayed ticker")
+		assert.Equal(t, -2.2, row.Low, "the documented low24h should map into the relayed ticker")
+		assert.Equal(t, 14.5, row.Last, "the last price should relay")
 	})
 
 	t.Run("orders schema decodes every documented field", func(t *testing.T) {
