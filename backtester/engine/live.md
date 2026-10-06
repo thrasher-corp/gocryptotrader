@@ -1,13 +1,11 @@
 # GoCryptoTrader Backtester: Live package
 
-<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/engine/live)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This live package is part of the GoCryptoTrader codebase.
 
@@ -23,14 +21,13 @@ Live trading has specific requirements separate from backtesting. Handling the l
 
 Live trading is only a proof of concept. Please do not risk your funds by using it with `realOrders` enabled
 
-
 A flow of the application is as follows:
 ![workflow](https://i.imgur.com/Kup6IA9.png)
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

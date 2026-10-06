@@ -109,9 +109,10 @@ func main() {
 	priceMap[currency.USD.Item] = 1
 
 	for _, y := range result.Totals {
-		pf := PortfolioTemp{}
-		pf.Balance = y.Balance
-		pf.Subtotal = 0
+		pf := PortfolioTemp{
+			Balance:  y.Balance,
+			Subtotal: 0,
+		}
 
 		if y.Coin.IsFiatCurrency() {
 			if !y.Coin.Equal(currency.USD) {

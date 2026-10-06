@@ -11,12 +11,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -110,7 +111,7 @@ const (
 	gateioOptionsMyTrades              = "options/my_trades"
 
 	// Flash Swap
-	gateioFlashSwapCurrencies    = "flash_swap/currencies"
+	gateioFlashSwapCurrencyPairs = "flash_swap/currency_pairs"
 	gateioFlashSwapOrders        = "flash_swap/orders"
 	gateioFlashSwapOrdersPreview = "flash_swap/orders/preview"
 
@@ -161,6 +162,8 @@ var (
 	errMultipleOrders                   = errors.New("multiple orders passed")
 	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
 	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
+	errSubAccountTransferHistoryStart   = errors.New("sub-account transfer history starts on 2020-04-10")
+	errSubAccountTransferHistoryRange   = errors.New("sub-account transfer history range exceeds 30 days")
 	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
@@ -217,7 +220,10 @@ type Exchange struct {
 
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
-	wsOBUpdateMgr *buffer.UpdateManager
+	wsOBUpdateMgr *orderbookmanager.UpdateManager
+
+	futuresUserIDMu sync.RWMutex
+	futuresUserIDs  map[string]string
 }
 
 // ***************************************** SubAccounts ********************************
@@ -782,7 +788,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 		return nil, errNilArgument
 	}
 	if arg.Put.TimeInForce != gtcTIF && arg.Put.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w: %q only 'gct' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
+		return nil, fmt.Errorf("%w: %q only 'gtc' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
 	}
 	if arg.Market.IsEmpty() {
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
@@ -1179,23 +1185,22 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg SubAccountTransfe
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }
 
-// GetSubAccountTransferHistory retrieve transfer records between main and sub accounts.
-// retrieve transfer records between main and sub accounts. Record time range cannot exceed 30 days
-// Note: only records after 2020-04-10 can be retrieved
+// GetSubAccountTransferHistory retrieves transfer records between main and sub accounts.
+// Records begin on 2020-04-10 and the query range cannot exceed 30 days.
 func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit uint64) ([]SubAccountTransferResponse, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	startingTime, err := time.Parse("2006-Jan-02", "2020-Apr-10")
-	if err != nil {
+	if !from.IsZero() && from.Before(time.Date(2020, time.April, 10, 0, 0, 0, 0, time.UTC)) {
+		return nil, errSubAccountTransferHistoryStart
+	}
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
-	if err := common.StartEndTimeCheck(startingTime, from); err == nil {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if err := common.StartEndTimeCheck(from, to); err == nil {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	// Only whole seconds are sent, so the limit applies to those
+	if !from.IsZero() && !to.IsZero() && to.Truncate(time.Second).Sub(from.Truncate(time.Second)) > 30*24*time.Hour {
+		return nil, errSubAccountTransferHistoryRange
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -3319,10 +3324,20 @@ func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency
 
 // ********************************** Flash_SWAP *************************
 
-// GetSupportedFlashSwapCurrencies retrieves all supported currencies in flash swap
-func (e *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
-	var currencies []SwapCurrencies
-	return currencies, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, gateioFlashSwapCurrencies, &currencies)
+// GetSupportedFlashSwapCurrencyPairs retrieves the supported flash swap pairs.
+func (e *Exchange) GetSupportedFlashSwapCurrencyPairs(ctx context.Context, ccy currency.Code, limit, page uint64) ([]FlashSwapCurrencyPair, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	var pairs []FlashSwapCurrencyPair
+	return pairs, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, common.EncodeURLValues(gateioFlashSwapCurrencyPairs, params), &pairs)
 }
 
 // CreateFlashSwapOrder creates a new flash swap order
@@ -3348,10 +3363,10 @@ func (e *Exchange) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderP
 }
 
 // GetAllFlashSwapOrders retrieves list of flash swap orders filtered by the params
-func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]FlashSwapOrderResponse, error) {
+func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status uint64, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]FlashSwapOrderResponse, error) {
 	params := url.Values{}
 	if status == 1 || status == 2 {
-		params.Set("status", strconv.Itoa(status))
+		params.Set("status", strconv.FormatUint(status, 10))
 	}
 	if !sellCurrency.IsEmpty() {
 		params.Set("sell_currency", sellCurrency.String())

@@ -240,7 +240,6 @@ func (e *Exchange) FGetMarketDepth(ctx context.Context, symbol currency.Pair, da
 		Bids:   make([]obItem, len(tempData.Tick.Bids)),
 		Asks:   make([]obItem, len(tempData.Tick.Asks)),
 	}
-	resp.Symbol = symbolValue
 	for x := range tempData.Tick.Asks {
 		resp.Asks[x] = obItem{
 			Price:    tempData.Tick.Asks[x][0],

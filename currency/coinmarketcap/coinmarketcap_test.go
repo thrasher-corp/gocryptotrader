@@ -54,10 +54,10 @@ func newConfiguredClient(t *testing.T) *Coinmarketcap {
 	return c
 }
 
-func newSyntheticClient(t *testing.T, responses map[string]string) (client *Coinmarketcap, closeFn func()) {
+func newSyntheticClient(t *testing.T, responses map[string]string) *Coinmarketcap {
 	t.Helper()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		resp, ok := responses[r.URL.Path]
 		if !ok {
@@ -69,10 +69,11 @@ func newSyntheticClient(t *testing.T, responses map[string]string) (client *Coin
 	}))
 	c := &Coinmarketcap{}
 	c.SetDefaults()
+	require.NoError(t, c.Requester.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	c.APIUrl = server.URL
 	c.APIkey = "test"
 	c.Plan = Enterprise
-	return c, server.Close
+	return c
 }
 
 func TestSetDefaults(t *testing.T) {
@@ -104,10 +105,11 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	var c Coinmarketcap
 	c.SetDefaults()
-	cfg := Settings{}
-	cfg.APIKey = apikey
-	cfg.AccountPlan = apiAccountPlanLevel
-	cfg.Enabled = true
+	cfg := Settings{
+		APIKey:      apikey,
+		AccountPlan: apiAccountPlanLevel,
+		Enabled:     true,
+	}
 	if cfg.AccountPlan == "" {
 		cfg.AccountPlan = "basic"
 	}
@@ -179,7 +181,7 @@ func TestGetCryptocurrencyLatestListing(t *testing.T) {
 
 func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v3/cryptocurrency/listings/latest": `{
 			"data":[{
 				"id":1,
@@ -236,7 +238,6 @@ func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
 			"status":{"error_code":"0","error_message":"","notice":"synthetic"}
 		}`,
 	})
-	t.Cleanup(closeFn)
 
 	result, err := c.GetCryptocurrencyLatestListing(1, 1)
 	require.NoError(t, err, "GetCryptocurrencyLatestListing must not error")
@@ -270,21 +271,21 @@ func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
 					ID:                     2781,
 					Symbol:                 "USD",
 					Price:                  1,
-					Volume24H:              2,
-					CEXVolume24H:           3,
-					DEXVolume24H:           4,
-					Volume24HReported:      5,
-					Volume7D:               6,
-					Volume7DReported:       7,
-					Volume30D:              8,
-					Volume30DReported:      9,
-					VolumeChange24H:        10,
-					PercentChange1H:        11,
-					PercentChange24H:       12,
-					PercentChange7D:        13,
-					PercentChange30D:       14,
-					PercentChange60D:       15,
-					PercentChange90D:       16,
+					Volume24Hour:           2,
+					CEXVolume24Hour:        3,
+					DEXVolume24Hour:        4,
+					Volume24HourReported:   5,
+					Volume7Day:             6,
+					Volume7DayReported:     7,
+					Volume30Day:            8,
+					Volume30DayReported:    9,
+					VolumeChange24Hour:     10,
+					PercentChange1Hour:     11,
+					PercentChange24Hour:    12,
+					PercentChange7Day:      13,
+					PercentChange30Day:     14,
+					PercentChange60Day:     15,
+					PercentChange90Day:     16,
 					MarketCap:              17,
 					MarketCapDominance:     18,
 					FullyDilutedMarketCap:  19,
@@ -348,7 +349,7 @@ func TestGetCryptocurrencyLatestQuotes(t *testing.T) {
 
 func TestGetCryptocurrencyLatestQuotesDecodesV3Payload(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v3/cryptocurrency/quotes/latest": `{
 			"data":[{
 				"id":1,
@@ -404,7 +405,6 @@ func TestGetCryptocurrencyLatestQuotesDecodesV3Payload(t *testing.T) {
 			"status":{"error_code":"0","error_message":""}
 		}`,
 	})
-	t.Cleanup(closeFn)
 
 	result, err := c.GetCryptocurrencyLatestQuotes(1)
 	require.NoError(t, err, "GetCryptocurrencyLatestQuotes must not error")
@@ -438,21 +438,21 @@ func TestGetCryptocurrencyLatestQuotesDecodesV3Payload(t *testing.T) {
 					ID:                     2781,
 					Symbol:                 "USD",
 					Price:                  1,
-					Volume24H:              2,
-					CEXVolume24H:           3,
-					DEXVolume24H:           4,
-					Volume24HReported:      5,
-					Volume7D:               6,
-					Volume7DReported:       7,
-					Volume30D:              8,
-					Volume30DReported:      9,
-					VolumeChange24H:        10,
-					PercentChange1H:        11,
-					PercentChange24H:       12,
-					PercentChange7D:        13,
-					PercentChange30D:       14,
-					PercentChange60D:       15,
-					PercentChange90D:       16,
+					Volume24Hour:           2,
+					CEXVolume24Hour:        3,
+					DEXVolume24Hour:        4,
+					Volume24HourReported:   5,
+					Volume7Day:             6,
+					Volume7DayReported:     7,
+					Volume30Day:            8,
+					Volume30DayReported:    9,
+					VolumeChange24Hour:     10,
+					PercentChange1Hour:     11,
+					PercentChange24Hour:    12,
+					PercentChange7Day:      13,
+					PercentChange30Day:     14,
+					PercentChange60Day:     15,
+					PercentChange90Day:     16,
 					MarketCap:              17,
 					MarketCapDominance:     18,
 					FullyDilutedMarketCap:  19,
@@ -476,24 +476,22 @@ func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
 
 func TestGetCryptocurrencyHistoricalQuotesDecodesResultMap(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v3/cryptocurrency/quotes/historical": `{"data":{"1":{"id":1,"name":"Bitcoin","symbol":"BTC","quotes":[{"timestamp":"2018-06-22T00:00:00Z","quote":{"USD":{"price":6242.48}}}]}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 
 	result, err := c.GetCryptocurrencyHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
 	require.NoError(t, err, "GetCryptocurrencyHistoricalQuotes must not error")
-	assert.Equal(t, int64(1), result.ID, "GetCryptocurrencyHistoricalQuotes should return the correct ID")
+	assert.Equal(t, uint64(1), result.ID, "GetCryptocurrencyHistoricalQuotes should return the correct ID")
 	require.Len(t, result.Quotes, 1, "GetCryptocurrencyHistoricalQuotes must return one quote")
 	assert.Equal(t, 6242.48, result.Quotes[0].Quote.USD.Price, "GetCryptocurrencyHistoricalQuotes should return the correct USD price")
 }
 
 func TestGetCryptocurrencyHistoricalQuotesRejectsMissingResult(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v3/cryptocurrency/quotes/historical": `{"data":{"2":{"id":2}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 
 	_, err := c.GetCryptocurrencyHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetCryptocurrencyHistoricalQuotes should return common.ErrNoResponse when the requested ID is absent")
@@ -509,16 +507,15 @@ func TestGetExchangeInfo(t *testing.T) {
 
 func TestGetExchangeInfoAllowsBasicPlan(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v1/exchange/info": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance"}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 	c.Plan = Basic
 
 	result, err := c.GetExchangeInfo(1)
 	require.NoError(t, err, "GetExchangeInfo must not error")
 	require.Contains(t, result, "1", "GetExchangeInfo must return the requested exchange")
-	assert.Equal(t, int64(270), result["1"].ID, "GetExchangeInfo should return the correct ID")
+	assert.Equal(t, uint64(270), result["1"].ID, "GetExchangeInfo should return the correct ID")
 }
 
 func TestGetExchangeMap(t *testing.T) {
@@ -531,16 +528,15 @@ func TestGetExchangeMap(t *testing.T) {
 
 func TestGetExchangeMapAllowsBasicPlan(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v1/exchange/map": `{"data":[{"id":270,"name":"Binance","slug":"binance","is_active":1}],"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 	c.Plan = Basic
 
 	result, err := c.GetExchangeMap(1, 10)
 	require.NoError(t, err, "GetExchangeMap must not error")
 	require.Len(t, result, 1, "GetExchangeMap must return one exchange")
-	assert.Equal(t, int64(270), result[0].ID, "GetExchangeMap should return the correct ID")
+	assert.Equal(t, uint64(270), result[0].ID, "GetExchangeMap should return the correct ID")
 }
 
 func TestGetExchangeHistoricalListings(t *testing.T) {
@@ -577,25 +573,23 @@ func TestGetExchangeLatestQuotes(t *testing.T) {
 
 func TestGetExchangeLatestQuotesDecodesResultMap(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v1/exchange/quotes/latest": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance","quote":{"USD":{"volume_24h":768478308.52}}},"2":{"id":89,"name":"Coinbase Exchange","slug":"coinbase-exchange","quote":{"USD":{"volume_24h":1234.5}}}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 
 	result, err := c.GetExchangeLatestQuotes(1)
 	require.NoError(t, err, "GetExchangeLatestQuotes must not error")
-	assert.Equal(t, int64(270), result.Binance.ID, "GetExchangeLatestQuotes should populate Binance correctly")
+	assert.Equal(t, uint64(270), result.Binance.ID, "GetExchangeLatestQuotes should populate Binance correctly")
 	require.Len(t, result.Exchanges, 2, "GetExchangeLatestQuotes must return every exchange")
 	assert.Equal(t, "Coinbase Exchange", result.Exchanges["2"].Name, "GetExchangeLatestQuotes should return the correct exchange name")
-	assert.Equal(t, 1234.5, result.Exchanges["2"].Quote["USD"].Volume24H, "GetExchangeLatestQuotes should return the correct exchange volume")
+	assert.Equal(t, 1234.5, result.Exchanges["2"].Quote["USD"].Volume24Hour, "GetExchangeLatestQuotes should return the correct exchange volume")
 }
 
 func TestGetExchangeLatestQuotesWithoutBinance(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v1/exchange/quotes/latest": `{"data":{"2":{"id":89,"name":"Coinbase Exchange","slug":"coinbase-exchange"}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 
 	result, err := c.GetExchangeLatestQuotes(2)
 	require.NoError(t, err, "GetExchangeLatestQuotes must not error")
@@ -613,24 +607,22 @@ func TestGetExchangeHistoricalQuotes(t *testing.T) {
 
 func TestGetExchangeHistoricalQuotesDecodesResultMap(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v1/exchange/quotes/historical": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance","quotes":[{"timestamp":"2018-06-03T00:00:00Z","quote":{"USD":{"volume_24h":1632390000}},"num_market_pairs":338}]}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 
 	result, err := c.GetExchangeHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
 	require.NoError(t, err, "GetExchangeHistoricalQuotes must not error")
-	assert.Equal(t, int64(270), result.ID, "GetExchangeHistoricalQuotes should return the correct ID")
+	assert.Equal(t, uint64(270), result.ID, "GetExchangeHistoricalQuotes should return the correct ID")
 	require.Len(t, result.Quotes, 1, "GetExchangeHistoricalQuotes must return one quote")
-	assert.Equal(t, 1632390000.0, result.Quotes[0].Quote["USD"].Volume24H, "GetExchangeHistoricalQuotes should return the correct volume")
+	assert.Equal(t, 1632390000.0, result.Quotes[0].Quote["USD"].Volume24Hour, "GetExchangeHistoricalQuotes should return the correct volume")
 }
 
 func TestGetExchangeHistoricalQuotesRejectsMissingResult(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v1/exchange/quotes/historical": `{"data":{"2":{"id":2}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 
 	_, err := c.GetExchangeHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetExchangeHistoricalQuotes should return common.ErrNoResponse when the requested ID is absent")
@@ -662,14 +654,13 @@ func TestGetPriceConversion(t *testing.T) {
 
 func TestGetPriceConversionDecodesNumericID(t *testing.T) {
 	t.Parallel()
-	c, closeFn := newSyntheticClient(t, map[string]string{
+	c := newSyntheticClient(t, map[string]string{
 		"/v2/tools/price-conversion": `{"data":{"symbol":"BTC","id":1,"name":"Bitcoin","amount":50,"last_updated":"2018-06-06T08:04:36Z","quote":{"USD":{"price":284656.08}}},"status":{"error_code":0}}`,
 	})
-	t.Cleanup(closeFn)
 
 	result, err := c.GetPriceConversion(50, 1, time.Time{})
 	require.NoError(t, err, "GetPriceConversion must not error")
-	assert.Equal(t, int64(1), result.ID, "GetPriceConversion should return the correct ID")
+	assert.Equal(t, uint64(1), result.ID, "GetPriceConversion should return the correct ID")
 	assert.Equal(t, 284656.08, result.Quote["USD"].Price, "GetPriceConversion should return the correct price")
 }
 
@@ -678,8 +669,7 @@ func TestGetPriceConversionPlanAccess(t *testing.T) {
 	responses := map[string]string{
 		"/v2/tools/price-conversion": `{"data":{"symbol":"BTC","id":1,"name":"Bitcoin","amount":1,"quote":{"USD":{"price":2}}},"status":{"error_code":0}}`,
 	}
-	c, closeFn := newSyntheticClient(t, responses)
-	t.Cleanup(closeFn)
+	c := newSyntheticClient(t, responses)
 
 	c.Plan = 0
 	_, err := c.GetPriceConversion(1, 1, time.Time{})
@@ -692,8 +682,7 @@ func TestGetPriceConversionPlanAccess(t *testing.T) {
 	_, err = c.GetPriceConversion(1, 1, time.Now())
 	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetPriceConversion should return errFunctionUseNotAllowed for Basic historical conversion")
 
-	historicalClient, historicalCloseFn := newSyntheticClient(t, responses)
-	t.Cleanup(historicalCloseFn)
+	historicalClient := newSyntheticClient(t, responses)
 	historicalClient.Plan = Builder
 	_, err = historicalClient.GetPriceConversion(1, 1, time.Now())
 	assert.NoError(t, err, "GetPriceConversion should not error")
@@ -721,14 +710,14 @@ func TestSendHTTPRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			received := make(chan []string, 1)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				received <- []string{r.Method, r.URL.RequestURI(), r.Header.Get("X-CMC_PRO_API_KEY"), r.Header.Get("Accept")}
 				_, _ = w.Write([]byte(`{"ok":true}`))
 			}))
-			t.Cleanup(server.Close)
 
 			var c Coinmarketcap
 			c.SetDefaults()
+			require.NoError(t, c.Requester.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 			c.APIUrl = server.URL
 			c.APIkey = "test-key"
 			c.Plan = tc.plan
@@ -770,12 +759,11 @@ func TestSendHTTPRequest(t *testing.T) {
 
 	t.Run("nil rate limit definitions", func(t *testing.T) {
 		t.Parallel()
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"ok":true}`))
 		}))
-		t.Cleanup(server.Close)
 
-		requester, err := request.New("CoinMarketCap", common.NewHTTPClientWithTimeout(defaultTimeOut))
+		requester, err := request.New("CoinMarketCap", server.Client())
 		require.NoError(t, err, "request.New must create a requester without rate limits")
 		c := Coinmarketcap{APIUrl: server.URL, Plan: Growth, Requester: requester}
 		err = c.SendHTTPRequest(http.MethodGet, "test", nil, nil)
@@ -1054,21 +1042,21 @@ func TestCryptocurrencyLatestQuoteMapUnmarshal(t *testing.T) {
 					ID:                     2781,
 					Symbol:                 "USD",
 					Price:                  1,
-					Volume24H:              2,
-					CEXVolume24H:           3,
-					DEXVolume24H:           4,
-					Volume24HReported:      5,
-					Volume7D:               6,
-					Volume7DReported:       7,
-					Volume30D:              8,
-					Volume30DReported:      9,
-					VolumeChange24H:        10,
-					PercentChange1H:        11,
-					PercentChange24H:       12,
-					PercentChange7D:        13,
-					PercentChange30D:       14,
-					PercentChange60D:       15,
-					PercentChange90D:       16,
+					Volume24Hour:           2,
+					CEXVolume24Hour:        3,
+					DEXVolume24Hour:        4,
+					Volume24HourReported:   5,
+					Volume7Day:             6,
+					Volume7DayReported:     7,
+					Volume30Day:            8,
+					Volume30DayReported:    9,
+					VolumeChange24Hour:     10,
+					PercentChange1Hour:     11,
+					PercentChange24Hour:    12,
+					PercentChange7Day:      13,
+					PercentChange30Day:     14,
+					PercentChange60Day:     15,
+					PercentChange90Day:     16,
 					MarketCap:              17,
 					MarketCapDominance:     18,
 					FullyDilutedMarketCap:  19,
@@ -1206,8 +1194,7 @@ func TestCoinmarketcapEndpointSuccessSynthetic(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			client, done := newSyntheticClient(t, map[string]string{tc.path: tc.payload})
-			defer done()
+			client := newSyntheticClient(t, map[string]string{tc.path: tc.payload})
 			err := tc.invoke(client)
 			require.NoErrorf(t, err, "%s must not error", tc.name)
 		})
@@ -1252,8 +1239,7 @@ func TestCoinmarketcapEndpointStatusErrorSynthetic(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			client, done := newSyntheticClient(t, map[string]string{tc.path: tc.payload})
-			defer done()
+			client := newSyntheticClient(t, map[string]string{tc.path: tc.payload})
 			err := tc.invoke(client)
 			assert.ErrorIs(t, err, errAPIResponse, "endpoint should return expected error")
 			assert.ErrorContains(t, err, "boom", "endpoint should include API error message")
@@ -1298,8 +1284,7 @@ func TestCoinmarketcapEndpointRequestFailureSynthetic(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			client, done := newSyntheticClient(t, map[string]string{})
-			defer done()
+			client := newSyntheticClient(t, map[string]string{})
 			err := tc.invoke(client)
 			assert.Error(t, err)
 		})
@@ -1440,8 +1425,7 @@ func TestCoinmarketcapAccountPlanGatesSynthetic(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			c, done := newSyntheticClient(t, map[string]string{tc.path: tc.payload})
-			defer done()
+			c := newSyntheticClient(t, map[string]string{tc.path: tc.payload})
 
 			c.Plan = tc.minimumPlan
 			err := tc.invoke(c)

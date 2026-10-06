@@ -89,7 +89,7 @@ type Flux struct {
 
 // RespError defines a general resp error sub type
 type RespError struct {
-	Code int    `json:"code"`
+	Code uint64 `json:"code"`
 	Type string `json:"type"`
 	Info string `json:"info"`
 }

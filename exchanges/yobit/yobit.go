@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -38,6 +39,8 @@ const (
 	privateRedeemCoupon           = "RedeemYobicode"
 )
 
+var errTickerRequestFailed = errors.New("ticker request failed")
+
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Yobit
 type Exchange struct {
 	exchange.Base
@@ -51,16 +54,52 @@ func (e *Exchange) GetInfo(ctx context.Context) (Info, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
-// GetTicker returns a ticker for a specific currency
+// GetTicker returns tickers for the requested symbols, omitting invalid pairs.
+// An explicit API failure returns an error even if ticker entries are present.
+// Empty or entirely zero-valued ticker entries are rejected.
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
-	type Response struct {
-		Data map[string]Ticker
+	var raw map[string]json.RawMessage
+	// ignore_invalid=1 omits unknown or delisted pairs instead of rejecting the whole batch.
+	path := "/" + apiPublicVersion + "/" + publicTicker + "/" + symbol + "?ignore_invalid=1"
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &raw); err != nil {
+		return nil, err
 	}
 
-	response := Response{}
-	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
-
-	return response.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
+	result := make(map[string]Ticker, len(raw))
+	var apiError string
+	var failed bool
+	for pair, entry := range raw {
+		switch pair {
+		// these cases only appear when there is an error, standard responses do not contain these fields
+		case "success":
+			var success uint8
+			if err := json.Unmarshal(entry, &success); err != nil {
+				return nil, fmt.Errorf("error decoding ticker success field: %w", err)
+			}
+			failed = success == 0
+			continue
+		case "error":
+			if err := json.Unmarshal(entry, &apiError); err != nil {
+				return nil, fmt.Errorf("error decoding ticker error field: %w", err)
+			}
+			continue
+		}
+		var ticker Ticker
+		if err := json.Unmarshal(entry, &ticker); err != nil {
+			return nil, fmt.Errorf("error decoding ticker for %s: %w", pair, err)
+		}
+		if ticker == (Ticker{}) {
+			return nil, fmt.Errorf("%w: empty ticker for %s", errTickerRequestFailed, pair)
+		}
+		result[pair] = ticker
+	}
+	if failed || len(result) == 0 && apiError != "" {
+		if apiError == "" {
+			return nil, errTickerRequestFailed
+		}
+		return nil, fmt.Errorf("%w: %s", errTickerRequestFailed, apiError)
+	}
+	return result, nil
 }
 
 // GetDepth returns the depth for a specific currency

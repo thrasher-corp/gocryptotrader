@@ -234,9 +234,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
-			Volume:       wsTicker.Volume24,
+			BaseVolume:   wsTicker.Volume24,
 			QuoteVolume:  wsTicker.Volume24Quote,
 			Bid:          wsTicker.HighestBuy,
 			Ask:          wsTicker.LowestSell,
@@ -246,21 +246,25 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			LastUpdated:  wsTicker.Timestamp.Time(),
 			AssetType:    asset.Spot,
 			Pair:         p,
-		})
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, tickPrice)
 	case "inst_order_book":
 		var orderbookSnapshot WsOrderbookSnapshot
 		err := json.Unmarshal(respRaw, &orderbookSnapshot)
 		if err != nil {
 			return err
 		}
-		return e.WsProcessOrderbookSnapshot(&orderbookSnapshot)
+		return e.WsProcessOrderbookSnapshot(ctx, &orderbookSnapshot)
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
 		err := json.Unmarshal(respRaw, &orderbookUpdate)
 		if err != nil {
 			return err
 		}
-		return e.WsProcessOrderbookUpdate(&orderbookUpdate)
+		return e.WsProcessOrderbookUpdate(ctx, &orderbookUpdate)
 	case "inst_trade":
 		if !e.IsSaveTradeDataEnabled() {
 			return nil
@@ -469,7 +473,7 @@ func (e *Exchange) WsGetInstruments(ctx context.Context) (Instruments, error) {
 }
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
-func (e *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
+func (e *Exchange) WsProcessOrderbookSnapshot(ctx context.Context, ob *WsOrderbookSnapshot) error {
 	bids := make([]orderbook.Level, len(ob.Buy))
 	for i := range ob.Buy {
 		bids[i] = orderbook.Level{
@@ -513,11 +517,11 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	newOrderBook.Exchange = e.Name
 	newOrderBook.LastUpdated = time.Now() // No time sent
 
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(ctx, &newOrderBook)
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
-func (e *Exchange) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
+func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrderbookUpdate) error {
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
@@ -547,7 +551,7 @@ func (e *Exchange) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	} else {
 		bufferUpdate.Asks = []orderbook.Level{{Price: update.Price, Amount: update.Volume}}
 	}
-	return e.Websocket.Orderbook.Update(bufferUpdate)
+	return e.Websocket.Orderbook.Update(ctx, bufferUpdate)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
@@ -760,7 +764,7 @@ func (e *Exchange) wsSubmitOrders(ctx context.Context, orders []WsSubmitOrderPar
 				Price:         orders[i].Price,
 				Side:          orders[i].Side.String(),
 				InstrumentID:  e.instrumentMap.LookupID(curr.String()),
-				ClientOrderID: i + 1,
+				ClientOrderID: uint64(i) + 1,
 			})
 	}
 

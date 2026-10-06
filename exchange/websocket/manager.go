@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -99,6 +99,7 @@ type Manager struct {
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
+	preConnect                    func(context.Context)
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
@@ -108,7 +109,7 @@ type Manager struct {
 	Match                         *Match
 	ShutdownC                     chan struct{}
 	Wg                            sync.WaitGroup
-	Orderbook                     buffer.Orderbook
+	Orderbook                     orderbookmanager.Orderbook
 	Trade                         trade.Trade // Trade is a notifier for trades
 	Fills                         fill.Fills  // Fills is a notifier for fills
 	TrafficAlert                  chan struct{}
@@ -127,17 +128,17 @@ type Manager struct {
 
 // ManagerSetup defines variables for setting up a websocket manager
 type ManagerSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
+	ExchangeConfig *config.Exchange
+	DefaultURL     string
+	RunningURL     string
+	RunningURLAuth string
+	Connector      func() error
+	// PreConnect performs context-aware preparation before the manager lock is acquired.
+	PreConnect            func(context.Context)
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
-	OrderbookBufferConfig buffer.Config
-
 	// UseMultiConnectionManagement allows the connections to be managed by the
 	// connection manager. If false, this will default to the global fields
 	// provided in this struct.
@@ -187,7 +188,7 @@ func NewManager() *Manager {
 		Match:             NewMatch(),
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
-		Orderbook:         buffer.Orderbook{},
+		Orderbook:         orderbookmanager.Orderbook{},
 		connections:       make(map[Connection]*websocket),
 	}
 }
@@ -225,6 +226,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
 	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
+	m.preConnect = s.PreConnect
 
 	if !m.useMultiConnectionManagement {
 		// TODO: Remove this block when all exchanges are updated and backwards
@@ -282,7 +284,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 
 	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	if err := m.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, m.DataHandler); err != nil {
+	if err := m.Orderbook.Setup(s.ExchangeConfig.Name, m.DataHandler, s.ExchangeConfig.Verbose); err != nil {
 		return err
 	}
 
@@ -448,6 +450,9 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (m *Manager) Connect(ctx context.Context) error {
+	if m.IsEnabled() && !m.IsConnecting() && !m.IsConnected() && m.preConnect != nil {
+		m.preConnect(ctx)
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	return m.connect(ctx)
@@ -530,7 +535,13 @@ func (m *Manager) connect(ctx context.Context) error {
 
 			var err error
 			subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+			var generationError error
 			if err != nil {
+				generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+			}
+			var fatalErr error
+			subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, generationError)
+			if fatalErr != nil {
 				multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 				break
 			}
@@ -650,6 +661,8 @@ func (m *Manager) connect(ctx context.Context) error {
 	return subscriptionError
 }
 
+// createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
+// The connection's store also records subscriptions accepted before the subscriber fails, because flushing uses it to decide whether the connection is still in use
 func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
@@ -684,10 +697,10 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	}
 
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
-		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
+		return common.AppendError(fmt.Errorf("%w: %w", ErrSubscriptionFailure, err), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
 	}
 	if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
-		return fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing)
+		return common.AppendError(fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
 	}
 
 	connSubsStore := conn.Subscriptions()
@@ -742,8 +755,6 @@ func (m *Manager) shutdown() error {
 	if m.verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket: shutting down websocket", m.exchangeName)
 	}
-
-	defer m.Orderbook.FlushBuffer()
 
 	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
 	// been closed. In such cases, attempting to close the connection may result in a

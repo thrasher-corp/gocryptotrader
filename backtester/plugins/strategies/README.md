@@ -1,13 +1,11 @@
 # GoCryptoTrader Backtester: Strategies package
 
-<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
-
+<img src="../../../backtester/common/backtester.png" alt="GoCryptoTrader backtester logo" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
-
 
 This strategies package is part of the GoCryptoTrader codebase.
 
@@ -20,16 +18,18 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Strategies package overview
 
 ### Designing a strategy
-- File must contain `main` package
-- Custom strategy plugins must adhere to the strategy.Handler interface. See the [strategy.Handler interface documentation](./backtester/eventhandlers/strategies/README.md) for more information.
-- Must contain function `func GetStrategies() []strategy.Handler` to return a slice of implemented `strategy.Handler`.
-   - If only using one custom strategy, can simply `return []strategy.Handler{&customStrategy{}}`.
 
+- File must contain `main` package
+- Custom strategy plugins must adhere to the strategy.Handler interface. See the [strategy.Handler interface documentation](../../../backtester/eventhandlers/strategies/README.md) for more information.
+- Must contain function `func GetStrategies() []strategy.Handler` to return a slice of implemented `strategy.Handler`.
+  - If only using one custom strategy, can simply `return []strategy.Handler{&customStrategy{}}`.
 
 ### Building
-See [here](./backtester/plugins/README.md) for details on how to build the plugin file.
+
+See the [plugin build instructions](../../../backtester/plugins/README.md) for details on how to build the plugin file.
 
 ### Running
+
 Plugins can only be loaded via Linux, macOS and WSL. Windows itself is not supported.
 
 To run a strategy you will need to use the following flags when running the GoCryptoTrader Backtester:
@@ -42,8 +42,8 @@ Upon startup, the GoCryptoTrader Backtester will load the strategy and run it fo
 
 ## Donations
 
-<img src="/docs/assets/donate.png" hspace="70">
+<img src="../../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

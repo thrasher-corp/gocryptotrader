@@ -3,7 +3,7 @@ package currency
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	"strings"
 
@@ -316,7 +316,7 @@ func (p Pairs) GetRandomPair() (Pair, error) {
 	if len(p) == 0 {
 		return EMPTYPAIR, ErrCurrencyPairsEmpty
 	}
-	return p[rand.Intn(len(p))], nil //nolint:gosec // basic number generation required, no need for crypto/rand
+	return p[rand.IntN(len(p))], nil //nolint:gosec // basic number generation required, no need for crypto/rand
 }
 
 // DeriveFrom matches symbol string to the available pairs list when no

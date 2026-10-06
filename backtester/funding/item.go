@@ -3,9 +3,9 @@ package funding
 import (
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // Reserve allocates an amount of funds to be used at a later time

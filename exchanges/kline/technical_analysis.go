@@ -25,7 +25,7 @@ type OHLC struct {
 	Volume []float64
 }
 
-// GetOHLC returns the entire subset of candles as a friendly type for gct
+// GetOHLC returns the entire subset of candles as a friendly type for GCT
 // technical analysis usage.
 func (k *Item) GetOHLC() *OHLC {
 	ohlc := &OHLC{

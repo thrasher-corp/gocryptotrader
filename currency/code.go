@@ -316,6 +316,18 @@ func (c Code) MarshalJSON() ([]byte, error) {
 	return json.Marshal(c.String())
 }
 
+// MarshalText implements encoding.TextMarshaler. sonic ignores MarshalJSON for map keys and
+// consults this instead, as v1 did, so without it a map[Code]T cannot encode under sonic_on
+func (c Code) MarshalText() ([]byte, error) {
+	return []byte(c.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler, the decode half of the same map key contract
+func (c *Code) UnmarshalText(d []byte) error {
+	*c = NewCode(string(d))
+	return nil
+}
+
 // IsEmpty returns true if the code is empty
 func (c Code) IsEmpty() bool {
 	return c.Item == nil || c.Item.Symbol == ""

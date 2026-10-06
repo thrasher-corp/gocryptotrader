@@ -28,203 +28,6 @@ var (
 	}
 )
 
-// WSFuturesTickerData stores ws ticker data for futures websocket
-type WSFuturesTickerData struct {
-	Time                          types.Time `json:"time"`
-	Feed                          string     `json:"feed"`
-	ProductID                     string     `json:"product_id"`
-	Bid                           float64    `json:"bid"`
-	Ask                           float64    `json:"ask"`
-	BidSize                       float64    `json:"bid_size"`
-	AskSize                       float64    `json:"ask_size"`
-	Volume                        float64    `json:"volume"`
-	DTM                           float64    `json:"dtm"`
-	Leverage                      string     `json:"leverage"`
-	Index                         float64    `json:"index"`
-	Premium                       float64    `json:"premium"`
-	Last                          float64    `json:"last"`
-	Change                        float64    `json:"change"`
-	Suspended                     bool       `json:"suspended"`
-	Tag                           string     `json:"tag"`
-	Pair                          string     `json:"pair"`
-	OpenInterest                  float64    `json:"openinterest"`
-	MarkPrice                     float64    `json:"markPrice"`
-	MaturityTime                  types.Time `json:"maturityTime"`
-	FundingRate                   float64    `json:"funding_rate"`
-	FundingRatePrediction         float64    `json:"funding_rate_prediction"`
-	RelativeFundingRate           float64    `json:"relative_funding_rate"`
-	RelativeFundingRatePrediction float64    `json:"relative_funding_rate_prediction"`
-	NextFundingRateTime           types.Time `json:"next_funding_rate_time"`
-}
-
-// WsFuturesTradeData stores public trade data for futures websocket
-type WsFuturesTradeData struct {
-	Feed      string `json:"feed"`
-	ProductID string `json:"product_id"`
-	Trades    []struct {
-		Feed        string     `json:"feed"`
-		ProductID   string     `json:"product_id"`
-		Side        string     `json:"side"`
-		ProductType string     `json:"type"`
-		Seq         int64      `json:"seq"`
-		Time        types.Time `json:"time"`
-		Quantity    float64    `json:"qty"`
-		Price       float64    `json:"price"`
-	} `json:"trades"`
-}
-
-// WsFuturesTickerLite stores ticker lite data for futures websocket
-type WsFuturesTickerLite struct {
-	Feed      string  `json:"feed"`
-	ProductID string  `json:"product_id"`
-	Bid       float64 `json:"bid"`
-	Ask       float64 `json:"ask"`
-	Change    float64 `json:"change"`
-	Premium   float64 `json:"premium"`
-	Volume    float64 `json:"volume"`
-	Tag       string  `json:"tag"`
-	Pair      string  `json:"pair"`
-	DTM       float64 `json:"dtm"`
-}
-
-// WsFuturesOB stores orderbook data for futures websocket
-type WsFuturesOB struct {
-	Feed      string     `json:"feed"`
-	ProductID string     `json:"product_id"`
-	Seq       int64      `json:"seq"`
-	Bids      []wsOBItem `json:"bids"`
-	Asks      []wsOBItem `json:"asks"`
-}
-
-type wsOBItem struct {
-	Price    float64 `json:"price"`
-	Quantity float64 `json:"qty"`
-}
-
-// WsVerboseOpenOrders stores verbose open orders data for futures websocket
-type WsVerboseOpenOrders struct {
-	Feed    string `json:"feed"`
-	Account string `json:"account"`
-	Orders  []struct {
-		Instrument     string     `json:"instrument"`
-		Time           types.Time `json:"time"`
-		LastUpdateTime types.Time `json:"last_update_time"`
-		Qty            float64    `json:"qty"`
-		Filled         float64    `json:"filled"`
-		LimitPrice     float64    `json:"limit_price"`
-		StopPrice      float64    `json:"stop_price"`
-		OrderType      string     `json:"type"`
-		OrderID        string     `json:"order_id"`
-		Direction      int64      `json:"direction"`
-		ReduceOnly     bool       `json:"reduce_only"`
-	} `json:"orders"`
-}
-
-// WsOpenPositions stores open positions data for futures websocket
-type WsOpenPositions struct {
-	Feed      string `json:"feed"`
-	Account   string `json:"account"`
-	Positions []struct {
-		Instrument    string  `json:"instrument"`
-		Balance       float64 `json:"balance"`
-		EntryPrice    float64 `json:"entry_price"`
-		MarkPrice     float64 `json:"mark_price"`
-		IndexPrice    float64 `json:"index_price"`
-		ProfitAndLoss float64 `json:"pnl"`
-	} `json:"positions"`
-}
-
-// WsFuturesAccountLog stores account log data for futures websocket
-type WsFuturesAccountLog struct {
-	Feed string `json:"feed"`
-	Logs []struct {
-		ID              int64   `json:"id"`
-		Date            string  `json:"date"`
-		Asset           string  `json:"asset"`
-		Info            string  `json:"info"`
-		BookingUID      string  `json:"booking_uid"`
-		MarginAccount   string  `json:"margin_account"`
-		OldBalance      float64 `json:"old_balance"`
-		NewBalance      float64 `json:"new_balance"`
-		OldAverageEntry float64 `json:"old_average_entry"`
-		NewAverageEntry float64 `json:"new_average_entry"`
-		TradePrice      float64 `json:"trade_price"`
-		MarkPrice       float64 `json:"mark_price"`
-		RealizedPNL     float64 `json:"realized_pnl"`
-		Fee             float64 `json:"fee"`
-		Execution       string  `json:"execution"`
-		Collateral      string  `json:"collateral"`
-		FundingRate     float64 `json:"funding_rate"`
-		RealizedFunding float64 `json:"realized_funding"`
-	} `json:"logs"`
-}
-
-// WsFuturesFillsData stores fills data for futures websocket
-type WsFuturesFillsData struct {
-	Feed    string `json:"feed"`
-	Account string `json:"account"`
-	Fills   []struct {
-		Instrument    string     `json:"instrument"`
-		Time          types.Time `json:"time"`
-		Price         float64    `json:"price"`
-		Seq           int64      `json:"seq"`
-		Buy           bool       `json:"buy"`
-		Quantity      float64    `json:"qty"`
-		OrderID       string     `json:"order_id"`
-		ClientOrderID string     `json:"cli_order_id"`
-		FillID        string     `json:"fill_id"`
-		FillType      string     `json:"fill_type"`
-	} `json:"fills"`
-}
-
-// WsFuturesOpenOrders stores open orders data for futures websocket
-type WsFuturesOpenOrders struct {
-	Feed    string `json:"feed"`
-	Account string `json:"account"`
-	Orders  []struct {
-		Instrument     string     `json:"instrument"`
-		Time           types.Time `json:"time"`
-		LastUpdateTime types.Time `json:"last_update_time"`
-		Qty            float64    `json:"qty"`
-		Filled         float64    `json:"filled"`
-		LimitPrice     float64    `json:"limit_price"`
-		StopPrice      float64    `json:"stop_price"`
-		OrderType      string     `json:"order_type"`
-		OrderID        string     `json:"order_id"`
-		Direction      string     `json:"direction"`
-		ReduceOnly     bool       `json:"reduce_only"`
-	} `json:"orders"`
-}
-
-// WsAccountBalancesAndMargin stores account balances and margin data for futures websocket
-type WsAccountBalancesAndMargin struct {
-	Seq            int64  `json:"seq"`
-	Feed           string `json:"feed"`
-	Account        string `json:"account"`
-	MarginAccounts []struct {
-		Name              string  `json:"name"`
-		PortfolioValue    float64 `json:"pv"`
-		Balance           float64 `json:"balance"`
-		Funding           float64 `json:"funding"`
-		MaintenanceMargin float64 `json:"mm"`
-		ProfitAndLoss     float64 `json:"pnl"`
-		InitialMargin     float64 `json:"im"`
-		AM                float64 `json:"am"`
-	} `json:"margin_accounts"`
-}
-
-// WsFuturesNotifications stores notifications data for futures websocket
-type WsFuturesNotifications struct {
-	Feed          string `json:"feed"`
-	Notifications []struct {
-		ID               int64      `json:"id"`
-		NotificationType string     `json:"notificationType"`
-		Priority         string     `json:"priority"`
-		Note             string     `json:"note"`
-		EffectiveTime    types.Time `json:"effective_time"`
-	}
-}
-
 type assetTranslatorStore struct {
 	l      sync.RWMutex
 	Assets map[string]string
@@ -288,22 +91,6 @@ type FuturesTickerData struct {
 	ServerTime time.Time     `json:"serverTime"`
 }
 
-// FuturesEditedOrderData stores an edited order's data
-type FuturesEditedOrderData struct {
-	ServerTime time.Time `json:"serverTime"`
-	EditStatus struct {
-		Status       string    `json:"status"`
-		OrderID      string    `json:"orderId"`
-		ReceivedTime time.Time `json:"receivedTime"`
-		OrderEvents  []struct {
-			Old FuturesOrderData `json:"old"`
-			New FuturesOrderData `json:"new"`
-		} `json:"orderEvents"`
-		ReduceQuantity string `json:"reduceQuantity"`
-		DataType       string `json:"type"`
-	} `json:"editStatus"`
-}
-
 // FuturesTicker  holds futures ticker data
 type FuturesTicker struct {
 	Tag                   string        `json:"tag"`
@@ -314,9 +101,10 @@ type FuturesTicker struct {
 	BidSize               float64       `json:"bidSize"`
 	Ask                   float64       `json:"ask"`
 	AskSize               float64       `json:"askSize"`
-	Vol24h                float64       `json:"vol24h"`
+	Volume24Hour          float64       `json:"vol24h"`
+	VolumeQuote           float64       `json:"volumeQuote"`
 	OpenInterest          float64       `json:"openInterest"`
-	Open24H               float64       `json:"open24h"`
+	Open24Hour            float64       `json:"open24h"`
 	Last                  float64       `json:"last"`
 	LastTime              time.Time     `json:"lastTime"`
 	LastSize              float64       `json:"lastSize"`
@@ -325,29 +113,40 @@ type FuturesTicker struct {
 	FundingRatePrediction float64       `json:"fundingRatePrediction"`
 	IndexPrice            float64       `json:"indexPrice"`
 	PostOnly              bool          `json:"postOnly"`
-	Change24H             float64       `json:"change24h"`
+	Change24Hour          float64       `json:"change24h"`
 }
 
 // FuturesSendOrderData stores send order data
 type FuturesSendOrderData struct {
-	SendStatus struct {
-		OrderID      string    `json:"order_id"`
-		Status       string    `json:"status"`
-		ReceivedTime time.Time `json:"receivedTime"`
-		OrderEvents  []struct {
-			UID      string           `json:"uid"`
-			Order    FuturesOrderData `json:"order"`
-			Reason   string           `json:"reason"`
-			DataType string           `json:"type"`
-		} `json:"orderEvents"`
-	} `json:"sendStatus"`
-	ServerTime time.Time `json:"serverTime"`
+	SendStatus FuturesSendOrderStatus `json:"sendStatus"`
+	ServerTime time.Time              `json:"serverTime"`
+}
+
+// FuturesSendOrderStatus holds the outcome of a send order request
+type FuturesSendOrderStatus struct {
+	OrderID      string              `json:"order_id"`
+	Status       string              `json:"status"`
+	ReceivedTime time.Time           `json:"receivedTime"`
+	OrderEvents  []FuturesOrderEvent `json:"orderEvents"`
+}
+
+// FuturesOrderEvent holds one event from an order request. The send, cancel, cancel all and batch
+// endpoints serve the same event objects: a place, cancel or reject event carries "order", an edit
+// event "old" and "new", and a reject event its "reason"
+type FuturesOrderEvent struct {
+	DataType        string           `json:"type"`
+	UID             string           `json:"uid"`
+	Order           FuturesOrderData `json:"order"`
+	OldEditedOrder  FuturesOrderData `json:"old"`
+	NewEditedOrder  FuturesOrderData `json:"new"`
+	Reason          string           `json:"reason"`
+	ReducedQuantity float64          `json:"reducedQuantity"`
 }
 
 // FuturesOrderData stores order data
 type FuturesOrderData struct {
 	OrderID             string    `json:"orderId"`
-	ClientOrderID       string    `json:"cliOrderId"`
+	ClientOrderID       string    `json:"cliOrdId"`
 	OrderType           string    `json:"type"`
 	Symbol              string    `json:"symbol"`
 	Side                string    `json:"side"`
@@ -361,17 +160,16 @@ type FuturesOrderData struct {
 
 // FuturesCancelOrderData stores cancel order data for futures
 type FuturesCancelOrderData struct {
-	CancelStatus struct {
-		Status       string    `json:"status"`
-		OrderID      string    `json:"order_id"`
-		ReceivedTime time.Time `json:"receivedTime"`
-		OrderEvents  []struct {
-			UID      string           `json:"uid"`
-			Order    FuturesOrderData `json:"order"`
-			DataType string           `json:"type"`
-		} `json:"orderEvents"`
-	} `json:"cancelStatus"`
-	ServerTime time.Time `json:"serverTime"`
+	CancelStatus FuturesCancelOrderStatus `json:"cancelStatus"`
+	ServerTime   time.Time                `json:"serverTime"`
+}
+
+// FuturesCancelOrderStatus holds the outcome of a cancel order request
+type FuturesCancelOrderStatus struct {
+	Status       string              `json:"status"`
+	OrderID      string              `json:"order_id"`
+	ReceivedTime time.Time           `json:"receivedTime"`
+	OrderEvents  []FuturesOrderEvent `json:"orderEvents"`
 }
 
 // FuturesFillsData stores fills data
@@ -451,20 +249,23 @@ type AccountsData struct {
 
 // CancelAllOrdersData stores order data for all cancelled orders
 type CancelAllOrdersData struct {
-	CancelStatus struct {
-		ReceivedTime    time.Time `json:"receivedTime"`
-		CancelOnly      string    `json:"cancelOnly"`
-		Status          string    `json:"status"`
-		CancelledOrders []struct {
-			OrderID string `json:"order_id"`
-		} `json:"cancelledOrders"`
-		OrderEvents []struct {
-			UID string `json:"uid"`
-		} `json:"uid"`
-		Order    FuturesOrderData `json:"order"`
-		DataType string           `json:"type"`
-	} `json:"cancelStatus"`
-	ServerTime time.Time `json:"serverTime"`
+	CancelStatus CancelAllOrdersStatus `json:"cancelStatus"`
+	ServerTime   time.Time             `json:"serverTime"`
+}
+
+// CancelAllOrdersStatus stores the outcome of a cancel all orders request
+type CancelAllOrdersStatus struct {
+	ReceivedTime    time.Time           `json:"receivedTime"`
+	CancelOnly      string              `json:"cancelOnly"`
+	Status          string              `json:"status"`
+	CancelledOrders []CancelledOrder    `json:"cancelledOrders"`
+	OrderEvents     []FuturesOrderEvent `json:"orderEvents"`
+}
+
+// CancelledOrder holds the identifiers of an order that was cancelled
+type CancelledOrder struct {
+	OrderID       string `json:"order_id"`
+	ClientOrderID string `json:"cliOrdId"`
 }
 
 // CancelOrdersAfterData stores data of all orders after a certain time that are cancelled
@@ -543,23 +344,19 @@ type FuturesRecentOrdersData struct {
 
 // BatchOrderData stores batch order data
 type BatchOrderData struct {
-	Result      string    `json:"result"`
-	ServerTime  time.Time `json:"serverTime"`
-	BatchStatus []struct {
-		Status           string    `json:"status"`
-		OrderTag         string    `json:"order_tag"`
-		OrderID          string    `json:"order_id"`
-		DateTimeReceived time.Time `json:"dateTimeReceived"`
-		OrderEvents      []struct {
-			OrderPlaced    FuturesOrderData `json:"orderPlaced"`
-			ReduceOnly     bool             `json:"reduceOnly"`
-			Timestamp      time.Time        `json:"timestamp"`
-			OldEditedOrder FuturesOrderData `json:"old"`
-			NewEditedOrder FuturesOrderData `json:"new"`
-			UID            string           `json:"uid"`
-			RequestType    string           `json:"requestType"`
-		} `json:"orderEvents"`
-	} `json:"batchStatus"`
+	Result      string                 `json:"result"`
+	ServerTime  time.Time              `json:"serverTime"`
+	BatchStatus []BatchInstructionData `json:"batchStatus"`
+}
+
+// BatchInstructionData holds the outcome of one instruction in a batch order request
+type BatchInstructionData struct {
+	Status           string              `json:"status"`
+	OrderTag         string              `json:"order_tag"`
+	OrderID          string              `json:"order_id"`
+	ClientOrderID    string              `json:"cliOrdId"`
+	DateTimeReceived time.Time           `json:"dateTimeReceived"`
+	OrderEvents      []FuturesOrderEvent `json:"orderEvents"`
 }
 
 // PlaceBatchOrderData stores data required to place a batch order
@@ -609,10 +406,10 @@ type FuturesPublicTrades struct {
 					TakerOrderData FuturesTradeOrderData `json:"takerOrderData"`
 					Timestamp      types.Time            `json:"timestamp"`
 					UID            string                `json:"uid"`
-					UsdValue       float64               `json:"usdValue,string"`
+					USDValue       float64               `json:"usdValue,string"`
 				} `json:"execution"`
 				TakerReducedQuantity string `json:"takerReducedQuantity"`
-			} `json:"execution"`
+			} `json:"Execution"`
 		} `json:"event"`
 		Timestamp types.Time `json:"timestamp"`
 		UID       string     `json:"uid"`

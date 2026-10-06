@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -220,27 +220,23 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 	var totalInserted uint64
 	for x := range in.Candles {
 		tempCandle := modelSQLite.Candle{
-			ExchangeNameID: in.ExchangeID,
-			Base:           strings.ToUpper(in.Base),
-			Quote:          strings.ToUpper(in.Quote),
-			Interval:       strconv.FormatInt(in.Interval, 10),
-			Asset:          strings.ToLower(in.Asset),
-			Timestamp:      in.Candles[x].Timestamp.UTC().Format(time.RFC3339),
-			Open:           in.Candles[x].Open,
-			High:           in.Candles[x].High,
-			Low:            in.Candles[x].Low,
-			Close:          in.Candles[x].Close,
-			Volume:         in.Candles[x].Volume,
+			ExchangeNameID:   in.ExchangeID,
+			Base:             strings.ToUpper(in.Base),
+			Quote:            strings.ToUpper(in.Quote),
+			Interval:         strconv.FormatInt(in.Interval, 10),
+			Asset:            strings.ToLower(in.Asset),
+			Timestamp:        in.Candles[x].Timestamp.UTC().Format(time.RFC3339),
+			Open:             in.Candles[x].Open,
+			High:             in.Candles[x].High,
+			Low:              in.Candles[x].Low,
+			Close:            in.Candles[x].Close,
+			Volume:           in.Candles[x].Volume,
+			ID:               uuid.NewV4().String(),
+			ValidationJobID:  null.String{String: in.Candles[x].ValidationJobID, Valid: in.Candles[x].ValidationJobID != ""},
+			ValidationIssues: null.String{String: in.Candles[x].ValidationIssues, Valid: in.Candles[x].ValidationIssues != ""},
+			SourceJobID:      null.String{String: in.Candles[x].SourceJobID, Valid: in.Candles[x].SourceJobID != ""},
 		}
-		tempUUID, err := uuid.NewV4()
-		if err != nil {
-			return 0, err
-		}
-		tempCandle.ID = tempUUID.String()
-		tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: in.Candles[x].ValidationJobID != ""}
-		tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: in.Candles[x].ValidationIssues != ""}
-		tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: in.Candles[x].SourceJobID != ""}
-		err = tempCandle.Insert(ctx, tx, boil.Infer())
+		err := tempCandle.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return 0, err
 		}
@@ -255,21 +251,21 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 	var totalInserted uint64
 	for x := range in.Candles {
 		tempCandle := modelPSQL.Candle{
-			ExchangeNameID: in.ExchangeID,
-			Base:           strings.ToUpper(in.Base),
-			Quote:          strings.ToUpper(in.Quote),
-			Interval:       in.Interval,
-			Asset:          strings.ToLower(in.Asset),
-			Timestamp:      in.Candles[x].Timestamp,
-			Open:           in.Candles[x].Open,
-			High:           in.Candles[x].High,
-			Low:            in.Candles[x].Low,
-			Close:          in.Candles[x].Close,
-			Volume:         in.Candles[x].Volume,
+			ExchangeNameID:   in.ExchangeID,
+			Base:             strings.ToUpper(in.Base),
+			Quote:            strings.ToUpper(in.Quote),
+			Interval:         in.Interval,
+			Asset:            strings.ToLower(in.Asset),
+			Timestamp:        in.Candles[x].Timestamp,
+			Open:             in.Candles[x].Open,
+			High:             in.Candles[x].High,
+			Low:              in.Candles[x].Low,
+			Close:            in.Candles[x].Close,
+			Volume:           in.Candles[x].Volume,
+			ValidationJobID:  null.String{String: in.Candles[x].ValidationJobID, Valid: in.Candles[x].ValidationJobID != ""},
+			ValidationIssues: null.String{String: in.Candles[x].ValidationIssues, Valid: in.Candles[x].ValidationIssues != ""},
+			SourceJobID:      null.String{String: in.Candles[x].SourceJobID, Valid: in.Candles[x].SourceJobID != ""},
 		}
-		tempCandle.ValidationJobID = null.String{String: in.Candles[x].ValidationJobID, Valid: in.Candles[x].ValidationJobID != ""}
-		tempCandle.ValidationIssues = null.String{String: in.Candles[x].ValidationIssues, Valid: in.Candles[x].ValidationIssues != ""}
-		tempCandle.SourceJobID = null.String{String: in.Candles[x].SourceJobID, Valid: in.Candles[x].SourceJobID != ""}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_name_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			return 0, err

@@ -63852,6 +63852,65 @@
     }
    ]
   },
+  "/api/v2/ticker/": {
+   "GET": [
+    {
+     "data": [
+      {
+       "ask": "0.50",
+       "bid": "0.50",
+       "last": "0.50",
+       "market": "XRP/EUR",
+       "market_type": "SPOT",
+       "side": "0",
+       "timestamp": "1790338043"
+      },
+      {
+       "ask": "2211.00",
+       "bid": "2188.97",
+       "high": "2811.00",
+       "index_price": "2814.00",
+       "last": "2200.00",
+       "low": "2170.00",
+       "mark_price": "2812.00",
+       "market": "BTC/USD",
+       "market_type": "SPOT",
+       "open": "2190.00",
+       "open_24": "2185.00",
+       "open_interest": "10.1",
+       "open_interest_value": "10234.00",
+       "pair": "BTC/USD",
+       "percent_change_24": "13.57",
+       "side": "0",
+       "timestamp": "1643640186",
+       "volume": "213.26801100",
+       "vwap": "2189.80"
+      },
+      {
+       "ask": "84654.00",
+       "bid": "84649.00",
+       "last": "84645.00",
+       "market": "BTC/USD-PERP",
+       "market_type": "PERPETUAL",
+       "percent_change_24": "1.33",
+       "timestamp": "1790338043"
+      },
+      {
+       "ask": "1.10",
+       "bid": "1.00",
+       "last": "1.05",
+       "market": "ZRX/USD",
+       "market_type": "SPOT",
+       "percent_change_24": "",
+       "timestamp": "1790338043"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "\u003cnil\u003e",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v2/ticker/btcusd/": {
    "GET": [
     {
@@ -63859,10 +63918,14 @@
         "ask": "2211.00",
         "bid": "2188.97",
         "high": "2811.00",
+        "index_price": "2814.00",
         "last": "2211.00",
         "low": "2188.97",
+        "mark_price": "2812.00",
         "open": "2211.00",
         "open_24": "2211.00",
+        "open_interest": "10.1",
+        "open_interest_value": "10234.00",
         "percent_change_24": "13.57",
         "side": "0",
         "timestamp": "1643640186",

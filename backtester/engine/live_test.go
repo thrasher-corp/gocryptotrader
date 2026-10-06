@@ -78,9 +78,8 @@ func TestStart(t *testing.T) {
 	close(dc.shutdown)
 	dc.wg.Wait()
 
-	dc = &dataChecker{
-		started: 1,
-	}
+	dc = &dataChecker{}
+	dc.started.Store(true)
 	err = dc.Start()
 	assert.ErrorIs(t, err, engine.ErrSubSystemAlreadyStarted)
 }
@@ -92,7 +91,7 @@ func TestDataCheckerIsRunning(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 
-	dataHandler.started = 1
+	dataHandler.started.Store(true)
 
 	if !dataHandler.IsRunning() {
 		t.Errorf("received '%v' expected '%v'", false, true)
@@ -112,7 +111,7 @@ func TestLiveHandlerStop(t *testing.T) {
 	err := dc.Stop()
 	assert.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
-	dc.started = 1
+	dc.started.Store(true)
 	err = dc.Stop()
 	assert.NoError(t, err)
 
@@ -136,7 +135,7 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 	err = dc.SignalStopFromError(nil)
 	assert.ErrorIs(t, err, errNilError)
 
-	dc.started = 1
+	dc.started.Store(true)
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		assert.NoError(t, dc.SignalStopFromError(errNoCredsNoLive))
@@ -161,7 +160,7 @@ func TestDataFetcher(t *testing.T) {
 	err := dc.DataFetcher()
 	assert.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
-	dc.started = 1
+	dc.started.Store(true)
 	dc.wg.Add(1)
 	err = dc.DataFetcher()
 	assert.ErrorIs(t, err, ErrLiveDataTimeout)
@@ -256,7 +255,7 @@ func TestFetchLatestData(t *testing.T) {
 	_, err := dataHandler.FetchLatestData()
 	require.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
-	dataHandler.started = 1
+	dataHandler.started.Store(true)
 	_, err = dataHandler.FetchLatestData()
 	require.NoError(t, err)
 	cp := currency.NewBTCUSDT()
@@ -361,7 +360,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		funding: &fakeFunding{},
 	}
 
-	dataHandler.started = 1
+	dataHandler.started.Store(true)
 	cp := currency.NewBTCUSDT()
 	f := &binanceus.Exchange{}
 	f.SetDefaults()
@@ -492,11 +491,11 @@ func TestUpdateFunding(t *testing.T) {
 	err = d.UpdateFunding(true)
 	assert.NoError(t, err)
 
-	d.updatingFunding = 1
+	d.updatingFunding.Store(true)
 	err = d.UpdateFunding(true)
 	assert.NoError(t, err)
 
-	d.updatingFunding = 1
+	d.updatingFunding.Store(true)
 	err = d.UpdateFunding(false)
 	assert.NoError(t, err)
 

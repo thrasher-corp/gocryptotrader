@@ -35,8 +35,9 @@ func TestNewVCRServer(t *testing.T) {
 	assert.ErrorIs(t, err, errJSONMockFilePathRequired)
 
 	// Set up mock data
-	test1 := VCRMock{}
-	test1.Routes = make(map[string]map[string][]HTTPResponse)
+	test1 := VCRMock{
+		Routes: make(map[string]map[string][]HTTPResponse),
+	}
 	test1.Routes["/test"] = make(map[string][]HTTPResponse)
 
 	rp, err := json.Marshal(responsePayload{
@@ -168,8 +169,8 @@ func TestRegisterHandlerAndMatching(t *testing.T) {
 				},
 			}, mux)
 
-			srv := httptest.NewServer(mux)
-			t.Cleanup(srv.Close)
+			srv := httptest.NewTestServer(t, mux)
+			client := srv.Client()
 
 			req, err := http.NewRequestWithContext(t.Context(),
 				tc.method,
@@ -184,7 +185,7 @@ func TestRegisterHandlerAndMatching(t *testing.T) {
 				req.Header.Set(contentType, tc.contentType)
 			}
 
-			resp, err := srv.Client().Do(req)
+			resp, err := client.Do(req)
 			require.NoError(t, err)
 			t.Cleanup(func() {
 				require.NoError(t, resp.Body.Close())

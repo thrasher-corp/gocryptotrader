@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -26,6 +27,11 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Deribit
 type Exchange struct {
 	exchange.Base
+	// incrementalTickers holds each incremental_ticker instrument's state, every change merged onto
+	// it. The ticker store cannot stand in for it: it holds only what a ticker.Price maps, and the
+	// data handler's consumer writes it behind the reader, so it can hold an older state
+	incrementalTickers    map[string]*WsIncrementalTicker
+	incrementalTickersMtx sync.Mutex
 }
 
 const (

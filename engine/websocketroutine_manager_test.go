@@ -8,15 +8,44 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
+
+type tickerSyncRecorder struct {
+	*SyncManager
+	synced    []key.ExchangeAssetPair
+	syncErrs  []error
+	summaries []tickerSummary
+}
+
+type tickerSummary struct {
+	price    ticker.Price
+	protocol string
+	err      error
+}
+
+func (r *tickerSyncRecorder) WebsocketUpdate(exchangeName string, p currency.Pair, a asset.Item, syncType syncItemType, err error) error {
+	r.synced = append(r.synced, key.NewExchangeAssetPair(exchangeName, a, p))
+	err = r.SyncManager.WebsocketUpdate(exchangeName, p, a, syncType, err)
+	if err != nil {
+		r.syncErrs = append(r.syncErrs, err)
+	}
+	return err
+}
+
+func (r *tickerSyncRecorder) PrintTickerSummary(p *ticker.Price, protocol string, err error) {
+	r.summaries = append(r.summaries, tickerSummary{price: *p, protocol: protocol, err: err})
+}
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
 	_, err := setupWebsocketRoutineManager(nil, nil, nil, nil, false)
@@ -170,8 +199,38 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		AssetType:    asset.Spot,
 	})
 	assert.NoError(t, err)
+	testPair := currency.NewPair(currency.NewCode("AAA"), currency.NewCode("BBB"))
+	err = m.websocketDataHandler(exchName, &ticker.Price{
+		ExchangeName: exchName,
+		Pair:         testPair,
+		AssetType:    asset.Spot,
+	})
+	assert.NoError(t, err)
+	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
+	err = m.websocketDataHandler(exchName, []ticker.Price{{
+		ExchangeName: exchName,
+		Pair:         testPair,
+		AssetType:    asset.Spot,
+	}})
+	assert.NoError(t, err, "websocketDataHandler should accept a ticker batch")
+	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "websocketDataHandler should not store a ticker batch")
 
 	err = m.websocketDataHandler(exchName, kline.Item{})
+	require.NoError(t, err)
+	err = m.websocketDataHandler(exchName, []futures.Position{{
+		Exchange: exchName,
+		Asset:    asset.USDTMarginedFutures,
+		Pair:     currency.NewBTCUSDT(),
+	}})
+	require.NoError(t, err)
+	err = m.websocketDataHandler(exchName, accounts.SubAccounts{{
+		AssetType: asset.USDTMarginedFutures,
+		Balances: accounts.CurrencyBalances{
+			currency.USDT: {Total: 42},
+		},
+	}})
 	require.NoError(t, err)
 	origOrder := &order.Detail{
 		Exchange: exchName,
@@ -251,6 +310,70 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestWebsocketDataHandlerTickerBatchSyncsPastUntrackedEntries(t *testing.T) {
+	t.Parallel()
+	sm := &SyncManager{
+		currencyPairs: make(map[key.ExchangeAssetPair]*currencyPairSyncAgent),
+		config:        config.SyncManagerConfig{SynchronizeTicker: true},
+	}
+	sm.started.Store(true)
+	sm.initSyncStarted.Store(true)
+	sm.initSyncCompleted.Store(true)
+	btc, eth := currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)
+	tracked := make([]*currencyPairSyncAgent, 0, 2)
+	for _, p := range []currency.Pair{btc, eth} {
+		c := newCurrencyPairSyncAgent(key.NewExchangeAssetPair(t.Name(), asset.Margin, p))
+		c.trackers[SyncItemTicker] = &syncBase{IsUsingREST: true}
+		sm.currencyPairs[c.Key] = c
+		tracked = append(tracked, c)
+	}
+
+	updated := time.UnixMilli(1790000000000)
+	batch := []ticker.Price{
+		{ExchangeName: t.Name(), Pair: eth, AssetType: asset.Margin},
+		{ExchangeName: t.Name(), Pair: btc, AssetType: asset.Spot, Last: 1},
+		{
+			ExchangeName: t.Name(), Pair: btc, AssetType: asset.Margin, LastUpdated: updated,
+			Last: 2, LastSize: 0.2, High: 2.2, Low: 1.8, Bid: 1.9, BidSize: 1.1, Ask: 2.1, AskSize: 1.2,
+			BaseVolume: 20, QuoteVolume: 40, Open: 1.7, Close: 1.95, OpenInterest: 50,
+			MarkPrice: 2.05, IndexPrice: 2.02, FlashReturnRate: 0.01, BidPeriod: 4, AskPeriod: 30, FlashReturnRateAmount: 100,
+		},
+		{ExchangeName: t.Name(), Pair: eth, AssetType: asset.Spot, Last: 5},
+		{ExchangeName: t.Name(), Pair: btc, AssetType: asset.Futures, Last: 3},
+		{ExchangeName: t.Name(), Pair: eth, AssetType: asset.Margin, Bid: 3.9, Ask: 4.1, LastUpdated: updated},
+		{ExchangeName: t.Name(), Pair: btc, AssetType: asset.Margin, Last: 6, Bid: 5.9, Ask: 6.1, BaseVolume: 60, LastUpdated: updated.Add(time.Second)},
+		{ExchangeName: t.Name(), Pair: btc, AssetType: asset.Margin, Last: 7, Bid: 6.9, Ask: 7.1, BaseVolume: 70, LastUpdated: updated.Add(2 * time.Second)},
+		{ExchangeName: t.Name(), Pair: btc, AssetType: asset.Margin, Last: 7, Bid: 6.9, Ask: 7.1, BaseVolume: 70, LastUpdated: updated.Add(2 * time.Second)},
+	}
+	expSynced := make([]key.ExchangeAssetPair, len(batch))
+	for i := range batch {
+		expSynced[i] = key.NewExchangeAssetPair(t.Name(), batch[i].AssetType, batch[i].Pair)
+	}
+	accepted := []int{0, 2, 5, 6, 7, 8}
+	expSummaries := make([]tickerSummary, len(accepted))
+	for i, x := range accepted {
+		expSummaries[i] = tickerSummary{price: batch[x], protocol: "websocket"}
+	}
+	r := &tickerSyncRecorder{SyncManager: sm}
+	m := &WebsocketRoutineManager{syncer: r}
+	err := m.websocketDataHandler(t.Name(), batch)
+	assert.Equal(t, expSynced, r.synced, "websocketDataHandler should sync every entry in order")
+	assert.ErrorIs(t, err, errCouldNotSyncNewData, "websocketDataHandler should report the untracked entries")
+	var joined interface{ Unwrap() []error }
+	require.ErrorAs(t, err, &joined, "websocketDataHandler must join the sync errors")
+	require.Len(t, r.syncErrs, 3, "the syncer must reject the three untracked entries")
+	children := joined.Unwrap()
+	require.Len(t, children, len(r.syncErrs), "websocketDataHandler must report every rejected entry")
+	for i := range children {
+		assert.Same(t, r.syncErrs[i], children[i], "websocketDataHandler should report each sync error as returned")
+	}
+	for _, c := range tracked {
+		assert.True(t, c.trackers[SyncItemTicker].IsUsingWebsocket, "websocketDataHandler should sync each tracked entry")
+		assert.Zero(t, c.trackers[SyncItemTicker].NumErrors, "websocketDataHandler should sync each tracked entry without an error")
+	}
+	assert.Equal(t, expSummaries, r.summaries, "websocketDataHandler should summarise only the synced entries, unchanged")
 }
 
 func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {

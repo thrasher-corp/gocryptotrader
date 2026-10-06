@@ -3,9 +3,9 @@ package fill
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 func TestSetDirection(t *testing.T) {
@@ -93,8 +93,9 @@ func TestGetSlippageRate(t *testing.T) {
 
 func TestGetTotal(t *testing.T) {
 	t.Parallel()
-	f := Fill{}
-	f.Total = decimal.NewFromInt(1337)
+	f := Fill{
+		Total: decimal.NewFromInt(1337),
+	}
 	e := f.GetTotal()
 	if !e.Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected 1337")

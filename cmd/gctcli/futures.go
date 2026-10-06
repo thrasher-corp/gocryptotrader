@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -21,29 +20,31 @@ var futuresCommands = &cli.Command{
 	Name:      "futures",
 	Aliases:   []string{"f"},
 	Usage:     "contains all futures based rpc commands",
-	ArgsUsage: "<command> <args>",
+	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
 		{
-			Name:      "getmanagedposition",
-			Aliases:   []string{"managedposition", "mp"},
-			Usage:     "retrieves an open position monitored by the order manager",
-			ArgsUsage: "<exchange> <asset> <pair> <includeorderdetails> <getfundingdata> <includefundingentries> <includepredictedrate>",
-			Action:    getManagedPosition,
+			Name:    "getmanagedposition",
+			Aliases: []string{"managedposition", "mp"},
+			Usage:   "retrieves an open position monitored by the order manager",
+			Action:  getManagedPosition,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair of the position",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    "the currency pair of the position",
 				},
 				&cli.BoolFlag{
 					Name:    "includeorderdetails",
@@ -68,11 +69,10 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getallmanagedpositions",
-			Aliases:   []string{"managedpositions", "mps"},
-			Usage:     "retrieves all open positions monitored by the order manager",
-			ArgsUsage: "<includeorderdetails> <getfundingdata> <includefundingentries> <includepredictedrate>",
-			Action:    getAllManagedPositions,
+			Name:    "getallmanagedpositions",
+			Aliases: []string{"managedpositions", "mps"},
+			Usage:   "retrieves all open positions monitored by the order manager",
+			Action:  getAllManagedPositions,
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
 					Name:    "includeorderdetails",
@@ -97,21 +97,22 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getcollateral",
-			Aliases:   []string{"collateral", "c"},
-			Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
-			ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <includezerovalues>",
-			Action:    getCollateral,
+			Name:    "getcollateral",
+			Aliases: []string{"collateral", "c"},
+			Usage:   "returns total collateral for an exchange asset, with optional per currency breakdown",
+			Action:  getCollateral,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.BoolFlag{
 					Name:    "calculateoffline",
@@ -131,36 +132,38 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getfundingrates",
-			Aliases:   []string{"funding", "f"},
-			Usage:     "returns funding rate data between two dates",
-			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <paymentcurrency> <includepredicted> <includepayments> <respecthistorylimits>",
-			Action:    getFundingRates,
+			Name:    "getfundingrates",
+			Aliases: []string{"funding", "f"},
+			Usage:   "returns funding rate data between two dates",
+			Action:  getFundingRates,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    "currency pair",
 				},
 				&cli.StringFlag{
-					Name:        "start",
+					Name:        startFlag,
 					Aliases:     []string{"sd"},
 					Usage:       "<start> rounded down to the nearest hour",
 					Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
-					Name:        "end",
+					Name:        endFlag,
 					Aliases:     []string{"ed"},
 					Usage:       "<end>",
 					Value:       time.Now().Format(time.DateTime),
@@ -189,26 +192,28 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getlatestfundingrate",
-			Aliases:   []string{"latestrate", "lr", "r8"},
-			Usage:     "returns the latest funding rate data",
-			ArgsUsage: "<exchange> <asset> <pair> <includepredicted>",
-			Action:    getLatestFundingRate,
+			Name:    "getlatestfundingrate",
+			Aliases: []string{"latestrate", "lr", "r8"},
+			Usage:   "returns the latest funding rate data",
+			Action:  getLatestFundingRate,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    "currency pair",
 				},
 				&cli.BoolFlag{
 					Name:    "includepredicted",
@@ -218,69 +223,74 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getcollateralmode",
-			Aliases:   []string{"gcm"},
-			Usage:     "gets the collateral mode for an exchange asset",
-			ArgsUsage: "<exchange> <asset>",
-			Action:    getCollateralMode,
+			Name:    "getcollateralmode",
+			Aliases: []string{"gcm"},
+			Usage:   "gets the collateral mode for an exchange asset",
+			Action:  getCollateralMode,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 			},
 		},
 		{
-			Name:      "setcollateralmode",
-			Aliases:   []string{"scm"},
-			Usage:     "sets the collateral mode for an exchange asset",
-			ArgsUsage: "<exchange> <asset> <collateralmode>",
-			Action:    setCollateralMode,
+			Name:    "setcollateralmode",
+			Aliases: []string{"scm"},
+			Usage:   "sets the collateral mode for an exchange asset",
+			Action:  setCollateralMode,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "collateralmode",
-					Aliases: []string{"collateral", "cm", "c"},
-					Usage:   "the collateral mode type, such as 'single', 'multi' or 'global'",
+					Name:     "collateralmode",
+					Required: true,
+					Aliases:  []string{"collateral", "cm", "c"},
+					Usage:    "the collateral mode type, such as 'single', 'multi' or 'global'",
 				},
 			},
 		},
 		{
-			Name:      "setleverage",
-			Aliases:   []string{"sl"},
-			Usage:     "sets the initial leverage level for an exchange currency pair",
-			ArgsUsage: "<exchange> <asset> <pair> <margintype> <leverage> <orderside>",
-			Action:    setLeverage,
+			Name:    "setleverage",
+			Aliases: []string{"sl"},
+			Usage:   "sets the initial leverage level for an exchange currency pair",
+			Action:  setLeverage,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
 					Name:    "margintype",
@@ -288,38 +298,41 @@ var futuresCommands = &cli.Command{
 					Usage:   "the margin type, such as 'isolated', 'multi' or 'cross'",
 				},
 				&cli.Float64Flag{
-					Name:    "leverage",
-					Aliases: []string{"l"},
-					Usage:   "the level of leverage you want, increase it to lose your capital faster",
+					Name:     "leverage",
+					Required: true,
+					Aliases:  []string{"l"},
+					Usage:    "the level of leverage you want, increase it to lose your capital faster",
 				},
 				&cli.StringFlag{
 					Name:    "orderside",
-					Aliases: []string{"side", "os", "o"},
+					Aliases: []string{sideFlag, "os", "o"},
 					Usage:   "optional - some exchanges distinguish between order side",
 				},
 			},
 		},
 		{
-			Name:      "getleverage",
-			Aliases:   []string{"gl"},
-			Usage:     "gets the initial leverage level for an exchange currency pair",
-			ArgsUsage: "<exchange> <asset> <pair> <margintype> <orderside>",
-			Action:    getLeverage,
+			Name:    "getleverage",
+			Aliases: []string{"gl"},
+			Usage:   "gets the initial leverage level for an exchange currency pair",
+			Action:  getLeverage,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
 					Name:    "margintype",
@@ -328,32 +341,34 @@ var futuresCommands = &cli.Command{
 				},
 				&cli.StringFlag{
 					Name:    "orderside",
-					Aliases: []string{"side", "os", "o"},
+					Aliases: []string{sideFlag, "os", "o"},
 					Usage:   "optional - some exchanges distinguish between order side",
 				},
 			},
 		},
 		{
-			Name:      "changepositionmargin",
-			Aliases:   []string{"cpm"},
-			Usage:     "sets isolated margin levels for an existing position",
-			ArgsUsage: "<exchange> <asset> <pair> <margintype> <originalallocatedmargin> <newallocatedmargin> <marginside>",
-			Action:    changePositionMargin,
+			Name:    "changepositionmargin",
+			Aliases: []string{"cpm"},
+			Usage:   "sets isolated margin levels for an existing position",
+			Action:  changePositionMargin,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
 					Name:    "margintype",
@@ -366,38 +381,41 @@ var futuresCommands = &cli.Command{
 					Usage:   "the original allocated margin, is used by some exchanges to determine differences to apply",
 				},
 				&cli.Float64Flag{
-					Name:    "newallocatedmargin",
-					Aliases: []string{"nac"},
-					Usage:   "the new allocated margin level you desire",
+					Name:     "newallocatedmargin",
+					Required: true,
+					Aliases:  []string{"nac"},
+					Usage:    "the new allocated margin level you desire",
 				},
 				&cli.StringFlag{
 					Name:    "marginside",
-					Aliases: []string{"side", "ms"},
+					Aliases: []string{sideFlag, "ms"},
 					Usage:   "optional - the margin side, typically 'buy' or 'sell'",
 				},
 			},
 		},
 		{
-			Name:      "getfuturespositionsummary",
-			Aliases:   []string{"summary", "fps"},
-			Usage:     "return a summary of your futures position",
-			ArgsUsage: "<exchange> <asset> <pair> <underlyingpair>",
-			Action:    getFuturesPositionSummary,
+			Name:    "getfuturespositionsummary",
+			Aliases: []string{"summary", "fps"},
+			Usage:   "return a summary of your futures position",
+			Action:  getFuturesPositionSummary,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
 					Name:    "underlyingpair",
@@ -407,36 +425,38 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getfuturepositionorders",
-			Aliases:   []string{"orders", "fpo"},
-			Usage:     "return a slice of orders that make up your position",
-			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <respectorderhistorylimits> <underlyingpair> <syncwithordermanager>",
-			Action:    getFuturePositionOrders,
+			Name:    "getfuturepositionorders",
+			Aliases: []string{"orders", "fpo"},
+			Usage:   "return a slice of orders that make up your position",
+			Action:  getFuturePositionOrders,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
-					Name:        "start",
+					Name:        startFlag,
 					Aliases:     []string{"sd"},
 					Usage:       "<start> rounded down to the nearest hour",
 					Value:       time.Now().AddDate(0, 0, -7).Truncate(time.Hour).Format(time.DateTime),
 					Destination: &startTime,
 				},
 				&cli.StringFlag{
-					Name:        "end",
+					Name:        endFlag,
 					Aliases:     []string{"ed"},
 					Usage:       "<end>",
 					Value:       time.Now().Format(time.DateTime),
@@ -460,53 +480,56 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "setmargintype",
-			Aliases:   []string{"smt"},
-			Usage:     "sets the margin type for a exchange asset pair",
-			ArgsUsage: "<exchange> <asset> <pair> <margintype>",
-			Action:    setMarginType,
+			Name:    "setmargintype",
+			Aliases: []string{"smt"},
+			Usage:   "sets the margin type for a exchange asset pair",
+			Action:  setMarginType,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve futures positions from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    futuresExchangeUsage,
 				},
 				&cli.StringFlag{
-					Name:    "asset",
-					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Name:     assetFlag,
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    futuresAssetUsage,
 				},
 				&cli.StringFlag{
-					Name:    "pair",
-					Aliases: []string{"p"},
-					Usage:   "the currency pair",
+					Name:     pairFlag,
+					Required: true,
+					Aliases:  []string{"p"},
+					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
-					Name:    "margintype",
-					Aliases: []string{"margin", "mt", "m"},
-					Usage:   "the margin type, such as 'isolated', 'multi' or 'cross'",
+					Name:     "margintype",
+					Required: true,
+					Aliases:  []string{"margin", "mt", "m"},
+					Usage:    "the margin type, such as 'isolated', 'multi' or 'cross'",
 				},
 			},
 		},
 		{
-			Name:      "getopeninterest",
-			Aliases:   []string{"goi", "oi"},
-			Usage:     "gets the open interest for provided exchange asset pair, if asset pair is not present, return all available if supported",
-			ArgsUsage: "<exchange> <asset> <pair>",
-			Action:    getOpenInterest,
+			Name:    "getopeninterest",
+			Aliases: []string{"goi", "oi"},
+			Usage:   "gets the open interest for provided exchange asset pair, if asset pair is not present, return all available if supported",
+			Action:  getOpenInterest,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:    "exchange",
-					Aliases: []string{"e"},
-					Usage:   "the exchange to retrieve open interest from",
+					Name:     exchangeFlag,
+					Required: true,
+					Aliases:  []string{"e"},
+					Usage:    "the exchange to retrieve open interest from",
 				},
 				&cli.StringFlag{
-					Name:    "asset",
+					Name:    assetFlag,
 					Aliases: []string{"a"},
 					Usage:   "optional - the asset type of the currency pair, must be a futures type",
 				},
 				&cli.StringFlag{
-					Name:    "pair",
+					Name:    pairFlag,
 					Aliases: []string{"p"},
 					Usage:   "optional - the currency pair",
 				},
@@ -516,32 +539,26 @@ var futuresCommands = &cli.Command{
 }
 
 func getManagedPosition(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
 	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 	err := isFuturesAsset(assetType)
 	if err != nil {
 		return err
 	}
 	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return errInvalidPair
@@ -555,41 +572,21 @@ func getManagedPosition(c *cli.Context) error {
 	var includeOrderDetails bool
 	if c.IsSet("includeorderdetails") {
 		includeOrderDetails = c.Bool("includeorderdetails")
-	} else if c.Args().Get(3) != "" {
-		includeOrderDetails, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
 	}
 
 	var getFundingData bool
 	if c.IsSet("getfundingdata") {
 		getFundingData = c.Bool("getfundingdata")
-	} else if c.Args().Get(4) != "" {
-		getFundingData, err = strconv.ParseBool(c.Args().Get(4))
-		if err != nil {
-			return err
-		}
 	}
 
 	var includeFundingEntries bool
 	if c.IsSet("includefundingentries") {
 		includeFundingEntries = c.Bool("includefundingentries")
-	} else if c.Args().Get(5) != "" {
-		includeFundingEntries, err = strconv.ParseBool(c.Args().Get(5))
-		if err != nil {
-			return err
-		}
 	}
 
 	var includePredictedRate bool
 	if c.IsSet("includepredictedrate") {
 		includePredictedRate = c.Bool("includepredictedrate")
-	} else if c.Args().Get(6) != "" {
-		includePredictedRate, err = strconv.ParseBool(c.Args().Get(6))
-		if err != nil {
-			return err
-		}
 	}
 
 	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
@@ -636,38 +633,18 @@ func getAllManagedPositions(c *cli.Context) error {
 	)
 	if c.IsSet("includeorderdetails") {
 		includeOrderDetails = c.Bool("includeorderdetails")
-	} else if c.Args().Get(0) != "" {
-		includeOrderDetails, err = strconv.ParseBool(c.Args().Get(0))
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("getfundingdata") {
 		getFundingData = c.Bool("getfundingdata")
-	} else if c.Args().Get(1) != "" {
-		getFundingData, err = strconv.ParseBool(c.Args().Get(1))
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("includefundingentries") {
 		includeFundingEntries = c.Bool("includefundingentries")
-	} else if c.Args().Get(2) != "" {
-		includeFundingEntries, err = strconv.ParseBool(c.Args().Get(2))
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("includepredictedrate") {
 		includePredictedRate = c.Bool("includepredictedrate")
-	} else if c.Args().Get(2) != "" {
-		includePredictedRate, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
 	}
 
 	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
@@ -698,7 +675,7 @@ func getAllManagedPositions(c *cli.Context) error {
 }
 
 func getCollateral(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
@@ -706,15 +683,11 @@ func getCollateral(c *cli.Context) error {
 		calculateOffline, includeBreakdown, includeZeroValues bool
 		err                                                   error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 	err = isFuturesAsset(assetType)
 	if err != nil {
@@ -723,29 +696,14 @@ func getCollateral(c *cli.Context) error {
 
 	if c.IsSet("calculateoffline") {
 		calculateOffline = c.Bool("calculateoffline")
-	} else if c.Args().Get(2) != "" {
-		calculateOffline, err = strconv.ParseBool(c.Args().Get(2))
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("includebreakdown") {
 		includeBreakdown = c.Bool("includebreakdown")
-	} else if c.Args().Get(3) != "" {
-		includeBreakdown, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("includezerovalues") {
 		includeZeroValues = c.Bool("includezerovalues")
-	} else if c.Args().Get(4) != "" {
-		includeZeroValues, err = strconv.ParseBool(c.Args().Get(4))
-		if err != nil {
-			return err
-		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -772,7 +730,7 @@ func getCollateral(c *cli.Context) error {
 }
 
 func getFundingRates(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
@@ -782,26 +740,20 @@ func getFundingRates(c *cli.Context) error {
 		s, e                                                               time.Time
 		err                                                                error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
 	if err != nil {
 		return err
 	}
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return errInvalidPair
@@ -810,46 +762,19 @@ func getFundingRates(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
 
 	if c.IsSet("paymentcurrency") {
 		paymentCurrency = c.String("paymentcurrency")
-	} else {
-		paymentCurrency = c.Args().Get(5)
 	}
 
 	if c.IsSet("includepredicted") {
 		includePredicted = c.Bool("includepredicted")
-	} else if c.Args().Get(6) != "" {
-		includePredicted, err = strconv.ParseBool(c.Args().Get(6))
-		if err != nil {
-			return err
-		}
 	}
 	if c.IsSet("includepayments") {
 		includePayments = c.Bool("includepayments")
-	} else if c.Args().Get(7) != "" {
-		includePayments, err = strconv.ParseBool(c.Args().Get(7))
-		if err != nil {
-			return err
-		}
 	}
 	if c.IsSet("respecthistorylimits") {
 		respectFundingRateHistoryLimits = c.Bool("respecthistorylimits")
-	} else if c.Args().Get(8) != "" {
-		respectFundingRateHistoryLimits, err = strconv.ParseBool(c.Args().Get(8))
-		if err != nil {
-			return err
-		}
 	}
 
 	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
@@ -897,7 +822,7 @@ func getFundingRates(c *cli.Context) error {
 }
 
 func getLatestFundingRate(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
@@ -906,26 +831,20 @@ func getLatestFundingRate(c *cli.Context) error {
 		p                                     currency.Pair
 		err                                   error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
 	if err != nil {
 		return err
 	}
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return errInvalidPair
@@ -937,11 +856,6 @@ func getLatestFundingRate(c *cli.Context) error {
 
 	if c.IsSet("includepredicted") {
 		includePredicted = c.Bool("includepredicted")
-	} else if c.Args().Get(3) != "" {
-		includePredicted, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -971,23 +885,19 @@ func getLatestFundingRate(c *cli.Context) error {
 }
 
 func getCollateralMode(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType string
 		err                     error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
@@ -1016,23 +926,19 @@ func getCollateralMode(c *cli.Context) error {
 }
 
 func setCollateralMode(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType, collateralMode string
 		err                                     error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
@@ -1042,8 +948,6 @@ func setCollateralMode(c *cli.Context) error {
 
 	if c.IsSet("collateralmode") {
 		collateralMode = c.String("collateralmode")
-	} else {
-		collateralMode = c.Args().Get(2)
 	}
 
 	if !collateral.IsValidCollateralModeString(collateralMode) {
@@ -1072,7 +976,7 @@ func setCollateralMode(c *cli.Context) error {
 }
 
 func setLeverage(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
@@ -1080,16 +984,12 @@ func setLeverage(c *cli.Context) error {
 		leverage                                                     float64
 		err                                                          error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
@@ -1097,10 +997,8 @@ func setLeverage(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
@@ -1112,8 +1010,6 @@ func setLeverage(c *cli.Context) error {
 
 	if c.IsSet("margintype") {
 		marginType = c.String("margintype")
-	} else {
-		marginType = c.Args().Get(3)
 	}
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
@@ -1121,17 +1017,10 @@ func setLeverage(c *cli.Context) error {
 
 	if c.IsSet("leverage") {
 		leverage = c.Float64("leverage")
-	} else {
-		leverage, err = strconv.ParseFloat(c.Args().Get(4), 64)
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("orderside") {
 		orderSide = c.String("orderside")
-	} else {
-		orderSide = c.Args().Get(5)
 	}
 	if orderSide != "" {
 		_, err = order.StringToOrderSide(orderSide)
@@ -1169,23 +1058,19 @@ func setLeverage(c *cli.Context) error {
 }
 
 func getLeverage(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType, currencyPair, marginType, orderSide string
 		err                                                          error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
@@ -1193,10 +1078,8 @@ func getLeverage(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
@@ -1208,8 +1091,6 @@ func getLeverage(c *cli.Context) error {
 
 	if c.IsSet("margintype") {
 		marginType = c.String("margintype")
-	} else {
-		marginType = c.Args().Get(3)
 	}
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
@@ -1217,8 +1098,6 @@ func getLeverage(c *cli.Context) error {
 
 	if c.IsSet("orderside") {
 		orderSide = c.String("orderside")
-	} else {
-		orderSide = c.Args().Get(4)
 	}
 	if orderSide != "" {
 		_, err = order.StringToOrderSide(orderSide)
@@ -1255,7 +1134,7 @@ func getLeverage(c *cli.Context) error {
 }
 
 func changePositionMargin(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
@@ -1263,16 +1142,12 @@ func changePositionMargin(c *cli.Context) error {
 		originalAllocatedMargin, newAllocatedMargin                   float64
 		err                                                           error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
@@ -1280,10 +1155,8 @@ func changePositionMargin(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
@@ -1295,8 +1168,6 @@ func changePositionMargin(c *cli.Context) error {
 
 	if c.IsSet("margintype") {
 		marginType = c.String("margintype")
-	} else {
-		marginType = c.Args().Get(3)
 	}
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
@@ -1304,26 +1175,14 @@ func changePositionMargin(c *cli.Context) error {
 
 	if c.IsSet("originalallocatedmargin") {
 		originalAllocatedMargin = c.Float64("originalallocatedmargin")
-	} else {
-		originalAllocatedMargin, err = strconv.ParseFloat(c.Args().Get(4), 64)
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("newallocatedmargin") {
 		newAllocatedMargin = c.Float64("newallocatedmargin")
-	} else {
-		newAllocatedMargin, err = strconv.ParseFloat(c.Args().Get(5), 64)
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("marginside") {
 		marginSide = c.String("marginside")
-	} else {
-		marginSide = c.Args().Get(6)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1356,23 +1215,19 @@ func changePositionMargin(c *cli.Context) error {
 }
 
 func getFuturesPositionSummary(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType, currencyPair, underlyingPair string
 		err                                                   error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
@@ -1380,10 +1235,8 @@ func getFuturesPositionSummary(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
@@ -1395,8 +1248,6 @@ func getFuturesPositionSummary(c *cli.Context) error {
 
 	if c.IsSet("underlyingpair") {
 		underlyingPair = c.String("underlyingpair")
-	} else {
-		underlyingPair = c.Args().Get(3)
 	}
 	var underlying currency.Pair
 	if underlyingPair != "" {
@@ -1437,7 +1288,7 @@ func getFuturesPositionSummary(c *cli.Context) error {
 }
 
 func getFuturePositionOrders(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
@@ -1446,26 +1297,20 @@ func getFuturePositionOrders(c *cli.Context) error {
 		s, e                                                  time.Time
 		err                                                   error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
 	if err != nil {
 		return err
 	}
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
@@ -1475,21 +1320,11 @@ func getFuturePositionOrders(c *cli.Context) error {
 		return err
 	}
 
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
 	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
 	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
@@ -1501,17 +1336,10 @@ func getFuturePositionOrders(c *cli.Context) error {
 
 	if c.IsSet("respectorderhistorylimits") {
 		respectOrderHistoryLimits = c.Bool("respectorderhistorylimits")
-	} else if c.Args().Get(5) != "" {
-		respectOrderHistoryLimits, err = strconv.ParseBool(c.Args().Get(5))
-		if err != nil {
-			return err
-		}
 	}
 
 	if c.IsSet("underlyingpair") {
 		underlyingPair = c.String("underlyingpair")
-	} else {
-		underlyingPair = c.Args().Get(6)
 	}
 	var underlying currency.Pair
 	if underlyingPair != "" {
@@ -1522,11 +1350,6 @@ func getFuturePositionOrders(c *cli.Context) error {
 	}
 	if c.IsSet("syncwithordermanager") {
 		syncWithOrderManager = c.Bool("syncwithordermanager")
-	} else if c.Args().Get(7) != "" {
-		syncWithOrderManager, err = strconv.ParseBool(c.Args().Get(7))
-		if err != nil {
-			return err
-		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1564,23 +1387,19 @@ func getFuturePositionOrders(c *cli.Context) error {
 }
 
 func setMarginType(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType, currencyPair, marginType string
 		err                                               error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	err = isFuturesAsset(assetType)
@@ -1588,10 +1407,8 @@ func setMarginType(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
@@ -1603,8 +1420,6 @@ func setMarginType(c *cli.Context) error {
 
 	if c.IsSet("margintype") {
 		marginType = c.String("margintype")
-	} else {
-		marginType = c.Args().Get(3)
 	}
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
@@ -1637,23 +1452,19 @@ func setMarginType(c *cli.Context) error {
 }
 
 func getOpenInterest(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
+	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
 		exchangeName, assetType, currencyPair string
 		err                                   error
 	)
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	if c.IsSet(exchangeFlag) {
+		exchangeName = c.String(exchangeFlag)
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
+	if c.IsSet(assetFlag) {
+		assetType = c.String(assetFlag)
 	}
 
 	if assetType != "" {
@@ -1663,10 +1474,8 @@ func getOpenInterest(c *cli.Context) error {
 		}
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
+	if c.IsSet(pairFlag) {
+		currencyPair = c.String(pairFlag)
 	}
 	var pair currency.Pair
 	if currencyPair != "" {

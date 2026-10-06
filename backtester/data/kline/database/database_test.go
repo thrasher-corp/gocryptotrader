@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
@@ -28,6 +27,7 @@ const (
 	testExchange = "binance"
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	if verbose {
 		err := testhelpers.EnableVerboseTestOutput()
@@ -62,13 +62,11 @@ func TestLoadDataCandles(t *testing.T) {
 	var err error
 	bot := &engine.Engine{}
 	dbConfg := database.Config{
-		Enabled: true,
-		Verbose: false,
-		Driver:  "sqlite",
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test",
-		},
+		Enabled:  true,
+		Verbose:  false,
+		Driver:   "sqlite",
+		Host:     "localhost",
+		Database: "test",
 	}
 	bot.Config = &config.Config{
 		Database: dbConfg,
@@ -129,13 +127,11 @@ func TestLoadDataTrades(t *testing.T) {
 	var err error
 	bot := &engine.Engine{}
 	dbConfg := database.Config{
-		Enabled: true,
-		Verbose: false,
-		Driver:  "sqlite",
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Database: "test",
-		},
+		Enabled:  true,
+		Verbose:  false,
+		Driver:   "sqlite",
+		Host:     "localhost",
+		Database: "test",
 	}
 	bot.Config = &config.Config{
 		Database: dbConfg,
@@ -163,7 +159,6 @@ func TestLoadDataTrades(t *testing.T) {
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
 	err = trade.Insert(trade.Data{
-		ID:        "123",
 		TID:       "123",
 		Exchange:  exch,
 		Base:      p.Base.String(),

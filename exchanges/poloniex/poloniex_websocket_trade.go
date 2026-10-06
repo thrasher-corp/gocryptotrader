@@ -14,7 +14,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	if err := validateOrderRequest(arg); err != nil {
 		return nil, err
 	}
-	resp, err := SendWebsocketRequest[*WsOrderIDResponse](ctx, e, "createOrder", arg)
+	resp, err := e.SendWebsocketRequest[*WsOrderIDResponse](ctx, "createOrder", arg)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
@@ -36,7 +36,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	if len(orderIDs) > 0 {
 		params["orderIds"] = orderIDs
 	}
-	resp, err := SendWebsocketRequest[*WsCancelOrderResponse](ctx, e, "cancelOrders", params)
+	resp, err := e.SendWebsocketRequest[*WsCancelOrderResponse](ctx, "cancelOrders", params)
 	if err != nil {
 		// Return resp, which contains the full response including both
 		// successful and failed cancellation attempts.
@@ -54,7 +54,7 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 	if len(accountTypes) > 0 {
 		args["accountTypes"] = accountTypes
 	}
-	resp, err := SendWebsocketRequest[*WsCancelOrderResponse](ctx, e, "cancelAllOrders", args)
+	resp, err := e.SendWebsocketRequest[*WsCancelOrderResponse](ctx, "cancelAllOrders", args)
 	if err != nil {
 		// Return resp, which contains the full response including both
 		// successful and failed cancellation attempts.
@@ -64,8 +64,7 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 }
 
 // SendWebsocketRequest sends a websocket request through the private connection
-func SendWebsocketRequest[T hasError](ctx context.Context,
-	e *Exchange,
+func (e *Exchange) SendWebsocketRequest[T hasError](ctx context.Context,
 	event string,
 	arg any,
 ) (response []T, err error) {

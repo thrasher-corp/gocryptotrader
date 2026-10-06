@@ -145,7 +145,8 @@ var (
 	errUniqueCodeRequired                   = errors.New("unique code is required")
 	errLastDaysRequired                     = errors.New("last days required")
 	errCopyInstrumentIDTypeRequired         = errors.New("copy instrument ID type is required")
-	errInvalidChecksum                      = errors.New("invalid checksum")
+	errInvalidOrderbookSequence             = errors.New("invalid orderbook sequence")
+	errOrderbookSnapshotPending             = errors.New("orderbook snapshot pending")
 	errInvalidPositionMode                  = errors.New("invalid position mode")
 	errLendingTermIsRequired                = errors.New("lending term is required")
 	errRateRequired                         = errors.New("lending rate is required")
@@ -186,19 +187,19 @@ type PremiumInfo struct {
 
 // TickerResponse represents the detailed data from the market ticker endpoint.
 type TickerResponse struct {
-	InstrumentType string        `json:"instType"`
-	InstrumentID   currency.Pair `json:"instId"`
-	LastTradePrice types.Number  `json:"last"`
-	LastTradeSize  types.Number  `json:"lastSz"`
-	BestAskPrice   types.Number  `json:"askPx"`
-	BestAskSize    types.Number  `json:"askSz"`
-	BestBidPrice   types.Number  `json:"bidPx"`
-	BestBidSize    types.Number  `json:"bidSz"`
-	Open24H        types.Number  `json:"open24h"`
-	High24H        types.Number  `json:"high24h"`
-	Low24H         types.Number  `json:"low24h"`
-	VolCcy24H      types.Number  `json:"volCcy24h"`
-	Vol24H         types.Number  `json:"vol24h"`
+	InstrumentType                string        `json:"instType"`
+	InstrumentID                  currency.Pair `json:"instId"`
+	LastTradePrice                types.Number  `json:"last"`
+	LastTradeSize                 types.Number  `json:"lastSz"`
+	BestAskPrice                  types.Number  `json:"askPx"`
+	BestAskSize                   types.Number  `json:"askSz"`
+	BestBidPrice                  types.Number  `json:"bidPx"`
+	BestBidSize                   types.Number  `json:"bidSz"`
+	OpenPrice24Hour               types.Number  `json:"open24h"`
+	HighestPrice24Hour            types.Number  `json:"high24h"`
+	LowestPrice24Hour             types.Number  `json:"low24h"`
+	TradingVolume24HourInCurrency types.Number  `json:"volCcy24h"` // number of base currency on a derivative, quantity in quote currency on spot and margin
+	TradingVolume24HourInContract types.Number  `json:"vol24h"`    // number of contracts on a derivative, quantity in base currency on spot and margin
 
 	OpenPriceInUTC0          string     `json:"sodUtc0"`
 	OpenPriceInUTC8          string     `json:"sodUtc8"`
@@ -207,21 +208,21 @@ type TickerResponse struct {
 
 // IndexTicker represents data from the index ticker.
 type IndexTicker struct {
-	InstID    string       `json:"instId"`
-	IdxPx     types.Number `json:"idxPx"`
-	High24H   types.Number `json:"high24h"`
-	SodUtc0   types.Number `json:"sodUtc0"`
-	Open24H   types.Number `json:"open24h"`
-	Low24H    types.Number `json:"low24h"`
-	SodUtc8   types.Number `json:"sodUtc8"`
-	Timestamp types.Time   `json:"ts"`
+	InstrumentID       string       `json:"instId"`
+	IndexPrice         types.Number `json:"idxPx"`
+	HighestPrice24Hour types.Number `json:"high24h"`
+	OpenPriceInUTC0    types.Number `json:"sodUtc0"`
+	OpenPrice24Hour    types.Number `json:"open24h"`
+	LowestPrice24Hour  types.Number `json:"low24h"`
+	OpenPriceInUTC8    types.Number `json:"sodUtc8"`
+	Timestamp          types.Time   `json:"ts"`
 }
 
 // OrderBookResponseDetail contains the ask and bid orders, structured with fields that include the timestamp of order generation.
 type OrderBookResponseDetail struct {
-	Asks                []OrderbookItemDetail
-	Bids                []OrderbookItemDetail
-	GenerationTimestamp time.Time
+	Asks                []OrderbookItemDetail `json:"asks"`
+	Bids                []OrderbookItemDetail `json:"bids"`
+	GenerationTimestamp types.Time            `json:"ts"` // unix milliseconds, quoted
 }
 
 // OrderbookItemDetail represents detailed information about currency bids.
@@ -291,16 +292,19 @@ type TradeResponse struct {
 // InstrumentFamilyTrade represents transaction information of instrument.
 // instrument family, e.g. BTC-USD Applicable to OPTION
 type InstrumentFamilyTrade struct {
-	Vol24H    types.Number `json:"vol24h"`
-	TradeInfo []struct {
-		InstrumentID string       `json:"instId"`
-		TradeID      string       `json:"tradeId"`
-		Side         string       `json:"side"`
-		Size         types.Number `json:"sz"`
-		Price        types.Number `json:"px"`
-		Timestamp    types.Time   `json:"ts"`
-	} `json:"tradeInfo"`
-	OptionType string `json:"optType"`
+	TradingVolume24HourInContract types.Number                `json:"vol24h"`
+	TradeInfo                     []InstrumentFamilyTradeInfo `json:"tradeInfo"`
+	OptionType                    string                      `json:"optType"`
+}
+
+// InstrumentFamilyTradeInfo is a single trade within an instrument family's transaction info
+type InstrumentFamilyTradeInfo struct {
+	InstrumentID string       `json:"instId"`
+	TradeID      string       `json:"tradeId"`
+	Side         string       `json:"side"`
+	Size         types.Number `json:"sz"` // in contracts
+	Price        types.Number `json:"px"`
+	Timestamp    types.Time   `json:"ts"`
 }
 
 // OptionTrade holds option trade item
@@ -1052,19 +1056,6 @@ type TransactionDetailRequestParams struct {
 	Limit          int64     `json:"limit"`
 }
 
-// FillArchiveParam transaction detail param for 2 year
-type FillArchiveParam struct {
-	Year    int64  `json:"year,string"`
-	Quarter string `json:"quarter"`
-}
-
-// ArchiveReference holds recently-filled transaction details archive link and timestamp information
-type ArchiveReference struct {
-	FileHref  string     `json:"fileHref"`
-	State     string     `json:"state"`
-	Timestamp types.Time `json:"ts"`
-}
-
 // TransactionDetail holds recently-filled transaction detail data
 type TransactionDetail struct {
 	InstrumentType           string       `json:"instType"`
@@ -1614,7 +1605,7 @@ type EstimateQuoteRequestInput struct {
 	Side                 string        `json:"side,omitempty"`
 	RFQAmount            float64       `json:"rfqSz,omitempty"`
 	RFQSzCurrency        string        `json:"rfqSzCcy,omitempty"`
-	ClientRequestOrderID string        `json:"clQReqId,string,omitempty"`
+	ClientRequestOrderID string        `json:"clQReqId,omitempty"`
 	Tag                  string        `json:"tag,omitempty"`
 }
 
@@ -2281,49 +2272,6 @@ type FixedLoanBorrowQuote struct {
 	Timestamp       types.Time   `json:"ts"`
 }
 
-// PositionItem represents current position of the user
-type PositionItem struct {
-	Position     string `json:"pos"`
-	InstrumentID string `json:"instId"`
-}
-
-// PositionBuilderInput represents request parameter for position builder item
-type PositionBuilderInput struct {
-	InstrumentType         string         `json:"instType,omitempty"`
-	InstrumentID           string         `json:"instId,omitempty"`
-	ImportExistingPosition bool           `json:"inclRealPos,omitempty"` // "true"：Import existing positions and hedge with simulated ones "false"：Only use simulated positions The default is true
-	ListOfPositions        []PositionItem `json:"simPos,omitempty"`
-	PositionsCount         uint64         `json:"pos,omitempty"`
-}
-
-// PositionBuilderResponse represents a position builder endpoint response
-type PositionBuilderResponse struct {
-	InitialMarginRequirement     string                `json:"imr"` // Initial margin requirement of riskUnit dimension
-	MaintenanceMarginRequirement string                `json:"mmr"` // Maintenance margin requirement of riskUnit dimension
-	SpotAndVolumeMovement        string                `json:"mr1"`
-	ThetaDecay                   string                `json:"mr2"`
-	VegaTermStructure            string                `json:"mr3"`
-	BasicRisk                    string                `json:"mr4"`
-	InterestRateRisk             string                `json:"mr5"`
-	ExtremeMarketMove            string                `json:"mr6"`
-	TransactionCostAndSlippage   string                `json:"mr7"`
-	PositionData                 []PositionBuilderData `json:"posData"` // List of positions
-	RiskUnit                     string                `json:"riskUnit"`
-	Timestamp                    types.Time            `json:"ts"`
-}
-
-// PositionBuilderData represent a position item
-type PositionBuilderData struct {
-	Delta              string       `json:"delta"`
-	Gamma              string       `json:"gamma"`
-	InstrumentID       string       `json:"instId"`
-	InstrumentType     string       `json:"instType"`
-	NotionalUSD        types.Number `json:"notionalUsd"` // Quantity of positions usd
-	QuantityOfPosition types.Number `json:"pos"`         // Quantity of positions
-	Theta              string       `json:"theta"`       // Sensitivity of option price to remaining maturity
-	Vega               string       `json:"vega"`        // Sensitivity of option price to implied volatility
-}
-
 // GreeksItem represents greeks response
 type GreeksItem struct {
 	ThetaBS   string     `json:"thetaBS"`
@@ -2369,8 +2317,8 @@ type CancelRFQRequestParam struct {
 
 // CancelRFQRequestsParam represents cancel multiple RFQ orders request params
 type CancelRFQRequestsParam struct {
-	RFQIDs       []string `json:"rfqIds"`
-	ClientRFQIDs []string `json:"clRfqIds"`
+	RFQIDs       []string `json:"rfqIds,omitempty"`
+	ClientRFQIDs []string `json:"clRfqIds,omitempty"`
 }
 
 // CancelRFQResponse represents cancel RFQ orders response
@@ -2432,7 +2380,6 @@ type QuoteProduct struct {
 		MaxBlockSize   types.Number `json:"maxBlockSz"`
 		MakerPriceBand types.Number `json:"makerPxBand"`
 	} `json:"data"`
-	InstrumentType0 string `json:"instType:,omitempty"`
 }
 
 // OrderLeg represents legs information for both websocket and REST available Quote information
@@ -2775,14 +2722,6 @@ type GridAlgoOrderIDResponse struct {
 	StatusMessage string `json:"sMsg"`
 }
 
-// StopGridAlgoOrderParam holds stop grid algo order parameter
-type StopGridAlgoOrderParam struct {
-	AlgoID        string `json:"algoId"`
-	InstrumentID  string `json:"instId"`
-	StopType      string `json:"stopType"`
-	AlgoOrderType string `json:"algoOrdType"`
-}
-
 // ClosePositionParams holds close position parameters
 type ClosePositionParams struct {
 	AlgoID                  string  `json:"algoId"`
@@ -2868,7 +2807,7 @@ type GridAlgoOrderResponse struct {
 	PerMaxProfitRate    types.Number `json:"perMaxProfitRate,omitempty"`
 	PerMinProfitRate    types.Number `json:"perMinProfitRate,omitempty"`
 	Profit              types.Number `json:"profit,omitempty"`
-	Runpx               string       `json:"runpx,omitempty"`
+	Runpx               string       `json:"runPx,omitempty"`
 	SingleAmt           types.Number `json:"singleAmt,omitempty"`
 	TotalAnnualizedRate types.Number `json:"totalAnnualizedRate,omitempty"`
 	TradeNumber         string       `json:"tradeNum,omitempty"`
@@ -2931,11 +2870,11 @@ type SystemStatusResponse struct {
 
 // BlockTicker holds block trading information
 type BlockTicker struct {
-	InstrumentType           string       `json:"instType"`
-	InstrumentID             string       `json:"instId"`
-	TradingVolumeInCCY24Hour types.Number `json:"volCcy24h"`
-	TradingVolumeInUSD24Hour types.Number `json:"vol24h"`
-	Timestamp                types.Time   `json:"ts"`
+	InstrumentType                string       `json:"instType"`
+	InstrumentID                  string       `json:"instId"`
+	TradingVolume24HourInCurrency types.Number `json:"volCcy24h"`
+	TradingVolume24HourInContract types.Number `json:"vol24h"`
+	Timestamp                     types.Time   `json:"ts"`
 }
 
 // BlockTrade represents a block trade
@@ -3096,18 +3035,18 @@ type SpreadOrderbook struct {
 
 // SpreadTicker represents a ticker instance
 type SpreadTicker struct {
-	SpreadID     string       `json:"sprdId"`
-	Last         types.Number `json:"last"`
-	LastSize     types.Number `json:"lastSz"`
-	AskPrice     types.Number `json:"askPx"`
-	AskSize      types.Number `json:"askSz"`
-	BidPrice     types.Number `json:"bidPx"`
-	BidSize      types.Number `json:"bidSz"`
-	Open24Hour   types.Number `json:"open24h"`
-	High24Hour   types.Number `json:"high24h"`
-	Low24Hour    types.Number `json:"low24h"`
-	Volume24Hour types.Number `json:"vol24h"`
-	Timestamp    types.Time   `json:"ts"`
+	SpreadID            string       `json:"sprdId"`
+	Last                types.Number `json:"last"`
+	LastSize            types.Number `json:"lastSz"`
+	AskPrice            types.Number `json:"askPx"`
+	AskSize             types.Number `json:"askSz"`
+	BidPrice            types.Number `json:"bidPx"`
+	BidSize             types.Number `json:"bidSz"`
+	OpenPrice24Hour     types.Number `json:"open24h"`
+	HighestPrice24Hour  types.Number `json:"high24h"`
+	LowestPrice24Hour   types.Number `json:"low24h"`
+	TradingVolume24Hour types.Number `json:"vol24h"` // USD on an inverse spread, the base currency on a linear or hybrid one
+	Timestamp           types.Time   `json:"ts"`
 }
 
 // SpreadPublicTradeItem represents publicly available trade order instance
@@ -3158,12 +3097,6 @@ type OptionTickBand struct {
 
 // Websocket Models
 
-// WebsocketEventRequest contains event data for a websocket channel
-type WebsocketEventRequest struct {
-	Operation string               `json:"op"`   // 1--subscribe 2--unsubscribe 3--login
-	Arguments []WebsocketLoginData `json:"args"` // args: the value is the channel name, which can be one or more channels
-}
-
 // WebsocketLoginData represents the websocket login data input json data
 type WebsocketLoginData struct {
 	APIKey     string `json:"apiKey"`
@@ -3200,15 +3133,6 @@ type WSSubscriptionInformationList struct {
 	subs      subscription.List
 }
 
-// SpreadOrderInfo holds spread order response information
-type SpreadOrderInfo struct {
-	ClientOrderID string `json:"clOrdId"`
-	OrderID       string `json:"ordId"`
-	Tag           string `json:"tag"`
-	StatusCode    string `json:"sCode"`
-	StatusMessage string `json:"sMsg"`
-}
-
 type wsIncomingData struct {
 	Event      string           `json:"event"`
 	Argument   SubscriptionInfo `json:"arg"`
@@ -3239,28 +3163,6 @@ type WSOpenInterestResponse struct {
 	Data     []OpenInterest   `json:"data"`
 }
 
-// WsOperationInput for all websocket request inputs
-type WsOperationInput struct {
-	ID        string `json:"id"`
-	Operation string `json:"op"`
-	Arguments any    `json:"args"`
-}
-
-// WsOrderActionResponse holds websocket response Amendment request
-type WsOrderActionResponse struct {
-	ID        string      `json:"id"`
-	Operation string      `json:"op"`
-	Data      []OrderData `json:"data"`
-	Code      string      `json:"code"`
-	Msg       string      `json:"msg"`
-}
-
-// SubscriptionOperationInput represents the account channel input data
-type SubscriptionOperationInput struct {
-	Operation string             `json:"op"`
-	Arguments []SubscriptionInfo `json:"args"`
-}
-
 // WsAccountChannelPushData holds the websocket push data following the subscription
 type WsAccountChannelPushData struct {
 	Argument SubscriptionInfo `json:"arg"`
@@ -3285,7 +3187,7 @@ type PositionDataDetail struct {
 	Currency         string       `json:"ccy"`
 	PositionCurrency string       `json:"posCcy"`
 	AveragePrice     types.Number `json:"avgPx"`
-	UpdateTime       types.Time   `json:"uTIme"`
+	UpdateTime       types.Time   `json:"uTime"`
 }
 
 // BalanceData represents currency and it's Cash balance with the update time
@@ -3689,7 +3591,6 @@ type WsOrderBookData struct {
 	Asks               [][4]types.Number `json:"asks"`
 	Bids               [][4]types.Number `json:"bids"`
 	Timestamp          types.Time        `json:"ts"`
-	Checksum           int32             `json:"checksum"`
 	PreviousSequenceID int64             `json:"prevSeqId"`
 	SequenceID         int64             `json:"seqId"`
 }
@@ -4176,10 +4077,10 @@ type TPSLOrderParam struct {
 	TakeProfitOrderPrice float64 `json:"tpOrdPx,omitempty,string"`
 	StopLossOrderPrice   float64 `json:"slOrdPx,omitempty,string"`
 
-	TakePofitTriggerPriceType string `json:"tpTriggerPriceType,omitempty,string"` // last: last price, 'index': index price 'mark': mark price Default is 'last'
-	StopLossTriggerPriceType  string `jsonL:"slTriggerPxType,omitempty,string"`   // Stop-loss trigger price type 'last': last price 'index': index price 'mark': mark price Default is 'last'
-	SubPositionType           string `json:"subPosType,omitempty,string"`         // 'lead': lead trading, the default value 'copy': copy trading
-	Tag                       string `json:"tag,omitempty,string"`
+	TakeProfitTriggerPriceType string `json:"tpTriggerPxType,omitempty"` // last: last price, 'index': index price 'mark': mark price Default is 'last'
+	StopLossTriggerPriceType   string `json:"slTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price 'index': index price 'mark': mark price Default is 'last'
+	SubPositionType            string `json:"subPosType,omitempty"`      // 'lead': lead trading, the default value 'copy': copy trading
+	Tag                        string `json:"tag,omitempty"`
 }
 
 // PositionIDInfo holds place positions information
@@ -4262,12 +4163,6 @@ type PurchaseInvestDataItem struct {
 type OrderIDResponse struct {
 	OrderID string `json:"orderId"`
 	Tag     string `json:"tag"` // Optional to most ID responses
-}
-
-// CancelPurchaseOrRedemptionResponse represents a response for canceling a purchase or redemption
-type CancelPurchaseOrRedemptionResponse struct {
-	OrderIDResponse
-	Tag string `json:"tag"`
 }
 
 // RedeemRequestParam represents redeem request input param
@@ -4496,8 +4391,8 @@ type WsSpreadOrderbookItem struct {
 
 // WsSpreadOrderbookData represents orderbook response for spread instruments
 type WsSpreadOrderbookData struct {
-	Argument SubscriptionInfo `json:"arg"`
-	Data     []WsSpreadOrderbookItem
+	Argument SubscriptionInfo        `json:"arg"`
+	Data     []WsSpreadOrderbookItem `json:"data"`
 }
 
 // AffiliateInviteesDetail represents affiliate invitee's detail
@@ -4919,31 +4814,6 @@ type LendingSubOrder struct {
 	TotalInterest          string       `json:"totalInterest"`
 	CreationTime           types.Time   `json:"cTime"`
 	UpdateTime             types.Time   `json:"uTime"`
-}
-
-// PublicLendingOffer represents a lending offer detail
-type PublicLendingOffer struct {
-	Currency         string       `json:"ccy"`
-	LendQuota        string       `json:"lendQuota"`
-	MinLendingAmount types.Number `json:"minLend"`
-	Rate             types.Number `json:"rate"`
-	Term             string       `json:"term"`
-}
-
-// LendingAPIHistoryItem represents a lending API history item
-type LendingAPIHistoryItem struct {
-	Currency  string       `json:"ccy"`
-	Rate      types.Number `json:"rate"`
-	Timestamp types.Time   `json:"ts"`
-}
-
-// LendingVolume represents a lending volume detail for a specific currency
-type LendingVolume struct {
-	Currency      string       `json:"ccy"`
-	PendingVol    types.Number `json:"pendingVol"`
-	RateRangeFrom string       `json:"rateRangeFrom"`
-	RateRangeTo   string       `json:"rateRangeTo"`
-	Term          string       `json:"term"`
 }
 
 // SpreadOrderCancellationResponse represents a spread order cancellation response
