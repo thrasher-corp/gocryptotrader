@@ -73,10 +73,12 @@ func createSnapshot(ctx context.Context, pair currency.Pair) (holder *Orderbook,
 // BenchmarkUpdatePerformance benchmarks applying orderbook updates directly.
 func BenchmarkUpdatePerformance(b *testing.B) {
 	cp, err := getExclusivePair()
-	require.NoError(b, err)
+	require.NoError(b, err, "getExclusivePair must not error")
 
 	obl, asks, bids, err := createSnapshot(b.Context(), cp)
-	require.NoError(b, err)
+	require.NoError(b, err, "createSnapshot must not error")
+	// Closing ends the reader createSnapshot started, which would otherwise outlive the benchmark
+	obl.dataHandler.Close()
 	obl.dataHandler = stream.NewRelay(1)
 
 	update := &orderbook.Update{
@@ -91,7 +93,7 @@ func BenchmarkUpdatePerformance(b *testing.B) {
 		randomIndex := rand.IntN(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
-		require.NoError(b, obl.Update(b.Context(), update))
+		require.NoError(b, obl.Update(b.Context(), update), "Update must not error")
 		<-obl.dataHandler.C
 	}
 }

@@ -54,10 +54,13 @@ var (
 	// Bootstrapped on first use rather than in TestMain, which must not make API calls: the pairs
 	// come from a live KuCoin request, and TestMain runs for every invocation of this package
 	// including `-run '^$' -bench .`, where no test needs them at all. Read them through the
-	// accessors below so the fetch happens once, only for the tests that actually want a pair.
-	tradablePairsOnce                 sync.Once
-	spotPair, marginPair, futuresPair currency.Pair
-	tradablePairsByAsset              map[asset.Item]currency.Pair
+	// accessors below so the fetch happens once, only for the tests that actually want a pair; a
+	// test reading e's pairs directly calls loadTradablePairs first, so it sees the live list.
+	tradablePairsOnce        sync.Once
+	tradablePairs            map[asset.Item]currency.Pair
+	errFetchingTradablePairs error
+
+	errNoEnabledPairs = errors.New("asset has no enabled pairs")
 )
 
 func TestMain(m *testing.M) {
@@ -77,45 +80,40 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// loadTradablePairs fetches the first tradable pair of each asset once per run
-func loadTradablePairs(tb testing.TB) {
+// loadTradablePairs fetches the first tradable pair of each asset once per run. A failed fetch is
+// kept and reported to every caller, failing each test that needs a pair rather than exiting the
+// process mid-run.
+func loadTradablePairs(tb testing.TB) map[asset.Item]currency.Pair {
 	tb.Helper()
 	tradablePairsOnce.Do(func() {
-		getFirstTradablePairOfAssets(context.Background())
-		tradablePairsByAsset = map[asset.Item]currency.Pair{
-			asset.Spot:    spotPair,
-			asset.Margin:  marginPair,
-			asset.Futures: futuresPair,
-		}
+		tradablePairs, errFetchingTradablePairs = getFirstTradablePairOfAssets(context.Background(), e)
 	})
+	require.NoError(tb, errFetchingTradablePairs, "getFirstTradablePairOfAssets must not error")
+	return tradablePairs
 }
 
 // spotTradablePair returns the first enabled spot pair, fetching it on first use
 func spotTradablePair(tb testing.TB) currency.Pair {
 	tb.Helper()
-	loadTradablePairs(tb)
-	return spotPair
+	return loadTradablePairs(tb)[asset.Spot]
 }
 
 // marginTradablePair returns the first enabled margin pair, fetching it on first use
 func marginTradablePair(tb testing.TB) currency.Pair {
 	tb.Helper()
-	loadTradablePairs(tb)
-	return marginPair
+	return loadTradablePairs(tb)[asset.Margin]
 }
 
 // futuresTradablePair returns the first enabled futures pair, fetching it on first use
 func futuresTradablePair(tb testing.TB) currency.Pair {
 	tb.Helper()
-	loadTradablePairs(tb)
-	return futuresPair
+	return loadTradablePairs(tb)[asset.Futures]
 }
 
 // assertToTradablePairMap returns the per-asset tradable pairs, fetching them on first use
 func assertToTradablePairMap(tb testing.TB) map[asset.Item]currency.Pair {
 	tb.Helper()
-	loadTradablePairs(tb)
-	return tradablePairsByAsset
+	return loadTradablePairs(tb)
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -1457,6 +1455,7 @@ func TestGetTradingFee(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	loadTradablePairs(t)
 	avail, err := e.GetAvailablePairs(asset.Spot)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, avail)
@@ -2242,6 +2241,7 @@ func TestMergeRoundedOrderbookLevels(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	loadTradablePairs(t)
 	for _, a := range e.GetAssetTypes(true) {
 		err := e.UpdateTickers(t.Context(), a)
 		assert.NoError(t, err)
@@ -2384,6 +2384,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest order.MultiOrderRequest
 
+	loadTradablePairs(t)
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err)
 	getOrdersRequest = order.MultiOrderRequest{
@@ -2902,26 +2903,109 @@ func TestGetFundingHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func getFirstTradablePairOfAssets(ctx context.Context) {
-	if err := e.UpdateTradablePairs(ctx); err != nil {
-		log.Fatalf("Kucoin error while updating tradable pairs. %v", err)
+// getFirstTradablePairOfAssets updates ex's tradable pairs from the API and returns the first enabled
+// pair of each asset the tests trade
+func getFirstTradablePairOfAssets(ctx context.Context, ex *Exchange) (map[asset.Item]currency.Pair, error) {
+	if err := ex.UpdateTradablePairs(ctx); err != nil {
+		return nil, fmt.Errorf("error updating tradable pairs: %w", err)
 	}
-	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Fatalf("Kucoin %v, trying to get %v enabled pairs error", err, asset.Spot)
+	return firstEnabledPairs(ex)
+}
+
+// firstEnabledPairs returns the first enabled spot, margin and futures pair of ex. The futures pair
+// drops its delimiter, which is how the futures endpoints take a symbol.
+func firstEnabledPairs(ex *Exchange) (map[asset.Item]currency.Pair, error) {
+	pairs := make(map[asset.Item]currency.Pair, 3)
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures} {
+		enabled, err := ex.GetEnabledPairs(a)
+		if err != nil {
+			return nil, fmt.Errorf("error getting %s enabled pairs: %w", a, err)
+		}
+		if len(enabled) == 0 {
+			return nil, fmt.Errorf("%w: %s", errNoEnabledPairs, a)
+		}
+		pairs[a] = enabled[0]
 	}
-	spotPair = enabledPairs[0]
-	enabledPairs, err = e.GetEnabledPairs(asset.Margin)
-	if err != nil {
-		log.Fatalf("Kucoin %v, trying to get %v enabled pairs error", err, asset.Margin)
-	}
-	marginPair = enabledPairs[0]
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		log.Fatalf("Kucoin %v, trying to get %v enabled pairs error", err, asset.Futures)
-	}
-	futuresPair = enabledPairs[0]
+	futuresPair := pairs[asset.Futures]
 	futuresPair.Delimiter = ""
+	pairs[asset.Futures] = futuresPair
+	return pairs, nil
+}
+
+func TestGetFirstTradablePairOfAssets(t *testing.T) {
+	t.Parallel()
+	serve := func(t *testing.T, ex *Exchange, handler http.HandlerFunc) {
+		t.Helper()
+		server := httptest.NewTestServer(t, handler)
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		for _, ep := range []exchange.URL{exchange.RestSpot, exchange.RestFutures} {
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(ep.String(), server.URL), "SetRunningURL must not error")
+		}
+	}
+
+	t.Run("update fails", func(t *testing.T) {
+		t.Parallel()
+		ex := testInstance(t)
+		serve(t, ex, func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, `{"code":"400100","msg":"unavailable"}`, http.StatusBadRequest)
+		})
+		_, err := getFirstTradablePairOfAssets(t.Context(), ex)
+		assert.ErrorContains(t, err, "error updating tradable pairs", "a failed update should be returned rather than ending the process")
+		assert.ErrorContains(t, err, "400100", "the error should come from the stub server rather than the network")
+	})
+
+	t.Run("update succeeds", func(t *testing.T) {
+		t.Parallel()
+		ex := testInstance(t)
+		serve(t, ex, func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.URL.Path {
+			case "/v2/symbols":
+				body = `{"code":"200000","data":[{"symbol":"ETH-USDT","baseCurrency":"ETH","quoteCurrency":"USDT","enableTrading":true,"isMarginEnabled":true}]}`
+			case "/v1/contracts/active":
+				body = `{"code":"200000","data":[{"symbol":"ETHUSDTM","baseCurrency":"ETH","quoteCurrency":"USDT","status":"Open"}]}`
+			default:
+				http.Error(w, `{"code":"400100","msg":"unexpected path"}`, http.StatusBadRequest)
+				return
+			}
+			_, err := fmt.Fprint(w, body)
+			assert.NoError(t, err, "writing the response should not error")
+		})
+		pairs, err := getFirstTradablePairOfAssets(t.Context(), ex)
+		require.NoError(t, err, "getFirstTradablePairOfAssets must not error")
+		exp := map[asset.Item]currency.Pair{
+			asset.Spot:    currency.NewPairWithDelimiter("ETH", "USDT", "-"),
+			asset.Margin:  currency.NewPairWithDelimiter("ETH", "USDT", "-"),
+			asset.Futures: currency.NewPairWithDelimiter("ETH", "USDTM", ""),
+		}
+		assert.Equal(t, exp, pairs, "the first enabled pair of each asset should come from the updated pairs")
+	})
+}
+
+func TestFirstEnabledPairs(t *testing.T) {
+	t.Parallel()
+	ex := testInstance(t)
+	pairs, err := firstEnabledPairs(ex)
+	require.NoError(t, err, "firstEnabledPairs must not error")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures} {
+		enabled, err := ex.GetEnabledPairs(a)
+		require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+		exp := enabled[0]
+		if a == asset.Futures {
+			exp.Delimiter = ""
+		}
+		assert.Equalf(t, exp, pairs[a], "firstEnabledPairs should return the first enabled %s pair", a)
+	}
+
+	ex = testInstance(t)
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled must not error")
+	_, err = firstEnabledPairs(ex)
+	assert.ErrorIs(t, err, asset.ErrNotEnabled, "a disabled asset should be reported")
+
+	ex = testInstance(t)
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, nil, true), "StorePairs must not error")
+	_, err = firstEnabledPairs(ex)
+	assert.ErrorIs(t, err, errNoEnabledPairs, "an asset with no enabled pairs should be reported rather than indexed")
 }
 
 func TestUpdateAccountBalances(t *testing.T) {

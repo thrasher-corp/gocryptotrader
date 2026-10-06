@@ -1212,15 +1212,37 @@ func TestBenchmarkLoggerWorkloads(t *testing.T) {
 	})
 }
 
+// benchmarkWriter signals each write without keeping it. A benchmark waits on it for the worker to
+// finish each event, without also measuring the copy of every message testBuffer takes.
+type benchmarkWriter chan struct{}
+
+func (w benchmarkWriter) Write(p []byte) (int, error) {
+	w <- struct{}{}
+	return len(p), nil
+}
+
+func TestBenchmarkWriter(t *testing.T) {
+	t.Parallel()
+	w := make(benchmarkWriter, 1)
+	n, err := w.Write([]byte("message"))
+	require.NoError(t, err, "Write must not error")
+	assert.Equal(t, len("message"), n, "Write should report the whole message as written")
+	select {
+	case <-w:
+	default:
+		assert.Fail(t, "Write should signal that the message was written")
+	}
+}
+
 // BenchmarkNewLogEvent waits for each staged event to be written, which holds the job pool in a
 // steady state and stops the jobs channel filling; StageLogEvent's filled-channel warning goes to
 // the standard logger, which go test interleaves into the result lines.
 func BenchmarkNewLogEvent(b *testing.B) {
-	w := newTestBuffer()
+	w := make(benchmarkWriter, 1)
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 	for b.Loop() {
-		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", "", "", time.RFC3339, true, false, false, nil)
-		<-w.Finished
+		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", time.RFC3339, "", "", true, false, false, nil)
+		<-w
 	}
 }
 
@@ -1285,36 +1307,36 @@ func BenchmarkCustomLogHookBypass(b *testing.B) {
 // BenchmarkCustomLogHookFallthrough measures formatted logging when a custom
 // hook observes the event and the internal logger still handles it.
 func BenchmarkCustomLogHookFallthrough(b *testing.B) {
-	w := newTestBuffer()
+	w := make(benchmarkWriter, 1)
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, func(_, _ string, _ ...any) bool {
 		return false
 	}, w)
 	b.Cleanup(cleanup)
 	for b.Loop() {
 		Infof(sl, "formatted %s %d", "message", 1)
-		<-w.Finished
+		<-w
 	}
 }
 
 func BenchmarkInfof(b *testing.B) {
-	w := newTestBuffer()
+	w := make(benchmarkWriter, 1)
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, w)
 	b.Cleanup(cleanup)
-	n := 0
+	var n int
 	for b.Loop() {
 		Infof(sl, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
-		<-w.Finished
+		<-w
 		n++
 	}
 }
 
 func BenchmarkInfoln(b *testing.B) {
-	w := newTestBuffer()
+	w := make(benchmarkWriter, 1)
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, w)
 	b.Cleanup(cleanup)
 	for b.Loop() {
 		Infoln(sl, "Hello this is an infoln benchmark")
-		<-w.Finished
+		<-w
 	}
 }
 

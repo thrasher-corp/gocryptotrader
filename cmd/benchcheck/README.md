@@ -7,9 +7,9 @@ GoCryptoTrader ratchet downwards over time instead of drifting up unnoticed.
 
 ```bash
 make bench                      # check the current tree against benchmarks/baseline.json
-make bench_update               # fold the current measurements back into the baseline
+make bench_update               # fold the current measurements back in
+make bench_apply BENCH_OUT=f    # fold in output measured elsewhere, such as CI's bench-output artifact
 make bench_pkg PKG=./currency/  # measure one package with the gate's exact flags
-make bench_trend                # long-run measurements appended to the ns/op history
 ```
 
 `make bench` fails when a benchmark allocates **more** than its recorded budget, and equally when it
@@ -24,9 +24,9 @@ run does not trip the gate. Per-entry tolerances are applied on top of that medi
 
 | Metric | Reproducibility | Treatment |
 | --- | --- | --- |
-| `allocs/op` | Reproducible and machine independent | Hard gate; an increase in the median fails, unless the entry carries a tolerance |
+| `allocs/op` | Reproducible on one platform and toolchain | Hard gate; any change in the median fails, unless the entry carries a tolerance |
 | `B/op` | Near-reproducible | Hard gate with a 1% default tolerance |
-| `ns/op` | Depends on the host and its current load | **Never gated**; recorded as an advisory `ns_hint` and tracked in the scheduled history |
+| `ns/op` | Depends on the host and its current load | **Never gated or recorded**; it stays in the raw output CI uploads |
 
 Timings are not gated because they move substantially between runs on a shared CI runner, in a way
 that has nothing to do with the code under test. A gate on `ns/op` would either flap constantly or
@@ -53,47 +53,88 @@ regression of less than a whole allocation per operation cannot move the number 
 the finer-grained of the two gated metrics for exactly that reason, and is what catches sub-integer
 movement — worth remembering before widening a `bytes_tolerance`.
 
+## The measurement profile
+
+Allocation counts are reproducible on one platform and toolchain, not across them: escape analysis
+changes between Go releases, and code paths can differ between platforms. The budgets are therefore
+recorded against one profile, the one the `benchmarks` workflow measures:
+
+- `linux/amd64`
+- the Go version the workflow installs, which matches the other workflows
+- no build tags, so the default backends, such as `encoding/json/v2` and shopspring's decimal
+- `BENCH_FLAGS` in the Makefile
+
+`benchcheck` refuses to record budgets from output produced on any other platform, and a check run
+elsewhere says so above its findings. To update the baseline from another machine, push the change
+and let CI measure it: every run uploads its raw output as the `bench-output` artifact, whether or not
+the check passed, and `make bench_apply BENCH_OUT=path/to/bench-output.txt` folds it in.
+
+A Go upgrade, a dependency bump or a backend change can move many budgets at once. Refresh them on the
+profile in the same change, with `make bench_update` or from CI's output, and check that every move
+the diff shows is one the change explains.
+
 ## Files
 
 | Path | Purpose |
 | --- | --- |
 | `benchmarks/baseline.json` | The budgets. Checked in, so widening one is a visible line in a PR diff that a reviewer has to approve |
-| `benchmarks/packages.txt` | Which packages are benchmarked, and which are `gated` |
-| `scripts/bench_history.sh` | Fetches and publishes the ns/op history branch |
-| `scripts/bench_history_test.sh` | Exercises that script against a throwaway repository; run by `misc_checks.sh` |
+| `benchmarks/packages.txt` | Which packages are benchmarked, and which are excluded and why |
 
-A package marked `gated` requires every one of its benchmarks to have a baseline entry, so a new
-`func Benchmark` fails CI until it is seeded. Benchmarks in unmarked packages are still checked
-whenever they already have an entry; the marker only makes that coverage mandatory.
+## Which packages are benchmarked
 
-One benchmark escapes that: one that calls `b.Skip` emits no result line at all without `-v`, so a
-new skipping benchmark is invisible here rather than untracked. A skip is still caught the moment
-the benchmark has an entry — it then reads as missing — so this only hides one that never had one.
+Every benchmark in a package listed in `packages.txt` must have a baseline entry, so a new
+`func Benchmark` fails CI until it is seeded. A package whose benchmarks must not run, for instance
+because its `TestMain` reaches the network, is listed with the `excluded` marker and a reason
+instead.
 
-`packages.txt` is the source of truth for coverage: which packages are gated, which are only checked
-against an entry they already have, and which are excluded along with the reason why.
+The list cannot fall behind the code. `benchcheck -list`, which `make bench` and `make bench_update` run first,
+finds every package whose test files declare a benchmark, applying `go test`'s own rules for the
+profile's build constraints, and fails while any of them is neither listed nor excluded, or while
+the list names a package that declares none.
+
+Skipping is the one way a benchmark escapes. One that calls `b.Skip` emits no result line without
+`-v`, so it is invisible here rather than untracked. A skip is still caught once the benchmark has
+an entry, which then reads as missing, and a listed package whose benchmarks all skip is reported as
+reporting nothing, so this only hides a newly added benchmark that skips from the start.
 
 ## Updating the baseline
 
-`-update` never deletes. A run that selected a subset of benchmarks looks, from the output alone,
-exactly like a full run in which the rest disappeared, so deleting on that evidence would destroy
-the baseline. Entries with no matching result are reported and kept.
+An update never loosens a budget quietly. A new benchmark gains an entry, and an existing one has a
+metric raised only where the check reports a regression, so every increase in the diff of
+`make bench_update` is a finding a reviewer has seen, and drift too small to report on any one run
+accumulates against a fixed budget instead of being absorbed by each update in turn. A metric is
+lowered once the run measured more than half its tolerance below the budget, or on any decrease
+where the tolerance is zero. That keeps run-to-run noise out of the diff, and leaves every
+measurement at least half a tolerance clear of reading as stale.
 
-`make bench_update` passes `-prune`, which does delete them. That is safe there and only there,
-because `BENCH_FLAGS` uses `-bench .` and therefore matches everything. Pass `-prune` by hand only
-when the same is true of your own invocation.
+`-update` deletes nothing by itself. A run that selected a subset of benchmarks looks, from the
+output alone, exactly like a full run in which the rest disappeared, so entries with no matching
+result are reported and kept.
+
+`make bench_update` and `make bench_apply` pass `-prune`, which deletes them: entries whose
+benchmark was renamed or deleted, and entries whose whole package has left the list. `benchcheck`
+refuses to prune unless every listed package reported and its output ran to go test's closing `ok`
+line, so running either target against a subset of the packages, or on output from a run that
+stopped early, fails rather than deleting budgets.
 
 ## Escape hatches
 
-Both require a `reason`, enforced by `Baseline.Validate`, and a tolerance must be in `[0, 1)`:
+Every override requires a `reason`, enforced by `Baseline.Validate`, and a tolerance must be in
+`[0, 1)`:
 
 ```jsonc
 {
-  "dispatch.BenchmarkSubscribe": {
+  "some/pkg.BenchmarkScheduled": {
     "allocs": 1,
     "bytes": 156,
     "bytes_tolerance": 0.1,           // widen one metric's budget
     "reason": "worker goroutines make B/op scheduler dependent; observed 151-161 across runs"
+  },
+  "some/pkg.BenchmarkExact": {
+    "allocs": 2,
+    "bytes": 64,
+    "bytes_tolerance": 0,             // an explicit zero asks for an exact B/op match
+    "reason": "fixed-size output; any change in B/op is a real change"
   },
   "some/pkg.BenchmarkExample": {
     "ignore": true,                   // drop the benchmark from the gate entirely
@@ -104,7 +145,7 @@ Both require a `reason`, enforced by `Baseline.Validate`, and a tolerance must b
 
 Prefer a tolerance to `ignore`: an ignored benchmark still costs CI time but tells nobody anything.
 Note that `ignore` only skips *comparison* — the benchmark still runs, so one that is unsafe to
-execute must be excluded from `packages.txt` instead.
+execute must be excluded in `packages.txt` instead.
 
 ## Flag settings
 
@@ -119,27 +160,28 @@ values on each machine and the baseline is only valid on the one that produced i
 
 `-count 7 -benchtime 100ms` is deliberately cheap, a couple of minutes for the whole repository. A
 longer benchtime buys the allocation gate nothing, because `allocs/op` is per-iteration and
-reproducible. The `bench_trend` target uses `-count 15 -benchtime 1s` instead, because tight
-confidence intervals do matter for the `ns/op` history and a long runtime is affordable on a
-scheduled run.
+reproducible.
 
-Both counts are **odd, and must stay odd**. The compared value is the median, and an even count has
-no middle sample, so `median` falls back to the lower of the two middles. That is biased, and biased
-asymmetrically for a gate that fails on improvement as well as regression: at six samples three low
-ones move the value while four high ones are needed to.
+The count is **odd, and must stay odd**. The compared value is the median, and an even count has no
+middle sample: averaging the two middles compares a value the run never measured, and picking either
+one biases the gate, which fails on improvements as well as regressions, towards that side.
+`benchcheck` refuses an even count rather than choosing.
 
-The count is also passed to benchcheck as `-samples`, which rejects any benchmark that did not
-report exactly that many measurements. A truncated run, or a result line that failed to parse, would
-otherwise shift which sample sits in the middle with nothing to notice it. `bench_trend` pairs
-`-samples` with `-warn`, which drops the offending records and appends the rest rather than losing a
-ten minute measurement to one short benchmark.
+The count is also passed to benchcheck as `-samples`, which is required and rejects any benchmark
+that did not report exactly that many measurements. A truncated run, or a result line that failed to
+parse, would otherwise change which sample sits in the middle with nothing to notice it.
 
-Keep `-cpu` single valued. benchcheck strips the `-N` suffix Go appends to result names, so `-cpu
-1,4` files two populations under one key and `-samples` cannot tell that from a single clean run.
+Keep `-cpu` single valued. benchcheck strips the `-N` suffix Go appends to result names, so
+`-cpu 1,4` files two populations under one key; `-samples` then sees twice the count and rejects the
+run.
 
-## The ns/op history
+## Timings
 
-`make bench_trend` appends one JSON line per benchmark to a series file. In CI a scheduled job
-publishes it to the `benchmarks-history` branch, which is append-only: `bench_history.sh` refuses to
-publish a series that does not extend what is already there, so a run built from a stale fetch
-cannot silently drop another run's records.
+`ns/op` is neither gated nor stored. The raw output each CI run uploads carries it, together with the
+`cpu:` line naming the runner's processor, and stays available for the artifact retention period.
+
+A question about whether a change made something slower is best answered on one machine: run the
+benchmarks at the base and the head, interleaved, and compare them with
+[benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat). A long-run history is only worth
+storing once something reads it, and once it records enough of the environment - processor,
+toolchain and runner image - to tell a change in the code from a change in the machine.

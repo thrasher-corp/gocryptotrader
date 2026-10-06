@@ -50,5 +50,5 @@ coverage.txt
 wrapperconfig.json
 .history/
 .codex
-benchmarks/series.jsonl
 .bench-output*.txt
+/bench-output.txt

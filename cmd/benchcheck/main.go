@@ -6,15 +6,16 @@
 //
 //	make bench          # check
 //	make bench_update   # record, pruning entries with no result
-//	make bench_trend    # append to the ns/op history
+//	make bench_apply    # record from output already measured, such as CI's
 //
 // Called directly, read from a file rather than a pipe. In a pipeline both processes run at once,
 // so this can read partial output and, with -update, save a baseline before the shell has seen
 // whether go test succeeded:
 //
-//	go test -run '^$' -bench . -benchmem -count 7 -cpu 4 -p 1 ./currency/ > out.txt
+//	go test -run '^$' -bench . -benchmem -benchtime 100ms -count 7 -cpu 4 -p 1 -timeout 20m $(benchcheck -list) > out.txt
 //	benchcheck -samples 7 < out.txt
-//	benchcheck -list
+//
+// BENCH_FLAGS in the Makefile is the definition of those flags; keep this example in step with it.
 package main
 
 import (
@@ -25,39 +26,43 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"time"
+)
+
+// canonicalGOOS and canonicalGOARCH are the platform the benchmarks workflow measures on. Budgets
+// are only recorded from output produced there, because allocation counts are not guaranteed to
+// match across platforms, and package discovery evaluates build constraints for it.
+const (
+	canonicalGOOS   = "linux"
+	canonicalGOARCH = "amd64"
 )
 
 var (
-	errNoResults     = errors.New("no benchmark results found on stdin")
-	errWarnWithPrune = errors.New("-warn cannot be combined with -update -prune: a benchmark dropped by -warn would be pruned as though it had been deleted")
+	errNoResults          = errors.New("no benchmark results found on stdin")
+	errInvalidSamples     = errors.New("-samples must be the odd -count passed to go test")
+	errPruneWithoutUpdate = errors.New("-prune only applies with -update")
+	errUnlistedOutput     = errors.New("benchmark output includes packages the package list does not benchmark")
+	errIncompleteRun      = errors.New("refusing to prune on a run that did not finish every listed package")
+	errWrongPlatform      = errors.New("budgets are only recorded from " + canonicalGOOS + "/" + canonicalGOARCH + " output")
 )
 
 type options struct {
-	baselinePath   string
-	packagesPath   string
-	seriesPath     string
-	commit         string
-	update         bool
-	prune          bool
-	list           bool
-	bytesTolerance float64
-	samples        int
-	warn           bool
+	baselinePath string
+	packagesPath string
+	root         string
+	samples      int
+	update       bool
+	prune        bool
+	list         bool
 }
 
 func main() {
-	var o options
+	o := options{root: "."}
 	flag.StringVar(&o.baselinePath, "baseline", "benchmarks/baseline.json", "path to the baseline file")
 	flag.StringVar(&o.packagesPath, "packages", "benchmarks/packages.txt", "path to the benchmarked package list")
-	flag.StringVar(&o.seriesPath, "series", "", "append the results to this JSON lines history file")
-	flag.StringVar(&o.commit, "commit", "", "commit SHA to label series records with")
+	flag.IntVar(&o.samples, "samples", 0, "the -count passed to go test, which must be odd; every benchmark must report exactly this many samples")
 	flag.BoolVar(&o.update, "update", false, "fold the results into the baseline instead of checking them")
-	flag.BoolVar(&o.prune, "prune", false, "with -update, delete baseline entries with no result; only safe when -bench matched every benchmark")
-	flag.BoolVar(&o.list, "list", false, "print the benchmarked packages as go test arguments and exit")
-	flag.Float64Var(&o.bytesTolerance, "bytes-tolerance", 0.01, "fractional B/op movement to ignore")
-	flag.IntVar(&o.samples, "samples", 0, "reject benchmarks not reporting exactly this many samples; zero disables the check")
-	flag.BoolVar(&o.warn, "warn", false, "report findings but always exit 0")
+	flag.BoolVar(&o.prune, "prune", false, "with -update, delete baseline entries with no result; refused unless every listed package reported")
+	flag.BoolVar(&o.list, "list", false, "check the package list against the packages declaring benchmarks, then print it as go test arguments")
 	flag.Parse()
 
 	if err := run(os.Stdin, os.Stdout, &o); err != nil {
@@ -72,6 +77,13 @@ func run(in io.Reader, out io.Writer, o *options) error {
 		return err
 	}
 	if o.list {
+		declared, err := BenchmarkPackages(o.root)
+		if err != nil {
+			return err
+		}
+		if err := pkgs.Covers(declared); err != nil {
+			return err
+		}
 		args := make([]string, len(pkgs.List))
 		for i, p := range pkgs.List {
 			args[i] = "./" + p + "/"
@@ -80,45 +92,43 @@ func run(in io.Reader, out io.Writer, o *options) error {
 		return nil
 	}
 
-	if o.samples < 0 {
-		return fmt.Errorf("-samples: %w: %d", errNegativeSamples, o.samples)
+	// Required rather than defaulted: the compared value is the median, which only exists for an
+	// odd count, and only the caller knows how many samples it asked go test for
+	if o.samples <= 0 || o.samples%2 == 0 {
+		return fmt.Errorf("%w: got %d", errInvalidSamples, o.samples)
 	}
-	// -warn drops a benchmark that reported the wrong sample count, which -prune then reads as a
-	// benchmark that no longer exists and deletes the budget for. The benchmark is still there and
-	// still measured; only its budget is gone, and the next run records whatever it now allocates.
-	if o.warn && o.update && o.prune {
-		return errWarnWithPrune
+	if o.prune && !o.update {
+		return errPruneWithoutUpdate
 	}
 
-	results, err := Parse(in)
+	measured, err := Parse(in)
 	if err != nil {
 		return err
 	}
-	if len(results) == 0 {
+	if len(measured.Samples) == 0 {
 		return errNoResults
 	}
-
-	// A median only means anything when every benchmark contributed the same number of samples.
-	// Warn mode drops the offenders instead of failing: the trend run measures for ten minutes and
-	// records one line per benchmark, so a single short benchmark should cost its own record rather
-	// than every other benchmark's.
-	mismatched, err := SampleCountMismatches(results, o.samples)
+	// A result from a package outside the list has nowhere to go: recording it creates a budget
+	// that every later check reports as belonging to no listed package
+	configured := configuredSet(pkgs.List)
+	var unlisted []string
+	for _, key := range sortedKeys(measured.Samples) {
+		if pkg := measured.Samples[key].Pkg; !configured[pkg] && !slices.Contains(unlisted, pkg) {
+			unlisted = append(unlisted, pkg)
+		}
+	}
+	if len(unlisted) > 0 {
+		return fmt.Errorf("%w: %s", errUnlistedOutput, strings.Join(unlisted, ", "))
+	}
+	if mismatched := SampleCountMismatches(measured.Samples, o.samples); len(mismatched) > 0 {
+		for _, key := range mismatched {
+			fmt.Fprintf(out, "benchcheck: %s reported %s\n", key, describeSamples(measured.Samples[key], o.samples))
+		}
+		return fmt.Errorf("%w: %d of %d benchmarks", errSampleCount, len(mismatched), len(measured.Samples))
+	}
+	results, err := Summarise(measured.Samples)
 	if err != nil {
 		return err
-	}
-	if len(mismatched) > 0 {
-		for _, key := range mismatched {
-			fmt.Fprintf(out, "benchcheck: %s reported %s\n", key, describeSamples(results[key], o.samples))
-		}
-		if !o.warn {
-			return fmt.Errorf("%w: %d of %d benchmarks", errSampleCount, len(mismatched), len(results))
-		}
-		for _, key := range mismatched {
-			delete(results, key)
-		}
-		if len(results) == 0 {
-			return errNoResults
-		}
 	}
 
 	base, err := LoadBaseline(o.baselinePath, o.update)
@@ -128,43 +138,35 @@ func run(in io.Reader, out io.Writer, o *options) error {
 	if err := base.Validate(); err != nil {
 		return err
 	}
-	// Validate covers the per-entry overrides; the global flag needs the same range check, or
-	// -bytes-tolerance NaN disables every B/op comparison silently
-	if err := validTolerance(o.bytesTolerance); err != nil {
-		return fmt.Errorf("-bytes-tolerance: %w", err)
-	}
 
-	// Appended only once nothing else can reject the run. Writing first meant an invalid baseline or
-	// tolerance appended a full run and then exited non-zero, so the obvious retry duplicated it.
-	if o.seriesPath != "" {
-		if err := AppendSeries(o.seriesPath, o.commit, results, time.Now()); err != nil {
-			return err
-		}
-		fmt.Fprintf(out, "benchcheck: appended %d records to %s\n", len(results), o.seriesPath)
-	}
-
-	configured := configuredSet(pkgs.List)
+	platform := canonicalGOOS + "/" + canonicalGOARCH
 	if o.update {
-		// Pruning is opt-in rather than inferred: "every package reported something" is satisfied
-		// by -bench selecting one benchmark each, and deleting on that basis destroys the baseline
-		if !o.prune {
-			for _, key := range sortedKeys(base) {
-				if _, ok := results[key]; !ok && packageOf(key, configured) != "" {
-					fmt.Fprintf(out, "benchcheck: %s has no result in this run; keeping it (pass -prune to delete)\n", key)
-				}
+		// A budget recorded elsewhere fails the gate the first time CI measures it, and nothing in
+		// the diff would say why
+		if measured.Platform != platform {
+			return fmt.Errorf("%w, not %q; fold in the output CI uploads with 'make bench_apply' instead",
+				errWrongPlatform, measured.Platform)
+		}
+		if o.prune {
+			if unfinished := unfinishedPackages(measured.Finished, results, pkgs.List); len(unfinished) > 0 {
+				return fmt.Errorf("%w: %s", errIncompleteRun, strings.Join(unfinished, ", "))
 			}
 		}
-		for _, key := range base.Update(results, o.prune, configured) {
-			fmt.Fprintf(out, "benchcheck: pruned %s\n", key)
+		for _, change := range base.Update(results, o.prune) {
+			fmt.Fprintln(out, "benchcheck:", change)
 		}
 		if err := base.Save(o.baselinePath); err != nil {
 			return err
 		}
-		fmt.Fprintf(out, "benchcheck: recorded %d benchmarks in %s\n", len(results), o.baselinePath)
+		fmt.Fprintf(out, "benchcheck: %d benchmarks folded into %s\n", len(results), o.baselinePath)
 		return nil
 	}
 
-	findings := Compare(base, results, configured, pkgs.Gated, o.bytesTolerance)
+	if measured.Platform != platform {
+		fmt.Fprintf(out, "benchcheck: budgets are recorded on %s but this output is from %q, so a finding may be the platform rather than the code\n",
+			platform, measured.Platform)
+	}
+	findings := Compare(base, results, pkgs.List)
 	slices.SortStableFunc(findings, func(a, b Finding) int { return int(a.Kind) - int(b.Kind) })
 	for _, f := range findings {
 		fmt.Fprintln(out, f)
@@ -173,9 +175,31 @@ func run(in io.Reader, out io.Writer, o *options) error {
 		fmt.Fprintf(out, "benchcheck: %d benchmarks within budget\n", len(results))
 		return nil
 	}
-	if o.warn {
-		fmt.Fprintf(out, "benchcheck: %d findings (warn mode)\n", len(findings))
-		return nil
-	}
 	return fmt.Errorf("%d findings", len(findings))
+}
+
+// silentPackages returns, in list order, the listed packages with no result
+func silentPackages(results map[string]*Result, listed []string) []string {
+	reported := seenPackages(results)
+	var silent []string
+	for _, pkg := range listed {
+		if !reported[pkg] {
+			silent = append(silent, pkg)
+		}
+	}
+	return silent
+}
+
+// unfinishedPackages returns, in list order, the listed packages a run cannot vouch for: those with
+// no result, and those whose output stopped before go test's closing "ok" line. Pruning on the
+// second would read every benchmark the run never reached as one that had been deleted.
+func unfinishedPackages(finished map[string]bool, results map[string]*Result, listed []string) []string {
+	reported := seenPackages(results)
+	var unfinished []string
+	for _, pkg := range listed {
+		if !finished[pkg] || !reported[pkg] {
+			unfinished = append(unfinished, pkg)
+		}
+	}
+	return unfinished
 }
