@@ -209,7 +209,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		currencyPairs := make(currency.Pairs, 0, len(result.Symbols))
 		for i := range result.Symbols {
-			// Status is 1 for every symbol in the catalogue; isSpotTradingAllowed is the flag that
+			// Status is 1 for nearly every symbol in the catalogue; isSpotTradingAllowed is the flag that
 			// separates the API-spot-tradable ones, so both must hold.
 			if result.Symbols[i].Status.Int64() != 1 || !result.Symbols[i].IsSpotTradingAllowed {
 				continue
@@ -515,8 +515,8 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	return resp, nil
 }
 
-// withdrawalTxID returns a withdrawal's transaction hash: transHash when the venue sends one, otherwise txId, which is
-// null until the withdrawal is broadcast and can carry an output index after the hash.
+// withdrawalTxID returns a withdrawal's transaction hash: transHash when the venue sends one, otherwise txId, which
+// can be null and can carry an output index after the hash.
 func withdrawalTxID(w *WithdrawalInfo) string {
 	if w.TransHash != "" {
 		return w.TransHash
@@ -766,7 +766,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			// from GetOrderInfo afterwards.
 			ordStatus = order.New
 		}
-		return &order.SubmitResponse{
+		resp := &order.SubmitResponse{
 			// s.Pair is already in exchange format; the response symbol is concatenated and a naive
 			// split mis-reads most MEXC symbols (METALUSDT read as MET/ALUSDT).
 			Pair:            s.Pair,
@@ -786,10 +786,44 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			LastUpdated:     result.TransactTime.Time(),
 			RemainingAmount: result.OrigQty.Float64() - result.ExecutedQty.Float64(),
 			TimeInForce:     tif,
-		}, nil
+		}
+		if resp.Amount == 0 && resp.Status == order.New && orderType == order.Market {
+			// A market order sized by its quote amount can be acknowledged with origQty 0, and the order manager only
+			// follows an order with an amount, so it would stay New: read the order back for its outcome instead.
+			if err := e.readBackMarketOrder(ctx, resp); err != nil {
+				log.Warnf(log.ExchangeSys, "%s: market order %s (%s) was acknowledged without a quantity and could not be read back: %v", e.Name, resp.OrderID, resp.Pair, err)
+			}
+		}
+		return resp, nil
 	default:
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
+}
+
+// readBackMarketOrder updates a submitted market order's response with the status and quantities the venue holds for it
+func (e *Exchange) readBackMarketOrder(ctx context.Context, resp *order.SubmitResponse) error {
+	placed, err := e.GetOrderByID(ctx, resp.Pair, "", resp.OrderID)
+	if err != nil {
+		return err
+	}
+	if placed == nil {
+		return common.ErrNoResponse
+	}
+	status, err := orderStatusFromString(placed.Status)
+	if err != nil {
+		return err
+	}
+	resp.Status = status
+	if quantity := placed.OrigQty.Float64(); quantity > 0 {
+		resp.Amount = quantity
+		resp.RemainingAmount = quantity - placed.ExecutedQty.Float64()
+	}
+	resp.AverageExecutedPrice = averageExecutedPrice(placed)
+	resp.Cost = placed.CummulativeQuoteQty.Float64()
+	if updated := placed.UpdateTime.Time(); !updated.IsZero() {
+		resp.LastUpdated = updated
+	}
+	return nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
