@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -109,7 +109,7 @@ type Manager struct {
 	Match                         *Match
 	ShutdownC                     chan struct{}
 	Wg                            sync.WaitGroup
-	Orderbook                     buffer.Orderbook
+	Orderbook                     orderbookmanager.Orderbook
 	Trade                         trade.Trade // Trade is a notifier for trades
 	Fills                         fill.Fills  // Fills is a notifier for fills
 	TrafficAlert                  chan struct{}
@@ -139,8 +139,6 @@ type ManagerSetup struct {
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
-	OrderbookBufferConfig buffer.Config
-
 	// UseMultiConnectionManagement allows the connections to be managed by the
 	// connection manager. If false, this will default to the global fields
 	// provided in this struct.
@@ -190,7 +188,7 @@ func NewManager() *Manager {
 		Match:             NewMatch(),
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
-		Orderbook:         buffer.Orderbook{},
+		Orderbook:         orderbookmanager.Orderbook{},
 		connections:       make(map[Connection]*websocket),
 	}
 }
@@ -286,7 +284,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 
 	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	if err := m.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, m.DataHandler); err != nil {
+	if err := m.Orderbook.Setup(s.ExchangeConfig.Name, m.DataHandler, s.ExchangeConfig.Verbose); err != nil {
 		return err
 	}
 
@@ -671,6 +669,8 @@ func (m *Manager) connect(ctx context.Context) error {
 	return subscriptionError
 }
 
+// createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
+// The connection's store also records subscriptions accepted before the subscriber fails, because flushing uses it to decide whether the connection is still in use
 func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
@@ -707,10 +707,10 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	}
 
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
-		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
+		return common.AppendError(fmt.Errorf("%w: %w", ErrSubscriptionFailure, err), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
 	}
 	if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
-		return fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing)
+		return common.AppendError(fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing), recordConnectionSubscriptions(conn.Subscriptions(), ws.subscriptions, subs))
 	}
 
 	connSubsStore := conn.Subscriptions()
@@ -786,8 +786,6 @@ func (m *Manager) shutdown() error {
 // disconnected and ready for a fresh connection attempt. It is shared by shutdown and a failed connect, which can leave
 // sockets and readers behind. Close errors are returned separately as they are non-fatal. The caller must hold m.m.
 func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
-	defer m.Orderbook.FlushBuffer()
-
 	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
 	// been closed. In such cases, attempting to close the connection may result in a
 	// "failed to send closeNotify alert (but connection was closed anyway)" error. Treating these errors as non-fatal
