@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"context"
 	"math"
 	"strings"
 	"testing"
@@ -1390,7 +1391,9 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = e.GetHistoricTrades(t.Context(), spotTradablePair, asset.Options, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	result, err := e.GetHistoricTrades(t.Context(), spotTradablePair, asset.Spot, startTime, endTime)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
+	result, err := e.GetHistoricTrades(ctx, spotTradablePair, asset.Spot, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 

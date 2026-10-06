@@ -579,19 +579,73 @@ func TestWsMiniTickersPublishesEnabledPairsOnly(t *testing.T) {
 // the REST snapshot already does: a zero-priced level is refused rather than stored.
 func TestWsHandleLimitDepthValidatesTheBook(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Name = t.Name()
-	ex.ValidateOrderbook = true
-	btc := currency.NewBTCUSDT()
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, false), "storing available pairs must not error")
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, true), "storing enabled pairs must not error")
-	raw := wsPushFrame(t, "spot@"+channelLimitDepthV3+"@BTCUSDT@5", 1736411838730,
-		&mexc_proto_types.PublicLimitDepthsV3Api{
-			Asks: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93180.18", Quantity: "0.21976424"}},
-			Bids: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "0", Quantity: "2.82651000"}},
+	for name, validate := range map[string]bool{"verified": true, "bypassed": false} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			ex.ValidateOrderbook = validate
+			btc := currency.NewBTCUSDT()
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, false), "storing available pairs must not error")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btc}, true), "storing enabled pairs must not error")
+			raw := wsPushFrame(t, "spot@"+channelLimitDepthV3+"@BTCUSDT@5", 1736411838730,
+				&mexc_proto_types.PublicLimitDepthsV3Api{
+					Asks: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "93180.18", Quantity: "0.21976424"}},
+					Bids: []*mexc_proto_types.PublicLimitDepthV3ApiItem{{Price: "0", Quantity: "2.82651000"}},
+				})
+			err := ex.WsHandleData(t.Context(), nil, raw)
+			_, getErr := orderbook.Get(ex.Name, btc, asset.Spot)
+			if !validate {
+				require.NoError(t, err, "WsHandleData must not error with the verification bypassed")
+				assert.NoError(t, getErr, "the book should be stored with the verification bypassed")
+				return
+			}
+			require.ErrorIs(t, err, orderbook.ErrPriceZero, "a zero-priced level must be refused")
+			assert.Error(t, getErr, "the refused book should not be stored")
 		})
-	require.ErrorIs(t, ex.WsHandleData(t.Context(), nil, raw), orderbook.ErrPriceZero, "a zero-priced level must be refused")
-	_, err := orderbook.Get(ex.Name, btc, asset.Spot)
-	assert.Error(t, err, "the refused book should not be stored")
+	}
+}
+
+// TestWsMiniTickersStoresEveryEntry stores every enabled symbol of an all-symbols miniTickers push when another symbol in
+// it fails: a malformed figure or a full relay used to end the frame, leaving the symbols after it out of the ticker store.
+func TestWsMiniTickersStoresEveryEntry(t *testing.T) {
+	t.Parallel()
+	btc, eth, ada := currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT), currency.NewPair(currency.ADA, currency.USDT)
+	for _, tc := range []struct {
+		name     string
+		relay    uint
+		btcPrice string
+		want     map[currency.Pair]float64
+	}{
+		{"the relay is full", 1, "93391.5", map[currency.Pair]float64{btc: 93391.5, eth: 2500.5, ada: 0.5}},
+		{"one price is malformed", 10, "9339x", map[currency.Pair]float64{eth: 2500.5, ada: 0.5}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+			pairs := currency.Pairs{btc, eth, ada}
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "storing available pairs must not error")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "storing enabled pairs must not error")
+			// Seeded, so a ticker left in the shared store by an earlier run cannot stand in for this push
+			for _, p := range pairs {
+				require.NoError(t, ticker.ProcessTicker(&ticker.Price{Pair: p, ExchangeName: ex.Name, AssetType: asset.Spot, Last: 1}), "seeding the ticker must not error")
+			}
+			ex.Websocket.DataHandler = stream.NewRelay(tc.relay)
+			raw := wsPushFrameForSymbol(t, "", "spot@"+channelMiniTickersV3+"@"+miniTickerTimezone, 1736412093000,
+				&mexc_proto_types.PublicMiniTickersV3Api{Items: []*mexc_proto_types.PublicMiniTickerV3Api{
+					{Symbol: "BTCUSDT", Price: tc.btcPrice, High: "94001", Low: "92001", Volume: "1", Quantity: "2"},
+					{Symbol: "ETHUSDT", Price: "2500.5", High: "2600", Low: "2400", Volume: "1", Quantity: "2"},
+					{Symbol: "ADAUSDT", Price: "0.5", High: "0.6", Low: "0.4", Volume: "1", Quantity: "2"},
+				}})
+			assert.Error(t, ex.WsHandleData(t.Context(), nil, raw), "the symbol that failed should be reported")
+			for p, want := range tc.want {
+				got, err := ticker.GetTicker(ex.Name, p, asset.Spot)
+				require.NoErrorf(t, err, "GetTicker must not error for %s", p)
+				assert.Equalf(t, want, got.Last, "%s should be stored from the push", p)
+			}
+		})
+	}
 }

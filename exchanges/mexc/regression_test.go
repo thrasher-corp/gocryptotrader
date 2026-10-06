@@ -487,7 +487,7 @@ func TestAuthRequestSignsQueryAndBody(t *testing.T) {
 // the buyer the maker?", so true means the taker sold.
 func TestTradeSideIsTakerSide(t *testing.T) {
 	t.Parallel()
-	e := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	e := newSignedTestExchange(t, refuseRepeatedWindows(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/aggTrades") {
 			_, _ = w.Write([]byte(`[{"p":"77234.92","q":"0.1","T":1789251250000,"m":true,"M":true},{"p":"77234.93","q":"0.1","T":1789251248000,"m":false,"M":true}]`))
 			return
@@ -565,7 +565,7 @@ func TestGetHistoricTradesPagesTheWindow(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ex := newSignedTestExchange(t, refuseRepeatedWindows(func(w http.ResponseWriter, r *http.Request) {
 				q := r.URL.Query()
 				from, _ := strconv.ParseInt(q.Get("startTime"), 10, 64)
 				to, _ := strconv.ParseInt(q.Get("endTime"), 10, 64)
@@ -1052,7 +1052,18 @@ func TestKeepListenKeyAliveRenewsEachConnectionsOwnKey(t *testing.T) {
 		return renewed["KEY_A"] > 0 && renewed["KEY_B"] > 0
 	}, 2*time.Second, 5*time.Millisecond, "each connection's own listen key must be renewed")
 	cancel()
-	ex.Websocket.Wg.Wait()
+	stopped := make(chan struct{})
+	go func() {
+		ex.Websocket.Wg.Wait()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "the renewers should stop once their context is cancelled")
+		// Stop them through the manager's shutdown instead, so they don't go on renewing after the test
+		close(ex.Websocket.ShutdownC)
+	}
 }
 
 // listenKeyTestConn stands in for a manager connection: a connector dials it, and its renewer asks whether
@@ -2259,6 +2270,7 @@ func TestAssetTransferResponseDecodesTransferID(t *testing.T) {
 	t.Parallel()
 	for body, want := range map[string]string{
 		`{"tranId":11945860693}`:                       "11945860693",
+		`{"tranId":9007199254740993}`:                  "9007199254740993",
 		`{"tranId":"11945860693"}`:                     "11945860693",
 		`{"tranId":"c45d800a47ba4cbc876a5cd29388319"}`: "c45d800a47ba4cbc876a5cd29388319",
 		`{"tranId":null}`:                              "",
@@ -2286,4 +2298,162 @@ func TestReferralAssetIsABracket(t *testing.T) {
 	var referral ReferralData
 	require.NoError(t, json.Unmarshal([]byte(`{"uid":"42469975","asset":"1-1,000 USDT","identification":1}`), &referral), "Unmarshal must not error")
 	assert.Equal(t, "1-1,000 USDT", referral.Asset, "Asset should be the bracket label")
+}
+
+// refuseRepeatedWindows answers an aggregated trades window it has answered before with an error. These fakes never
+// fail a request, so a correct pager never asks them for the same window twice: a repeat means it has stopped moving
+// back, and without the error the fake would answer it forever and the test would spin until go test's timeout.
+func refuseRepeatedWindows(next http.HandlerFunc) http.HandlerFunc {
+	var mu sync.Mutex
+	seen := make(map[string]bool)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/aggTrades") {
+			window := r.URL.Query().Get("startTime") + "-" + r.URL.Query().Get("endTime")
+			mu.Lock()
+			repeated := seen[window]
+			seen[window] = true
+			mu.Unlock()
+			if repeated {
+				http.Error(w, `{"code":-1,"msg":"window `+window+` requested again"}`, http.StatusBadRequest)
+				return
+			}
+		}
+		next(w, r)
+	}
+}
+
+// TestSubmitOrderReadsBackAMarketOrderWithoutAQuantity reads back a market order acknowledged with origQty 0, as MEXC can
+// acknowledge one sized by its quote amount: without a quantity the order manager never polls it, so it would stay New.
+// A read-back that fails leaves the acknowledgement as it was, since the order was placed all the same.
+func TestSubmitOrderReadsBackAMarketOrderWithoutAQuantity(t *testing.T) {
+	t.Parallel()
+	const filled = `{"symbol":"BTCUSDT","orderId":"Q1","orderListId":-1,"price":"0.183503","origQty":"32.69","executedQty":"32.69",` +
+		`"cummulativeQuoteQty":"5.72522853","status":"FILLED","type":"MARKET","side":"BUY","time":1717705054000,"updateTime":1717705054000}`
+	for _, tc := range []struct {
+		name, origQty, readBackReply string
+		readBack                     bool
+		status                       order.Status
+		amount                       float64
+	}{
+		{name: "acknowledged without a quantity", origQty: "0", readBackReply: filled, readBack: true, status: order.Filled, amount: 32.69},
+		{name: "acknowledged with a quantity", origQty: "32.69", readBackReply: filled, status: order.New, amount: 32.69},
+		{name: "read back fails", origQty: "0", readBack: true, status: order.New},
+		{name: "read back is null", origQty: "0", readBackReply: "null", readBack: true, status: order.New},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var readBack atomic.Bool
+			ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet {
+					readBack.Store(true)
+					if tc.readBackReply == "" {
+						http.Error(w, `{"code":-2013,"msg":"Order does not exist."}`, http.StatusBadRequest)
+						return
+					}
+					_, _ = w.Write([]byte(tc.readBackReply))
+					return
+				}
+				_, _ = w.Write([]byte(`{"symbol":"BTCUSDT","orderId":"Q1","orderListId":-1,"price":"0.183503","origQty":"` + tc.origQty +
+					`","type":"MARKET","side":"BUY","transactTime":1717705054066}`))
+			}))
+			resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Market, QuoteAmount: 6})
+			require.NoError(t, err, "SubmitOrder must not error")
+			assert.Equal(t, tc.readBack, readBack.Load(), "the order should be read back only when acknowledged without a quantity")
+			assert.Equal(t, tc.status, resp.Status, "Status should be the order's outcome")
+			assert.Equal(t, tc.amount, resp.Amount, "Amount should be the order's quantity")
+		})
+	}
+	ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`null`))
+	}))
+	err := ex.readBackMarketOrder(t.Context(), &order.SubmitResponse{Pair: currency.NewBTCUSDT(), OrderID: "Q1", Status: order.New})
+	assert.ErrorIs(t, err, common.ErrNoResponse, "a null read-back should be reported")
+}
+
+// TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted connects through the websocket manager to a local venue whose
+// listen key endpoint refuses, as it does once an account holds its 60 keys. The public connections are made first and
+// the manager rolls them back when a later one fails, and nothing retries a failed first connect, so the market data
+// must not depend on the key.
+func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
+	t.Parallel()
+	var publicSubscribed atomic.Int64
+	var upgrader gws.Upgrader
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "userDataStream") {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"code":700003,"msg":"listen key limit reached"}`))
+			return
+		}
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		go func() {
+			defer c.Close()
+			for {
+				_, msg, err := c.ReadMessage()
+				if err != nil {
+					return
+				}
+				var req WsSubscriptionPayload
+				if json.Unmarshal(msg, &req) != nil || req.Method != "SUBSCRIPTION" || len(req.Params) != 1 {
+					continue
+				}
+				if !strings.Contains(req.Params[0], "@private.") {
+					publicSubscribed.Add(1)
+				}
+				resp, err := json.Marshal(&WsSubscriptionResponse{ID: req.ID, Message: req.Params[0]})
+				if err != nil || c.WriteMessage(gws.TextMessage, resp) != nil {
+					return
+				}
+			}
+		}()
+	}))
+	t.Cleanup(srv.Close)
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	ex.SetCredentials(&accounts.Credentials{Key: testCredentialKey, Secret: testCredentialSecret})
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(srv.URL, "http")), "SetAllConnectionURLs must not error")
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	}
+	err := ex.Websocket.Connect(t.Context())
+	t.Cleanup(func() {
+		if ex.Websocket.IsConnected() {
+			assert.NoError(t, ex.Websocket.Shutdown(), "Shutdown should not error")
+		}
+		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+	})
+	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "the private channels should be reported as not subscribed")
+	assert.ErrorIs(t, err, errNoListenKey, "the missing listen key should be named")
+	require.True(t, ex.Websocket.IsConnected(), "the websocket must stay connected for the market data")
+	public, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	assert.Equal(t, int64(len(public)), publicSubscribed.Load(), "every public channel should be subscribed")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the private channels should be left out of later connects")
+}
+
+// TestGetAnnouncementsReportsRejectedParameters reports the error MEXC answers a rejected parameter with. A language it
+// does not serve, such as "en", is answered with HTTP 200, code 600 and no data, which read as no announcements.
+func TestGetAnnouncementsReportsRejectedParameters(t *testing.T) {
+	t.Parallel()
+	for reply, want := range map[string]error{
+		`{"code":600,"msg":"参数错误","timestamp":1791247877244,"traceId":"6ac446051b222c364f7f61b96737336f"}`: errAnnouncementsRejected,
+		`null`: common.ErrNoResponse,
+	} {
+		ex := newSignedTestExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(reply))
+		}))
+		pages, err := ex.GetAnnouncements(t.Context(), "en", 1, 5)
+		require.ErrorIsf(t, err, want, "a reply of %s must be reported", reply)
+		assert.Nilf(t, pages, "no announcements should be returned for %s", reply)
+	}
 }
