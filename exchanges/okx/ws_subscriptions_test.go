@@ -211,7 +211,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Asks:              orderbook.Levels{{Price: 100, Amount: 1}},
 			ValidateOrderbook: tracked.ValidateOrderbook,
 		}
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 			Exchange:          exp.Exchange,
 			Pair:              spotSub.Pairs[0],
 			Asset:             spotSub.Asset,
@@ -221,7 +221,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			Asks:              exp.Asks,
 			ValidateOrderbook: exp.ValidateOrderbook,
 		}))
-		require.NoError(t, tracked.refreshEquivalentOrderbookSnapshot(marginSub))
+		require.NoError(t, tracked.refreshEquivalentOrderbookSnapshot(t.Context(), marginSub))
 
 		book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
 		require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked))
 
-		err := tracked.refreshEquivalentOrderbookSnapshot(&subscription.Subscription{
+		err := tracked.refreshEquivalentOrderbookSnapshot(t.Context(), &subscription.Subscription{
 			Asset:            asset.Margin,
 			Pairs:            []currency.Pair{currency.NewBTCUSDT()},
 			Channel:          subscription.OrderbookChannel,
@@ -332,8 +332,8 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 			Asks:              orderbook.Levels{{Price: 100, Amount: 1}},
 			ValidateOrderbook: tracked.ValidateOrderbook,
 		}
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(spotSnapshot))
-		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), spotSnapshot))
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
 			Exchange:          tracked.Name,
 			Pair:              pair,
 			Asset:             asset.Margin,
