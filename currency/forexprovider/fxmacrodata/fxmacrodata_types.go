@@ -136,8 +136,8 @@ func (u UnixMillis) MarshalJSON() ([]byte, error) {
 }
 
 // UnixNanos is a Unix timestamp in nanoseconds. Like UnixSeconds it fixes the
-// unit, so publisher-sourced publication instants before September 2001, which
-// have fewer than 19 digits, decode correctly.
+// unit, so publisher-sourced publication instants before September 2001
+// decode correctly.
 type UnixNanos time.Time
 
 // UnmarshalJSON deserialises a Unix timestamp in nanoseconds.
@@ -166,12 +166,13 @@ func (u UnixNanos) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.FormatInt(u.Time().UnixNano(), 10)), nil
 }
 
-// SourceNames is a list of publisher names. The rate-differential contract
-// declares each leg's source as either a single string or a list of strings,
-// so both are accepted and a single name decodes as a one-element list.
+// SourceNames is a list of names the contract declares as either a single
+// string or a list of strings, such as a rate-differential leg's publishers or
+// a calendar release's dataset codes. A single name decodes as a one-element
+// list.
 type SourceNames []string
 
-// UnmarshalJSON deserialises either a single publisher name or a list of them.
+// UnmarshalJSON deserialises either a single name or a list of them.
 func (s *SourceNames) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" {
 		return nil
@@ -862,7 +863,7 @@ type CalendarReleaseRow struct {
 	ScheduleURL                           string      `json:"schedule_url"`
 	ReleaseStage                          string      `json:"release_stage"`
 	ReferencePeriod                       string      `json:"reference_period"`
-	DatasetCodes                          any         `json:"dataset_codes"`
+	DatasetCodes                          SourceNames `json:"dataset_codes"`
 	Date                                  Date        `json:"date"`
 	Domain                                string      `json:"domain"`
 	DataCurrency                          string      `json:"data_currency"`
@@ -1444,6 +1445,8 @@ type RiskSentimentComponentMetadata struct {
 
 // RiskSentimentPoint is one daily risk-sentiment observation.
 type RiskSentimentPoint struct {
+	// A component sent as null still gets an entry here, so check
+	// ComponentCoverage before using its value.
 	Components           map[string]float64 `json:"components"`
 	Val                  float64            `json:"val"`
 	Date                 Date               `json:"date"`

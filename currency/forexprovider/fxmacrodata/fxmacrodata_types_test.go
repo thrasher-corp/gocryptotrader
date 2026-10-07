@@ -53,6 +53,7 @@ func TestUnixNanosJSON(t *testing.T) {
 		raw  string
 		want string
 	}{
+		{"pre-1938 publication", "-1763461800000000000", "1914-02-13T13:30:00Z"},
 		{"1990s publication", "916407000000000000", "1999-01-15T13:30:00Z"},
 		{"18-digit boundary", "999999999000000000", "2001-09-09T01:46:39Z"},
 		{"recent publication", "1786105800123456789", "2026-08-07T12:30:00.123456789Z"},
@@ -91,6 +92,7 @@ func TestUnixMillisJSON(t *testing.T) {
 		raw  string
 		want string
 	}{
+		{"pre-1938 chart point", "-1763461800000", "1914-02-13T13:30:00Z"},
 		{"1990s chart point", "916407000000", "1999-01-15T13:30:00Z"},
 		{"12-digit boundary", "999999999000", "2001-09-09T01:46:39Z"},
 		{"recent chart point", "1786105800123", "2026-08-07T12:30:00.123Z"},

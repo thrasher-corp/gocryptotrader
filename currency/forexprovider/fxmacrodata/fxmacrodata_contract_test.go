@@ -285,6 +285,7 @@ func TestForex(t *testing.T) {
 		"coverage":{"scope":"requested_range"},"pagination":{"returned_count":1},
 		"data":[{"date":"2026-08-01","val":1.53,"announcement_datetime":1785542400,
 		"observation_datetime":1785542400,"observation_datetime_iso":"2026-08-01T00:00:00Z",
+		"source_chart_timestamp_ms":916407000123,
 		"source":{"source_pair":"AUD/USD","is_derived":true,"derivation_method":"inverse"},"rsi_14":55.2}]
 	}`, true)
 	defer closeServer()
@@ -309,6 +310,7 @@ func TestForex(t *testing.T) {
 			AnnouncementDatetime:   unixSeconds(1785542400),
 			ObservationDatetime:    unixSeconds(1785542400),
 			ObservationDatetimeISO: utcTime(t, "2026-08-01T00:00:00Z"),
+			SourceChartTimestampMS: UnixMillis(time.UnixMilli(916407000123).UTC()),
 			Source:                 DataPointSource{SourcePair: "AUD/USD", IsDerived: true, DerivationMethod: "inverse"},
 			RSI14:                  55.2,
 		}},
@@ -571,9 +573,9 @@ func TestCalendar(t *testing.T) {
 		"announcement_datetime_utc":"2026-08-07T12:30:00Z","announcement_datetime_local":"2026-08-07T12:30:00Z",
 		"release_date_confirmed":true,"release_time_assumed":false,"time_announced":true,"source":"BLS",
 		"source_url":"https://www.bls.gov/schedule/","date":"2026-07-31","event_importance":"high",
-		"market_tier":1,"top_tier_for_currency":true},
+		"market_tier":1,"top_tier_for_currency":true,"dataset_codes":["CUUR0000SA0","CUSR0000SA0"]},
 		{"announcement_datetime":1786593600,"release":"retail_sales","release_date_confirmed":true,
-		"time_announced":false,"announcement_date":"2026-08-13"}]
+		"time_announced":false,"announcement_date":"2026-08-13","dataset_codes":"RSAFS"}]
 	}`, true)
 	defer closeServer()
 
@@ -598,11 +600,13 @@ func TestCalendar(t *testing.T) {
 			EventImportance:           "high",
 			MarketTier:                1,
 			TopTierForCurrency:        true,
+			DatasetCodes:              SourceNames{"CUUR0000SA0", "CUSR0000SA0"},
 		}, {
 			AnnouncementDatetime: unixSeconds(1786593600),
 			Release:              "retail_sales",
 			ReleaseDateConfirmed: true,
 			AnnouncementDate:     calendarDay(2026, time.August, 13),
+			DatasetCodes:         SourceNames{"RSAFS"},
 		}},
 		HistoryStartDate: calendarDay(2026, time.July, 27),
 		HistoryTruncated: true,
@@ -724,7 +728,8 @@ func TestCommodity(t *testing.T) {
 		"currency":"USD","indicator":"brent","source":"EIA","source_url":"https://www.eia.gov/",
 		"has_official_forecast":false,"last_updated":"2026-08-12T00:00:00Z","latest_available_date":"2026-08-11",
 		"data_quality":{"row_count":1},"start_date":"2026-08-11","end_date":"2026-08-11","pagination":{"returned_count":1},
-		"data":[{"date":"2026-08-11","val":68.4,"announcement_datetime":1786406400,"pct_change":1.2,"pct_change_12m":-4.5}]
+		"data":[{"date":"2026-08-11","val":68.4,"announcement_datetime":1786406400,"source_chart_timestamp_ms":916407000123,
+		"pct_change":1.2,"pct_change_12m":-4.5}]
 	}`, true)
 	defer closeServer()
 
@@ -743,11 +748,12 @@ func TestCommodity(t *testing.T) {
 		EndDate:             day,
 		Pagination:          PaginationInfo{ReturnedCount: 1},
 		Data: []CommodityDataPoint{{
-			Date:                 day,
-			Val:                  68.4,
-			AnnouncementDatetime: unixSeconds(1786406400),
-			PctChange:            1.2,
-			PctChange12Month:     -4.5,
+			Date:                   day,
+			Val:                    68.4,
+			AnnouncementDatetime:   unixSeconds(1786406400),
+			SourceChartTimestampMS: UnixMillis(time.UnixMilli(916407000123).UTC()),
+			PctChange:              1.2,
+			PctChange12Month:       -4.5,
 		}},
 	}
 	assert.Equal(t, exp, response, "Commodity should decode every fixture field")
@@ -758,7 +764,7 @@ func TestCommoditiesLatest(t *testing.T) {
 		"currency":"USD","source":"EIA","as_of":"2026-08-12","count":1,
 		"data":[{"indicator":"brent","unit":"USD/bbl","frequency":"Daily","has_official_forecast":false,
 		"last_updated":"2026-08-12T00:00:00Z","data_quality":{"row_count":2},
-		"latest":{"date":"2026-08-11","val":68.4,"announcement_datetime":1786406400},
+		"latest":{"date":"2026-08-11","val":68.4,"announcement_datetime":1786406400,"source_chart_timestamp_ms":916407000123},
 		"previous":{"date":"2026-08-10","val":67.9,"announcement_datetime":1786320000},"pct_diff_prev":0.74}]
 	}`, true)
 	defer closeServer()
@@ -776,7 +782,12 @@ func TestCommoditiesLatest(t *testing.T) {
 			Frequency:   "Daily",
 			LastUpdated: utcTime(t, "2026-08-12T00:00:00Z"),
 			DataQuality: DataQuality{RowCount: 2},
-			Latest:      CommodityObservation{Date: calendarDay(2026, time.August, 11), Val: 68.4, AnnouncementDatetime: unixSeconds(1786406400)},
+			Latest: CommodityObservation{
+				Date:                   calendarDay(2026, time.August, 11),
+				Val:                    68.4,
+				AnnouncementDatetime:   unixSeconds(1786406400),
+				SourceChartTimestampMS: UnixMillis(time.UnixMilli(916407000123).UTC()),
+			},
 			Previous:    CommodityObservation{Date: calendarDay(2026, time.August, 10), Val: 67.9, AnnouncementDatetime: unixSeconds(1786320000)},
 			PctDiffPrev: 0.74,
 		}},

@@ -46,7 +46,7 @@ type SystemsSettings struct {
 	Currencyconverter FXSettings
 	Currencylayer     FXSettings
 	Fixer             FXSettings
-	FXmacrodata       FXSettings
+	FXMacroData       FXSettings
 	Openexchangerates FXSettings
 }
 
