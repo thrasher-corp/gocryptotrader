@@ -5227,8 +5227,9 @@ func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
 	var mu sync.Mutex
 	var rateQueries []url.Values
 	rateCalls := 0
+	billsCalls := 0
 
-	end := time.Now().Add(-time.Hour)
+	end := time.Now().Truncate(8 * time.Hour)
 	rateCount := 230
 	rateTime := func(i int) time.Time {
 		// 8h-aligned funding times, index 0 the newest, within the requested
@@ -5277,6 +5278,24 @@ func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
 			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[` + strings.Join(rows, ",") + `]}`))
 		case "/public/funding-rate":
 			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, end.Add(7*time.Hour).UnixMilli(), end.Add(15*time.Hour).UnixMilli())
+		case "/account/bills-archive":
+			mu.Lock()
+			billsCalls++
+			calls := billsCalls
+			mu.Unlock()
+			if calls > 1 {
+				// A short page ends the bills loop; refuse to feed the storm.
+				_, _ = w.Write([]byte(`{"code":"1","msg":"mock: bills pagination did not stop after a short page"}`))
+				return
+			}
+			// Funding fee bills, newest first, for the first, an inner and the
+			// last rate of the pages; 99 and 198 are also the boundary records
+			// the next page repeats
+			bills := make([]string, 0, 5)
+			for i, rate := range []int{0, 99, 150, 198, rateCount - 1} {
+				bills = append(bills, fmt.Sprintf(`{"billId":"%d","ccy":"USDT","type":"8","pnl":"-%d","ts":"%d","instId":"BTC-USDT-SWAP"}`, 5-i, i+1, rateTime(rate).UnixMilli()))
+			}
+			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[` + strings.Join(bills, ",") + `]}`))
 		default:
 			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
 		}
@@ -5321,6 +5340,29 @@ func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
 	}
 	assert.Equal(t, rateTime(0).UnixMilli(), result.FundingRates[0].Time.UnixMilli(), "the newest rate should come first")
 	assert.Equal(t, rateTime(rateCount-1).UnixMilli(), result.FundingRates[rateCount-1].Time.UnixMilli(), "the oldest rate should be reached, not stranded behind repeated pages")
+
+	// Payments index rates across pages, so repeat the run with them; the
+	// first run stays as it is to cover the no-payments path
+	mu.Lock()
+	rateCalls = 0
+	mu.Unlock()
+	result, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.PerpetualSwap,
+		Pair:            perpetualSwapPair,
+		PaymentCurrency: currency.USDT,
+		StartDate:       start,
+		EndDate:         end,
+		IncludePayments: true,
+	})
+	require.NoError(t, err, "rate pagination with payments must terminate without error")
+	require.Len(t, result.FundingRates, rateCount, "every funding rate in the window must be kept exactly once with payments")
+	paid := make(map[int]string)
+	for i := range result.FundingRates {
+		if !result.FundingRates[i].Payment.IsZero() {
+			paid[i] = result.FundingRates[i].Payment.String()
+		}
+	}
+	assert.Equal(t, map[int]string{0: "-1", 99: "-2", 150: "-3", 198: "-4", rateCount - 1: "-5"}, paid, "each payment should land on its own rate, whichever page it arrived on")
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
@@ -7615,9 +7657,9 @@ func TestDeprecatedUlyReplacedByInstFamily(t *testing.T) {
 			value: "BTC-USDT",
 		},
 		{
-			// An option query must name its family: an underlying spans
-			// several families (BTC-USD spans BTC-USD and BTC-USD_UM), so
-			// instFamily is the only filter this endpoint takes.
+			// uly takes an underlying, which spans several families (BTC-USD
+			// spans BTC-USD and BTC-USD_UM), so an option family goes out as
+			// instFamily, which OKX documents as required for OPTION.
 			name: "open interest option family",
 			call: func() error {
 				_, err := e.GetOpenInterestData(t.Context(), instTypeOption, "BTC-USD_UM", "")
