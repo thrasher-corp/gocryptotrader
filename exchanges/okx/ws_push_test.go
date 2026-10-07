@@ -199,7 +199,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		assert.Equal(t, "1", row.CancelSource, "the documented cancelSource should decode")
 		assert.Equal(t, "2", row.AmendSource, "the documented amendSource should decode")
 		assert.Equal(t, 41999.0, row.FillIndexPrice.Float64(), "the documented fillIdxPx should decode")
-		assert.Equal(t, "last", row.OptionPriceType, "the documented pxType should decode")
+		assert.Equal(t, "last", row.PriceType, "the documented pxType should decode")
 		assert.True(t, row.ReduceOnly, "the reduceOnly flag should decode from its quoted wire form")
 	})
 }

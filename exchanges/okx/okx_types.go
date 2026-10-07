@@ -1310,17 +1310,17 @@ type AlgoLinkedOrder struct {
 // a smart-iceberg trigger, or a grid algo trigger with the grid-specific
 // fields.
 type AlgoTriggerParams struct {
-	TriggerAction   string       `json:"triggerAction"`
-	TriggerStrategy string       `json:"triggerStrategy"`
-	DelaySeconds    types.Number `json:"delaySeconds"`
-	TriggerTime     types.Time   `json:"triggerTime"`
-	TriggerType     string       `json:"triggerType"`
-	TriggerPrice    types.Number `json:"triggerPx"`
-	TriggerCond     string       `json:"triggerCond"`
-	Timeframe       string       `json:"timeframe"`
-	Threshold       types.Number `json:"thold"`
-	TimePeriod      string       `json:"timePeriod"`
-	StopType        string       `json:"stopType"`
+	TriggerAction    string       `json:"triggerAction"`
+	TriggerStrategy  string       `json:"triggerStrategy"`
+	DelaySeconds     types.Number `json:"delaySeconds"`
+	TriggerTime      types.Time   `json:"triggerTime"`
+	TriggerType      string       `json:"triggerType"`
+	TriggerPrice     types.Number `json:"triggerPx"`
+	TriggerCondition string       `json:"triggerCond"`
+	Timeframe        string       `json:"timeframe"`
+	Threshold        types.Number `json:"thold"`
+	TimePeriod       string       `json:"timePeriod"`
+	StopType         string       `json:"stopType"`
 }
 
 // AlgoOrderCancelParams algo order request parameter
@@ -1882,7 +1882,7 @@ type AccountDetail struct {
 	BorrowFrozen                   types.Number `json:"borrowFroz"`
 	CoinUSDPrice                   types.Number `json:"coinUsdPrice"`
 	AutoLendStatus                 string       `json:"autoLendStatus"`
-	AutoLendMTAmount               types.Number `json:"autoLendMtAmt"`
+	AutoLendMatchedAmount          types.Number `json:"autoLendMtAmt"`
 	// MaxSpotInUseAmt is filled by the account channel push, which sends
 	// maxSpotInUseAmt; the REST balances endpoint sends maxSpotInUse instead
 	// (MaxSpotInUseAmount above).
@@ -2762,7 +2762,7 @@ type SubaccountBalanceDetail struct {
 	TotalPNL                       types.Number `json:"totalPnl"`
 	TotalPNLRatio                  types.Number `json:"totalPnlRatio"`
 	AutoLendStatus                 string       `json:"autoLendStatus"`
-	AutoLendMTAmount               types.Number `json:"autoLendMtAmt"`
+	AutoLendMatchedAmount          types.Number `json:"autoLendMtAmt"`
 	CollateralRestriction          string       `json:"colRes"`
 	CollateralBorrowAutoConversion string       `json:"colBorrAutoConversion"`
 	CollateralEnabled              bool         `json:"collateralEnabled"`
@@ -3442,9 +3442,9 @@ type WsOrder struct {
 	LastPrice               types.Number        `json:"lastPx"`
 	Msg                     string              `json:"msg"`
 	NotionalUSD             types.Number        `json:"notionalUsd"`
-	OptionPriceType         string              `json:"pxType"`
-	OptionPriceUSD          types.Number        `json:"pxUsd"`
-	OptionPriceVolatility   types.Number        `json:"pxVol"`
+	PriceType               string              `json:"pxType"`
+	PriceUSD                types.Number        `json:"pxUsd"`
+	PriceVolatility         types.Number        `json:"pxVol"`
 	ReduceOnly              bool                `json:"reduceOnly,string"`
 	RequestID               string              `json:"reqId"`
 	SelfTradePreventionMode string              `json:"stpMode"`
@@ -4465,7 +4465,7 @@ type ProfitSharingItem struct {
 	Currency                      string       `json:"ccy"`
 	NickName                      string       `json:"nickName"`
 	ProfitSharingAmount           types.Number `json:"profitSharingAmt"`
-	UnrealizedProfitSharingAmount types.Number `json:"unrealizedProfitSharingAmt"`
+	UnrealisedProfitSharingAmount types.Number `json:"unrealizedProfitSharingAmt"`
 	ProfitSharingID               string       `json:"profitSharingId"`
 	PortraitLink                  string       `json:"portLink"`
 	InstrumentType                string       `json:"instType"`
@@ -5184,7 +5184,7 @@ type AccountInstrument struct {
 	PreMarketSwitchTime         types.Time                 `json:"preMktSwTime"`
 	TradingFeeGroupID           string                     `json:"groupId"`
 	SeriesID                    string                     `json:"seriesId"`
-	InstIDCode                  uint64                     `json:"instIdCode"`
+	InstrumentIDCode            uint64                     `json:"instIdCode"`
 	InstrumentCategory          string                     `json:"instCategory"`
 	ELPPermission               types.Number               `json:"elp"`
 	RPIPermission               types.Number               `json:"rpi"`
@@ -5339,25 +5339,28 @@ type PositionBuilderRiskUnit struct {
 	Vega           types.Number                  `json:"vega"`
 }
 
+// PositionBuilderAsset represents one asset of a position builder result.
+type PositionBuilderAsset struct {
+	AvailableEquity types.Number `json:"availEq"`
+	BorrowIMR       types.Number `json:"borrowImr"`
+	BorrowMMR       types.Number `json:"borrowMmr"`
+	Currency        string       `json:"ccy"`
+	SpotInUse       types.Number `json:"spotInUse"`
+}
+
 // PositionBuilderDetail represents details of portfolio margin information for virtual position/assets or current position of the user
 type PositionBuilderDetail struct {
-	Assets []struct {
-		AvailEq   types.Number `json:"availEq"`
-		BorrowIMR types.Number `json:"borrowImr"`
-		BorrowMMR types.Number `json:"borrowMmr"`
-		Currency  string       `json:"ccy"`
-		SpotInUse string       `json:"spotInUse"`
-	} `json:"assets"`
-	BorrowMMR       string                    `json:"borrowMmr"`
-	DerivMMR        string                    `json:"derivMmr"`
-	Equity          string                    `json:"eq"`
+	Assets          []PositionBuilderAsset    `json:"assets"`
+	BorrowMMR       types.Number              `json:"borrowMmr"`
+	DerivativesMMR  types.Number              `json:"derivMmr"`
+	Equity          types.Number              `json:"eq"`
 	AccountLeverage types.Number              `json:"acctLever"`
 	UPL             types.Number              `json:"upl"`
 	MarginRatio     types.Number              `json:"marginRatio"`
 	RiskUnitData    []PositionBuilderRiskUnit `json:"riskUnitData"`
 	Positions       []PositionBuilderPosition `json:"positions"`
-	TotalImr        types.Number              `json:"totalImr"`
-	TotalMmr        types.Number              `json:"totalMmr"`
+	TotalIMR        types.Number              `json:"totalImr"`
+	TotalMMR        types.Number              `json:"totalMmr"`
 	Timestamp       types.Time                `json:"ts"`
 }
 

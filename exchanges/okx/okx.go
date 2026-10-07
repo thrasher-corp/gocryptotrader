@@ -2665,7 +2665,7 @@ func (e *Exchange) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, a
 }
 
 // GetGridAlgoSubOrders retrieves grid algo sub orders
-func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, subOrderType, groupID, after, before string, limit int64) ([]GridSubOrderData, error) {
+func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, subOrderType, groupID, after, before string, limit uint64) ([]GridSubOrderData, error) {
 	if algoOrderType != AlgoOrdTypeGrid &&
 		algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
@@ -2673,7 +2673,7 @@ func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algo
 	if algoID == "" {
 		return nil, errAlgoIDRequired
 	}
-	if subOrderType != "live" && subOrderType != order.Filled.String() {
+	if subOrderType != "live" && subOrderType != "partially_filled" && subOrderType != "filled" {
 		return nil, errMissingSubOrderType
 	}
 	params := url.Values{}
@@ -2690,7 +2690,7 @@ func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algo
 		params.Set("before", before)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []GridSubOrderData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/sub-orders", params), nil, &resp, request.AuthenticatedRequest)

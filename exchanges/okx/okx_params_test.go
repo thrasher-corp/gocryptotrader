@@ -54,7 +54,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		"/users/subaccount/list":                         `{"code":"0","msg":"","data":[{"subAcct":"sub-one","uid":"123456","frozenFunc":[],"subAcctLv":"1","firstLvSubAcct":"sub-one","ifDma":true,"enable":true,"ts":"1724751378980"}]}`,
 		"/account/mmp-config":                            `{"code":"0","msg":"","data":[{"instFamily":"BTC-USD","timeInterval":"5000","frozenInterval":"2000","qtyLimit":"100","mmpFrozen":false,"mmpFrozenUntil":""}]}`,
 		"/asset/deposit-withdraw-status":                 `{"code":"0","msg":"","data":[{"wdId":"1244","txId":"16f3638329c8a5b1f6acde28b0f0b3c9ethc15a05b53b52b3049a099fea19a92","state":"Pending withdrawal: transaction is being confirmed on-chain.","estCompleteTime":"01/09/2023, 8:10:48 PM"}]}`,
-		"/account/position-builder":                      `{"code":"0","msg":"","data":[{"acctLever":"0.5","riskUnitData":[{"riskUnit":"BTC","portfolios":[]}],"positions":[{"instId":"BTC-USDT-SWAP","instType":"SWAP","amt":"1","posSide":"net","imr":"100","lever":"3","isRealPos":true}],"ts":"1724751378980"}]}`,
+		"/account/position-builder":                      `{"code":"0","msg":"","data":[{"acctLever":"0.5","assets":[{"availEq":"500","borrowImr":"0.1","borrowMmr":"1.2","ccy":"USDT","spotInUse":"5"}],"borrowMmr":"1.2","derivMmr":"0.8","eq":"100","marginRatio":"0.02","riskUnitData":[{"riskUnit":"BTC","portfolios":[]}],"positions":[{"instId":"BTC-USDT-SWAP","instType":"SWAP","amt":"1","posSide":"net","imr":"100","lever":"3","isRealPos":true}],"totalImr":"2.5","totalMmr":"1.5","ts":"1724751378980"}]}`,
 	}
 
 	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +92,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	var pmPositionLimitations []PMLimitationResponse
 	var convertCurrencies []ConvertCurrency
 	var quoteProducts []QuoteProduct
-	var unrealizedProfitSharing []ProfitSharingItem
+	var unrealisedProfitSharing []ProfitSharingItem
 	var accountRiskState []AccountRiskState
 	var signalBotEventHistory []SignalBotEventHistory
 	var accountPositions []AccountPosition
@@ -357,6 +357,11 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				return err
 			},
 			path: "/tradingBot/grid/sub-orders",
+			params: map[string]string{
+				"algoOrdType": "grid",
+				"algoId":      "12345",
+				"type":        "live",
+			},
 			verify: func(t *testing.T) {
 				t.Helper()
 				require.Len(t, gridSubOrders, 1, "the sub order row must decode")
@@ -366,6 +371,21 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, 12.5, gridSubOrders[0].ProfitAndLoss.Float64(), "the sub order PnL should decode")
 				assert.Equal(t, "USDT", gridSubOrders[0].Currency, "the documented ccy should decode")
 				assert.Equal(t, 0.01, gridSubOrders[0].Rebate.Float64(), "the documented rebate should decode")
+			},
+		},
+		{
+			name: "Filled grid sub orders request the documented state",
+			call: func() error {
+				var err error
+				gridSubOrders, err = e.GetGridAlgoSubOrders(t.Context(), AlgoOrdTypeGrid, "12345", "filled", "", "", "", 20)
+				return err
+			},
+			path: "/tradingBot/grid/sub-orders",
+			params: map[string]string{
+				"algoOrdType": "grid",
+				"algoId":      "12345",
+				"type":        "filled",
+				"limit":       "20",
 			},
 		},
 		{
@@ -442,17 +462,17 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			},
 		},
 		{
-			name: "Unrealized profit sharing decodes the unrealized amount",
+			name: "Unrealised profit sharing decodes the unrealised amount",
 			call: func() error {
 				var err error
-				unrealizedProfitSharing, err = e.GetUnrealizedProfitSharingDetails(t.Context(), "SWAP")
+				unrealisedProfitSharing, err = e.GetUnrealizedProfitSharingDetails(t.Context(), "SWAP")
 				return err
 			},
 			path: "/copytrading/unrealized-profit-sharing-details",
 			verify: func(t *testing.T) {
 				t.Helper()
-				require.Len(t, unrealizedProfitSharing, 1, "the profit sharing row must decode")
-				assert.Equal(t, 0.455472, unrealizedProfitSharing[0].UnrealizedProfitSharingAmount.Float64(), "the documented unrealizedProfitSharingAmt should decode")
+				require.Len(t, unrealisedProfitSharing, 1, "the profit sharing row must decode")
+				assert.Equal(t, 0.455472, unrealisedProfitSharing[0].UnrealisedProfitSharingAmount.Float64(), "the documented unrealizedProfitSharingAmt should decode")
 			},
 		},
 		{
@@ -530,6 +550,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "BTC-USDT", gridAlgoDetails.InstrumentFamily, "the documented instFamily should decode")
 				require.Len(t, gridAlgoDetails.TriggerParams, 1, "the grid trigger parameters must decode")
 				assert.Equal(t, "rsi", gridAlgoDetails.TriggerParams[0].TriggerStrategy, "the trigger strategy should decode")
+				assert.Equal(t, "cross_up", gridAlgoDetails.TriggerParams[0].TriggerCondition, "the trigger condition should decode")
 				assert.Equal(t, "30", gridAlgoDetails.TriggerParams[0].Threshold.String(), "the RSI threshold should decode")
 				assert.Equal(t, -0.2, gridAlgoDetails.Fee.Float64(), "the accumulated fee should decode")
 			},
@@ -631,6 +652,15 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "BTC-USDT-SWAP", positionBuilder.Positions[0].InstrumentID, "the position instrument should decode")
 				assert.Equal(t, 1.0, positionBuilder.Positions[0].Amount.Float64(), "the position amount should decode")
 				assert.Equal(t, 0.5, positionBuilder.AccountLeverage.Float64(), "the documented acctLever should decode")
+				assert.Equal(t, 1.2, positionBuilder.BorrowMMR.Float64(), "the documented borrowMmr should decode")
+				assert.Equal(t, 0.8, positionBuilder.DerivativesMMR.Float64(), "the documented derivMmr should decode")
+				assert.Equal(t, 100.0, positionBuilder.Equity.Float64(), "the documented eq should decode")
+				assert.Equal(t, 0.02, positionBuilder.MarginRatio.Float64(), "the documented marginRatio should decode")
+				assert.Equal(t, 2.5, positionBuilder.TotalIMR.Float64(), "the documented totalImr should decode")
+				assert.Equal(t, 1.5, positionBuilder.TotalMMR.Float64(), "the documented totalMmr should decode")
+				require.Len(t, positionBuilder.Assets, 1, "the documented asset row must decode")
+				assert.Equal(t, "USDT", positionBuilder.Assets[0].Currency, "the asset currency should decode")
+				assert.Equal(t, 5.0, positionBuilder.Assets[0].SpotInUse.Float64(), "the documented spotInUse should decode")
 			},
 		},
 	} {
