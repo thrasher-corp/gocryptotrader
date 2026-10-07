@@ -1,0 +1,2248 @@
+{
+ "avgPrice": [
+  {
+   "params": {
+    "symbol": "BTCUSDT"
+   },
+   "result": {
+    "mins": 5,
+    "price": "86109.15045074",
+    "closeTime": 1791285061000
+   }
+  },
+  {
+   "params": {
+    "symbol": "BTCXYZ"
+   },
+   "status": 400,
+   "error": {
+    "code": -1121,
+    "msg": "Invalid symbol."
+   }
+  }
+ ],
+ "depth": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "limit": 5,
+    "symbolStatus": "TRADING"
+   },
+   "result": {
+    "lastUpdateId": 101096753973,
+    "bids": [
+     [
+      "86093.16000000",
+      "8.48144000"
+     ],
+     [
+      "86093.15000000",
+      "0.05048000"
+     ]
+    ],
+    "asks": [
+     [
+      "86093.17000000",
+      "5.32099000"
+     ],
+     [
+      "86093.18000000",
+      "0.00054000"
+     ]
+    ]
+   }
+  }
+ ],
+ "klines": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "interval": "1m",
+    "startTime": 1744103854944,
+    "endTime": 1744190254944,
+    "timeZone": "8",
+    "limit": 2
+   },
+   "result": [
+    [
+     1791284940000,
+     "86118.01000000",
+     "86118.01000000",
+     "86084.76000000",
+     "86098.49000000",
+     "14.53391000",
+     1791284999999,
+     "1251305.66945500",
+     2848,
+     "4.42658000",
+     "381118.68514400",
+     "0"
+    ],
+    [
+     1791285000000,
+     "86098.48000000",
+     "86098.49000000",
+     "86070.01000000",
+     "86093.17000000",
+     "13.57808000",
+     1791285059999,
+     "1168830.89434790",
+     3152,
+     "5.04355000",
+     "434161.58328130",
+     "0"
+    ]
+   ]
+  }
+ ],
+ "ticker": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "windowSize": "2h",
+    "type": "FULL",
+    "symbolStatus": "TRADING"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "priceChange": "210.34000000",
+    "priceChangePercent": "0.245",
+    "weightedAvgPrice": "86041.38259542",
+    "openPrice": "85889.67000000",
+    "highPrice": "86265.09000000",
+    "lowPrice": "85658.62000000",
+    "lastPrice": "86100.01000000",
+    "volume": "1221.06591000",
+    "quoteVolume": "105062199.13653560",
+    "openTime": 1791277860000,
+    "closeTime": 1791285063602,
+    "firstId": 6739161210,
+    "lastId": 6739450922,
+    "count": 289713
+   }
+  },
+  {
+   "params": {
+    "symbols": [
+     "BTCUSDT",
+     "ETHUSDT"
+    ],
+    "windowSize": "7d",
+    "type": "MINI"
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "openPrice": "85947.99000000",
+     "highPrice": "86725.12000000",
+     "lowPrice": "84972.01000000",
+     "lastPrice": "86094.01000000",
+     "volume": "13645.33234000",
+     "quoteVolume": "1170071732.12920030",
+     "openTime": 1791198662013,
+     "closeTime": 1791285062013,
+     "firstId": 6736717503,
+     "lastId": 6739450767,
+     "count": 2733265
+    },
+    {
+     "symbol": "ETHUSDT",
+     "openPrice": "2712.11000000",
+     "highPrice": "2730.28000000",
+     "lowPrice": "2679.63000000",
+     "lastPrice": "2711.38000000",
+     "volume": "239685.61080000",
+     "quoteVolume": "648261288.86365800",
+     "openTime": 1791198662014,
+     "closeTime": 1791285062014,
+     "firstId": 4408738807,
+     "lastId": 4410802281,
+     "count": 2063475
+    }
+   ]
+  }
+ ],
+ "ticker.24hr": [
+  {
+   "params": {
+    "symbol": "BTCUSDT"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "priceChange": "145.17000000",
+    "priceChangePercent": "0.169",
+    "weightedAvgPrice": "85748.86241297",
+    "prevClosePrice": "85948.00000000",
+    "lastPrice": "86093.17000000",
+    "lastQty": "0.00244000",
+    "bidPrice": "86093.16000000",
+    "bidQty": "8.02942000",
+    "askPrice": "86093.17000000",
+    "askQty": "4.80023000",
+    "openPrice": "85948.00000000",
+    "highPrice": "86725.12000000",
+    "lowPrice": "84972.01000000",
+    "volume": "13645.31431000",
+    "quoteVolume": "1170070179.34990820",
+    "openTime": 1791198661005,
+    "closeTime": 1791285061005,
+    "firstId": 6736717502,
+    "lastId": 6739450706,
+    "count": 2733205
+   }
+  },
+  {
+   "params": {
+    "symbols": [
+     "BTCUSDT",
+     "ETHUSDT"
+    ],
+    "type": "MINI",
+    "symbolStatus": "TRADING"
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "openPrice": "85947.99000000",
+     "highPrice": "86725.12000000",
+     "lowPrice": "84972.01000000",
+     "lastPrice": "86094.01000000",
+     "volume": "13645.33234000",
+     "quoteVolume": "1170071732.12920030",
+     "openTime": 1791198662013,
+     "closeTime": 1791285062013,
+     "firstId": 6736717503,
+     "lastId": 6739450767,
+     "count": 2733265
+    },
+    {
+     "symbol": "ETHUSDT",
+     "openPrice": "2712.11000000",
+     "highPrice": "2730.28000000",
+     "lowPrice": "2679.63000000",
+     "lastPrice": "2711.38000000",
+     "volume": "239685.61080000",
+     "quoteVolume": "648261288.86365800",
+     "openTime": 1791198662014,
+     "closeTime": 1791285062014,
+     "firstId": 4408738807,
+     "lastId": 4410802281,
+     "count": 2063475
+    }
+   ]
+  },
+  {
+   "params": {},
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "priceChange": "145.17000000",
+     "priceChangePercent": "0.169",
+     "weightedAvgPrice": "85748.86241297",
+     "prevClosePrice": "85948.00000000",
+     "lastPrice": "86093.17000000",
+     "lastQty": "0.00244000",
+     "bidPrice": "86093.16000000",
+     "bidQty": "8.02942000",
+     "askPrice": "86093.17000000",
+     "askQty": "4.80023000",
+     "openPrice": "85948.00000000",
+     "highPrice": "86725.12000000",
+     "lowPrice": "84972.01000000",
+     "volume": "13645.31431000",
+     "quoteVolume": "1170070179.34990820",
+     "openTime": 1791198661005,
+     "closeTime": 1791285061005,
+     "firstId": 6736717502,
+     "lastId": 6739450706,
+     "count": 2733205
+    }
+   ]
+  }
+ ],
+ "ticker.book": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "symbolStatus": "TRADING"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "bidPrice": "86102.00000000",
+    "bidQty": "11.56871000",
+    "askPrice": "86102.01000000",
+    "askQty": "0.08287000"
+   }
+  },
+  {
+   "params": {
+    "symbols": [
+     "BTCUSDT",
+     "ETHUSDT"
+    ]
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "bidPrice": "86102.00000000",
+     "bidQty": "11.56824000",
+     "askPrice": "86102.01000000",
+     "askQty": "0.06961000"
+    },
+    {
+     "symbol": "ETHUSDT",
+     "bidPrice": "2711.38000000",
+     "bidQty": "55.02200000",
+     "askPrice": "2711.39000000",
+     "askQty": "6.62520000"
+    }
+   ]
+  }
+ ],
+ "ticker.price": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "symbolStatus": "TRADING"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "price": "86100.06000000"
+   }
+  },
+  {
+   "params": {
+    "symbols": [
+     "BTCUSDT",
+     "ETHUSDT"
+    ]
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "price": "86102.00000000"
+    },
+    {
+     "symbol": "ETHUSDT",
+     "price": "2711.38000000"
+    }
+   ]
+  }
+ ],
+ "ticker.tradingDay": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "timeZone": "8",
+    "type": "FULL",
+    "symbolStatus": "TRADING"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "priceChange": "830.22000000",
+    "priceChangePercent": "0.974",
+    "weightedAvgPrice": "85673.12716271",
+    "openPrice": "85269.79000000",
+    "highPrice": "86265.09000000",
+    "lowPrice": "84972.01000000",
+    "lastPrice": "86100.01000000",
+    "volume": "8829.86551000",
+    "quoteVolume": "756482190.66786010",
+    "openTime": 1791216000000,
+    "closeTime": 1791302399999,
+    "firstId": 6737691985,
+    "lastId": 6739450918,
+    "count": 1758934
+   }
+  },
+  {
+   "params": {
+    "symbols": [
+     "BTCUSDT",
+     "ETHUSDT"
+    ]
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "priceChange": "830.22000000",
+     "priceChangePercent": "0.974",
+     "weightedAvgPrice": "85673.12716271",
+     "openPrice": "85269.79000000",
+     "highPrice": "86265.09000000",
+     "lowPrice": "84972.01000000",
+     "lastPrice": "86100.01000000",
+     "volume": "8829.86551000",
+     "quoteVolume": "756482190.66786010",
+     "openTime": 1791216000000,
+     "closeTime": 1791302399999,
+     "firstId": 6737691985,
+     "lastId": 6739450918,
+     "count": 1758934
+    },
+    {
+     "symbol": "ETHUSDT",
+     "priceChange": "14.15000000",
+     "priceChangePercent": "0.525",
+     "weightedAvgPrice": "2703.21701481",
+     "openPrice": "2697.23000000",
+     "highPrice": "2723.56000000",
+     "lowPrice": "2679.63000000",
+     "lastPrice": "2711.38000000",
+     "volume": "199781.89670000",
+     "quoteVolume": "540053822.41055500",
+     "openTime": 1791216000000,
+     "closeTime": 1791302399999,
+     "firstId": 4409421081,
+     "lastId": 4410802281,
+     "count": 1381201
+    }
+   ]
+  }
+ ],
+ "trades.aggregate": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "fromId": 4081866525,
+    "limit": 2
+   },
+   "result": [
+    {
+     "a": 4081866525,
+     "p": "86093.17000000",
+     "q": "0.00093000",
+     "f": 6739450693,
+     "l": 6739450693,
+     "T": 1791285059210,
+     "m": true,
+     "M": true
+    },
+    {
+     "a": 4081866526,
+     "p": "86093.17000000",
+     "q": "0.00172000",
+     "f": 6739450694,
+     "l": 6739450695,
+     "T": 1791285059367,
+     "m": false,
+     "M": true
+    }
+   ]
+  },
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "startTime": 1744103854944,
+    "endTime": 1744190254944,
+    "limit": 1000
+   },
+   "result": [
+    {
+     "a": 4081866525,
+     "p": "86093.17000000",
+     "q": "0.00093000",
+     "f": 6739450693,
+     "l": 6739450693,
+     "T": 1791285059210,
+     "m": true,
+     "M": true
+    }
+   ]
+  }
+ ],
+ "trades.recent": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "limit": 2
+   },
+   "result": [
+    {
+     "id": 6739450691,
+     "price": "86093.16000000",
+     "qty": "0.07490000",
+     "quoteQty": "6448.37768400",
+     "time": 1791285058636,
+     "isBuyerMaker": true,
+     "isBestMatch": true
+    },
+    {
+     "id": 6739450692,
+     "price": "86093.16000000",
+     "qty": "0.00169000",
+     "quoteQty": "145.49744040",
+     "time": 1791285058687,
+     "isBuyerMaker": false,
+     "isBestMatch": true
+    }
+   ]
+  }
+ ],
+ "uiKlines": [
+  {
+   "params": {
+    "symbol": "BTCUSDT",
+    "interval": "1d",
+    "limit": 2
+   },
+   "result": [
+    [
+     1791284940000,
+     "86118.01000000",
+     "86118.01000000",
+     "86084.76000000",
+     "86098.49000000",
+     "14.53391000",
+     1791284999999,
+     "1251305.66945500",
+     2848,
+     "4.42658000",
+     "381118.68514400",
+     "0"
+    ],
+    [
+     1791285000000,
+     "86098.48000000",
+     "86098.49000000",
+     "86070.01000000",
+     "86093.17000000",
+     "13.57808000",
+     1791285059999,
+     "1168830.89434790",
+     3152,
+     "5.04355000",
+     "434161.58328130",
+     "0"
+    ]
+   ]
+  }
+ ],
+ "session.logout": [
+  {
+   "params": null,
+   "result": {
+    "apiKey": null,
+    "authorizedSince": null,
+    "connectedSince": 1649729873021,
+    "returnRateLimits": false,
+    "serverTime": 1649730611671,
+    "userDataStream": false
+   }
+  }
+ ],
+ "session.status": [
+  {
+   "params": null,
+   "result": {
+    "apiKey": "mock-api-key",
+    "authorizedSince": 1649729878532,
+    "connectedSince": 1649729873021,
+    "returnRateLimits": true,
+    "serverTime": 1649730611671,
+    "userDataStream": true
+   }
+  }
+ ],
+ "openOrders.cancelAll": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT"
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "origClientOrderId": "4d96324ff9d44481926157",
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "clientOrderId": "91fe37ce9e69c90d6358c0",
+     "transactTime": 1684804350068,
+     "price": "23416.10000000",
+     "origQty": "0.00847000",
+     "executedQty": "0.00001000",
+     "origQuoteOrderQty": "198.33521500",
+     "cummulativeQuoteQty": "0.23416100",
+     "status": "CANCELED",
+     "timeInForce": "GTC",
+     "type": "STOP_LOSS_LIMIT",
+     "side": "SELL",
+     "stopPrice": "23400.00000000",
+     "trailingDelta": 10,
+     "trailingTime": 1684804350001,
+     "icebergQty": "0.00100000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "selfTradePreventionMode": "EXPIRE_MAKER",
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "usedSor": true,
+     "workingFloor": "SOR",
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "23416.10000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    },
+    {
+     "orderListId": 19431,
+     "contingencyType": "OCO",
+     "listStatusType": "ALL_DONE",
+     "listOrderStatus": "ALL_DONE",
+     "listClientOrderId": "iuVNVJYYrByz6C4yGOPPK0",
+     "transactionTime": 1660803702431,
+     "symbol": "BTCUSDT",
+     "orders": [
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569099453,
+       "clientOrderId": "bX5wROblo6YeDwa9iTLeyY"
+      },
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569099454,
+       "clientOrderId": "Tnu2IP0J5Y4mxw3IATBfmW"
+      }
+     ],
+     "orderReports": [
+      {
+       "symbol": "BTCUSDT",
+       "origClientOrderId": "bX5wROblo6YeDwa9iTLeyY",
+       "orderId": 12569099453,
+       "orderListId": 19431,
+       "clientOrderId": "OFFXQtxVFZ6Nbcg4PgE2DA",
+       "transactTime": 1684804350068,
+       "price": "23450.50000000",
+       "origQty": "0.00850000",
+       "executedQty": "0.00000000",
+       "origQuoteOrderQty": "0.000000",
+       "cummulativeQuoteQty": "0.00000000",
+       "status": "CANCELED",
+       "timeInForce": "GTC",
+       "type": "STOP_LOSS_LIMIT",
+       "side": "BUY",
+       "stopPrice": "23430.00000000",
+       "selfTradePreventionMode": "NONE"
+      },
+      {
+       "symbol": "BTCUSDT",
+       "origClientOrderId": "Tnu2IP0J5Y4mxw3IATBfmW",
+       "orderId": 12569099454,
+       "orderListId": 19431,
+       "clientOrderId": "OFFXQtxVFZ6Nbcg4PgE2DA",
+       "transactTime": 1684804350068,
+       "price": "23400.00000000",
+       "origQty": "0.00850000",
+       "executedQty": "0.00000000",
+       "origQuoteOrderQty": "0.000000",
+       "cummulativeQuoteQty": "0.00000000",
+       "status": "CANCELED",
+       "timeInForce": "GTC",
+       "type": "LIMIT_MAKER",
+       "side": "BUY",
+       "selfTradePreventionMode": "NONE"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "order.cancel": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099453,
+    "origClientOrderId": "4d96324ff9d44481926157",
+    "newClientOrderId": "91fe37ce9e69c90d6358c0",
+    "cancelRestrictions": "ONLY_NEW"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "origClientOrderId": "4d96324ff9d44481926157",
+    "orderId": 12569099453,
+    "orderListId": -1,
+    "clientOrderId": "91fe37ce9e69c90d6358c0",
+    "transactTime": 1684804350068,
+    "price": "23416.10000000",
+    "origQty": "0.00847000",
+    "executedQty": "0.00001000",
+    "origQuoteOrderQty": "198.33521500",
+    "cummulativeQuoteQty": "0.23416100",
+    "status": "CANCELED",
+    "timeInForce": "GTC",
+    "type": "STOP_LOSS_LIMIT",
+    "side": "SELL",
+    "stopPrice": "23400.00000000",
+    "trailingDelta": 10,
+    "trailingTime": 1684804350001,
+    "icebergQty": "0.00100000",
+    "strategyId": 37463720,
+    "strategyType": 1000000,
+    "selfTradePreventionMode": "EXPIRE_MAKER",
+    "preventedMatchId": 3,
+    "preventedQuantity": "1.20000000",
+    "usedSor": true,
+    "workingFloor": "SOR",
+    "pegPriceType": "PRIMARY_PEG",
+    "pegOffsetType": "PRICE_LEVEL",
+    "pegOffsetValue": 5,
+    "peggedPrice": "23416.10000000",
+    "expiryReason": "INSUFFICIENT_LIQUIDITY"
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099454
+   },
+   "result": {
+    "orderListId": 19431,
+    "contingencyType": "OCO",
+    "listStatusType": "ALL_DONE",
+    "listOrderStatus": "ALL_DONE",
+    "listClientOrderId": "iuVNVJYYrByz6C4yGOPPK0",
+    "transactionTime": 1660803702431,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569099453,
+      "clientOrderId": "bX5wROblo6YeDwa9iTLeyY"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569099454,
+      "clientOrderId": "Tnu2IP0J5Y4mxw3IATBfmW"
+     }
+    ],
+    "orderReports": [
+     {
+      "symbol": "BTCUSDT",
+      "origClientOrderId": "bX5wROblo6YeDwa9iTLeyY",
+      "orderId": 12569099453,
+      "orderListId": 19431,
+      "clientOrderId": "OFFXQtxVFZ6Nbcg4PgE2DA",
+      "transactTime": 1684804350068,
+      "price": "23450.50000000",
+      "origQty": "0.00850000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "CANCELED",
+      "timeInForce": "GTC",
+      "type": "STOP_LOSS_LIMIT",
+      "side": "BUY",
+      "stopPrice": "23430.00000000",
+      "selfTradePreventionMode": "NONE"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "origClientOrderId": "Tnu2IP0J5Y4mxw3IATBfmW",
+      "orderId": 12569099454,
+      "orderListId": 19431,
+      "clientOrderId": "OFFXQtxVFZ6Nbcg4PgE2DA",
+      "transactTime": 1684804350068,
+      "price": "23400.00000000",
+      "origQty": "0.00850000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "CANCELED",
+      "timeInForce": "GTC",
+      "type": "LIMIT_MAKER",
+      "side": "BUY",
+      "selfTradePreventionMode": "NONE"
+     }
+    ]
+   }
+  }
+ ],
+ "order.cancelReplace": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "cancelReplaceMode": "ALLOW_FAILURE",
+    "cancelOrderId": 125690984230,
+    "cancelOrigClientOrderId": "4d96324ff9d44481926157",
+    "cancelNewClientOrderId": "91fe37ce9e69c90d6358c0",
+    "side": "SELL",
+    "type": "STOP_LOSS_LIMIT",
+    "timeInForce": "GTC",
+    "price": "23416.1",
+    "quantity": "0.00847",
+    "quoteOrderQty": "198.335215",
+    "newClientOrderId": "bX5wROblo6YeDwa9iTLeyY",
+    "newOrderRespType": "FULL",
+    "stopPrice": "23400",
+    "trailingDelta": 10,
+    "icebergQty": "0.001",
+    "strategyId": 37463720,
+    "strategyType": 1000000,
+    "selfTradePreventionMode": "EXPIRE_MAKER",
+    "cancelRestrictions": "ONLY_NEW",
+    "orderRateLimitExceededMode": "CANCEL_ONLY",
+    "pegPriceType": "PRIMARY_PEG",
+    "pegOffsetValue": 5,
+    "pegOffsetType": "PRICE_LEVEL"
+   },
+   "result": {
+    "cancelResult": "SUCCESS",
+    "newOrderResult": "SUCCESS",
+    "cancelResponse": {
+     "symbol": "BTCUSDT",
+     "origClientOrderId": "4d96324ff9d44481926157",
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "clientOrderId": "91fe37ce9e69c90d6358c0",
+     "transactTime": 1684804350068,
+     "price": "23416.10000000",
+     "origQty": "0.00847000",
+     "executedQty": "0.00001000",
+     "origQuoteOrderQty": "198.33521500",
+     "cummulativeQuoteQty": "0.23416100",
+     "status": "CANCELED",
+     "timeInForce": "GTC",
+     "type": "STOP_LOSS_LIMIT",
+     "side": "SELL",
+     "stopPrice": "23400.00000000",
+     "trailingDelta": 10,
+     "trailingTime": 1684804350001,
+     "icebergQty": "0.00100000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "selfTradePreventionMode": "EXPIRE_MAKER",
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "usedSor": true,
+     "workingFloor": "SOR",
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "23416.10000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    },
+    "newOrderResponse": {
+     "symbol": "BTCUSDT",
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "clientOrderId": "4d96324ff9d44481926157ec08158a40",
+     "transactTime": 1660801715793,
+     "price": "23416.10000000",
+     "origQty": "0.00847000",
+     "executedQty": "0.00847000",
+     "origQuoteOrderQty": "198.33521500",
+     "cummulativeQuoteQty": "198.33521500",
+     "status": "FILLED",
+     "timeInForce": "GTC",
+     "type": "LIMIT",
+     "side": "SELL",
+     "workingTime": 1660801715793,
+     "selfTradePreventionMode": "EXPIRE_MAKER",
+     "fills": [
+      {
+       "price": "23416.10000000",
+       "qty": "0.00635000",
+       "commission": "0.00000110",
+       "commissionAsset": "BNB",
+       "tradeId": 1650422481
+      },
+      {
+       "price": "23416.50000000",
+       "qty": "0.00212000",
+       "commission": "0.00000040",
+       "commissionAsset": "BNB",
+       "tradeId": 1650422482
+      }
+     ],
+     "icebergQty": "0.00100000",
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "stopPrice": "23400.00000000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "trailingDelta": 10,
+     "trailingTime": -1,
+     "usedSor": true,
+     "workingFloor": "EXCHANGE",
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "23416.10000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    }
+   }
+  }
+ ],
+ "orderList.cancel": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderListId": 1274512,
+    "listClientOrderId": "6023531d7edaad348f5aff",
+    "newClientOrderId": "tTHrs4n3dWgqWQ1mXFZrzQ"
+   },
+   "result": {
+    "orderListId": 1274512,
+    "contingencyType": "OCO",
+    "listStatusType": "ALL_DONE",
+    "listOrderStatus": "ALL_DONE",
+    "listClientOrderId": "6023531d7edaad348f5aff",
+    "transactionTime": 1660801720215,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138901,
+      "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138902,
+      "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+     }
+    ],
+    "orderReports": [
+     {
+      "symbol": "BTCUSDT",
+      "origClientOrderId": "BqtFCj5odMoWtSqGk2X9tU",
+      "orderId": 12569138901,
+      "orderListId": 1274512,
+      "clientOrderId": "tTHrs4n3dWgqWQ1mXFZrzQ",
+      "transactTime": 1660801720215,
+      "price": "23410.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "CANCELED",
+      "timeInForce": "GTC",
+      "type": "STOP_LOSS_LIMIT",
+      "side": "SELL",
+      "stopPrice": "23405.00000000",
+      "selfTradePreventionMode": "NONE"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "origClientOrderId": "jLnZpj5enfMXTuhKB1d0us",
+      "orderId": 12569138902,
+      "orderListId": 1274512,
+      "clientOrderId": "tTHrs4n3dWgqWQ1mXFZrzQ",
+      "transactTime": 1660801720215,
+      "price": "23420.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "CANCELED",
+      "timeInForce": "GTC",
+      "type": "LIMIT_MAKER",
+      "side": "SELL",
+      "selfTradePreventionMode": "NONE"
+     }
+    ]
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderListId": 1274514
+   },
+   "result": {
+    "orderListId": 1274514,
+    "contingencyType": "OCO",
+    "listStatusType": "ALL_DONE",
+    "listOrderStatus": "ALL_DONE",
+    "listClientOrderId": "gct-oco-order",
+    "transactionTime": 1711062761000,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138905,
+      "clientOrderId": "stop-gct-oco-order"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138906,
+      "clientOrderId": "limit-gct-oco-order"
+     }
+    ],
+    "orderReports": []
+   }
+  }
+ ],
+ "orderList.place": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "price": "23420",
+    "quantity": "0.0065",
+    "listClientOrderId": "08985fedd9ea2cf6b28996",
+    "limitClientOrderId": "jLnZpj5enfMXTuhKB1d0us",
+    "limitIcebergQty": "0.001",
+    "limitStrategyId": 1,
+    "limitStrategyType": 1000000,
+    "stopPrice": "23410",
+    "trailingDelta": 10,
+    "stopClientOrderId": "BqtFCj5odMoWtSqGk2X9tU",
+    "stopLimitPrice": "23405",
+    "stopLimitTimeInForce": "GTC",
+    "stopIcebergQty": "0.001",
+    "stopStrategyId": 2,
+    "stopStrategyType": 1000001,
+    "newOrderRespType": "RESULT",
+    "selfTradePreventionMode": "EXPIRE_TAKER"
+   },
+   "result": {
+    "orderListId": 1274512,
+    "contingencyType": "OCO",
+    "listStatusType": "EXEC_STARTED",
+    "listOrderStatus": "EXECUTING",
+    "listClientOrderId": "08985fedd9ea2cf6b28996",
+    "transactionTime": 1660801713793,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138901,
+      "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138902,
+      "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+     }
+    ],
+    "orderReports": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138901,
+      "orderListId": 1274512,
+      "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU",
+      "transactTime": 1660801713793,
+      "price": "23410.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "NEW",
+      "timeInForce": "GTC",
+      "type": "STOP_LOSS_LIMIT",
+      "side": "SELL",
+      "stopPrice": "23405.00000000",
+      "workingTime": -1,
+      "selfTradePreventionMode": "NONE"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138902,
+      "orderListId": 1274512,
+      "clientOrderId": "jLnZpj5enfMXTuhKB1d0us",
+      "transactTime": 1660801713793,
+      "price": "23420.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "NEW",
+      "timeInForce": "GTC",
+      "type": "LIMIT_MAKER",
+      "side": "SELL",
+      "workingTime": 1660801713793,
+      "selfTradePreventionMode": "NONE"
+     }
+    ]
+   }
+  }
+ ],
+ "orderList.place.oco": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "quantity": "0.0065",
+    "listClientOrderId": "08985fedd9ea2cf6b28996",
+    "aboveType": "TAKE_PROFIT_LIMIT",
+    "aboveClientOrderId": "jLnZpj5enfMXTuhKB1d0us",
+    "aboveIcebergQty": 1,
+    "abovePrice": "23500",
+    "aboveStopPrice": "23480",
+    "aboveTimeInForce": "GTC",
+    "aboveStrategyId": 1,
+    "aboveStrategyType": 1000000,
+    "abovePegPriceType": "PRIMARY_PEG",
+    "abovePegOffsetType": "PRICE_LEVEL",
+    "abovePegOffsetValue": 5,
+    "belowType": "STOP_LOSS",
+    "belowClientOrderId": "BqtFCj5odMoWtSqGk2X9tU",
+    "belowStopPrice": "23405",
+    "belowTrailingDelta": 10,
+    "belowStrategyId": 2,
+    "belowStrategyType": 1000001,
+    "newOrderRespType": "RESULT",
+    "selfTradePreventionMode": "EXPIRE_TAKER"
+   },
+   "result": {
+    "orderListId": 1274513,
+    "contingencyType": "OCO",
+    "listStatusType": "EXEC_STARTED",
+    "listOrderStatus": "EXECUTING",
+    "listClientOrderId": "08985fedd9ea2cf6b28996",
+    "transactionTime": 1711062760648,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138903,
+      "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138904,
+      "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+     }
+    ],
+    "orderReports": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138903,
+      "orderListId": 1274513,
+      "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU",
+      "transactTime": 1711062760648,
+      "price": "0.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "NEW",
+      "timeInForce": "GTC",
+      "type": "STOP_LOSS",
+      "side": "SELL",
+      "workingTime": -1,
+      "selfTradePreventionMode": "NONE",
+      "stopPrice": "23405.00000000",
+      "trailingDelta": 10,
+      "trailingTime": -1,
+      "strategyId": 2,
+      "strategyType": 1000001
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138904,
+      "orderListId": 1274513,
+      "clientOrderId": "jLnZpj5enfMXTuhKB1d0us",
+      "transactTime": 1711062760648,
+      "price": "23500.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "NEW",
+      "timeInForce": "GTC",
+      "type": "TAKE_PROFIT_LIMIT",
+      "side": "SELL",
+      "workingTime": -1,
+      "selfTradePreventionMode": "NONE",
+      "stopPrice": "23480.00000000",
+      "icebergQty": "0.00100000",
+      "strategyId": 1,
+      "strategyType": 1000000,
+      "pegPriceType": "PRIMARY_PEG",
+      "pegOffsetType": "PRICE_LEVEL",
+      "pegOffsetValue": 5,
+      "peggedPrice": "23500.00000000"
+     }
+    ]
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "quantity": "0.0065",
+    "listClientOrderId": "gct-oco-order",
+    "aboveType": "LIMIT_MAKER",
+    "abovePrice": "23420",
+    "belowType": "STOP_LOSS_LIMIT",
+    "belowPrice": "23405",
+    "belowStopPrice": "23410",
+    "belowTimeInForce": "GTC"
+   },
+   "result": {
+    "orderListId": 1274514,
+    "contingencyType": "OCO",
+    "listStatusType": "EXEC_STARTED",
+    "listOrderStatus": "EXECUTING",
+    "listClientOrderId": "gct-oco-order",
+    "transactionTime": 1711062760700,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138905,
+      "clientOrderId": "stop-gct-oco-order"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138906,
+      "clientOrderId": "limit-gct-oco-order"
+     }
+    ],
+    "orderReports": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138905,
+      "orderListId": 1274514,
+      "clientOrderId": "stop-gct-oco-order",
+      "transactTime": 1711062760700,
+      "price": "23405.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "NEW",
+      "timeInForce": "GTC",
+      "type": "STOP_LOSS_LIMIT",
+      "side": "SELL",
+      "workingTime": -1,
+      "selfTradePreventionMode": "NONE",
+      "stopPrice": "23410.00000000"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138906,
+      "orderListId": 1274514,
+      "clientOrderId": "limit-gct-oco-order",
+      "transactTime": 1711062760700,
+      "price": "23420.00000000",
+      "origQty": "0.00650000",
+      "executedQty": "0.00000000",
+      "origQuoteOrderQty": "0.000000",
+      "cummulativeQuoteQty": "0.00000000",
+      "status": "NEW",
+      "timeInForce": "GTC",
+      "type": "LIMIT_MAKER",
+      "side": "SELL",
+      "workingTime": 1711062760700,
+      "selfTradePreventionMode": "NONE"
+     }
+    ]
+   }
+  }
+ ],
+ "order.place": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "type": "LIMIT",
+    "timeInForce": "GTC",
+    "price": "23416.1",
+    "quantity": "0.00847",
+    "newClientOrderId": "4d96324ff9d44481926157ec08158a40",
+    "newOrderRespType": "FULL",
+    "icebergQty": "0.001",
+    "strategyId": 37463720,
+    "strategyType": 1000000,
+    "selfTradePreventionMode": "EXPIRE_MAKER",
+    "pegPriceType": "PRIMARY_PEG",
+    "pegOffsetValue": 5,
+    "pegOffsetType": "PRICE_LEVEL"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099453,
+    "orderListId": -1,
+    "clientOrderId": "4d96324ff9d44481926157ec08158a40",
+    "transactTime": 1660801715793,
+    "price": "23416.10000000",
+    "origQty": "0.00847000",
+    "executedQty": "0.00847000",
+    "origQuoteOrderQty": "198.33521500",
+    "cummulativeQuoteQty": "198.33521500",
+    "status": "FILLED",
+    "timeInForce": "GTC",
+    "type": "LIMIT",
+    "side": "SELL",
+    "workingTime": 1660801715793,
+    "selfTradePreventionMode": "EXPIRE_MAKER",
+    "fills": [
+     {
+      "price": "23416.10000000",
+      "qty": "0.00635000",
+      "commission": "0.00000110",
+      "commissionAsset": "BNB",
+      "tradeId": 1650422481
+     },
+     {
+      "price": "23416.50000000",
+      "qty": "0.00212000",
+      "commission": "0.00000040",
+      "commissionAsset": "BNB",
+      "tradeId": 1650422482
+     }
+    ],
+    "icebergQty": "0.00100000",
+    "preventedMatchId": 3,
+    "preventedQuantity": "1.20000000",
+    "stopPrice": "23400.00000000",
+    "strategyId": 37463720,
+    "strategyType": 1000000,
+    "trailingDelta": 10,
+    "trailingTime": -1,
+    "usedSor": true,
+    "workingFloor": "EXCHANGE",
+    "pegPriceType": "PRIMARY_PEG",
+    "pegOffsetType": "PRICE_LEVEL",
+    "pegOffsetValue": 5,
+    "peggedPrice": "23416.10000000",
+    "expiryReason": "INSUFFICIENT_LIQUIDITY"
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "STOP_LOSS",
+    "quantity": "0.00847",
+    "stopPrice": "23400",
+    "trailingDelta": 10,
+    "newOrderRespType": "ACK"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099455,
+    "orderListId": -1,
+    "clientOrderId": "x4hXc0n8Fs3UXwQnFxIjGq",
+    "transactTime": 1660801715639
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "MARKET",
+    "quoteOrderQty": "100"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099456,
+    "orderListId": -1,
+    "clientOrderId": "a097fe6304b20a7e4fc436",
+    "transactTime": 1660801715639
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "MARKET",
+    "quantity": "0.001",
+    "newClientOrderId": "gct-market-order",
+    "newOrderRespType": "FULL"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099460,
+    "orderListId": -1,
+    "clientOrderId": "gct-market-order",
+    "transactTime": 1660801715700,
+    "price": "0.00000000",
+    "origQty": "0.00100000",
+    "executedQty": "0.00100000",
+    "origQuoteOrderQty": "0.000000",
+    "cummulativeQuoteQty": "23.41610000",
+    "status": "FILLED",
+    "timeInForce": "GTC",
+    "type": "MARKET",
+    "side": "BUY",
+    "workingTime": 1660801715700,
+    "fills": [
+     {
+      "price": "23416.10000000",
+      "qty": "0.00100000",
+      "commission": "0.00000100",
+      "commissionAsset": "BTC",
+      "tradeId": 1650422490
+     }
+    ],
+    "selfTradePreventionMode": "NONE"
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "type": "STOP_LOSS_LIMIT",
+    "timeInForce": "GTC",
+    "price": "23416.1",
+    "quantity": "0.00847",
+    "newClientOrderId": "gct-stop-limit-order",
+    "stopPrice": "23400",
+    "newOrderRespType": "FULL"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099461,
+    "orderListId": -1,
+    "clientOrderId": "gct-stop-limit-order",
+    "transactTime": 1660801715800,
+    "price": "23416.10000000",
+    "origQty": "0.00847000",
+    "executedQty": "0.00000000",
+    "origQuoteOrderQty": "0.000000",
+    "cummulativeQuoteQty": "0.00000000",
+    "status": "NEW",
+    "timeInForce": "GTC",
+    "type": "STOP_LOSS_LIMIT",
+    "side": "SELL",
+    "workingTime": -1,
+    "fills": [],
+    "selfTradePreventionMode": "NONE",
+    "stopPrice": "23400.00000000"
+   }
+  }
+ ],
+ "order.test": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "type": "LIMIT",
+    "timeInForce": "GTC",
+    "price": "23416.1",
+    "quantity": "0.00847"
+   },
+   "result": {}
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "type": "LIMIT",
+    "timeInForce": "GTC",
+    "price": "23416.1",
+    "quantity": "0.00847",
+    "computeCommissionRates": true
+   },
+   "result": {
+    "standardCommissionForOrder": {
+     "maker": "0.00000112",
+     "taker": "0.00000114"
+    },
+    "specialCommissionForOrder": {
+     "maker": "0.05000000",
+     "taker": "0.06000000"
+    },
+    "taxCommissionForOrder": {
+     "maker": "0.00000112",
+     "taker": "0.00000114"
+    },
+    "discount": {
+     "enabledForAccount": true,
+     "enabledForSymbol": true,
+     "discountAsset": "BNB",
+     "discount": "0.25000000"
+    }
+   }
+  }
+ ],
+ "sor.order.place": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "LIMIT",
+    "timeInForce": "GTC",
+    "price": "31000",
+    "quantity": "0.5",
+    "newClientOrderId": "sBI1KM6nNtOfj5tccZSKly",
+    "newOrderRespType": "FULL",
+    "icebergQty": "0.1",
+    "strategyId": 37463720,
+    "strategyType": 1000000,
+    "selfTradePreventionMode": "EXPIRE_MAKER"
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "orderId": 2,
+     "orderListId": -1,
+     "clientOrderId": "sBI1KM6nNtOfj5tccZSKly",
+     "transactTime": 1689149087774,
+     "price": "31000.00000000",
+     "origQty": "0.50000000",
+     "executedQty": "0.50000000",
+     "origQuoteOrderQty": "15500.00000000",
+     "cummulativeQuoteQty": "14000.00000000",
+     "status": "FILLED",
+     "timeInForce": "GTC",
+     "type": "LIMIT",
+     "side": "BUY",
+     "workingTime": 1689149087774,
+     "fills": [
+      {
+       "matchType": "ONE_PARTY_TRADE_REPORT",
+       "price": "28000.00000000",
+       "qty": "0.50000000",
+       "commission": "0.00010000",
+       "commissionAsset": "BTC",
+       "tradeId": -1,
+       "allocId": 7
+      }
+     ],
+     "workingFloor": "SOR",
+     "selfTradePreventionMode": "EXPIRE_MAKER",
+     "usedSor": true,
+     "stopPrice": "30900.00000000",
+     "trailingDelta": 10,
+     "icebergQty": "0.10000000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "trailingTime": -1,
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "31000.00000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    }
+   ]
+  }
+ ],
+ "sor.order.test": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "MARKET",
+    "quantity": "0.5"
+   },
+   "result": {}
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "MARKET",
+    "quantity": "0.5",
+    "computeCommissionRates": true
+   },
+   "result": {
+    "standardCommissionForOrder": {
+     "maker": "0.00000112",
+     "taker": "0.00000114"
+    },
+    "taxCommissionForOrder": {
+     "maker": "0.00000112",
+     "taker": "0.00000114"
+    },
+    "discount": {
+     "enabledForAccount": true,
+     "enabledForSymbol": true,
+     "discountAsset": "BNB",
+     "discount": "0.25000000"
+    }
+   }
+  }
+ ],
+ "account.commission": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "standardCommission": {
+     "maker": "0.00000010",
+     "taker": "0.00000020",
+     "buyer": "0.00000030",
+     "seller": "0.00000040"
+    },
+    "specialCommission": {
+     "maker": "0.01000000",
+     "taker": "0.02000000",
+     "buyer": "0.03000000",
+     "seller": "0.04000000"
+    },
+    "taxCommission": {
+     "maker": "0.00000112",
+     "taker": "0.00000114",
+     "buyer": "0.00000118",
+     "seller": "0.00000116"
+    },
+    "discount": {
+     "enabledForAccount": true,
+     "enabledForSymbol": true,
+     "discountAsset": "BNB",
+     "discount": "0.75000000"
+    }
+   }
+  }
+ ],
+ "account.rateLimits.orders": [
+  {
+   "signed": true,
+   "params": {},
+   "result": [
+    {
+     "rateLimitType": "ORDERS",
+     "interval": "SECOND",
+     "intervalNum": 10,
+     "limit": 50,
+     "count": 3
+    },
+    {
+     "rateLimitType": "ORDERS",
+     "interval": "DAY",
+     "intervalNum": 1,
+     "limit": 160000,
+     "count": 4043
+    }
+   ]
+  }
+ ],
+ "account.status": [
+  {
+   "signed": true,
+   "params": {
+    "omitZeroBalances": true
+   },
+   "result": {
+    "makerCommission": 15,
+    "takerCommission": 15,
+    "buyerCommission": 1,
+    "sellerCommission": 2,
+    "commissionRates": {
+     "maker": "0.00150000",
+     "taker": "0.00150000",
+     "buyer": "0.00010000",
+     "seller": "0.00020000"
+    },
+    "canTrade": true,
+    "canWithdraw": true,
+    "canDeposit": true,
+    "brokered": true,
+    "requireSelfTradePrevention": true,
+    "preventSor": true,
+    "updateTime": 1660801833000,
+    "accountType": "SPOT",
+    "balances": [
+     {
+      "asset": "BNB",
+      "free": "0.00000000",
+      "locked": "0.00000000"
+     },
+     {
+      "asset": "BTC",
+      "free": "1.32800000",
+      "locked": "0.04100000"
+     }
+    ],
+    "permissions": [
+     "SPOT"
+    ],
+    "uid": 354937868
+   }
+  }
+ ],
+ "allOrderLists": [
+  {
+   "signed": true,
+   "params": {
+    "startTime": 1744103854944,
+    "endTime": 1744190254944,
+    "limit": 2
+   },
+   "result": [
+    {
+     "orderListId": 1274512,
+     "contingencyType": "OCO",
+     "listStatusType": "EXEC_STARTED",
+     "listOrderStatus": "EXECUTING",
+     "listClientOrderId": "08985fedd9ea2cf6b28996",
+     "transactionTime": 1660801713793,
+     "symbol": "BTCUSDT",
+     "orders": [
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569138901,
+       "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+      },
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569138902,
+       "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "signed": true,
+   "params": {
+    "fromId": 1274512
+   },
+   "result": [
+    {
+     "orderListId": 1274512,
+     "contingencyType": "OCO",
+     "listStatusType": "EXEC_STARTED",
+     "listOrderStatus": "EXECUTING",
+     "listClientOrderId": "08985fedd9ea2cf6b28996",
+     "transactionTime": 1660801713793,
+     "symbol": "BTCUSDT",
+     "orders": [
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569138901,
+       "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+      },
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569138902,
+       "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "allOrders": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099453,
+    "limit": 2
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "clientOrderId": "4d96324ff9d44481926157",
+     "price": "23416.10000000",
+     "origQty": "0.00847000",
+     "executedQty": "0.00847000",
+     "cummulativeQuoteQty": "198.33521500",
+     "status": "FILLED",
+     "timeInForce": "GTC",
+     "type": "LIMIT",
+     "side": "SELL",
+     "stopPrice": "23400.00000000",
+     "icebergQty": "0.00100000",
+     "time": 1660801715639,
+     "updateTime": 1660801717945,
+     "isWorking": true,
+     "workingTime": 1660801715639,
+     "origQuoteOrderQty": "198.33521500",
+     "selfTradePreventionMode": "NONE",
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "trailingDelta": 10,
+     "trailingTime": -1,
+     "usedSor": true,
+     "workingFloor": "SOR",
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "23416.10000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    }
+   ]
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "startTime": 1744103854944,
+    "endTime": 1744190254944
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "clientOrderId": "4d96324ff9d44481926157",
+     "price": "23416.10000000",
+     "origQty": "0.00847000",
+     "executedQty": "0.00847000",
+     "cummulativeQuoteQty": "198.33521500",
+     "status": "FILLED",
+     "timeInForce": "GTC",
+     "type": "LIMIT",
+     "side": "SELL",
+     "stopPrice": "23400.00000000",
+     "icebergQty": "0.00100000",
+     "time": 1660801715639,
+     "updateTime": 1660801717945,
+     "isWorking": true,
+     "workingTime": 1660801715639,
+     "origQuoteOrderQty": "198.33521500",
+     "selfTradePreventionMode": "NONE",
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "trailingDelta": 10,
+     "trailingTime": -1,
+     "usedSor": true,
+     "workingFloor": "SOR",
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "23416.10000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    }
+   ]
+  }
+ ],
+ "myAllocations": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "startTime": 1744103854944,
+    "endTime": 1744190254944,
+    "limit": 2
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "allocationId": 1,
+     "allocationType": "SOR",
+     "orderId": 500,
+     "orderListId": -1,
+     "price": "1.00000000",
+     "qty": "0.10000000",
+     "quoteQty": "0.10000000",
+     "commission": "0.00000010",
+     "commissionAsset": "BTC",
+     "time": 1687319487614,
+     "isBuyer": true,
+     "isMaker": true,
+     "isAllocator": true
+    }
+   ]
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 500,
+    "fromAllocationId": 1
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "allocationId": 1,
+     "allocationType": "SOR",
+     "orderId": 500,
+     "orderListId": -1,
+     "price": "1.00000000",
+     "qty": "0.10000000",
+     "quoteQty": "0.10000000",
+     "commission": "0.00000010",
+     "commissionAsset": "BTC",
+     "time": 1687319487614,
+     "isBuyer": true,
+     "isMaker": true,
+     "isAllocator": true
+    }
+   ]
+  }
+ ],
+ "myPreventedMatches": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "preventedMatchId": 1
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "preventedMatchId": 1,
+     "takerOrderId": 5,
+     "makerSymbol": "BTCUSDT",
+     "makerOrderId": 3,
+     "tradeGroupId": 1,
+     "selfTradePreventionMode": "EXPIRE_MAKER",
+     "price": "1.100000",
+     "makerPreventedQuantity": "1.300000",
+     "transactTime": 1669101687094
+    }
+   ]
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 5,
+    "fromPreventedMatchId": 1,
+    "limit": 2
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "preventedMatchId": 1,
+     "takerOrderId": 5,
+     "makerSymbol": "BTCUSDT",
+     "makerOrderId": 3,
+     "tradeGroupId": 1,
+     "selfTradePreventionMode": "EXPIRE_MAKER",
+     "price": "1.100000",
+     "makerPreventedQuantity": "1.300000",
+     "transactTime": 1669101687094
+    }
+   ]
+  }
+ ],
+ "myTrades": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099453,
+    "limit": 2
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "id": 1650422481,
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "price": "23416.10000000",
+     "qty": "0.00635000",
+     "quoteQty": "148.69223500",
+     "commission": "0.00000110",
+     "commissionAsset": "BNB",
+     "time": 1660801715793,
+     "isBuyer": true,
+     "isMaker": true,
+     "isBestMatch": true
+    }
+   ]
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "fromId": 1650422481
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "id": 1650422481,
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "price": "23416.10000000",
+     "qty": "0.00635000",
+     "quoteQty": "148.69223500",
+     "commission": "0.00000110",
+     "commissionAsset": "BNB",
+     "time": 1660801715793,
+     "isBuyer": true,
+     "isMaker": true,
+     "isBestMatch": true
+    }
+   ]
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "startTime": 1744103854944,
+    "endTime": 1744190254944
+   },
+   "result": []
+  }
+ ],
+ "openOrderLists.status": [
+  {
+   "signed": true,
+   "params": {},
+   "result": [
+    {
+     "orderListId": 1274512,
+     "contingencyType": "OCO",
+     "listStatusType": "EXEC_STARTED",
+     "listOrderStatus": "EXECUTING",
+     "listClientOrderId": "08985fedd9ea2cf6b28996",
+     "transactionTime": 1660801713793,
+     "symbol": "BTCUSDT",
+     "orders": [
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569138901,
+       "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+      },
+      {
+       "symbol": "BTCUSDT",
+       "orderId": 12569138902,
+       "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "openOrders.status": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT"
+   },
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "clientOrderId": "4d96324ff9d44481926157",
+     "price": "23416.10000000",
+     "origQty": "0.00847000",
+     "executedQty": "0.00847000",
+     "cummulativeQuoteQty": "198.33436700",
+     "status": "FILLED",
+     "timeInForce": "GTC",
+     "type": "LIMIT",
+     "side": "SELL",
+     "stopPrice": "23400.00000000",
+     "icebergQty": "0.00100000",
+     "time": 1660801715639,
+     "updateTime": 1660801717945,
+     "isWorking": true,
+     "workingTime": 1660801715639,
+     "origQuoteOrderQty": "198.33521500",
+     "selfTradePreventionMode": "NONE",
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "trailingDelta": 10,
+     "trailingTime": -1,
+     "usedSor": true,
+     "workingFloor": "SOR",
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "23416.10000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    }
+   ]
+  },
+  {
+   "signed": true,
+   "params": {},
+   "result": [
+    {
+     "symbol": "BTCUSDT",
+     "orderId": 12569099453,
+     "orderListId": -1,
+     "clientOrderId": "4d96324ff9d44481926157",
+     "price": "23416.10000000",
+     "origQty": "0.00847000",
+     "executedQty": "0.00847000",
+     "cummulativeQuoteQty": "198.33436700",
+     "status": "FILLED",
+     "timeInForce": "GTC",
+     "type": "LIMIT",
+     "side": "SELL",
+     "stopPrice": "23400.00000000",
+     "icebergQty": "0.00100000",
+     "time": 1660801715639,
+     "updateTime": 1660801717945,
+     "isWorking": true,
+     "workingTime": 1660801715639,
+     "origQuoteOrderQty": "198.33521500",
+     "selfTradePreventionMode": "NONE",
+     "preventedMatchId": 3,
+     "preventedQuantity": "1.20000000",
+     "strategyId": 37463720,
+     "strategyType": 1000000,
+     "trailingDelta": 10,
+     "trailingTime": -1,
+     "usedSor": true,
+     "workingFloor": "SOR",
+     "pegPriceType": "PRIMARY_PEG",
+     "pegOffsetType": "PRICE_LEVEL",
+     "pegOffsetValue": 5,
+     "peggedPrice": "23416.10000000",
+     "expiryReason": "INSUFFICIENT_LIQUIDITY"
+    }
+   ]
+  }
+ ],
+ "orderList.status": [
+  {
+   "signed": true,
+   "params": {
+    "orderListId": 1274512
+   },
+   "result": {
+    "orderListId": 1274512,
+    "contingencyType": "OCO",
+    "listStatusType": "EXEC_STARTED",
+    "listOrderStatus": "EXECUTING",
+    "listClientOrderId": "08985fedd9ea2cf6b28996",
+    "transactionTime": 1660801713793,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138901,
+      "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138902,
+      "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+     }
+    ]
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "origClientOrderId": "08985fedd9ea2cf6b28996"
+   },
+   "result": {
+    "orderListId": 1274512,
+    "contingencyType": "OCO",
+    "listStatusType": "EXEC_STARTED",
+    "listOrderStatus": "EXECUTING",
+    "listClientOrderId": "08985fedd9ea2cf6b28996",
+    "transactionTime": 1660801713793,
+    "symbol": "BTCUSDT",
+    "orders": [
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138901,
+      "clientOrderId": "BqtFCj5odMoWtSqGk2X9tU"
+     },
+     {
+      "symbol": "BTCUSDT",
+      "orderId": 12569138902,
+      "clientOrderId": "jLnZpj5enfMXTuhKB1d0us"
+     }
+    ]
+   }
+  }
+ ],
+ "order.status": [
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099453,
+    "origClientOrderId": "4d96324ff9d44481926157"
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099453,
+    "orderListId": -1,
+    "clientOrderId": "4d96324ff9d44481926157",
+    "price": "23416.10000000",
+    "origQty": "0.00847000",
+    "executedQty": "0.00847000",
+    "cummulativeQuoteQty": "198.33521500",
+    "status": "FILLED",
+    "timeInForce": "GTC",
+    "type": "LIMIT",
+    "side": "SELL",
+    "stopPrice": "23400.00000000",
+    "icebergQty": "0.00100000",
+    "time": 1660801715639,
+    "updateTime": 1660801717945,
+    "isWorking": true,
+    "workingTime": 1660801715639,
+    "origQuoteOrderQty": "198.33521500",
+    "selfTradePreventionMode": "NONE",
+    "preventedMatchId": 3,
+    "preventedQuantity": "1.20000000",
+    "strategyId": 37463720,
+    "strategyType": 1000000,
+    "trailingDelta": 10,
+    "trailingTime": -1,
+    "usedSor": true,
+    "workingFloor": "SOR",
+    "pegPriceType": "PRIMARY_PEG",
+    "pegOffsetType": "PRICE_LEVEL",
+    "pegOffsetValue": 5,
+    "peggedPrice": "23416.10000000",
+    "expiryReason": "INSUFFICIENT_LIQUIDITY"
+   }
+  },
+  {
+   "signed": true,
+   "params": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099460
+   },
+   "result": {
+    "symbol": "BTCUSDT",
+    "orderId": 12569099460,
+    "orderListId": -1,
+    "clientOrderId": "gct-market-order",
+    "price": "0.00000000",
+    "origQty": "0.00100000",
+    "executedQty": "0.00100000",
+    "cummulativeQuoteQty": "23.41610000",
+    "status": "FILLED",
+    "timeInForce": "GTC",
+    "type": "MARKET",
+    "side": "BUY",
+    "time": 1660801715700,
+    "updateTime": 1660801715700,
+    "isWorking": true,
+    "workingTime": 1660801715700,
+    "origQuoteOrderQty": "0.00000000",
+    "selfTradePreventionMode": "NONE"
+   }
+  }
+ ],
+ "userDataStream.subscribe.signature": [
+  {
+   "signed": true,
+   "params": {},
+   "result": {
+    "subscriptionId": 1
+   }
+  }
+ ],
+ "userDataStream.subscribe.listenToken": [
+  {
+   "params": {
+    "listenToken": "6xXxePXwZRjVSHKhzUCCGnmN3fkvMTXru+pYJS8RwijXk9Vcyr3rkwfVOTcP2OkONqciYA"
+   },
+   "result": {
+    "subscriptionId": 2,
+    "expirationTime": 1749094553955907
+   }
+  }
+ ]
+}

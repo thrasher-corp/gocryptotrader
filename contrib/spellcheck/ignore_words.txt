@@ -5,3 +5,5 @@ flate
 zar
 insid
 totalin
+ot
+transFrom
