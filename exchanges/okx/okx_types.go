@@ -501,16 +501,17 @@ type DiscountRateInfoItem struct {
 
 // LiquidationOrderRequestParams holds information to request liquidation orders
 type LiquidationOrderRequestParams struct {
-	InstrumentType string
-	MarginMode     string // values are either isolated or crossed
-	InstrumentID   string
-	Currency       currency.Code
-	Underlying     string
-	Alias          string
-	State          string
-	Before         time.Time
-	After          time.Time
-	Limit          int64
+	InstrumentType   string
+	MarginMode       string // values are either isolated or crossed
+	InstrumentID     string
+	Currency         currency.Code
+	Underlying       string
+	InstrumentFamily string
+	Alias            string
+	State            string
+	Before           time.Time
+	After            time.Time
+	Limit            int64
 }
 
 // LiquidationOrder represents liquidation order item detailed information
