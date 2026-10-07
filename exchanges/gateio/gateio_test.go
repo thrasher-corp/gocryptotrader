@@ -2780,7 +2780,23 @@ func TestSpotWebsocketMarketBuyMappings(t *testing.T) {
 
 func TestSpotWebsocketFinishStatusMappings(t *testing.T) {
 	t.Parallel()
-	for _, finishAs := range []string{"ioc", "fok", "poc", "small", "depth_not_enough", "trader_not_enough"} {
+	for finishAs, status := range map[string]order.Status{
+		"ioc":                     order.Cancelled,
+		"fok":                     order.Cancelled,
+		"poc":                     order.Cancelled,
+		"small":                   order.Cancelled,
+		"depth_not_enough":        order.Cancelled,
+		"trader_not_enough":       order.Cancelled,
+		"liquidate_cancelled":     order.Cancelled,
+		"unified_check_failed":    order.Cancelled,
+		"price_protect_cancelled": order.Cancelled,
+		"unknown":                 order.UnknownStatus,
+		"-":                       order.UnknownStatus,
+		"open":                    order.Open,
+		"filled":                  order.Filled,
+		"cancelled":               order.Cancelled,
+		"stp":                     order.STP,
+	} {
 		t.Run(finishAs, func(t *testing.T) {
 			t.Parallel()
 			got, err := e.deriveSpotWebsocketOrderResponse(&WebsocketOrderResponse{
@@ -2791,7 +2807,7 @@ func TestSpotWebsocketFinishStatusMappings(t *testing.T) {
 				FinishAs:    finishAs,
 			})
 			require.NoError(t, err, "deriveSpotWebsocketOrderResponse must accept Gate completion reasons")
-			assert.Equal(t, order.Cancelled, got.Status, "unfilled completion should map to cancelled")
+			assert.Equal(t, status, got.Status, "completion reason should map to the documented status")
 		})
 	}
 }
@@ -3265,6 +3281,7 @@ func TestProcessSpotOrdersFinish(t *testing.T) {
 			} {
 				msg := `{"time":1605175506,"channel":"spot.orders","event":"update","result":[{"id":"1","create_time_ms":"1605175506123","update_time_ms":"1605175507123","event":"` + push.event + `","finish_as":"` + push.finishAs + `","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"3","price":"60000","time_in_force":"gtc","left":"` + push.left + `"}]}`
 				require.NoError(t, ex.processSpotOrders(t.Context(), []byte(msg)), "processSpotOrders must not error")
+				require.Len(t, ex.Websocket.DataHandler.C, 1, "processSpotOrders must send one update")
 				res := <-ex.Websocket.DataHandler.C
 				details, ok := res.Data.([]order.Detail)
 				require.True(t, ok, "processSpotOrders must send order details")

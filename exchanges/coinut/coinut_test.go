@@ -403,6 +403,32 @@ func TestGetOrderHistory(t *testing.T) {
 			wantOmittedPagination:  true,
 		},
 		{
+			name:         "REST partially filled trade",
+			request:      &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
+			instruments:  map[string]int64{"BTCUSD": 123},
+			enabledPairs: currency.Pairs{currency.NewBTCUSD()},
+			response:     `{"status":["OK"],"total_number":1,"trades":[{"commission":{"currency":"USD","amount":"0.1"},"fill_price":"11","fill_qty":"1.5","order":{"order_id":42,"open_qty":"0.5","price":"10","qty":"2","inst_id":123,"timestamp":1700000000,"side":"BUY"},"timestamp":1700000060}]}`,
+			wantOrders: order.FilteredOrders{{
+				OrderID:              "42",
+				Amount:               2,
+				Price:                10,
+				AverageExecutedPrice: 11,
+				ExecutedAmount:       1.5,
+				RemainingAmount:      0.5,
+				Fee:                  0.1,
+				FeeAsset:             currency.USD,
+				Exchange:             "COINUT",
+				Side:                 order.Buy,
+				Status:               order.PartiallyFilled,
+				Date:                 time.Unix(1700000000, 0),
+				LastUpdated:          time.Unix(1700000060, 0),
+				Pair:                 currency.NewPairWithDelimiter("BTC", "USD", currency.DashDelimiter),
+			}},
+			wantRequestCount:       1,
+			wantTradeInstrumentIDs: []float64{123},
+			wantOmittedPagination:  true,
+		},
+		{
 			name:                   "REST unmapped pair falls back to all instruments",
 			request:                &order.MultiOrderRequest{Pairs: currency.Pairs{currency.NewBTCUSD()}, AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide},
 			instruments:            map[string]int64{"ETHUSDT": 456, "LTCUSDT": 123},
@@ -550,6 +576,13 @@ func TestGetOrderHistory(t *testing.T) {
 			wantStarts:  []int64{0},
 		},
 		{
+			name:        "websocket fully filled trade",
+			mode:        "fully filled",
+			instruments: map[string]int64{"BTCUSD": 123},
+			wantOrders:  1,
+			wantStarts:  []int64{0},
+		},
+		{
 			name:        "websocket partial results on second page error",
 			mode:        "second page error",
 			instruments: map[string]int64{"BTCUSD": 123},
@@ -606,15 +639,19 @@ func TestGetOrderHistory(t *testing.T) {
 				if tc.mode == "invalid side" {
 					side = "INVALID"
 				}
+				fillQuantity, openQuantity := "1.5", "0.5"
+				if tc.mode == "fully filled" {
+					fillQuantity, openQuantity = "2", "0"
+				}
 				for i := range tradeCount {
 					trades = append(trades, map[string]any{
 						"commission": map[string]any{"currency": "USD", "amount": "0.1"},
 						"fill_price": "11",
-						"fill_qty":   "1.5",
+						"fill_qty":   fillQuantity,
 						"order": map[string]any{
 							"client_ord_id": i + 1000,
 							"inst_id":       instrumentID,
-							"open_qty":      "0.5",
+							"open_qty":      openQuantity,
 							"order_id":      i + 42,
 							"price":         "10",
 							"qty":           "2",
@@ -669,17 +706,30 @@ func TestGetOrderHistory(t *testing.T) {
 				require.NoError(t, err, "GetOrderHistory must not error")
 			}
 			assert.Len(t, orders, tc.wantOrders, "GetOrderHistory should return the correct number of websocket orders")
-			if tc.mode == "single" {
+			if tc.mode == "single" || tc.mode == "fully filled" {
 				require.Len(t, orders, 1, "GetOrderHistory must return one websocket order")
-				assert.Equal(t, "42", orders[0].OrderID, "GetOrderHistory should return the correct websocket order ID")
-				assert.Equal(t, currency.NewBTCUSD(), orders[0].Pair, "GetOrderHistory should return the correct websocket pair")
-				assert.Equal(t, order.Buy, orders[0].Side, "GetOrderHistory should return the correct websocket side")
-				assert.Equal(t, 1.5, orders[0].ExecutedAmount, "GetOrderHistory should retain the websocket fill quantity")
-				assert.Equal(t, 11.0, orders[0].AverageExecutedPrice, "GetOrderHistory should retain the websocket fill price")
-				assert.Equal(t, 0.1, orders[0].Fee, "GetOrderHistory should retain the websocket fee")
-				assert.Equal(t, currency.USD, orders[0].FeeAsset, "GetOrderHistory should retain the websocket fee currency")
-				assert.Equal(t, time.Unix(1700000000, 0), orders[0].Date, "GetOrderHistory should take the order time from the nested order")
-				assert.Equal(t, time.Unix(1700000060, 0), orders[0].LastUpdated, "GetOrderHistory should take the update time from the fill")
+				expected := order.Detail{
+					Exchange:             "COINUT",
+					OrderID:              "42",
+					Pair:                 currency.NewBTCUSD(),
+					Side:                 order.Buy,
+					Date:                 time.Unix(1700000000, 0),
+					LastUpdated:          time.Unix(1700000060, 0),
+					Status:               order.PartiallyFilled,
+					Price:                10,
+					Amount:               2,
+					AverageExecutedPrice: 11,
+					ExecutedAmount:       1.5,
+					RemainingAmount:      0.5,
+					Fee:                  0.1,
+					FeeAsset:             currency.USD,
+				}
+				if tc.mode == "fully filled" {
+					expected.Status = order.Filled
+					expected.ExecutedAmount = 2
+					expected.RemainingAmount = 0
+				}
+				assert.Equal(t, expected, orders[0], "GetOrderHistory should map all websocket history fields")
 			}
 
 			requestMutex.Lock()

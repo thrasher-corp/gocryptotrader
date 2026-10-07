@@ -993,12 +993,14 @@ func futuresFinishStatus(finishAs string) (order.Status, error) {
 	return order.StringToOrderStatus(finishAs)
 }
 
-// spotFinishStatus converts Gate's spot-specific completion reasons. These
-// outcomes all close the order without filling its remaining quantity.
+// spotFinishStatus converts the spot completion reasons order.StringToOrderStatus
+// does not recognise. Gate documents "unknown" and "-" as unknown reasons.
 func spotFinishStatus(finishAs string) (order.Status, error) {
 	switch finishAs {
-	case "ioc", "fok", "poc", "small", "depth_not_enough", "trader_not_enough":
+	case "ioc", "fok", "poc", "small", "depth_not_enough", "trader_not_enough", "liquidate_cancelled", "unified_check_failed", "price_protect_cancelled":
 		return order.Cancelled, nil
+	case "unknown", "-":
+		return order.UnknownStatus, nil
 	}
 	return order.StringToOrderStatus(finishAs)
 }

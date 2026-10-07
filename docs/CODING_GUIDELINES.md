@@ -291,6 +291,11 @@ Use `require` and `assert` appropriately:
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- Bound channel receives and other waits in tests so a missing event fails
+    promptly rather than relying on the package timeout. For a test-owned
+    buffered channel, assert the event count after a synchronous handler
+    returns and before receiving. For asynchronous delivery or shared channels,
+    use a select with a deadline.
 
 ### Interface Contracts
 

@@ -866,7 +866,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						Side:                 side,
 						Date:                 trades.Trades[x].Order.Timestamp.Time(),
 						LastUpdated:          trades.Trades[x].Timestamp.Time(),
-						Status:               order.Filled,
+						Status:               tradeOrderStatus(&trades.Trades[x]),
 						Price:                trades.Trades[x].Order.Price,
 						Amount:               trades.Trades[x].Order.Quantity,
 						AverageExecutedPrice: trades.Trades[x].FillPrice,
@@ -944,7 +944,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					FeeAsset:             currency.NewCode(orders.Trades[y].Commission.Currency),
 					Exchange:             e.Name,
 					Side:                 side,
-					Status:               order.Filled,
+					Status:               tradeOrderStatus(&orders.Trades[y]),
 					Date:                 orders.Trades[y].Order.Timestamp.Time(),
 					LastUpdated:          orders.Trades[y].Timestamp.Time(),
 					Pair:                 p,
@@ -953,6 +953,15 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 	}
 	return req.Filter(e.Name, allOrders), nil
+}
+
+// tradeOrderStatus reports fill progress as of the history row's nested order.
+// Trade history does not say whether a partially filled order was later cancelled.
+func tradeOrderStatus(fill *OrderFilledResponse) order.Status {
+	if fill.Order.OpenQuantity > 0 {
+		return order.PartiallyFilled
+	}
+	return order.Filled
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
