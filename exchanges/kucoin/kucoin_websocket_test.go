@@ -616,13 +616,12 @@ func TestGenerateSharedSpotMarginFeeds(t *testing.T) {
 					wantCount = test.authCount
 				}
 				assert.Len(t, got, wantCount, "shared feeds should retain the expected pair coverage")
-				seen := make(map[string]bool, len(got))
+				seen := make(common.Seen[string], len(got))
 				for _, sub := range got {
-					assert.Falsef(t, seen[sub.QualifiedChannel], "topic %s should only be generated once", sub.QualifiedChannel)
+					assert.Falsef(t, seen.Compare(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
 					if test.threshold {
 						assert.NotEqual(t, marketTickerChannel+":all", sub.QualifiedChannel, "restricted ticker subscriptions should not widen to ticker:all")
 					}
-					seen[sub.QualifiedChannel] = true
 				}
 				_, err = subscription.NewStoreFromList(got)
 				require.NoError(t, err, "shared feeds must fit the subscription store")
@@ -1209,10 +1208,9 @@ func TestCheckSubscriptionsOverlappingCoverage(t *testing.T) {
 					wantCount = test.authCount
 				}
 				assert.Len(t, got, wantCount, "migration should retain all covered pairs")
-				seen := make(map[string]bool, len(got))
+				seen := make(common.Seen[string], len(got))
 				for _, sub := range got {
-					assert.Falsef(t, seen[sub.QualifiedChannel], "topic %s should only be generated once", sub.QualifiedChannel)
-					seen[sub.QualifiedChannel] = true
+					assert.Falsef(t, seen.Compare(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
 				}
 				_, err = subscription.NewStoreFromList(got)
 				require.NoError(t, err, "migrated coverage must fit the subscription store")

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
@@ -266,7 +267,7 @@ type pairKey struct {
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
 	newPairs := make(Pairs, 0, len(incoming))
-	check := make(map[pairKey]bool)
+	check := common.NewSeen[pairKey]()
 	formatDiff := false
 	for x := range incoming {
 		if incoming[x].IsEmpty() {
@@ -278,10 +279,9 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 
 		k := pairKey{Base: incoming[x].Base.Item, Quote: incoming[x].Quote.Item}
-		if check[k] {
+		if check.Compare(k) {
 			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrPairDuplication)
 		}
-		check[k] = true
 		if !p.Contains(incoming[x], true) {
 			newPairs = append(newPairs, incoming[x])
 		}
@@ -298,10 +298,10 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 
 		k := pairKey{Base: p[x].Base.Item, Quote: p[x].Quote.Item}
-		if !incoming.Contains(p[x], true) || check[k] {
+		duplicate := check.Compare(k)
+		if !incoming.Contains(p[x], true) || duplicate {
 			removedPairs = append(removedPairs, p[x])
 		}
-		check[k] = true
 	}
 	return PairDifference{New: newPairs, Remove: removedPairs, FormatDifference: formatDiff}, nil
 }
@@ -433,12 +433,12 @@ func (p Pairs) GetStablesMatch(code Code) Pairs {
 
 // ValidateAndConform checks for duplications and empty pairs then conforms the
 // entire pairs list to the supplied formatting (unless bypassed).
-// Map[string]bool type is used to make sure delimiters are not included so
+// Normalised string keys are used to make sure delimiters are not included so
 // different formatting entry duplications can be found e.g. `LINKUSDTM21`,
 // `LIN-KUSDTM21` or `LINK-USDTM21 are all the same instances but with different
 // unintentional processes for formatting.
 func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs, error) {
-	processedPairs := make(map[string]bool, len(p))
+	processedPairs := make(common.Seen[string], len(p))
 	formatted := make(Pairs, len(p))
 	var target int
 	for x := range p {
@@ -446,11 +446,10 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 			return nil, fmt.Errorf("cannot update pairs %w", ErrCurrencyPairEmpty)
 		}
 		strippedPair := EMPTYFORMAT.Format(p[x])
-		if processedPairs[strippedPair] {
+		if processedPairs.Compare(strippedPair) {
 			return nil, fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
 		}
 		// Force application of supplied formatting
-		processedPairs[strippedPair] = true
 		if !bypassFormatting {
 			formatted[target] = p[x].Format(pFmt)
 		} else {

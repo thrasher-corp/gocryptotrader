@@ -715,6 +715,63 @@ func TestSetIfZero(t *testing.T) {
 	assert.Equal(t, "world", s, "SetIfZero should change a zero value")
 }
 
+func TestNewSeen(t *testing.T) {
+	t.Parallel()
+	seen := NewSeen[string]()
+	require.NotNil(t, seen, "NewSeen must return an initialised map")
+	assert.Empty(t, seen, "NewSeen should start empty")
+
+	other := NewSeen[string]()
+	require.NotNil(t, other, "NewSeen must initialise each map independently")
+	seen.Compare("first")
+	assert.Empty(t, other, "separate Seen instances should not share entries")
+}
+
+func TestSeenCompare(t *testing.T) {
+	t.Parallel()
+	seen := NewSeen[string]()
+	for _, tc := range []struct {
+		item     string
+		expected bool
+		length   int
+	}{
+		{item: "first", length: 1},
+		{item: "first", expected: true, length: 1},
+		{item: "second", length: 2},
+		{item: "", length: 3},
+		{item: "", expected: true, length: 3},
+		{item: "first", expected: true, length: 3},
+	} {
+		assert.Equalf(t, tc.expected, seen.Compare(tc.item), "Compare should report whether %q was already seen", tc.item)
+		assert.Truef(t, seen[tc.item], "Compare should mark %q as seen", tc.item)
+		assert.Len(t, seen, tc.length, "Compare should add only new items")
+	}
+}
+
+func TestSeenCompareExistingEntries(t *testing.T) {
+	t.Parallel()
+	seen := Seen[int]{1: true, 2: false}
+	assert.True(t, seen.Compare(1), "Compare should recognise an entry already marked seen")
+	assert.False(t, seen.Compare(2), "Compare should treat an entry marked false as unseen")
+	assert.True(t, seen.Compare(2), "Compare should mark an existing false entry as seen")
+	assert.Equal(t, Seen[int]{1: true, 2: true}, seen, "Compare should preserve unrelated entries")
+}
+
+func TestSeenCompareStructKeys(t *testing.T) {
+	t.Parallel()
+	type key struct {
+		name string
+		id   int
+	}
+	seen := NewSeen[key]()
+	assert.False(t, seen.Compare(key{name: "first", id: 1}), "Compare should record a new struct key")
+	assert.True(t, seen.Compare(key{name: "first", id: 1}), "Compare should recognise an equal struct value")
+	assert.False(t, seen.Compare(key{name: "first", id: 2}), "Compare should distinguish different struct fields")
+	assert.False(t, seen.Compare(key{}), "Compare should record a zero-value struct key")
+	assert.True(t, seen.Compare(key{}), "Compare should recognise a repeated zero-value struct key")
+	assert.Len(t, seen, 3, "Compare should retain each distinct struct key")
+}
+
 func TestContextFunctions(t *testing.T) {
 	t.Parallel()
 

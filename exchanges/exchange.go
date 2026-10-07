@@ -740,15 +740,14 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 		return err
 	}
 
-	check := make(map[string]bool)
+	check := common.NewSeen[string]()
 	var target int
 	for x := range enabledPairs {
 		pairNoFmt := currency.EMPTYFORMAT.Format(enabledPairs[x])
-		if check[pairNoFmt] {
+		if check.Compare(pairNoFmt) {
 			diff.Remove = diff.Remove.Add(enabledPairs[x])
 			continue
 		}
-		check[pairNoFmt] = true
 
 		if !diff.Remove.Contains(enabledPairs[x], true) {
 			enabledPairs[target] = enabledPairs[x].Format(pFmt)

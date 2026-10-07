@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -18,7 +19,7 @@ func TestGetRateLimits(t *testing.T) {
 	require.Len(t, first, 6, "getRateLimits must return all tier definitions")
 	require.Len(t, second, 6, "getRateLimits must return all tier definitions")
 
-	seen := make(map[*request.RateLimiterWithWeight]struct{}, len(first))
+	seen := make(common.Seen[*request.RateLimiterWithWeight], len(first))
 	for _, key := range []request.EndpointLimit{
 		basicEPL,
 		builderEPL,
@@ -29,8 +30,7 @@ func TestGetRateLimits(t *testing.T) {
 	} {
 		require.NotNil(t, first[key], "getRateLimits must return each tier limiter")
 		require.NotNil(t, second[key], "getRateLimits must return each tier limiter")
-		require.NotContains(t, seen, first[key], "getRateLimits must return independent tier limiters")
-		seen[first[key]] = struct{}{}
+		require.False(t, seen.Compare(first[key]), "getRateLimits must return independent tier limiters")
 		assert.NotSame(t, first[key], second[key], "getRateLimits should return independent per-client tier limiters")
 	}
 
