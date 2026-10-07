@@ -119,6 +119,12 @@ type Manager struct {
 	ExchangeLevelReporter         Reporter   // Latency reporter
 	MaxSubscriptionsPerConnection int
 
+	// expandSubscriptions converts generated subscription lists into the manager's expanded boundary
+	// type at the single boundary point. When nil, the manager validates that the generator already
+	// returned an expanded list (the generator-side expansion path, which the maintainer prefers).
+	// See toExpandedSubscriptions.
+	expandSubscriptions func(subscription.List) (subscription.ExpandedList, error)
+
 	// connectionManager stores all *potential* connections for the exchange, organised within websocket structs.
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
@@ -138,7 +144,13 @@ type ManagerSetup struct {
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
-	Features              *protocol.Features
+	// ExpandSubscriptions converts a generated subscription list into an ExpandedList at the manager
+	// boundary. Exchanges which return configuration templates from GenerateSubscriptions must set
+	// this (for example func(l) { return l.Expand(e) }); when nil the generated list is expected to be
+	// already expanded and is validated as-is, which is the expansion point the maintainer prefers.
+	// Either way expansion happens once, before the subscribe call and before capacity allocation.
+	ExpandSubscriptions func(subscription.List) (subscription.ExpandedList, error)
+	Features            *protocol.Features
 	// UseMultiConnectionManagement allows the connections to be managed by the
 	// connection manager. If false, this will default to the global fields
 	// provided in this struct.
@@ -227,6 +239,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 
 	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
 	m.preConnect = s.PreConnect
+	m.expandSubscriptions = s.ExpandSubscriptions
 
 	if !m.useMultiConnectionManagement {
 		// TODO: Remove this block when all exchanges are updated and backwards
@@ -499,6 +512,11 @@ func (m *Manager) connect(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 		}
+		expanded, err := m.toExpandedSubscriptions(subs, nil)
+		if err != nil {
+			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+		subs = expanded.List()
 		if len(subs) != 0 {
 			if err := m.SubscribeToChannels(ctx, nil, subs); err != nil {
 				return err
@@ -535,6 +553,14 @@ func (m *Manager) connect(ctx context.Context) error {
 
 			var err error
 			subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+			if err == nil {
+				var expanded subscription.ExpandedList
+				if expanded, err = m.toExpandedSubscriptions(subs, ws.setup.ExpandSubscriptions); err == nil {
+					subs = expanded.List()
+				} else {
+					subs = nil
+				}
+			}
 			var generationError error
 			if err != nil {
 				generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)

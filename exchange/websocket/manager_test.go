@@ -159,10 +159,10 @@ func newDefaultSetup() *ManagerSetup {
 		Unsubscriber: func(subscription.List) error { return nil },
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return subscription.List{
-				{Channel: "TestSub"},
-				{Channel: "TestSub2", Key: "purple"},
-				{Channel: "TestSub3", Key: testSubKey{"mauve"}},
-				{Channel: "TestSub4", Key: 42},
+				{Channel: "TestSub", QualifiedChannel: "TestSub"},
+				{Channel: "TestSub2", Key: "purple", QualifiedChannel: "TestSub2"},
+				{Channel: "TestSub3", Key: testSubKey{"mauve"}, QualifiedChannel: "TestSub3"},
+				{Channel: "TestSub4", Key: 42, QualifiedChannel: "TestSub4"},
 			}, nil
 		},
 		Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
@@ -394,7 +394,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			return conn.Dial(ctx, dialer, nil, nil)
 		}
 		noopHandler := func(context.Context, Connection, []byte) error { return nil }
-		testSubs := subscription.List{{Channel: "test"}}
+		testSubs := subscription.List{{Channel: "test", QualifiedChannel: "test"}}
 
 		t.Run("no pending connections", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, nil)
@@ -424,9 +424,9 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 
 		t.Run("partial generate subscriptions error", func(t *testing.T) {
 			partialSubs := make(subscription.List, 1, 2)
-			partialSubs[0] = &subscription.Subscription{Channel: "partial-connect"}
+			partialSubs[0] = &subscription.Subscription{Channel: "partial-connect", QualifiedChannel: "partial-connect"}
 			healthySubs := make(subscription.List, 1, 2)
-			healthySubs[0] = &subscription.Subscription{Channel: "healthy-connect"}
+			healthySubs[0] = &subscription.Subscription{Channel: "healthy-connect", QualifiedChannel: "healthy-connect"}
 			var partialCalls, healthyCalls int
 			ws := newConfiguredMultiManager(t, nil)
 			partialSetup := &ConnectionSetup{
@@ -462,8 +462,8 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.NotNil(t, ws.connectionManager[1].subscriptions.Get(healthySubs[0]),
 				"Connect must continue through healthy generators after a partial generation error")
 
-			partialRefresh := &subscription.Subscription{Channel: "partial-refresh"}
-			healthyRefresh := &subscription.Subscription{Channel: "healthy-refresh"}
+			partialRefresh := &subscription.Subscription{Channel: "partial-refresh", QualifiedChannel: "partial-refresh"}
+			healthyRefresh := &subscription.Subscription{Channel: "healthy-refresh", QualifiedChannel: "healthy-refresh"}
 			partialSubs = append(partialSubs, partialRefresh)
 			healthySubs = append(healthySubs, healthyRefresh)
 			err = ws.FlushChannels(t.Context())
@@ -649,7 +649,7 @@ func TestConnectTrackOnExistingConnectionManagerRecordsTrackedSubscriptions(t *t
 	setup := newDefaultSetup()
 	setup.UseMultiConnectionManagement = true
 	require.NoError(t, mgr.Setup(setup))
-	trackedSub := &subscription.Subscription{Channel: "tracked-only"}
+	trackedSub := &subscription.Subscription{Channel: "tracked-only", QualifiedChannel: "tracked-only"}
 
 	require.NoError(t, mgr.SetupNewConnection(&ConnectionSetup{
 		URL: "wss://tracked-only.example/ws",
@@ -827,7 +827,7 @@ func TestSetSubscriptionsNotRequired(t *testing.T) {
 
 	singleConn := NewManager()
 	singleConn.GenerateSubs = func() (subscription.List, error) {
-		return subscription.List{{Channel: "single"}}, nil
+		return subscription.List{{Channel: "single", QualifiedChannel: "single"}}, nil
 	}
 
 	singleConn.SetSubscriptionsNotRequired()
@@ -1460,8 +1460,9 @@ func (g *GenSubs) generateSubs() (subscription.List, error) {
 	superduperchannelsubs := make(subscription.List, len(g.EnabledPairs))
 	for i := range g.EnabledPairs {
 		superduperchannelsubs[i] = &subscription.Subscription{
-			Channel: "TEST:" + strconv.FormatInt(int64(i), 10),
-			Pairs:   currency.Pairs{g.EnabledPairs[i]},
+			Channel:          "TEST:" + strconv.FormatInt(int64(i), 10),
+			QualifiedChannel: "TEST:" + strconv.FormatInt(int64(i), 10),
+			Pairs:            currency.Pairs{g.EnabledPairs[i]},
 		}
 	}
 	return superduperchannelsubs, nil
