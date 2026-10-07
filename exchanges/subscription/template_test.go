@@ -280,6 +280,14 @@ func TestExpandTemplatesOwnership(t *testing.T) {
 			require.Truef(t, ok, "Key must remain a MatchableKey for %T", inKey)
 			assert.IsTypef(t, inKey, key, "Key should keep its type %T", inKey)
 			assert.Samef(t, got[0], key.GetSubscription(), "%T should reference the returned subscription", inKey)
+			assert.Samef(t, in, inKey.GetSubscription(), "%T should still reference the input subscription", inKey)
+
+			otherKey := newKey(&Subscription{Channel: "book.BTCUSDT"})
+			in.SetKey(otherKey)
+			got, err = List{in}.ExpandTemplates(e)
+			require.NoErrorf(t, err, "ExpandTemplates must not error for %T", otherKey)
+			require.Lenf(t, got, 1, "Must get one subscription back for %T", otherKey)
+			assert.Equalf(t, otherKey, got[0].Key, "%T for another subscription should be carried over untouched", otherKey)
 		}
 	})
 
