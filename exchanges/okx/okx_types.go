@@ -2370,7 +2370,7 @@ type AccountRiskState struct {
 // BorrowInterestAndLimitRecord represents one currency row of the borrow
 // interest and limit response.
 type BorrowInterestAndLimitRecord struct {
-	AvailLoan                types.Number       `json:"availLoan"`
+	AvailableLoan            types.Number       `json:"availLoan"`
 	Currency                 string             `json:"ccy"`
 	Interest                 types.Number       `json:"interest"`
 	InterestFreeLiability    types.Number       `json:"interestFreeLiab"`
@@ -2380,7 +2380,7 @@ type BorrowInterestAndLimitRecord struct {
 	Rate                     types.Number       `json:"rate"`
 	SurplusLimit             types.Number       `json:"surplusLmt"`
 	SurplusLimitDetails      SurplusLimitDetail `json:"surplusLmtDetails"`
-	UsedLmt                  types.Number       `json:"usedLmt"`
+	UsedLimit                types.Number       `json:"usedLmt"`
 	UsedLoan                 types.Number       `json:"usedLoan"`
 }
 
@@ -3424,7 +3424,7 @@ type WsOrder struct {
 	AlgoID                  string              `json:"algoId"`
 	AmendResult             string              `json:"amendResult"`
 	AmendSource             string              `json:"amendSource"`
-	AttachAlgoClOrdID       string              `json:"attachAlgoClOrdId"`
+	AttachAlgoClientOrderID string              `json:"attachAlgoClOrdId"`
 	AttachAlgoOrds          []AttachedAlgoOrder `json:"attachAlgoOrds"`
 	CancelSource            string              `json:"cancelSource"`
 	Code                    string              `json:"code"`
@@ -5225,11 +5225,14 @@ type BorrowRepayItem struct {
 
 // PositionBuilderParam represents a position builder parameters
 type PositionBuilderParam struct {
+	AccountLevel     uint64              `json:"acctLv,string,omitempty"` // 3: Multi-currency margin, 4: Portfolio margin; OKX defaults to 4
 	InclRealPosAndEq bool                `json:"inclRealPosAndEq"`
+	Leverage         types.Number        `json:"lever,omitempty"` // Cross margin leverage, only applicable to Multi-currency margin
 	SimPos           []SimulatedPosition `json:"simPos"`
 	SimAsset         []SimulatedAsset    `json:"simAsset"`
 	SpotOffsetType   string              `json:"spotOffsetType"`
 	GreeksType       string              `json:"greeksType"`
+	IndexVolatility  types.Number        `json:"idxVol,omitempty"` // Price change ratio from -0.99 to 1; zero is omitted, which leaves the before-volatility fields empty
 }
 
 // SimulatedPosition represents a simulated position detail of a new position builder
@@ -5275,53 +5278,65 @@ type PositionBuilderPortfolio struct {
 	Gamma           types.Number `json:"gamma"`
 	InstrumentID    string       `json:"instId"`
 	InstrumentType  string       `json:"instType"`
-	IsRealPos       bool         `json:"isRealPos"`
+	IsRealPosition  bool         `json:"isRealPos"`
 	MarkPrice       types.Number `json:"markPx"`
 	MarkPriceBefore types.Number `json:"markPxBf"`
-	NotionalUsd     string       `json:"notionalUsd"`
+	NotionalUSD     types.Number `json:"notionalUsd"`
 	PositionSide    string       `json:"posSide"`
-	Theta           string       `json:"theta"`
-	Vega            string       `json:"vega"`
+	Theta           types.Number `json:"theta"`
+	Vega            types.Number `json:"vega"`
+}
+
+// PositionBuilderMR1FinalResult represents the MR1 worst-case scenario of a
+// position builder risk unit.
+type PositionBuilderMR1FinalResult struct {
+	PNL             types.Number `json:"pnl"`
+	SpotShock       types.Number `json:"spotShock"`
+	VolatilityShock string       `json:"volShock"`
+}
+
+// PositionBuilderMR1Scenarios represents the MR1 stress test P&L by price
+// change ratio for each volatility scenario.
+type PositionBuilderMR1Scenarios struct {
+	VolatilitySame      map[string]types.Number `json:"volSame"`
+	VolatilityShockDown map[string]types.Number `json:"volShockDown"`
+	VolatilityShockUp   map[string]types.Number `json:"volShockUp"`
+}
+
+// PositionBuilderMR6FinalResult represents the MR6 worst-case scenario of a
+// position builder risk unit.
+type PositionBuilderMR6FinalResult struct {
+	PNL       types.Number `json:"pnl"`
+	SpotShock types.Number `json:"spotShock"`
 }
 
 // PositionBuilderRiskUnit represents one risk unit of a position builder
 // result.
 type PositionBuilderRiskUnit struct {
-	Delta          string       `json:"delta"`
-	Gamma          string       `json:"gamma"`
-	IMR            string       `json:"imr"`
-	IMRBefore      types.Number `json:"imrBf"`
-	IndexUsd       string       `json:"indexUsd"`
-	Mmr            string       `json:"mmr"`
-	MMRBefore      types.Number `json:"mmrBf"`
-	Mr1            string       `json:"mr1"`
-	Mr1FinalResult struct {
-		PNL       types.Number `json:"pnl"`
-		SpotShock string       `json:"spotShock"`
-		VolShock  string       `json:"volShock"`
-	} `json:"mr1FinalResult"`
-	Mr1Scenarios struct {
-		VolSame      map[string]string `json:"volSame"`
-		VolShockDown map[string]string `json:"volShockDown"`
-		VolShockUp   map[string]string `json:"volShockUp"`
-	} `json:"mr1Scenarios"`
-	Mr2            string `json:"mr2"`
-	Mr3            string `json:"mr3"`
-	Mr4            string `json:"mr4"`
-	Mr5            string `json:"mr5"`
-	Mr6            string `json:"mr6"`
-	Mr6FinalResult struct {
-		PNL       types.Number `json:"pnl"`
-		SpotShock string       `json:"spotShock"`
-	} `json:"mr6FinalResult"`
-	Mr7        string                     `json:"mr7"`
-	Mr8        types.Number               `json:"mr8"`
-	Mr9        types.Number               `json:"mr9"`
-	UPL        types.Number               `json:"upl"`
-	Portfolios []PositionBuilderPortfolio `json:"portfolios"`
-	RiskUnit   string                     `json:"riskUnit"`
-	Theta      string                     `json:"theta"`
-	Vega       string                     `json:"vega"`
+	Delta          types.Number                  `json:"delta"`
+	Gamma          types.Number                  `json:"gamma"`
+	IMR            types.Number                  `json:"imr"`
+	IMRBefore      types.Number                  `json:"imrBf"`
+	IndexUsd       string                        `json:"indexUsd"`
+	MMR            types.Number                  `json:"mmr"`
+	MMRBefore      types.Number                  `json:"mmrBf"`
+	MR1            types.Number                  `json:"mr1"`
+	MR1FinalResult PositionBuilderMR1FinalResult `json:"mr1FinalResult"`
+	MR1Scenarios   PositionBuilderMR1Scenarios   `json:"mr1Scenarios"`
+	MR2            types.Number                  `json:"mr2"`
+	MR3            types.Number                  `json:"mr3"`
+	MR4            types.Number                  `json:"mr4"`
+	MR5            types.Number                  `json:"mr5"`
+	MR6            types.Number                  `json:"mr6"`
+	MR6FinalResult PositionBuilderMR6FinalResult `json:"mr6FinalResult"`
+	MR7            types.Number                  `json:"mr7"`
+	MR8            types.Number                  `json:"mr8"`
+	MR9            types.Number                  `json:"mr9"`
+	UPL            types.Number                  `json:"upl"`
+	Portfolios     []PositionBuilderPortfolio    `json:"portfolios"`
+	RiskUnit       string                        `json:"riskUnit"`
+	Theta          types.Number                  `json:"theta"`
+	Vega           types.Number                  `json:"vega"`
 }
 
 // PositionBuilderDetail represents details of portfolio margin information for virtual position/assets or current position of the user

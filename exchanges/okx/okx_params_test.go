@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -650,6 +651,94 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 	}
 }
 
+// TestNewPositionBuilderSendsTheModeParameters pins the documented request
+// fields that select multi-currency margin, its leverage and the price
+// volatility: without acctLv OKX applies portfolio margin, where positions stay
+// empty, and without idxVol the before-volatility fields come back empty.
+func TestNewPositionBuilderSendsTheModeParameters(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	var mu sync.Mutex
+	var bodies []map[string]any
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method, "the position builder should be a POST")
+		assert.Equal(t, "/account/position-builder", r.URL.Path, "the position builder path should be requested")
+		raw, err := io.ReadAll(r.Body)
+		if !assert.NoError(t, err, "reading the request body should not error") {
+			return
+		}
+		var body map[string]any
+		if !assert.NoError(t, json.Unmarshal(raw, &body), "the request body should decode") {
+			return
+		}
+		mu.Lock()
+		bodies = append(bodies, body)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"positions":[],"ts":"1724751378980"}]}`))
+	}))
+	b := e.GetBase()
+	b.SkipAuthCheck = true
+	require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+	for k := range b.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+	}
+
+	_, err := e.NewPositionBuilder(t.Context(), &PositionBuilderParam{
+		AccountLevel:    3,
+		Leverage:        10,
+		IndexVolatility: -0.05,
+		SimPos:          []SimulatedPosition{{InstrumentID: "BTC-USDT-SWAP", Position: "10", AveragePrice: 100000, Leverage: 5}},
+	})
+	require.NoError(t, err, "NewPositionBuilder must not error")
+	mu.Lock()
+	got := bodies
+	mu.Unlock()
+	require.Len(t, got, 1, "NewPositionBuilder must send one request")
+	body := got[0]
+	assert.Equal(t, "3", body["acctLv"], "acctLv should select multi-currency margin")
+	assert.Equal(t, "10", body["lever"], "the cross margin leverage should be sent")
+	assert.Equal(t, "-0.05", body["idxVol"], "the price volatility should be sent")
+	assert.Equal(t, []any{map[string]any{"instId": "BTC-USDT-SWAP", "pos": "10", "avgPx": "100000", "lever": "5"}}, body["simPos"], "the simulated position should carry its average price and leverage")
+
+	unset, err := json.Marshal(&PositionBuilderParam{InclRealPosAndEq: true})
+	require.NoError(t, err, "Marshal must not error")
+	var defaults map[string]any
+	require.NoError(t, json.Unmarshal(unset, &defaults), "Unmarshal must not error")
+	for _, key := range []string{"acctLv", "lever", "idxVol"} {
+		assert.NotContainsf(t, defaults, key, "an unset %s should be left for OKX to default", key)
+	}
+}
+
+// TestPositionBuilderRiskUnitDecodesQuotedNumbers pins that the risk unit and
+// portfolio decode their quoted wire numbers into types.Number fields that
+// callers can read as numbers.
+func TestPositionBuilderRiskUnitDecodesQuotedNumbers(t *testing.T) {
+	t.Parallel()
+	var detail PositionBuilderDetail
+	require.NoError(t, json.Unmarshal([]byte(`{"riskUnitData":[{"delta":"0.1","gamma":"0.01","imr":"500","imrBf":"480","indexUsd":"1000","mmr":"250","mmrBf":"240","mr1":"1164.4109244719994","mr1FinalResult":{"pnl":"-1164.4109244719994","spotShock":"0.12","volShock":"up"},"mr1Scenarios":{"volSame":{"30000":"-0.1"},"volShockDown":{"30000":"-0.2"},"volShockUp":{"30000":"0.3"}},"mr2":"0.5","mr3":"0.6","mr4":"0.7","mr5":"0.8","mr6":"0.9","mr6FinalResult":{"pnl":"-20","spotShock":"0.05"},"mr7":"1.1","mr8":"1.2","mr9":"1.3","upl":"4.5","portfolios":[{"amt":"0.1","avgPx":"97000","delta":"0.5","floatPnl":"1.5","gamma":"0.02","instId":"BTC-USDT-SWAP","instType":"SWAP","isRealPos":true,"markPx":"97000","markPxBf":"96900","notionalUsd":"9703.22","posSide":"long","theta":"-1.5","vega":"2.5"}],"riskUnit":"BTC-USDT-SWAP","theta":"-3","vega":"5"}],"ts":"1724751378980"}`), &detail), "the documented risk unit payload must decode")
+
+	require.Len(t, detail.RiskUnitData, 1, "the risk unit row must decode")
+	ru := detail.RiskUnitData[0]
+	assert.Equal(t, "1164.4109244719994", ru.MR1.String(), "the documented mr1 should decode as a number")
+	assert.Equal(t, "-1164.4109244719994", ru.MR1FinalResult.PNL.String(), "the MR1 worst-case PNL should decode as a number")
+	assert.Equal(t, "0.12", ru.MR1FinalResult.SpotShock.String(), "the MR1 spot shock should decode as a number")
+	assert.Equal(t, "up", ru.MR1FinalResult.VolatilityShock, "the MR1 volatility shock should decode")
+	assert.Equal(t, "-0.2", ru.MR1Scenarios.VolatilityShockDown["30000"].String(), "the MR1 volatility scenarios should decode as numbers")
+	assert.Equal(t, "0.5", ru.MR2.String(), "the mr2 stress value should decode as a number")
+	assert.Equal(t, "1.3", ru.MR9.String(), "the mr9 stress value should decode as a number")
+	assert.Equal(t, "-3", ru.Theta.String(), "the risk unit theta should decode as a number")
+	assert.Equal(t, "5", ru.Vega.String(), "the risk unit vega should decode as a number")
+	require.Len(t, ru.Portfolios, 1, "the portfolio must decode")
+	p := ru.Portfolios[0]
+	assert.Equal(t, "9703.22", p.NotionalUSD.String(), "the documented portfolio notionalUsd should decode as a number")
+	assert.True(t, p.IsRealPosition, "the documented isRealPos should decode as a bool")
+	assert.Equal(t, "-1.5", p.Theta.String(), "the portfolio theta should decode as a number")
+	assert.Equal(t, "2.5", p.Vega.String(), "the portfolio vega should decode as a number")
+}
+
 // TestGetSpreadTickersOverlayBook pins the spread ticker merge:
 // market/sprd-ticker serves a cached snapshot whose bid/ask and timestamp lag
 // the live book, so the top of book comes from sprd/books?sz=1 while the last
@@ -784,6 +873,65 @@ func TestGetSpreadTickersBookFailure(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Equal(t, []string{"/market/sprd-ticker", "/sprd/books"}, paths, "the books refresh should fail only after the ticker request succeeds")
+}
+
+// TestGetSpreadTickersPartialBook pins that a side sprd/books doesn't have is
+// cleared rather than left at market/sprd-ticker's cached quote.
+func TestGetSpreadTickersPartialBook(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		books string
+		exp   SpreadTicker
+	}{
+		{
+			name:  "bids only",
+			books: `[{"asks":[],"bids":[["14.8","4.4","2"]],"ts":"1715331407999"}]`,
+			exp:   SpreadTicker{SpreadID: "BTC-USDT_BTC-USDT-SWAP", Last: 14.5, BidPrice: 14.8, BidSize: 4.4, Timestamp: types.Time(time.UnixMilli(1715331407999))},
+		},
+		{
+			name:  "asks only",
+			books: `[{"asks":[["15.2","3.3","1"]],"bids":[],"ts":"1715331407999"}]`,
+			exp:   SpreadTicker{SpreadID: "BTC-USDT_BTC-USDT-SWAP", Last: 14.5, AskPrice: 15.2, AskSize: 3.3, Timestamp: types.Time(time.UnixMilli(1715331407999))},
+		},
+		{
+			name:  "empty book",
+			books: `[{"asks":[],"bids":[],"ts":"1715331407999"}]`,
+			exp:   SpreadTicker{SpreadID: "BTC-USDT_BTC-USDT-SWAP", Last: 14.5, Timestamp: types.Time(time.UnixMilli(1715331407999))},
+		},
+		{
+			name:  "older book",
+			books: `[{"asks":[["15.2","3.3","1"]],"bids":[],"ts":"1715331400000"}]`,
+			exp:   SpreadTicker{SpreadID: "BTC-USDT_BTC-USDT-SWAP", Last: 14.5, AskPrice: 15.2, AskSize: 3.3, Timestamp: types.Time(time.UnixMilli(1715331406485))},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+			srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/market/sprd-ticker":
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[{"sprdId":"BTC-USDT_BTC-USDT-SWAP","last":"14.5","askPx":"8.5","askSz":"12.0","bidPx":"0.5","bidSz":"12.0","ts":"1715331406485"}]}`))
+				case "/sprd/books":
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":` + tc.books + `}`))
+				default:
+					assert.Failf(t, "unexpected request", "path %s should not be requested", r.URL.Path)
+				}
+			}))
+			b := e.GetBase()
+			require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+			for k := range b.API.Endpoints.GetURLMap() {
+				require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+			}
+
+			result, err := e.GetPublicSpreadTickers(t.Context(), "BTC-USDT_BTC-USDT-SWAP")
+			require.NoError(t, err, "GetPublicSpreadTickers must not error")
+			require.Len(t, result, 1, "GetPublicSpreadTickers must return the ticker")
+			assert.Equal(t, tc.exp, result[0], "a side missing from sprd/books should be cleared, not left at the cached quote")
+		})
+	}
 }
 
 // TestMMPConfigTimeIntervalNumberForms pins the timeInterval typing: the

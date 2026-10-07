@@ -4287,17 +4287,23 @@ func (e *Exchange) GetPublicSpreadTickers(ctx context.Context, spreadID string) 
 
 // overlaySpreadBook replaces a spread ticker's cached top of book with the
 // fresh best bid/ask from sprd/books, and advances the timestamp to the newer
-// snapshot. Both sides are replaced together: mixing a fresh side with a
-// cached one can yield a crossed book.
+// snapshot. A side the book lacks is cleared rather than kept from the cache:
+// mixing a fresh side with a cached one can yield a crossed book.
 func overlaySpreadBook(tk *SpreadTicker, book SpreadOrderbook) {
-	if len(book.Bids) == 0 || len(book.Asks) == 0 || len(book.Bids[0]) < 2 || len(book.Asks[0]) < 2 {
-		return
-	}
-	tk.BidPrice, tk.BidSize = book.Bids[0][0], book.Bids[0][1]
-	tk.AskPrice, tk.AskSize = book.Asks[0][0], book.Asks[0][1]
+	tk.BidPrice, tk.BidSize = spreadBookTop(book.Bids)
+	tk.AskPrice, tk.AskSize = spreadBookTop(book.Asks)
 	if book.Timestamp.Time().After(tk.Timestamp.Time()) {
 		tk.Timestamp = book.Timestamp
 	}
+}
+
+// spreadBookTop returns the price and size of a book side's best level, or
+// zeros when the side is empty.
+func spreadBookTop(levels [][]types.Number) (price, size types.Number) {
+	if len(levels) == 0 || len(levels[0]) < 2 {
+		return 0, 0
+	}
+	return levels[0][0], levels[0][1]
 }
 
 // GetPublicSpreadTrades retrieve the recent transactions of an instrument (at most 500 records per request). Results are returned in counter chronological order
