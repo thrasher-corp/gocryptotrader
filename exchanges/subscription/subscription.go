@@ -162,33 +162,48 @@ func (s *Subscription) Clone() *Subscription {
 // which pass through ExpandTemplates unexpanded are the same logical subscription and must keep their key
 // to stay reconcilable, so this variant is used for them instead
 // Built-in key types which reference the subscription are re-pointed at the copy, so the key keeps
-// describing the returned subscription; custom keys are carried over untouched
+// describing the returned subscription; any other key, including ones which describe a different
+// subscription, and custom keys, are carried over untouched
 func (s *Subscription) cloneWithKey() *Subscription {
 	c := s.Clone()
 	s.m.RLock()
 	defer s.m.RUnlock()
-	switch key := s.Key.(type) {
+	key := s.Key
+	switch k := key.(type) {
 	case *ExactKey:
-		c.SetKey(&ExactKey{Subscription: c})
+		if k != nil && k.Subscription == s {
+			key = &ExactKey{Subscription: c}
+		}
 	case ExactKey:
-		c.SetKey(ExactKey{Subscription: c})
+		if k.Subscription == s {
+			key = ExactKey{Subscription: c}
+		}
 	case *IgnoringPairsKey:
-		c.SetKey(&IgnoringPairsKey{Subscription: c})
+		if k != nil && k.Subscription == s {
+			key = &IgnoringPairsKey{Subscription: c}
+		}
 	case IgnoringPairsKey:
-		c.SetKey(IgnoringPairsKey{Subscription: c})
+		if k.Subscription == s {
+			key = IgnoringPairsKey{Subscription: c}
+		}
 	case *IgnoringAssetKey:
-		c.SetKey(&IgnoringAssetKey{Subscription: c})
+		if k != nil && k.Subscription == s {
+			key = &IgnoringAssetKey{Subscription: c}
+		}
 	case IgnoringAssetKey:
-		c.SetKey(IgnoringAssetKey{Subscription: c})
+		if k.Subscription == s {
+			key = IgnoringAssetKey{Subscription: c}
+		}
 	case *ChannelKey:
-		c.SetKey(&ChannelKey{Subscription: c})
+		if k != nil && k.Subscription == s {
+			key = &ChannelKey{Subscription: c}
+		}
 	case ChannelKey:
-		c.SetKey(ChannelKey{Subscription: c})
-	case nil:
-		// The copy will be keyed on demand by EnsureKeyed
-	default:
-		c.SetKey(key)
+		if k.Subscription == s {
+			key = ChannelKey{Subscription: c}
+		}
 	}
+	c.SetKey(key)
 	return c
 }
 
