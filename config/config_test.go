@@ -2062,14 +2062,13 @@ func TestUpdateConfig(t *testing.T) {
 
 func BenchmarkUpdateConfig(b *testing.B) {
 	var c Config
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		b.Errorf("Unable to benchmark UpdateConfig(): %s", err)
-	}
+	require.NoError(b, c.LoadConfig(TestFile, true), "LoadConfig must not error")
 
 	newCfg := c
 	for b.Loop() {
-		_ = c.UpdateConfig(TestFile, &newCfg, true)
+		if err := c.UpdateConfig(TestFile, &newCfg, true); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

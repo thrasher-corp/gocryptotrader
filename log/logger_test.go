@@ -1212,16 +1212,40 @@ func TestBenchmarkLoggerWorkloads(t *testing.T) {
 	})
 }
 
-func BenchmarkNewLogEvent(b *testing.B) {
-	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
-	for b.Loop() {
-		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", "", "", time.RFC3339, true, false, false, nil)
+// benchmarkWriter signals each write without keeping it. A benchmark waits on it for the worker to
+// finish each event, without also measuring the copy of every message testBuffer takes.
+type benchmarkWriter chan struct{}
+
+func (w benchmarkWriter) Write(p []byte) (int, error) {
+	w <- struct{}{}
+	return len(p), nil
+}
+
+func TestBenchmarkWriter(t *testing.T) {
+	t.Parallel()
+	w := make(benchmarkWriter, 1)
+	n, err := w.Write([]byte("message"))
+	require.NoError(t, err, "Write must not error")
+	assert.Equal(t, len("message"), n, "Write should report the whole message as written")
+	select {
+	case <-w:
+	default:
+		assert.Fail(t, "Write should signal that the message was written")
 	}
 }
 
-// Benchstat medians for PR base to measured production head; no significant
-// difference detected at n=20, p=0.113 (counterbalanced fresh-process observations per revision):
-// Before: 41.41 ns/op  16 B/op  1 allocs/op; After: 41.62 ns/op  16 B/op  1 allocs/op
+// BenchmarkNewLogEvent waits for each staged event to be written, which holds the job pool in a
+// steady state and stops the jobs channel filling; StageLogEvent's filled-channel warning goes to
+// the standard logger, which go test interleaves into the result lines.
+func BenchmarkNewLogEvent(b *testing.B) {
+	w := make(benchmarkWriter, 1)
+	mw := &multiWriterHolder{writers: []io.Writer{w}}
+	for b.Loop() {
+		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", time.RFC3339, "", "", true, false, false, nil)
+		<-w
+	}
+}
+
 func BenchmarkInfoDisabled(b *testing.B) {
 	sl, cleanup := benchmarkLoggerState(false, Levels{Info: true}, nil, io.Discard)
 	b.Cleanup(cleanup)
@@ -1234,10 +1258,6 @@ func BenchmarkInfoDisabled(b *testing.B) {
 
 // BenchmarkFormattedDisabled measures level-disabled formatted logging while
 // global logging remains enabled.
-// Benchstat medians for PR base to measured production head
-// (20 counterbalanced fresh-process observations per revision):
-// Before: 216.0-221.5 ns/op  256 B/op  3 allocs/op
-// After:  109.2-114.5 ns/op   64 B/op  2 allocs/op
 func BenchmarkFormattedDisabled(b *testing.B) {
 	for _, tc := range []struct {
 		name string
@@ -1262,10 +1282,6 @@ func BenchmarkFormattedDisabled(b *testing.B) {
 
 // BenchmarkCustomLogHookBypass measures logging when a custom hook handles the
 // event and bypasses the internal logging system.
-// Benchstat medians for hook-change predecessor to measured production head
-// (20 counterbalanced fresh-process observations per revision):
-// Before: Infoln 144.40 ns/op, 208 B/op, 2 allocs/op; Infof 306.5 ns/op, 264 B/op, 5 allocs/op
-// After:  Infoln  65.90 ns/op,  16 B/op, 1 allocs/op; Infof 218.5 ns/op, 72 B/op, 4 allocs/op
 func BenchmarkCustomLogHookBypass(b *testing.B) {
 	for _, tc := range []struct {
 		name string
@@ -1290,59 +1306,38 @@ func BenchmarkCustomLogHookBypass(b *testing.B) {
 
 // BenchmarkCustomLogHookFallthrough measures formatted logging when a custom
 // hook observes the event and the internal logger still handles it.
-// Benchstat medians for hook-change predecessor to measured production head
-// (20 counterbalanced fresh-process observations per revision):
-// Before: 674.6 ns/op  185 B/op  6 allocs/op
-// After:  494.3 ns/op  133 B/op  5 allocs/op
 func BenchmarkCustomLogHookFallthrough(b *testing.B) {
+	w := make(benchmarkWriter, 1)
 	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, func(_, _ string, _ ...any) bool {
 		return false
-	}, io.Discard)
+	}, w)
 	b.Cleanup(cleanup)
-	b.ReportAllocs()
-	b.ResetTimer()
 	for b.Loop() {
 		Infof(sl, "formatted %s %d", "message", 1)
+		<-w
 	}
-	// b.Loop stops the timer once it returns false, so the async flush this measures has to be timed back in
-	b.StartTimer()
-	drainBenchmarkLoggerJobs()
-	b.StopTimer()
 }
 
-// Benchstat medians for PR base to measured production head
-// (20 counterbalanced fresh-process observations per revision):
-// Before: 765.7 ns/op  371 B/op  5 allocs/op
-// After:  552.3 ns/op  175 B/op  4 allocs/op
 func BenchmarkInfof(b *testing.B) {
-	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, io.Discard)
+	w := make(benchmarkWriter, 1)
+	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, w)
 	b.Cleanup(cleanup)
-	b.ReportAllocs()
-	b.ResetTimer()
 	var n int
 	for b.Loop() {
 		Infof(sl, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+		<-w
 		n++
 	}
-	b.StartTimer()
-	drainBenchmarkLoggerJobs()
-	b.StopTimer()
 }
 
-// Benchstat medians for PR base to measured production head; no significant
-// difference detected at n=20, p=0.551 (counterbalanced fresh-process observations per revision):
-// Before: 330.6 ns/op  114 B/op  3 allocs/op; After: 334.8 ns/op  114 B/op  3 allocs/op
 func BenchmarkInfoln(b *testing.B) {
-	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, io.Discard)
+	w := make(benchmarkWriter, 1)
+	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, w)
 	b.Cleanup(cleanup)
-	b.ReportAllocs()
-	b.ResetTimer()
 	for b.Loop() {
 		Infoln(sl, "Hello this is an infoln benchmark")
+		<-w
 	}
-	b.StartTimer()
-	drainBenchmarkLoggerJobs()
-	b.StopTimer()
 }
 
 type testCapture struct {

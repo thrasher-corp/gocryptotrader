@@ -1,0 +1,43 @@
+# Packages benchmarked by `make bench`. One package per line, relative to the module root.
+#
+# Every benchmark in a listed package must have an entry in baseline.json, so a new `func
+# Benchmark` fails CI until it is seeded with `make bench_update`. A package whose benchmarks must
+# not run is excluded instead, with the reason after a #:
+#
+#   exchanges/example  excluded  # its TestMain fetches tradable pairs from the live API
+#
+# benchcheck -list, which make bench and make bench_update run first, fails while a package
+# declaring a benchmark is neither listed nor excluded, or while the list names one that declares
+# none, so the list cannot fall behind a new or renamed package.
+#
+# List a package once its benchmarks are hermetic - no network, no shared state between benchmarks,
+# no writes to stdout during measurement, and reproducible allocation counts. Verify with:
+#   make bench_pkg PKG=./<pkg>/
+# run a few times over, and confirm allocs/op does not move. That target uses the gate's own
+# BENCH_FLAGS, so the measurement matches; a hand-written go test line drifts from it and -cpu/-p in
+# particular change what a scheduler-sensitive benchmark reports. A baseline "ignore" only skips
+# comparison and does not stop a benchmark running, so one that is unsafe to execute must be
+# excluded here.
+
+common
+common/math
+common/timedmutex
+common/timeperiods
+config
+currency
+dispatch
+encoding/json
+exchange/order/limits
+exchange/websocket/orderbookmanager
+exchanges/alert
+exchanges/binance
+exchanges/currencystate
+exchanges/gateio
+exchanges/kucoin
+exchanges/okx
+exchanges/order
+exchanges/orderbook
+exchanges/request
+log
+types
+types/decimal

@@ -14,7 +14,20 @@ DECIMAL_BENCH_COUNT ?= 5
 DECIMAL_BENCH_TIME ?= 500ms
 DECIMAL_BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime $(DECIMAL_BENCH_TIME) -count $(DECIMAL_BENCH_COUNT)
 
-.PHONY: all lint lint_docker markdownlint misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
+.PHONY: all lint lint_docker markdownlint misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal bench bench_update bench_apply bench_pkg check_bench_pkgs
+
+# Edit benchmarks/packages.txt to change which packages are benchmarked.
+BENCH_PKGS = $(shell go run ./cmd/benchcheck -list)
+
+# BENCH_FLAGS must stay identical between bench and bench_update, so recorded and compared values
+# are produced the same way.
+#
+# BENCH_SAMPLES is the -count, and benchcheck's -samples, which rejects any benchmark reporting a
+# different number. It must be odd: benchcheck compares the median sample and refuses an even
+# count, which has no middle. -cpu and -p pin what a scheduler-sensitive benchmark measures, so CI
+# and a developer's machine agree; keep -cpu single valued, or `-cpu 1,4` doubles every count.
+BENCH_SAMPLES = 7
+BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime 100ms -count $(BENCH_SAMPLES) -cpu 4 -p 1 -timeout 20m
 
 all: check build
 
@@ -37,6 +50,40 @@ markdownlint:
 	npx --yes markdownlint-cli2@0.23.2 "**/*.md" "cmd/documentation/**/*.tmpl"
 
 check: lint misc_checks markdownlint test
+
+# Runs the same -list BENCH_PKGS does, where its error can be seen: $(shell) swallows the message and
+# the exit status alike, and an empty BENCH_PKGS makes go test benchmark the current directory.
+check_bench_pkgs:
+	@go run ./cmd/benchcheck -list > /dev/null
+
+# go test writes to a file rather than a pipe so a failing run aborts the target; through a pipe
+# benchcheck reads partial output and, with -update, saves a baseline before go test's exit status
+# is known. The PID keeps two terminals in one checkout off the same file, which is removed on
+# success and left for inspection on failure. Setting BENCH_OUT keeps it at that path instead, which
+# is how CI uploads it. .gitignore covers both.
+bench: check_bench_pkgs
+	out=$(or $(BENCH_OUT),.bench-output-$@-$$$$.txt) && \
+		go test $(BENCH_FLAGS) $(BENCH_PKGS) > $$out && \
+		go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) < $$out$(if $(BENCH_OUT),, && rm -f $$out)
+
+# Measures one package with the gate's exact flags, for auditing a package before listing it.
+# Usage: make bench_pkg PKG=./currency/
+bench_pkg:
+	@test -n "$(PKG)" || { echo "set PKG, e.g. make bench_pkg PKG=./currency/"; exit 1; }
+	go test $(BENCH_FLAGS) $(PKG)
+
+bench_update: check_bench_pkgs
+	out=$(or $(BENCH_OUT),.bench-output-$@-$$$$.txt) && \
+		go test $(BENCH_FLAGS) $(BENCH_PKGS) > $$out && \
+		go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) -update -prune < $$out$(if $(BENCH_OUT),, && rm -f $$out)
+
+# Folds output that has already been measured into the baseline, such as the bench-output artifact
+# the benchmarks workflow uploads. benchcheck only records budgets from linux/amd64 output, so this
+# is how a baseline is updated from any other machine.
+# Usage: make bench_apply BENCH_OUT=path/to/bench-output.txt
+bench_apply:
+	@test -n "$(BENCH_OUT)" || { echo "set BENCH_OUT, e.g. make bench_apply BENCH_OUT=bench-output.txt"; exit 1; }
+	go run ./cmd/benchcheck -samples $(BENCH_SAMPLES) -update -prune < $(BENCH_OUT)
 
 test:
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...

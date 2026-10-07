@@ -1,0 +1,484 @@
+{
+  "common.BenchmarkCounter": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "common/math.BenchmarkCompareSignedPercentageDifferenceDecimal": {
+    "allocs": 12,
+    "bytes": 376
+  },
+  "common/math.BenchmarkCompareSignedPercentageDifferenceDecimalPrecisionFallback": {
+    "allocs": 26,
+    "bytes": 872
+  },
+  "common/math.BenchmarkDecimalPercentageDifference": {
+    "allocs": 27,
+    "bytes": 792
+  },
+  "common/math.BenchmarkPercentageDifference": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "common/timedmutex.BenchmarkTimedMutexTime": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeLinearInteraction": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeUnlockNotPrimed": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeUnlockPrimed": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "common/timeperiods.BenchmarkFindTimeRangesContainingData/dense": {
+    "allocs": 13,
+    "bytes": 119456
+  },
+  "common/timeperiods.BenchmarkFindTimeRangesContainingData/empty": {
+    "allocs": 13,
+    "bytes": 119457
+  },
+  "common/timeperiods.BenchmarkFindTimeRangesContainingData/out-of-range": {
+    "allocs": 13,
+    "bytes": 119456
+  },
+  "common/timeperiods.BenchmarkFindTimeRangesContainingData/sparse": {
+    "allocs": 22,
+    "bytes": 184753
+  },
+  "config.BenchmarkUpdateConfig": {
+    "allocs": 37991,
+    "bytes": 9383689,
+    "allocs_tolerance": 0.004,
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs on the merged tree in October 2026 gave medians from 37973 to 38037. Updates lower the budget to the smallest median they see, so the tolerance covers that whole range above it, with headroom"
+  },
+  "currency.BenchmarkFindDifferences": {
+    "allocs": 2,
+    "bytes": 288
+  },
+  "currency.BenchmarkFindMatchingPairsBetween": {
+    "allocs": 2,
+    "bytes": 944
+  },
+  "currency.BenchmarkGetCrypto": {
+    "allocs": 1,
+    "bytes": 48
+  },
+  "currency.BenchmarkNewCode": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "currency.BenchmarkPairsFormat": {
+    "allocs": 1,
+    "bytes": 352
+  },
+  "currency.BenchmarkPairsJoin": {
+    "allocs": 1,
+    "bytes": 64
+  },
+  "currency.BenchmarkPairsString": {
+    "allocs": 7,
+    "bytes": 56
+  },
+  "currency.BenchmarkRemovePairsByFilter": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "dispatch.BenchmarkSubscribe": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "encoding/json.BenchmarkUnmarshal": {
+    "allocs": 18,
+    "bytes": 648
+  },
+  "exchange/order/limits.BenchmarkAmountStepCommonBaseIncrement": {
+    "allocs": 64,
+    "bytes": 1064
+  },
+  "exchange/websocket/orderbookmanager.BenchmarkApplyPendingUpdates/1": {
+    "allocs": 3,
+    "bytes": 120
+  },
+  "exchange/websocket/orderbookmanager.BenchmarkApplyPendingUpdates/2": {
+    "allocs": 5,
+    "bytes": 192
+  },
+  "exchange/websocket/orderbookmanager.BenchmarkApplyPendingUpdates/256": {
+    "allocs": 513,
+    "bytes": 18480
+  },
+  "exchange/websocket/orderbookmanager.BenchmarkApplyPendingUpdates/64": {
+    "allocs": 129,
+    "bytes": 4656
+  },
+  "exchange/websocket/orderbookmanager.BenchmarkApplyPendingUpdates/8": {
+    "allocs": 17,
+    "bytes": 624
+  },
+  "exchange/websocket/orderbookmanager.BenchmarkLoadSnapshotExistingDepth": {
+    "allocs": 1,
+    "bytes": 48
+  },
+  "exchange/websocket/orderbookmanager.BenchmarkUpdatePerformance": {
+    "allocs": 1,
+    "bytes": 48
+  },
+  "exchanges/alert.BenchmarkAlert": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/alert.BenchmarkWait": {
+    "allocs": 1,
+    "bytes": 32
+  },
+  "exchanges/binance.BenchmarkWsHandleData/BalanceUpdate": {
+    "allocs": 3,
+    "bytes": 240
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Depth": {
+    "allocs": 10,
+    "bytes": 416
+  },
+  "exchanges/binance.BenchmarkWsHandleData/ExecutionReport": {
+    "allocs": 9,
+    "bytes": 74782
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Kline": {
+    "allocs": 6,
+    "bytes": 616
+  },
+  "exchanges/binance.BenchmarkWsHandleData/ListStatus": {
+    "allocs": 5,
+    "bytes": 560
+  },
+  "exchanges/binance.BenchmarkWsHandleData/OutboundAccountPosition": {
+    "allocs": 6,
+    "bytes": 464
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Ticker": {
+    "allocs": 7,
+    "bytes": 672
+  },
+  "exchanges/binance.BenchmarkWsHandleData/Trade": {
+    "allocs": 2,
+    "bytes": 40
+  },
+  "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/1": {
+    "allocs": 2,
+    "bytes": 51
+  },
+  "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/32": {
+    "allocs": 2,
+    "bytes": 1888
+  },
+  "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/512": {
+    "allocs": 2,
+    "bytes": 28800
+  },
+  "exchanges/gateio.BenchmarkMessageID": {
+    "allocs": 1,
+    "bytes": 32
+  },
+  "exchanges/gateio.BenchmarkTimeInForceFromString": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/kucoin.BenchmarkIntervalToString": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/okx.BenchmarkMessageID": {
+    "allocs": 1,
+    "bytes": 32
+  },
+  "exchanges/order.BenchmarkFilterOrdersByPairs": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/order.BenchmarkFilterOrdersBySide": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/order.BenchmarkFilterOrdersByTimeRange": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/order.BenchmarkFilterOrdersByType": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/order.BenchmarkIsActive": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/order.BenchmarkIsInactive": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/order.BenchmarkStringToOrderSide": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/order.BenchmarkStringToOrderStatus": {
+    "allocs": 1,
+    "bytes": 24
+  },
+  "exchanges/order.BenchmarkStringToOrderType": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "exchanges/order.BenchmarkStringToTimeInForce": {
+    "allocs": 13,
+    "bytes": 272
+  },
+  "exchanges/orderbook.BenchmarkDeleteByID": {
+    "allocs": 1,
+    "bytes": 480
+  },
+  "exchanges/orderbook.BenchmarkLevelsCalculateExecution": {
+    "allocs": 46,
+    "bytes": 1288
+  },
+  "exchanges/orderbook.BenchmarkLoad": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkProcess": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkProcessUpdateUpdateOrInsertDelete": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkRetrieve": {
+    "allocs": 1,
+    "bytes": 480
+  },
+  "exchanges/orderbook.BenchmarkReverse": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortAsksAscending": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortAsksDescending": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortAsksLateInversion": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortAsksNaN/after-inversion": {
+    "allocs": 3,
+    "bytes": 152
+  },
+  "exchanges/orderbook.BenchmarkSortAsksNaN/early": {
+    "allocs": 3,
+    "bytes": 152
+  },
+  "exchanges/orderbook.BenchmarkSortAsksNaN/late": {
+    "allocs": 3,
+    "bytes": 152
+  },
+  "exchanges/orderbook.BenchmarkSortAsksStandard": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortBidsAscending": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortBidsDescending": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortBidsLateInversion": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkSortBidsNaN/after-inversion": {
+    "allocs": 3,
+    "bytes": 152
+  },
+  "exchanges/orderbook.BenchmarkSortBidsNaN/early": {
+    "allocs": 3,
+    "bytes": 152
+  },
+  "exchanges/orderbook.BenchmarkSortBidsNaN/late": {
+    "allocs": 3,
+    "bytes": 152
+  },
+  "exchanges/orderbook.BenchmarkSortBidsStandard": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkUpdateByID": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByID_asks": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByID_bids": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByPrice_Amend": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByPrice_Insert_Delete": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/request.BenchmarkGetNonce": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "log.BenchmarkCustomLogHookBypass/Infof": {
+    "allocs": 4,
+    "bytes": 72
+  },
+  "log.BenchmarkCustomLogHookBypass/Infoln": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "log.BenchmarkCustomLogHookFallthrough": {
+    "allocs": 5,
+    "bytes": 112
+  },
+  "log.BenchmarkFormattedDisabled/Debugf": {
+    "allocs": 2,
+    "bytes": 64
+  },
+  "log.BenchmarkFormattedDisabled/Errorf": {
+    "allocs": 2,
+    "bytes": 64
+  },
+  "log.BenchmarkFormattedDisabled/Infof": {
+    "allocs": 2,
+    "bytes": 64
+  },
+  "log.BenchmarkFormattedDisabled/Warnf": {
+    "allocs": 2,
+    "bytes": 64
+  },
+  "log.BenchmarkInfoDisabled": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "log.BenchmarkInfof": {
+    "allocs": 3,
+    "bytes": 152
+  },
+  "log.BenchmarkInfoln": {
+    "allocs": 3,
+    "bytes": 96
+  },
+  "log.BenchmarkNewLogEvent": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types.BenchmarkNumberMarshalJSON": {
+    "allocs": 2,
+    "bytes": 32
+  },
+  "types.BenchmarkNumberUnmarshalJSON": {
+    "allocs": 1,
+    "bytes": 16
+  },
+  "types.BenchmarkPreciseNumberDecimal": {
+    "allocs": 3,
+    "bytes": 56
+  },
+  "types.BenchmarkPreciseNumberUnmarshalJSON": {
+    "allocs": 16,
+    "bytes": 392
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/date": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/fractional": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/padded_width": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types.BenchmarkUnmarshalJSON/decoder/seconds": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types.BenchmarkUnmarshalJSON/direct/date": {
+    "allocs": 1,
+    "bytes": 8
+  },
+  "types.BenchmarkUnmarshalJSON/direct/fractional": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types.BenchmarkUnmarshalJSON/direct/padded_width": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types.BenchmarkUnmarshalJSON/direct/seconds": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types/decimal.BenchmarkDecimalAdd": {
+    "allocs": 2,
+    "bytes": 80
+  },
+  "types/decimal.BenchmarkDecimalDiv": {
+    "allocs": 12,
+    "bytes": 384
+  },
+  "types/decimal.BenchmarkDecimalEqual": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "types/decimal.BenchmarkDecimalFloat64": {
+    "allocs": 11,
+    "bytes": 304
+  },
+  "types/decimal.BenchmarkDecimalInexactFloat64": {
+    "allocs": 11,
+    "bytes": 304
+  },
+  "types/decimal.BenchmarkDecimalMul": {
+    "allocs": 2,
+    "bytes": 80
+  },
+  "types/decimal.BenchmarkDecimalString": {
+    "allocs": 4,
+    "bytes": 56
+  },
+  "types/decimal.BenchmarkDecimalUnmarshalJSON": {
+    "allocs": 5,
+    "bytes": 96
+  },
+  "types/decimal.BenchmarkMustFromFloat": {
+    "allocs": 2,
+    "bytes": 40
+  },
+  "types/decimal.BenchmarkNewFromInt": {
+    "allocs": 2,
+    "bytes": 40
+  },
+  "types/decimal.BenchmarkNewFromString": {
+    "allocs": 3,
+    "bytes": 56
+  }
+}

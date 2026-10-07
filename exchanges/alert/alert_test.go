@@ -93,8 +93,6 @@ func isLeaky(t *testing.T, a *Notice, ch chan struct{}) {
 	}
 }
 
-// 120801772	         9.334 ns/op	       0 B/op	       0 allocs/op // PREV
-// 146173060	         9.154 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkAlert(b *testing.B) {
 	n := Notice{}
 	for b.Loop() {
@@ -102,14 +100,18 @@ func BenchmarkAlert(b *testing.B) {
 	}
 }
 
-// BenchmarkWait benchmark
-//
-// 150352	      9916 ns/op	     681 B/op	       4 allocs/op // PREV
-// 87436	     14724 ns/op	     682 B/op	       4 allocs/op // CURRENT
+// BenchmarkWait kicks every waiter rather than passing a nil kick channel. hold only returns when
+// one of its two channels fires, so an unkicked waiter that is never alerted leaks its routine and
+// its wait-group count for the life of the run; at a long benchtime that accumulates millions.
+// Receiving the reply also returns the channel to the pool, which is the path being measured.
 func BenchmarkWait(b *testing.B) {
 	n := Notice{}
+	kick := make(chan struct{})
+	close(kick)
 	for b.Loop() {
-		n.Wait(nil)
+		if !<-n.Wait(kick) {
+			b.Fatal("Wait must report the kick rather than an alert")
+		}
 	}
 }
 
