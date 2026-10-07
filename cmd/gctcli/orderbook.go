@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -588,7 +587,7 @@ func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, 
 	upperQuote := strings.ToUpper(resp.Pair.Quote)
 	printFmt := "%s%.8f\t\t%.8f\n"
 	fmt.Printf("%sOrderbook stream for %v %v %v - Last updated %v\n",
-		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, resp.LastUpdated.AsTime().Format(common.SimpleTimeFormatWithTimezone))
 
 	fmt.Printf("%sPrice(%v)\t\tAmount(%s)\n",
 		grayText, upperQuote, upperBase)
@@ -662,7 +661,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook streamed for %s %s at %s", exchangeName, resp.Pair, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+		fmt.Printf("Orderbook streamed for %s %s at %s", exchangeName, resp.Pair, resp.LastUpdated.AsTime().Format(common.SimpleTimeFormatWithTimezone))
 		if resp.Error != "" {
 			fmt.Printf("%s\n", resp.Error)
 		}
