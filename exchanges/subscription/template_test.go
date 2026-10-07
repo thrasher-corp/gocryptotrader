@@ -310,3 +310,55 @@ func TestExpandTemplatesOwnership(t *testing.T) {
 		}
 	})
 }
+
+// TestExpandTemplatesIfNeeded ensures a fully qualified list is handed back as given, and any other list gets
+// exactly what ExpandTemplates returns
+func TestExpandTemplatesIfNeeded(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Qualified", func(t *testing.T) {
+		t.Parallel()
+		e := newMockEx()
+		first := &Subscription{Channel: "single-channel", QualifiedChannel: "first", Key: "first-key"}
+		second := &Subscription{Channel: "single-channel", QualifiedChannel: "second", Authenticated: true}
+		require.NoError(t, second.SetState(ResubscribingState), "SetState must not error")
+		for _, want := range []List{{}, {first}, {first, second}} {
+			got, err := slices.Clone(want).ExpandTemplatesIfNeeded(e)
+			require.NoError(t, err, "ExpandTemplatesIfNeeded must not error")
+			require.Len(t, got, len(want), "Must get every subscription back")
+			for i, s := range want {
+				assert.Same(t, s, got[i], "Should return a fully qualified list as given")
+			}
+		}
+		assert.Equal(t, "first-key", first.Key, "Should leave a key alone")
+		assert.Nil(t, second.Key, "Should not key a subscription")
+		assert.Equal(t, ResubscribingState, second.State(), "Should leave the state alone")
+	})
+
+	t.Run("Unqualified", func(t *testing.T) {
+		t.Parallel()
+		e := newMockEx()
+		e.tpl = "subscriptions.tmpl"
+		e.auth = true
+		qualified := &Subscription{Channel: "single-channel", QualifiedChannel: "already qualified", Key: "custom-key"}
+		require.NoError(t, qualified.SetState(SubscribedState), "SetState must not error")
+		for _, l := range []List{
+			{{Channel: "single-channel", Authenticated: true}},
+			{{Channel: "expand-pairs", Asset: asset.Spot, Key: "template-key"}},
+			{{Channel: "expand-assets", Asset: asset.All, Interval: kline.FifteenMin}},
+			{qualified, {Channel: "expand-pairs", Asset: asset.Spot}},
+			{{Channel: "expand-pairs", Asset: asset.Spot}, qualified},
+			{qualified, {Channel: "single-channel"}, {Channel: "single-channel", QualifiedChannel: "also qualified"}},
+			{{Channel: "nil"}},
+			{{Channel: "single-channel"}, {Channel: "nil"}},
+		} {
+			got, err := l.ExpandTemplatesIfNeeded(e)
+			exp, expErr := l.ExpandTemplates(e)
+			assert.Equal(t, expErr, err, "Should return the error from ExpandTemplates")
+			assert.Equal(t, exp, got, "Should return the subscriptions from ExpandTemplates")
+			assert.False(t, slices.Contains(got, qualified), "Should copy a qualified subscription when the list needs expanding")
+		}
+		assert.Equal(t, "custom-key", qualified.Key, "Should leave the key of a qualified subscription alone")
+		assert.Equal(t, SubscribedState, qualified.State(), "Should leave the state of a qualified subscription alone")
+	})
+}
