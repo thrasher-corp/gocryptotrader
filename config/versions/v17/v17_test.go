@@ -3,123 +3,131 @@ package v17_test
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v17 "github.com/thrasher-corp/gocryptotrader/config/versions/v17"
 )
 
-func TestUpgradeConfig(t *testing.T) {
+func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-
 	for _, tc := range []struct {
 		name     string
 		input    string
 		expected string
 	}{
 		{
-			name:     "previous default",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name:     "both settings with explicit choices",
+			input:    `{"name":"Kraken","enabled":true,"orderbook":{"verificationBypass":true,"websocketBufferEnabled":true,"websocketBufferLimit":0},"custom":{"keep":"me"}}`,
+			expected: `{"name":"Kraken","enabled":true,"orderbook":{"verificationBypass":true},"custom":{"keep":"me"}}`,
 		},
 		{
-			name:     "previous nanosecond selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"custom":"preserved"}}}`,
+			name:     "only limit",
+			input:    `{"name":"Binance","orderbook":{"websocketBufferLimit":5,"verificationBypass":false}}`,
+			expected: `{"name":"Binance","orderbook":{"verificationBypass":false}}`,
 		},
 		{
-			name:     "missing setting",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name:     "only enabled",
+			input:    `{"name":"Gemini","orderbook":{"websocketBufferEnabled":false}}`,
+			expected: `{"name":"Gemini","orderbook":{}}`,
 		},
 		{
-			name:     "missing gRPC configuration",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
+			name:     "no orderbook",
+			input:    `{"name":"Coinbase","enabled":false}`,
+			expected: `{"name":"Coinbase","enabled":false}`,
+		},
+		{
+			name:     "null orderbook",
+			input:    `{"name":"Bitstamp","orderbook":null}`,
+			expected: `{"name":"Bitstamp","orderbook":null}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			output, err := new(v17.Version).UpgradeConfig(t.Context(), []byte(tc.input))
-			require.NoError(t, err, "UpgradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "UpgradeConfig should remove only the obsolete timestamp setting")
+			out, err := new(v17.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			assert.JSONEq(t, tc.expected, string(out), "UpgradeExchange should remove only obsolete buffer settings")
 		})
 	}
 }
 
-func TestDowngradeConfig(t *testing.T) {
+func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-
 	for _, tc := range []struct {
 		name     string
 		input    string
 		expected string
 	}{
 		{
-			name:     "gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved","timeInNanoSeconds":false}}}`,
+			name:     "restore defaults",
+			input:    `{"name":"Kraken","orderbook":{"verificationBypass":true}}`,
+			expected: `{"name":"Kraken","orderbook":{"verificationBypass":true,"websocketBufferLimit":5,"websocketBufferEnabled":false}}`,
 		},
 		{
-			name:     "explicit seconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
+			name:     "preserve explicit settings",
+			input:    `{"name":"Kraken","orderbook":{"websocketBufferLimit":0,"websocketBufferEnabled":true}}`,
+			expected: `{"name":"Kraken","orderbook":{"websocketBufferLimit":0,"websocketBufferEnabled":true}}`,
 		},
 		{
-			name:     "explicit nanoseconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
+			name:     "restore only missing setting",
+			input:    `{"name":"Kraken","orderbook":{"websocketBufferEnabled":true}}`,
+			expected: `{"name":"Kraken","orderbook":{"websocketBufferLimit":5,"websocketBufferEnabled":true}}`,
 		},
 		{
-			name:     "null selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":null}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
+			name:     "no orderbook",
+			input:    `{"name":"Coinbase"}`,
+			expected: `{"name":"Coinbase"}`,
 		},
 		{
-			name:     "missing gRPC configuration remains absent",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
-		},
-		{
-			name:     "non-object gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":null}}`,
-			expected: `{"remoteControl":{"gRPC":null}}`,
+			name:     "null orderbook",
+			input:    `{"name":"Bitstamp","orderbook":null}`,
+			expected: `{"name":"Bitstamp","orderbook":null}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			output, err := new(v17.Version).DowngradeConfig(t.Context(), []byte(tc.input))
-			require.NoError(t, err, "DowngradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "DowngradeConfig should restore the legacy default without overriding explicit settings")
+			out, err := new(v17.Version).DowngradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, tc.expected, string(out), "DowngradeExchange should restore only missing legacy buffer defaults")
+		})
+	}
+}
+
+func TestDowngradeExchangeErrors(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		input string
+	}{
+		{name: "orderbook without a value", input: `{"name":"Kraken","orderbook":}`},
+		{name: "setting without a value", input: `{"name":"Kraken","orderbook":{"websocketBufferLimit":}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := new(v17.Version).DowngradeExchange(t.Context(), []byte(tc.input))
+			require.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "DowngradeExchange must return the parser error")
 		})
 	}
 }
 
 func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
+	input := []byte(`{"version":16,"exchanges":[{"name":"Kraken","orderbook":{"verificationBypass":true,"websocketBufferEnabled":true,"websocketBufferLimit":0}},{"name":"Gemini","orderbook":{"websocketBufferEnabled":false,"websocketBufferLimit":5}}]}`)
+	unchanged, err := versions.Manager.Deploy(t.Context(), input, 16)
+	require.NoError(t, err, "Deploy must leave an existing v16 configuration valid")
+	assert.Equal(t, input, unchanged, "Deploy should retain v16 buffer settings until the v17 upgrade")
 
-	input := []byte(`{"version":16,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":true}}}`)
-	upgraded, err := versions.Manager.Deploy(t.Context(), input, 17)
+	out, err := versions.Manager.Deploy(t.Context(), input, 17)
 	require.NoError(t, err, "Deploy must apply the registered v17 upgrade")
-	assert.JSONEq(t, `{"version":17,"remoteControl":{"gRPC":{"enabled":true}}}`, string(upgraded), "Deploy should remove the obsolete setting and set version 17")
+	expected := `{"version":17,"exchanges":[{"name":"Kraken","orderbook":{"verificationBypass":true}},{"name":"Gemini","orderbook":{}}]}`
+	assert.JSONEq(t, expected, string(out), "Deploy should remove buffer settings from every exchange and advance to v17")
 
-	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 16)
-	require.NoError(t, err, "Deploy must apply the registered v17 downgrade")
-	assert.JSONEq(t, `{"version":16,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`, string(downgraded), "Deploy should restore the legacy default and set version 16")
+	downgraded, err := versions.Manager.Deploy(t.Context(), out, 16)
+	require.NoError(t, err, "Deploy must downgrade from v17")
+	assert.JSONEq(t, `{"version":16,"exchanges":[{"name":"Kraken","orderbook":{"verificationBypass":true,"websocketBufferLimit":5,"websocketBufferEnabled":false}},{"name":"Gemini","orderbook":{"websocketBufferLimit":5,"websocketBufferEnabled":false}}]}`, string(downgraded), "Downgrade should restore the v16 buffer defaults without changing other configuration")
 
-	previousSeconds := []byte(`{"version":16,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`)
-	upgraded, err = versions.Manager.Deploy(t.Context(), previousSeconds, 17)
-	require.NoError(t, err, "Deploy must upgrade a previous seconds selection")
-	downgraded, err = versions.Manager.Deploy(t.Context(), upgraded, 16)
-	require.NoError(t, err, "Deploy must downgrade the upgraded seconds selection")
-	assert.JSONEq(t, `{"version":16,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`, string(downgraded), "Deploy should return the legacy default unchanged")
-}
-
-func TestDowngradeConfigRejectsMalformedConfig(t *testing.T) {
-	t.Parallel()
-
-	input := []byte(`{"remoteControl":{"gRPC":`)
-	output, err := new(v17.Version).DowngradeConfig(t.Context(), input)
-	require.Error(t, err, "DowngradeConfig must reject malformed configuration")
-	assert.Equal(t, input, output, "DowngradeConfig should return the original configuration on error")
+	reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 17)
+	require.NoError(t, err, "Deploy must reapply v17")
+	assert.JSONEq(t, expected, string(reupgraded), "Reapplying v17 should preserve the upgraded configuration")
 }

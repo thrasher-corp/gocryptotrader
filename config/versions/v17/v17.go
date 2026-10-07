@@ -1,48 +1,57 @@
-// Package v17 removes the obsolete configurable gRPC timestamp precision.
+// Package v17 removes obsolete websocket orderbook buffer settings.
 package v17
 
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version implements ConfigVersion for the gRPC timestamp migration.
+// Version implements ExchangeVersion for the removal of orderbook buffering.
 type Version struct{}
 
-// UpgradeConfig removes the timestamp precision setting because protobuf
-// timestamps now preserve nanoseconds without configuration.
-func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	return jsonparser.Delete(config, "remoteControl", "gRPC", "timeInNanoSeconds"), nil
+// Exchanges applies this migration to every exchange.
+func (*Version) Exchanges() []string { return []string{"*"} }
+
+// UpgradeExchange removes buffer settings that are no longer used by the orderbook manager.
+func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	exchange = jsonparser.Delete(exchange, "orderbook", "websocketBufferLimit")
+	exchange = jsonparser.Delete(exchange, "orderbook", "websocketBufferEnabled")
+	return exchange, nil
 }
 
-// DowngradeConfig restores the legacy default expected by older releases, as the
-// upgrade discarded any configured precision. An explicitly supplied setting is
-// preserved.
-func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	_, valueType, _, err := jsonparser.Get(config, "remoteControl", "gRPC")
-	switch {
-	case errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return config, nil
-	case err != nil:
-		return config, fmt.Errorf("error getting gRPC configuration: %w", err)
-	case valueType != jsonparser.Object:
-		return config, nil
+// DowngradeExchange restores the v16 buffer defaults when the settings are absent.
+func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	_, valueType, _, err := jsonparser.Get(exchange, "orderbook")
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return exchange, nil
 	}
-
-	_, precisionType, _, err := jsonparser.Get(config, "remoteControl", "gRPC", "timeInNanoSeconds")
-	switch {
-	case err == nil && precisionType != jsonparser.Null:
-		return config, nil
-	case err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return config, fmt.Errorf("error getting gRPC timestamp precision: %w", err)
-	}
-
-	updated, err := jsonparser.Set(config, []byte("false"), "remoteControl", "gRPC", "timeInNanoSeconds")
 	if err != nil {
-		return config, fmt.Errorf("error restoring gRPC timestamp precision: %w", err)
+		return nil, err
 	}
-	return updated, nil
+	if valueType != jsonparser.Object {
+		return exchange, nil
+	}
+
+	for _, setting := range []struct {
+		key   string
+		value []byte
+	}{
+		{"websocketBufferLimit", []byte("5")},
+		{"websocketBufferEnabled", []byte("false")},
+	} {
+		_, _, _, err = jsonparser.Get(exchange, "orderbook", setting.key)
+		if err == nil {
+			continue
+		}
+		if !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return nil, err
+		}
+		exchange, err = jsonparser.Set(exchange, setting.value, "orderbook", setting.key)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return exchange, nil
 }
