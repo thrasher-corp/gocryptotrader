@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -56,6 +57,7 @@ func (e *Exchange) SetDefaults() {
 
 	e.instrumentsInfoMap = make(map[string][]Instrument)
 	e.instrumentIDCodeMap = make(map[string]uint64)
+	e.accountPositionModes = make(map[string]string)
 
 	cpf := &currency.PairFormat{
 		Delimiter: currency.DashDelimiter,
@@ -1236,32 +1238,69 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // contractPositionMode returns the account's contract position mode,
 // fetching and caching it on first use: net mode and long/short mode place
-// futures and perpetual swap orders differently.
+// futures and perpetual swap orders differently. The cache is keyed by the
+// API key the request acts for, as a request can carry another account's
+// credentials in its context.
 func (e *Exchange) contractPositionMode(ctx context.Context) (string, error) {
-	e.accountPositionModeMu.RLock()
-	mode := e.accountPositionMode
-	e.accountPositionModeMu.RUnlock()
-	if mode != "" {
-		return mode, nil
+	apiKey := e.positionModeKey(ctx)
+	for {
+		e.accountPositionModeMu.RLock()
+		mode := e.accountPositionModes[apiKey]
+		switches := e.accountPositionModeSwitches
+		e.accountPositionModeMu.RUnlock()
+		if mode != "" {
+			return mode, nil
+		}
+		accountConfig, err := e.GetAccountConfiguration(ctx)
+		if err != nil {
+			return "", fmt.Errorf("error fetching the account position mode: %w", err)
+		}
+		if accountConfig == nil {
+			return "", fmt.Errorf("error fetching the account position mode: %w", common.ErrNoResponse)
+		}
+		if accountConfig.PositionMode != positionModeNet && accountConfig.PositionMode != positionModeLongShort {
+			return "", fmt.Errorf("%w %q", errInvalidPositionMode, accountConfig.PositionMode)
+		}
+		if settled, ok := e.cachePositionMode(apiKey, switches, accountConfig.PositionMode); ok {
+			return settled, nil
+		}
+		// A switch through another key, which may belong to the same account,
+		// landed while the fetch was in flight, so its answer may predate the
+		// switch: fetch again.
 	}
-	accountConfig, err := e.GetAccountConfiguration(ctx)
-	if err != nil {
-		return "", fmt.Errorf("error fetching the account position mode: %w", err)
-	}
-	if accountConfig == nil {
-		return "", fmt.Errorf("error fetching the account position mode: %w", common.ErrNoResponse)
-	}
-	if accountConfig.PositionMode != positionModeNet && accountConfig.PositionMode != positionModeLongShort {
-		return "", fmt.Errorf("%w %q", errInvalidPositionMode, accountConfig.PositionMode)
-	}
+}
+
+// cachePositionMode caches a mode fetched for apiKey unless a switch landed
+// after switches was read, reporting the mode to use and whether it is
+// settled. A switch confirmed for apiKey itself is newer than the fetched
+// mode, so it is kept.
+func (e *Exchange) cachePositionMode(apiKey string, switches uint64, fetched string) (string, bool) {
 	e.accountPositionModeMu.Lock()
 	defer e.accountPositionModeMu.Unlock()
-	if e.accountPositionMode == "" {
-		// A switch SetPositionMode confirmed while this fetch was in flight
-		// is newer than the fetched mode, so it is kept.
-		e.accountPositionMode = accountConfig.PositionMode
+	if confirmed := e.accountPositionModes[apiKey]; confirmed != "" {
+		return confirmed, true
 	}
-	return e.accountPositionMode, nil
+	if e.accountPositionModeSwitches != switches {
+		return "", false
+	}
+	e.accountPositionModes[apiKey] = fetched
+	return fetched, true
+}
+
+// positionModeKey returns the API key of the account a request acts for,
+// from the request's context credentials or the exchange's own, keying that
+// account's cached position mode. Without usable credentials the account
+// configuration request fails on its own, so an empty key is returned.
+func (e *Exchange) positionModeKey(ctx context.Context) string {
+	if ctx == nil {
+		// The request itself refuses a nil context.
+		return ""
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return ""
+	}
+	return creds.Key
 }
 
 // chaseTypeString maps the tracking mode to OKX's maxChaseType values, which
@@ -2149,7 +2188,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                 oSide,
 			Type:                 oType,
 			Pair:                 cp,
-			Cost:                 resp.Price.Float64(),
+			Cost:                 resp.AveragePrice.Float64() * resp.AccFillSize.Float64(),
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
@@ -2191,26 +2230,39 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 
+	// The cost is the average executed price times the accumulated fill size,
+	// as the order history reports it: the limit price is not a cost.
 	amount, remaining, quoteAmount := orderAmounts(orderDetail, status)
 	return &order.Detail{
-		Amount:          amount,
-		Exchange:        e.Name,
-		OrderID:         orderDetail.OrderID,
-		ClientOrderID:   orderDetail.ClientOrderID,
-		Side:            orderDetail.Side,
-		Type:            orderType,
-		Pair:            pair,
-		Cost:            orderDetail.Price.Float64(),
-		AssetType:       assetType,
-		Status:          status,
-		Price:           orderDetail.Price.Float64(),
-		ExecutedAmount:  orderDetail.AccumulatedFillSize.Float64(),
-		RemainingAmount: remaining,
-		QuoteAmount:     quoteAmount,
-		Date:            orderDetail.CreationTime.Time(),
-		LastUpdated:     orderDetail.UpdateTime.Time(),
-		TimeInForce:     tif,
+		Amount:               amount,
+		Exchange:             e.Name,
+		OrderID:              orderDetail.OrderID,
+		ClientOrderID:        orderDetail.ClientOrderID,
+		Side:                 orderDetail.Side,
+		Type:                 orderType,
+		Pair:                 pair,
+		Cost:                 orderDetail.AveragePrice.Float64() * orderDetail.AccumulatedFillSize.Float64(),
+		CostAsset:            pair.Quote,
+		AssetType:            assetType,
+		Status:               status,
+		Price:                orderDetail.Price.Float64(),
+		AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
+		ExecutedAmount:       orderDetail.AccumulatedFillSize.Float64(),
+		RemainingAmount:      remaining,
+		QuoteAmount:          quoteAmount,
+		Fee:                  okxFee(orderDetail.TransactionFee),
+		FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
+		Date:                 orderDetail.CreationTime.Time(),
+		LastUpdated:          orderDetail.UpdateTime.Time(),
+		TimeInForce:          tif,
 	}, nil
+}
+
+// okxFee reports an OKX order fee with its sign normalised: OKX reports the
+// fee negative when it charges it, so a charge reads as a positive cost, as
+// the websocket order stream reports it.
+func okxFee(fee types.Number) float64 {
+	return -fee.Float64()
 }
 
 // targetCurrencyQuote is the tgtCcy value that sizes an order in its quote
@@ -2395,21 +2447,23 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				spreadRemaining = spreadAmt - spreadExec
 			}
 			resp = append(resp, order.Detail{
-				Amount:          spreadAmt,
-				Pair:            pair,
-				Price:           spreads[x].Price.Float64(),
-				ExecutedAmount:  spreadExec,
-				RemainingAmount: spreadRemaining,
-				Exchange:        e.Name,
-				OrderID:         spreads[x].OrderID,
-				ClientOrderID:   spreads[x].ClientOrderID,
-				Type:            oType,
-				Side:            oSide,
-				Status:          oStatus,
-				AssetType:       req.AssetType,
-				Date:            spreads[x].CreationTime.Time(),
-				LastUpdated:     spreads[x].UpdateTime.Time(),
-				TimeInForce:     tif,
+				Amount:               spreadAmt,
+				Pair:                 pair,
+				Price:                spreads[x].Price.Float64(),
+				AverageExecutedPrice: spreads[x].AveragePrice.Float64(),
+				Cost:                 spreads[x].AveragePrice.Float64() * spreads[x].AccFillSize.Float64(),
+				ExecutedAmount:       spreadExec,
+				RemainingAmount:      spreadRemaining,
+				Exchange:             e.Name,
+				OrderID:              spreads[x].OrderID,
+				ClientOrderID:        spreads[x].ClientOrderID,
+				Type:                 oType,
+				Side:                 oSide,
+				Status:               oStatus,
+				AssetType:            req.AssetType,
+				Date:                 spreads[x].CreationTime.Time(),
+				LastUpdated:          spreads[x].UpdateTime.Time(),
+				TimeInForce:          tif,
 			})
 		}
 		asLimitMaker(req, resp)
@@ -2474,24 +2528,27 @@ allOrders:
 			}
 			amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
 			resp = append(resp, order.Detail{
-				Amount:          amount,
-				Pair:            pair,
-				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].AccumulatedFillSize.Float64(),
-				RemainingAmount: remaining,
-				QuoteAmount:     quoteAmount,
-				Fee:             orderList[i].TransactionFee.Float64(),
-				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
-				Exchange:        e.Name,
-				OrderID:         orderList[i].OrderID,
-				ClientOrderID:   orderList[i].ClientOrderID,
-				Type:            oType,
-				Side:            orderSide,
-				Status:          orderStatus,
-				AssetType:       req.AssetType,
-				Date:            orderList[i].CreationTime.Time(),
-				LastUpdated:     orderList[i].UpdateTime.Time(),
-				TimeInForce:     tif,
+				Amount:               amount,
+				Pair:                 pair,
+				Price:                orderList[i].Price.Float64(),
+				AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
+				Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
+				CostAsset:            pair.Quote,
+				ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
+				RemainingAmount:      remaining,
+				QuoteAmount:          quoteAmount,
+				Fee:                  okxFee(orderList[i].TransactionFee),
+				FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
+				Exchange:             e.Name,
+				OrderID:              orderList[i].OrderID,
+				ClientOrderID:        orderList[i].ClientOrderID,
+				Type:                 oType,
+				Side:                 orderSide,
+				Status:               orderStatus,
+				AssetType:            req.AssetType,
+				Date:                 orderList[i].CreationTime.Time(),
+				LastUpdated:          orderList[i].UpdateTime.Time(),
+				TimeInForce:          tif,
 			})
 		}
 		if len(orderList) < orderListPageSize {
@@ -2539,18 +2596,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 	asLimitMaker(req, resp)
-	if req.TimeInForce != order.UnknownTIF {
-		// The crawls send no ordType and req.Filter narrows by type only, so
-		// the requested time in force narrows the result set itself: a
-		// post-only Limit query must not return IOC orders too.
-		narrowed := resp[:0]
-		for i := range resp {
-			if resp[i].TimeInForce == req.TimeInForce {
-				narrowed = append(narrowed, resp[i])
-			}
-		}
-		resp = narrowed
-	}
 	return req.Filter(e.Name, resp), nil
 }
 
@@ -2676,6 +2721,7 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 	return order.Detail{
 		Price:                so.Price.Float64(),
 		AverageExecutedPrice: so.AveragePrice.Float64(),
+		Cost:                 so.AveragePrice.Float64() * so.AccFillSize.Float64(),
 		Amount:               amount,
 		ExecutedAmount:       executed,
 		RemainingAmount:      remaining,
@@ -2703,6 +2749,21 @@ func (e *Exchange) spreadOrderToDetail(so *SpreadOrder, assetType asset.Item, fo
 // listing is crawled beside it.
 func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
+	// The crawls send no ordType and req.Filter narrows by type only, so a
+	// requested time in force keeps the OKX order types GetActiveOrders' ordType
+	// filter asks for: a post-only Limit query must not return IOC orders,
+	// and a GoodTillCancel one keeps the limit orders. This narrows the raw
+	// ordType rather than the read-back time in force, which cannot tell a
+	// plain limit row from a good-till-cancelled one: OKX's limit orders read
+	// back with no time in force.
+	var ordTypes []string
+	if req.TimeInForce != order.UnknownTIF && req.Type != order.UnknownType && req.Type != order.AnyType {
+		filter, err := orderTypeFilter(req.Type, req.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
+		ordTypes = strings.Split(filter, ",")
+	}
 	// OKX returns both listings newest first and pages the remainder with the
 	// after cursor, which returns the records earlier than the requested
 	// order ID. Unlike the end timestamp, the order ID cursor is exclusive,
@@ -2741,6 +2802,9 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 				if len(req.Pairs) > 0 && !slices.ContainsFunc(req.Pairs, pair.Equal) {
 					continue
 				}
+				if ordTypes != nil && !slices.Contains(ordTypes, strings.ToLower(orderList[i].OrderType)) {
+					continue
+				}
 				orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
 				if err != nil {
 					return err
@@ -2760,7 +2824,7 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 					RemainingAmount:      remaining,
 					QuoteAmount:          quoteAmount,
-					Fee:                  orderList[i].TransactionFee.Float64(),
+					Fee:                  okxFee(orderList[i].TransactionFee),
 					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
 					Exchange:             e.Name,
 					OrderID:              orderList[i].OrderID,

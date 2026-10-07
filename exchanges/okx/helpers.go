@@ -168,10 +168,12 @@ func orderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error
 // values: the comma-separated lists the ordinary order endpoints accept are
 // rejected with 51000 there. One matching type is sent as-is; several matches
 // (limit, post_only and ioc all read back as Limit) send no filter and leave
-// the request filter to narrow by type. No match falls back to orderTypeString
-// and rejects values outside the four spread types, such as the fok a market
-// or limit order with FillOrKill maps to: spread orders cannot be
-// fill-or-kill.
+// the request filter to narrow by type. No match filters on the type spread
+// placement uses when it accepts the request, as a market order with
+// ImmediateOrCancel places as market, and otherwise falls back to
+// orderTypeString and rejects values outside the four spread types, such as
+// the fok a market or limit order with FillOrKill maps to: spread orders
+// cannot be fill-or-kill.
 func spreadOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string, error) {
 	spreadTypes := []string{orderMarket, orderLimit, orderPostOnly, orderIOC}
 	var oTypes []string
@@ -182,6 +184,9 @@ func spreadOrderTypeFilter(orderType order.Type, tif order.TimeInForce) (string,
 	}
 	switch len(oTypes) {
 	case 0:
+		if placed, err := spreadOrderTypeString(orderType, tif); err == nil {
+			return placed, nil
+		}
 		fallback, err := orderTypeString(orderType, tif)
 		if err != nil {
 			return "", err

@@ -4,7 +4,9 @@ import (
 	"maps"
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -283,4 +285,26 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestBatchCancelLimitersTrackOrderBudgets pins the batch cancel limiters to
+// OKX's order budgets: OKX counts cancelled orders rather than requests, so
+// the request budgets are the documented order budgets divided by each
+// request's maximum order count.
+func TestBatchCancelLimitersTrackOrderBudgets(t *testing.T) {
+	t.Parallel()
+	rl, err := request.New("RateLimit_BatchCancelBudgets", &http.Client{}, request.WithLimiter(rateLimits))
+	require.NoError(t, err)
+	require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelMultipleOrdersEPL), "the first cancel-batch-orders request must not wait")
+	start := time.Now()
+	for range 8 {
+		require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelMultipleOrdersEPL), "cancel-batch-orders requests must stay within the limiter")
+	}
+	assert.GreaterOrEqual(t, time.Since(start), 500*time.Millisecond, "eight cancel-batch-orders requests should span the 15 requests per 2 seconds the 300 order budget needs")
+	require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelAlgoOrderEPL), "the first cancel-algos request must not wait")
+	start = time.Now()
+	for range 2 {
+		require.NoError(t, rl.InitiateRateLimit(t.Context(), cancelAlgoOrderEPL), "cancel-algos requests must stay within the limiter")
+	}
+	assert.GreaterOrEqual(t, time.Since(start), 800*time.Millisecond, "two cancel-algos requests should span the one second spacing the 20 order budget needs")
 }

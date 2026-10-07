@@ -5160,8 +5160,12 @@ func TestGetLeverage(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, order.UnknownSide)
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
-	_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	if !sharedtestvalues.AreAPICredentialsSet(e) {
+		// Without credentials the position mode fetch fails before any request
+		// is sent; with them this would read the live account.
+		_, err = e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, order.UnknownSide)
@@ -5186,8 +5190,12 @@ func TestSetLeverage(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Unset, 5, order.UnknownSide)
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
-	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	if !sharedtestvalues.AreAPICredentialsSet(e) {
+		// Without credentials the position mode fetch fails before any request
+		// is sent; with them this would change the live account's leverage.
+		err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Multi, 5, order.UnknownSide)

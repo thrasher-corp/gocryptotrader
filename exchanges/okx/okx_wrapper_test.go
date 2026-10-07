@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -704,7 +705,8 @@ func TestSpreadOrderTypeFilter(t *testing.T) {
 		{order.Limit, order.PostOnly, orderPostOnly},
 		{order.Limit, order.ImmediateOrCancel, orderIOC},
 		{order.Market, order.UnknownTIF, orderMarket},
-		{order.Market, order.ImmediateOrCancel, orderIOC},
+		// A market order with ImmediateOrCancel places as market.
+		{order.Market, order.ImmediateOrCancel, orderMarket},
 	} {
 		got, err := spreadOrderTypeFilter(tc.orderType, tc.tif)
 		require.NoErrorf(t, err, "spreadOrderTypeFilter must not error for %s %s", tc.orderType, tc.tif)
@@ -2535,6 +2537,7 @@ func TestSpreadOrderDetails(t *testing.T) {
 				"sz":        tc.sz,
 				"accFillSz": tc.accFillSz,
 				"px":        "100",
+				"avgPx":     "90",
 			}
 			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				writeOKXData(t, w, spreadRow)
@@ -2551,6 +2554,8 @@ func TestSpreadOrderDetails(t *testing.T) {
 			assert.Equal(t, tc.tif, detail.TimeInForce, "GetOrderInfo should preserve the time in force")
 			assert.Equal(t, tc.executed, detail.ExecutedAmount, "GetOrderInfo should report the accumulated fill")
 			assert.Equal(t, tc.remaining, detail.RemainingAmount, "GetOrderInfo should report the unfilled remainder")
+			assert.Equal(t, 90.0, detail.AverageExecutedPrice, "GetOrderInfo should read the average filled price")
+			assert.InDelta(t, 90*tc.executed, detail.Cost, 1e-9, "the spread cost should be the average filled price times the accumulated fill, not the order price")
 		})
 	}
 }
@@ -2601,6 +2606,7 @@ func TestSpreadOrderHistoryAnyType(t *testing.T) {
 	assert.Equal(t, order.Active, first.Status, "GetOrderHistory should read the order state")
 	assert.Equal(t, 100.0, first.Price, "GetOrderHistory should read the limit price")
 	assert.Equal(t, 90.0, first.AverageExecutedPrice, "GetOrderHistory should read the average filled price")
+	assert.InDelta(t, 27.0, first.Cost, 1e-9, "the spread cost should be the average filled price times the accumulated fill")
 	assert.Equal(t, 1.0, first.Amount, "GetOrderHistory should read the order size")
 	assert.Equal(t, 0.3, first.ExecutedAmount, "GetOrderHistory should read the accumulated fill size")
 	assert.InDelta(t, 0.7, first.RemainingAmount, 1e-9, "an unfilled spread order should keep its remaining amount")
@@ -2610,6 +2616,7 @@ func TestSpreadOrderHistoryAnyType(t *testing.T) {
 	second := rows["2"]
 	assert.Equal(t, order.Filled, second.Status, "GetOrderHistory should read the filled state")
 	assert.Equal(t, 0.0, second.RemainingAmount, "a filled spread order should have nothing remaining")
+	assert.InDelta(t, 176.0, second.Cost, 1e-9, "the spread cost should be the average filled price times the accumulated fill")
 }
 
 // TestOCOStopLossTriggerPrice guards the OCO submit path: the stop loss leg
@@ -3018,6 +3025,7 @@ func TestGetOrderHistoryPaginatesWithAfterCursor(t *testing.T) {
 			"cTime": created, "uTime": created, "state": "filled",
 			"ordType": orderLimit, "side": "buy", "sz": "1",
 			"px": "42000", "accFillSz": "1", "avgPx": "42000",
+			"fee": "-0.01", "feeCcy": "USDT",
 			// The rebate currency is unrelated to the pair, so the cost asset
 			// must come from the pair quote, not this field.
 			"rebateCcy": "DOGE",
@@ -3084,6 +3092,8 @@ func TestGetOrderHistoryPaginatesWithAfterCursor(t *testing.T) {
 	assert.Contains(t, ids, "ORD-100", "orders sharing a millisecond across the page boundary should all be returned")
 	assert.Contains(t, ids, "ORD-000", "orders past the first page should be returned")
 	assert.Equal(t, mainPair.Quote, history[0].CostAsset, "the cost asset should be the pair quote, not the order's rebate currency")
+	assert.Equal(t, 0.01, history[0].Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
+	assert.Equal(t, "USDT", history[0].FeeAsset.String(), "the fee asset should come from the response")
 }
 
 // TestGetOrderHistoryWithoutPairsReturnsEveryInstrument guards the official
@@ -3811,7 +3821,7 @@ func TestSetPositionModeRefreshesOrderPlacement(t *testing.T) {
 			}))
 			_, err := e.SetPositionMode(t.Context(), positionModeLongShort)
 			require.ErrorIsf(t, err, tc.err, "SetPositionMode must report a %s", tc.name)
-			assert.Empty(t, e.accountPositionMode, "an unconfirmed mode switch should not refresh the cache")
+			assert.Empty(t, e.accountPositionModes, "an unconfirmed mode switch should not refresh the cache")
 		})
 	}
 }
@@ -4507,6 +4517,9 @@ func TestContractPositionModeKeepsConfirmedSwitch(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
+	// Every test in the package shares the rate limiters, so a busy run could
+	// otherwise hold the fetch back past the deadline below.
+	require.NoError(t, e.DisableRateLimiter(), "DisableRateLimiter must not error")
 	// Registered after the mock server's cleanup, so it runs first and frees
 	// a handler still waiting on release.
 	t.Cleanup(releaseOnce)
@@ -4545,7 +4558,10 @@ func TestGetOrderHistoryWindowPaging(t *testing.T) {
 	created := func(id int64) time.Time { return base.Add(time.Duration(id) * time.Second) }
 	// The archive holds orders 1 to 150 and the 7 day listing 151 to 300.
 	listings := map[string][2]int64{"/trade/orders-history-archive": {1, 150}, "/trade/orders-history": {151, 300}}
-	venue := func(w http.ResponseWriter, r *http.Request) {
+	// venue serves one subtest, recording the cursors it has served in
+	// requested.
+	venue := func(t *testing.T, requested *sync.Map, w http.ResponseWriter, r *http.Request) {
+		t.Helper()
 		ids, ok := listings[r.URL.Path]
 		if !ok {
 			t.Errorf("unexpected request path %s", r.URL.Path)
@@ -4553,6 +4569,14 @@ func TestGetOrderHistoryWindowPaging(t *testing.T) {
 			return
 		}
 		q := r.URL.Query()
+		// This venue never fails a well-formed request, so a repeated cursor
+		// means the crawl stopped advancing: failing it ends the crawl instead
+		// of serving the same page until go test's timeout.
+		if _, repeated := requested.LoadOrStore(r.URL.Path+"?after="+q.Get("after"), struct{}{}); repeated {
+			t.Errorf("%s after %q requested again", r.URL.Path, q.Get("after"))
+			http.Error(w, "repeated after", http.StatusBadRequest)
+			return
+		}
 		param := func(k string) (int64, bool) {
 			v, err := strconv.ParseInt(q.Get(k), 10, 64)
 			return v, err == nil
@@ -4598,7 +4622,10 @@ func TestGetOrderHistoryWindowPaging(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			e := newMockExchange(t, http.HandlerFunc(venue))
+			requested := new(sync.Map)
+			e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				venue(t, requested, w, r)
+			}))
 			history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 				AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
 				StartTime: tc.start, EndTime: tc.end, Pairs: currency.Pairs{mainPair},
@@ -4673,7 +4700,7 @@ func TestGetActiveSpreadOrdersFromOrderIDSeedsTheEndIDCursor(t *testing.T) {
 
 // TestSubmitSpreadOrderNegativeLimitPrice guards the negative spread price
 // round trip: a spread price is the differential between its legs, so a
-// negative limit price must pass order validation and reach OKX as-is.
+// negative limit price must reach OKX as-is.
 func TestSubmitSpreadOrderNegativeLimitPrice(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
@@ -4710,34 +4737,61 @@ func TestSubmitSpreadOrderNegativeLimitPrice(t *testing.T) {
 
 // TestGetOrderHistoryNarrowsByRequestedTimeInForce guards the history result
 // set's time in force narrowing: the crawls send no ordType, so a post-only
-// Limit query must not return IOC or resting limit orders too.
+// Limit query must not return IOC orders, and a GoodTillCancel one must keep
+// the limit orders OKX reads back with no time in force, on both the
+// standard and the spread listings.
 func TestGetOrderHistoryNarrowsByRequestedTimeInForce(t *testing.T) {
 	t.Parallel()
 	row := func(id, ordType string) map[string]string {
-		return map[string]string{"instId": mainPair.String(), "ordId": id, "ordType": ordType, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": "1700000000000"}
+		return map[string]string{"instId": mainPair.String(), "sprdId": spreadPair.String(), "ordId": id, "ordType": ordType, "side": "buy", "state": "filled", "sz": "1", "accFillSz": "1", "avgPx": "1", "px": "1", "cTime": "1700000000000"}
+	}
+	rows := []map[string]string{
+		row("LIMIT-1", orderLimit), row("POST-1", orderPostOnly), row("IOC-1", orderIOC), row("RPI-1", orderRPI), row("FOK-1", orderFOK),
+		row("OPFOK-1", orderOptionFOK), row("MMP-1", orderMarketMakerProtection), row("MMPPO-1", orderMarketMakerProtectionAndPostOnly),
+		// OKX sends ordType in lower case; the read-back accepts any case.
+		row("POST-2", "POST_ONLY"),
 	}
 	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/trade/orders-history-archive", "/trade/orders-history":
-			writeOKXData(t, w, []map[string]string{row("LIMIT-1", orderLimit), row("POST-1", orderPostOnly), row("IOC-1", orderIOC)})
+			writeOKXData(t, w, rows)
+		case "/sprd/orders-history", "/sprd/orders-history-archive":
+			// The spread listings filter on the single ordType they are sent.
+			filtered := make([]map[string]string, 0, len(rows))
+			for _, o := range rows {
+				if ordType := r.URL.Query().Get("ordType"); ordType == "" || o["ordType"] == ordType {
+					filtered = append(filtered, o)
+				}
+			}
+			writeOKXData(t, w, filtered)
 		default:
 			t.Errorf("unexpected request path %s", r.URL.Path)
 			http.NotFound(w, r)
 		}
 	}))
 	for _, tc := range []struct {
-		name string
-		tif  order.TimeInForce
-		exp  []string
+		name      string
+		assetType asset.Item
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       []string
 	}{
-		{"post only query returns post only orders", order.PostOnly, []string{"POST-1"}},
-		{"immediate or cancel query returns ioc orders", order.ImmediateOrCancel, []string{"IOC-1"}},
-		{"no time in force returns every limit order", order.UnknownTIF, []string{"LIMIT-1", "POST-1", "IOC-1"}},
+		{"post only query returns post only orders", asset.Spot, order.Limit, order.PostOnly, []string{"POST-1", "POST-2"}},
+		{"immediate or cancel query returns ioc orders", asset.Spot, order.Limit, order.ImmediateOrCancel, []string{"IOC-1"}},
+		{"no time in force returns every limit order", asset.Spot, order.Limit, order.UnknownTIF, []string{"LIMIT-1", "POST-1", "IOC-1", "RPI-1", "FOK-1", "OPFOK-1", "POST-2"}},
+		{"fill or kill query returns both fill or kill types", asset.Spot, order.Limit, order.FillOrKill, []string{"FOK-1", "OPFOK-1"}},
+		{"good till cancel query returns the orders it places", asset.Spot, order.Limit, order.GoodTillCancel, []string{"LIMIT-1"}},
+		{"good till day query returns the orders it places", asset.Spot, order.Limit, order.GoodTillDay, []string{"LIMIT-1"}},
+		{"good till cancel limit maker query returns post only orders", asset.Spot, order.LimitMaker, order.GoodTillCancel, []string{"POST-1", "POST-2"}},
+		{"post only market maker protection query returns its post only orders", asset.Spot, order.MarketMakerProtection, order.PostOnly, []string{"MMPPO-1"}},
+		{"any type query ignores the time in force as GetActiveOrders does", asset.Spot, order.AnyType, order.PostOnly, []string{"LIMIT-1", "POST-1", "IOC-1", "RPI-1", "FOK-1", "OPFOK-1", "MMP-1", "MMPPO-1", "POST-2"}},
+		{"good till cancel spread query returns the orders it places", asset.Spread, order.Limit, order.GoodTillCancel, []string{"LIMIT-1"}},
+		{"spread query without a time in force returns every limit order", asset.Spread, order.Limit, order.UnknownTIF, []string{"LIMIT-1", "POST-1", "IOC-1", "RPI-1", "FOK-1", "OPFOK-1", "POST-2"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-				AssetType: asset.Spot, Type: order.Limit, TimeInForce: tc.tif, Side: order.AnySide,
+				AssetType: tc.assetType, Type: tc.orderType, TimeInForce: tc.tif, Side: order.AnySide,
 			})
 			require.NoError(t, err, "GetOrderHistory must not error")
 			ids := make([]string, 0, len(history))
@@ -4747,4 +4801,294 @@ func TestGetOrderHistoryNarrowsByRequestedTimeInForce(t *testing.T) {
 			assert.ElementsMatch(t, tc.exp, ids, "the history should return exactly the orders carrying the requested time in force")
 		})
 	}
+	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot, Type: order.LimitMaker, TimeInForce: order.FillOrKill, Side: order.AnySide,
+	})
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "a time in force the order type cannot take should be refused, as GetActiveOrders refuses it")
+}
+
+// TestContractPositionModeIsPerAccount guards the cached position mode
+// against requests acting for different accounts: credentials carried in a
+// request's context select another account, whose own mode must decide its
+// orders rather than the mode of the account that filled the cache first.
+func TestContractPositionModeIsPerAccount(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	modes := map[string]string{"KEY-A": positionModeNet, "KEY-B": positionModeLongShort}
+	var sent []string
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("OK-ACCESS-KEY")
+		switch r.URL.Path {
+		case "/account/config":
+			mu.Lock()
+			mode := modes[key]
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"posMode": mode}})
+		case "/account/set-position-mode":
+			var req PositionMode
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Errorf("decoding the position mode body should not error: %v", err)
+				return
+			}
+			mu.Lock()
+			modes[key] = req.PositionMode
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"posMode": req.PositionMode}})
+		case "/trade/order":
+			var req PlaceOrderRequestParam
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Errorf("decoding the order body should not error: %v", err)
+				return
+			}
+			mu.Lock()
+			sent = append(sent, key+" "+req.PositionSide)
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	ctxFor := func(key string) context.Context {
+		return accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: key, Secret: "secret", ClientID: "passphrase"})
+	}
+	submit := func(key string) {
+		t.Helper()
+		_, err := e.SubmitOrder(ctxFor(key), &order.Submit{Exchange: e.Name, Pair: perpetualSwapPair, AssetType: asset.PerpetualSwap, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1})
+		require.NoErrorf(t, err, "SubmitOrder must not error for %s", key)
+	}
+	submit("KEY-A")
+	submit("KEY-B")
+	_, err := e.SetPositionMode(ctxFor("KEY-B"), positionModeNet)
+	require.NoError(t, err, "SetPositionMode must not error")
+	submit("KEY-A")
+	submit("KEY-B")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"KEY-A net", "KEY-B long", "KEY-A net", "KEY-B net"}, sent, "each account's orders should follow its own position mode")
+}
+
+// TestContractPositionModeRefetchesAfterAnotherKeySwitches guards the cached
+// position mode against two API keys of one account: a switch confirmed
+// through one key must not leave the other key placing for the old mode, so
+// the other key fetches its mode again rather than keep the stale one.
+func TestContractPositionModeRefetchesAfterAnotherKeySwitches(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	accountMode := positionModeNet
+	var sent []string
+	var fetches int
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("OK-ACCESS-KEY")
+		switch r.URL.Path {
+		case "/account/config":
+			mu.Lock()
+			fetches++
+			mode := accountMode
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"posMode": mode}})
+		case "/account/set-position-mode":
+			var req PositionMode
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Errorf("decoding the position mode body should not error: %v", err)
+				return
+			}
+			mu.Lock()
+			accountMode = req.PositionMode
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"posMode": req.PositionMode}})
+		case "/trade/order":
+			var req PlaceOrderRequestParam
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Errorf("decoding the order body should not error: %v", err)
+				return
+			}
+			mu.Lock()
+			sent = append(sent, key+" "+req.PositionSide)
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"ordId": "1", "sCode": "0"}})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	ctxFor := func(key string) context.Context {
+		return accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: key, Secret: "secret", ClientID: "passphrase"})
+	}
+	submit := func(key string) {
+		t.Helper()
+		_, err := e.SubmitOrder(ctxFor(key), &order.Submit{Exchange: e.Name, Pair: perpetualSwapPair, AssetType: asset.PerpetualSwap, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1})
+		require.NoErrorf(t, err, "SubmitOrder must not error for %s", key)
+	}
+	submit("KEY-1")
+	_, err := e.SetPositionMode(ctxFor("KEY-2"), positionModeLongShort)
+	require.NoError(t, err, "SetPositionMode must not error")
+	submit("KEY-1")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"KEY-1 net", "KEY-1 long"}, sent, "a key should follow a switch its account confirmed through another key")
+	assert.Equal(t, 2, fetches, "the second order should fetch its own key's mode again rather than keep the stale one")
+}
+
+// TestContractPositionModeRefetchesWhenAFetchOverlapsASwitch guards the
+// position mode against a first-use fetch through one API key that returns
+// after a switch confirmed through another key of the same account: the
+// fetched mode may predate the switch, so the waiting caller fetches again
+// rather than use or cache it.
+func TestContractPositionModeRefetchesWhenAFetchOverlapsASwitch(t *testing.T) {
+	t.Parallel()
+	getStarted := make(chan struct{})
+	startOnce := sync.OnceFunc(func() { close(getStarted) })
+	release := make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+	var mu sync.Mutex
+	accountMode := positionModeNet
+	var fetches int
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/account/config":
+			mu.Lock()
+			fetches++
+			first := fetches == 1
+			mode := accountMode
+			mu.Unlock()
+			if first {
+				// The first fetch reads the mode before the switch and answers after it.
+				startOnce()
+				<-release
+			}
+			writeOKXData(t, w, []map[string]string{{"posMode": mode}})
+		case "/account/set-position-mode":
+			mu.Lock()
+			accountMode = positionModeLongShort
+			mu.Unlock()
+			writeOKXData(t, w, []map[string]string{{"posMode": positionModeLongShort}})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	// Every test in the package shares the rate limiters, so a busy run could
+	// otherwise hold the fetch back past the deadline below.
+	require.NoError(t, e.DisableRateLimiter(), "DisableRateLimiter must not error")
+	// Registered after the mock server's cleanup, so it runs first and frees
+	// a handler still waiting on release.
+	t.Cleanup(releaseOnce)
+	ctxFor := func(key string) context.Context {
+		return accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: key, Secret: "secret", ClientID: "passphrase"})
+	}
+	type result struct {
+		mode string
+		err  error
+	}
+	fetched := make(chan result, 1)
+	go func() {
+		mode, err := e.contractPositionMode(ctxFor("KEY-1"))
+		fetched <- result{mode, err}
+	}()
+	select {
+	case <-getStarted:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the account configuration fetch must start")
+	}
+	_, err := e.SetPositionMode(ctxFor("KEY-2"), positionModeLongShort)
+	require.NoError(t, err, "SetPositionMode must not error")
+	releaseOnce()
+	select {
+	case got := <-fetched:
+		require.NoError(t, got.err, "the in-flight lookup must not error")
+		assert.Equal(t, positionModeLongShort, got.mode, "the in-flight lookup should fetch again rather than use a mode that predates the switch")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the in-flight lookup must return")
+	}
+	mode, err := e.contractPositionMode(ctxFor("KEY-1"))
+	require.NoError(t, err, "contractPositionMode must not error")
+	assert.Equal(t, positionModeLongShort, mode, "the refetched mode should be cached")
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, 2, fetches, "the overlapping fetch should be repeated once and its answer cached")
+}
+
+// TestGetOrderInfoReportsExecutionValues guards the order detail mapping:
+// the average executed price, the cost of the fills and the fee the account
+// was charged come from the response rather than the order price, and the
+// fee keeps the websocket stream's positive-for-a-charge sign.
+func TestGetOrderInfoReportsExecutionValues(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/order" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		assert.Equal(t, "ORD-1", r.URL.Query().Get("ordId"), "the order detail request should identify the order")
+		assert.Equal(t, mainPair.String(), r.URL.Query().Get("instId"), "the order detail request should identify the instrument")
+		writeOKXData(t, w, map[string]string{
+			"instId": mainPair.String(), "ordId": "ORD-1", "ordType": orderLimit, "side": "buy", "state": "filled",
+			"sz": "2", "accFillSz": "1.5", "avgPx": "41000", "px": "40000", "fee": "-0.01", "feeCcy": "USDT",
+			"cTime": "1700000000000", "uTime": "1700000000000",
+		})
+	}))
+	detail, err := e.GetOrderInfo(t.Context(), "ORD-1", mainPair, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	assert.Equal(t, 41000.0, detail.AverageExecutedPrice, "GetOrderInfo should read the average filled price")
+	assert.Equal(t, 41000.0*1.5, detail.Cost, "the cost should be the average filled price times the accumulated fill, not the order price")
+	assert.Equal(t, "USDT", detail.CostAsset.String(), "the cost asset should be the pair quote")
+	assert.Equal(t, 0.01, detail.Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
+	assert.Equal(t, "USDT", detail.FeeAsset.String(), "the fee asset should come from the response")
+}
+
+// TestGetActiveOrdersReportExecutionValues guards the pending order mapping:
+// a partially filled resting order reports its average executed price and
+// the cost of its fills, and the fee keeps the websocket stream's
+// positive-for-a-charge sign.
+func TestGetActiveOrdersReportExecutionValues(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/trade/orders-pending" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []map[string]string{{
+			"instId": "BTC-USDT", "ordId": "ORD-1", "ordType": orderLimit, "side": "buy", "state": "live",
+			"sz": "2", "accFillSz": "0.5", "avgPx": "41000", "px": "40000", "fee": "-0.01", "feeCcy": "USDT",
+			"cTime": "1700000000000", "uTime": "1700000000000",
+		}})
+	}))
+	active, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, active, 1, "the pending order must be returned")
+	assert.Equal(t, 41000.0, active[0].AverageExecutedPrice, "GetActiveOrders should read the average filled price")
+	assert.Equal(t, 41000.0*0.5, active[0].Cost, "the cost should be the average filled price times the accumulated fill")
+	assert.Equal(t, "USDT", active[0].CostAsset.String(), "the cost asset should be the pair quote")
+	assert.Equal(t, 0.01, active[0].Fee, "a fee OKX charged should read as a positive cost, as the websocket stream reports it")
+	assert.Equal(t, "USDT", active[0].FeeAsset.String(), "the fee asset should come from the response")
+}
+
+// TestGetActiveSpreadOrdersReportExecutionValues guards the pending spread
+// order mapping: it reports the average executed price and the cost of the
+// fills like the spread history does.
+func TestGetActiveSpreadOrdersReportExecutionValues(t *testing.T) {
+	t.Parallel()
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/sprd/orders-pending" {
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		writeOKXData(t, w, []map[string]string{{
+			"sprdId": "BTC-USDT_BTC-USDT", "ordId": "1", "ordType": orderLimit, "side": "buy", "state": "live",
+			"sz": "1", "accFillSz": "0.3", "px": "100", "avgPx": "90", "cTime": "1700000000000",
+		}})
+	}))
+	active, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Spread, Type: order.AnyType, Side: order.AnySide,
+	})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, active, 1, "the pending spread order must be returned")
+	assert.Equal(t, 90.0, active[0].AverageExecutedPrice, "GetActiveOrders should read the average filled price")
+	assert.InDelta(t, 27.0, active[0].Cost, 1e-9, "the cost should be the average filled price times the accumulated fill")
 }

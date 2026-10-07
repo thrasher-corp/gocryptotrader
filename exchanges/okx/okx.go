@@ -38,11 +38,15 @@ type Exchange struct {
 	// instrumentIDCodeMap caches instrument ID codes by instrument ID for
 	// websocket order operations which identify instruments by code.
 	instrumentIDCodeMap map[string]uint64
-	// accountPositionMode caches the account's contract position mode, which
-	// decides the placement of futures and perpetual swap orders. It is
-	// fetched on first use and refreshed by SetPositionMode.
-	accountPositionModeMu sync.RWMutex
-	accountPositionMode   string
+	// accountPositionModes caches each account's contract position mode by
+	// API key, which decides the placement of futures and perpetual swap
+	// orders. A request can carry another account's credentials in its
+	// context, so one account's mode must not answer for another's. A mode is
+	// fetched on first use and refreshed by SetPositionMode, which counts its
+	// confirmed switches in accountPositionModeSwitches.
+	accountPositionModeMu       sync.RWMutex
+	accountPositionModes        map[string]string
+	accountPositionModeSwitches uint64
 }
 
 const (
@@ -1797,6 +1801,9 @@ func (e *Exchange) SetPositionMode(ctx context.Context, positionMode string) (*P
 	if positionMode != positionModeLongShort && positionMode != positionModeNet {
 		return nil, fmt.Errorf("%w: %q", errInvalidPositionMode, positionMode)
 	}
+	// The key is taken before the request, so a confirmed mode is cached for
+	// the credentials that switched it.
+	apiKey := e.positionModeKey(ctx)
 	var resp *PositionMode
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
 		PositionMode: positionMode,
@@ -1813,7 +1820,11 @@ func (e *Exchange) SetPositionMode(ctx context.Context, positionMode string) (*P
 	// The mode switch succeeded, so the cached mode the order placement
 	// branches on is refreshed with the mode OKX confirms.
 	e.accountPositionModeMu.Lock()
-	e.accountPositionMode = resp.PositionMode
+	// Another API key can belong to the same account, so every other key
+	// fetches its mode again rather than keep one this switch made stale.
+	clear(e.accountPositionModes)
+	e.accountPositionModes[apiKey] = resp.PositionMode
+	e.accountPositionModeSwitches++
 	e.accountPositionModeMu.Unlock()
 	return resp, nil
 }
