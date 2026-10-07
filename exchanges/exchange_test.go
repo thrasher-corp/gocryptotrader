@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -1143,6 +1144,54 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
 	require.NoError(t, b.Websocket.Disable(), "Websocket.Disable must not error")
 	assert.False(t, b.IsWebsocketEnabled(), "websocket should not be enabled")
+}
+
+func TestShutdownWebsocket(t *testing.T) {
+	t.Parallel()
+
+	disabled := Base{Websocket: websocket.NewManager()}
+	var err error
+	disabled.Requester, err = request.New("testShutdownDisabled", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
+	require.NoError(t, disabled.Shutdown(), "Shutdown must not error when the websocket is already disabled")
+
+	synctest.Test(t, func(t *testing.T) {
+		var dials atomic.Int64
+		b := Base{Websocket: websocket.NewManager()}
+		b.Requester, err = request.New("testShutdown", common.NewHTTPClientWithTimeout(0))
+		require.NoError(t, err, "request.New must not error")
+		err = b.Websocket.Setup(&websocket.ManagerSetup{
+			ExchangeConfig: &config.Exchange{
+				Name:                    "test",
+				ConnectionMonitorDelay:  time.Second,
+				WebsocketTrafficTimeout: time.Minute,
+				Features:                &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
+			},
+			Features:              &protocol.Features{},
+			DefaultURL:            "ws://something.com",
+			RunningURL:            "ws://something.com",
+			Connector:             func() error { dials.Add(1); return nil },
+			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			Subscriber:            func(subscription.List) error { return nil },
+		})
+		require.NoError(t, err, "Websocket.Setup must not error")
+		require.NoError(t, b.Websocket.Connect(t.Context()), "Websocket.Connect must not error")
+		defer func() {
+			_ = b.Websocket.Disable()
+			synctest.Sleep(time.Second)
+		}()
+
+		shutdownC := b.Websocket.ShutdownC
+		b.Websocket.Wg.Go(func() {
+			<-shutdownC
+			assert.False(t, b.Websocket.IsEnabled(), "Shutdown should disable the websocket before closing it, or the monitor can redial in between")
+		})
+
+		require.NoError(t, b.Shutdown(), "Shutdown must not error")
+		assert.False(t, b.Websocket.IsConnected(), "Shutdown should disconnect the websocket")
+		synctest.Sleep(3 * time.Second)
+		assert.Equal(t, int64(1), dials.Load(), "Shutdown should stop the connection monitor redialling")
+	})
 }
 
 func TestSupportsWithdrawPermissions(t *testing.T) {
