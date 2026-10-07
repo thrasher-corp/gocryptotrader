@@ -375,7 +375,7 @@ The full local verification flow can be run with:
     make check
 ```
 
-This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](../.github/workflows/misc.yml).
+This includes linting, miscellaneous checks, the generated code check and tests. The same miscellaneous checks are also run via [GitHub actions](../.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.
