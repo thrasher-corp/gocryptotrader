@@ -100,9 +100,9 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 // The manager expands subscriptions before calling an exchange's Subscribe or Unsubscribe and, once
 // subscribed, reconciles that same list against the exchange's websocket subscription store
 // (exchange/websocket/manager.go). Re-expanding an already qualified list would hand back copies of
-// the manager's subscriptions; those copies cannot be reconciled because the caller still holds the
-// originals. Passing already qualified lists through untouched keeps the manager's subscriptions
-// reconcilable while leaving direct callers, which subscribe with unqualified lists, unchanged.
+// the manager's subscriptions, so the keys and states the exchange sets would land on the copies.
+// Passing already qualified lists through untouched keeps those changes on the manager's subscriptions
+// while leaving direct callers, which subscribe with unqualified lists, unchanged.
 // See #2372
 func (l List) ExpandTemplatesIfNeeded(e IExchange) (List, error) {
 	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
