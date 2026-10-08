@@ -1107,11 +1107,27 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		return nil, err
 	}
 
-	result, err := s.OrderManager.GetOrderInfo(ctx,
-		r.Exchange,
-		r.OrderId,
-		pair,
-		a)
+	if r.OrderId == "" {
+		return nil, ErrOrderIDCannotBeEmpty
+	}
+	enabled, err := exch.IsPairEnabled(pair, a)
+	if err != nil {
+		return nil, err
+	}
+	var result order.Detail
+	if enabled {
+		result, err = s.OrderManager.GetOrderInfo(ctx, r.Exchange, r.OrderId, pair, a)
+	} else {
+		// Available-only lookups must not enter the store whose polling covers enabled pairs.
+		var response *order.Detail
+		response, err = exch.GetOrderInfo(ctx, r.OrderId, pair, a)
+		if err == nil {
+			if response == nil {
+				return nil, common.ErrInvalidResponse
+			}
+			result = *response
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %w", r.OrderId, err)
 	}
@@ -1577,6 +1593,17 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 
 	if err := checkParamsWithAvailable(exch, a, p); err != nil {
 		return nil, err
+	}
+
+	if err := exch.GetBase().CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return nil, err
+	}
+	enabled, err := exch.IsPairEnabled(p, a)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, fmt.Errorf("%s %w", p, errCurrencyNotEnabled)
 	}
 
 	id, err := s.eventManager.Add(r.Exchange, r.Item, evtCondition, p, a, r.Action)

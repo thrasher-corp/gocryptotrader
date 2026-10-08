@@ -1347,6 +1347,70 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
+	errLookup := errors.New("order lookup failed")
+	for _, tc := range []struct {
+		name         string
+		assetEnabled bool
+		pairEnabled  bool
+		nilManager   bool
+		nilResponse  bool
+		emptyID      bool
+		lookupErr    error
+		wantErr      error
+		managed      bool
+	}{
+		{name: "enabled lookup remains managed", assetEnabled: true, pairEnabled: true, managed: true},
+		{name: "available pair remains unmanaged", assetEnabled: true},
+		{name: "disabled asset remains unmanaged", pairEnabled: true},
+		{name: "available lookup without manager", assetEnabled: true, nilManager: true},
+		{name: "disabled asset lookup without manager", pairEnabled: true, nilManager: true},
+		{name: "enabled lookup needs manager", assetEnabled: true, pairEnabled: true, nilManager: true, wantErr: ErrNilSubsystem},
+		{name: "empty ID", assetEnabled: true, emptyID: true, wantErr: ErrOrderIDCannotBeEmpty},
+		{name: "lookup error", assetEnabled: true, lookupErr: errLookup, wantErr: errLookup},
+		{name: "enabled lookup error", assetEnabled: true, pairEnabled: true, lookupErr: errLookup, wantErr: errLookup},
+		{name: "nil exchange response", assetEnabled: true, nilResponse: true, wantErr: common.ErrInvalidResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			em := NewExchangeManager()
+			base, err := em.NewExchangeByName("Binance")
+			require.NoError(t, err, "exchange must be created")
+			base.SetDefaults()
+			base.SetEnabled(true)
+			pair := currency.NewBTCUSDT()
+			store := &currency.PairStore{Available: currency.Pairs{pair}, AssetEnabled: tc.assetEnabled, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}}
+			if tc.pairEnabled {
+				store.Enabled = currency.Pairs{pair}
+			}
+			require.NoError(t, base.GetBase().CurrencyPairs.Store(asset.Spot, store), "pair scope must be configured")
+			ex := &orderLookupExchange{IBotExchange: base, err: tc.lookupErr}
+			if !tc.nilResponse {
+				ex.response = &order.Detail{Exchange: "Binance", OrderID: "123", Pair: pair, AssetType: asset.Spot, Status: order.Active}
+			}
+			require.NoError(t, em.Add(ex), "exchange must be registered")
+			var wg sync.WaitGroup
+			manager, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+			require.NoError(t, err, "order manager must be created")
+			manager.started.Store(true)
+			s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: manager}}
+			if tc.nilManager {
+				s.OrderManager = nil
+			}
+			r := &gctrpc.GetOrderRequest{Exchange: "Binance", Asset: "spot", OrderId: "123", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USDT", Delimiter: "-"}}
+			if tc.emptyID {
+				r.OrderId = ""
+			}
+			response, err := s.GetOrder(t.Context(), r)
+			require.ErrorIs(t, err, tc.wantErr, "lookup must return the expected error")
+			if tc.wantErr == nil {
+				require.NotNil(t, response, "successful lookup must return order details")
+				assert.Equal(t, "123", response.Id, "lookup should retain the order ID")
+				assert.Equal(t, order.Active.String(), response.Status, "lookup should retain the venue status")
+			}
+			assert.Equal(t, !tc.emptyID && (!tc.nilManager || !tc.assetEnabled || !tc.pairEnabled), ex.calls != 0, "only validated lookups with the required manager should reach the exchange")
+			assert.Equal(t, tc.managed, manager.orderStore.getByDetail(ex.response) != nil, "only enabled lookups should enter managed storage")
+		})
+	}
 	exchName := "Binance"
 	engerino := &Engine{}
 	em := NewExchangeManager()

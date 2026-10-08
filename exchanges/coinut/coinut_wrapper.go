@@ -7,7 +7,6 @@ import (
 	"maps"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -608,8 +607,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 			return nil, err
 		}
 		for i := range resp.Results {
-			if openOrders.Orders[i].Status[0] != "OK" {
-				cancelAllOrdersResponse.Add(strconv.FormatInt(openOrders.Orders[i].OrderID, 10), strings.Join(openOrders.Orders[i].Status, ","))
+			if resp.Results[i].Status != "OK" {
+				cancelAllOrdersResponse.Add(strconv.FormatInt(resp.Results[i].OrderID, 10), resp.Results[i].Status)
+			} else {
+				cancelAllOrdersResponse.Add(strconv.FormatInt(resp.Results[i].OrderID, 10), order.Cancelled.String())
 			}
 		}
 	} else {
@@ -647,6 +648,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 			for i := range resp.Results {
 				if resp.Results[i].Status != "OK" {
 					cancelAllOrdersResponse.Add(strconv.FormatInt(resp.Results[i].OrderID, 10), resp.Results[i].Status)
+				} else {
+					cancelAllOrdersResponse.Add(strconv.FormatInt(resp.Results[i].OrderID, 10), order.Cancelled.String())
 				}
 			}
 		}

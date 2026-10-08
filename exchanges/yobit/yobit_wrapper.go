@@ -439,7 +439,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		if err := e.CancelExistingOrder(ctx, orderIDInt); err != nil {
 			cancelAllOrdersResponse.Add(key, err.Error())
+			continue
 		}
+		cancelAllOrdersResponse.Add(key, order.Cancelled.String())
 	}
 
 	return &cancelAllOrdersResponse, nil

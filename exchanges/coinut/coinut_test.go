@@ -729,11 +729,45 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("REST cancellation statuses", func(t *testing.T) {
+		t.Parallel()
+		var cancellations atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Request string         `json:"request"`
+				Entries []CancelOrders `json:"entries"`
+			}
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "REST request should decode") {
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if req.Request == coinutOrdersOpen {
+				_, _ = w.Write([]byte(`{"status":["OK"],"orders":[{"order_id":1,"inst_id":123},{"order_id":2,"inst_id":123}]}`))
+				return
+			}
+			assert.Equal(t, coinutOrdersCancel, req.Request, "REST cancellation should use the batch endpoint")
+			assert.Equal(t, []CancelOrders{{InstrumentID: 123, OrderID: 1}, {InstrumentID: 123, OrderID: 2}}, req.Entries, "REST cancellation should target the requested orders")
+			cancellations.Add(1)
+			_, _ = w.Write([]byte(`{"status":["OK"],"results":[{"order_id":2,"status":"ORDER_NOT_FOUND"},{"order_id":1,"status":"OK"}]}`))
+		}))
+		t.Cleanup(server.Close)
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "REST test exchange must be configured")
+		ex.instrumentMap.Seed("BTCUSD", 123)
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", ClientID: "client"})
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "REST endpoint must use the mock server")
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSD()})
+		require.NoError(t, err, "REST batch cancellation must succeed")
+		assert.Equal(t, int32(1), cancellations.Load(), "REST wrapper should issue one cancellation batch")
+		assert.Equal(t, map[string]string{"1": order.Cancelled.String(), "2": "ORDER_NOT_FOUND"}, resp.Status, "REST cancellation should report both successful and rejected orders")
+	})
 
 	for _, delimiter := range []string{"-", "/", ""} {
 		t.Run("formatted websocket lookup "+delimiter, func(t *testing.T) {
 			t.Parallel()
 			var lookups atomic.Int32
+			var cancellations atomic.Int32
 			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
 				var req WsGetOpenOrdersRequest
 				if err := json.Unmarshal(payload, &req); err != nil {
@@ -743,7 +777,24 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 					lookups.Add(1)
 					assert.Equal(t, int64(123), req.InstrumentID, "lookup should use formatted venue symbol")
 				}
-				response, err := json.Marshal(map[string]any{"nonce": req.Nonce, "reply": req.Request, "status": []string{"OK"}, "orders": []any{}, "results": []any{}})
+				responseData := map[string]any{"nonce": req.Nonce, "reply": req.Request, "status": []string{"OK"}}
+				if req.Request == "user_open_orders" {
+					responseData["orders"] = []map[string]any{
+						{"order_id": 99, "inst_id": 999, "status": []string{"OK"}},
+						{"order_id": 1, "inst_id": 123, "status": []string{"OK"}},
+						{"order_id": 2, "inst_id": 123, "status": []string{"OK"}},
+					}
+				}
+				if req.Request == "cancel_orders" {
+					cancellations.Add(1)
+					var cancelRequest WsCancelOrdersRequest
+					if err := json.Unmarshal(payload, &cancelRequest); err != nil {
+						return err
+					}
+					assert.Equal(t, []WsCancelOrdersRequestEntry{{InstID: 123, OrderID: 1}, {InstID: 123, OrderID: 2}}, cancelRequest.Entries, "cancellation should target only orders on the requested pair")
+					responseData["results"] = []map[string]any{{"order_id": 2, "status": "ORDER_NOT_FOUND"}, {"order_id": 1, "status": "OK"}}
+				}
+				response, err := json.Marshal(responseData)
 				if err != nil {
 					return err
 				}
@@ -760,9 +811,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 			require.NoError(t, ex.Websocket.Enable(t.Context()), "mock websocket must connect")
 			t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "websocket should shut down") })
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USD", delimiter)})
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USD", delimiter)})
 			require.NoError(t, err, "formatted websocket cancellation must succeed")
 			assert.Equal(t, int32(1), lookups.Load(), "wrapper should issue one websocket lookup")
+			assert.Equal(t, int32(1), cancellations.Load(), "wrapper should issue one cancellation batch")
+			assert.Equal(t, map[string]string{"1": order.Cancelled.String(), "2": "ORDER_NOT_FOUND"}, resp.Status, "success and failure statuses should use cancellation result IDs rather than lookup ordering")
 		})
 	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -784,8 +837,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if err == nil && len(resp.Status) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.Status))
+	if err == nil {
+		for id, status := range resp.Status {
+			assert.Equalf(t, order.Cancelled.String(), status, "order %s should be cancelled", id)
+		}
 	}
 }
 
@@ -1047,6 +1102,21 @@ func TestGetNonce(t *testing.T) {
 		if result <= 0 || result > coinutMaxNonce {
 			t.Fatal("invalid nonce value")
 		}
+	}
+}
+
+func TestWsHandleData(t *testing.T) {
+	t.Parallel()
+	for _, reply := range []string{`{"reply":"hb"}`, `{"reply":"hb","nonce":1}`} {
+		t.Run(reply, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "heartbeat test exchange must be configured")
+			for range 2 {
+				require.NoError(t, ex.wsHandleData(t.Context(), []byte(reply)), "unmatched heartbeats must not block or error")
+			}
+			assert.Empty(t, ex.Websocket.DataHandler.C, "heartbeat replies should not dispatch events")
+		})
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -235,6 +236,28 @@ func TestGetOrderDetails(t *testing.T) {
 
 func TestCancelTrade(t *testing.T) {
 	t.Parallel()
+	t.Run("wire parameters", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.NoError(t, r.ParseForm(), "request form should parse") {
+				return
+			}
+			assert.Equal(t, "123", r.Form.Get("order_id"), "wire request should include order ID")
+			assert.Equal(t, "ASK", r.Form.Get("type"), "wire request should include side")
+			assert.Equal(t, "BTC", r.Form.Get("currency"), "wire request should include currency")
+			_, err := w.Write([]byte(`{"status":"0000"}`))
+			assert.NoError(t, err, "mock response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must update")
+		_, err := ex.CancelTrade(t.Context(), "ask", "123", "btc")
+		require.NoError(t, err, "cancellation must succeed")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	_, err := e.CancelTrade(t.Context(), "", "", "")
@@ -487,8 +510,42 @@ func TestCancelExchangeOrder(t *testing.T) {
 	require.NoError(t, err, "CancelOrder must not error")
 }
 
-func TestCancelAllExchangeOrders(t *testing.T) {
+func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("quote scoped cancellation", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		var cancellations atomic.Int32
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.NoError(t, r.ParseForm(), "request form should parse") {
+				return
+			}
+			body := `{"status":"0000","data":[]}`
+			if r.URL.Path == "/info/orders" {
+				assert.Equal(t, "BTC", r.Form.Get("order_currency"), "order query should scope base")
+				assert.Equal(t, "KRW", r.Form.Get("payment_currency"), "order query should scope quote")
+				assert.Empty(t, r.Form.Get("type"), "unrestricted side should omit query type")
+				body = `{"status":"0000","data":[{"order_id":"krw-order","payment_currency":"KRW","type":"bid"},{"order_id":"btc-order","payment_currency":"BTC","type":"ask"}]}`
+			} else {
+				assert.Equal(t, "/trade/cancel", r.URL.Path, "only cancellation endpoint should be called")
+				cancellations.Add(1)
+				assert.Equal(t, "KRW-ORDER", r.Form.Get("order_id"), "only requested quote order should be cancelled")
+				assert.Equal(t, "BID", r.Form.Get("type"), "cancellation should use returned order side")
+				assert.Equal(t, "BTC", r.Form.Get("currency"), "cancellation should retain base currency")
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "mock response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must update")
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: testPair, Side: order.AnySide})
+		require.NoError(t, err, "scoped cancellation must succeed")
+		assert.Equal(t, map[string]string{"krw-order": order.Cancelled.String()}, resp.Status, "completed cancellation should be recorded")
+		assert.Equal(t, int32(1), cancellations.Load(), "other quote orders should remain untouched")
+	})
 
 	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{
 		AssetType: asset.Spot,
@@ -507,7 +564,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := e.CancelAllOrders(t.Context(), orderCancellation)
 	require.NoError(t, err, "CancelAllOrders must not error")
 
-	assert.Emptyf(t, resp.Status, "%v orders failed to cancel", len(resp.Status))
+	for _, status := range resp.Status {
+		assert.Equal(t, order.Cancelled.String(), status, "completed cancellation should be successful")
+	}
 }
 
 func TestUpdateAccountBalances(t *testing.T) {

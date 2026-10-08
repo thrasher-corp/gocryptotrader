@@ -549,7 +549,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		for i := range openOrders {
 			openOrder := &openOrders[i]
-			pair, err := currency.NewPairFromString(openOrder.Symbol)
+			pair, err := e.MatchSymbolWithAvailablePairs(openOrder.Symbol, asset.Spot, false)
 			if err == nil {
 				_, err = e.CancelExistingOrder(ctx, &CancelOrderRequestParams{
 					Symbol:                pair,

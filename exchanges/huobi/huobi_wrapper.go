@@ -1161,12 +1161,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if err != nil {
 			return nil, err
 		}
-		split := strings.Split(a.Successes, ",")
-		for x := range split {
-			cancelAllOrdersResponse.Add(split[x], "success")
+		for id := range strings.SplitSeq(a.Successes, ",") {
+			if id != "" {
+				cancelAllOrdersResponse.Add(id, "success")
+			}
 		}
 		for y := range a.Errors {
-			cancelAllOrdersResponse.Add(a.Errors[y].OrderID, "fail: "+a.Errors[y].ErrMsg)
+			if a.Errors[y].OrderID != "" {
+				cancelAllOrdersResponse.Add(a.Errors[y].OrderID, "fail: "+a.Errors[y].ErrMsg)
+			}
 		}
 	case asset.Futures:
 		if orderCancellation.Pair.IsEmpty() {
@@ -1176,12 +1179,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if err != nil {
 			return nil, err
 		}
-		split := strings.Split(a.Data.Successes, ",")
-		for x := range split {
-			cancelAllOrdersResponse.Add(split[x], "success")
+		for id := range strings.SplitSeq(a.Data.Successes, ",") {
+			if id != "" {
+				cancelAllOrdersResponse.Add(id, "success")
+			}
 		}
 		for y := range a.Data.Errors {
-			cancelAllOrdersResponse.Add(strconv.FormatInt(a.Data.Errors[y].OrderID, 10), "fail: "+a.Data.Errors[y].ErrMsg)
+			if a.Data.Errors[y].OrderID != 0 {
+				cancelAllOrdersResponse.Add(strconv.FormatInt(a.Data.Errors[y].OrderID, 10), "fail: "+a.Data.Errors[y].ErrMsg)
+			}
 		}
 	default:
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, orderCancellation.AssetType)

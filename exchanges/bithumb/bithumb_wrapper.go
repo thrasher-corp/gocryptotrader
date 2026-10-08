@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -457,19 +458,34 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
 
-	allOrders, err := e.GetOrders(ctx, "", orderCancellation.Side.String(), 100, time.Time{}, orderCancellation.Pair.Base, currency.EMPTYCODE)
+	var side string
+	switch {
+	case orderCancellation.Side.IsLong():
+		side = order.Bid.Lower()
+	case orderCancellation.Side.IsShort():
+		side = order.Ask.Lower()
+	case orderCancellation.Side == order.AnySide || orderCancellation.Side == order.UnknownSide:
+	default:
+		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, orderCancellation.Side)
+	}
+	allOrders, err := e.GetOrders(ctx, "", side, 100, time.Time{}, orderCancellation.Pair.Base, orderCancellation.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range allOrders.Data {
+		if !strings.EqualFold(allOrders.Data[i].PaymentCurrency, orderCancellation.Pair.Quote.String()) {
+			continue
+		}
 		_, err := e.CancelTrade(ctx,
-			orderCancellation.Side.String(),
+			allOrders.Data[i].Type,
 			allOrders.Data[i].OrderID,
 			orderCancellation.Pair.Base.String())
 		if err != nil {
 			cancelAllOrdersResponse.Add(allOrders.Data[i].OrderID, err.Error())
+			continue
 		}
+		cancelAllOrdersResponse.Add(allOrders.Data[i].OrderID, order.Cancelled.String())
 	}
 
 	return &cancelAllOrdersResponse, nil
