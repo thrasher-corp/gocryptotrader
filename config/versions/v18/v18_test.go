@@ -1,7 +1,6 @@
 package v18_test
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -18,8 +17,9 @@ import (
 )
 
 const (
-	oldDeribit = `[{"enabled":true,"channel":"candles","asset":"all","interval":"24h"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"},{"enabled":true,"channel":"ticker","asset":"all","interval":"100ms"},{"enabled":true,"channel":"allTrades","asset":"all","interval":"100ms"},{"enabled":true,"channel":"myOrders","asset":"all","interval":"100ms","authenticated":true},{"enabled":true,"channel":"myTrades","asset":"all","interval":"100ms","authenticated":true}]`
-	oldOkx     = `[{"enabled":true,"channel":"allTrades","asset":"all"},{"enabled":true,"channel":"orderbook","asset":"all"},{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true},{"enabled":true,"channel":"myAccount","authenticated":true}]`
+	oldDeribit          = `[{"enabled":true,"channel":"candles","asset":"all","interval":"24h"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"},{"enabled":true,"channel":"ticker","asset":"all","interval":"100ms"},{"enabled":true,"channel":"allTrades","asset":"all","interval":"100ms"},{"enabled":true,"channel":"myOrders","asset":"all","interval":"100ms","authenticated":true},{"enabled":true,"channel":"myTrades","asset":"all","interval":"100ms","authenticated":true}]`
+	oldOkx              = `[{"enabled":true,"channel":"allTrades","asset":"all"},{"enabled":true,"channel":"orderbook","asset":"all"},{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true},{"enabled":true,"channel":"myAccount","authenticated":true}]`
+	retainedOkxAccounts = `{"enabled":true,"channel":"balance_and_position","authenticated":true},{"enabled":true,"channel":"account-greeks","authenticated":true}]`
 )
 
 func TestUpgradeExchange(t *testing.T) {
@@ -82,19 +82,23 @@ func TestDowngradeExchange(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			old := oldOkx
+			expected := strings.TrimSuffix(oldOkx, "]") + "," + retainedOkxAccounts
 			if strings.EqualFold(name, "Deribit") {
 				old = oldDeribit
+				expected = oldDeribit
 			}
 			original := []byte(`{"name":"` + name + `","features":{"subscriptions":` + old + `}}`)
 			upgraded, err := new(v18.Version).UpgradeExchange(t.Context(), original)
 			require.NoError(t, err, "upgrade must succeed")
 			got, err := new(v18.Version).DowngradeExchange(t.Context(), upgraded)
 			require.NoError(t, err, "downgrade must succeed")
-			assert.JSONEq(t, string(original), string(got), "downgrade should restore the previous defaults")
+			assert.JSONEq(t, `{"name":"`+name+`","features":{"subscriptions":`+expected+`}}`, string(got), "downgrade should retain all channels supported by the previous version")
 		})
 	}
 	for _, tc := range []struct{ input, expected string }{
 		{`{"name":"Okx","features":{"subscriptions":[{"enabled":false,"channel":"opt-summary","asset":"spot"},{"enabled":true,"channel":"ticker","custom":true}]}}`, `{"name":"Okx","features":{"subscriptions":[{"enabled":true,"channel":"ticker","custom":true}]}}`},
+		{`{"name":"OKX","features":{"subscriptions":[{"enabled":true,"channel":"balance_and_position","authenticated":true,"custom":true},{"enabled":false,"channel":"account-greeks","authenticated":true},{"enabled":true,"channel":"opt-summary","asset":"options"}]}}`, `{"name":"OKX","features":{"subscriptions":[{"enabled":true,"channel":"balance_and_position","authenticated":true,"custom":true},{"enabled":false,"channel":"account-greeks","authenticated":true}]}}`},
+		{`{"name":"Okx","features":{"subscriptions":[{"enabled":true,"channel":"balance_and_position","authenticated":true},{"enabled":false,"channel":"account-greeks","authenticated":true}]}}`, `{"name":"Okx","features":{"subscriptions":[{"enabled":true,"channel":"balance_and_position","authenticated":true},{"enabled":false,"channel":"account-greeks","authenticated":true}]}}`},
 		{`{"name":"Deribit","features":{"subscriptions":[]}}`, `{"name":"Deribit","features":{"subscriptions":[]}}`},
 		{`{"name":"Okx","features":{"subscriptions":null}}`, `{"name":"Okx","features":{"subscriptions":null}}`},
 		{`{"name":"Deribit"}`, `{"name":"Deribit"}`},
@@ -116,8 +120,6 @@ func TestExchanges(t *testing.T) {
 
 func TestRegisteredUpgrade(t *testing.T) {
 	t.Parallel()
-	fixture, err := os.ReadFile("../../../testdata/configtest.json")
-	require.NoError(t, err, "config fixture must load")
 	for _, name := range []string{"Deribit", "deribit", "Okx", "OKX"} {
 		modes := []string{"defaults", "empty", "null", "missing", "missing features", "custom"}
 		if strings.EqualFold(name, "Okx") {
@@ -137,7 +139,7 @@ func TestRegisteredUpgrade(t *testing.T) {
 					ex = new(okx.Exchange)
 				}
 				var cfg config.Config
-				require.NoError(t, json.Unmarshal(fixture, &cfg), "fixture must decode")
+				require.NoError(t, cfg.ReadConfigFromFile("../../../testdata/configtest.json", true), "real config loader must load the representative fixture")
 				saved, err := cfg.GetExchangeConfig(name)
 				require.NoError(t, err, "exchange config must exist")
 				raw, err := json.Marshal(saved)
@@ -190,7 +192,28 @@ func TestRegisteredUpgrade(t *testing.T) {
 					require.NoError(t, err, "registered downgrade must succeed")
 					restored, _, _, err := jsonparser.Get(rolledBack, "exchanges", "[0]", "features", "subscriptions")
 					require.NoError(t, err, "rollback must retain subscriptions")
-					assert.JSONEq(t, old, string(restored), "rollback should remove only unsupported additions")
+					expected := old
+					if strings.EqualFold(name, "Okx") {
+						expected = strings.TrimSuffix(old, "]") + "," + retainedOkxAccounts
+					}
+					assert.JSONEq(t, expected, string(restored), "rollback should remove only unsupported additions")
+					var downgraded config.Config
+					require.NoError(t, json.Unmarshal(rolledBack, &downgraded), "downgraded config must decode")
+					ex.SetDefaults()
+					require.NoError(t, ex.Setup(&downgraded.Exchanges[0]), "downgraded config must set up")
+					ex.GetBase().Websocket.SetCanUseAuthenticatedEndpoints(true)
+					expanded, err = ex.GetBase().Features.Subscriptions.ExpandTemplates(ex)
+					require.NoError(t, err, "downgraded subscriptions must expand")
+					assert.NotEmpty(t, expanded, "downgraded runtime subscriptions should remain usable")
+					if strings.EqualFold(name, "Okx") {
+						channels := make([]string, 0, len(expanded))
+						for _, sub := range expanded {
+							channels = append(channels, sub.Channel)
+						}
+						assert.Contains(t, channels, "balance_and_position", "rollback should retain the websocket balance channel")
+						assert.Contains(t, channels, "account-greeks", "rollback should retain the supported account greeks channel")
+						assert.NotContains(t, channels, "opt-summary", "rollback should remove the unsupported option summary channel")
+					}
 				}
 			})
 		}

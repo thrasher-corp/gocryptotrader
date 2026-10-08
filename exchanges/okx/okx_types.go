@@ -774,7 +774,7 @@ func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
 type PlaceOrderRequestParam struct {
 	AssetType        asset.Item `json:"-"`
 	InstrumentID     string     `json:"instId"`
-	InstrumentIDCode int64      `json:"instIdCode,omitempty"`
+	InstrumentIDCode uint64     `json:"instIdCode,omitempty"`
 	TradeMode        string     `json:"tdMode"` // cash isolated
 	ClientOrderID    string     `json:"clOrdId,omitempty"`
 	Currency         string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
@@ -814,8 +814,8 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+		if !slices.Contains([]string{"", positionSideNet, positionSideLong, positionSideShort}, arg.PositionSide) {
+			return fmt.Errorf("%w: %q, 'net', 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
@@ -860,7 +860,7 @@ func (r *ResponseResult) Error() error {
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
 	InstrumentID     string `json:"instId"`
-	InstrumentIDCode int64  `json:"instIdCode,omitempty"`
+	InstrumentIDCode uint64 `json:"instIdCode,omitempty"`
 	OrderID          string `json:"ordId"`
 	ClientOrderID    string `json:"clOrdId,omitempty"`
 }
@@ -874,7 +874,7 @@ type CancelMassReqParam struct {
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
 	InstrumentID     string  `json:"instId"`
-	InstrumentIDCode int64   `json:"instIdCode,omitempty"`
+	InstrumentIDCode uint64  `json:"instIdCode,omitempty"`
 	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
 	OrderID          string  `json:"ordId,omitempty"`
 	ClientOrderID    string  `json:"clOrdId,omitempty"`

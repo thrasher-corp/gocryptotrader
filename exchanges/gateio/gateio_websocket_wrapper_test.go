@@ -3,7 +3,6 @@ package gateio
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -29,8 +28,7 @@ func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc)
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
 
-	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
-	t.Cleanup(server.Close)
+	server, dialer := mockws.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsHandler))
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
 	ex.Websocket = websocket.NewManager()
@@ -51,7 +49,7 @@ func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc)
 			ResponseCheckTimeout: exchCfg.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exchCfg.WebsocketResponseMaxLimit,
 			Connector: func(ctx context.Context, conn websocket.Connection) error {
-				return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
+				return conn.Dial(ctx, dialer, http.Header{}, nil)
 			},
 			Subscriber: func(context.Context, websocket.Connection, subscription.List) error { return nil },
 			Unsubscriber: func(context.Context, websocket.Connection, subscription.List) error {

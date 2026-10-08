@@ -132,6 +132,7 @@ func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, err
 
 // DowngradeExchange removes channels unavailable before version 18, including
 // customised entries for those channels. Unrelated subscriptions remain intact.
+// OKX account channels remain supported in version 17, even when added by this migration.
 func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
 	name, err := jsonparser.GetString(exchange, "name")
 	if err != nil {
@@ -158,7 +159,7 @@ func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, e
 			return exchange, err
 		}
 		if strings.EqualFold(name, deribit) && channel == "myAccount" ||
-			strings.EqualFold(name, okx) && (channel == "opt-summary" || channel == "balance_and_position" || channel == "account-greeks") {
+			strings.EqualFold(name, okx) && channel == "opt-summary" {
 			continue
 		}
 		retained = append(retained, entry)

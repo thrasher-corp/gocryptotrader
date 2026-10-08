@@ -844,6 +844,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -924,6 +925,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -3674,17 +3676,17 @@ func TestSubmitOrder(t *testing.T) {
 	for _, route := range []string{"REST", "websocket"} {
 		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
 			for _, tc := range []struct {
-				side                order.Side
-				execution, position string
+				side      order.Side
+				execution string
 			}{
-				{order.Buy, "buy", "short"}, {order.Long, "buy", "short"}, {order.Sell, "sell", "long"}, {order.Short, "sell", "long"},
+				{order.Buy, "buy"}, {order.Long, "buy"}, {order.Bid, "buy"}, {order.Sell, "sell"}, {order.Short, "sell"}, {order.Ask, "sell"},
 			} {
 				t.Run(route+"/"+a.String()+"/"+tc.side.String(), func(t *testing.T) {
 					t.Parallel()
 					var ex *Exchange
 					check := func(payload []byte) {
 						assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
-						assert.Contains(t, string(payload), `"posSide":"`+tc.position+`"`, "wire position side should close the opposite position")
+						assert.NotContains(t, string(payload), `"posSide"`, "net-mode reduce-only orders should omit position side")
 						assert.Contains(t, string(payload), `"reduceOnly":"true"`, "wire payload should retain reduce-only intent")
 					}
 					if route == "websocket" {
@@ -3698,7 +3700,7 @@ func TestSubmitOrder(t *testing.T) {
 						require.NoError(t, testexch.Setup(ex), "Setup must succeed")
 						ex.API.AuthenticatedSupport = true
 						ex.SkipAuthCheck = true
-						server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 							payload, err := io.ReadAll(r.Body)
 							if !assert.NoError(t, err, "request body should be readable") {
 								return
@@ -3707,7 +3709,7 @@ func TestSubmitOrder(t *testing.T) {
 							_, err = w.Write([]byte(`{"code":"0","data":[{"ordId":"reduce-order","sCode":"0"}]}`))
 							assert.NoError(t, err, "mock response should write")
 						}))
-						t.Cleanup(server.Close)
+						require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must be configured")
 						require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
 					}
 					response, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: mainPair, Side: tc.side, Type: order.Limit, Amount: 1, Price: 1, ReduceOnly: true})
@@ -3756,7 +3758,7 @@ func TestSubmitOrder(t *testing.T) {
 		require.Contains(tb, string(payload), `"instIdCode":42`, "websocket order request must include the resolved instrument ID code")
 		if websocketOrderRequests.Add(1) == 2 {
 			assert.Contains(tb, string(payload), `"side":"buy"`, "reduce-only futures buy should retain its execution side")
-			assert.Contains(tb, string(payload), `"posSide":"short"`, "reduce-only futures buy should close a short position")
+			assert.NotContains(tb, string(payload), `"posSide"`, "net-mode reduce-only futures orders should omit position side")
 			assert.Contains(tb, string(payload), `"reduceOnly":"true"`, "reduce-only intent should reach OKX")
 		}
 		return okxOrderWsMock(tb, payload, conn)
@@ -4016,13 +4018,13 @@ func TestCancelAllOrders(t *testing.T) {
 				assert.Len(tb, req.Args, 1, "only the selected order should be sent without empty entries")
 				for _, arg := range req.Args {
 					assert.Equal(tb, "buy-1", arg.OrderID, "only the matching order should be cancelled")
-					assert.Equal(tb, int64(42), arg.InstrumentIDCode, "cancellation should include the resolved instrument code")
+					assert.Equal(tb, uint64(42), arg.InstrumentIDCode, "cancellation should include the resolved instrument code")
 				}
 				return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"0","data":[{"ordId":"buy-1","sCode":"0"}]}`))
 			})
 			ex.API.AuthenticatedSupport = true
 			ex.SkipAuthCheck = true
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				body := `{"code":"0","data":[{"instId":"BTC-USDT","instIdCode":"42"}]}`
 				if strings.Contains(r.URL.Path, "orders-pending") {
 					body = `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","clOrdId":"sell-client","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","clOrdId":"buy-client","side":"buy"}]}`
@@ -4030,7 +4032,7 @@ func TestCancelAllOrders(t *testing.T) {
 				_, err := w.Write([]byte(body))
 				assert.NoError(t, err, "mock response should write")
 			}))
-			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
 			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: tc.side, OrderID: tc.id, ClientOrderID: tc.clientID})
 			require.NoError(t, err, "filtered cancellation must succeed")
@@ -7226,6 +7228,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -7236,6 +7239,15 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+		for _, side := range []string{"", positionSideNet, positionSideLong, positionSideShort} {
+			t.Run(a.String()+"/"+side, func(t *testing.T) {
+				t.Parallel()
+				arg := PlaceOrderRequestParam{InstrumentID: mainPair.String(), AssetType: a, Side: "buy", PositionSide: side, OrderType: orderMarket, Amount: 1, ReduceOnly: side == "" || side == positionSideNet}
+				assert.NoError(t, arg.Validate(), "net and hedge position-side values should validate")
+			})
+		}
+	}
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {

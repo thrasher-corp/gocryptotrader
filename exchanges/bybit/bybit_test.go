@@ -3160,6 +3160,7 @@ func TestWSHandleData(t *testing.T) {
 		payload := fmt.Sprintf(`{"topic":%q,"ts":1672304486868,"type":"snapshot","data":{"symbol":%q,"lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markPriceIv":"0.13"}}`, "tickers."+symbol, symbol)
 		err = ex.wsHandleData(t.Context(), nil, asset.Options, []byte(payload))
 		require.NoError(t, err, "wsHandleData must process an options ticker")
+		require.Len(t, ex.Websocket.DataHandler.C, 2, "options ticker must dispatch both ticker and Greeks")
 		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
 		greeks, ok := (<-ex.Websocket.DataHandler.C).Data.(*exchangeoptions.Greeks)
 		require.True(t, ok, "second dispatch must contain option greeks")
@@ -3173,7 +3174,7 @@ func TestWSHandleData(t *testing.T) {
 		ex.Websocket.DataHandler.Close()
 
 		err := ex.wsHandleData(t.Context(), nil, asset.Options, []byte(`{"topic":"tickers.BTC-26NOV24-92000-C","ts":1672304486868,"type":"snapshot","data":{"symbol":"BTC-26NOV24-92000-C","lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markPriceIv":"0.13"}}`))
-		require.Error(t, err, "wsHandleData must return an error when data handler send fails")
+		assert.Error(t, err, "wsHandleData should return an error when data handler send fails")
 	})
 }
 
@@ -4189,7 +4190,7 @@ func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
 	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{})
 	require.NoError(t, err)
 	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
 }
 
 func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
@@ -4208,7 +4209,7 @@ func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
 	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":0,"retMsg":"OK","op":"auth","connId":"d2a641kgcg7ab33b7mdg-4x6a"}`)})
 	require.NoError(t, err)
 	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":10004,"retMsg":"Invalid sign","op":"auth","connId":"d2a63t6p49kk82nefh90-4ye8"}`)})
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
 }
 
 func TestTransformSymbol(t *testing.T) {

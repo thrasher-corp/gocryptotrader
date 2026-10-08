@@ -4535,6 +4535,7 @@ func TestProcessIncrementalTicker(t *testing.T) {
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
 		require.NoError(t, err)
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "futures ticker must dispatch one ticker")
 		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "processIncrementalTicker should dispatch a ticker")
 	})
 
@@ -4544,6 +4545,7 @@ func TestProcessIncrementalTicker(t *testing.T) {
 		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
 		require.NoError(t, err)
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "options ticker must dispatch one ticker")
 		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
 		assert.Empty(t, ex.Websocket.DataHandler.C, "incremental ticker should not emit incomplete Greeks")
 	})

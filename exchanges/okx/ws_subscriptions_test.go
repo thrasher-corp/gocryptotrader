@@ -404,6 +404,16 @@ func TestOptionInstrumentFamilyFromPair(t *testing.T) {
 			expected: "",
 		},
 		{
+			name:     "missing base",
+			pair:     currency.Pair{Quote: currency.USD},
+			expected: "",
+		},
+		{
+			name:     "missing quote",
+			pair:     currency.Pair{Base: currency.BTC},
+			expected: "",
+		},
+		{
 			name:     "missing quote family",
 			pair:     currency.NewPairWithDelimiter("BTC", "-230224-18000-C", "-"),
 			expected: "",
@@ -413,7 +423,7 @@ func TestOptionInstrumentFamilyFromPair(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			require.Equal(t, tc.expected, optionInstrumentFamilyFromPair(tc.pair))
+			assert.Equal(t, tc.expected, optionInstrumentFamilyFromPair(tc.pair))
 		})
 	}
 }

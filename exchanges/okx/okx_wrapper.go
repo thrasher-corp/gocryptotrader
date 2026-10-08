@@ -1471,10 +1471,8 @@ func derivePositionSide(s *order.Submit) string {
 		return ""
 	}
 	if s.ReduceOnly {
-		if s.Side.IsLong() {
-			return positionSideShort
-		}
-		return positionSideLong
+		// Reduce-only orders use net mode, which defaults when posSide is omitted.
+		return ""
 	}
 	if s.Side.IsLong() {
 		return positionSideLong
@@ -1706,7 +1704,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	return s.DeriveSubmitResponse(resp.OrderID)
 }
 
-func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, instrumentID string) (int64, error) {
+func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, instrumentID string) (uint64, error) {
 	if instrumentID == "" {
 		return 0, errMissingInstrumentID
 	}
@@ -1741,7 +1739,7 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 		return 0, err
 	}
 	instrumentIDCode = lookupInstrumentIDCode(instruments, instrumentID)
-	if instrumentIDCode <= 0 {
+	if instrumentIDCode == 0 {
 		return 0, fmt.Errorf("%w: %s", errInstrumentIDCodeNotFound, instrumentID)
 	}
 
@@ -1769,14 +1767,14 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 	return instrumentIDCode, nil
 }
 
-func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
+func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) uint64 {
 	for i := range instruments {
 		if !strings.EqualFold(instruments[i].InstrumentID.String(), instrumentID) {
 			continue
 		}
 		instrumentIDCode := instruments[i].InstrumentIDCode.Int64()
 		if instrumentIDCode > 0 {
-			return instrumentIDCode
+			return uint64(instrumentIDCode)
 		}
 	}
 	return 0

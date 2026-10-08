@@ -113,8 +113,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	unavailable := new(Exchange)
 	require.NoError(t, testexch.Setup(unavailable))
 	_, err := unavailable.WebsocketSubmitOrder(t.Context(), &order.Submit{})
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	sub := &order.Submit{
 		Exchange:  ex.Name,
@@ -127,57 +127,57 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	}
 
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{})
-	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	unsupported := *sub
 	unsupported.AssetType = asset.Binary
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &unsupported)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	badFormat := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
 	badFormat.CurrencyPairs.UseGlobalFormat = true
 	badFormat.CurrencyPairs.RequestFormat = nil
 	_, err = badFormat.WebsocketSubmitOrder(t.Context(), sub)
-	require.ErrorIs(t, err, currency.ErrPairFormatIsNil)
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
 	badSide := *sub
 	badSide.Side = order.AnySide
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &badSide)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	unsupportedTIF := *sub
 	unsupportedTIF.TimeInForce = order.GoodTillTime
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &unsupportedTIF)
-	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 
 	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
 		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13009,"message":"ws buy failed"}}`,
 	}))
 	_, err = exError.WebsocketSubmitOrder(t.Context(), sub)
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	exNoResp := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
 		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","result":null}`,
 	}))
 	_, err = exNoResp.WebsocketSubmitOrder(t.Context(), sub)
-	require.ErrorIs(t, err, common.ErrNoResponse)
+	assert.ErrorIs(t, err, common.ErrNoResponse)
 
 	exNoOrderID := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
 		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{}}}`,
 	}))
 	_, err = exNoOrderID.WebsocketSubmitOrder(t.Context(), sub)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	resp, err := ex.WebsocketSubmitOrder(t.Context(), sub)
 	require.NoError(t, err)
-	require.Equal(t, "buy-order", resp.OrderID)
-	require.Equal(t, order.New, resp.Status)
+	assert.Equal(t, "buy-order", resp.OrderID)
+	assert.Equal(t, order.New, resp.Status)
 
 	ioc := *sub
 	ioc.TimeInForce = order.ImmediateOrCancel
 	resp, err = ex.WebsocketSubmitOrder(t.Context(), &ioc)
 	require.NoError(t, err)
-	require.Equal(t, "buy-order", resp.OrderID)
+	assert.Equal(t, "buy-order", resp.OrderID)
 
 	sell := *sub
 	sell.Side = order.Sell
@@ -231,8 +231,8 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	unavailable := new(Exchange)
 	require.NoError(t, testexch.Setup(unavailable))
 	_, err := unavailable.WebsocketModifyOrder(t.Context(), &order.Modify{})
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	mod := &order.Modify{
 		OrderID:   "1",
@@ -242,24 +242,24 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	}
 
 	_, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{})
-	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+	assert.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	unsupported := *mod
 	unsupported.AssetType = asset.Binary
 	_, err = ex.WebsocketModifyOrder(t.Context(), &unsupported)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
 		submitEdit: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13010,"message":"ws edit failed"}}`,
 	}))
 	_, err = exError.WebsocketModifyOrder(t.Context(), mod)
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	nullResult := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
 		submitEdit: `{"jsonrpc":"2.0","id":"{{id}}","result":null}`,
 	}))
 	_, err = nullResult.WebsocketModifyOrder(t.Context(), mod)
-	require.ErrorIs(t, err, common.ErrNoResponse)
+	assert.ErrorIs(t, err, common.ErrNoResponse)
 
 	resp, err := ex.WebsocketModifyOrder(t.Context(), mod)
 	require.NoError(t, err)
@@ -280,8 +280,8 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	unavailable := new(Exchange)
 	require.NoError(t, testexch.Setup(unavailable))
 	err := unavailable.WebsocketCancelOrder(t.Context(), &order.Cancel{})
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	cancel := &order.Cancel{
 		OrderID:   "1",
@@ -292,18 +292,18 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	unsupported := *cancel
 	unsupported.AssetType = asset.Binary
 	err = ex.WebsocketCancelOrder(t.Context(), &unsupported)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	invalid := *cancel
 	invalid.OrderID = ""
 	err = ex.WebsocketCancelOrder(t.Context(), &invalid)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
 		submitCancel: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13011,"message":"ws cancel failed"}}`,
 	}))
 	err = exError.WebsocketCancelOrder(t.Context(), cancel)
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
 
 	err = ex.WebsocketCancelOrder(t.Context(), cancel)
 	assert.NoError(t, err)

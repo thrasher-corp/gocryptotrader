@@ -3232,6 +3232,7 @@ func TestProcessOptionsContractTickers(t *testing.T) {
 	processingStarted := time.Now().UTC()
 	require.NoError(t, ex.processOptionsContractTickers(t.Context(), push.Result, push.Time))
 	processingFinished := time.Now().UTC()
+	require.Len(t, ex.Websocket.DataHandler.C, 2, "Options ticker processing must enqueue both ticker and greeks")
 
 	tickerMessage := <-ex.Websocket.DataHandler.C
 	assert.IsType(t, &ticker.Price{}, tickerMessage.Data, "First message should contain the normalised ticker")
@@ -4587,8 +4588,8 @@ func ackGateioWSHandler() mockws.WsMockFunc {
 func connectGateioTestWithMockedWebsocket(t *testing.T, ex *Exchange, wsHandler mockws.WsMockFunc) websocket.Connection {
 	t.Helper()
 
-	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
-	t.Cleanup(server.Close)
+	server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsHandler))
+	server.Start()
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))

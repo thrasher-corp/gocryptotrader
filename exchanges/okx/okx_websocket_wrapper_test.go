@@ -34,7 +34,7 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
-	instrumentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	instrumentServer := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		instrumentID := r.URL.Query().Get("instId")
 		if instrumentID == "" {
 			instrumentID = mainPair.String()
@@ -53,10 +53,10 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		}{InstrumentID: instrumentID, InstrumentIDCode: "42"})
 		assert.NoError(t, json.NewEncoder(w).Encode(response), "instrument response should encode")
 	}))
-	t.Cleanup(instrumentServer.Close)
+	require.NoError(t, ex.SetHTTPClient(instrumentServer.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", instrumentServer.URL+"/"))
 
-	privateServer := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+	privateServer, privateDialer := mockws.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
 		tb.Helper()
 		var request struct {
 			Operation string `json:"op"`
@@ -65,9 +65,8 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		assert.False(tb, strings.HasPrefix(request.Operation, "sprd-"), "spread requests should use the business websocket")
 		return wsHandler(tb, payload, conn)
 	}))
-	t.Cleanup(privateServer.Close)
 	privateURL := "ws" + strings.TrimPrefix(privateServer.URL, "http")
-	businessServer := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+	businessServer, businessDialer := mockws.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
 		tb.Helper()
 		var request struct {
 			Operation string `json:"op"`
@@ -76,7 +75,6 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		assert.True(tb, strings.HasPrefix(request.Operation, "sprd-"), "standard requests should use the private websocket")
 		return wsHandler(tb, payload, conn)
 	}))
-	t.Cleanup(businessServer.Close)
 	businessURL := "ws" + strings.TrimPrefix(businessServer.URL, "http")
 
 	ex.Websocket = websocket.NewManager()
@@ -94,7 +92,7 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		ResponseCheckTimeout: exchCfg.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exchCfg.WebsocketResponseMaxLimit,
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
-			return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
+			return conn.Dial(ctx, privateDialer, http.Header{}, nil)
 		},
 		Subscriber: func(context.Context, websocket.Connection, subscription.List) error { return nil },
 		Unsubscriber: func(context.Context, websocket.Connection, subscription.List) error {
@@ -118,6 +116,9 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	require.NoError(t, ex.Websocket.SetupNewConnection(connectionSetup))
 	businessSetup := *connectionSetup
 	businessSetup.URL = businessURL
+	businessSetup.Connector = func(ctx context.Context, conn websocket.Connection) error {
+		return conn.Dial(ctx, businessDialer, http.Header{}, nil)
+	}
 	businessSetup.MessageFilter = businessConnection
 	require.NoError(t, ex.Websocket.SetupNewConnection(&businessSetup))
 
@@ -270,10 +271,10 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	resolveError := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
-	instrumentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	instrumentServer := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "failed", http.StatusInternalServerError)
 	}))
-	t.Cleanup(instrumentServer.Close)
+	require.NoError(t, resolveError.SetHTTPClient(instrumentServer.Client()), "SetHTTPClient must not error")
 	require.NoError(t, resolveError.API.Endpoints.SetRunningURL("RestSpotURL", instrumentServer.URL+"/"))
 	_, err = resolveError.WebsocketSubmitOrder(t.Context(), &order.Submit{
 		Exchange:  resolveError.Name,
@@ -529,7 +530,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, order.Buy.Lower(), arg.Side)
-		assert.Equal(t, positionSideShort, arg.PositionSide)
+		assert.Empty(t, arg.PositionSide, "net-mode reduce-only orders should omit position side")
 		assert.True(t, arg.ReduceOnly, "reduce-only should be passed to OKX")
 	})
 
@@ -610,20 +611,22 @@ func TestDerivePositionSide(t *testing.T) {
 
 	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
 		for _, tc := range []struct {
-			side                   order.Side
-			execution, open, close string
+			side            order.Side
+			execution, open string
 		}{
-			{order.Buy, "buy", "long", "short"},
-			{order.Long, "buy", "long", "short"},
-			{order.Sell, "sell", "short", "long"},
-			{order.Short, "sell", "short", "long"},
+			{order.Buy, "buy", "long"},
+			{order.Long, "buy", "long"},
+			{order.Bid, "buy", "long"},
+			{order.Sell, "sell", "short"},
+			{order.Short, "sell", "short"},
+			{order.Ask, "sell", "short"},
 		} {
 			for _, reduce := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/%s/reduce=%t", a, tc.side, reduce), func(t *testing.T) {
 					t.Parallel()
 					want := tc.open
 					if reduce {
-						want = tc.close
+						want = ""
 					}
 					assert.Equal(t, want, derivePositionSide(&order.Submit{AssetType: a, Side: tc.side, ReduceOnly: reduce}), "position side should follow execution intent")
 					execution, err := deriveOrderSide(tc.side)
@@ -670,7 +673,7 @@ func TestDerivePositionSide(t *testing.T) {
 				Side:       order.Buy,
 				ReduceOnly: true,
 			},
-			want: positionSideShort,
+			want: "",
 		},
 		{
 			name: "futures reduce only sell",
@@ -679,7 +682,7 @@ func TestDerivePositionSide(t *testing.T) {
 				Side:       order.Sell,
 				ReduceOnly: true,
 			},
-			want: positionSideLong,
+			want: "",
 		},
 		{
 			name: "futures buy",
@@ -953,7 +956,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 	testCases := []struct {
 		name        string
 		instruments []Instrument
-		want        int64
+		want        uint64
 	}{
 		{
 			name: "matching positive code",
@@ -967,6 +970,13 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 			name: "matching zero code",
 			instruments: []Instrument{{
 				InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT-260101-100000-C", currency.DashDelimiter),
+			}},
+		},
+		{
+			name: "matching negative code",
+			instruments: []Instrument{{
+				InstrumentID:     currency.NewPairWithDelimiter("BTC", "USDT-260101-100000-C", currency.DashDelimiter),
+				InstrumentIDCode: types.Number(-1),
 			}},
 		},
 		{
@@ -996,18 +1006,18 @@ func TestResolveInstrumentIDCode(t *testing.T) {
 		published := []Instrument{{InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)}}
 		ex.instrumentsInfoMap = map[string][]Instrument{"SPOT": published}
 		var requests atomic.Int64
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			requests.Add(1)
 			_, _ = w.Write([]byte(`{"code":"0","data":[{"instId":"BTC-USDT","instIdCode":"42"}]}`))
 		}))
-		t.Cleanup(server.Close)
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 		require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "endpoint must update")
 		var wg sync.WaitGroup
 		for range 12 {
 			wg.Go(func() {
 				code, err := ex.resolveInstrumentIDCode(t.Context(), asset.Spot, "BTC-USDT")
 				assert.NoError(t, err, "lookup should succeed")
-				assert.Equal(t, int64(42), code, "lookup should return the code")
+				assert.Equal(t, uint64(42), code, "lookup should return the code")
 				assert.Zero(t, published[0].InstrumentIDCode.Int64(), "published slice should remain unchanged")
 			})
 		}
@@ -1018,7 +1028,7 @@ func TestResolveInstrumentIDCode(t *testing.T) {
 	const instrumentID = "BTC-USDT-260101-100000-C"
 	var requests atomic.Int64
 	var invalidOptionsQuery atomic.Bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		w.Header().Set("Content-Type", "application/json")
 		switch {
@@ -1033,21 +1043,20 @@ func TestResolveInstrumentIDCode(t *testing.T) {
 			_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
 		}
 	}))
-	t.Cleanup(server.Close)
-
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "SetRunningURL must not error")
 
 	code, err := ex.resolveInstrumentIDCode(t.Context(), asset.Options, instrumentID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(42), code, "resolveInstrumentIDCode should return the exchange code")
+	assert.Equal(t, uint64(42), code, "resolveInstrumentIDCode should return the exchange code")
 	assert.False(t, invalidOptionsQuery.Load(), "options lookup should use only the instrument family selector")
 	assert.Equal(t, int64(1), requests.Load(), "first lookup should make one instrument request")
 
 	code, err = ex.resolveInstrumentIDCode(t.Context(), asset.Options, instrumentID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(42), code, "cached lookup should return the exchange code")
+	assert.Equal(t, uint64(42), code, "cached lookup should return the exchange code")
 	assert.Equal(t, int64(1), requests.Load(), "cached lookup should not make another instrument request")
 
 	_, err = ex.resolveInstrumentIDCode(t.Context(), asset.Options, "")
