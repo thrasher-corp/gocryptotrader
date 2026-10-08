@@ -54,7 +54,7 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 		}
 		changes := make([]accounts.Change, 0, len(response.Data.Details))
 		for i := range response.Data.Details {
-			free := response.Data.Details[i].Available.Float64() + response.Data.Details[i].IsolatedAvailable.Float64()
+			free := response.Data.Details[i].AvailableMargin.Float64() + response.Data.Details[i].IsolatedAvailableMargin.Float64()
 			changes = append(changes, accounts.Change{
 				AssetType: sub.Asset,
 				Balance: accounts.Balance{
@@ -65,6 +65,13 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 					UpdatedAt: response.Timestamp.Time(),
 				},
 			})
+		}
+		subAccounts := accounts.SubAccounts{accounts.NewSubAccount(sub.Asset, "")}
+		for _, change := range changes {
+			subAccounts[0].Balances.Set(change.Balance.Currency, change.Balance)
+		}
+		if err := e.Accounts.Save(ctx, subAccounts, false); err != nil {
+			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)
 	case subscription.MyTradesChannel:

@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -67,6 +68,33 @@ func TestAppendFuturesCandles(t *testing.T) {
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("null V5 response", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `null`, nil)
+		_, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair})
+		require.ErrorIs(t, err, errEmptyResult, "null funding history must return an error")
+	})
+	t.Run("descending windows with repeated boundary", func(t *testing.T) {
+		t.Parallel()
+		start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+		boundary := start.Add(48 * time.Hour)
+		end := start.Add(72 * time.Hour)
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", "", nil)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("start_time") == strconv.FormatInt(start.UnixMilli(), 10) {
+				_, _ = fmt.Fprintf(w, `{"code":200,"data":[{"id":"2","funding_time":"%d","funding_rate":"0.002"},{"id":"1","funding_time":"%d","funding_rate":"0.001"}]}`, boundary.UnixMilli(), start.UnixMilli())
+			} else {
+				_, _ = fmt.Fprintf(w, `{"code":200,"data":[{"id":"3","funding_time":"%d","funding_rate":"0.003"},{"id":"2","funding_time":"%d","funding_rate":"0.002"}]}`, end.UnixMilli(), boundary.UnixMilli())
+			}
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "history endpoint must be set")
+		result, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, StartDate: start, EndDate: end})
+		require.NoError(t, err, "funding history must succeed")
+		require.Len(t, result.FundingRates, 3, "window boundaries must be deduplicated")
+		assert.Equal(t, start, result.FundingRates[0].Time.UTC(), "oldest rate should be first")
+		assert.Equal(t, end, result.FundingRates[2].Time.UTC(), "newest rate should be last")
+	})
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 
@@ -117,6 +145,21 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		mode     margin.Type
+		expected string
+	}{{margin.Unset, "cross"}, {margin.Multi, "cross"}, {margin.Isolated, "isolated"}} {
+		t.Run(tc.mode.String()+" outbound mode", func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"data":{}}`, func(r *http.Request) {
+				var req V5SetLeverageRequest
+				if assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "leverage payload should decode") {
+					assert.Equal(t, tc.expected, req.MarginMode, "leverage mode should agree with submission defaults")
+				}
+			})
+			require.NoError(t, h.SetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, tc.mode, 5, order.UnknownSide), "leverage change must succeed")
+		})
+	}
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 
@@ -268,6 +311,12 @@ func TestGetCollateralMode(t *testing.T) {
 
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("null V5 response", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/lever", `null`, nil)
+		_, err := h.GetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, margin.Unset, order.UnknownSide)
+		require.ErrorIs(t, err, errEmptyResult, "null leverage must return an error")
+	})
 	for _, tc := range []struct {
 		name       string
 		item       asset.Item

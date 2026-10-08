@@ -51,6 +51,9 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
+		if response.Status == 9 || response.Status == 10 {
+			return nil
+		}
 		detail, err := e.formatLegacyFuturesWSOrder(&legacyFuturesWSOrder{
 			asset:          sub.Asset,
 			contractCode:   response.ContractCode,
@@ -93,6 +96,13 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 					UpdatedAt: response.Timestamp.Time(),
 				},
 			})
+		}
+		subAccounts := accounts.SubAccounts{accounts.NewSubAccount(sub.Asset, "")}
+		for _, change := range changes {
+			subAccounts[0].Balances.Set(change.Balance.Currency, change.Balance)
+		}
+		if err := e.Accounts.Save(ctx, subAccounts, false); err != nil {
+			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)
 	case wsPositionsChannel:

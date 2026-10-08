@@ -79,9 +79,11 @@ var subscriptionNames = map[string]string{
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
-		matched := e.Websocket.Match.IncomingWithData(id, respRaw)
+		var matched bool
 		if conn != nil {
 			matched = conn.IncomingWithData(id, respRaw)
+		} else {
+			matched = e.Websocket.Match.IncomingWithData(id, respRaw)
 		}
 		if matched {
 			return nil
@@ -136,9 +138,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	}
 
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
-		s := e.Websocket.GetSubscription(ch)
-		if conn != nil {
-			s = conn.Subscriptions().Get(ch)
+		var s *subscription.Subscription
+		if conn == nil {
+			s = e.Websocket.GetSubscription(ch)
+		} else if s = conn.Subscriptions().Get(ch); s == nil {
+			s = e.Websocket.GetConnectionSetupSubscription(conn, ch)
 		}
 		if s == nil {
 			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
@@ -303,10 +307,24 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 		AssetType:    s.Asset,
 		Pair:         s.Pairs[0],
 	}
-	// vol is the quote currency on spot but counts contracts on the derivative channels, where the
-	// quote figure is served as trade_turnover and this message carries none
+	if len(wsTicker.Tick.Bid) != 0 {
+		if len(wsTicker.Tick.Bid) != 2 {
+			return errInvalidBidData
+		}
+		tickPrice.Bid = wsTicker.Tick.Bid[0]
+		tickPrice.BidSize = wsTicker.Tick.Bid[1]
+	}
+	if len(wsTicker.Tick.Ask) != 0 {
+		if len(wsTicker.Tick.Ask) != 2 {
+			return errInvalidAskData
+		}
+		tickPrice.Ask = wsTicker.Tick.Ask[0]
+		tickPrice.AskSize = wsTicker.Tick.Ask[1]
+	}
 	if s.Asset == asset.Spot {
 		tickPrice.QuoteVolume = wsTicker.Tick.Volume
+	} else {
+		tickPrice.QuoteVolume = wsTicker.Tick.TradeTurnover
 	}
 	if err := ticker.ProcessTicker(tickPrice); err != nil {
 		return err
@@ -324,6 +342,9 @@ func (e *Exchange) wsHandleOrderbookMsg(ctx context.Context, s *subscription.Sub
 	}
 	bids := make(orderbook.Levels, len(update.Tick.Bids))
 	for i := range update.Tick.Bids {
+		if len(update.Tick.Bids[i]) != 2 {
+			return errInvalidBidData
+		}
 		price, ok := update.Tick.Bids[i][0].(float64)
 		if !ok {
 			return errBidPriceTypeAssertion
@@ -340,6 +361,9 @@ func (e *Exchange) wsHandleOrderbookMsg(ctx context.Context, s *subscription.Sub
 
 	asks := make(orderbook.Levels, len(update.Tick.Asks))
 	for i := range update.Tick.Asks {
+		if len(update.Tick.Asks[i]) != 2 {
+			return errInvalidAskData
+		}
 		price, ok := update.Tick.Asks[i][0].(float64)
 		if !ok {
 			return errAskPriceTypeAssertion
@@ -642,7 +666,11 @@ func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error
 	if err != nil {
 		return err
 	}
-	return getErrResp(resp)
+	if err := getErrResp(resp); err != nil {
+		return err
+	}
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	return nil
 }
 
 func stringToOrderSide(side string) (order.Side, error) {

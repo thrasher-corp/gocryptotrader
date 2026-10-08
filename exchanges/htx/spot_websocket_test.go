@@ -61,6 +61,27 @@ func TestWSHandleCandleMsg(t *testing.T) {
 
 func TestWSHandleOrderbookMsg(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		raw  string
+		err  error
+	}{
+		{name: "empty bid", raw: `{"tick":{"bids":[[]]}}`, err: errInvalidBidData},
+		{name: "short bid", raw: `{"tick":{"bids":[[100]]}}`, err: errInvalidBidData},
+		{name: "long bid", raw: `{"tick":{"bids":[[100,2,3]]}}`, err: errInvalidBidData},
+		{name: "empty ask", raw: `{"tick":{"asks":[[]]}}`, err: errInvalidAskData},
+		{name: "short ask", raw: `{"tick":{"asks":[[100]]}}`, err: errInvalidAskData},
+		{name: "long ask", raw: `{"tick":{"asks":[[100,2,3]]}}`, err: errInvalidAskData},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+			require.ErrorIs(t, h.wsHandleOrderbookMsg(t.Context(), &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}}, []byte(tc.raw)), tc.err, "malformed tuple must be rejected")
+			assert.Empty(t, h.Websocket.DataHandler.C, "invalid book should not dispatch")
+		})
+	}
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
@@ -177,6 +198,42 @@ func TestWsTradeIDUnmarshalJSON(t *testing.T) {
 
 func TestWSHandleTickerMsg(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		asset asset.Item
+		raw   string
+		quote float64
+		err   error
+	}{
+		{name: "spot quotes", asset: asset.Spot, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 40},
+		{name: "delivery turnover", asset: asset.Futures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 50},
+		{name: "coin turnover", asset: asset.CoinMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 50},
+		{name: "USDT turnover", asset: asset.USDTMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 50},
+		{name: "short bid", asset: asset.Spot, raw: `{"tick":{"bid":[100]}}`, err: errInvalidBidData},
+		{name: "long ask", asset: asset.Spot, raw: `{"tick":{"ask":[101,3,4]}}`, err: errInvalidAskData},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+			h.Name = t.Name()
+			err := h.wsHandleTickerMsg(t.Context(), &subscription.Subscription{Asset: tc.asset, Pairs: currency.Pairs{btcusdtPair}}, []byte(tc.raw))
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "invalid quote tuple must be rejected")
+				assert.Empty(t, h.Websocket.DataHandler.C, "invalid tick should not dispatch")
+				return
+			}
+			require.NoError(t, err, "ticker update must succeed")
+			stored, err := ticker.GetTicker(h.Name, btcusdtPair, tc.asset)
+			require.NoError(t, err, "ticker must reach shared store")
+			assert.Equal(t, 100.0, stored.Bid)
+			assert.Equal(t, 2.0, stored.BidSize)
+			assert.Equal(t, 101.0, stored.Ask)
+			assert.Equal(t, 3.0, stored.AskSize)
+			assert.Equal(t, tc.quote, stored.QuoteVolume)
+		})
+	}
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	e.Name = t.Name()
@@ -485,6 +542,54 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 
 func TestWSHandleData(t *testing.T) {
 	t.Parallel()
+	t.Run("early setup lookup", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+		h.Name = t.Name()
+		conn, err := h.Websocket.CreateTestConnection(exchange.WebsocketSpot)
+		require.NoError(t, err, "spot test connection must be created")
+		require.NoError(t, h.Websocket.TrackTestConnection(exchange.WebsocketSpot, conn), "connection must belong to setup")
+		sub := &subscription.Subscription{Key: "market.btcusdt.detail", QualifiedChannel: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel}
+		require.NoError(t, h.Websocket.AddSubscriptions(conn, sub), "acknowledged subscription must enter setup store")
+		assert.Empty(t, conn.Subscriptions().List(), "local store should still await batch completion")
+		require.NoError(t, h.wsHandleData(t.Context(), conn, []byte(`{"ch":"market.btcusdt.detail","tick":{"close":100}}`)), "early ticker must resolve acknowledged subscription")
+		stored, err := ticker.GetTicker(h.Name, btcusdtPair, asset.Spot)
+		require.NoError(t, err, "early ticker must reach store")
+		assert.Equal(t, 100.0, stored.Last)
+	})
+
+	t.Run("connection matcher isolation", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
+		conn, err := h.Websocket.CreateTestConnection(exchange.WebsocketSpot)
+		require.NoError(t, err, "test connection must be created")
+		local, err := conn.MatchReturnResponses(t.Context(), "same-id", 1)
+		require.NoError(t, err, "connection matcher must register")
+		global, err := h.Websocket.Match.Set("same-id", 1)
+		require.NoError(t, err, "manager matcher must register")
+		defer h.Websocket.Match.RemoveSignature("same-id")
+		raw := []byte(`{"id":"same-id","status":"ok"}`)
+		require.NoError(t, h.wsHandleData(t.Context(), conn, raw), "response must route to its connection")
+		select {
+		case response := <-local:
+			require.NoError(t, response.Err, "connection matcher must complete")
+			require.Len(t, response.Responses, 1, "one connection response must arrive")
+			assert.Equal(t, raw, response.Responses[0])
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "connection response missing")
+		}
+		assert.Empty(t, global, "connection response should leave manager matcher untouched")
+		require.NoError(t, h.wsHandleData(t.Context(), nil, raw), "legacy response must route to manager")
+		select {
+		case data := <-global:
+			assert.Equal(t, raw, data)
+		default:
+			require.FailNow(t, "manager response missing")
+		}
+	})
+
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 	require.NoError(t, h.wsHandleData(t.Context(), nil, []byte(`{"unexpected":true}`)), "unmatched websocket data must be forwarded")
@@ -580,7 +685,9 @@ func TestWSLogin(t *testing.T) {
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
 	require.NoError(t, err, "private spot websocket connection must be available")
+	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	require.NoError(t, h.wsLogin(t.Context(), conn), "spot websocket login must not error")
+	assert.True(t, h.Websocket.CanUseAuthenticatedEndpoints(), "successful login should enable authenticated endpoints")
 }
 
 func TestWSHandleV1Ping(t *testing.T) {

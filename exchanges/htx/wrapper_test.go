@@ -31,8 +31,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -94,13 +96,13 @@ func TestSetDefaults(t *testing.T) {
 	h := new(Exchange)
 	h.SetDefaults()
 	assert.Equal(t, "HTX", h.Name, "exchange name should match")
-	assert.True(t, h.Features.Supports.WebsocketCapabilities.FundingRateFetching, "websocket funding rates should be supported")
+	assert.False(t, h.Features.Supports.WebsocketCapabilities.FundingRateFetching, "unsupported notification transport should not advertise websocket funding")
 	assert.True(t, h.Features.Supports.WebsocketCapabilities.SubmitOrder, "websocket order submission should be supported")
 	assert.True(t, h.Features.Supports.WebsocketCapabilities.SubmitOrders, "websocket batch order submission should be supported")
 	assert.True(t, h.Features.Supports.WebsocketCapabilities.CancelOrder, "websocket order cancellation should be supported")
 	assert.True(t, h.Features.TradingRequirements.SpotMarketBuyQuotation, "spot market buys should require quote amount")
 	assert.True(t, h.Features.TradingRequirements.SpotMarketSellBase, "spot market sells should require base amount")
-	assert.Len(t, h.Features.Subscriptions, 38, "default subscriptions should cover public and private spot and derivatives channels")
+	assert.Len(t, h.Features.Subscriptions, 36, "default subscriptions should cover public and private spot and derivatives channels")
 	for _, sub := range h.Features.Subscriptions {
 		if sub.Authenticated && sub.Asset != asset.Spot {
 			assert.False(t, sub.Enabled, "private derivative subscriptions should default to disabled")
@@ -123,6 +125,83 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
+	for _, variant := range []string{"missing", "null", "empty"} {
+		t.Run("legacy config "+variant, func(t *testing.T) {
+			t.Parallel()
+			var cfg config.Config
+			require.NoError(t, cfg.ReadConfigFromFile("testdata/legacy_v17_"+variant+"_subscriptions.json", true), "real config loader must migrate the legacy subscription selection")
+			assert.Equal(t, 19, cfg.Version, "legacy config should advance to the latest HTX migration")
+			require.Len(t, cfg.Exchanges, 1, "legacy config must retain its exchange")
+			assert.Equal(t, "HTX", cfg.Exchanges[0].Name, "legacy exchange should be renamed")
+			h := new(Exchange)
+			h.SetDefaults()
+			require.NoError(t, h.Setup(&cfg.Exchanges[0]), "migrated configuration must pass real HTX setup")
+			subs, err := h.generateSubscriptionsForAsset(asset.Spot, false)
+			require.NoError(t, err, "migrated spot defaults must generate")
+			require.NotEmpty(t, subs, "implicit spot defaults must survive registered migration and setup")
+			channels := make([]string, 0, len(subs))
+			for _, sub := range subs {
+				channels = append(channels, sub.Channel)
+				assert.Equal(t, asset.Spot, sub.Asset, "restored subscriptions should belong to spot")
+				assert.True(t, sub.Pairs.Contains(btcusdtPair, true), "restored spot subscriptions should cover the configured pair")
+			}
+			assert.ElementsMatch(t, []string{subscription.TickerChannel, subscription.CandlesChannel, subscription.OrderbookChannel, subscription.AllTradesChannel}, channels, "migration should restore every public spot default")
+		})
+	}
+	t.Run("trade connection follows enabled asset", func(t *testing.T) {
+		t.Parallel()
+		var tradeAuthentications atomic.Int32
+		server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
+			tb.Helper()
+			var request struct {
+				Operation string `json:"op"`
+			}
+			if err := json.Unmarshal(message, &request); err != nil {
+				return err
+			}
+			if request.Operation == wsAuthChannel {
+				tradeAuthentications.Add(1)
+			}
+			return wsFixture(tb, message, conn)
+		}))
+		t.Cleanup(server.Close)
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange defaults must load")
+		cfg := h.Config
+		cfg.API.AuthenticatedWebsocketSupport = true
+		cfg.API.AuthenticatedSupport = true
+		h.SetDefaults()
+		require.NoError(t, h.Setup(cfg), "authenticated websocket setup must succeed")
+		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		h.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
+		require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "USDT-margined asset must start disabled")
+		require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket endpoints must use the mock server")
+		require.NoError(t, h.Websocket.Connect(t.Context()), "spot must connect with the trade asset disabled")
+		t.Cleanup(func() { assert.NoError(t, h.Websocket.Shutdown(), "websocket should shut down") })
+		spot, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+		require.NoError(t, err, "spot connection must be available")
+		_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
+		require.ErrorIs(t, err, websocket.ErrNotConnected, "disabled trade asset must not create a connection")
+		assert.Zero(t, tradeAuthentications.Load(), "disabled trade asset should not authenticate a socket")
+
+		require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, true), "USDT-margined asset must enable")
+		require.NoError(t, h.Websocket.FlushChannels(t.Context()), "enabling trade asset must create its connection")
+		trade, err := h.Websocket.GetConnection(exchange.WebsocketTrade)
+		require.NoError(t, err, "trade connection must be available after enabling the asset")
+		assert.Equal(t, int32(1), tradeAuthentications.Load(), "trade socket should authenticate before use")
+		spotAfterEnable, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+		require.NoError(t, err, "spot connection must remain available")
+		assert.Same(t, spot, spotAfterEnable, "enabling trade should retain the spot connection")
+
+		require.NoError(t, h.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "USDT-margined asset must disable")
+		require.NoError(t, h.Websocket.FlushChannels(t.Context()), "disabling trade asset must remove its connection")
+		_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
+		require.ErrorIs(t, err, websocket.ErrNotConnected, "disabled trade connection must be unavailable")
+		assert.ErrorContains(t, trade.SendJSONMessage(t.Context(), 0, struct{}{}), "disconnected", "disabled trade connection should close")
+		spotAfterDisable, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+		require.NoError(t, err, "spot connection must remain available after disabling trade")
+		assert.Same(t, spot, spotAfterDisable, "disabling trade should retain the spot connection")
+	})
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "Setup must not error")
 	assert.NotNil(t, h.Websocket, "websocket manager should be configured")
@@ -184,7 +263,13 @@ func TestUpdateCurrencyStates(t *testing.T) {
 	assert.Error(t, h.CanTrade(currency.NewCode("BAD"), asset.Spot), "delisted currency trading should be disabled")
 	assert.Error(t, h.CanDeposit(currency.NewCode("BAD"), asset.Spot), "currency without chains should have deposits disabled")
 	assert.Error(t, h.CanWithdraw(currency.NewCode("BAD"), asset.Spot), "currency without chains should have withdrawals disabled")
-	require.ErrorIs(t, h.UpdateCurrencyStates(t.Context(), asset.Futures), asset.ErrNotSupported, "UpdateCurrencyStates must reject non-spot assets")
+	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, h.UpdateCurrencyStates(t.Context(), a), common.ErrNotYetImplemented, "derivatives must use default currency states")
+		})
+	}
+	require.ErrorIs(t, h.UpdateCurrencyStates(t.Context(), asset.Binary), asset.ErrNotSupported, "unsupported assets must remain rejected")
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -324,7 +409,7 @@ func TestGetOrderHistory(t *testing.T) {
 							"order_id_str":     strconv.FormatInt(queryID, 10),
 							"contract_code":    tc.contract,
 							"direction":        "buy",
-							"order_price_type": "limit",
+							"order_price_type": 6,
 							"status":           6,
 						}
 						maps.Copy(entry, tc.extraEntry)
@@ -337,7 +422,7 @@ func TestGetOrderHistory(t *testing.T) {
 						"order_id_str":     "51",
 						"contract_code":    tc.contract,
 						"direction":        "buy",
-						"order_price_type": "limit",
+						"order_price_type": 6,
 						"status":           6,
 					}
 					maps.Copy(entry, tc.extraEntry)
@@ -365,7 +450,8 @@ func TestGetOrderHistory(t *testing.T) {
 				EndTime:   startTime.Add(24 * time.Hour),
 			})
 			require.NoError(t, err, "GetOrderHistory must not error")
-			assert.Len(t, orders, 51, "all cursor pages should be returned")
+			require.Len(t, orders, 51, "all cursor pages must be returned")
+			assert.Equal(t, order.PostOnly, orders[0].TimeInForce, "numeric history type should retain post-only protection")
 			assert.Equal(t, int64(2), calls.Load(), "pagination should stop after the short final page")
 		})
 	}
@@ -417,6 +503,27 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetV3HistoryWindows(t *testing.T) {
 	t.Parallel()
+	for _, span := range []time.Duration{48 * time.Hour, 48*time.Hour + time.Millisecond, 96*time.Hour + 2*time.Millisecond} {
+		t.Run(span.String(), func(t *testing.T) {
+			t.Parallel()
+			start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+			windows, err := getV3HistoryWindows(start, start.Add(span))
+			require.NoError(t, err, "windows must succeed")
+			for i, window := range windows {
+				assert.True(t, window.start.Before(window.end), "each window should have a positive duration")
+				if i > 0 {
+					assert.Equal(t, windows[i-1].end, window.start, "windows should share boundaries")
+				}
+			}
+			assert.Equal(t, start.Add(span), windows[len(windows)-1].end, "windows should cover the full requested range")
+		})
+	}
+	t.Run("equal times", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		_, err := getV3HistoryWindows(now, now)
+		require.ErrorIs(t, err, common.ErrStartEqualsEnd, "equal dates must be rejected")
+	})
 	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
 	endTime := startTime.Add(5 * 24 * time.Hour)
 	windows, err := getV3HistoryWindows(startTime, endTime)
@@ -427,7 +534,7 @@ func TestGetV3HistoryWindows(t *testing.T) {
 	}
 	assert.Equal(t, startTime, windows[0].start, "first window should preserve the requested start")
 	assert.Equal(t, endTime, windows[len(windows)-1].end, "last window should preserve the requested end")
-	assert.Equal(t, time.Millisecond, windows[1].start.Sub(windows[0].end), "adjacent millisecond ranges should not overlap")
+	assert.Equal(t, windows[0].end, windows[1].start, "adjacent ranges should be contiguous")
 
 	windows, err = getV3HistoryWindows(time.Time{}, time.Time{})
 	require.NoError(t, err, "getV3HistoryWindows must accept an unspecified interval")
@@ -520,6 +627,50 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		item     asset.Item
+		pair     currency.Pair
+		path     string
+		endpoint exchange.URL
+	}{
+		{asset.Futures, btccwPair, "/market/history/kline", exchange.RestFutures},
+		{asset.CoinMarginedFutures, btcusdPair, "/swap-ex/market/history/kline", exchange.RestFutures},
+		{asset.USDTMarginedFutures, btcusdtPair, "/linear-swap-ex/market/history/kline", exchange.RestUSDTMargined},
+	} {
+		t.Run(tc.item.String()+" full ranges", func(t *testing.T) {
+			t.Parallel()
+			start := time.Now().UTC().Add(-72 * time.Hour).Truncate(time.Minute)
+			end := start.Add(36 * time.Hour)
+			var calls atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.path, r.URL.Path, "candles should use the asset endpoint")
+				from, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
+				assert.NoError(t, err, "from should parse")
+				to, err := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)
+				assert.NoError(t, err, "to should parse")
+				assert.Equalf(t, int64(59), to%60, "exclusive range ends should become inclusive seconds")
+				assert.Less(t, to-from, int64(2000*60), "inclusive requests should stay within the candle limit")
+				candles := make([]map[string]any, 0, 2000)
+				for at := from; at <= to; at += 60 {
+					candles = append(candles, map[string]any{"id": at, "open": 10, "close": 10, "high": 10, "low": 10, "vol": 2})
+				}
+				payload, err := json.Marshal(map[string]any{"status": "ok", "data": candles})
+				assert.NoError(t, err, "candles should encode")
+				_, _ = w.Write(payload)
+				calls.Add(1)
+			}))
+			t.Cleanup(server.Close)
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+			require.NoError(t, h.API.Endpoints.SetRunningURL(tc.endpoint.String(), server.URL), "candle endpoint must be set")
+			require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, false), "candle pair must be available")
+			require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, true), "candle pair must be enabled")
+			candles, err := h.GetHistoricCandlesExtended(t.Context(), tc.pair, tc.item, kline.OneMin, start, end)
+			require.NoError(t, err, "extended candles must fetch multiple full ranges")
+			assert.Greater(t, calls.Load(), int64(1), "extended request should need multiple calls")
+			assert.Len(t, candles.Candles, 2160, "all requested candles should return once")
+		})
+	}
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -659,7 +810,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	var requests atomic.Uint64
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/query/deposit-withdraw",
-		`{"status":"ok","data":[{"id":1,"type":"deposit","currency":"btc","tx-hash":"tx-1","chain":"btc","amount":2,"address":"address-1","fee":0,"state":"safe","created-at":1612261330443},{"id":2,"type":"withdraw","currency":"usdt","tx-hash":"tx-2","chain":"trc20usdt","amount":3,"address":"address-2","fee":0.1,"state":"confirmed","error-message":"","created-at":1612261389250}]}`,
+		`{"status":"ok","data":[{"id":1,"type":"deposit","currency":"btc","tx-hash":"tx-1","chain":"btc","amount":2,"address":"address-1","fee":0,"state":"safe","created-at":1612261330443},{"id":2,"type":"withdraw","currency":"usdt","tx-hash":"tx-2","chain":"trc20usdt","amount":3,"address":"address-2","fee":0.1,"state":"confirmed","error-msg":"withdraw rejected: address risk","created-at":1612261389250}]}`,
 		func(r *http.Request) {
 			assert.Equal(t, "next", r.URL.Query().Get("direct"), "query direction should request the newest records")
 			assert.Equal(t, "500", r.URL.Query().Get("size"), "query size should use HTX's maximum page size")
@@ -689,6 +840,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	}, history[0], "deposit history should be normalised")
 	assert.Equal(t, "withdraw", history[1].TransferType, "withdrawal type should be normalised")
 	assert.Equal(t, 0.1, history[1].Fee, "withdrawal fee should be retained")
+	assert.Equal(t, "withdraw rejected: address risk", history[1].Description, "withdrawal rejection reason should decode")
 }
 
 func TestGetAccountID(t *testing.T) {
@@ -1003,6 +1155,12 @@ func TestCancelAllOrdersValidation(t *testing.T) {
 
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
+	t.Run("null V5 response", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/balance", `null`, nil)
+		_, err := h.UpdateAccountBalances(t.Context(), asset.USDTMarginedFutures)
+		require.ErrorIs(t, err, errEmptyResult, "null balances must return an error")
+	})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
@@ -1325,6 +1483,28 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		asset    asset.Item
+		endpoint exchange.URL
+		path     string
+		pair     currency.Pair
+	}{
+		{asset.CoinMarginedFutures, exchange.RestFutures, "/swap-ex/market/history/trade", btcusdPair},
+		{asset.USDTMarginedFutures, exchange.RestUSDTMargined, "/linear-swap-ex/market/history/trade", btcusdtPair},
+	} {
+		t.Run(tc.asset.String()+" nested batches", func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, tc.endpoint, http.MethodGet, tc.path, `{"status":"ok","data":[{"id":1,"ts":1604312615051,"data":[{"id":123,"price":10,"amount":2,"direction":"buy","ts":1604312615051},{"id":124,"price":11,"amount":3,"direction":"sell","ts":1604312615052}]}]}`, nil)
+			trades, err := h.GetRecentTrades(t.Context(), tc.pair, tc.asset)
+			require.NoError(t, err, "recent trades must decode")
+			require.Len(t, trades, 2, "nested executions must be flattened")
+			assert.Equal(t, "123", trades[0].TID, "execution ID should be retained")
+			assert.Equal(t, 10.0, trades[0].Price, "price should decode")
+			assert.Equal(t, 2.0, trades[0].Amount, "amount should decode")
+			assert.Equal(t, order.Buy, trades[0].Side, "buy side should decode")
+			assert.Equal(t, order.Sell, trades[1].Side, "sell side should decode")
+		})
+	}
 	_, err := e.GetRecentTrades(t.Context(), btcusdtPair, asset.Spot)
 	require.NoError(t, err)
 	_, err = e.GetRecentTrades(t.Context(), btccwPair, asset.Futures)
@@ -1736,6 +1916,7 @@ func TestCompatibleVars(t *testing.T) {
 		wantErr        bool
 	}{
 		{name: "buy limit active", side: "buy", orderPriceType: "limit", status: 3, expectedSide: order.Buy, expectedType: order.Limit, expectedStatus: order.Active},
+		{name: "buy trigger active", side: "buy", orderPriceType: "trigger", status: 3, expectedSide: order.Buy, expectedType: order.Trigger, expectedStatus: order.Active},
 		{name: "sell market filled", side: "sell", orderPriceType: "opponent", status: 6, expectedSide: order.Sell, expectedType: order.Market, expectedStatus: order.Filled},
 		{name: "post only cancelled", side: "buy", orderPriceType: "post_only", status: 7, expectedSide: order.Buy, expectedType: order.Limit, expectedStatus: order.Cancelled, expectedTIF: order.PostOnly},
 		{name: "invalid side", side: "hold", orderPriceType: "limit", status: 3, wantErr: true},
@@ -1833,6 +2014,37 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("legacy missing prediction", func(t *testing.T) {
+		t.Parallel()
+		upcoming := time.Now().UTC().Add(time.Hour).Truncate(time.Millisecond)
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/swap-api/v1/swap_funding_rate",
+			fmt.Sprintf(`{"status":"ok","data":{"contract_code":"BTC-USD","funding_rate":"0.001","funding_time":"%d","next_funding_time":null,"estimated_rate":null}}`, upcoming.UnixMilli()), nil)
+		rates, err := h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.CoinMarginedFutures, Pair: btcusdPair, IncludePredictedRate: true})
+		require.NoError(t, err, "legacy funding without a prediction must succeed")
+		require.Len(t, rates, 1, "one legacy funding rate must return")
+		assert.Equal(t, upcoming, rates[0].TimeOfNextRate.UTC(), "current future settlement should be the next funding time")
+		assert.Equal(t, upcoming.Add(-8*time.Hour), rates[0].LatestRate.Time.UTC(), "legacy funding should retain its configured interval")
+		assert.True(t, rates[0].PredictedUpcomingRate.Time.IsZero(), "an unavailable prediction should remain absent")
+	})
+	t.Run("null V5 response", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate", `null`, nil)
+		_, err := h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair})
+		require.ErrorIs(t, err, errEmptyResult, "null rates must return an error")
+	})
+	for _, interval := range []time.Duration{time.Hour, 4 * time.Hour, 8 * time.Hour} {
+		t.Run(interval.String(), func(t *testing.T) {
+			t.Parallel()
+			upcoming := time.Now().UTC().Add(time.Hour).Truncate(time.Millisecond)
+			next := upcoming.Add(interval)
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate", fmt.Sprintf(`{"code":200,"data":[{"contract_code":"BTC-USDT","funding_rate":"0.001","funding_time":"%d","next_funding_time":"%d"}]}`, upcoming.UnixMilli(), next.UnixMilli()), nil)
+			rates, err := h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair})
+			require.NoError(t, err, "per-contract rates must succeed")
+			require.Len(t, rates, 1, "one funding rate must return")
+			assert.Equal(t, upcoming, rates[0].TimeOfNextRate.UTC(), "upcoming rate time should remain future")
+			assert.Equal(t, upcoming.Add(-interval), rates[0].LatestRate.Time.UTC(), "latest rate time should use the contract interval")
+		})
+	}
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
 	updatePairsOnce(t, e)
@@ -1960,6 +2172,23 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	for _, all := range []bool{false, true} {
+		t.Run(fmt.Sprintf("null V5 all=%v", all), func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/open_interest", `null`, nil)
+			for _, a := range h.GetAssetTypes(true) {
+				if a != asset.USDTMarginedFutures {
+					require.NoError(t, h.CurrencyPairs.SetAssetEnabled(a, false), "other assets must be disabled for null V5 coverage")
+				}
+			}
+			var keys []key.PairAsset
+			if !all {
+				keys = append(keys, key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures})
+			}
+			_, err := h.GetOpenInterest(t.Context(), keys...)
+			require.ErrorIs(t, err, errEmptyResult, "null open interest must return an error")
+		})
+	}
 	updatePairsOnce(t, e)
 
 	resp, err := e.GetOpenInterest(t.Context(), key.PairAsset{
@@ -2054,6 +2283,106 @@ var (
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.Futures} {
+		for _, tc := range []struct {
+			name       string
+			orderIDs   int
+			clientIDs  int
+			batchSizes []int
+			failBatch  int
+			rejected   bool
+		}{
+			{name: "ten order IDs", orderIDs: 10, batchSizes: []int{10}},
+			{name: "eleven order IDs", orderIDs: 11, batchSizes: []int{10, 1}},
+			{name: "twenty-one client IDs", clientIDs: 21, batchSizes: []int{10, 10, 1}},
+			{name: "mixed identifiers", orderIDs: 11, clientIDs: 11, batchSizes: []int{10, 1, 10, 1}},
+			{name: "continue after failed first batch", orderIDs: 11, clientIDs: 1, batchSizes: []int{10, 1, 1}, failBatch: 1},
+			{name: "preserve success before failed batch", orderIDs: 11, batchSizes: []int{10, 1}, failBatch: 2},
+			{name: "venue order rejection", orderIDs: 1, batchSizes: []int{1}, rejected: true},
+		} {
+			t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				pair, path := btcusdPair, "/swap-api/v1/swap_cancel"
+				if a == asset.Futures {
+					pair, path = btccwPair, fCancelOrder
+				}
+				orders := make([]order.Cancel, 0, tc.orderIDs+tc.clientIDs)
+				expectedIdentifiers := make([]string, 0, tc.orderIDs+tc.clientIDs)
+				for i := range tc.orderIDs {
+					orders = append(orders, order.Cancel{OrderID: strconv.Itoa(i + 1), AssetType: a, Pair: pair})
+					expectedIdentifiers = append(expectedIdentifiers, strconv.Itoa(i+1))
+				}
+				for i := range tc.clientIDs {
+					// When both identifiers are supplied, only the preferred client ID is cancelled.
+					orders = append(orders, order.Cancel{OrderID: "ignored", ClientOrderID: strconv.Itoa(100 + i), AssetType: a, Pair: pair})
+					expectedIdentifiers = append(expectedIdentifiers, strconv.Itoa(100+i))
+				}
+				var mu sync.Mutex
+				var sizes []int
+				wantStatuses := make(map[string]string)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, path, r.URL.Path, "cancellation endpoint should match the asset")
+					var body struct {
+						OrderID       string `json:"order_id"`
+						ClientOrderID string `json:"client_order_id"`
+					}
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "cancellation request should decode") {
+						return
+					}
+					assert.NotEqual(t, body.OrderID != "", body.ClientOrderID != "", "request should contain exactly one identifier kind")
+					identifiers := body.OrderID
+					if identifiers == "" {
+						identifiers = body.ClientOrderID
+					}
+					batch := strings.Split(identifiers, ",")
+					assert.LessOrEqual(t, len(batch), 10, "each cancellation request should respect the ten-order limit")
+					mu.Lock()
+					defer mu.Unlock()
+					sizes = append(sizes, len(batch))
+					if assert.LessOrEqual(t, len(sizes), len(tc.batchSizes), "requests should not duplicate cancellation batches") {
+						start := 0
+						for _, size := range tc.batchSizes[:len(sizes)-1] {
+							start += size
+						}
+						assert.Equal(t, start < tc.orderIDs, body.OrderID != "", "request should use the correct identifier field")
+						assert.Equal(t, expectedIdentifiers[start:start+tc.batchSizes[len(sizes)-1]], batch, "request should cancel the exact identifiers in this batch")
+					}
+					w.Header().Set("Content-Type", "application/json")
+					if len(sizes) == tc.failBatch {
+						_, _ = w.Write([]byte(`{"status":"error","err_code":1000,"err_msg":"batch failed"}`))
+						return
+					}
+					if tc.rejected {
+						wantStatuses["1"] = "not found"
+						_, _ = w.Write([]byte(`{"status":"ok","data":{"successes":"","errors":[{"order_id":"1","err_msg":"not found"}]}}`))
+						return
+					}
+					for _, id := range batch {
+						wantStatuses[id] = htxStatusSuccess
+					}
+					assert.NotContains(t, batch, "ignored", "client IDs should take precedence over duplicate order IDs")
+					_, _ = fmt.Fprintf(w, `{"status":"ok","data":{"successes":%q,"errors":[]}}`, identifiers)
+				}))
+				t.Cleanup(server.Close)
+				h := new(Exchange)
+				require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+				h.API.AuthenticatedSupport = true
+				h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+				require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be configured")
+				resp, err := h.CancelBatchOrders(t.Context(), orders)
+				if tc.failBatch != 0 {
+					require.ErrorContains(t, err, "batch failed", "failed batches must remain visible to the caller")
+				} else {
+					require.NoError(t, err, "batch cancellation must succeed")
+				}
+				require.NotNil(t, resp, "batch cancellation must preserve completed statuses")
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Equal(t, tc.batchSizes, sizes, "all identifier batches should be attempted")
+				assert.Equal(t, wantStatuses, resp.Status, "statuses should retain all successful batches and venue rejections")
+			})
+		}
+	}
 	for _, tt := range []struct {
 		name     string
 		endpoint exchange.URL

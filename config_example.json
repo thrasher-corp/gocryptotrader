@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 18,
+ "version": 19,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -2191,11 +2191,6 @@
       "asset": "coinmarginedfutures"
      },
      {
-      "enabled": true,
-      "channel": "fundingRate",
-      "asset": "coinmarginedfutures"
-     },
-     {
       "enabled": false,
       "channel": "myOrders",
       "asset": "coinmarginedfutures",
@@ -2244,11 +2239,6 @@
      {
       "enabled": true,
       "channel": "allTrades",
-      "asset": "usdtmarginedfutures"
-     },
-     {
-      "enabled": true,
-      "channel": "fundingRate",
       "asset": "usdtmarginedfutures"
      },
      {

@@ -30,7 +30,8 @@ func newV5TradeWebsocketTestExchange(t *testing.T, handler mockws.WsMockFunc) *E
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
 		tb.Helper()
 		operation, _ := jsonparser.GetString(message, "op")
-		if operation == wsAuthChannel {
+		channel, _ := jsonparser.GetString(message, "ch")
+		if operation == wsAuthChannel || channel == wsAuthChannel {
 			return wsFixture(tb, message, conn)
 		}
 		return handler(tb, message, conn)
@@ -56,7 +57,7 @@ func setupV5TradeWebsocketTestConnection(t *testing.T, h *Exchange) {
 		ResponseMaxLimit:         h.WebsocketResponseMaxLimit,
 		Connector:                h.wsConnect,
 		Handler:                  h.wsHandleData,
-		Authenticate:             h.wsAuthenticateConnection,
+		Authenticate:             h.wsFuturesLogin,
 		MessageFilter:            exchange.WebsocketTrade,
 		SubscriptionsNotRequired: true,
 		GenerateSubscriptions: func() (subscription.List, error) {
@@ -291,7 +292,7 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 		{name: "trades", channel: wsTradeUpdatesChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
 		{name: "trade details", channel: wsExecutionDetailsChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
 		{name: "positions", channel: wsPositionsChannel, expected: &V5WsPositionUpdate{}},
-		{name: "account", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":{"details":[{"currency":"USDT","equity":"2","isolated_equity":"3","available":"1","isolated_available":"0.5"}]}}`},
+		{name: "account", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":{"details":[{"currency":"USDT","equity":"2","isolated_equity":"3","available":"4","isolated_available":"0.9","available_margin":"1","isolated_available_margin":"0.5"}]}}`},
 		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":[{"side":"buy","type":"limit","order_id":"1381717672952373249","state":"partially_filled","volume":"5","trade_volume":"1","total_trade_volume":"3","trade_price":"100","lever_rate":"","match_time":"1749468764315"}]}`},
 		{name: "algo orders", channel: wsTriggerOrdersChannel, expected: &V5WsAlgoOrderUpdate{}},
 	} {
@@ -299,6 +300,8 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 			t.Parallel()
 			h := new(Exchange)
 			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			h.API.AuthenticatedSupport = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 			sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: tt.channel, Authenticated: true}
 			raw := []byte(tt.raw)
 			if len(raw) == 0 {
@@ -321,6 +324,9 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 				assert.Equal(t, 5.0, changes[0].Balance.Total, "total should include isolated equity")
 				assert.Equal(t, 1.5, changes[0].Balance.Free, "free should include isolated availability")
 				assert.Equal(t, 3.5, changes[0].Balance.Hold, "held should reconcile with total and free")
+				stored, err := h.Accounts.GetBalance("", &accounts.Credentials{Key: "key", Secret: "secret"}, sub.Asset, changes[0].Balance.Currency)
+				require.NoError(t, err, "account notification must reach the balance store")
+				assert.Equal(t, changes[0].Balance, stored, "stored balance should match the notification")
 			}
 		})
 	}
@@ -403,6 +409,47 @@ func TestSendV5WSExecutionUpdates(t *testing.T) {
 			assert.Equal(t, btcusdtPair, fills[1].CurrencyPair, "envelope symbol should provide fallback")
 			assert.Equal(t, time.UnixMilli(1749468764316), fills[1].Timestamp, "creation time should provide fallback")
 			assert.Equal(t, 2.0, fills[1].Amount, "execution volume should be retained")
+		})
+	}
+}
+
+func TestV5WsRateLimitUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		raw     string
+		empty   bool
+		wantErr bool
+	}{
+		{name: "object", raw: `{"limit":"24","interval":"3000","remaining":"19","reset":"1772779491561"}`},
+		{name: "encoded string", raw: `"{\"limit\":\"24\",\"interval\":\"3000\",\"remaining\":\"19\",\"reset\":\"1772779491561\"}"`},
+		{name: "null", raw: `null`, empty: true},
+		{name: "empty string", raw: `""`, wantErr: true},
+		{name: "invalid string", raw: `"not JSON"`, wantErr: true},
+		{name: "array", raw: `[]`, wantErr: true},
+		{name: "malformed", raw: `{`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			state := V5WsRateLimit{Limit: 99}
+			err := state.UnmarshalJSON([]byte(tc.raw))
+			if tc.wantErr {
+				require.Error(t, err, "invalid state must return a decoding error")
+				assert.Equal(t, types.Number(99), state.Limit, "failed decode should preserve existing state")
+				return
+			}
+			require.NoError(t, err, "rate limit must decode")
+			if tc.empty {
+				assert.Equal(t, V5WsRateLimit{}, state, "null should clear state")
+				return
+			}
+			assert.Equal(t, types.Number(24), state.Limit)
+			assert.Equal(t, types.Number(3000), state.Interval)
+			assert.Equal(t, types.Number(19), state.Remaining)
+			assert.Equal(t, time.UnixMilli(1772779491561), state.Reset.Time())
+			var response V5WsOrderResponse
+			require.NoError(t, json.Unmarshal([]byte(`{"rate_limit":`+tc.raw+`}`), &response), "embedded trade response must decode")
+			assert.Equal(t, state, response.RateLimit, "embedded rate limit should match standalone state")
 		})
 	}
 }

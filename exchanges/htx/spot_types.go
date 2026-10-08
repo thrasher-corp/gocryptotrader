@@ -11,12 +11,15 @@ import (
 // Order price types referenced when mapping GoCryptoTrader order types onto the Huobi API
 const (
 	orderPriceTypeLightning    = "lightning"
+	orderPriceTypeLightningIOC = "lightning_ioc"
 	orderTimeInForceFOK        = "fok"
 	orderTimeInForceIOC        = "ioc"
 	marginModeCross            = "cross"
 	marginModeIsolated         = "isolated"
 	orderPriceTypeLimit        = "limit"
 	orderPriceTypeOpponent     = "opponent"
+	orderPriceTypeOptimal5     = "optimal_5"
+	orderPriceTypeOptimal10    = "optimal_10"
 	orderPriceTypeOptimal20    = "optimal_20"
 	orderPriceTypeOptimal20IOC = "optimal_20_ioc"
 	orderPriceTypeOptimal20FOK = "optimal_20_fok"
@@ -867,9 +870,9 @@ var (
 	}
 
 	validOrderTypes = []string{
-		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, "optimal_5", "optimal_10", "optimal_20",
-		orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
-		"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
+		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, orderPriceTypeOptimal5, orderPriceTypeOptimal10, orderPriceTypeOptimal20,
+		orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", orderPriceTypeLightningIOC, "optimal_5_ioc",
+		"optimal_10_ioc", orderPriceTypeOptimal20IOC, "opponent_fok", orderPriceTypeOptimal20FOK,
 	}
 
 	validTriggerType = map[string]string{
@@ -878,11 +881,11 @@ var (
 	}
 
 	validOrderPriceType = []string{
-		orderPriceTypeLimit, "optimal_5", "optimal_10", "optimal_20",
+		orderPriceTypeLimit, orderPriceTypeOptimal5, orderPriceTypeOptimal10, orderPriceTypeOptimal20,
 	}
 
 	validLightningOrderPriceType = []string{
-		orderPriceTypeLightning, "lightning_fok", "lightning_ioc",
+		orderPriceTypeLightning, "lightning_fok", orderPriceTypeLightningIOC,
 	}
 
 	validTradeType = map[string]int64{
@@ -923,10 +926,10 @@ var (
 	}
 
 	validFuturesOrderPriceTypes = []string{
-		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, "optimal_5", "optimal_10",
-		"optimal_20", orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", "lightning_ioc",
-		"optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc", "opponent_fok",
-		"lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok",
+		orderPriceTypeLimit, orderPriceTypeOpponent, orderPriceTypeLightning, orderPriceTypeOptimal5, orderPriceTypeOptimal10,
+		orderPriceTypeOptimal20, orderTimeInForceFOK, orderTimeInForceIOC, "opponent_ioc", orderPriceTypeLightningIOC,
+		"optimal_5_ioc", "optimal_10_ioc", orderPriceTypeOptimal20IOC, "opponent_fok",
+		"lightning_fok", "optimal_5_fok", "optimal_10_fok", orderPriceTypeOptimal20FOK,
 	}
 
 	validFuturesRecordTypes = map[string]string{
@@ -960,7 +963,7 @@ var (
 	}
 
 	validOPTypes = []string{
-		orderPriceTypeLightning, "lightning_fok", "lightning_ioc",
+		orderPriceTypeLightning, "lightning_fok", orderPriceTypeLightningIOC,
 	}
 
 	validFuturesReqType = map[string]int64{
@@ -974,9 +977,9 @@ var (
 		orderPriceTypeLightning: 4,
 		"triggerOrder":          5,
 		"postOnly":              6,
-		"optimal_5":             7,
-		"optimal_10":            8,
-		"optimal_20":            9,
+		orderPriceTypeOptimal5:  7,
+		orderPriceTypeOptimal10: 8,
+		orderPriceTypeOptimal20: 9,
 		orderTimeInForceFOK:     10,
 		orderTimeInForceIOC:     11,
 	}
@@ -1019,7 +1022,7 @@ type WithdrawalData struct {
 	Fee             float64       `json:"fee"`
 	State           string        `json:"state"`
 	ErrorCode       string        `json:"error-code"`
-	ErrorMessage    string        `json:"error-message"`
+	ErrorMessage    string        `json:"error-msg"`
 	CreatedAt       types.Time    `json:"created-at"`
 	UpdatedAt       types.Time    `json:"updated-at"`
 }

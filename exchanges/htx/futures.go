@@ -1384,10 +1384,14 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			return fmt.Errorf("%w: status %s", request.ErrAuthRequestFailed, errCap.Status)
 		}
 	}
-	if strings.HasPrefix(endpoint, "/v5/") {
+	if strings.HasPrefix(endpoint, "/v5/") || strings.Contains(endpoint, "/v3/") {
 		var resp V5Response
 		if err = json.Unmarshal(tempResp, &resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
-			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Message)
+			message := resp.Message
+			if message == "" {
+				message = resp.Msg
+			}
+			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, resp.Code, message)
 		}
 	}
 	if err = unmarshalResponse(tempResp, result); err != nil {

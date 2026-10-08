@@ -51,7 +51,7 @@ func TestGetLinearSwapKlineData(t *testing.T) {
 
 func TestGetLinearSwapBatchTrades(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapBatchTrades, `{"status":"ok","id":123,"data":[{"id":1,"price":10}]}`, nil)
+	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, linearSwapBatchTrades, `{"status":"ok","id":123,"data":[{"id":1,"data":[{"id":2,"price":10}]}]}`, nil)
 	resp, err := h.GetLinearSwapBatchTrades(t.Context(), btcusdtPair, 10)
 	require.NoError(t, err, "GetLinearSwapBatchTrades must not error")
 	assert.Equal(t, int64(123), resp.ID, "batch ID should decode")

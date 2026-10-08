@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -90,6 +91,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				if err != nil {
 					return nil, err
 				}
+				if history == nil {
+					return nil, errEmptyResult
+				}
 				for i := range history.Data {
 					result.FundingRates = append(result.FundingRates, fundingrate.Rate{
 						Time: history.Data[i].FundingTime.Time(),
@@ -132,6 +136,8 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 		}
 	}
+	slices.SortFunc(result.FundingRates, func(a, b fundingrate.Rate) int { return a.Time.Compare(b.Time) })
+	result.FundingRates = slices.CompactFunc(result.FundingRates, func(a, b fundingrate.Rate) bool { return a.Time.Equal(b.Time) })
 	if len(result.FundingRates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
@@ -175,9 +181,9 @@ func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curren
 		return e.SwitchCoinMarginedLeverage(ctx, pair, leverage)
 	case asset.USDTMarginedFutures:
 		switch marginType {
-		case margin.Isolated, margin.Unset:
+		case margin.Isolated:
 			return e.SwitchLinearSwapLeverage(ctx, pair, leverage, false, side)
-		case margin.Multi:
+		case margin.Unset, margin.Multi:
 			return e.SwitchLinearSwapLeverage(ctx, pair, leverage, true, side)
 		default:
 			return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
@@ -327,6 +333,9 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		leverage, err := e.GetV5Leverage(ctx, pair, marginMode, positionSide)
 		if err != nil {
 			return 0, err
+		}
+		if leverage == nil {
+			return 0, errEmptyResult
 		}
 		contractCode, err := e.FormatSymbol(pair, item)
 		if err != nil {

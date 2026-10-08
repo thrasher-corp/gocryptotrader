@@ -14,17 +14,13 @@ type V5SetAssetModeRequest struct {
 // V5AssetModeResponse stores the current account asset mode.
 type V5AssetModeResponse struct {
 	V5Response
-	Data struct {
-		AssetMode uint64 `json:"asset_mode"`
-	} `json:"data"`
+	Data V5AssetModeResponseData `json:"data"`
 }
 
 // V5SetAssetModeResponse uses the setter's plural field, unlike the getter.
 type V5SetAssetModeResponse struct {
 	V5Response
-	Data struct {
-		AssetMode uint64 `json:"assets_mode"`
-	} `json:"data"`
+	Data V5SetAssetModeResponseData `json:"data"`
 }
 
 // V5AccountBillsRequest defines account transaction-record filters.
@@ -65,28 +61,23 @@ type V5SetFeeDeductionCurrencyRequest struct {
 // V5FeeDeductionCurrencyResponse stores the configured fee-deduction currency.
 type V5FeeDeductionCurrencyResponse struct {
 	V5Response
-	Data struct {
-		FeeOption         uint64 `json:"fee_option"`
-		DeductionCurrency string `json:"deduction_currency"`
-	} `json:"data"`
+	Data V5FeeDeductionCurrencyResponseData `json:"data"`
 }
 
 // V5UniversalTransferRequest defines a transfer between supported HTX account types.
 type V5UniversalTransferRequest struct {
-	Amount          uint64 `json:"amount"`
-	Currency        string `json:"currency"`
-	FromAccountType string `json:"from_account_type"`
-	ToAccountType   string `json:"to_account_type"`
-	FromAssetType   string `json:"from_asset_type,omitempty"`
-	ToAssetType     string `json:"to_asset_type,omitempty"`
+	Amount          types.Number `json:"amount"`
+	Currency        string       `json:"currency"`
+	FromAccountType string       `json:"from_account_type"`
+	ToAccountType   string       `json:"to_account_type"`
+	FromAssetType   string       `json:"from_asset_type,omitempty"`
+	ToAssetType     string       `json:"to_asset_type,omitempty"`
 }
 
 // V5UniversalTransferResponse stores a universal-transfer acknowledgement.
 type V5UniversalTransferResponse struct {
 	V5Response
-	Data struct {
-		TransferID uint64 `json:"transfer_id"`
-	} `json:"data"`
+	Data V5UniversalTransferResponseData `json:"data"`
 }
 
 // V5UniversalTransferRecordsRequest defines universal-transfer record filters.
@@ -119,4 +110,25 @@ type V5UniversalTransferRecord struct {
 	FromAssetType   string       `json:"from_asset_type"`
 	ToAssetType     string       `json:"to_asset_type"`
 	TransferTime    types.Time   `json:"transfer_time"`
+}
+
+// V5AssetModeResponseData contains data fields from V5AssetModeResponse.
+type V5AssetModeResponseData struct {
+	AssetMode uint64 `json:"asset_mode"`
+}
+
+// V5SetAssetModeResponseData contains data fields from V5SetAssetModeResponse.
+type V5SetAssetModeResponseData struct {
+	AssetMode uint64 `json:"assets_mode"`
+}
+
+// V5FeeDeductionCurrencyResponseData contains data fields from V5FeeDeductionCurrencyResponse.
+type V5FeeDeductionCurrencyResponseData struct {
+	FeeOption         uint64 `json:"fee_option"`
+	DeductionCurrency string `json:"deduction_currency"`
+}
+
+// V5UniversalTransferResponseData contains data fields from V5UniversalTransferResponse.
+type V5UniversalTransferResponseData struct {
+	TransferID uint64 `json:"transfer_id"`
 }

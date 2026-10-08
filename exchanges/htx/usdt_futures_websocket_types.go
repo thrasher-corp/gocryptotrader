@@ -1,6 +1,9 @@
 package htx
 
 import (
+	"bytes"
+	"fmt"
+
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -18,6 +21,26 @@ type V5WsRateLimit struct {
 	Interval  types.Number `json:"interval"`
 	Remaining types.Number `json:"remaining"`
 	Reset     types.Time   `json:"reset"`
+}
+
+// UnmarshalJSON accepts both the object schema and the JSON-encoded string used
+// in HTX's trade acknowledgement examples.
+func (r *V5WsRateLimit) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if len(data) > 0 && data[0] == '"' {
+		var encoded string
+		if err := json.Unmarshal(data, &encoded); err != nil {
+			return fmt.Errorf("decoding rate-limit string: %w", err)
+		}
+		data = []byte(encoded)
+	}
+	type rateLimit V5WsRateLimit
+	var decoded rateLimit
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return fmt.Errorf("decoding rate-limit state: %w", err)
+	}
+	*r = V5WsRateLimit(decoded)
+	return nil
 }
 
 // V5WsOrderResponse stores a single V5 WebSocket trade acknowledgement.

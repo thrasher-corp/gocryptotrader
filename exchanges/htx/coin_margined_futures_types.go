@@ -107,6 +107,13 @@ type LastTrade struct {
 
 // BatchTradesData stores batch trades for a given swap contract
 type BatchTradesData struct {
+	ID        int64            `json:"id"`
+	Timestamp types.Time       `json:"ts"`
+	Data      []SwapTradeBatch `json:"data"`
+}
+
+// SwapTradeBatch groups executions published together by the swap history endpoints.
+type SwapTradeBatch struct {
 	ID        int64                      `json:"id"`
 	Timestamp types.Time                 `json:"ts"`
 	Data      []CoinMarginedFuturesTrade `json:"data"`
@@ -249,13 +256,13 @@ type SwapFundingRatesResponse struct {
 
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
-	EstimatedRate   types.Number `json:"estimated_rate"`
-	FundingRate     types.Number `json:"funding_rate"`
-	ContractCode    string       `json:"contract_code"`
-	Symbol          string       `json:"symbol"`
-	FeeAsset        string       `json:"fee_asset"`
-	FundingTime     types.Time   `json:"funding_time"`
-	NextFundingTime types.Time   `json:"next_funding_time"`
+	EstimatedRate   *types.Number `json:"estimated_rate"`
+	FundingRate     types.Number  `json:"funding_rate"`
+	ContractCode    string        `json:"contract_code"`
+	Symbol          string        `json:"symbol"`
+	FeeAsset        string        `json:"fee_asset"`
+	FundingTime     types.Time    `json:"funding_time"`
+	NextFundingTime types.Time    `json:"next_funding_time"`
 }
 
 // HistoricalFundingRateData stores historical funding rates for perpetuals
@@ -732,30 +739,30 @@ type SwapOpenOrder struct {
 
 // SwapOrderHistoryEntry stores an order history entry for coin-margined swaps.
 type SwapOrderHistoryEntry struct {
-	QueryID           int64   `json:"query_id"`
-	Symbol            string  `json:"symbol"`
-	ContractCode      string  `json:"contract_code"`
-	Volume            float64 `json:"volume"`
-	Price             float64 `json:"price"`
-	OrderPriceType    string  `json:"order_price_type"`
-	Direction         string  `json:"direction"`
-	Offset            string  `json:"offset"`
-	LeverageRate      float64 `json:"lever_rate"`
-	OrderID           int64   `json:"order_id"`
-	OrderIDString     string  `json:"order_id_str"`
-	OrderSource       string  `json:"order_source"`
-	CreateDate        int64   `json:"create_date"`
-	UpdateTime        int64   `json:"update_time"`
-	TradeVolume       float64 `json:"trade_volume"`
-	TradeTurnover     float64 `json:"trade_turnover"`
-	Fee               float64 `json:"fee"`
-	TradeAveragePrice float64 `json:"trade_avg_price"`
-	MarginFrozen      float64 `json:"margin_frozen"`
-	Profit            float64 `json:"profit"`
-	Status            int64   `json:"status"`
-	OrderType         int64   `json:"order_type"`
-	FeeAsset          string  `json:"fee_asset"`
-	LiquidationType   string  `json:"liquidation_type"`
+	QueryID           int64                `json:"query_id"`
+	Symbol            string               `json:"symbol"`
+	ContractCode      string               `json:"contract_code"`
+	Volume            float64              `json:"volume"`
+	Price             float64              `json:"price"`
+	OrderPriceType    LegacyOrderPriceType `json:"order_price_type"`
+	Direction         string               `json:"direction"`
+	Offset            string               `json:"offset"`
+	LeverageRate      float64              `json:"lever_rate"`
+	OrderID           int64                `json:"order_id"`
+	OrderIDString     string               `json:"order_id_str"`
+	OrderSource       string               `json:"order_source"`
+	CreateDate        int64                `json:"create_date"`
+	UpdateTime        int64                `json:"update_time"`
+	TradeVolume       float64              `json:"trade_volume"`
+	TradeTurnover     float64              `json:"trade_turnover"`
+	Fee               float64              `json:"fee"`
+	TradeAveragePrice float64              `json:"trade_avg_price"`
+	MarginFrozen      float64              `json:"margin_frozen"`
+	Profit            float64              `json:"profit"`
+	Status            int64                `json:"status"`
+	OrderType         int64                `json:"order_type"`
+	FeeAsset          string               `json:"fee_asset"`
+	LiquidationType   string               `json:"liquidation_type"`
 }
 
 // SwapOrderHistoryResponseData stores order history data and legacy pagination values.

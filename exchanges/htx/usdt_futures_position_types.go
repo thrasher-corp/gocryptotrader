@@ -29,12 +29,7 @@ type V5SetLeverageRequest struct {
 // V5SetLeverageResponse stores an accepted leverage change.
 type V5SetLeverageResponse struct {
 	V5Response
-	Data struct {
-		ContractCode string       `json:"contract_code"`
-		MarginMode   string       `json:"margin_mode"`
-		PositionSide string       `json:"position_side"`
-		LeverageRate types.Number `json:"lever_rate"`
-	} `json:"data"`
+	Data V5SetLeverageResponseData `json:"data"`
 }
 
 // V5AdjustPositionMarginRequest defines an isolated-position margin adjustment.
@@ -53,7 +48,18 @@ type V5SetPositionModeRequest struct {
 // V5PositionModeResponse stores the account position mode.
 type V5PositionModeResponse struct {
 	V5Response
-	Data struct {
-		PositionMode string `json:"position_mode"`
-	} `json:"data"`
+	Data V5PositionModeResponseData `json:"data"`
+}
+
+// V5SetLeverageResponseData contains data fields from V5SetLeverageResponse.
+type V5SetLeverageResponseData struct {
+	ContractCode string       `json:"contract_code"`
+	MarginMode   string       `json:"margin_mode"`
+	PositionSide string       `json:"position_side"`
+	LeverageRate types.Number `json:"lever_rate"`
+}
+
+// V5PositionModeResponseData contains data fields from V5PositionModeResponse.
+type V5PositionModeResponseData struct {
+	PositionMode string `json:"position_mode"`
 }

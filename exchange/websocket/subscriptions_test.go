@@ -17,6 +17,77 @@ import (
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
+func TestGetConnectionSetupSubscription(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"nil manager", "nil connection", "nil key", "unmanaged connection", "nil setup", "nil store", "missing key", "own setup"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			mgr := NewManager()
+			var conn Connection = &fakeConnection{subscriptions: subscription.NewStore()}
+			var key any = "orders.*"
+			sub := &subscription.Subscription{Channel: "orders"}
+			sub.SetKey(key)
+			owner := &websocket{subscriptions: subscription.NewStore()}
+			require.NoError(t, owner.subscriptions.Add(sub), "owner subscription must be registered")
+			mgr.trackConnection(conn, owner)
+			switch name {
+			case "nil manager":
+				mgr = nil
+			case "nil connection":
+				conn = nil
+			case "nil key":
+				key = nil
+			case "unmanaged connection":
+				conn = &fakeConnection{}
+			case "nil setup":
+				mgr.connections[conn] = nil
+			case "nil store":
+				owner.subscriptions = nil
+			case "missing key":
+				key = "accounts.*"
+			}
+			got := mgr.GetConnectionSetupSubscription(conn, key)
+			if name == "own setup" {
+				assert.Same(t, sub, got, "lookup should return the owner subscription before connection copies")
+				assert.Empty(t, conn.Subscriptions().List(), "connection store should still be empty")
+			} else {
+				assert.Nil(t, got, "invalid or missing lookups should return nil")
+			}
+		})
+	}
+	t.Run("duplicate wildcard keys stay scoped while connect lock is held", func(t *testing.T) {
+		t.Parallel()
+		mgr := NewManager()
+		competitor := &websocket{subscriptions: subscription.NewStore()}
+		owner := &websocket{subscriptions: subscription.NewStore()}
+		wrong := &subscription.Subscription{Channel: "orders", QualifiedChannel: "orders.*"}
+		wanted := &subscription.Subscription{Channel: "orders", QualifiedChannel: "orders.*"}
+		wrong.SetKey("orders.*")
+		wanted.SetKey("orders.*")
+		require.NoError(t, competitor.subscriptions.Add(wrong), "competing wildcard must be registered first")
+		onlyCompetitor := &subscription.Subscription{Channel: "accounts", QualifiedChannel: "accounts.*"}
+		onlyCompetitor.SetKey("accounts.*")
+		require.NoError(t, competitor.subscriptions.Add(onlyCompetitor), "a competitor-only key must be registered")
+		require.NoError(t, owner.subscriptions.Add(wanted), "owner wildcard must be registered")
+		mgr.connectionManager = []*websocket{competitor, owner}
+		mgr.trackConnection(&fakeConnection{}, competitor)
+		conn := &fakeConnection{subscriptions: subscription.NewStore()}
+		mgr.trackConnection(conn, owner)
+		assert.Same(t, wrong, mgr.GetSubscription("orders.*"), "the competing setup should win an unscoped lookup")
+		mgr.m.Lock()
+		result := make(chan *subscription.Subscription, 1)
+		go func() { result <- mgr.GetConnectionSetupSubscription(conn, "orders.*") }()
+		select {
+		case got := <-result:
+			assert.Same(t, wanted, got, "lookup should remain scoped to the connection owner")
+		case <-time.After(time.Second):
+			assert.Fail(t, "setup lookup should not wait for the Connect lock")
+		}
+		mgr.m.Unlock()
+		assert.Nil(t, mgr.GetConnectionSetupSubscription(conn, "accounts.*"), "a missing owner key should not search other setups")
+	})
+}
+
 func TestSubscribeUnsubscribe(t *testing.T) {
 	t.Parallel()
 	ws := NewManager()

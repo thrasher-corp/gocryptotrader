@@ -58,7 +58,6 @@ var defaultFuturesSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: wsFundingRateChannel},
 	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.MyTradesChannel, Authenticated: true},
 	{Enabled: false, Asset: asset.CoinMarginedFutures, Channel: subscription.MyAccountChannel, Authenticated: true},
@@ -68,7 +67,6 @@ var defaultFuturesSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsFundingRateChannel},
 	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: wsTradeUpdatesChannel, Authenticated: true},
 	{Enabled: false, Asset: asset.USDTMarginedFutures, Channel: wsExecutionDetailsChannel, Authenticated: true},
@@ -97,6 +95,9 @@ func (e *Exchange) generateSubscriptionsForAsset(a asset.Item, private bool) (su
 	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
 	for _, sub := range e.Features.Subscriptions {
 		if sub.Enabled && sub.Asset == a && sub.Authenticated == private {
+			if sub.Channel == wsFundingRateChannel || sub.Channel == wsFundingRateTopic {
+				return nil, fmt.Errorf("%w: %s", common.ErrNotYetImplemented, sub.Channel)
+			}
 			cloned := sub.Clone()
 			if a == asset.Futures && !private {
 				pairs := cloned.Pairs
@@ -186,27 +187,6 @@ func (e *Exchange) unsubscribeConnection(ctx context.Context, conn websocket.Con
 	}, 1))
 }
 
-// wsAuthenticateConnection authenticates a private connection using the protocol required by its endpoint.
-func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.Connection) error {
-	if err := common.NilGuard(conn); err != nil {
-		return err
-	}
-	endpoint, err := url.Parse(conn.GetURL())
-	if err != nil {
-		return fmt.Errorf("%w: %w", errInvalidEndpoint, err)
-	}
-	if endpoint.Path == wsPrivatePath {
-		err = e.wsLogin(ctx, conn)
-	} else {
-		err = e.wsFuturesLogin(ctx, conn)
-	}
-	if err != nil {
-		return err
-	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	return nil
-}
-
 // wsGenerateFuturesSignature signs authentication requests for derivative notification endpoints.
 func (e *Exchange) wsGenerateFuturesSignature(conn websocket.Connection, creds *accounts.Credentials, timestamp string) ([]byte, error) {
 	if err := common.NilGuard(conn, creds); err != nil {
@@ -259,7 +239,11 @@ func (e *Exchange) wsFuturesLogin(ctx context.Context, conn websocket.Connection
 	if err != nil {
 		return err
 	}
-	return getErrResp(resp)
+	if err := getErrResp(resp); err != nil {
+		return err
+	}
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	return nil
 }
 
 // wsHandleFuturesPing responds to notification endpoint heartbeats without changing timestamp representation.
@@ -299,6 +283,9 @@ func (e *Exchange) getFuturesPrivateSubscription(conn websocket.Connection, topi
 		if sub := conn.Subscriptions().Get(topic); sub != nil {
 			return sub
 		}
+		if sub := e.Websocket.GetConnectionSetupSubscription(conn, topic); sub != nil {
+			return sub
+		}
 	} else if sub := e.Websocket.GetSubscription(topic); sub != nil {
 		return sub
 	}
@@ -308,7 +295,10 @@ func (e *Exchange) getFuturesPrivateSubscription(conn websocket.Connection, topi
 		wildcard = topic[:index+1] + "*"
 	}
 	if conn != nil {
-		return conn.Subscriptions().Get(wildcard)
+		if sub := conn.Subscriptions().Get(wildcard); sub != nil {
+			return sub
+		}
+		return e.Websocket.GetConnectionSetupSubscription(conn, wildcard)
 	}
 	return e.Websocket.GetSubscription(wildcard)
 }
@@ -370,6 +360,9 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
+		if response.Status == 9 || response.Status == 10 {
+			return nil
+		}
 		detail, err := e.formatLegacyFuturesWSOrder(&legacyFuturesWSOrder{
 			asset:          sub.Asset,
 			contractCode:   response.ContractCode,
@@ -408,6 +401,13 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 					UpdatedAt: response.Timestamp.Time(),
 				},
 			})
+		}
+		subAccounts := accounts.SubAccounts{accounts.NewSubAccount(sub.Asset, "")}
+		for _, change := range changes {
+			subAccounts[0].Balances.Set(change.Balance.Currency, change.Balance)
+		}
+		if err := e.Accounts.Save(ctx, subAccounts, false); err != nil {
+			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, changes)
 	case wsPositionsChannel:

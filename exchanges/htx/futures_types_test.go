@@ -77,6 +77,13 @@ func TestFFinancialRecordsUnmarshalJSON(t *testing.T) {
 
 func TestFOrderHistoryDataUnmarshalJSON(t *testing.T) {
 	t.Parallel()
+	t.Run("numeric order price", func(t *testing.T) {
+		t.Parallel()
+		var response FOrderHistoryData
+		require.NoError(t, json.Unmarshal([]byte(`{"data":[{"order_price_type":6}]}`), &response), "numeric V3 order price type must decode")
+		require.Len(t, response.Data.Orders, 1, "numeric V3 history must retain its order")
+		assert.Equal(t, LegacyOrderPriceType("post_only"), response.Data.Orders[0].OrderPriceType, "numeric type should retain post-only semantics")
+	})
 	var arrayResp FOrderHistoryData
 	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"order_id":34,"order_id_str":"34","symbol":"BTC","contract_code":"BTC-USD","contract_type":"quarter","lever_rate":20,"direction":"buy","offset":"open","volume":1,"price":10,"create_date":1604312615051,"order_source":"api","order_price_type":"limit","margin_frozen":0,"profit":0,"trade_volume":0,"trade_turnover":0,"fee":0,"trade_avg_price":0,"status":6,"order_type":1,"fee_asset":"BTC","liquidation_type":"0"}],"ts":1604312615051}`), &arrayResp)
 	require.NoError(t, err, "FOrderHistoryData unmarshal must support v3 array data")

@@ -23,6 +23,8 @@ func TestWSHandleCoinMarginedPrivateMessage(t *testing.T) {
 	}{
 		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6,"order_id":1,"volume":2,"trade_volume":1}`},
 		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_type":1,"status":6,"order_id":1,"volume":2,"trade_volume":1}`},
+		{name: "cancellation pending", channel: subscription.MyTradesChannel, raw: `{"status":9}`},
+		{name: "cancelling", channel: subscription.MyTradesChannel, raw: `{"status":10}`},
 		{name: "accounts", channel: subscription.MyAccountChannel, expected: []accounts.Change{}, raw: `{"ts":1603878749908,"data":[{"margin_asset":"BTC","margin_balance":2,"margin_frozen":1,"margin_available":1}]}`},
 		{name: "positions", channel: wsPositionsChannel, expected: &SwapWsSubPositionUpdates{}},
 		{name: "trigger orders", channel: wsTriggerOrdersChannel, expected: &SwapWsSubTriggerOrderUpdates{}},
@@ -31,14 +33,28 @@ func TestWSHandleCoinMarginedPrivateMessage(t *testing.T) {
 			t.Parallel()
 			h := new(Exchange)
 			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			h.API.AuthenticatedSupport = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 			sub := &subscription.Subscription{Asset: asset.CoinMarginedFutures, Channel: tt.channel, Authenticated: true}
 			raw := []byte(tt.raw)
 			if len(raw) == 0 {
 				raw = []byte(`{"op":"notify","topic":"private.*","ts":1603878749908,"symbol":"BTC","contract_code":"BTC-USD","data":[]}`)
 			}
 			require.NoError(t, h.wsHandleCoinMarginedPrivateMessage(t.Context(), sub, raw), "private coin-margined notification must be decoded")
+			if tt.expected == nil {
+				assert.Empty(t, h.Websocket.DataHandler.C, "transient cancellation states should not dispatch an order")
+				return
+			}
 			message := <-h.Websocket.DataHandler.C
 			assert.IsType(t, tt.expected, message.Data, "notification should use its dedicated response type")
+			if changes, ok := message.Data.([]accounts.Change); ok {
+				for _, change := range changes {
+					stored, err := h.Accounts.GetBalance("", &accounts.Credentials{Key: "key", Secret: "secret"}, sub.Asset, change.Balance.Currency)
+					require.NoError(t, err, "account notification must reach the balance store")
+					assert.Equal(t, change.Balance.Total, stored.Total, "stored total should match the notification")
+					assert.Equal(t, change.Balance.Free, stored.Free, "stored free amount should match the notification")
+				}
+			}
 		})
 	}
 

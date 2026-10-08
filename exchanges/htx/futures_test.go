@@ -32,12 +32,16 @@ func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name         string
+		path         string
 		statusCode   int
 		body         string
 		authenticate bool
 		nilResult    bool
 		expected     []error
 	}{
+		{name: "V3 failure", path: "/api/v3/contract_hisorders", statusCode: http.StatusOK, authenticate: true, body: `{"code":403,"msg":"incorrect key","data":""}`, expected: []error{request.ErrAuthRequestFailed}},
+		{name: "V3 success", path: "/api/v3/contract_hisorders", statusCode: http.StatusOK, authenticate: true, body: `{"code":200,"msg":"","data":[]}`},
+
 		{
 			name:       "authentication required",
 			statusCode: http.StatusOK,
@@ -94,8 +98,12 @@ func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			path := tc.path
+			if path == "" {
+				path = "/private"
+			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/private", r.URL.Path, "request path should match")
+				assert.Equal(t, path, r.URL.Path, "request path should match")
 				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "request content type should match")
 				if tc.body != "" {
 					w.Header().Set("Content-Type", "application/json")
@@ -117,7 +125,7 @@ func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 			if tc.nilResult {
 				result = nil
 			}
-			err := h.FuturesAuthenticatedHTTPRequest(t.Context(), exchange.RestFutures, http.MethodPost, "/private", nil, nil, result)
+			err := h.FuturesAuthenticatedHTTPRequest(t.Context(), exchange.RestFutures, http.MethodPost, path, nil, nil, result)
 			for _, expected := range tc.expected {
 				assert.ErrorIs(t, err, expected, "FuturesAuthenticatedHTTPRequest should return the expected error")
 			}

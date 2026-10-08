@@ -113,6 +113,9 @@ func TestSendHTTPRequest(t *testing.T) {
 		expected   error
 		expectedID uint64
 	}{
+		{name: "V3 failure", path: "/api/v3/public", statusCode: http.StatusOK, body: `{"code":403,"msg":"incorrect key","data":""}`, expected: errAPIResponse},
+		{name: "V3 success", path: "/api/v3/public", statusCode: http.StatusOK, body: `{"code":200,"msg":"","data":1}`, expectedID: 1},
+
 		{
 			name:       "JSON response",
 			statusCode: http.StatusOK,

@@ -89,10 +89,11 @@ type LinearSwapMarket struct {
 	TradePartition    string       `json:"trade_partition"`
 }
 
-// V5Response stores HTX V5 response status metadata.
+// V5Response stores HTX V3 and V5 status metadata, whose message keys differ.
 type V5Response struct {
 	Code      int64      `json:"code"`
 	Message   string     `json:"message"`
+	Msg       string     `json:"msg"`
 	Timestamp types.Time `json:"ts"`
 }
 
@@ -104,37 +105,17 @@ type V5AccountBalanceResponse struct {
 
 // V5AccountBalance stores a USDT-margined unified-margin account balance.
 type V5AccountBalance struct {
-	State                 string       `json:"state"`
-	Equity                types.Number `json:"equity"`
-	InitialMargin         types.Number `json:"initial_margin"`
-	MaintenanceMargin     types.Number `json:"maintenance_margin"`
-	MaintenanceMarginRate types.Number `json:"maintenance_margin_rate"`
-	ProfitUnreal          types.Number `json:"profit_unreal"`
-	AvailableMargin       types.Number `json:"available_margin"`
-	VoucherValue          types.Number `json:"voucher_value"`
-	CreatedTime           types.Time   `json:"created_time"`
-	UpdatedTime           types.Time   `json:"updated_time"`
-	Details               []struct {
-		Currency              string       `json:"currency"`
-		Equity                types.Number `json:"equity"`
-		IsolatedEquity        types.Number `json:"isolated_equity"`
-		Available             types.Number `json:"available"`
-		IsolatedAvailable     types.Number `json:"isolated_available"`
-		WithdrawAvailable     types.Number `json:"withdraw_available"`
-		ProfitUnreal          types.Number `json:"profit_unreal"`
-		IsolatedProfitUnreal  types.Number `json:"isolated_profit_unreal"`
-		InitialMargin         types.Number `json:"initial_margin"`
-		MaintenanceMargin     types.Number `json:"maintenance_margin"`
-		MaintenanceMarginRate types.Number `json:"maintenance_margin_rate"`
-		InitialMarginRate     types.Number `json:"initial_margin_rate"`
-		Voucher               types.Number `json:"voucher"`
-		VoucherValue          types.Number `json:"voucher_value"`
-		AvailableMargin       types.Number `json:"available_margin"`
-		CrossOrderFrozen      types.Number `json:"cross_order_frozen"`
-		IsolatedOrderFrozen   types.Number `json:"isolated_order_frozen"`
-		CreatedTime           types.Time   `json:"created_time"`
-		UpdatedTime           types.Time   `json:"updated_time"`
-	} `json:"details"`
+	State                 string                    `json:"state"`
+	Equity                types.Number              `json:"equity"`
+	InitialMargin         types.Number              `json:"initial_margin"`
+	MaintenanceMargin     types.Number              `json:"maintenance_margin"`
+	MaintenanceMarginRate types.Number              `json:"maintenance_margin_rate"`
+	ProfitUnreal          types.Number              `json:"profit_unreal"`
+	AvailableMargin       types.Number              `json:"available_margin"`
+	VoucherValue          types.Number              `json:"voucher_value"`
+	CreatedTime           types.Time                `json:"created_time"`
+	UpdatedTime           types.Time                `json:"updated_time"`
+	Details               []V5AccountBalanceDetails `json:"details"`
 }
 
 // V5OpenInterestResponse stores the current USDT-margined contract open interest.
@@ -303,4 +284,28 @@ type V5OrderData struct {
 	UpdatedTime         types.Time   `json:"updated_time"`
 	CancelReason        string       `json:"cancel_reason"`
 	SelfMatchPrevent    string       `json:"self_match_prevent"`
+}
+
+// V5AccountBalanceDetails contains details fields from V5AccountBalance.
+type V5AccountBalanceDetails struct {
+	IsolatedAvailableMargin types.Number `json:"isolated_available_margin"`
+	Currency                string       `json:"currency"`
+	Equity                  types.Number `json:"equity"`
+	IsolatedEquity          types.Number `json:"isolated_equity"`
+	Available               types.Number `json:"available"`
+	IsolatedAvailable       types.Number `json:"isolated_available"`
+	WithdrawAvailable       types.Number `json:"withdraw_available"`
+	ProfitUnreal            types.Number `json:"profit_unreal"`
+	IsolatedProfitUnreal    types.Number `json:"isolated_profit_unreal"`
+	InitialMargin           types.Number `json:"initial_margin"`
+	MaintenanceMargin       types.Number `json:"maintenance_margin"`
+	MaintenanceMarginRate   types.Number `json:"maintenance_margin_rate"`
+	InitialMarginRate       types.Number `json:"initial_margin_rate"`
+	Voucher                 types.Number `json:"voucher"`
+	VoucherValue            types.Number `json:"voucher_value"`
+	AvailableMargin         types.Number `json:"available_margin"`
+	CrossOrderFrozen        types.Number `json:"cross_order_frozen"`
+	IsolatedOrderFrozen     types.Number `json:"isolated_order_frozen"`
+	CreatedTime             types.Time   `json:"created_time"`
+	UpdatedTime             types.Time   `json:"updated_time"`
 }

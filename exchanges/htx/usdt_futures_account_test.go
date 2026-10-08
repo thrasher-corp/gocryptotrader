@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -75,6 +76,18 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 
 func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
+	t.Run("fractional transfer", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, func(r *http.Request) {
+			var req V5UniversalTransferRequest
+			if assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "transfer payload should decode") {
+				assert.Equal(t, 0.5, req.Amount.Float64(), "fractional transfer amount should be preserved")
+			}
+		})
+		_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: 0.5, Currency: "BTC", FromAccountType: "spot", ToAccountType: "linear-swap"})
+		require.NoError(t, err, "fractional transfer must succeed")
+	})
+
 	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, nil)
 	_, err := h.V5UniversalTransfer(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "V5UniversalTransfer must reject nil request")

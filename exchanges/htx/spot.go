@@ -878,10 +878,14 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 			return fmt.Errorf("%w: status %s", errAPIResponse, errCap.Status)
 		}
 	}
-	if strings.HasPrefix(path, "/v5/") {
+	if strings.HasPrefix(path, "/v5/") || strings.Contains(path, "/v3/") {
 		var resp V5Response
 		if err := json.Unmarshal(tempResp, &resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
-			return fmt.Errorf("error code %v: %w: %s", resp.Code, errAPIResponse, resp.Message)
+			message := resp.Message
+			if message == "" {
+				message = resp.Msg
+			}
+			return fmt.Errorf("error code %v: %w: %s", resp.Code, errAPIResponse, message)
 		}
 	}
 	return unmarshalResponse(tempResp, result)

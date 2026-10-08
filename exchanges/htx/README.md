@@ -23,13 +23,15 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 - Delivery futures and coin-margined perpetual REST and public/private websocket support
 - USDT-margined V5 account, order, position and strategy REST endpoints
 - USDT-margined public/private notifications and a dedicated authenticated V5 trading websocket
-- Latest and historical perpetual funding rates, open interest and leverage management
+- Latest and historical perpetual funding rates over REST, open interest and leverage management
 - Single-asset and multi-asset collateral modes, and one-way and hedge position modes
 
 Position mode is fetched using each order call's credentials. Avoid changing account
 position mode concurrently with order submission, including through other clients.
 
 Configuration version 18 renames Huobi to HTX and adds derivative pairs and subscriptions.
+Version 19 restores implicit spot defaults and removes unsupported funding subscriptions.
+Funding notifications require a separate public notification transport and are not enabled.
 Private derivative subscriptions default to disabled and require authenticated access.
 
 The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),
@@ -133,8 +135,6 @@ Default Public Subscriptions:
   - Candles (interval: 1min)
   - Orderbook
   - Trades
-- Coin-margined and USDT-margined perpetuals:
-  - Funding rates
 - Spot orderbooks default to level 0 (no aggregation).
   - Configure Level: 1-5 for depth aggregation, for example:
 

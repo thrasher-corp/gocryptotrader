@@ -28,10 +28,7 @@ type V5CancelAfterRequest struct {
 // V5CancelAfterResponse stores the automatic-cancellation schedule.
 type V5CancelAfterResponse struct {
 	V5Response
-	Data struct {
-		CurrentTime types.Time `json:"current_time"`
-		TriggerTime types.Time `json:"trigger_time"`
-	} `json:"data"`
+	Data V5CancelAfterResponseData `json:"data"`
 }
 
 // V5ClosePositionRequest defines a market position close.
@@ -129,4 +126,10 @@ type V5OpenPosition struct {
 	ContractType      string       `json:"contract_type"`
 	CreatedTime       types.Time   `json:"created_time"`
 	UpdatedTime       types.Time   `json:"updated_time"`
+}
+
+// V5CancelAfterResponseData contains data fields from V5CancelAfterResponse.
+type V5CancelAfterResponseData struct {
+	CurrentTime types.Time `json:"current_time"`
+	TriggerTime types.Time `json:"trigger_time"`
 }
