@@ -896,6 +896,12 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
+	return deriveWebsocketSubmitResponse(s, orderDetails)
+}
+
+// Keep response mapping independent of the authenticated trade and private
+// connections so execution quantities and units can be verified in isolation.
+func deriveWebsocketSubmitResponse(s *order.Submit, orderDetails *WebsocketOrderDetails) (*order.SubmitResponse, error) {
 	resp, err := s.DeriveSubmitResponse(orderDetails.OrderID)
 	if err != nil {
 		return nil, err
