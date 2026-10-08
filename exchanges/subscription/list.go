@@ -74,8 +74,9 @@ func (l List) Clone() List {
 	return n
 }
 
-// cloneWithKeys is Clone but retains the Key of each subscription, fixing up built-in keys to
-// reference the copies. It is used by ExpandTemplates for subscriptions which pass through unexpanded
+// cloneWithKeys is Clone but retains the Key of each subscription, re-pointing built-in keys which
+// reference the original subscription at its copy. It is used by ExpandTemplates for subscriptions
+// which pass through unexpanded
 func (l List) cloneWithKeys() List {
 	n := make(List, len(l))
 	for i, s := range l {
