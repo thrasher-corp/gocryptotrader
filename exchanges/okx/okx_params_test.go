@@ -136,7 +136,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "RFQ trades send clRfqId without state",
 			call: func() error {
-				_, err := e.GetRFQTrades(t.Context(), &RFQTradesRequest{ClientRFQID: "rfq-client-1"})
+				_, err := e.GetRequestForQuoteTrades(t.Context(), &RequestForQuoteTradesRequest{ClientRFQID: "rfq-client-1"})
 				return err
 			},
 			path:   "/rfq/trades",
@@ -251,11 +251,11 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "test-algo-client-id", pendingAlgoOrders[0].AlgoClientOrderID, "the response should echo the algoClOrdId this filter narrows on")
 				assert.Equal(t, "ord-client-1", pendingAlgoOrders[0].ClientOrderID, "the documented clOrdId should decode")
 				assert.True(t, pendingAlgoOrders[0].UpdateTime.Time().Equal(time.UnixMilli(1724751378999)), "the documented uTime should decode")
-				require.Len(t, pendingAlgoOrders[0].AttachAlgoOrds, 1, "the documented attached algo order objects must decode")
-				assert.Equal(t, "attach-client-1", pendingAlgoOrders[0].AttachAlgoOrds[0].AttachAlgoClientOrderID, "the attached algo client order ID should decode")
-				assert.Equal(t, 50000.0, pendingAlgoOrders[0].AttachAlgoOrds[0].TPTriggerPrice.Float64(), "the attached take-profit trigger price should decode")
-				assert.Equal(t, -1.0, pendingAlgoOrders[0].AttachAlgoOrds[0].TPOrderPrice.Float64(), "the attached take-profit market-price sentinel should decode")
-				assert.Equal(t, 40000.0, pendingAlgoOrders[0].AttachAlgoOrds[0].SLTriggerPrice.Float64(), "the attached stop-loss trigger price should decode")
+				require.Len(t, pendingAlgoOrders[0].AttachedAlgoOrders, 1, "the documented attached algo order objects must decode")
+				assert.Equal(t, "attach-client-1", pendingAlgoOrders[0].AttachedAlgoOrders[0].AttachAlgoClientOrderID, "the attached algo client order ID should decode")
+				assert.Equal(t, 50000.0, pendingAlgoOrders[0].AttachedAlgoOrders[0].TakeProfitTriggerPrice.Float64(), "the attached take-profit trigger price should decode")
+				assert.Equal(t, -1.0, pendingAlgoOrders[0].AttachedAlgoOrders[0].TakeProfitOrderPrice.Float64(), "the attached take-profit market-price sentinel should decode")
+				assert.Equal(t, 40000.0, pendingAlgoOrders[0].AttachedAlgoOrders[0].StopLossTriggerPrice.Float64(), "the attached stop-loss trigger price should decode")
 				assert.Equal(t, "680800019749904384", pendingAlgoOrders[0].OrderIDList[0], "the split TP/SL order IDs should decode")
 				assert.Equal(t, "chase", pendingAlgoOrders[0].AdvanceOrderType, "the documented advanceOrdType should decode")
 				assert.Equal(t, "distance", pendingAlgoOrders[0].ChaseType, "the documented chaseType should decode")
@@ -297,7 +297,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "running", recurringOrderDetails.State, "the documented state should decode")
 				assert.Equal(t, "100", recurringOrderDetails.Amount.String(), "the documented amt should decode")
 				assert.Equal(t, []string{"1"}, recurringOrderDetails.Source, "the documented funding source array should decode")
-				assert.Equal(t, "USDT", recurringOrderDetails.TradeQuoteCurrency, "the documented tradeQuoteCcy should decode")
+				assert.Equal(t, "USDT", recurringOrderDetails.TradeQuoteCurrency.String(), "the documented tradeQuoteCcy should decode")
 				require.Len(t, recurringOrderDetails.RecurringList, 1, "the detailed recurring list must decode")
 				assert.Equal(t, "36683.2", recurringOrderDetails.RecurringList[0].Price.String(), "the documented purchase price should decode")
 				assert.Equal(t, 30000.0, recurringOrderDetails.RecurringList[0].MinimumPrice.Float64(), "the documented minPx should decode")
@@ -340,10 +340,10 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				require.Len(t, oneClickRepayCurrencyList, 1, "the response item must decode")
 				assert.Equal(t, "cross", oneClickRepayCurrencyList[0].DebtType, "the documented debt type should decode")
 				require.Len(t, oneClickRepayCurrencyList[0].Debts, 1, "the documented debt list must decode")
-				assert.Equal(t, "BTC", oneClickRepayCurrencyList[0].Debts[0].Currency, "the debt currency should decode")
+				assert.Equal(t, "BTC", oneClickRepayCurrencyList[0].Debts[0].Currency.String(), "the debt currency should decode")
 				assert.Equal(t, 1.5, oneClickRepayCurrencyList[0].Debts[0].Amount.Float64(), "the debt amount should decode")
 				require.Len(t, oneClickRepayCurrencyList[0].Repays, 1, "the documented repay list must decode")
-				assert.Equal(t, "USDT", oneClickRepayCurrencyList[0].Repays[0].Currency, "the repay currency should decode")
+				assert.Equal(t, "USDT", oneClickRepayCurrencyList[0].Repays[0].Currency.String(), "the repay currency should decode")
 				assert.Equal(t, 100.0, oneClickRepayCurrencyList[0].Repays[0].Amount.Float64(), "the repay amount should decode")
 			},
 		},
@@ -369,7 +369,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, "grid-client-1", gridSubOrders[0].AlgoClientOrderID, "the documented algoClOrdId should decode")
 				assert.Equal(t, 42000.0, gridSubOrders[0].Price.Float64(), "the sub order price should decode")
 				assert.Equal(t, 12.5, gridSubOrders[0].ProfitAndLoss.Float64(), "the sub order PnL should decode")
-				assert.Equal(t, "USDT", gridSubOrders[0].Currency, "the documented ccy should decode")
+				assert.Equal(t, "USDT", gridSubOrders[0].Currency.String(), "the documented ccy should decode")
 				assert.Equal(t, 0.01, gridSubOrders[0].Rebate.Float64(), "the documented rebate should decode")
 			},
 		},
@@ -444,7 +444,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 			verify: func(t *testing.T) {
 				t.Helper()
 				require.Len(t, convertCurrencies, 1, "the convert currency row must decode")
-				assert.Equal(t, "BTC", convertCurrencies[0].Currency, "the documented ccy should decode")
+				assert.Equal(t, "BTC", convertCurrencies[0].Currency.String(), "the documented ccy should decode")
 			},
 		},
 		{
@@ -567,9 +567,9 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				t.Helper()
 				require.Len(t, leadingPositions, 1, "the sub position row must decode")
 				assert.Equal(t, 100.0, leadingPositions[0].Margin.Float64(), "the documented margin should decode")
-				assert.Equal(t, "USDT", leadingPositions[0].MarginCurrency, "the documented margin currency should decode")
+				assert.Equal(t, "USDT", leadingPositions[0].MarginCurrency.String(), "the documented margin currency should decode")
 				assert.Equal(t, 1.5, leadingPositions[0].UPL.Float64(), "the unrealised PnL should decode")
-				assert.Equal(t, 50000.0, leadingPositions[0].TPOrderPrice.Float64(), "the take-profit order price should decode")
+				assert.Equal(t, 50000.0, leadingPositions[0].TakeProfitOrderPrice.Float64(), "the take-profit order price should decode")
 			},
 		},
 		{
@@ -634,7 +634,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				t.Helper()
 				require.Len(t, depositWithdrawStatuses, 1, "the deposit withdraw status row must decode")
 				expected := time.Date(2023, time.January, 9, 20, 10, 48, 0, time.FixedZone("UTC+8", 8*60*60))
-				assert.True(t, depositWithdrawStatuses[0].EstCompleteTime.Time().Equal(expected), "the documented estCompleteTime wall-clock form should decode")
+				assert.True(t, depositWithdrawStatuses[0].EstimatedCompleteTime.Time().Equal(expected), "the documented estCompleteTime wall-clock form should decode")
 			},
 		},
 		{
@@ -659,7 +659,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 				assert.Equal(t, 2.5, positionBuilder.TotalIMR.Float64(), "the documented totalImr should decode")
 				assert.Equal(t, 1.5, positionBuilder.TotalMMR.Float64(), "the documented totalMmr should decode")
 				require.Len(t, positionBuilder.Assets, 1, "the documented asset row must decode")
-				assert.Equal(t, "USDT", positionBuilder.Assets[0].Currency, "the asset currency should decode")
+				assert.Equal(t, "USDT", positionBuilder.Assets[0].Currency.String(), "the asset currency should decode")
 				assert.Equal(t, 5.0, positionBuilder.Assets[0].SpotInUse.Float64(), "the documented spotInUse should decode")
 			},
 		},
@@ -832,21 +832,21 @@ func TestGetSpreadTickersOverlayBook(t *testing.T) {
 // null and empty placeholders stay the zero time.
 func TestEstCompleteTimeUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var estCompleteTime EstCompleteTime
+	var estCompleteTime EstimatedCompleteTime
 	require.NoError(t, json.Unmarshal([]byte(`"01/09/2023, 8:10:48 PM"`), &estCompleteTime), "the documented wall-clock form must decode")
 	expected := time.Date(2023, time.January, 9, 20, 10, 48, 0, time.FixedZone("UTC+8", 8*60*60))
 	assert.True(t, estCompleteTime.Time().Equal(expected), "the documented UTC+8 wall-clock time should decode")
 	for _, form := range []string{`null`, `""`} {
-		var empty EstCompleteTime
+		var empty EstimatedCompleteTime
 		require.NoErrorf(t, json.Unmarshal([]byte(form), &empty), "the %s placeholder must decode", form)
 		assert.True(t, empty.Time().IsZero(), "the placeholder should stay the zero time")
 	}
-	var invalid EstCompleteTime
+	var invalid EstimatedCompleteTime
 	err := json.Unmarshal([]byte(`"not-a-time"`), &invalid)
 	require.ErrorIs(t, err, types.ErrInvalidTimestampFormat, "an unparsable timestamp must wrap the shared sentinel")
 	err = json.Unmarshal([]byte(`1673266248000`), &invalid)
 	require.ErrorIs(t, err, types.ErrInvalidTimestampFormat, "a non-string estCompleteTime must wrap the shared sentinel")
-	var escaped EstCompleteTime
+	var escaped EstimatedCompleteTime
 	require.NoError(t, json.Unmarshal([]byte(`"01\/09\/2023, 8:10:48 PM"`), &escaped), "a JSON-escaped wall-clock string must decode")
 	assert.True(t, escaped.Time().Equal(expected), "the escaped form should decode to the same time")
 	encoded, err := json.Marshal(estCompleteTime)
@@ -856,8 +856,8 @@ func TestEstCompleteTimeUnmarshalJSON(t *testing.T) {
 }
 
 // TestOrderBookSequenceIDDecodesTheBareInteger pins the REST book's seqId
-// typing: the wire carries a bare integer, so the field is an int64 like the
-// websocket book fields rather than a types.Number.
+// typing: the wire carries a bare, never-negative integer, so the field is
+// an unsigned integer rather than a types.Number.
 func TestOrderBookSequenceIDDecodesTheBareInteger(t *testing.T) {
 	t.Parallel()
 	var ob OrderBookResponseDetail
@@ -865,7 +865,7 @@ func TestOrderBookSequenceIDDecodesTheBareInteger(t *testing.T) {
 	exp := OrderBookResponseDetail{
 		Asks:                []OrderbookItemDetail{{DepthPrice: 42000, Amount: 0.1, NumberOfOrders: 3}},
 		Bids:                []OrderbookItemDetail{},
-		SequenceID:          int64(3235851742),
+		SequenceID:          uint64(3235851742),
 		GenerationTimestamp: types.Time(time.UnixMilli(1724751378980)),
 	}
 	assert.Equal(t, exp, ob, "the books row should decode with its bare seqId integer")

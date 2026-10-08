@@ -1401,11 +1401,11 @@ func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte)
 	}
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, resp.Argument.UID)}
 	for i := range resp.Data {
-		for j := range resp.Data[i].BalanceData {
-			subAccts[0].Balances.Set(resp.Data[i].BalanceData[j].Currency, accounts.Balance{
-				Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
-				Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
-				UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
+		for j := range resp.Data[i].Balances {
+			subAccts[0].Balances.Set(resp.Data[i].Balances[j].Currency, accounts.Balance{
+				Total:     resp.Data[i].Balances[j].CashBalance.Float64(),
+				Free:      resp.Data[i].Balances[j].CashBalance.Float64(),
+				UpdatedAt: resp.Data[i].Balances[j].UpdateTime.Time(),
 			})
 		}
 		// TODO: Handle position data

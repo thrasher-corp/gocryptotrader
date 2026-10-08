@@ -116,7 +116,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		row := gridPositions[0].Data[0]
 		assert.Equal(t, "grid-client-1", row.AlgoClientOrderID, "the documented algoClOrdId should decode")
 		assert.Equal(t, 29181.46, row.AveragePrice.Float64(), "the entry price should decode")
-		assert.Equal(t, "USDT", row.Currency, "the margin currency should decode")
+		assert.Equal(t, "USDT", row.Currency.String(), "the margin currency should decode")
 		assert.Equal(t, 12.5, row.UnrealisedPNL.Float64(), "the unrealised PnL should decode")
 		assert.Equal(t, 0.012, row.UnrealisedPNLRatio.Float64(), "the unrealised PnL ratio should decode")
 		assert.Equal(t, 35.0, row.Position.Float64(), "the position size should decode")
@@ -138,6 +138,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		row := rfqPushes[0].Data[0]
 		assert.Equal(t, int64(1611033737572), row.CreationTime.Time().UnixMilli(), "the documented cTime millisecond string should decode")
 		assert.Equal(t, int64(1611033737572), row.UpdateTime.Time().UnixMilli(), "the documented uTime millisecond string should decode")
+		assert.Equal(t, int64(1611033857557), row.ValidUntil.Time().UnixMilli(), "the documented validUntil millisecond string should decode")
 		assert.Equal(t, "active", row.State, "the documented state should decode")
 		assert.Equal(t, "22534", row.RFQID, "the documented rfqId should decode")
 	})
@@ -173,7 +174,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		require.Len(t, recurringBuyPushes[0].Data, 1, "the recurring buy row must decode")
 		row := recurringBuyPushes[0].Data[0]
 		assert.Equal(t, []string{"1"}, row.Source, "the documented funding source array should decode")
-		assert.Equal(t, "USDT", row.TradeQuoteCurrency, "the documented tradeQuoteCcy should decode")
+		assert.Equal(t, "USDT", row.TradeQuoteCurrency.String(), "the documented tradeQuoteCcy should decode")
 		require.Len(t, row.RecurringList, 1, "the recurring list must decode")
 		assert.Equal(t, 30000.0, row.RecurringList[0].MinimumPrice.Float64(), "the documented minPx should decode")
 		assert.Equal(t, 50000.0, row.RecurringList[0].MaximumPrice.Float64(), "the documented maxPx should decode")
@@ -202,4 +203,30 @@ func TestWSPushSchemasDecode(t *testing.T) {
 		assert.Equal(t, "last", row.PriceType, "the documented pxType should decode")
 		assert.True(t, row.ReduceOnly, "the reduceOnly flag should decode from its quoted wire form")
 	})
+}
+
+// TestWSGridOrderSchemasDecode pins the grid order push schemas: the quoted
+// trade count decodes into an unsigned integer, the quoted decimals decode
+// into numbers and the unset trigger prices decode from the empty string.
+func TestWSGridOrderSchemasDecode(t *testing.T) {
+	t.Parallel()
+	var spot WsSpotGridAlgoOrder
+	require.NoError(t, json.Unmarshal([]byte(`{"arg": {"channel": "grid-orders-spot","instType": "ANY"},"data": [{"algoId": "448965992920907776","algoOrdType": "grid","annualizedRate": "0","arbitrageNum": "0","baseSz": "0","cTime": "1653313834104","cancelType": "0","curBaseSz": "0.001776289214","curQuoteSz": "46.801755866","floatProfit": "-0.4953878967772","gridNum": "6","gridProfit": "0","instId": "BTC-USDC","instType": "SPOT","investment": "100","maxPx": "33444.8","minPx": "24323.5","pTime": "1653476023742","perMaxProfitRate": "0.060375293181491054543","perMinProfitRate": "0.0455275366818586","pnlRatio": "0","quoteSz": "100","runPx": "30478.1","runType": "1","singleAmt": "0.00059261","slTriggerPx": "","state": "running","stopResult": "0","stopType": "0","totalAnnualizedRate": "-0.9643551057262827","totalPnl": "-0.4953878967772","tpTriggerPx": "","tradeNum": "3","triggerTime": "1653378736894","uTime": "1653378736894"}]}`), &spot), "the spot grid push must decode")
+	require.Len(t, spot.Data, 1, "the spot grid row must decode")
+	spotRow := spot.Data[0]
+	assert.Equal(t, uint64(3), spotRow.TradeNumber, "the documented tradeNum quoted count should decode")
+	assert.Equal(t, 100.0, spotRow.Investment.Float64(), "the documented investment should decode")
+	assert.Equal(t, 30478.1, spotRow.RunPrice.Float64(), "the documented runPx should decode")
+	assert.Equal(t, -0.9643551057262827, spotRow.TotalAnnualizedRate.Float64(), "the documented totalAnnualizedRate should decode")
+	assert.Zero(t, spotRow.StopLossTriggerPrice.Float64(), "the empty slTriggerPx should decode as zero")
+
+	var contract WsContractGridAlgoOrder
+	require.NoError(t, json.Unmarshal([]byte(`{"arg": {"channel": "grid-orders-contract","instType": "ANY"},"data": [{"actualLever": "1.02","algoId": "449327675342323712","algoOrdType": "contract_grid","annualizedRate": "0.7572437878956523","arbitrageNum": "1","basePos": true,"cTime": "1653400065912","cancelType": "0","direction": "long","eq": "10129.419829834853","floatProfit": "109.537858234853","gridNum": "50","gridProfit": "19.8819716","instId": "BTC-USDT-SWAP","instType": "SWAP","investment": "10000","lever": "5","liqPx": "603.2149534767834","maxPx": "100000","minPx": "10","pTime": "1653484573918","perMaxProfitRate": "995.7080916791230692","perMinProfitRate": "0.0946277854875634","pnlRatio": "0.0129419829834853","runPx": "29216.3","runType": "1","singleAmt": "1","slTriggerPx": "","state": "running","stopType": "0","sz": "10000","tag": "","totalAnnualizedRate": "4.929207431970923","totalPnl": "129.419829834853","tpTriggerPx": "","tradeNum": "37","triggerTime": "1653400066940","uTime": "1653484573589","uly": "BTC-USDT"}]}`), &contract), "the contract grid push must decode")
+	require.Len(t, contract.Data, 1, "the contract grid row must decode")
+	contractRow := contract.Data[0]
+	assert.Equal(t, uint64(37), contractRow.TradeNumber, "the documented tradeNum quoted count should decode")
+	assert.Equal(t, 1.02, contractRow.ActualLever.Float64(), "the documented actualLever should decode")
+	assert.Equal(t, 5.0, contractRow.Leverage.Float64(), "the documented lever should decode")
+	assert.Equal(t, 10000.0, contractRow.Investment.Float64(), "the documented investment should decode")
+	assert.Zero(t, contractRow.StopLossTriggerPrice.Float64(), "the empty slTriggerPx should decode as zero")
 }

@@ -721,7 +721,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          strconv.FormatInt(depositHistories[x].State.Int64(), 10),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
-			Currency:        depositHistories[x].Currency,
+			Currency:        depositHistories[x].Currency.String(),
 			Amount:          depositHistories[x].Amount.Float64(),
 			TransferType:    "deposit",
 			CryptoToAddress: depositHistories[x].ToDepositAddress,
@@ -733,7 +733,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
 			Timestamp:       withdrawalHistories[x].Timestamp.Time(),
-			Currency:        withdrawalHistories[x].Currency,
+			Currency:        withdrawalHistories[x].Currency.String(),
 			Amount:          withdrawalHistories[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawalHistories[x].ToReceivingAddress,
@@ -757,7 +757,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          withdrawals[x].StateOfWithdrawal,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
-			Currency:        withdrawals[x].Currency,
+			Currency:        withdrawals[x].Currency.String(),
 			Amount:          withdrawals[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawals[x].ToReceivingAddress,
@@ -1823,7 +1823,7 @@ allOrders:
 				ExecutedAmount:  orderList[i].FillSize.Float64(),
 				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
 				Fee:             orderList[i].TransactionFee.Float64(),
-				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
+				FeeAsset:        orderList[i].FeeCurrency,
 				Exchange:        e.Name,
 				OrderID:         orderList[i].OrderID,
 				ClientOrderID:   orderList[i].ClientOrderID,
@@ -1973,7 +1973,7 @@ allOrders:
 					ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 					RemainingAmount:      remainingAmount,
 					Fee:                  orderList[i].TransactionFee.Float64(),
-					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
+					FeeAsset:             orderList[i].FeeCurrency,
 					Exchange:             e.Name,
 					OrderID:              orderList[i].OrderID,
 					ClientOrderID:        orderList[i].ClientOrderID,
@@ -1985,7 +1985,7 @@ allOrders:
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
+					CostAsset:            orderList[i].RebateCurrency,
 					TimeInForce:          tif,
 				})
 			}
@@ -2599,7 +2599,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		TotalEquity:                  totalEquity,
 		StrategyEquity:               strategyEquity,
 		IsolatedMargin:               positionSummary.Margin.Decimal(),
-		NotionalSize:                 positionSummary.NotionalUsd.Decimal(),
+		NotionalSize:                 positionSummary.NotionalUSD.Decimal(),
 		Leverage:                     positionSummary.Leverage.Decimal(),
 		MaintenanceMarginRequirement: positionSummary.MaintenanceMarginRequirement.Decimal(),
 		InitialMarginRequirement:     positionSummary.InitialMarginRequirement.Decimal(),
@@ -2718,7 +2718,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
 				Fee:                  positions[j].TransactionFee.Float64(),
-				FeeAsset:             currency.NewCode(positions[j].FeeCurrency),
+				FeeAsset:             positions[j].FeeCurrency,
 				Exchange:             e.Name,
 				OrderID:              positions[j].OrderID,
 				ClientOrderID:        positions[j].ClientOrderID,
@@ -2730,7 +2730,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
-				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
+				CostAsset:            positions[j].RebateCurrency,
 				TimeInForce:          tif,
 			})
 		}
@@ -2847,10 +2847,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 					return nil, err
 				}
 
-				settleCurr = currency.NewCode(result[i].SettlementCurrency)
+				settleCurr = result[i].SettlementCurrency
 
 				contractSettlementType = futures.Linear
-				if result[i].SettlementCurrency == result[i].BaseCurrency {
+				if result[i].SettlementCurrency.Equal(result[i].BaseCurrency) {
 					contractSettlementType = futures.Inverse
 				}
 			}

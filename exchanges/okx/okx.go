@@ -1031,9 +1031,9 @@ func (e *Exchange) GetQuotes(ctx context.Context, arg *QuotesRequest) ([]QuoteRe
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/quotes", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetRFQTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver
-func (e *Exchange) GetRFQTrades(ctx context.Context, arg *RFQTradesRequest) ([]RFQTradeResponse, error) {
-	if *arg == (RFQTradesRequest{}) {
+// GetRequestForQuoteTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver
+func (e *Exchange) GetRequestForQuoteTrades(ctx context.Context, arg *RequestForQuoteTradesRequest) ([]RequestForQuoteTradeResponse, error) {
+	if *arg == (RequestForQuoteTradesRequest{}) {
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}
@@ -1061,7 +1061,7 @@ func (e *Exchange) GetRFQTrades(ctx context.Context, arg *RFQTradesRequest) ([]R
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []RFQTradeResponse
+	var resp []RequestForQuoteTradeResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
 }
 

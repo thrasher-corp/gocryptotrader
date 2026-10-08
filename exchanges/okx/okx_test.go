@@ -1908,13 +1908,13 @@ func TestGetQuotes(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetRFQTrades(t *testing.T) {
+func TestGetRequestForQuoteTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetRFQTrades(contextGenerate(), &RFQTradesRequest{})
+	_, err := e.GetRequestForQuoteTrades(contextGenerate(), &RequestForQuoteTradesRequest{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetRFQTrades(contextGenerate(), &RFQTradesRequest{Limit: 1})
+	result, err := e.GetRequestForQuoteTrades(contextGenerate(), &RequestForQuoteTradesRequest{Limit: 1})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2632,7 +2632,7 @@ func TestNewPositionBuilder(t *testing.T) {
 		},
 		SimAsset: []SimulatedAsset{
 			{
-				Currency: "USDT",
+				Currency: currency.NewCode("USDT"),
 				Amount:   100,
 			},
 		},
@@ -4788,7 +4788,7 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, 1, int(i.ContractMultiplier.Int64()), "expected 1 contract multiplier")
 	assert.Equal(t, "linear", i.ContractType, "expected linear contract type")
 	assert.Equal(t, 0.0001, i.ContractValue.Float64(), "expected 0.0001 contract value")
-	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency, "expected BTC contract value currency")
+	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency.String(), "expected BTC contract value currency")
 	assert.True(t, i.ExpTime.Time().IsZero(), "expected empty expiry time")
 	assert.Equal(t, "BTC-USDC", i.InstrumentFamily, "expected BTC-USDC instrument family")
 	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID.String(), "expected BTC-USDC-SWAP instrument ID")
@@ -4807,7 +4807,7 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, 1, int(i.MinimumOrderSize))
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
-	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")
+	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency.String(), "expected USDC settlement currency")
 	assert.Equal(t, "live", i.State)
 	assert.Empty(t, i.StrikePrice, "expected empty strike price")
 	assert.Equal(t, 0.1, i.TickSize.Float64())
