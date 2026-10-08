@@ -1,5 +1,11 @@
 name: codespell
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore:
+      - 'gh-readonly-queue/**'
+      - 'dependabot/**'
+  pull_request:
+  merge_group:
 permissions:
   contents: read
 jobs:
@@ -8,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: codespell-project/actions-codespell@master
         with:
-          args: --dictionary=-,./contrib/spellcheck/codespell_custom_dictionary.txt
+          persist-credentials: false
+      # Configuration lives in .codespellrc.
+      - uses: codespell-project/actions-codespell@v2.4.3
