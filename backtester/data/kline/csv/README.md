@@ -41,6 +41,9 @@ Additionally, you can view an example under `./testdata/binance_BTCUSDT_24h_2019
 | Timestamp | 1546300800 |
 | Price | 1337 |
 | Amount | 420.69 |
+| Side | BUY |
+
+Side accepts `BUY`, `SELL`, `BID`, `ASK`, `LONG`, `SHORT` or `ANY`, in any letter case.
 
 Additionally, you can view an example under `./testdata/binance_BTCUSDT_24h-trades_2020_11_16.csv`
 

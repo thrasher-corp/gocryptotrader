@@ -12,14 +12,12 @@ install_go_tool() {
 }
 
 # Protobuf + gRPC codegen
-install_go_tool google.golang.org/protobuf/cmd/protoc-gen-go@latest
-install_go_tool google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+log "Installing: go.mod tools"
+go -C "$(dirname "$0")/.." install tool
 install_go_tool github.com/bufbuild/buf/cmd/buf@latest
-install_go_tool github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
-install_go_tool github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 
 # Linting
-install_go_tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+install_go_tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@"$(cat "$(dirname "$0")/../.golangci-lint-version")"
 
 # Formatting
 install_go_tool mvdan.cc/gofumpt@latest
