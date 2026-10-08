@@ -2230,9 +2230,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 
-	// The cost is the average executed price times the accumulated fill size,
-	// as the order history reports it: the limit price is not a cost.
 	amount, remaining, quoteAmount := orderAmounts(orderDetail, status)
+	cost, costAsset := orderCost(assetType, orderDetail, pair)
 	return &order.Detail{
 		Amount:               amount,
 		Exchange:             e.Name,
@@ -2241,8 +2240,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Side:                 orderDetail.Side,
 		Type:                 orderType,
 		Pair:                 pair,
-		Cost:                 orderDetail.AveragePrice.Float64() * orderDetail.AccumulatedFillSize.Float64(),
-		CostAsset:            pair.Quote,
+		Cost:                 cost,
+		CostAsset:            costAsset,
 		AssetType:            assetType,
 		Status:               status,
 		Price:                orderDetail.Price.Float64(),
@@ -2263,6 +2262,18 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 // the websocket order stream reports it.
 func okxFee(fee types.Number) float64 {
 	return -fee.Float64()
+}
+
+// orderCost returns the cost of an order's fills and the currency it is in.
+// OKX states accFillSz in the base currency for spot and margin orders, so the
+// average price times it is a cost in the quote currency; futures, perpetual
+// swap and option orders fill in contracts, whose cost needs each contract's
+// value, so theirs is left unset rather than reported in contracts.
+func orderCost(a asset.Item, o *OrderDetail, pair currency.Pair) (float64, currency.Code) {
+	if a != asset.Spot && a != asset.Margin {
+		return 0, currency.EMPTYCODE
+	}
+	return o.AveragePrice.Float64() * o.AccumulatedFillSize.Float64(), pair.Quote
 }
 
 // targetCurrencyQuote is the tgtCcy value that sizes an order in its quote
@@ -2527,13 +2538,14 @@ allOrders:
 				return nil, err
 			}
 			amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
+			cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
 			resp = append(resp, order.Detail{
 				Amount:               amount,
 				Pair:                 pair,
 				Price:                orderList[i].Price.Float64(),
 				AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
-				Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-				CostAsset:            pair.Quote,
+				Cost:                 cost,
+				CostAsset:            costAsset,
 				ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remaining,
 				QuoteAmount:          quoteAmount,
@@ -2817,6 +2829,7 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 					return err
 				}
 				amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
+				cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
 				resp = append(resp, order.Detail{
 					Price:                orderList[i].Price.Float64(),
 					AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
@@ -2836,8 +2849,8 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 					Date:                 orderList[i].CreationTime.Time(),
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
-					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            pair.Quote,
+					Cost:                 cost,
+					CostAsset:            costAsset,
 					TimeInForce:          tif,
 				})
 			}
@@ -3632,7 +3645,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				ContractAmount:       orderAmount.Float64(),
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
-				Fee:                  positions[j].TransactionFee.Float64(),
+				Fee:                  okxFee(positions[j].TransactionFee),
 				FeeAsset:             currency.NewCode(positions[j].FeeCurrency),
 				Exchange:             e.Name,
 				OrderID:              positions[j].OrderID,

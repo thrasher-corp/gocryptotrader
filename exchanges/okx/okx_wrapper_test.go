@@ -5038,6 +5038,69 @@ func TestGetOrderInfoReportsExecutionValues(t *testing.T) {
 	assert.Equal(t, "USDT", detail.FeeAsset.String(), "the fee asset should come from the response")
 }
 
+// TestOrderCost guards the order cost mapping: OKX fills spot and margin
+// orders in the base currency, so their cost is in the quote currency, while
+// futures, perpetual swap and option orders fill in contracts and are left
+// unset.
+func TestOrderCost(t *testing.T) {
+	t.Parallel()
+	o := &OrderDetail{AveragePrice: 41000, AccumulatedFillSize: 1.5}
+	for _, tc := range []struct {
+		assetType asset.Item
+		cost      float64
+		costAsset currency.Code
+	}{
+		{asset.Spot, 61500, currency.USDT},
+		{asset.Margin, 61500, currency.USDT},
+		{asset.Futures, 0, currency.EMPTYCODE},
+		{asset.PerpetualSwap, 0, currency.EMPTYCODE},
+		{asset.Options, 0, currency.EMPTYCODE},
+	} {
+		cost, costAsset := orderCost(tc.assetType, o, currency.NewBTCUSDT())
+		assert.Equalf(t, tc.cost, cost, "orderCost should report the expected cost for %s", tc.assetType)
+		assert.Equalf(t, tc.costAsset, costAsset, "orderCost should report the expected cost asset for %s", tc.assetType)
+	}
+}
+
+// TestContractOrdersLeaveCostUnset guards the order detail, pending and
+// history mappings against reporting a contract order's average price times
+// its contracts as a cost in the pair's quote, which for a perpetual swap is
+// not a currency.
+func TestContractOrdersLeaveCostUnset(t *testing.T) {
+	t.Parallel()
+	created := strconv.FormatInt(time.Now().Add(-time.Minute).UnixMilli(), 10)
+	row := func(state string) map[string]string {
+		return map[string]string{
+			"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "ordId": "ORD-1", "ordType": orderLimit, "side": "buy", "state": state,
+			"sz": "100", "accFillSz": "50", "avgPx": "60000", "px": "60000", "fee": "-3", "feeCcy": "USDT", "cTime": created, "uTime": created,
+		}
+	}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trade/order", "/trade/orders-pending":
+			writeOKXData(t, w, []map[string]string{row("partially_filled")})
+		case "/trade/orders-history", "/trade/orders-history-archive":
+			writeOKXData(t, w, []map[string]string{row("canceled")})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	info, err := e.GetOrderInfo(t.Context(), "ORD-1", perpetualSwapPair, asset.PerpetualSwap)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	active, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.PerpetualSwap, Type: order.AnyType, Side: order.AnySide})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, active, 1, "GetActiveOrders must return the pending order")
+	history, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.PerpetualSwap, Type: order.AnyType, Side: order.AnySide})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, history, 1, "GetOrderHistory must return the order")
+	for name, d := range map[string]*order.Detail{"GetOrderInfo": info, "GetActiveOrders": &active[0], "GetOrderHistory": &history[0]} {
+		assert.Zerof(t, d.Cost, "%s should leave a contract order's cost unset", name)
+		assert.Truef(t, d.CostAsset.IsEmpty(), "%s should leave a contract order's cost asset unset", name)
+		assert.Equalf(t, 60000.0, d.AverageExecutedPrice, "%s should still report the average price", name)
+	}
+}
+
 // TestGetActiveOrdersReportExecutionValues guards the pending order mapping:
 // a partially filled resting order reports its average executed price and
 // the cost of its fills, and the fee keeps the websocket stream's
@@ -5091,4 +5154,39 @@ func TestGetActiveSpreadOrdersReportExecutionValues(t *testing.T) {
 	require.Len(t, active, 1, "the pending spread order must be returned")
 	assert.Equal(t, 90.0, active[0].AverageExecutedPrice, "GetActiveOrders should read the average filled price")
 	assert.InDelta(t, 27.0, active[0].Cost, 1e-9, "the cost should be the average filled price times the accumulated fill")
+}
+
+// TestGetFuturesPositionOrdersFeeSign guards the fee sign on the futures
+// position orders, which read the same order history rows as GetOrderHistory:
+// a fee OKX charged reads as a positive cost and a rebate as a negative one.
+func TestGetFuturesPositionOrdersFeeSign(t *testing.T) {
+	t.Parallel()
+	created := strconv.FormatInt(time.Now().Add(-time.Minute).UnixMilli(), 10)
+	row := func(id, fee string) map[string]string {
+		return map[string]string{
+			"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "ordId": id, "ordType": orderLimit, "side": "buy", "state": "filled",
+			"sz": "100", "accFillSz": "100", "avgPx": "60000", "px": "60000", "fee": fee, "feeCcy": "USDT", "cTime": created, "uTime": created,
+		}
+	}
+	e := newMockExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/public/instruments":
+			writeOKXData(t, w, []map[string]string{{"instType": instTypeSwap, "instId": "BTC-USDT-SWAP", "uly": "BTC-USDT", "settleCcy": "USDT", "ctVal": "0.01", "state": "live"}})
+		case "/trade/orders-history":
+			writeOKXData(t, w, []map[string]string{row("CHARGED", "-3"), row("REBATED", "0.5")})
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	positions, err := e.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{
+		Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair}, StartDate: time.Now().Add(-time.Hour), EndDate: time.Now(),
+	})
+	require.NoError(t, err, "GetFuturesPositionOrders must not error")
+	require.Len(t, positions, 1, "GetFuturesPositionOrders must return the requested pair")
+	fees := make(map[string]float64, len(positions[0].Orders))
+	for i := range positions[0].Orders {
+		fees[positions[0].Orders[i].OrderID] = positions[0].Orders[i].Fee
+	}
+	assert.Equal(t, map[string]float64{"CHARGED": 3, "REBATED": -0.5}, fees, "a fee OKX charged should read as a positive cost and a rebate as a negative one, as GetOrderHistory reports them")
 }
