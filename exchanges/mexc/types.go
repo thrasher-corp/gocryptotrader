@@ -191,12 +191,7 @@ func (t *TickerList) UnmarshalJSON(data []byte) error {
 		*t = TickerList{val}
 		return nil
 	}
-	var tickers []TickerData
-	if err := json.Unmarshal(data, &tickers); err != nil {
-		return err
-	}
-	*t = tickers
-	return nil
+	return json.Unmarshal(data, (*[]TickerData)(t))
 }
 
 // SymbolPriceTicker represents a symbol price ticker info

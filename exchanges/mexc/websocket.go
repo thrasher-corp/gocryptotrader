@@ -208,7 +208,7 @@ func channelName(s *subscription.Subscription) string {
 }
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 5},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 20},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
 	// bookTicker (above) carries only the best bid/offer; miniTicker carries last/high/low/volume.

@@ -426,7 +426,7 @@ func (e *Exchange) DeleteAPIKeySubAccount(ctx context.Context, subAccountName, a
 // upper case only and reject asset.Item's own lower-case rendering with
 // "Illegal characters found in parameter 'fromAccountType'".
 func accountTypeParam(a asset.Item) string {
-	return strings.ToUpper(a.String())
+	return a.Upper()
 }
 
 // SubAccountUniversalTransfer requires SPOT_TRANSFER_WRITE permission
@@ -1059,29 +1059,29 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	for a := range args {
-		if args[a] == (BatchOrderCreationParam{}) {
+	for i := range args {
+		if args[i] == (BatchOrderCreationParam{}) {
 			return nil, common.ErrEmptyParams
 		}
-		if args[a].Symbol.IsEmpty() {
+		if args[i].Symbol.IsEmpty() {
 			return nil, currency.ErrSymbolStringEmpty
 		}
-		if args[a].Side == "" {
+		if args[i].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
-		args[a].OrderType = strings.ToUpper(args[a].OrderType)
-		if err := validateSpotOrderParams(args[a].OrderType, args[a].Quantity.Float64(), args[a].QuoteOrderQty.Float64(), args[a].Price.Float64()); err != nil {
+		args[i].OrderType = strings.ToUpper(args[i].OrderType)
+		if err := validateSpotOrderParams(args[i].OrderType, args[i].Quantity.Float64(), args[i].QuoteOrderQty.Float64(), args[i].Price.Float64()); err != nil {
 			return nil, err
 		}
-		quantity, quoteOrderQty, price := spotOrderAmounts(args[a].OrderType, args[a].Quantity.Float64(), args[a].QuoteOrderQty.Float64(), args[a].Price.Float64())
-		args[a].Quantity, args[a].QuoteOrderQty, args[a].Price = types.Number(quantity), types.Number(quoteOrderQty), types.Number(price)
+		quantity, quoteOrderQty, price := spotOrderAmounts(args[i].OrderType, args[i].Quantity.Float64(), args[i].QuoteOrderQty.Float64(), args[i].Price.Float64())
+		args[i].Quantity, args[i].QuoteOrderQty, args[i].Price = types.Number(quantity), types.Number(quoteOrderQty), types.Number(price)
 	}
-	jsonString, err := json.Marshal(args)
+	batchOrders, err := json.Marshal(args)
 	if err != nil {
 		return nil, err
 	}
 	params := url.Values{}
-	params.Set("batchOrders", string(jsonString))
+	params.Set("batchOrders", string(batchOrders))
 	// Decode into a type carrying code+msg: MEXC returns a mixed array where a rejected order carries
 	// code+msg in place of the order fields. Decoding into []*OrderDetail turned a rejected entry into
 	// a zero-value order the caller could not tell from a success.
@@ -1150,13 +1150,11 @@ func (e *Exchange) CancelAllOpenOrders(ctx context.Context) error {
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllOrdersEPL, http.MethodDelete, "order/all", nil, nil, &resp, true); err != nil {
 		return err
 	}
-	if resp == nil || resp.Code != 200 {
-		var code int64
-		var msg string
-		if resp != nil {
-			code, msg = resp.Code, resp.Message
-		}
-		return fmt.Errorf("%w: code %d: %s", errCancelAllOrdersFailed, code, msg)
+	if resp == nil {
+		return common.ErrNoResponse
+	}
+	if resp.Code != 200 {
+		return fmt.Errorf("%w: code %d: %s", errCancelAllOrdersFailed, resp.Code, resp.Message)
 	}
 	return nil
 }
