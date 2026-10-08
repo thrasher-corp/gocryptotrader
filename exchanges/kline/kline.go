@@ -388,10 +388,10 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 // in this function for optimisation and to keep the slice reference pointer the
 // same, if changed ExtendedRequest ConvertCandles functionality will break.
 func (k *Item) RemoveDuplicates() {
-	lookup := common.NewSeen[int64]()
+	lookup := make(common.Seen[int64])
 	target := 0
 	for _, keep := range k.Candles {
-		if !lookup.Compare(keep.Time.Unix()) {
+		if !lookup.CheckAndRecord(keep.Time.Unix()) {
 			k.Candles[target] = keep
 			target++
 		}

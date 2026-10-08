@@ -267,7 +267,7 @@ type pairKey struct {
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
 	newPairs := make(Pairs, 0, len(incoming))
-	check := common.NewSeen[pairKey]()
+	check := make(common.Seen[pairKey])
 	formatDiff := false
 	for x := range incoming {
 		if incoming[x].IsEmpty() {
@@ -279,7 +279,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 
 		k := pairKey{Base: incoming[x].Base.Item, Quote: incoming[x].Quote.Item}
-		if check.Compare(k) {
+		if check.CheckAndRecord(k) {
 			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrPairDuplication)
 		}
 		if !p.Contains(incoming[x], true) {
@@ -298,7 +298,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 
 		k := pairKey{Base: p[x].Base.Item, Quote: p[x].Quote.Item}
-		duplicate := check.Compare(k)
+		duplicate := check.CheckAndRecord(k)
 		if !incoming.Contains(p[x], true) || duplicate {
 			removedPairs = append(removedPairs, p[x])
 		}
@@ -435,7 +435,7 @@ func (p Pairs) GetStablesMatch(code Code) Pairs {
 // entire pairs list to the supplied formatting (unless bypassed).
 // Normalised string keys are used to make sure delimiters are not included so
 // different formatting entry duplications can be found e.g. `LINKUSDTM21`,
-// `LIN-KUSDTM21` or `LINK-USDTM21 are all the same instances but with different
+// `LIN-KUSDTM21` or `LINK-USDTM21` are all the same instances but with different
 // unintentional processes for formatting.
 func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs, error) {
 	processedPairs := make(common.Seen[string], len(p))
@@ -446,7 +446,7 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 			return nil, fmt.Errorf("cannot update pairs %w", ErrCurrencyPairEmpty)
 		}
 		strippedPair := EMPTYFORMAT.Format(p[x])
-		if processedPairs.Compare(strippedPair) {
+		if processedPairs.CheckAndRecord(strippedPair) {
 			return nil, fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
 		}
 		// Force application of supplied formatting

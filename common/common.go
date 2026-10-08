@@ -758,14 +758,10 @@ func (m *mergedContext) Value(key any) any {
 // It is not safe for concurrent use without external synchronisation.
 type Seen[T comparable] map[T]bool
 
-// NewSeen creates a new Seen instance for the given type T.
-func NewSeen[T comparable]() Seen[T] {
-	return make(Seen[T])
-}
-
-// Compare returns true if the item has been seen before, and false otherwise. If the item is new, it is added to the set of seen items.
-// When sharing a Seen instance, callers must synchronise the entire Compare call and any direct map access.
-func (s Seen[T]) Compare(item T) bool {
+// CheckAndRecord reports whether item has been seen before, and records it if not.
+// An entry stored as false counts as unseen.
+// When sharing a Seen instance, callers must synchronise the entire CheckAndRecord call and any direct map access.
+func (s Seen[T]) CheckAndRecord(item T) bool {
 	if s[item] {
 		return true
 	}

@@ -875,6 +875,27 @@ func TestSetPairs(t *testing.T) {
 	}
 }
 
+func TestUpdatePairsRemovesDuplicateEnabledPairs(t *testing.T) {
+	t.Parallel()
+	pFmt := currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	b := Base{
+		Name: "test",
+		CurrencyPairs: currency.PairsManager{
+			Pairs:           map[asset.Item]*currency.PairStore{asset.Spot: {AssetEnabled: true}},
+			ConfigFormat:    &pFmt,
+			UseGlobalFormat: true,
+		},
+		Config: &config.Exchange{CurrencyPairs: &currency.PairsManager{}},
+	}
+	available := currency.Pairs{currency.NewBTCUSD().Format(pFmt), currency.NewBTCUSDT().Format(pFmt)}
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, available, false), "StorePairs must not error")
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{available[0], currency.NewBTCUSD(), available[1]}, true), "StorePairs must not error")
+	require.NoError(t, b.UpdatePairs(available, asset.Spot, false), "UpdatePairs must not error")
+	enabled, err := b.CurrencyPairs.GetPairs(asset.Spot, true)
+	require.NoError(t, err, "GetPairs must not error")
+	assert.Equal(t, available, enabled, "UpdatePairs should keep one enabled pair per unformatted symbol")
+}
+
 func TestUpdatePairs(t *testing.T) {
 	t.Parallel()
 	cfg := &config.Config{

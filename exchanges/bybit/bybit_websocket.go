@@ -874,7 +874,7 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 		Arguments: []string{},
 	}
 
-	chanMap := map[string]bool{}
+	chanMap := make(common.Seen[string])
 	pairFmt, err := e.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
@@ -902,12 +902,10 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 			arg.Arguments = append(arg.Arguments, s.Channel+"."+interval+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks:
-			if chanMap[s.Channel] {
+			if chanMap.CheckAndRecord(s.Channel) {
 				continue
 			}
 			authArg.Arguments = append(authArg.Arguments, s.Channel)
-			// add channel name to map so we only subscribe to channel once
-			chanMap[s.Channel] = true
 			authArg.associatedSubs = append(authArg.associatedSubs, s)
 		}
 

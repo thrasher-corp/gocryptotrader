@@ -158,12 +158,12 @@ func (t *Telegram) InitialConnect() error {
 		return errors.New(resp.Description)
 	}
 
-	knownBadUsers := common.NewSeen[string]() // Used to prevent multiple warnings for the same unauthorised user
+	knownBadUsers := make(common.Seen[string]) // Used to prevent multiple warnings for the same unauthorised user
 	for i := range resp.Result {
 		if resp.Result[i].Message.From.UserName != "" && resp.Result[i].Message.From.ID != 0 {
 			username := resp.Result[i].Message.From.UserName
 			if _, ok := t.AuthorisedClients[username]; !ok {
-				if !knownBadUsers.Compare(username) {
+				if !knownBadUsers.CheckAndRecord(username) {
 					log.Warnf(log.CommunicationMgr, "Telegram: Received message from unauthorised user: %s\n", username)
 				}
 				continue

@@ -30,7 +30,7 @@ func TestGetRateLimits(t *testing.T) {
 	} {
 		require.NotNil(t, first[key], "getRateLimits must return each tier limiter")
 		require.NotNil(t, second[key], "getRateLimits must return each tier limiter")
-		require.False(t, seen.Compare(first[key]), "getRateLimits must return independent tier limiters")
+		require.False(t, seen.CheckAndRecord(first[key]), "getRateLimits must return independent tier limiters")
 		assert.NotSame(t, first[key], second[key], "getRateLimits should return independent per-client tier limiters")
 	}
 

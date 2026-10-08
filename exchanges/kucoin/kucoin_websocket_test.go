@@ -618,7 +618,7 @@ func TestGenerateSharedSpotMarginFeeds(t *testing.T) {
 				assert.Len(t, got, wantCount, "shared feeds should retain the expected pair coverage")
 				seen := make(common.Seen[string], len(got))
 				for _, sub := range got {
-					assert.Falsef(t, seen.Compare(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
+					assert.Falsef(t, seen.CheckAndRecord(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
 					if test.threshold {
 						assert.NotEqual(t, marketTickerChannel+":all", sub.QualifiedChannel, "restricted ticker subscriptions should not widen to ticker:all")
 					}
@@ -990,7 +990,7 @@ func TestCheckSubscriptionsPreservesRealtimeOrderbooks(t *testing.T) {
 					subs, err := instance.generateSubscriptions()
 					require.NoError(t, err, "migrated subscriptions must generate before and after restart")
 					generatedAssets := make(map[asset.Item]bool)
-					topics := make(map[string]bool)
+					topics := make(common.Seen[string])
 					var generatedSymbols []string
 					for _, sub := range subs {
 						if sub.Channel != subscription.OrderbookChannel && sub.Channel != marketOrderbookChannel && sub.Channel != futuresOrderbookChannel {
@@ -1001,8 +1001,7 @@ func TestCheckSubscriptionsPreservesRealtimeOrderbooks(t *testing.T) {
 							generatedAsset = asset.Spot
 						}
 						generatedAssets[generatedAsset] = true
-						assert.Falsef(t, topics[sub.QualifiedChannel], "orderbook topic %s should not be duplicated", sub.QualifiedChannel)
-						topics[sub.QualifiedChannel] = true
+						assert.Falsef(t, topics.CheckAndRecord(sub.QualifiedChannel), "orderbook topic %s should not be duplicated", sub.QualifiedChannel)
 						_, symbols, ok := strings.Cut(sub.QualifiedChannel, ":")
 						require.True(t, ok, "orderbook topic must contain symbols")
 						generatedSymbols = append(generatedSymbols, strings.Split(symbols, ",")...)
@@ -1210,7 +1209,7 @@ func TestCheckSubscriptionsOverlappingCoverage(t *testing.T) {
 				assert.Len(t, got, wantCount, "migration should retain all covered pairs")
 				seen := make(common.Seen[string], len(got))
 				for _, sub := range got {
-					assert.Falsef(t, seen.Compare(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
+					assert.Falsef(t, seen.CheckAndRecord(sub.QualifiedChannel), "topic %s should only be generated once", sub.QualifiedChannel)
 				}
 				_, err = subscription.NewStoreFromList(got)
 				require.NoError(t, err, "migrated coverage must fit the subscription store")

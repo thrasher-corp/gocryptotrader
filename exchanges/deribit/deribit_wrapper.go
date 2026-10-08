@@ -1491,7 +1491,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	ed := r.EndDate
 
 	var fundingRates []fundingrate.Rate
-	mfr := common.NewSeen[int64]()
+	mfr := make(common.Seen[int64])
 	for ed.After(r.StartDate) {
 		var records []FundingRateHistory
 		if e.Websocket.IsConnected() {
@@ -1510,7 +1510,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			if rt.Before(r.StartDate) || rt.After(r.EndDate) {
 				continue
 			}
-			if mfr.Compare(rt.UnixMilli()) {
+			if mfr.CheckAndRecord(rt.UnixMilli()) {
 				continue
 			}
 			fundingRates = append(fundingRates, fundingrate.Rate{

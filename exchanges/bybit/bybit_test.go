@@ -4048,13 +4048,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
 
-	seenQualifiedChannels := make(map[string]struct{}, len(subs))
+	seenQualifiedChannels := make(common.Seen[string], len(subs))
 	for _, sub := range subs {
 		assert.NotEmpty(t, sub.QualifiedChannel, "QualifiedChannel should not be empty")
 		assert.Len(t, sub.Pairs, 1, "Pairs should contain a single symbol per generated subscription")
-		_, found := seenQualifiedChannels[sub.QualifiedChannel]
-		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
-		seenQualifiedChannels[sub.QualifiedChannel] = struct{}{}
+		assert.Falsef(t, seenQualifiedChannels.CheckAndRecord(sub.QualifiedChannel), "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
 	}
 
 	expectedBaseSubscriptions := subscription.List{

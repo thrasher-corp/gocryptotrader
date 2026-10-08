@@ -939,7 +939,7 @@ func (m *Manager) GetConfiguredWebsocketURLs() ([]string, error) {
 			if ws == nil || ws.setup.URL == "" {
 				continue
 			}
-			if seen.Compare(ws.setup.URL) {
+			if seen.CheckAndRecord(ws.setup.URL) {
 				continue
 			}
 			urls = append(urls, ws.setup.URL)
