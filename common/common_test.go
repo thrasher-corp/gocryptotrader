@@ -715,18 +715,6 @@ func TestSetIfZero(t *testing.T) {
 	assert.Equal(t, "world", s, "SetIfZero should change a zero value")
 }
 
-func TestSeenInstances(t *testing.T) {
-	t.Parallel()
-	seen := make(Seen[string])
-	require.NotNil(t, seen, "make must return an initialised map")
-	assert.Empty(t, seen, "Seen should start empty")
-
-	other := make(Seen[string])
-	require.NotNil(t, other, "make must return an initialised map")
-	seen.CheckAndRecord("first")
-	assert.Empty(t, other, "separate Seen instances should not share entries")
-}
-
 func TestSeenCheckAndRecord(t *testing.T) {
 	t.Parallel()
 	seen := make(Seen[string])

@@ -226,6 +226,14 @@ Use `require` and `assert` appropriately:
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- When changing a deduplication helper or its callers, test the caller's output
+    as well as the helper. Include duplicates and distinct identities to pin the
+    intended key, retained entry and any associated metadata. Do not substitute
+    tests of built-in allocation behaviour for project behaviour.
+- Pagination fixtures should reproduce relevant ordering, boundary inclusion
+    and overlap behaviour. Bound their request count or duration so a stalled
+    pager fails promptly, and compare the complete expected result rather than
+    relying only on its length.
 
 ### Interface Contracts
 

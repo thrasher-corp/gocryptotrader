@@ -4128,6 +4128,28 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, e.authUnsubscribe(t.Context(), &FixtureConnection{}, authsubs))
 }
 
+func TestDirectSubscriptionPayloadPrivateChannels(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateAuthSubscriptions()
+	require.NoError(t, err, "generateAuthSubscriptions must not error")
+	repeated := &subscription.Subscription{Channel: chanOrder, Asset: asset.Spot}
+	payloads, err := e.directSubscriptionPayload(asset.Spot, "subscribe", append(subs, repeated))
+	require.NoError(t, err, "directSubscriptionPayload must not error")
+	require.Len(t, payloads, 1, "directSubscriptionPayload must return one private payload")
+	assert.NotEmpty(t, payloads[0].RequestID, "directSubscriptionPayload should set a request ID")
+	payloads[0].RequestID = ""
+	expected := SubscriptionArgument{
+		auth:           true,
+		Operation:      "subscribe",
+		Arguments:      []string{chanPositions, chanExecution, chanOrder, chanWallet},
+		associatedSubs: subs,
+	}
+	assert.Equal(t, expected, payloads[0], "directSubscriptionPayload should send each private channel once with its first subscription")
+}
+
 func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
 	t.Parallel()
 
