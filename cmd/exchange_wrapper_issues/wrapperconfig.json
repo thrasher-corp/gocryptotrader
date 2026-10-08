@@ -116,7 +116,7 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "huobi": {
+  "htx": {
    "key": "Key",
    "secret": "Secret",
    "otpSecret": "-"

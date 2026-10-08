@@ -227,6 +227,22 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 	return nil
 }
 
+// GetConnectionSetupSubscription looks up a key only in the setup owning conn.
+// Subscription handlers can use it before a batch has been copied into the
+// connection store, without taking the lock held while Connect awaits acknowledgements.
+func (m *Manager) GetConnectionSetupSubscription(conn Connection, key any) *subscription.Subscription {
+	if m == nil || conn == nil || key == nil {
+		return nil
+	}
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
+	ws := m.connections[conn]
+	if ws == nil || ws.subscriptions == nil {
+		return nil
+	}
+	return ws.subscriptions.Get(key)
+}
+
 // GetSubscriptions returns a new slice of the subscriptions
 func (m *Manager) GetSubscriptions() subscription.List {
 	if m == nil {
