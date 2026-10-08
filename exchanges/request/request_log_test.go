@@ -115,6 +115,7 @@ func TestRedactEncodedValues(t *testing.T) {
 		{name: "no equals", encoded: "key&nonce=1&token", expected: "key&nonce=1&token"},
 		{name: "embedded equals", encoded: "key=one=two&note=a=b", expected: "key=[REDACTED]&note=a=b"},
 		{name: "encoded name", encoded: "api%5Fkey=secret&note=a+b", expected: "api%5Fkey=[REDACTED]&note=a+b"},
+		{name: "encoded suffix", encoded: "pass%77ord=secret&note=a+b", expected: "pass%77ord=[REDACTED]&note=a+b"},
 		{name: "encoded separators", encoded: "note=a%26b%3Dc&key=secret", expected: "note=a%26b%3Dc&key=[REDACTED]"},
 		{name: "already redacted", encoded: "key=[REDACTED]&nonce=1", expected: "key=[REDACTED]&nonce=1"},
 	} {
@@ -251,6 +252,7 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 		{name: "declared form readable as both", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","note":"&key=form-secret&x="}`, expected: `{"password":"[REDACTED]","note":"&key=[REDACTED]&x="}`},
 		{name: "declared form whose form pass breaks its JSON", contentType: "application/x-www-form-urlencoded", body: `{"passphrase":"secret","redirect":"https://example.com/?api_key=1"}`, expected: "[REDACTED INVALID JSON BODY]"},
 		{name: "declared form carrying a number outside float64's range", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","n":1e9999}`, expected: "[REDACTED INVALID JSON BODY]"},
+		{name: "declared form carrying an indented JSON array", contentType: "application/x-www-form-urlencoded", body: ` [{"apiKey":"secret"}]`, expected: ` [{"apiKey":"[REDACTED]"}]`},
 		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
 	}
 	for _, tc := range tests {
@@ -319,6 +321,7 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 		deep = &url.Error{Op: http.MethodGet, URL: fmt.Sprintf("https://example.com/api?signature=deep-secret-%d", depth), Err: deep}
 	}
 	redacted = urlErrorForLog(deep)
+	requireTruncatedAtDepthCap(t, redacted)
 	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "deep URL errors should be truncated with a safe sentinel")
 	assert.NotContains(t, redacted.Error(), "deep-secret", "truncating a deep error should not expose URL credentials")
 
@@ -330,6 +333,7 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 		bounded = &url.Error{Op: http.MethodGet, URL: fmt.Sprintf("https://example.com/api?signature=bounded-secret-%d", depth), Err: bounded}
 	}
 	redacted = urlErrorForLog(bounded)
+	requireTruncatedAtDepthCap(t, redacted)
 	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "the depth cap should truncate before traversing a cyclic remainder")
 	assert.NotContains(t, redacted.Error(), "bounded-secret", "bounded cyclic errors should not expose URL credentials")
 
@@ -340,6 +344,7 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 		bounded = &url.Error{Op: http.MethodGet, URL: fmt.Sprintf("https://example.com/api?signature=near-secret-%d", depth), Err: bounded}
 	}
 	redacted = urlErrorForLog(bounded)
+	requireTruncatedAtDepthCap(t, redacted)
 	assert.ErrorIs(t, redacted, errTruncatedErrorChain, "a URL cycle just inside the depth cap should be truncated")
 	assert.NotContains(t, redacted.Error(), "remainder-secret", "a URL cycle should not expose credentials")
 
@@ -355,6 +360,18 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 		t.Fatal("a non-URL error cycle must not hang redaction")
 	}
 	assert.NotContains(t, redacted.Error(), "cycle-secret", "a non-URL cycle should not expose URL credentials")
+}
+
+// requireTruncatedAtDepthCap checks the chain before errors.Is or Error can
+// traverse a cycle left by a regression in redaction.
+func requireTruncatedAtDepthCap(t *testing.T, err error) {
+	t.Helper()
+	for range maxURLErrorLogDepth {
+		urlErr, ok := err.(*url.Error)
+		require.Truef(t, ok && urlErr != nil, "redacted chain must hold a non-nil URL error above the cap, got %T", err)
+		err = urlErr.Err
+	}
+	require.Same(t, errTruncatedErrorChain, err, "redacted chain must end in the truncation sentinel at the cap")
 }
 
 func TestSendPayloadRedactsInvalidSignedURL(t *testing.T) {
@@ -621,6 +638,7 @@ func TestExecuteRequestHTTPDebuggingRedactsCredentials(t *testing.T) {
 		}, nil
 	}, UnauthenticatedRequest)
 	require.NoError(t, err, "SendPayload must not error with a lowercase form content type override")
+	assert.Equal(t, lowerCaseForm, string(sentBody), "dumping a replayable request body should not consume the body sent")
 
 	const emptyOverrideForm = "key=EMPTYOVERRIDESECRET&nonce=5"
 	ctx = WithHeaders(t.Context(), http.Header{"Content-Type": []string{""}})

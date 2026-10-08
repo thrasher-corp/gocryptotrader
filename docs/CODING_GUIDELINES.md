@@ -226,6 +226,11 @@ Use `require` and `assert` appropriately:
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- When testing cyclic structures or traversal limits, validate the returned
+    structure with a bounded walk before invoking helpers that could traverse
+    indefinitely if the implementation regresses, such as `errors.Is`,
+    `errors.As` or recursive error formatting. Assert the expected termination
+    point without following the potentially cyclic remainder.
 
 ### Interface Contracts
 
