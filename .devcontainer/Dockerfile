@@ -19,8 +19,11 @@ RUN apt-get update \
 		libssl-dev \
 		protobuf-compiler \
 		jq \
+		pipx \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
+
+RUN PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install shellcheck-py==0.11.0.1
 
 WORKDIR /workspace
 

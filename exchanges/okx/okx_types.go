@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -745,36 +744,14 @@ func (e *ExpiryOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if expiryTimeString != "" && len(expiryTimeString) == 8 {
-		year, err := strconv.ParseInt(expiryTimeString[0:4], 10, 64)
-		if err != nil {
-			return err
-		}
-		month, err := strconv.ParseInt(expiryTimeString[4:6], 10, 64)
-		if err != nil {
-			return err
-		}
-		var months string
-		var days string
-		if month <= 9 {
-			months = "0" + strconv.FormatInt(month, 10)
-		} else {
-			months = strconv.FormatInt(month, 10)
-		}
-		day, err := strconv.ParseInt(expiryTimeString[6:], 10, 64)
-		if err != nil {
-			return err
-		}
-		if day <= 9 {
-			days = "0" + strconv.FormatInt(day, 10)
-		} else {
-			days = strconv.FormatInt(day, 10)
-		}
-		e.ExpiryTime, err = time.Parse("2006-01-02", strconv.FormatInt(year, 10)+"-"+months+"-"+days)
-		if err != nil {
-			return err
-		}
+	if len(expiryTimeString) != len(expiryDateLayout) {
+		return nil
 	}
+	expiryTime, err := time.Parse(expiryDateLayout, expiryTimeString)
+	if err != nil {
+		return fmt.Errorf("error parsing expiry date: %w", err)
+	}
+	e.ExpiryTime = expiryTime
 	return nil
 }
 

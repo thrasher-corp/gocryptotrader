@@ -1,6 +1,7 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
-LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+GOLANGCI_LINT_VERSION := $(strip $(shell cat .golangci-lint-version))
+LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOPATH ?= $(shell go env GOPATH)
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GOFUMPTBIN = $(GOPATH)/bin/gofumpt
@@ -14,7 +15,7 @@ DECIMAL_BENCH_COUNT ?= 5
 DECIMAL_BENCH_TIME ?= 500ms
 DECIMAL_BENCH_FLAGS = -run '^$$' -bench . -benchmem -benchtime $(DECIMAL_BENCH_TIME) -count $(DECIMAL_BENCH_COUNT)
 
-.PHONY: all lint lint_docker markdownlint misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
+.PHONY: all lint lint_docker markdownlint workflow_lint proto proto_check misc_checks check test build install fmt gofumpt update_deps sonic udecimal decimal_bench decimal_bench_shopspring decimal_bench_udecimal
 
 all: check build
 
@@ -24,22 +25,39 @@ lint:
 
 lint_docker:
 	@command -v docker >/dev/null 2>&1 || (echo "Docker not found. Please install Docker to run this target." && exit 1)
-	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:v2.13.2 golangci-lint run --verbose
+	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run --verbose
 
 misc_checks:
 	bash ./scripts/misc_checks.sh
 
 markdownlint:
 	@if ! command -v npx >/dev/null 2>&1; then \
-		if [ -n "$$CI" ]; then echo "npx not found: Markdown lint cannot run in CI"; exit 1; fi; \
-		echo "npx not found: skipping Markdown lint, which CI still runs"; exit 0; \
+		echo "npx not found: install Node.js to run Markdown lint" >&2; exit 1; \
 	fi; \
 	npx --yes markdownlint-cli2@0.23.2 "**/*.md" "cmd/documentation/**/*.tmpl"
 
-check: lint misc_checks markdownlint test
+# zizmor needs --config: it looks for its config from the nearest .git directory,
+# which from a linked worktree, whose .git is a file, can be an unrelated repository
+workflow_lint:
+	@for tool in shellcheck pipx; do \
+		if ! command -v $$tool >/dev/null 2>&1; then \
+			echo "$$tool not found: install it to run workflow lint" >&2; exit 1; \
+		fi; \
+	done; \
+	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 && \
+	shellcheck --severity=warning scripts/*.sh .devcontainer/*.sh && \
+	pipx run zizmor==1.30.1 --offline --format plain --config .github/zizmor.yml .github/workflows
+
+proto:
+	bash ./scripts/proto.sh
+
+proto_check:
+	bash ./scripts/proto.sh --check
+
+check: lint misc_checks markdownlint workflow_lint proto_check test
 
 test:
-	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...
+	go test $(RACE_FLAG) -count=1 -coverprofile=coverage.txt -covermode=atomic  ./...
 
 build:
 	go build $(LDFLAGS)
