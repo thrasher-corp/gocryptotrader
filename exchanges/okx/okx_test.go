@@ -2893,10 +2893,10 @@ func TestGetGridAlgoSubOrders(t *testing.T) {
 	require.ErrorIs(t, err, errMissingAlgoOrderType)
 	_, err = e.GetGridAlgoSubOrders(contextGenerate(), "grid", "", "", "", "", "", 2)
 	require.ErrorIs(t, err, errAlgoIDRequired)
-	_, err = e.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "", "", "", "", 2)
-	require.ErrorIs(t, err, errMissingSubOrderType)
-	_, err = e.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "FILLED", "", "", "", 2)
-	require.ErrorIs(t, err, errMissingSubOrderType)
+	for _, state := range []string{"", "FILLED", "partially_filled", "canceled", "LIVE"} {
+		_, err = e.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", state, "", "", "", 2)
+		require.ErrorIsf(t, err, errMissingSubOrderType, "state %q must be refused", state)
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "live", "", "", "", 2)
