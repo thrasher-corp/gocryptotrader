@@ -504,12 +504,20 @@ func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, 
 		Symbol:    symbolValue,
 	}
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result, false)
-	if result.Data.FailedCount > 0 {
-		return result, fmt.Errorf("there were %v failed order cancellations", result.Data.FailedCount)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result, false); err != nil {
+		return result, err
 	}
+	return result, validateCancelOpenOrdersBatchResponse(result)
+}
 
-	return result, err
+func validateCancelOpenOrdersBatchResponse(result CancelOpenOrdersBatch) error {
+	if result.Data.FailedCount > 0 {
+		return fmt.Errorf("%w: %d orders failed to cancel", errOrderCancellationFailed, result.Data.FailedCount)
+	}
+	if result.Status == huobiStatusError {
+		return fmt.Errorf("%w: %s", errOrderCancellationFailed, result.ErrorMessage)
+	}
+	return nil
 }
 
 // GetOrder returns order information for the specified order

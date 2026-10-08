@@ -2,6 +2,7 @@ package binanceus
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -240,6 +241,78 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("long base symbol", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+		ex.API.AuthenticatedSupport = true
+		ex.SkipAuthCheck = true
+		pair := currency.NewPair(currency.DOGE, currency.USDT)
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "available pair must be set")
+		var cancellations atomic.Int32
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "DOGEUSDT", r.URL.Query().Get("symbol"), "requests should retain the exact exchange symbol")
+			body := `[{"symbol":"DOGEUSDT","orderId":7,"clientOrderId":"client-7"}]`
+			if r.Method == http.MethodDelete {
+				cancellations.Add(1)
+				assert.Equal(t, "client-7", r.URL.Query().Get("origClientOrderId"), "cancellation should target returned client order ID")
+				body = `{"orderId":7}`
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "mock response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "mock endpoint must update")
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: pair})
+		require.NoError(t, err, "long-base cancellation must succeed")
+		require.NotNil(t, resp, "result must exist")
+		assert.Equal(t, map[string]string{"7": order.Cancelled.String()}, resp.Status, "successful cancellation should be recorded")
+		assert.Equal(t, int32(1), cancellations.Load(), "one order should be cancelled")
+	})
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "unscoped cancellation should not fan out")
+	for _, failAt := range []int{0, 1, 2} {
+		t.Run(fmt.Sprint("cancel failure ", failAt), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			calls := 0
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "BTCUSDT", r.URL.Query().Get("symbol"), "request should be pair scoped")
+				body := `[{"symbol":"BTCUSDT","orderId":1},{"symbol":"BTCUSDT","orderId":2}]`
+				if r.Method == http.MethodDelete {
+					calls++
+					if calls == failAt {
+						w.WriteHeader(http.StatusBadRequest)
+						body = `{"code":-2011,"msg":"cancel failed"}`
+					} else {
+						body = `{"orderId":1}`
+					}
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT()})
+			if failAt == 0 {
+				require.NoError(t, err, "all cancellations must succeed")
+				require.NotNil(t, resp, "response must exist")
+				assert.Len(t, resp.Status, 2, "every cancellation should be recorded")
+			} else {
+				require.Error(t, err, "failed cancellation must be reported")
+				if failAt == 1 {
+					assert.Nil(t, resp, "first failure should have no results")
+				} else {
+					require.NotNil(t, resp, "earlier cancellation must be preserved")
+					assert.Equal(t, map[string]string{"1": order.Cancelled.String()}, resp.Status, "completed cancellation should survive")
+				}
+			}
+		})
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
 		Pair:      currency.NewPair(currency.LTC, currency.BTC),

@@ -441,7 +441,7 @@ func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, cc
 	params.Set("currency", strings.ToUpper(ccy))
 
 	return response,
-		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateCancelTrade, nil, &response)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateCancelTrade, params, &response)
 }
 
 // WithdrawCrypto withdraws a customer currency to an address

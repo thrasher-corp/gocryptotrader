@@ -164,19 +164,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		format, err := e.GetPairFormat(asset.Spot, true)
-		if err != nil {
-			return err
-		}
-
-		p, err := currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
-			pairs,
-			format)
+		p, err := e.MatchSymbolWithAvailablePairs(wsTicker.Params.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -230,15 +218,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
-		format, err := e.GetPairFormat(asset.Spot, true)
-		if err != nil {
-			return err
-		}
-		p, err := currency.NewPairFromFormattedPairs(candlesResponse.Params.Symbol, pairs, format)
+		p, err := e.MatchSymbolWithAvailablePairs(candlesResponse.Params.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -274,18 +254,12 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		var trades []trade.Data
 		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
+			return err
 		}
 		for i := range tradeSnapshot.Params.Data {
 			side, err := order.StringToOrderSide(tradeSnapshot.Params.Data[i].Side)
 			if err != nil {
-				return &order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			trades = append(trades, trade.Data{
 				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,
@@ -406,17 +380,7 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ctx context.Context, ob *WsOrderbo
 		}
 	}
 
-	pairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	p, err := currency.NewPairFromFormattedPairs(ob.Params.Symbol, pairs, format)
+	p, err := e.MatchSymbolWithAvailablePairs(ob.Params.Symbol, asset.Spot, false)
 	if err != nil {
 		return err
 	}
@@ -508,19 +472,7 @@ func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrder
 		}
 	}
 
-	pairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	p, err := currency.NewPairFromFormattedPairs(update.Params.Symbol,
-		pairs,
-		format)
+	p, err := e.MatchSymbolWithAvailablePairs(update.Params.Symbol, asset.Spot, false)
 	if err != nil {
 		return err
 	}

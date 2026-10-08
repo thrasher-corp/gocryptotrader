@@ -481,6 +481,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	err = em.Add(exch)
 	require.NoError(t, err)
 
@@ -499,6 +501,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	err = em.Add(exch)
 	require.NoError(t, err)
 
@@ -613,17 +617,17 @@ func TestConvertTradesToCandles(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
+	var err error
 	// bad param test
-	_, err := s.ConvertTradesToCandles(t.Context(), &gctrpc.ConvertTradesToCandlesRequest{})
+	_, err = s.ConvertTradesToCandles(t.Context(), &gctrpc.ConvertTradesToCandlesRequest{})
 	assert.ErrorIs(t, err, errInvalidArguments)
 
 	// bad exchange test
 	_, err = s.ConvertTradesToCandles(t.Context(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: "faker",
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      currency.BTC.String(),
-			Quote:     currency.USD.String(),
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
@@ -636,9 +640,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 	_, err = s.ConvertTradesToCandles(t.Context(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      currency.BTC.String(),
-			Quote:     currency.USD.String(),
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
@@ -667,18 +670,15 @@ func TestConvertTradesToCandles(t *testing.T) {
 	candles, err = s.ConvertTradesToCandles(t.Context(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      currency.BTC.String(),
-			Quote:     currency.USD.String(),
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	if len(candles.Candle) == 0 {
 		t.Error("no candles returned")
 	}
@@ -687,9 +687,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 	_, err = s.ConvertTradesToCandles(t.Context(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      currency.BTC.String(),
-			Quote:     currency.USD.String(),
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
@@ -705,9 +704,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 	_, err = s.ConvertTradesToCandles(t.Context(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      currency.BTC.String(),
-			Quote:     currency.USD.String(),
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
@@ -724,9 +722,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 	candles, err = s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      currency.BTC.String(),
-			Quote:     currency.USD.String(),
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormatWithTimezone),
@@ -734,9 +731,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		TimeInterval: int64(kline.OneHour.Duration()),
 		UseDb:        true,
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	if len(candles.Candle) != 1 {
 		t.Error("expected only one candle")
@@ -1273,6 +1268,8 @@ func TestGetOrders(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	err = em.Add(exch)
 	require.NoError(t, err)
 
@@ -1350,6 +1347,70 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
+	errLookup := errors.New("order lookup failed")
+	for _, tc := range []struct {
+		name         string
+		assetEnabled bool
+		pairEnabled  bool
+		nilManager   bool
+		nilResponse  bool
+		emptyID      bool
+		lookupErr    error
+		wantErr      error
+		managed      bool
+	}{
+		{name: "enabled lookup remains managed", assetEnabled: true, pairEnabled: true, managed: true},
+		{name: "available pair remains unmanaged", assetEnabled: true},
+		{name: "disabled asset remains unmanaged", pairEnabled: true},
+		{name: "available lookup without manager", assetEnabled: true, nilManager: true},
+		{name: "disabled asset lookup without manager", pairEnabled: true, nilManager: true},
+		{name: "enabled lookup needs manager", assetEnabled: true, pairEnabled: true, nilManager: true, wantErr: ErrNilSubsystem},
+		{name: "empty ID", assetEnabled: true, emptyID: true, wantErr: ErrOrderIDCannotBeEmpty},
+		{name: "lookup error", assetEnabled: true, lookupErr: errLookup, wantErr: errLookup},
+		{name: "enabled lookup error", assetEnabled: true, pairEnabled: true, lookupErr: errLookup, wantErr: errLookup},
+		{name: "nil exchange response", assetEnabled: true, nilResponse: true, wantErr: common.ErrInvalidResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			em := NewExchangeManager()
+			base, err := em.NewExchangeByName("Binance")
+			require.NoError(t, err, "exchange must be created")
+			base.SetDefaults()
+			base.SetEnabled(true)
+			pair := currency.NewBTCUSDT()
+			store := &currency.PairStore{Available: currency.Pairs{pair}, AssetEnabled: tc.assetEnabled, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}}
+			if tc.pairEnabled {
+				store.Enabled = currency.Pairs{pair}
+			}
+			require.NoError(t, base.GetBase().CurrencyPairs.Store(asset.Spot, store), "pair scope must be configured")
+			ex := &orderLookupExchange{IBotExchange: base, err: tc.lookupErr}
+			if !tc.nilResponse {
+				ex.response = &order.Detail{Exchange: "Binance", OrderID: "123", Pair: pair, AssetType: asset.Spot, Status: order.Active}
+			}
+			require.NoError(t, em.Add(ex), "exchange must be registered")
+			var wg sync.WaitGroup
+			manager, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+			require.NoError(t, err, "order manager must be created")
+			manager.started.Store(true)
+			s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: manager}}
+			if tc.nilManager {
+				s.OrderManager = nil
+			}
+			r := &gctrpc.GetOrderRequest{Exchange: "Binance", Asset: "spot", OrderId: "123", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USDT", Delimiter: "-"}}
+			if tc.emptyID {
+				r.OrderId = ""
+			}
+			response, err := s.GetOrder(t.Context(), r)
+			require.ErrorIs(t, err, tc.wantErr, "lookup must return the expected error")
+			if tc.wantErr == nil {
+				require.NotNil(t, response, "successful lookup must return order details")
+				assert.Equal(t, "123", response.Id, "lookup should retain the order ID")
+				assert.Equal(t, order.Active.String(), response.Status, "lookup should retain the venue status")
+			}
+			assert.Equal(t, !tc.emptyID && (!tc.nilManager || !tc.assetEnabled || !tc.pairEnabled), ex.calls != 0, "only validated lookups with the required manager should reach the exchange")
+			assert.Equal(t, tc.managed, manager.orderStore.getByDetail(ex.response) != nil, "only enabled lookups should enter managed storage")
+		})
+	}
 	exchName := "Binance"
 	engerino := &Engine{}
 	em := NewExchangeManager()
@@ -1368,6 +1429,8 @@ func TestGetOrder(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	err = em.Add(exch)
 	require.NoError(t, err)
 
@@ -1429,20 +1492,20 @@ func TestGetOrder(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 }
 
-func TestCheckVars(t *testing.T) {
+func TestCheckParamsWithAvailable(t *testing.T) {
 	t.Parallel()
 	var e exchange.IBotExchange
-	err := checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
-	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParams should error correctly")
+	err := checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParamsWithAvailable should error correctly")
 
 	e = &binance.Exchange{}
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
-	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParams should error correctly")
+	err = checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParamsWithAvailable should error correctly")
 
 	e.SetEnabled(true)
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
-	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParams should error correctly")
+	err = checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParamsWithAvailable should error correctly")
 
 	b := e.GetBase()
 
@@ -1460,10 +1523,11 @@ func TestCheckVars(t *testing.T) {
 			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 		}
 		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
+		require.NoError(t, b.CurrencyPairs.Store(a, &ps), "Store must not error")
 	}
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
-	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParams should error correctly")
+	err = checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "checkParamsWithAvailable should error correctly")
 
 	data := []currency.Pair{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
@@ -1471,15 +1535,72 @@ func TestCheckVars(t *testing.T) {
 
 	err = b.CurrencyPairs.StorePairs(asset.Spot, data, false)
 	require.NoError(t, err, "StorePairs must not error")
+	availablePairs, err := b.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availablePairs, "GetAvailablePairs must return at least one pair")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
-	require.ErrorIs(t, err, errCurrencyNotEnabled, "checkParams must error correctly")
+	err = checkParamsWithAvailable(e, asset.Spot, availablePairs[0])
+	require.NoError(t, err, "checkParamsWithAvailable must allow available pairs even when disabled")
 
 	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
 	require.NoError(t, err, "EnablePair must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
-	require.NoError(t, err, "checkParams must not error")
+	err = checkParamsWithAvailable(e, asset.Spot, availablePairs[0])
+	require.NoError(t, err, "checkParamsWithAvailable must not error")
+}
+
+func TestCheckParamsWithAvailablePair(t *testing.T) {
+	t.Parallel()
+
+	var e exchange.IBotExchange
+	_, err := checkParamsWithAvailablePair(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParamsWithAvailablePair should error correctly")
+
+	e = &binance.Exchange{}
+	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParamsWithAvailablePair should error correctly")
+
+	e.SetEnabled(true)
+	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParamsWithAvailablePair should error correctly")
+
+	b := e.GetBase()
+	require.NoError(t, b.SetAssetPairStore(asset.Spot, currency.PairStore{
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+	}), "SetAssetPairStore must not error")
+
+	expectedPair := currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT}
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{expectedPair}, false), "StorePairs must not error")
+
+	got, err := checkParamsWithAvailablePair(e, asset.Spot, expectedPair)
+	require.NoError(t, err, "checkParamsWithAvailablePair must not error for available pairs")
+	assert.True(t, got.Equal(expectedPair), "checkParamsWithAvailablePair should return the validated pair")
+
+	got, err = checkParamsWithAvailablePair(e, asset.Spot, currency.EMPTYPAIR)
+	require.NoError(t, err, "checkParamsWithAvailablePair must not error for empty pairs")
+	assert.True(t, got.IsEmpty(), "checkParamsWithAvailablePair should return an empty pair when no pair is supplied")
+
+	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewPair(currency.BTC, currency.MAD))
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "checkParamsWithAvailablePair should error for unavailable pairs")
+	for _, delimiter := range []string{"-", "|", "+", "—", "::", ""} {
+		t.Run("delimiter "+delimiter, func(t *testing.T) {
+			t.Parallel()
+			ex := new(binance.Exchange)
+			ex.SetDefaults()
+			ex.SetEnabled(true)
+			stored := currency.NewPairWithDelimiter("K_SATS", "USDT", "-")
+			require.NoError(t, ex.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+				Available:     currency.Pairs{stored},
+				ConfigFormat:  &currency.PairFormat{Delimiter: "-", Uppercase: true},
+				RequestFormat: &currency.PairFormat{Uppercase: true},
+			}), "available pair must be stored")
+			got, err := checkParamsWithAvailablePair(ex, asset.Spot, currency.NewPairWithDelimiter("K_SATS", "USDT", delimiter))
+			require.NoError(t, err, "pair components must match independently of delimiter")
+			assert.Equal(t, stored, got, "stored pair and delimiter should be returned")
+		})
+	}
 }
 
 func TestParseEvents(t *testing.T) {
@@ -1556,7 +1677,17 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 		AssetEnabled: true,
+		RequestFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	err = em.Add(exch)
 	require.NoError(t, err)
 
@@ -1788,6 +1919,8 @@ func TestGetManagedOrders(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	err = em.Add(exch)
 	require.NoError(t, err)
 
@@ -2002,6 +2135,8 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 		b.CurrencyPairs.Pairs[asset.Spot].Enabled,
 		pair,
 	)
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 
 	// Push a mock-up ticker.
 	now := time.Now()
@@ -2150,6 +2285,8 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
@@ -2209,6 +2346,8 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
@@ -2966,6 +3105,10 @@ func TestGetManagedPosition(t *testing.T) {
 		Available:     currency.Pairs{cp, cp2},
 		Enabled:       currency.Pairs{cp, cp2},
 	}
+	err = b.CurrencyPairs.Store(asset.Futures, b.CurrencyPairs.Pairs[asset.Futures])
+	require.NoError(t, err)
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	b.Features.Supports.FuturesCapabilities.OrderManagerPositionTracking = true
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3171,6 +3314,8 @@ func TestGetOrderbookMovement(t *testing.T) {
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3265,6 +3410,8 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3350,6 +3497,8 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3432,14 +3581,13 @@ func TestChangePositionMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3456,6 +3604,10 @@ func TestChangePositionMargin(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.ChangePositionMargin(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangePositionMargin should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),
@@ -3482,19 +3634,18 @@ func TestSetLeverage(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3511,6 +3662,10 @@ func TestSetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.SetLeverage(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "SetLeverage should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),
@@ -3548,19 +3703,18 @@ func TestGetLeverage(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3577,6 +3731,10 @@ func TestGetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.GetLeverage(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),
@@ -3590,7 +3748,7 @@ func TestGetLeverage(t *testing.T) {
 	req.Asset = asset.USDTMarginedFutures.String()
 	req.MarginType = "isolated"
 	lev, err := s.GetLeverage(t.Context(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	if lev.Leverage != 1337 {
 		t.Errorf("received '%v' expected '%v'", lev, 1337)
@@ -3617,19 +3775,18 @@ func TestSetMarginType(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3646,6 +3803,10 @@ func TestSetMarginType(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	req.Exchange = fakeExchangeName
+	req.Pair = &gctrpc.CurrencyPair{}
+	_, err = s.SetMarginType(t.Context(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "SetMarginType should reject an empty pair value")
+
 	req.Pair = &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      cp.Base.String(),
@@ -3669,19 +3830,18 @@ func TestSetCollateralMode(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,

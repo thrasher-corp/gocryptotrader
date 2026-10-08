@@ -71,8 +71,27 @@ func TestGetInfo(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTicker(t.Context(), testPair.String())
-	assert.NoError(t, err, "GetTicker should not error")
+	t.Run("valid ticker", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetTicker(t.Context(), testPair.String())
+		assert.NoError(t, err, "GetTicker should not error")
+	})
+	t.Run("invalid single symbol response", func(t *testing.T) {
+		t.Parallel()
+		testExchange := new(Exchange)
+		require.NoError(t, testexch.Setup(testExchange), "Setup must not error")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/3/ticker/btc_usd", r.URL.Path, "GetTicker request path should be correct")
+			_, err := w.Write([]byte(`{"btc_usd":"invalid pair"}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, testExchange.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, testExchange.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+		_, err := testExchange.GetTicker(t.Context(), "btc_usd")
+		assert.ErrorIs(t, err, errTickerDataNotFound, "GetTicker should return the ticker data sentinel")
+	})
 }
 
 const tickerFixture = `{"high":82750,"low":80000.24,"avg":81375.12,"vol":40.81311859,"vol_cur":0.00050072,"last":80001,"buy":80001.1,"sell":82750.2,"updated":1787211897}`
@@ -224,7 +243,7 @@ func TestUpdateTickersResponseHandling(t *testing.T) {
 			initialResponse := `{"btc_usd":{"last":80001},"eth_btc":{"last":0.031}}`
 			response.Store(&initialResponse)
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				assert.Equal(t, "/3/ticker/btc_usd-eth_btc", req.URL.Path, "ticker request should include both enabled pairs")
+				assert.Contains(t, []string{"/3/ticker/btc_usd-eth_btc", "/3/ticker/eth_btc", "/3/ticker/btc_usd"}, req.URL.Path, "ticker request should target the enabled batch or the explicitly requested pair")
 				assert.Equal(t, "1", req.URL.Query().Get("ignore_invalid"), "ticker request should allow partial results")
 				_, err := w.Write([]byte(*response.Load()))
 				assert.NoError(t, err, "writing ticker response should not error")
@@ -588,8 +607,58 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
-func TestCancelAllExchangeOrders(t *testing.T) {
+func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		failure bool
+	}{
+		{name: "all succeed"}, {name: "partial failure", failure: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			var cancellations atomic.Int32
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !assert.NoError(t, r.ParseForm(), "request form should parse") {
+					return
+				}
+				body := `{"1":{"type":"buy"},"2":{"type":"sell"}}`
+				if r.Form.Get("method") == privateActiveOrders {
+					assert.Equal(t, "ltc_btc", r.Form.Get("pair"), "query should retain requested pair")
+				} else {
+					assert.Equal(t, privateCancelOrder, r.Form.Get("method"), "request should cancel an order")
+					cancellations.Add(1)
+					assert.Contains(t, []string{"1", "2"}, r.Form.Get("order_id"), "wire request should use returned order ID")
+					body = `{"order_id":1}`
+					if tc.failure && r.Form.Get("order_id") == "2" {
+						body = `{"success":0,"error":"cancel rejected"}`
+					}
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.LTC, currency.BTC)})
+			require.NoError(t, err, "per-order cancellation must return result statuses")
+			require.NotNil(t, resp, "response must exist")
+			assert.Equal(t, order.Cancelled.String(), resp.Status["1"], "successful cancellation should be recorded")
+			if tc.failure {
+				assert.Contains(t, resp.Status["2"], "cancel rejected", "failure should retain exchange reason")
+			} else {
+				assert.Equal(t, order.Cancelled.String(), resp.Status["2"], "second success should be recorded")
+			}
+			assert.Equal(t, int32(2), cancellations.Load(), "both cancellations should be attempted")
+		})
+	}
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")
+
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
@@ -609,8 +678,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if len(resp.Status) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.Status))
+	if err == nil {
+		for _, status := range resp.Status {
+			assert.Equal(t, order.Cancelled.String(), status, "completed cancellation should be successful")
+		}
 	}
 }
 

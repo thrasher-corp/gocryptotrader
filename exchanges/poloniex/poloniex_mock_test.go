@@ -34,13 +34,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
+	if err := e.setAvailableAndEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
 }
 
-func (e *Exchange) setEnabledPairs(spotTradablePair, futuresTradablePair currency.Pair) error {
+func (e *Exchange) setAvailableAndEnabledPairs(spotTradablePair, futuresTradablePair currency.Pair) error {
 	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair, currency.NewPairWithDelimiter("BTC", "ETH", "_")}, false); err != nil {
 		return err
 	}

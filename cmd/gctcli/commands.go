@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"time"
 
@@ -1796,13 +1797,21 @@ func cancelBatchOrders(c *cli.Context) error {
 
 var cancelAllOrdersCommand = &cli.Command{
 	Name:   "cancelallorders",
-	Usage:  "cancels all orders for an exchange",
+	Usage:  "cancels all orders, optionally scoped by asset and pair",
 	Action: cancelAllOrders,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     exchangeFlag,
 			Required: true,
 			Usage:    "the exchange to cancel all orders on",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "optional asset type for exchanges requiring a scoped cancel all request",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "optional trading pair for exchanges requiring a scoped cancel all request",
 		},
 	},
 }
@@ -1845,8 +1854,37 @@ var modifyOrderCommand = &cli.Command{
 
 func cancelAllOrders(c *cli.Context) error {
 	var exchangeName string
+	var assetType string
+	var currencyPair string
 	if c.IsSet(exchangeFlag) {
 		exchangeName = c.String(exchangeFlag)
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	}
+	assetType = strings.ToLower(assetType)
+	if assetType != "" && !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	}
+
+	var p currency.Pair
+	if currencyPair != "" {
+		if assetType == "" {
+			return errInvalidAsset
+		}
+		if !validPair(currencyPair) {
+			return errInvalidPair
+		}
+		var err error
+		p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		if err != nil {
+			return err
+		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1856,15 +1894,20 @@ func cancelAllOrders(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CancelAllOrders(c.Context, &gctrpc.CancelAllOrdersRequest{
-		Exchange: exchangeName,
-	})
-	if err != nil {
-		return err
+	req := &gctrpc.CancelAllOrdersRequest{
+		Exchange:  exchangeName,
+		AssetType: assetType,
+	}
+	if !p.IsEmpty() {
+		req.Pair = &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		}
 	}
 
-	jsonOutput(result)
-	return nil
+	result, err := client.CancelAllOrders(c.Context, req)
+	return writeCancelAllOrdersResponse(os.Stdout, result, err)
 }
 
 func modifyOrder(c *cli.Context) error {

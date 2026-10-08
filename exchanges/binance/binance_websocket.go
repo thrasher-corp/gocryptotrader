@@ -292,21 +292,17 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 	var (
-		pair      currency.Pair
-		isEnabled bool
-		symbol    string
+		pair   currency.Pair
+		symbol string
 	)
 	symbol, err = jsonparser.GetUnsafeString(jsonData, "s")
 	if err != nil {
 		// there should be a symbol returned for all data types below
 		return err
 	}
-	pair, isEnabled, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
+	pair, err = e.MatchSymbolWithAvailablePairs(symbol, asset.Spot, false)
 	if err != nil {
 		return err
-	}
-	if !isEnabled {
-		return nil
 	}
 	switch streamType[1] {
 	case "trade":

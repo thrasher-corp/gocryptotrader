@@ -32,8 +32,6 @@ const (
 	coinutWebsocketRateLimit = 30
 )
 
-var channels map[string]chan []byte
-
 // NOTE for speed considerations
 // wss://wsapi-as.coinut.com
 // wss://wsapi-na.coinut.com
@@ -67,10 +65,6 @@ func (e *Exchange) WsConnect() error {
 			log.Errorln(log.WebsocketMgr, e.Name+" "+err.Error())
 		}
 	}
-
-	// define bi-directional communication
-	channels = make(map[string]chan []byte)
-	channels["hb"] = make(chan []byte, 1)
 
 	return nil
 }
@@ -149,14 +143,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return nil
 	}
 
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
 	switch incoming.Reply {
 	case "hb":
-		channels["hb"] <- respRaw
 	case "user_balance":
 		var userBalance WsUserBalanceResponse
 		err := json.Unmarshal(respRaw, &userBalance)
@@ -222,14 +210,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		pairs, err := e.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
 		currencyPair := e.instrumentMap.LookupInstrument(wsTicker.InstID)
-		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			pairs,
-			format)
+		p, err := e.MatchSymbolWithAvailablePairs(currencyPair, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -276,14 +258,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 		var trades []trade.Data
 		for i := range tradeSnap.Trades {
-			pairs, err := e.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				return err
-			}
 			currencyPair := e.instrumentMap.LookupInstrument(tradeSnap.InstrumentID)
-			p, err := currency.NewPairFromFormattedPairs(currencyPair,
-				pairs,
-				format)
+			p, err := e.MatchSymbolWithAvailablePairs(currencyPair, asset.Spot, false)
 			if err != nil {
 				return err
 			}
@@ -315,14 +291,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
 		currencyPair := e.instrumentMap.LookupInstrument(tradeUpdate.InstID)
-		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			pairs,
-			format)
+		p, err := e.MatchSymbolWithAvailablePairs(currencyPair, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -495,23 +465,11 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ctx context.Context, ob *WsOrderbo
 	newOrderBook.Bids = bids
 	newOrderBook.ValidateOrderbook = e.ValidateOrderbook
 
-	pairs, err := e.GetEnabledPairs(asset.Spot)
+	pair, err := e.MatchSymbolWithAvailablePairs(e.instrumentMap.LookupInstrument(ob.InstID), asset.Spot, false)
 	if err != nil {
 		return err
 	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	newOrderBook.Pair, err = currency.NewPairFromFormattedPairs(
-		e.instrumentMap.LookupInstrument(ob.InstID),
-		pairs,
-		format)
-	if err != nil {
-		return err
-	}
+	newOrderBook.Pair = pair
 
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = e.Name
@@ -522,20 +480,7 @@ func (e *Exchange) WsProcessOrderbookSnapshot(ctx context.Context, ob *WsOrderbo
 
 // WsProcessOrderbookUpdate process an orderbook update
 func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrderbookUpdate) error {
-	pairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	format, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	p, err := currency.NewPairFromFormattedPairs(
-		e.instrumentMap.LookupInstrument(update.InstID),
-		pairs,
-		format)
+	p, err := e.MatchSymbolWithAvailablePairs(e.instrumentMap.LookupInstrument(update.InstID), asset.Spot, false)
 	if err != nil {
 		return err
 	}

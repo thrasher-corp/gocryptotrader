@@ -514,9 +514,45 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures})
-	require.NoError(t, err)
+	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
+		for _, tc := range []struct {
+			name      string
+			successes string
+			errors    string
+			want      map[string]string
+		}{
+			{name: "empty", errors: `[]`},
+			{name: "only delimiters", successes: ",,", errors: `[]`},
+			{name: "trailing comma", successes: "123,456,", errors: `[]`, want: map[string]string{"123": "success", "456": "success"}},
+			{name: "missing failure identifier", errors: `[{"err_msg":"missing identifier"}]`},
+			{name: "successes and failures", successes: "123,,456,", errors: `[{"order_id":"789","err_msg":"rejected"}]`, want: map[string]string{"123": "success", "456": "success", "789": "fail: rejected"}},
+		} {
+			t.Run(a.String()+"/"+tc.name, func(t *testing.T) {
+				t.Parallel()
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					data := fmt.Sprintf(`{"successes":%q,"errors":%s}`, tc.successes, tc.errors)
+					_, err := fmt.Fprintf(w, `{"status":"ok","successes":%q,"errors":%s,"data":%s}`, tc.successes, tc.errors, data)
+					assert.NoError(t, err, "mock cancellation response should write")
+				}))
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+				ex.SkipAuthCheck = true
+				ex.API.AuthenticatedSupport = true
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must be configured")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "mock endpoint must be configured")
+				got, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Pair: btcusdPair})
+				require.NoError(t, err, "CancelAllOrders must succeed")
+				require.NotNil(t, got, "successful cancellation must return a response")
+				assert.Equal(t, tc.want, got.Status, "only actual order identifiers should be reported")
+			})
+		}
+	}
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures, Pair: btcusdPair})
+		assert.NoError(t, err)
+	})
 }
 
 func TestQuerySwapIndexPriceInfo(t *testing.T) {
@@ -1215,6 +1251,21 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+
+	for _, a := range []asset.Item{asset.Empty, asset.All, asset.Options} {
+		t.Run("unsupported scope "+a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "unsupported scope should fail before any network request")
+		})
+	}
+
+	for _, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.Futures} {
+		_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+		assert.ErrorIsf(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out for asset %s", a)
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := order.Cancel{
@@ -1226,6 +1277,42 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	_, err := e.CancelAllOrders(t.Context(), &orderCancellation)
 	require.NoError(t, err)
+}
+
+func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		failedCount uint64
+		status      string
+		errorMsg    string
+		want        error
+	}{
+		{name: "success"},
+		{
+			name:        "failed orders",
+			failedCount: 2,
+			want:        errOrderCancellationFailed,
+		},
+		{
+			name:     "API error",
+			status:   huobiStatusError,
+			errorMsg: "rejected",
+			want:     errOrderCancellationFailed,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := CancelOpenOrdersBatch{Status: tc.status, ErrorMessage: tc.errorMsg}
+			result.Data.FailedCount = tc.failedCount
+			err := validateCancelOpenOrdersBatchResponse(result)
+			if tc.want == nil {
+				assert.NoError(t, err, "successful response should not error")
+				return
+			}
+			assert.ErrorIs(t, err, tc.want, "failed response should return the expected error")
+		})
+	}
 }
 
 func TestUpdateAccountBalances(t *testing.T) {
