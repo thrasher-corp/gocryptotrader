@@ -1,0 +1,15 @@
+// spot@public.miniTickers.v3.api
+
+syntax = "proto3";
+
+import "PublicMiniTickerV3Api.proto";
+
+option go_package = "github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types";
+option java_multiple_files = true;
+option java_outer_classname = "PublicMiniTickersV3ApiProto";
+option java_package = "com.mxc.push.common.protobuf";
+option optimize_for = SPEED;
+
+message PublicMiniTickersV3Api {
+  repeated PublicMiniTickerV3Api items = 1;
+}
