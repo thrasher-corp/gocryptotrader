@@ -240,7 +240,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
 	case chanOrderbook:
-		return e.wsProcessOrderbook(assetType, &result)
+		return e.wsProcessOrderbook(ctx, assetType, &result)
 	case chanPublicTrade:
 		return e.wsProcessPublicTrade(assetType, &result)
 	case chanPublicTicker:
@@ -534,7 +534,7 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		Last:         result.LastPrice.Float64(),
 		High:         result.HighPrice24Hour.Float64(),
 		Low:          result.LowPrice24Hour.Float64(),
@@ -542,7 +542,11 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 		LastUpdated:  resp.PushTimestamp.Time(),
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
@@ -740,7 +744,7 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 	return trade.AddTradesToBuffer(tradeDatas...)
 }
 
-func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item, resp *WebsocketResponse) error {
 	var result WsOrderbookDetail
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
@@ -752,7 +756,7 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 	}
 
 	if resp.Type == "snapshot" {
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Pair:         cp,
 			Exchange:     e.Name,
 			Asset:        assetType,
@@ -763,7 +767,7 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 			Bids:         result.Bids.Levels(),
 		})
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       cp,
 		Asks:       result.Asks.Levels(),
 		Bids:       result.Bids.Levels(),

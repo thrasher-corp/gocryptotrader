@@ -292,6 +292,7 @@ func InsertFromCSV(exchangeName, base, quote string, interval int64, asset, file
 	}()
 
 	csvData := csv.NewReader(csvFile)
+	csvData.FieldsPerRecord = 6
 
 	exchangeUUID, err := exchange.UUIDByName(exchangeName)
 	if err != nil {
