@@ -41,6 +41,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 
 	switch dataType {
 	case common.DataCandle:
+		csvData.FieldsPerRecord = 6
 		candles := gctkline.Item{
 			Exchange: exchangeName,
 			Pair:     fPair,
@@ -54,7 +55,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 				if errCSV == io.EOF {
 					break
 				}
-				return nil, fmt.Errorf("could not read csv data for %v %v %v, %v", exchangeName, a, fPair, errCSV)
+				return nil, fmt.Errorf("could not read csv data for %v %v %v: %w", exchangeName, a, fPair, errCSV)
 			}
 
 			candle := gctkline.Candle{}
@@ -105,6 +106,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 		}
 		resp.Item = &candles
 	case common.DataTrade:
+		csvData.FieldsPerRecord = 4
 		var trades []trade.Data
 		for {
 			row, errCSV := csvData.Read()
@@ -112,7 +114,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 				if errCSV == io.EOF {
 					break
 				}
-				return nil, errCSV
+				return nil, fmt.Errorf("could not read csv data for %v %v %v: %w", exchangeName, a, fPair, errCSV)
 			}
 
 			t := trade.Data{}
