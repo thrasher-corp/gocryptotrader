@@ -615,7 +615,8 @@ func (e *Exchange) GetMaxWithdrawMargin(ctx context.Context, symbol string) (flo
 		return 0, currency.ErrSymbolStringEmpty
 	}
 	var resp types.Number
-	return resp.Float64(), e.SendAuthHTTPRequest(ctx, exchange.RestFutures, maxWithdrawMarginEPL, http.MethodGet, "/v1/margin/maxWithdrawMargin?symbol="+symbol, nil, &resp)
+	err := e.SendAuthHTTPRequest(ctx, exchange.RestFutures, maxWithdrawMarginEPL, http.MethodGet, "/v1/margin/maxWithdrawMargin?symbol="+symbol, nil, &resp)
+	return resp.Float64(), err
 }
 
 // RemoveMarginManually removes a margin manually
