@@ -327,7 +327,8 @@ This ensures proper formatting across the codebase.
     and verify that each referenced repository file exists.
 - When upgrading `markdownlint-cli2` in the `markdownlint` Makefile target,
     review newly introduced rules before changing the config.
-- Lint both Markdown and template sources using the same scope as CI:
+- Lint both Markdown and template sources using the same scope as CI. This
+    needs Node.js 22 or later installed for `npx`:
 
     ```console
     make markdownlint
@@ -362,13 +363,27 @@ Run the miscellaneous repository checks locally with:
     make misc_checks
 ```
 
+Lint the GitHub workflows and shell scripts, which needs `shellcheck` and `pipx` installed, with:
+
+```console
+    make workflow_lint
+```
+
+Regenerate the gRPC code in `gctrpc` and `backtester/btrpc` with the protoc plugin versions that `go.mod` pins, which needs `buf` installed, with:
+
+```console
+    make proto
+```
+
+`make proto_check` fails if the generated files differ from what the protos generate.
+
 The full local verification flow can be run with:
 
 ```console
     make check
 ```
 
-This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](../.github/workflows/misc.yml).
+This includes linting, miscellaneous checks, the generated code check and tests. The same miscellaneous checks are also run via [GitHub actions](../.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.

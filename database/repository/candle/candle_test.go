@@ -1,6 +1,7 @@
 package candle
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -143,6 +144,13 @@ func TestInsertFromCSV(t *testing.T) {
 			count, err := InsertFromCSV(testExchanges[0].Name, "BTC", "USDT", 86400, "spot", testFile)
 			require.NoError(t, err)
 			assert.Equal(t, uint64(365), count)
+
+			for _, contents := range []string{"1546300800,1,2,3,4\n", "1546300800,1,2,3,4,5,\n"} {
+				malformed := filepath.Join(t.TempDir(), "malformed.csv")
+				require.NoError(t, os.WriteFile(malformed, []byte(contents), 0o600), "writing test CSV must not error")
+				_, err = InsertFromCSV(testExchanges[0].Name, "BTC", "USDT", 86400, "spot", malformed)
+				assert.ErrorIsf(t, err, csv.ErrFieldCount, "InsertFromCSV should return a field count error for %q", contents)
+			}
 
 			assert.NoError(t, testhelpers.CloseDatabase(dbConn))
 		})
