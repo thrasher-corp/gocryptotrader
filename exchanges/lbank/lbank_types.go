@@ -220,8 +220,15 @@ type ErrCapture struct {
 }
 
 // V2Response wraps all LBank v2 API responses
+//
+// result is reported as a JSON boolean by some endpoints and as a JSON string by
+// others, so it is decoded as a types.Boolean, which accepts both.
 type V2Response struct {
-	Result    string          `json:"result"`
+	// Result is a pointer so that an absent or null result stays distinct from an
+	// explicit false: several successful endpoints omit result altogether and
+	// send only data, and a non-pointer types.Boolean would read those successes
+	// as failures.
+	Result    *types.Boolean  `json:"result"`
 	Msg       string          `json:"msg"`
 	Data      json.RawMessage `json:"data"`
 	ErrorCode int64           `json:"error_code"`
