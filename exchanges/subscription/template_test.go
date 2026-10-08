@@ -282,7 +282,7 @@ func TestExpandTemplatesOwnership(t *testing.T) {
 			assert.Samef(t, got[0], key.GetSubscription(), "%T should reference the returned subscription", inKey)
 			assert.Samef(t, in, inKey.GetSubscription(), "%T should still reference the input subscription", inKey)
 
-			otherKey := newKey(&Subscription{Channel: "book.BTCUSDT"})
+			otherKey := newKey(in.Clone())
 			in.SetKey(otherKey)
 			got, err = List{in}.ExpandTemplates(e)
 			require.NoErrorf(t, err, "ExpandTemplates must not error for %T", otherKey)
