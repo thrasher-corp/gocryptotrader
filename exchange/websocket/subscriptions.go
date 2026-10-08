@@ -265,6 +265,7 @@ func (m *Manager) GetSubscriptions() subscription.List {
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
 	var usedCapacity int
+	incoming := len(subs)
 	if ws, ok := m.managedWebsocket(conn); ok {
 		if ws.subscriptions == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
@@ -281,6 +282,12 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		}
 		subscriptionStore = ws.subscriptions
 		usedCapacity = connSubStore.Len()
+		// Resubscriptions retain their slot even when the venue changes their key.
+		for _, held := range connSubStore.List() {
+			if slices.Contains(subs, held) {
+				incoming--
+			}
+		}
 	} else {
 		subscriptionStore = m.subscriptionStore(nil)
 		if subscriptionStore == nil {
@@ -289,11 +296,11 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		usedCapacity = subscriptionStore.Len()
 	}
 
-	if m.MaxSubscriptionsPerConnection > 0 && usedCapacity+len(subs) > m.MaxSubscriptionsPerConnection {
+	if m.MaxSubscriptionsPerConnection > 0 && usedCapacity+incoming > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v",
 			errSubscriptionsExceedsLimit,
 			usedCapacity,
-			len(subs),
+			incoming,
 			m.MaxSubscriptionsPerConnection)
 	}
 

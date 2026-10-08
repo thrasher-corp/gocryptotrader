@@ -1420,7 +1420,7 @@ func (e *Exchange) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*
 		params.Set("type", arg.OrderType)
 	}
 	if arg.Price != 0 {
-		params.Set("price", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	}
 	if arg.Label != "" {
 		params.Set("label", arg.Label)

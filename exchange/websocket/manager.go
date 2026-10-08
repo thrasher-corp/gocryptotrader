@@ -671,7 +671,7 @@ func (m *Manager) connect(ctx context.Context) error {
 	m.connectionManagerMu.RLock()
 	connected := len(m.connections) > 0
 	m.connectionManagerMu.RUnlock()
-	if !connected && subscriptionError != nil {
+	if !connected {
 		m.setState(disconnectedState)
 		return subscriptionError
 	}
@@ -703,6 +703,9 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	conn := m.createConnectionFromSetup(ws.setup)
 
 	if err := ws.setup.Connector(ctx, conn); err != nil {
+		if conn.IsConnected() {
+			err = common.AppendError(err, conn.Shutdown())
+		}
 		if ws.setup.Authenticated {
 			return fmt.Errorf("%w: %w", ErrNotConnected, err)
 		}

@@ -538,6 +538,23 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			require.ErrorIs(t, err, errDastardlyReason)
 		})
 
+		t.Run("no streams remain disconnected and retryable", func(t *testing.T) {
+			t.Parallel()
+			ws := newConfiguredMultiManager(t, &ConnectionSetup{
+				URL:                   mockURL,
+				GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+				Connector: func(context.Context, Connection) error {
+					assert.Fail(t, "empty streams should not dial")
+					return nil
+				},
+				Handler: noopHandler,
+			})
+			for range 2 {
+				require.NoError(t, ws.Connect(t.Context()), "empty configuration must permit repeated connect attempts")
+				assert.False(t, ws.IsConnected(), "manager should remain disconnected without sockets")
+			}
+		})
+
 		t.Run("persistent authentication disable survives reconnect", func(t *testing.T) {
 			t.Parallel()
 			ws := newConfiguredMultiManager(t, nil)
@@ -573,7 +590,13 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			}}}
 			ws.connectionManager = []*websocket{private}
 			require.ErrorIs(t, ws.Connect(t.Context()), errFailedToAuthenticate, "first authentication must fail")
-			ws.Wg.Wait()
+			readersDone := make(chan struct{})
+			go func() { ws.Wg.Wait(); close(readersDone) }()
+			select {
+			case <-readersDone:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "reader goroutines must exit")
+			}
 			assert.Len(t, cleaned, 1, "failed authentication should run disconnect cleanup")
 			assert.False(t, ws.IsConnected(), "no successful sockets should mean disconnected")
 			require.NoError(t, ws.Connect(t.Context()), "second connection must retry authentication")
@@ -586,6 +609,8 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			t.Parallel()
 			ws := newConfiguredMultiManager(t, nil)
 			started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			releaseCleanup := sync.OnceFunc(func() { close(release) })
+			t.Cleanup(releaseCleanup)
 			ws.connectionManager = []*websocket{{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
 				URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true,
 				OnDisconnect: func(Connection) { close(started); <-release },
@@ -595,13 +620,17 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 				assert.NoError(t, ws.Shutdown(), "manager shutdown should succeed")
 				close(done)
 			}()
-			<-started
+			select {
+			case <-started:
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "disconnect cleanup must run during shutdown")
+			}
 			select {
 			case <-done:
 				assert.Fail(t, "wait group should remain pending during cleanup")
 			case <-time.After(20 * time.Millisecond):
 			}
-			close(release)
+			releaseCleanup()
 			select {
 			case <-done:
 			case <-time.After(time.Second):
@@ -619,7 +648,13 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			}}}
 			ws.connectionManager = []*websocket{private}
 			require.ErrorIs(t, ws.Connect(t.Context()), errFailedToAuthenticate, "private-only failure must be reported")
-			ws.Wg.Wait()
+			readersDone := make(chan struct{})
+			go func() { ws.Wg.Wait(); close(readersDone) }()
+			select {
+			case <-readersDone:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "reader goroutines must exit")
+			}
 			assert.Empty(t, private.connections, "empty private socket should be removed")
 		})
 
@@ -842,9 +877,22 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 
 	ws.setup.URL = "ws" + server.URL[len("http"):] + "/ws"
 	ws.setup.Handler = func(context.Context, Connection, []byte) error { return nil }
+	var leaked *connection
 	ws.setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.Dial(ctx, dialer, nil, nil)
+		var ok bool
+		leaked, ok = conn.(*connection)
+		require.True(t, ok, "manager must create its concrete connection")
+		if err := conn.Dial(ctx, dialer, nil, nil); err != nil {
+			return err
+		}
+		return errConnectionFault
 	}
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, nil)
+	assert.ErrorIs(t, err, errConnectionFault, "post-dial connector failure should retain its cause")
+	require.NotNil(t, leaked, "connector must create a connection")
+	assert.False(t, leaked.IsConnected(), "failed connector should close its untracked socket")
+	assert.Empty(t, mgr.connections, "failed connector should not retain connections")
+	ws.setup.Connector = func(ctx context.Context, conn Connection) error { return conn.Dial(ctx, dialer, nil, nil) }
 	ws.setup.Authenticated = true
 	ws.setup.Authenticate = func(context.Context, Connection) error { return errConnectionFault }
 	mgr.SetCanUseAuthenticatedEndpoints(true)
@@ -855,7 +903,13 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	assert.ErrorIs(t, err, errFailedToAuthenticate, "should wrap authentication failure")
 	assert.Empty(t, ws.connections, "failed connection should be removed from websocket")
 	assert.Empty(t, mgr.connections, "failed connection should be removed from manager")
-	mgr.Wg.Wait()
+	readersDone := make(chan struct{})
+	go func() { mgr.Wg.Wait(); close(readersDone) }()
+	select {
+	case <-readersDone:
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "reader goroutines must exit")
+	}
 
 	ws.setup.Authenticated = false
 	ws.setup.Authenticate = func(context.Context, Connection) error { return nil }
@@ -2227,7 +2281,13 @@ func TestCreateConnectAndSubscribeRecordsPartialSubscriptions(t *testing.T) {
 			require.NoError(t, ws.connections[0].Shutdown())
 			delete(mgr.connections, ws.connections[0])
 			ws.connections = nil
-			mgr.Wg.Wait()
+			readersDone := make(chan struct{})
+			go func() { mgr.Wg.Wait(); close(readersDone) }()
+			select {
+			case <-readersDone:
+			case <-time.After(10 * time.Second):
+				require.FailNow(t, "reader goroutines must exit")
+			}
 
 			accepted = &subscription.Subscription{Channel: "accepted-again"}
 			rejected = &subscription.Subscription{Channel: "missing"}

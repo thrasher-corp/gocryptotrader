@@ -1624,14 +1624,6 @@ func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
 	return subs.Public(), nil
 }
 
-func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
-	subs, err := e.generateSubscriptions()
-	if err != nil {
-		return nil, err
-	}
-	return subs.Private(), nil
-}
-
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
 func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connection, subs subscription.List) error {

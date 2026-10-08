@@ -711,17 +711,21 @@ func (e *Exchange) cleanupUnsubscribedSubs(conn websocket.Connection, subs subsc
 }
 
 func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	var stateErrors error
+	unsubscribing := make(subscription.List, 0, len(subs))
 	for _, sub := range subs {
 		if sub.State() != subscription.ResubscribingState {
 			if err := sub.SetState(subscription.UnsubscribingState); err != nil {
-				return err
+				stateErrors = common.AppendError(stateErrors, fmt.Errorf("%w; Channel: %s Pairs: %s", err, sub.Channel, sub.Pairs.Join()))
+				continue
 			}
 		}
+		unsubscribing = append(unsubscribing, sub)
 	}
 
-	return e.ParallelChanOp(ctx, subs.GroupPairs(), func(ctx context.Context, s subscription.List) error {
+	return common.AppendError(stateErrors, e.ParallelChanOp(ctx, unsubscribing.GroupPairs(), func(ctx context.Context, s subscription.List) error {
 		return e.manageSubs(ctx, krakenWsUnsubscribe, s, conn)
-	}, 1)
+	}, 1))
 }
 
 // manageSubs handles both websocket channel subscribe and unsubscribe

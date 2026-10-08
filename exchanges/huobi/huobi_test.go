@@ -2327,11 +2327,10 @@ func TestWsLogin(t *testing.T) {
 
 	t.Run("reader matches authentication response", func(t *testing.T) {
 		t.Parallel()
-		server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, _ []byte, conn *gws.Conn) error {
+		server, dialer := mockws.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, _ []byte, conn *gws.Conn) error {
 			tb.Helper()
 			return conn.WriteMessage(gws.TextMessage, []byte(`{"action":"req","ch":"auth","code":200}`))
 		}))
-		t.Cleanup(server.Close)
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
 		ex.API.AuthenticatedWebsocketSupport = true
@@ -2340,7 +2339,7 @@ func TestWsLogin(t *testing.T) {
 		conn, err := ex.Websocket.CreateTestConnection("auth")
 		require.NoError(t, err, "connection must be created")
 		require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "connection must be tracked")
-		require.NoError(t, conn.Dial(t.Context(), gws.DefaultDialer, nil, nil), "Dial must succeed")
+		require.NoError(t, conn.Dial(t.Context(), dialer, nil, nil), "Dial must succeed")
 		ex.Websocket.Wg.Add(1)
 		go ex.Websocket.Reader(t.Context(), conn, ex.wsHandleData)
 		t.Cleanup(func() { assert.NoError(t, conn.Shutdown(), "connection should shut down"); ex.Websocket.Wg.Wait() })

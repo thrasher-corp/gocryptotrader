@@ -7,12 +7,14 @@ import (
 	"net/url"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,6 +28,7 @@ type wsConnectFixtureConnection struct {
 	dialErr     error
 	sendErr     error
 	responseRaw []byte
+	respond     func(context.Context, any, any) ([]byte, error)
 	sent        []any
 
 	dialCalls     atomic.Int32
@@ -49,7 +52,10 @@ func (f *wsConnectFixtureConnection) SendJSONMessage(_ context.Context, _ reques
 	return f.sendErr
 }
 
-func (f *wsConnectFixtureConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+func (f *wsConnectFixtureConnection) SendMessageReturnResponse(ctx context.Context, _ request.EndpointLimit, signature, payload any) ([]byte, error) {
+	if f.respond != nil {
+		return f.respond(ctx, signature, payload)
+	}
 	f.sent = append(f.sent, payload)
 	return f.responseRaw, f.sendErr
 }
@@ -105,17 +111,6 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 	for _, sub := range subs {
 		assert.False(t, sub.Authenticated, "generatePublicSubscriptions should return only public subscriptions")
 	}
-}
-
-func TestGeneratePrivateSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ex.generatePrivateSubscriptions()
-	require.NoError(t, err, "generatePrivateSubscriptions must not error")
-	assert.Empty(t, subs, "generatePrivateSubscriptions should return no subscriptions when Bitfinex has no explicit private channels")
 }
 
 func TestSubscribeToChan(t *testing.T) {
@@ -239,6 +234,55 @@ func TestWsSendAuthConn(t *testing.T) {
 
 func TestResubOrderbook(t *testing.T) {
 	t.Parallel()
+	t.Run("full capacity recovers twice", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		ex.Websocket.MaxSubscriptionsPerConnection = 1
+		conn := &wsConnectFixtureConnection{Connection: testexch.GetMockConn(t, ex, publicBitfinexWebsocketEndpoint)}
+		require.NoError(t, ex.Websocket.TrackTestConnection(asset.Spot, conn), "connection must be tracked")
+		sub := &subscription.Subscription{Key: websocketChannelKey{conn, 1}, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSD()}, QualifiedChannel: `{"channel":"book","symbol":"tBTCUSD"}`}
+		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "initial subscription must register")
+		require.NoError(t, conn.Subscriptions().Add(sub), "initial subscription must occupy its connection slot")
+		var acknowledged atomic.Int32
+		conn.respond = func(ctx context.Context, signature, payload any) ([]byte, error) {
+			req, ok := payload.(map[string]any)
+			if !ok {
+				return nil, common.ErrTypeAssertFailure
+			}
+			if req["event"] == "unsubscribe" {
+				return []byte(`{"event":"unsubscribed"}`), nil
+			}
+			responses, err := conn.MatchReturnResponses(ctx, signature, 1)
+			if err != nil {
+				return nil, err
+			}
+			id := acknowledged.Load() + 2
+			raw, err := json.Marshal(map[string]any{"event": "subscribed", "channel": "book", "chanId": id, "subId": req["subId"]})
+			if err != nil {
+				return nil, err
+			}
+			if err := ex.handleWSSubscribed(conn, raw); err != nil {
+				return nil, err
+			}
+			select {
+			case matched := <-responses:
+				acknowledged.Add(1)
+				return matched.Responses[0], matched.Err
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Second):
+				return nil, context.DeadlineExceeded
+			}
+		}
+		for i := int32(1); i <= 2; i++ {
+			require.NoError(t, ex.resubOrderbook(t.Context(), conn, sub), "recovery must start")
+			require.Eventually(t, func() bool { return acknowledged.Load() == i && sub.State() == subscription.SubscribedState }, time.Second, time.Millisecond, "recovery must complete")
+			assert.Samef(t, sub, ex.Websocket.GetSubscription(websocketChannelKey{conn, int(i + 1)}), "recovery %d should track the new channel key", i)
+			assert.Equal(t, 1, conn.Subscriptions().Len(), "recovery should retain exactly one slot")
+			assert.Len(t, ex.Websocket.GetSubscriptions(), 1, "manager should retain exactly one subscription")
+		}
+	})
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")

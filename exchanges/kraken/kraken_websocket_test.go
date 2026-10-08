@@ -3,6 +3,7 @@ package kraken
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -412,6 +413,29 @@ func TestCleanupUnsubscribedSubs(t *testing.T) {
 
 func TestUnsubscribeForConnection(t *testing.T) {
 	t.Parallel()
+	for _, stuckIndex := range []int{0, 1} {
+		t.Run(fmt.Sprintf("state error at %d", stuckIndex), func(t *testing.T) {
+			t.Parallel()
+			ex := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+			t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "websocket should shut down") })
+			conn, err := ex.Websocket.GetConnection("auth")
+			require.NoError(t, err, "private connection must exist")
+			subs := subscription.List{
+				{Asset: asset.Spot, Channel: subscription.TickerChannel, QualifiedChannel: "ticker", Pairs: currency.Pairs{currency.NewBTCUSD()}},
+				{Asset: asset.Spot, Channel: subscription.TickerChannel, QualifiedChannel: "ticker", Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USD)}},
+			}
+			require.NoError(t, ex.Websocket.AddSubscriptions(conn, subs...), "subscriptions must register")
+			require.NoError(t, subs[stuckIndex].SetState(subscription.UnsubscribingState), "stuck state must configure")
+			assert.ErrorIs(t, ex.unsubscribeForConnection(t.Context(), conn, subs), subscription.ErrInStateAlready, "state error should remain observable")
+			for i, sub := range subs {
+				if i == stuckIndex {
+					assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "state-error subscription should remain untouched")
+					continue
+				}
+				assert.Nil(t, ex.Websocket.GetSubscription(sub), "healthy subscription should be removed")
+			}
+		})
+	}
 
 	k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
 
@@ -446,6 +470,34 @@ func TestWsAddOrder(t *testing.T) {
 	})
 	require.NoError(t, err, "wsAddOrder must not error")
 	assert.Equal(t, "ONPNXH-KMKMU-F4MR5V", id, "wsAddOrder should return correct order ID")
+}
+
+func TestCanUseWebsocketOrders(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		connected     bool
+		authenticated bool
+		want          bool
+	}{
+		{"private route", true, true, true},
+		{"authentication disabled", true, false, false},
+		{"no connections", false, true, false},
+		{"unavailable", false, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			if tc.connected {
+				ex = testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+				t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "websocket should shut down") })
+			} else {
+				require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			}
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.authenticated)
+			assert.Equal(t, tc.want, ex.canUseWebsocketOrders(), "selection should require authentication and a connected private route")
+		})
+	}
 }
 
 func TestWsCancelOrder(t *testing.T) {

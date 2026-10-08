@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -151,6 +152,53 @@ func TestResubscribe(t *testing.T) {
 }
 
 // TestSubscriptions tests adding, getting and removing subscriptions
+func TestResubscribeToChannelOnManagedConnection(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		connHeld bool
+	}{
+		{name: "full connection store", connHeld: true},
+		{name: "connection store not yet filled", connHeld: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			m.useMultiConnectionManagement = true
+			m.MaxSubscriptionsPerConnection = 2
+			book, ticker := &subscription.Subscription{Channel: "book"}, &subscription.Subscription{Channel: "ticker"}
+			ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+				Subscriber: func(_ context.Context, c Connection, l subscription.List) error {
+					for _, s := range l {
+						s.SetKey(fmt.Sprintf("%s-%p-%d", s.Channel, s, time.Now().UnixNano())) // venues such as Bitfinex assign a new key on each subscribe
+					}
+					return m.AddSuccessfulSubscriptions(c, l...)
+				},
+				Unsubscriber: func(_ context.Context, c Connection, l subscription.List) error {
+					return m.RemoveSubscriptions(c, l...)
+				},
+			}}
+			conn := &connection{subscriptions: subscription.NewStore()}
+			m.connectionManager = []*websocket{ws}
+			m.trackConnection(conn, ws)
+			require.NoError(t, m.AddSuccessfulSubscriptions(conn, book, ticker), "AddSuccessfulSubscriptions must not error")
+			if tc.connHeld {
+				require.NoError(t, conn.subscriptions.Add(book), "connection store Add must not error")
+				require.NoError(t, conn.subscriptions.Add(ticker), "connection store Add must not error")
+			}
+			for range 2 {
+				require.NoError(t, m.ResubscribeToChannel(t.Context(), conn, book), "ResubscribeToChannel must not error")
+				assert.Equal(t, subscription.SubscribedState, book.State(), "book should be subscribed again")
+			}
+			assert.Equal(t, tc.connHeld, slices.Contains(conn.subscriptions.List(), book), "connection store should hold the book only if it held it before")
+			if tc.connHeld {
+				err := m.SubscribeToChannels(t.Context(), conn, subscription.List{{Channel: "ticker", Pairs: currency.Pairs{currency.NewBTCUSD()}}})
+				assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "a new subscription should still count against a full connection")
+			}
+		})
+	}
+}
+
 func TestSubscriptions(t *testing.T) {
 	t.Parallel()
 	w := new(Manager) // Do not use NewManager; We want to exercise w.subs == nil

@@ -1484,10 +1484,14 @@ func TestWSSubscribe(t *testing.T) {
 			break
 		}
 	}
-	require.NotEmpty(t, tickerSubs, "Expected at least one BTC/USD ticker subscription")
+	require.NotEmpty(t, tickerSubs, "BTC/USD ticker subscription must exist")
+	require.Len(t, subs, 1, "temporary subscription key must be replaced")
 
 	err = subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
+	subs, err = e.GetSubscriptions()
+	require.NoError(t, err, "GetSubscriptions must not error")
+	require.Len(t, subs, 1, "failed duplicate subscription must not remain stored")
 
 	err = unsubscribe(subscription.List{tickerSubs[0]})
 	assert.NoError(t, err, "Unsubscribing should not error")

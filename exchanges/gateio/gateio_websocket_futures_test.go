@@ -40,8 +40,8 @@ func TestWsFuturesConnect(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			if tc.url == "" {
-				server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(testing.TB, []byte, *gws.Conn) error { return nil }))
-				t.Cleanup(server.Close)
+				server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(testing.TB, []byte, *gws.Conn) error { return nil }))
+				server.Start() // WsFuturesConnect uses its own gorilla dialer.
 				tc.url = "ws" + strings.TrimPrefix(server.URL, "http")
 				require.NoError(t, ex.API.Endpoints.SetRunningURL(tc.endpoint.String(), tc.url), "mock endpoint must update")
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"slices"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -867,5 +869,38 @@ func TestSetupExchanges(t *testing.T) {
 			exchangeNames := []string{exchanges[0].GetName(), exchanges[1].GetName()}
 			assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, exchangeNames)
 		})
+	})
+}
+
+func TestLoadExchange(t *testing.T) {
+	t.Parallel()
+	t.Run("invalid credentials remain disabled after connecting", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, mockws.EchoHandler))
+		server.Start() // Exchange connectors use their own gorilla dialer.
+		bot := &Engine{
+			ExchangeManager: NewExchangeManager(),
+			Config: &config.Config{Exchanges: []config.Exchange{{
+				Name: "Coinbase", WebsocketTrafficTimeout: time.Second,
+				API:      config.APIConfig{AuthenticatedWebsocketSupport: true},
+				Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
+			}}},
+		}
+		require.NoError(t, bot.LoadExchange("Coinbase"), "LoadExchange must accept rejected credentials")
+		exch, err := bot.GetExchangeByName("Coinbase")
+		require.NoError(t, err, "GetExchangeByName must find Coinbase")
+		ws, err := exch.GetWebsocket()
+		require.NoError(t, err, "GetWebsocket must return its manager")
+		require.NoError(t, ws.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock endpoints must be configured")
+		t.Cleanup(func() {
+			if ws.IsConnected() {
+				assert.NoError(t, ws.Shutdown(), "Shutdown should succeed")
+			}
+		})
+		for range 2 {
+			require.NoError(t, ws.Connect(t.Context()), "Connect must avoid authenticated subscriptions")
+			assert.False(t, ws.CanUseAuthenticatedEndpoints(), "rejected credentials should remain disabled")
+			require.NoError(t, ws.Shutdown(), "Shutdown must succeed before reconnecting")
+		}
 	})
 }

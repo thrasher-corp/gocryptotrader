@@ -2723,11 +2723,7 @@ func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, 
 	}
 	deadline := time.Now().Add(websocketRequestTimeout)
 	ctx, cancelFunc := context.WithDeadline(ctx, deadline)
-	defer func() {
-		if time.Now().After(deadline) {
-			cancelFunc()
-		}
-	}()
+	defer cancelFunc()
 	for attempt := 1; ; attempt++ {
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := e.Requester.InitiateRateLimit(ctx, ep)
@@ -2747,6 +2743,8 @@ func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, 
 		if err != nil {
 			return err
 		}
+		// A successful retry omits error fields; discard the previous attempt's error.
+		*response = wsResponse{Result: response.Result}
 		err = json.Unmarshal(payload, response)
 		if err != nil {
 			return err
