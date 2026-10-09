@@ -163,6 +163,8 @@ message OrderbookItem {
   double amount = 1;
   double price = 2;
   int64 id = 3;
+  string str_amount = 4;
+  string str_price = 5;
 }
 
 message OrderbookResponse {
