@@ -34,7 +34,13 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
+	require.NoError(t, ex.DisableRateLimiter(), "mock websocket requests must bypass live venue rate limits")
 	instrumentServer := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "account/config") {
+			_, err := w.Write([]byte(`{"code":"0","data":[{"posMode":"net_mode"}]}`))
+			assert.NoError(t, err, "account configuration response should write")
+			return
+		}
 		instrumentID := r.URL.Query().Get("instId")
 		if instrumentID == "" {
 			instrumentID = mainPair.String()
@@ -131,7 +137,12 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	}, time.Second, 10*time.Millisecond, "websocket connections were not ready")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	t.Cleanup(func() {
-		_ = ex.Websocket.Shutdown()
+		if err := ex.Websocket.Disable(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "mock websocket should only report already disabled")
+		}
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "mock websocket should only report already disconnected")
+		}
 	})
 	return ex
 }
@@ -418,25 +429,25 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	t.Run("unsupported asset", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{AssetType: asset.Binary, Amount: 1})
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{AssetType: asset.Binary, Amount: 1})
 		require.ErrorIs(t, err, asset.ErrNotSupported)
 	})
 
 	t.Run("amount below minimum", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{AssetType: asset.Spot})
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{AssetType: asset.Spot})
 		require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	})
 
 	t.Run("spread uses dedicated endpoint", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{AssetType: asset.Spread, Amount: 1})
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{AssetType: asset.Spread, Amount: 1})
 		require.ErrorIs(t, err, asset.ErrNotSupported)
 	})
 
 	t.Run("empty pair", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			AssetType: asset.Spot,
 			Side:      order.Buy,
 			Type:      order.Limit,
@@ -447,7 +458,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	t.Run("unsupported order type", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			Pair:      mainPair,
 			AssetType: asset.Spot,
 			Side:      order.Buy,
@@ -459,7 +470,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	t.Run("invalid order type", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			Pair:      mainPair,
 			AssetType: asset.Spot,
 			Side:      order.Buy,
@@ -475,7 +486,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		require.NoError(t, testexch.Setup(badFormat), "Setup must not error")
 		badFormat.CurrencyPairs.UseGlobalFormat = true
 		badFormat.CurrencyPairs.RequestFormat = nil
-		_, err := badFormat.deriveSubmitOrderArguments(&order.Submit{
+		_, err := badFormat.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			Pair:      mainPair,
 			AssetType: asset.Spot,
 			Side:      order.Buy,
@@ -487,7 +498,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	t.Run("spot market quote amount", func(t *testing.T) {
 		t.Parallel()
-		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		arg, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			Exchange:    ex.Name,
 			Pair:        mainPair,
 			AssetType:   asset.Spot,
@@ -503,7 +514,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	t.Run("futures leverage guard", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			Exchange:  ex.Name,
 			Pair:      mainPair,
 			AssetType: asset.Futures,
@@ -518,8 +529,11 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	t.Run("futures reduce only position side", func(t *testing.T) {
 		t.Parallel()
-		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
-			Exchange:   ex.Name,
+		derivativeExchange := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		derivativeExchange.API.AuthenticatedSupport = true
+		derivativeExchange.SkipAuthCheck = true
+		arg, err := derivativeExchange.deriveSubmitOrderArguments(t.Context(), &order.Submit{
+			Exchange:   derivativeExchange.Name,
 			Pair:       mainPair,
 			AssetType:  asset.Futures,
 			Side:       order.Buy,
@@ -530,13 +544,13 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, order.Buy.Lower(), arg.Side)
-		assert.Empty(t, arg.PositionSide, "net-mode reduce-only orders should omit position side")
+		assert.Equal(t, positionSideNet, arg.PositionSide, "net-mode reduce-only orders should use net position side")
 		assert.True(t, arg.ReduceOnly, "reduce-only should be passed to OKX")
 	})
 
 	t.Run("options side is set", func(t *testing.T) {
 		t.Parallel()
-		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		arg, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			Exchange:  ex.Name,
 			Pair:      mainPair,
 			AssetType: asset.Options,
@@ -552,7 +566,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 
 	t.Run("invalid side rejected", func(t *testing.T) {
 		t.Parallel()
-		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		_, err := ex.deriveSubmitOrderArguments(t.Context(), &order.Submit{
 			Exchange:  ex.Name,
 			Pair:      mainPair,
 			AssetType: asset.Spot,
@@ -608,105 +622,37 @@ func TestDeriveOrderSide(t *testing.T) {
 
 func TestDerivePositionSide(t *testing.T) {
 	t.Parallel()
-
-	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
-		for _, tc := range []struct {
-			side            order.Side
-			execution, open string
-		}{
-			{order.Buy, "buy", "long"},
-			{order.Long, "buy", "long"},
-			{order.Bid, "buy", "long"},
-			{order.Sell, "sell", "short"},
-			{order.Short, "sell", "short"},
-			{order.Ask, "sell", "short"},
-		} {
-			for _, reduce := range []bool{false, true} {
-				t.Run(fmt.Sprintf("%s/%s/reduce=%t", a, tc.side, reduce), func(t *testing.T) {
-					t.Parallel()
-					want := tc.open
-					if reduce {
-						want = ""
-					}
-					assert.Equal(t, want, derivePositionSide(&order.Submit{AssetType: a, Side: tc.side, ReduceOnly: reduce}), "position side should follow execution intent")
-					execution, err := deriveOrderSide(tc.side)
-					require.NoError(t, err, "execution side must derive")
-					assert.Equal(t, tc.execution, execution, "aliases should share their execution side")
-				})
+	for _, a := range []asset.Item{asset.Spot, asset.Options, asset.Futures, asset.PerpetualSwap} {
+		for _, mode := range []string{"net_mode", "long_short_mode"} {
+			for _, tc := range []struct {
+				side        order.Side
+				open, close string
+			}{
+				{order.Buy, "long", "short"},
+				{order.Long, "long", "short"},
+				{order.Bid, "long", "short"},
+				{order.Sell, "short", "long"},
+				{order.Short, "short", "long"},
+				{order.Ask, "short", "long"},
+			} {
+				for _, reduce := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/%s/%s/reduce=%t", a, mode, tc.side, reduce), func(t *testing.T) {
+						t.Parallel()
+						want := ""
+						if a == asset.Futures || a == asset.PerpetualSwap {
+							want = tc.open
+							if reduce {
+								want = tc.close
+							}
+							if mode == "net_mode" {
+								want = "net"
+							}
+						}
+						assert.Equal(t, want, derivePositionSide(&order.Submit{AssetType: a, Side: tc.side, ReduceOnly: reduce}, mode), "position side should follow the account mode and execution intent")
+					})
+				}
 			}
 		}
-	}
-
-	testCases := []struct {
-		name string
-		sub  *order.Submit
-		want string
-	}{
-		{
-			name: "spot empty",
-			sub: &order.Submit{
-				AssetType: asset.Spot,
-				Side:      order.Buy,
-			},
-			want: "",
-		},
-		{
-			name: "futures long",
-			sub: &order.Submit{
-				AssetType: asset.Futures,
-				Side:      order.Long,
-			},
-			want: positionSideLong,
-		},
-		{
-			name: "futures short",
-			sub: &order.Submit{
-				AssetType: asset.Futures,
-				Side:      order.Short,
-			},
-			want: positionSideShort,
-		},
-		{
-			name: "futures reduce only buy",
-			sub: &order.Submit{
-				AssetType:  asset.Futures,
-				Side:       order.Buy,
-				ReduceOnly: true,
-			},
-			want: "",
-		},
-		{
-			name: "futures reduce only sell",
-			sub: &order.Submit{
-				AssetType:  asset.Futures,
-				Side:       order.Sell,
-				ReduceOnly: true,
-			},
-			want: "",
-		},
-		{
-			name: "futures buy",
-			sub: &order.Submit{
-				AssetType: asset.Futures,
-				Side:      order.Buy,
-			},
-			want: positionSideLong,
-		},
-		{
-			name: "futures sell",
-			sub: &order.Submit{
-				AssetType: asset.Futures,
-				Side:      order.Sell,
-			},
-			want: positionSideShort,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.Equal(t, tc.want, derivePositionSide(tc.sub))
-		})
 	}
 }
 
@@ -1110,4 +1056,103 @@ func TestWsProcessOptionSummary(t *testing.T) {
 	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"))
 	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"9.1","gamma":"9.2","theta":"-9.3","vega":"9.4","deltaBS":"0.1","gammaBS":"0.2","thetaBS":"-0.3","vegaBS":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
 	require.ErrorIs(t, err, errOptionSummaryDispatch)
+}
+
+func TestContractPositionMode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		asset      asset.Item
+		body, want string
+		err        error
+	}{
+		{name: "spot needs no lookup", asset: asset.Spot},
+		{name: "options needs no lookup", asset: asset.Options},
+		{name: "spread needs no lookup", asset: asset.Spread},
+		{name: "futures net", asset: asset.Futures, body: `{"code":"0","data":[{"posMode":"net_mode"}]}`, want: "net_mode"},
+		{name: "swap hedge", asset: asset.PerpetualSwap, body: `{"code":"0","data":[{"posMode":"long_short_mode"}]}`, want: "long_short_mode"},
+		{name: "missing mode", asset: asset.Futures, body: `{"code":"0","data":[{}]}`, err: errInvalidPositionMode},
+		{name: "invalid mode", asset: asset.PerpetualSwap, body: `{"code":"0","data":[{"posMode":"invalid"}]}`, err: errInvalidPositionMode},
+		{name: "no configuration", asset: asset.Futures, body: `{"code":"0","data":null}`, err: common.ErrNoResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			var requests atomic.Int64
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.True(t, strings.HasSuffix(r.URL.Path, "account/config"), "position mode should come from the account configuration")
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "configuration response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must configure")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "mock endpoint must configure")
+			actual, err := ex.contractPositionMode(t.Context(), tc.asset)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "invalid configuration should return its sentinel error")
+			} else {
+				require.NoError(t, err, "valid configuration must resolve")
+				assert.Equal(t, tc.want, actual, "position mode should match the account")
+			}
+			wantRequests := int64(1)
+			if tc.body == "" {
+				wantRequests = 0
+			}
+			assert.Equal(t, wantRequests, requests.Load(), "only contracts should query the account configuration")
+		})
+	}
+	t.Run("external position mode changes are observed", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		ex.API.AuthenticatedSupport = true
+		ex.SkipAuthCheck = true
+		var requests atomic.Int64
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			mode := "net_mode"
+			if requests.Add(1) > 1 {
+				mode = "long_short_mode"
+			}
+			_, err := w.Write([]byte(`{"code":"0","data":[{"posMode":"` + mode + `"}]}`))
+			assert.NoError(t, err, "configuration response should write")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must configure")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "mock endpoint must configure")
+		for _, want := range []string{"net_mode", "long_short_mode"} {
+			actual, err := ex.contractPositionMode(t.Context(), asset.Futures)
+			require.NoError(t, err, "updated account configuration must resolve")
+			assert.Equal(t, want, actual, "fresh position mode should observe external account changes")
+		}
+		assert.Equal(t, int64(2), requests.Load(), "both submissions should obtain a fresh position mode")
+	})
+	t.Run("lookup errors retain their cause", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		ex.API.AuthenticatedSupport = true
+		ex.SkipAuthCheck = true
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := ex.contractPositionMode(ctx, asset.Futures)
+		assert.ErrorIs(t, err, context.Canceled, "failed account lookup should retain the cancellation cause")
+	})
+}
+
+func TestConnectOKXWithMockedWebsocket(t *testing.T) {
+	t.Parallel()
+	var ex *Exchange
+	t.Cleanup(func() {
+		require.NotNil(t, ex, "mock instance must remain available after cleanup")
+		assert.False(t, ex.Websocket.IsEnabled(), "cleanup should disable reconnect monitoring")
+		assert.False(t, ex.Websocket.IsConnected(), "cleanup should disconnect mock sockets")
+	})
+	t.Run("mock lifecycle", func(t *testing.T) {
+		t.Parallel()
+		ex = connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		assert.True(t, ex.Websocket.IsEnabled(), "mock manager should be enabled while the test uses it")
+		assert.True(t, ex.Websocket.IsConnected(), "mock manager should expose its connections")
+	})
 }

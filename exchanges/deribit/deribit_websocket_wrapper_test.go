@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -222,6 +223,48 @@ func TestHandleSubscriptionMocked(t *testing.T) {
 		assert.ErrorContains(t, err, "failed to public/subscribe")
 		assert.ErrorContains(t, err, "unexpected subscription channel")
 	})
+	for _, method := range []string{"public/subscribe", "public/unsubscribe"} {
+		for _, unexpected := range []bool{false, true} {
+			t.Run(method+"/"+map[bool]string{false: "missing acknowledgement", true: "unexpected acknowledgement"}[unexpected], func(t *testing.T) {
+				t.Parallel()
+				ex := connectDeribitWithMockedWebsocket(t, func(tb testing.TB, p []byte, c *gws.Conn) error {
+					tb.Helper()
+					var req struct {
+						ID     string `json:"id"`
+						Method string `json:"method"`
+						Params struct {
+							Channels []string `json:"channels"`
+						} `json:"params"`
+					}
+					if err := json.Unmarshal(p, &req); err != nil {
+						return err
+					}
+					if req.Method != method {
+						return deribitOrderWSMock(nil)(tb, p, c)
+					}
+					channels := []string{}
+					if unexpected {
+						channels = append(channels, req.Params.Channels...)
+						channels = append(channels, "unexpected.channel")
+					}
+					result, err := json.Marshal(channels)
+					if err != nil {
+						return err
+					}
+					return c.WriteMessage(gws.TextMessage, []byte(`{"jsonrpc":"2.0","id":"`+req.ID+`","result":`+string(result)+`}`))
+				})
+				err := ex.handleSubscription(t.Context(), method, subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresTradablePair}}})
+				assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "both paths should retain the common failure sentinel")
+				if unexpected {
+					assert.ErrorIs(t, err, errUnexpectedSubscriptionChannel, "unexpected acknowledgement should have its sentinel")
+					assert.NotErrorIs(t, err, errSubscriptionNotAcknowledged, "requested channels should be acknowledged")
+				} else {
+					assert.ErrorIs(t, err, errSubscriptionNotAcknowledged, "missing acknowledgement should have its sentinel")
+					assert.NotErrorIs(t, err, errUnexpectedSubscriptionChannel, "no unexpected channels should be acknowledged")
+				}
+			})
+		}
+	}
 }
 
 func TestWebsocketModifyOrder(t *testing.T) {

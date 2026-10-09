@@ -932,7 +932,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	positionSide := derivePositionSide(s)
+	positionMode, err := e.contractPositionMode(ctx, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	positionSide := derivePositionSide(s, positionMode)
 	amount := s.Amount
 	var targetCurrency string
 	if s.AssetType == asset.Spot && s.Type == order.Market {
@@ -1014,7 +1018,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
 			TradeMode:        tradeMode,
-			Side:             s.Side.Lower(),
+			Side:             sideType,
 			PositionSide:     positionSide,
 			OrderType:        orderTypeString,
 			Size:             s.Amount,
@@ -1027,7 +1031,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
 			TradeMode:                tradeMode,
-			Side:                     s.Side.Lower(),
+			Side:                     sideType,
 			PositionSide:             positionSide,
 			OrderType:                orderTypeString,
 			Size:                     s.Amount,
@@ -1046,7 +1050,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		result, err = e.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
 			TradeMode:     tradeMode,
-			Side:          s.Side.Lower(),
+			Side:          sideType,
 			PositionSide:  positionSide,
 			OrderType:     orderTypeString,
 			Size:          s.Amount,
@@ -1386,7 +1390,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	return err
 }
 
-func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderRequestParam, error) {
+func (e *Exchange) deriveSubmitOrderArguments(ctx context.Context, s *order.Submit) (*PlaceOrderRequestParam, error) {
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
@@ -1412,7 +1416,6 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	if err != nil {
 		return nil, err
 	}
-	positionSide := derivePositionSide(s)
 	amount := s.Amount
 	var targetCurrency string
 	if isSpotMarketOrder(s) {
@@ -1431,12 +1434,16 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	default:
 		return nil, fmt.Errorf("%w: %s", order.ErrTypeIsInvalid, orderTypeString)
 	}
+	positionMode, err := e.contractPositionMode(ctx, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
 
 	return &PlaceOrderRequestParam{
 		InstrumentID:   pairString,
 		TradeMode:      tradeMode,
 		Side:           sideType,
-		PositionSide:   positionSide,
+		PositionSide:   derivePositionSide(s, positionMode),
 		OrderType:      orderTypeString,
 		Amount:         amount,
 		ClientOrderID:  s.ClientOrderID,
@@ -1466,15 +1473,35 @@ func deriveOrderSide(side order.Side) (string, error) {
 	}
 }
 
-func derivePositionSide(s *order.Submit) string {
+// contractPositionMode reads the account acted for by this request. Fetching it
+// for each submission also observes mode changes made outside this process.
+func (e *Exchange) contractPositionMode(ctx context.Context, a asset.Item) (string, error) {
+	if a != asset.Futures && a != asset.PerpetualSwap {
+		return "", nil
+	}
+	configuration, err := e.GetAccountConfiguration(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error fetching account position mode: %w", err)
+	}
+	if configuration == nil {
+		return "", common.ErrNoResponse
+	}
+	switch configuration.PositionMode {
+	case "net_mode", "long_short_mode":
+		return configuration.PositionMode, nil
+	default:
+		return "", fmt.Errorf("%w: %q", errInvalidPositionMode, configuration.PositionMode)
+	}
+}
+
+func derivePositionSide(s *order.Submit, mode string) string {
 	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
 		return ""
 	}
-	if s.ReduceOnly {
-		// Reduce-only orders use net mode, which defaults when posSide is omitted.
-		return ""
+	if mode == "net_mode" {
+		return positionSideNet
 	}
-	if s.Side.IsLong() {
+	if s.Side.IsLong() != s.ReduceOnly {
 		return positionSideLong
 	}
 	return positionSideShort
@@ -1688,7 +1715,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		}
 		return s.DeriveSubmitResponse(resp.OrderID)
 	}
-	arg, err := e.deriveSubmitOrderArguments(s)
+	arg, err := e.deriveSubmitOrderArguments(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -1848,7 +1875,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			(orderCancellation.ClientOrderID != "" && ord.ClientOrderID != orderCancellation.ClientOrderID) {
 			continue
 		}
-		if (orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell) && ord.Side != orderCancellation.Side {
+		if orderCancellation.Side.IsLong() && !ord.Side.IsLong() || orderCancellation.Side.IsShort() && !ord.Side.IsShort() {
 			continue
 		}
 		cancelAllOrdersRequestParams = append(cancelAllOrdersRequestParams, CancelOrderRequestParam{

@@ -563,3 +563,49 @@ func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
 	_, err := ex.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
 	require.ErrorIs(t, err, errNoSpotInstrument)
 }
+
+func TestOrderStatusFromGate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		status    string
+		finishAs  string
+		want      order.Status
+		wantError bool
+	}{
+		{name: "implicit open", want: order.Open},
+		{name: "open", status: "open", finishAs: "open", want: order.Open},
+		{name: "closed without reason", status: "closed", want: order.Closed},
+		{name: "cancelled without reason", status: "cancelled", want: order.Cancelled},
+		{name: "filled", status: "finished", finishAs: "filled", want: order.Filled},
+		{name: "liquidated", status: "finished", finishAs: "liquidated", want: order.Liquidated},
+		{name: "auto deleveraged", status: "finished", finishAs: "auto_deleveraged", want: order.AutoDeleverage},
+		{name: "position closed", status: "finished", finishAs: "position_closed", want: order.Closed},
+		{name: "self trade prevention", status: "finished", finishAs: "stp", want: order.STP},
+		{name: "unrecognised status", status: "future_status", wantError: true},
+		{name: "upper case", status: "FINISHED", finishAs: "FILLED", want: order.Filled},
+		{name: "unknown reason", status: "finished", finishAs: "unknown", want: order.UnknownStatus},
+		{name: "missing finish reason", status: "finished", wantError: true},
+		{name: "open reason on finished order", status: "finished", finishAs: "open", wantError: true},
+		{name: "unrecognised finish reason", status: "finished", finishAs: "future_reason", wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := orderStatusFromGate(tc.status, tc.finishAs)
+			if tc.wantError {
+				require.ErrorIs(t, err, errInvalidOrderStatus, "invalid finish reason must return a stable error")
+			} else {
+				require.NoError(t, err, "documented status must be recognised")
+			}
+			assert.Equal(t, tc.want, got, "status should reflect the venue's outcome")
+		})
+	}
+	for _, reason := range []string{"cancelled", "liquidate_cancelled", "ioc", "poc", "fok", "reduce_only", "reduce_out", "small", "depth_not_enough", "trader_not_enough", "price_protect_cancelled", "mmp_cancelled"} {
+		t.Run(reason, func(t *testing.T) {
+			t.Parallel()
+			got, err := orderStatusFromGate("finished", reason)
+			require.NoError(t, err, "documented cancellation reason must be recognised")
+			assert.Equal(t, order.Cancelled, got, "finish reason should cancel the remaining order rather than report a fill")
+		})
+	}
+}

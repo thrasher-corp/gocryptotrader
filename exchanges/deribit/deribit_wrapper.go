@@ -346,7 +346,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, _ asset.Item) (acc
 	if err != nil {
 		return nil, err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.All, "")}
+	// Collateral is shared across products; store it once to avoid counting it
+	// repeatedly when callers aggregate balances across assets.
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
 	for i := range currencies {
 		var resp *AccountSummaryData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {

@@ -753,17 +753,30 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
-	tradeDatas := make([]trade.Data, len(result))
+	tradeDatas, err := e.convertPublicTrades(assetType, result)
+	if err != nil {
+		return err
+	}
+	return trade.AddTradesToBuffer(tradeDatas...)
+}
+
+// convertPublicTrades keeps known option contracts from underlying-wide trade batches,
+// which may also include contracts listed after the available pairs were loaded.
+func (e *Exchange) convertPublicTrades(assetType asset.Item, result WebsocketPublicTrades) ([]trade.Data, error) {
+	tradeDatas := make([]trade.Data, 0, len(result))
 	for x := range result {
 		cp, err := e.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
-			return err
+			if assetType == asset.Options && errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		side, err := order.StringToOrderSide(result[x].Side)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		tradeDatas[x] = trade.Data{
+		tradeDatas = append(tradeDatas, trade.Data{
 			Timestamp:    result[x].OrderFillTimestamp.Time(),
 			CurrencyPair: cp,
 			AssetType:    assetType,
@@ -772,9 +785,9 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 			Amount:       result[x].Size.Float64(),
 			Side:         side,
 			TID:          result[x].TradeID,
-		}
+		})
 	}
-	return trade.AddTradesToBuffer(tradeDatas...)
+	return tradeDatas, nil
 }
 
 func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item, resp *WebsocketResponse) error {

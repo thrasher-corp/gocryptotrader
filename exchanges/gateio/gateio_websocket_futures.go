@@ -708,16 +708,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		var status order.Status
-		if resp.Result[x].Status == "finished" {
-			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" || resp.Result[x].FinishAs == "reduce_out" {
-				status = order.Cancelled
-			} else {
-				status, err = order.StringToOrderStatus(resp.Result[x].FinishAs)
-			}
-		} else {
-			status, err = order.StringToOrderStatus(resp.Result[x].Status)
-		}
+		status, err := orderStatusFromGate(resp.Result[x].Status, resp.Result[x].FinishAs)
 		if err != nil {
 			return nil, err
 		}

@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -3167,14 +3168,25 @@ func TestWSHandleData(t *testing.T) {
 		assert.Equal(t, 0.1, greeks.Delta, "Delta should be normalised")
 		assert.Equal(t, 0.13, greeks.MarkImpliedVolatility, "MarkImpliedVolatility should be normalised")
 	})
-	t.Run("returns send error when data handler is closed", func(t *testing.T) {
+	t.Run("returns the Greeks send error when the data handler is full", func(t *testing.T) {
 		t.Parallel()
 
 		ex := testInstance()
-		ex.Websocket.DataHandler.Close()
-
-		err := ex.wsHandleData(t.Context(), nil, asset.Options, []byte(`{"topic":"tickers.BTC-26NOV24-92000-C","ts":1672304486868,"type":"snapshot","data":{"symbol":"BTC-26NOV24-92000-C","lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markPriceIv":"0.13"}}`))
-		assert.Error(t, err, "wsHandleData should return an error when data handler send fails")
+		pairs, err := ex.GetEnabledPairs(asset.Options)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		require.NotEmpty(t, pairs, "options pairs must not be empty")
+		ex.Websocket.DataHandler = stream.NewRelay(2)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"), "DataHandler.Send must not error")
+		symbol := pairs[0].String()
+		payload := fmt.Sprintf(`{"topic":%q,"ts":1672304486868,"type":"snapshot","data":{"symbol":%q,"lastPrice":"2","delta":"0.1","markPriceIv":"0.13"}}`, "tickers."+symbol, symbol)
+		err = ex.wsHandleData(t.Context(), nil, asset.Options, []byte(payload))
+		assert.ErrorContains(t, err, "failed to relay <*options.Greeks>", "wsHandleData should return the Greeks send error")
+		require.Len(t, ex.Websocket.DataHandler.C, 2, "the ticker must be queued before the Greeks send fails")
+		assert.Equal(t, "saturate", (<-ex.Websocket.DataHandler.C).Data, "the existing payload should remain queued")
+		queuedTicker, ok := (<-ex.Websocket.DataHandler.C).Data.(*ticker.Price)
+		require.True(t, ok, "the queued payload must be the ticker")
+		assert.Equal(t, pairs[0], queuedTicker.Pair, "the queued ticker should retain its pair")
+		assert.Equal(t, 2.0, queuedTicker.Last, "the queued ticker should retain its price")
 	})
 }
 

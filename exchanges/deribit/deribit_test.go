@@ -4139,10 +4139,43 @@ func TestChannelName(t *testing.T) {
 
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "live balance update must succeed")
+		assert.NotNil(t, result, "live update should return balances")
+	})
+	for _, requested := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.All} {
+		t.Run(requested.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				payload := `{"result":[{"currency":"BTC"},{"currency":"ETH"}]}`
+				if strings.HasSuffix(r.URL.Path, getAccountSummary) {
+					payload = `{"result":{"balance":10,"available_funds":7}}`
+				}
+				_, err := fmt.Fprint(w, payload)
+				assert.NoError(t, err, "response write should succeed")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client setup must succeed")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "endpoint setup must succeed")
+			result, err := ex.UpdateAccountBalances(t.Context(), requested)
+			require.NoError(t, err, "shared collateral must save under a valid asset")
+			require.Len(t, result, 1, "shared collateral must have one account")
+			assert.Equal(t, asset.Spot, result[0].AssetType, "all callers should use the canonical shared wallet")
+			balances, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+			require.NoError(t, err, "aggregate balances must be available")
+			for _, curr := range []currency.Code{currency.BTC, currency.ETH} {
+				assert.Equal(t, 10.0, balances[curr].Total, "shared collateral should not be double counted")
+				assert.Equal(t, 3.0, balances[curr].Hold, "hold should reflect unavailable funds")
+			}
+		})
+	}
 }
 
 func TestGetFundingHistory(t *testing.T) {
@@ -4496,7 +4529,14 @@ func TestProcessPushData(t *testing.T) {
 	for k, v := range websocketPushData {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsHandleData(t.Context(), []byte(v))
+			ex := e
+			if k == "User Portfolio" {
+				ex = new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "portfolio exchange setup must succeed")
+				ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+				ex.API.AuthenticatedSupport = true
+			}
+			err := ex.wsHandleData(t.Context(), []byte(v))
 			require.NoError(t, err, "wsHandleData must not error")
 		})
 	}
@@ -5585,4 +5625,46 @@ func TestTickerPathsAgree(t *testing.T) {
 	exp.BaseVolume, exp.QuoteVolume = 4289.0028892, 3.3126e8
 	exp.OpenInterest = 840922200
 	assert.Equal(t, exp, received("incremental_ticker.BTC-PERPETUAL"), "a change should merge onto the snapshot")
+}
+
+func TestWsHandleDataPortfolio(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		currency string
+		wantErr  error
+	}{
+		{name: "valid", currency: "BTC"},
+		{name: "empty currency", wantErr: currency.ErrCurrencyCodeEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+			ex.API.AuthenticatedSupport = true
+			account := accounts.NewSubAccount(asset.Spot, "")
+			account.Balances.Set(currency.ETH, accounts.Balance{Total: 20, Hold: 5})
+			require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{account}, true), "existing currency must save")
+			payload := `{"jsonrpc":"2.0","method":"subscription","params":{"channel":"user.portfolio.any","data":{"currency":"` + tc.currency + `","balance":10,"available_funds":7}}}`
+			err := ex.wsHandleData(t.Context(), []byte(payload))
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr, "invalid currency should return its sentinel")
+				return
+			}
+			require.NoError(t, err, "portfolio push must update balances")
+			balances, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+			require.NoError(t, err, "shared wallet balances must be available")
+			require.Len(t, balances, 2, "a single-currency push must preserve other currencies")
+			assert.Equal(t, 10.0, balances[currency.BTC].Total, "push should store total balance")
+			assert.Equal(t, 3.0, balances[currency.BTC].Hold, "push should store held balance")
+			assert.Equal(t, 20.0, balances[currency.ETH].Total, "push should preserve unrelated balances")
+			payload = strings.ReplaceAll(payload, `"balance":10,"available_funds":7`, `"balance":0,"available_funds":0`)
+			require.NoError(t, ex.wsHandleData(t.Context(), []byte(payload)), "zero balance update must succeed")
+			balances, err = ex.Accounts.CurrencyBalances(nil, asset.Spot)
+			require.NoError(t, err, "updated balances must be available")
+			assert.Zero(t, balances[currency.BTC].Total, "zero balance should replace previous holdings")
+			assert.Equal(t, 20.0, balances[currency.ETH].Total, "zero update should retain unrelated holdings")
+		})
+	}
 }

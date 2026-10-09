@@ -1046,11 +1046,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		resp.Status = order.Open
-		if o.Status != statusOpen {
-			if resp.Status, err = order.StringToOrderStatus(o.FinishAs); err != nil {
-				return nil, err
-			}
+		if resp.Status, err = orderStatusFromGate(o.Status, o.FinishAs); err != nil {
+			return nil, err
 		}
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
@@ -1076,11 +1073,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		resp.Status = order.Open
-		if o.Status != statusOpen {
-			if resp.Status, err = order.StringToOrderStatus(o.FinishAs); err != nil {
-				return nil, err
-			}
+		if resp.Status, err = orderStatusFromGate(o.Status, o.FinishAs); err != nil {
+			return nil, err
 		}
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
@@ -1184,16 +1178,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		if err != nil {
 			return nil, err
 		}
-		modResp.Status = order.Open
-		if resp.Status == statusFinished {
-			if resp.FinishAs == "ioc" || resp.FinishAs == "reduce_only" || resp.FinishAs == "reduce_out" {
-				modResp.Status = order.Cancelled
-			} else {
-				modResp.Status, err = order.StringToOrderStatus(resp.FinishAs)
-			}
-		} else if resp.Status != "" && resp.Status != statusOpen {
-			modResp.Status, err = order.StringToOrderStatus(resp.Status)
-		}
+		modResp.Status, err = orderStatusFromGate(resp.Status, resp.FinishAs)
 		if err != nil {
 			return nil, err
 		}
@@ -1485,12 +1470,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		orderStatus := order.Open
-		if fOrder.Status != statusOpen {
-			orderStatus, err = order.StringToOrderStatus(fOrder.FinishAs)
-			if err != nil {
-				return nil, err
-			}
+		orderStatus, err := orderStatusFromGate(fOrder.Status, fOrder.FinishAs)
+		if err != nil {
+			return nil, err
 		}
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size.Float64(), fOrder.RemainingAmount.Float64())
@@ -2938,12 +2920,9 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if err != nil {
 			return nil, err
 		}
-		status := order.Open
-		if resp.FinishAs != "" && resp.FinishAs != statusOpen {
-			status, err = order.StringToOrderStatus(resp.FinishAs)
-			if err != nil {
-				return nil, err
-			}
+		status, err := orderStatusFromGate(resp.Status, resp.FinishAs)
+		if err != nil {
+			return nil, err
 		}
 		oType, err := order.StringToOrderType(resp.Type)
 		if err != nil {
@@ -3006,13 +2985,9 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 
 	out := make([]*order.SubmitResponse, 0, len(responses))
 	for _, resp := range responses {
-		status := order.Open
-		if resp.FinishAs != "" && resp.FinishAs != statusOpen {
-			var err error
-			status, err = order.StringToOrderStatus(resp.FinishAs)
-			if err != nil {
-				return nil, err
-			}
+		status, err := orderStatusFromGate(resp.Status, resp.FinishAs)
+		if err != nil {
+			return nil, err
 		}
 
 		oType := order.Market
@@ -3183,4 +3158,40 @@ func (e *Exchange) MessageID() string {
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])
+}
+
+// orderStatusFromGate distinguishes a terminal cancellation reason from a fill.
+// IOC orders can execute partially before cancellation; callers retain the venue's
+// filled and remaining quantities independently of this terminal status.
+func orderStatusFromGate(status, finishAs string) (order.Status, error) {
+	switch strings.ToLower(finishAs) {
+	case "filled":
+		return order.Filled, nil
+	case "liquidated":
+		return order.Liquidated, nil
+	case "auto_deleveraged":
+		return order.AutoDeleverage, nil
+	case "position_closed":
+		return order.Closed, nil
+	case "stp":
+		return order.STP, nil
+	case "cancelled", "liquidate_cancelled", "ioc", "poc", "fok", "reduce_only", "reduce_out", "small", "depth_not_enough", "trader_not_enough", "price_protect_cancelled", "mmp_cancelled":
+		return order.Cancelled, nil
+	case "unknown":
+		return order.UnknownStatus, nil
+	case "", "open":
+		if status == "" {
+			return order.Open, nil
+		}
+		if strings.EqualFold(status, statusFinished) {
+			return order.UnknownStatus, fmt.Errorf("%w: finished order has no finish reason", errInvalidOrderStatus)
+		}
+		result, err := order.StringToOrderStatus(status)
+		if err != nil {
+			return result, fmt.Errorf("%w: %w", errInvalidOrderStatus, err)
+		}
+		return result, nil
+	default:
+		return order.UnknownStatus, fmt.Errorf("%w: finish reason %q", errInvalidOrderStatus, finishAs)
+	}
 }

@@ -3819,49 +3819,105 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	for _, route := range []string{"REST", "websocket"} {
+	for _, route := range []string{"REST", "websocket", "trigger", "conditional", "chase", "trailing", "TWAP", "OCO"} {
 		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
-			for _, tc := range []struct {
-				side      order.Side
-				execution string
-			}{
-				{order.Buy, "buy"}, {order.Long, "buy"}, {order.Bid, "buy"}, {order.Sell, "sell"}, {order.Short, "sell"}, {order.Ask, "sell"},
-			} {
-				t.Run(route+"/"+a.String()+"/"+tc.side.String(), func(t *testing.T) {
-					t.Parallel()
-					var ex *Exchange
-					check := func(payload []byte) {
-						assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
-						assert.NotContains(t, string(payload), `"posSide"`, "net-mode reduce-only orders should omit position side")
-						assert.Contains(t, string(payload), `"reduceOnly":"true"`, "wire payload should retain reduce-only intent")
-					}
-					if route == "websocket" {
-						ex = connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
-							tb.Helper()
-							check(payload)
-							return okxOrderWsMock(tb, payload, conn)
-						})
-					} else {
-						ex = new(Exchange)
-						require.NoError(t, testexch.Setup(ex), "Setup must succeed")
-						ex.API.AuthenticatedSupport = true
-						ex.SkipAuthCheck = true
-						server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-							payload, err := io.ReadAll(r.Body)
-							if !assert.NoError(t, err, "request body should be readable") {
-								return
+			for _, mode := range []string{"net_mode", "long_short_mode"} {
+				for _, reduce := range []bool{false, true} {
+					for _, tc := range []struct {
+						side                   order.Side
+						execution, open, close string
+					}{
+						{order.Buy, "buy", "long", "short"},
+						{order.Long, "buy", "long", "short"},
+						{order.Bid, "buy", "long", "short"},
+						{order.Sell, "sell", "short", "long"},
+						{order.Short, "sell", "short", "long"},
+						{order.Ask, "sell", "short", "long"},
+					} {
+						t.Run(fmt.Sprintf("%s/%s/%s/%s/reduce=%t", route, a, mode, tc.side, reduce), func(t *testing.T) {
+							t.Parallel()
+							wantSide := tc.open
+							if reduce {
+								wantSide = tc.close
 							}
-							check(payload)
-							_, err = w.Write([]byte(`{"code":"0","data":[{"ordId":"reduce-order","sCode":"0"}]}`))
-							assert.NoError(t, err, "mock response should write")
-						}))
-						require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must be configured")
-						require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+							if mode == "net_mode" {
+								wantSide = "net"
+							}
+							var orderRequests, modeRequests atomic.Int64
+							check := func(payload []byte) {
+								orderRequests.Add(1)
+								assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
+								assert.Contains(t, string(payload), `"posSide":"`+wantSide+`"`, "wire position side should follow the actual account mode")
+								if reduce {
+									wantReduceOnly := `"reduceOnly":true`
+									if route == "REST" || route == "websocket" {
+										wantReduceOnly = `"reduceOnly":"true"`
+									}
+									assert.Contains(t, string(payload), wantReduceOnly, "wire payload should retain reduce-only intent")
+								}
+							}
+							var ex *Exchange
+							if route == "websocket" {
+								ex = connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+									tb.Helper()
+									check(payload)
+									return okxOrderWsMock(tb, payload, conn)
+								})
+							} else {
+								ex = new(Exchange)
+								require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+							}
+							ex.API.AuthenticatedSupport = true
+							ex.SkipAuthCheck = true
+							if err := ex.DisableRateLimiter(); err != nil {
+								require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled, "mock rate limiter must only report already disabled")
+							}
+							server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								w.Header().Set("Content-Type", "application/json")
+								response := `{"code":"0","data":[{"ordId":"mode-order","algoId":"mode-order","sCode":"0"}]}`
+								switch {
+								case strings.HasSuffix(r.URL.Path, "account/config"):
+									modeRequests.Add(1)
+									response = `{"code":"0","data":[{"posMode":"` + mode + `"}]}`
+								case strings.HasSuffix(r.URL.Path, "public/instruments"):
+									response = `{"code":"0","data":[{"instId":"` + mainPair.String() + `","instIdCode":"42"}]}`
+								default:
+									payload, err := io.ReadAll(r.Body)
+									if !assert.NoError(t, err, "request body should be readable") {
+										return
+									}
+									check(payload)
+								}
+								_, err := w.Write([]byte(response))
+								assert.NoError(t, err, "mock response should write")
+							}))
+							require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must be configured")
+							require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+							submission := &order.Submit{Exchange: ex.Name, AssetType: a, Pair: mainPair, Side: tc.side, Type: order.Limit, Amount: 1, Price: 1, ReduceOnly: reduce, TriggerPrice: 1, TrackingMode: order.Distance, TrackingValue: 1, MarginType: margin.Multi}
+							switch route {
+							case "trigger":
+								submission.Type = order.Trigger
+							case "conditional":
+								submission.Type = order.ConditionalStop
+							case "chase":
+								submission.Type = order.Chase
+							case "trailing":
+								submission.Type = order.TrailingStop
+							case "TWAP":
+								submission.Type = order.TWAP
+							case "OCO":
+								submission.Type = order.OCO
+								submission.RiskManagementModes.TakeProfit.Price = 2
+								submission.RiskManagementModes.StopLoss.Price = 1
+							}
+							response, err := ex.SubmitOrder(t.Context(), submission)
+							require.NoError(t, err, "order must succeed in its configured account mode")
+							assert.NotEmpty(t, response.OrderID, "successful order should retain its ID")
+							assert.Equal(t, int64(1), orderRequests.Load(), "one order should reach the selected transport")
+							assert.Equal(t, int64(1), modeRequests.Load(), "each order should fetch its account position mode")
+						})
 					}
-					response, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: mainPair, Side: tc.side, Type: order.Limit, Amount: 1, Price: 1, ReduceOnly: true})
-					require.NoError(t, err, "reduce-only order must succeed")
-					assert.NotEmpty(t, response.OrderID, "successful order should retain its ID")
-				})
+				}
 			}
 		}
 	}
@@ -3904,11 +3960,13 @@ func TestSubmitOrder(t *testing.T) {
 		require.Contains(tb, string(payload), `"instIdCode":42`, "websocket order request must include the resolved instrument ID code")
 		if websocketOrderRequests.Add(1) == 2 {
 			assert.Contains(tb, string(payload), `"side":"buy"`, "reduce-only futures buy should retain its execution side")
-			assert.NotContains(tb, string(payload), `"posSide"`, "net-mode reduce-only futures orders should omit position side")
+			assert.Contains(tb, string(payload), `"posSide":"net"`, "net-mode reduce-only futures orders should use net position side")
 			assert.Contains(tb, string(payload), `"reduceOnly":"true"`, "reduce-only intent should reach OKX")
 		}
 		return okxOrderWsMock(tb, payload, conn)
 	})
+	websocketExchange.API.AuthenticatedSupport = true
+	websocketExchange.SkipAuthCheck = true
 	result, err := websocketExchange.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:  websocketExchange.Name,
 		Pair:      mainPair,
@@ -4138,14 +4196,19 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name, id, clientID string
-		noMatch            bool
-		side               order.Side
+		name, id, clientID, want string
+		noMatch                  bool
+		side                     order.Side
 	}{
-		{name: "buy side", side: order.Buy},
-		{name: "order ID", id: "buy-1"},
+		{name: "buy side", side: order.Buy, want: "buy-1"},
+		{name: "bid side", side: order.Bid, want: "buy-1"},
+		{name: "long side", side: order.Long, want: "buy-1"},
+		{name: "sell side", side: order.Sell, want: "sell-1"},
+		{name: "ask side", side: order.Ask, want: "sell-1"},
+		{name: "short side", side: order.Short, want: "sell-1"},
+		{name: "order ID", id: "buy-1", want: "buy-1"},
 		{name: "conflicting IDs", id: "buy-1", clientID: "sell-client", noMatch: true},
-		{name: "matching IDs", id: "buy-1", clientID: "buy-client"},
+		{name: "matching IDs", id: "buy-1", clientID: "buy-client", want: "buy-1"},
 	} {
 		t.Run("mocked filter "+tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -4163,10 +4226,10 @@ func TestCancelAllOrders(t *testing.T) {
 				assert.Equal(tb, "batch-cancel-orders", req.Op, "cancellation should use the batch operation")
 				assert.Len(tb, req.Args, 1, "only the selected order should be sent without empty entries")
 				for _, arg := range req.Args {
-					assert.Equal(tb, "buy-1", arg.OrderID, "only the matching order should be cancelled")
+					assert.Equal(tb, tc.want, arg.OrderID, "only the matching order should be cancelled")
 					assert.Equal(tb, uint64(42), arg.InstrumentIDCode, "cancellation should include the resolved instrument code")
 				}
-				return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"0","data":[{"ordId":"buy-1","sCode":"0"}]}`))
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"0","data":[{"ordId":"`+tc.want+`","sCode":"0"}]}`))
 			})
 			ex.API.AuthenticatedSupport = true
 			ex.SkipAuthCheck = true
@@ -4185,7 +4248,7 @@ func TestCancelAllOrders(t *testing.T) {
 			if tc.noMatch {
 				assert.Empty(t, resp.Status, "conflicting identifiers should cancel nothing")
 			} else {
-				assert.Equal(t, map[string]string{"buy-1": order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+				assert.Equal(t, map[string]string{tc.want: order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
 			}
 		})
 	}

@@ -965,7 +965,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 		return err
 	}
 	if len(payloads) != len(channelsToSubscribe) {
-		return fmt.Errorf("payload count mismatch: got %d payloads for %d subscriptions", len(payloads), len(channelsToSubscribe))
+		return fmt.Errorf("%w: got %d payloads for %d subscriptions", errSubscriptionPayloadCount, len(payloads), len(channelsToSubscribe))
 	}
 	index := make(map[*subscription.Subscription]int, len(channelsToSubscribe))
 	for i, s := range channelsToSubscribe {
@@ -979,11 +979,11 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 			if err := func() error {
 				k, ok := index[s]
 				if !ok {
-					return fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset)
+					return fmt.Errorf("%w for %s %s", errSubscriptionNotFound, s.Channel, s.Asset)
 				}
 				msg := payloads[k]
 				if msg.ID == 0 {
-					return fmt.Errorf("missing message ID for %s %s", s.Channel, s.Asset)
+					return fmt.Errorf("%w for %s %s", errMissingMessageID, s.Channel, s.Asset)
 				}
 				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
 				if err != nil {

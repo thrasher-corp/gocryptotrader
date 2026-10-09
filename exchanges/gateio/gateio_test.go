@@ -4284,6 +4284,28 @@ func TestGetFutureOrderSize(t *testing.T) {
 func TestProcessFuturesOrdersPushData(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name     string
+		size     string
+		left     string
+		executed float64
+	}{
+		{name: "unfilled IOC", size: "10", left: "10"},
+		{name: "partially filled IOC", size: "10", left: "6", executed: 4},
+		{name: "partially filled short IOC", size: "-10", left: "-6", executed: 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			data := []byte(`{"result":[{"status":"finished","finish_as":"ioc","size":"` + tc.size + `","left":"` + tc.left + `","contract":"BTC_USDT"}]}`)
+			got, err := e.processFuturesOrdersPushData(data, asset.USDTMarginedFutures)
+			require.NoError(t, err, "IOC cancellation must not discard the order update")
+			require.Len(t, got, 1, "IOC update must contain one order")
+			assert.Equal(t, order.Cancelled, got[0].Status, "IOC remainder should be cancelled")
+			assert.Equal(t, tc.executed, got[0].ExecutedAmount, "actual partial execution should be retained")
+			assert.Equal(t, 10-tc.executed, got[0].RemainingAmount, "unexecuted remainder should be retained")
+		})
+	}
+
+	for _, tc := range []struct {
 		finish string
 		status order.Status
 	}{
@@ -4672,7 +4694,7 @@ func TestHandleSubscriptions(t *testing.T) {
 		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 			return []WsInput{}, nil
 		})
-		require.ErrorContains(t, err, "payload count mismatch", "error must mention payload count mismatch")
+		require.ErrorIs(t, err, errSubscriptionPayloadCount, "error must identify payload count mismatch")
 	})
 
 	t.Run("handle-subscription-missing-message-id", func(t *testing.T) {
@@ -4694,7 +4716,7 @@ func TestHandleSubscriptions(t *testing.T) {
 				Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
 			}}, nil
 		})
-		require.ErrorContains(t, err, "missing message ID", "error must mention missing message ID")
+		require.ErrorIs(t, err, errMissingMessageID, "error must identify missing message ID")
 	})
 
 	t.Run("handle-subscription-nil-subscription", func(t *testing.T) {
@@ -4794,6 +4816,21 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 
 func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 	t.Parallel()
+	for _, reason := range []string{"ioc", "poc", "fok", "small", "liquidate_cancelled", "depth_not_enough", "trader_not_enough", "unknown"} {
+		t.Run("finish reason "+reason, func(t *testing.T) {
+			t.Parallel()
+			got, err := e.deriveSpotWebsocketOrderResponses([]*WebsocketOrderResponse{{Status: "cancelled", FinishAs: reason, Side: "buy", Type: "limit", TimeInForce: "ioc", Amount: 10, Left: 6}})
+			require.NoError(t, err, "documented finish reason must retain the submission response")
+			require.Len(t, got, 1, "submission must produce one response")
+			want := order.Cancelled
+			if reason == "unknown" {
+				want = order.UnknownStatus
+			}
+			assert.Equal(t, want, got[0].Status, "finish reason should not fabricate a fill")
+			assert.Equal(t, 10.0, got[0].Amount, "submitted quantity should be retained")
+			assert.Equal(t, 6.0, got[0].RemainingAmount, "partial execution should retain the remaining quantity")
+		})
+	}
 
 	testCases := []struct {
 		name     string
@@ -5013,6 +5050,21 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 
 func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 	t.Parallel()
+	for _, reason := range []string{"ioc", "reduce_only", "reduce_out"} {
+		t.Run("finish reason "+reason, func(t *testing.T) {
+			t.Parallel()
+			got, err := e.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{{Status: "finished", FinishAs: reason, Size: -10, Left: -6, TimeInForce: "ioc"}}, asset.USDTMarginedFutures)
+			require.NoError(t, err, "documented finish reason must retain the submission response")
+			require.Len(t, got, 1, "submission must produce one response")
+			want := order.Cancelled
+			if reason == "unknown" {
+				want = order.UnknownStatus
+			}
+			assert.Equal(t, want, got[0].Status, "finish reason should not fabricate a fill")
+			assert.Equal(t, 10.0, got[0].Amount, "submitted quantity should be retained")
+			assert.Equal(t, 6.0, got[0].RemainingAmount, "partial execution should retain the remaining quantity")
+		})
+	}
 
 	testCases := []struct {
 		name     string

@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -296,7 +297,21 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return e.processUserOrders(ctx, respRaw, channels)
 		case "portfolio":
 			portfolio := &wsUserPortfolio{}
-			return e.processData(ctx, respRaw, portfolio)
+			response.Params.Data = portfolio
+			if err := json.Unmarshal(respRaw, &response); err != nil {
+				return err
+			}
+			if portfolio.Currency == "" {
+				return currency.ErrCurrencyCodeEmpty
+			}
+			// Deribit collateral is shared across spot, futures and options. Store
+			// it once under spot, matching REST and other shared-wallet exchanges.
+			account := accounts.NewSubAccount(asset.Spot, "")
+			account.Balances.Set(currency.NewCode(portfolio.Currency), accounts.Balance{
+				Total: portfolio.Balance,
+				Hold:  portfolio.Balance - portfolio.AvailableFunds,
+			})
+			return e.Accounts.Save(ctx, accounts.SubAccounts{account}, false)
 		case "trades":
 			return e.processTrades(ctx, respRaw, channels)
 		default:
@@ -951,12 +966,12 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 					errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
 				}
 			} else {
-				errs = common.AppendError(errs, fmt.Errorf("%w: %s failed to %s", errSubscriptionNotAcknowledged, s, method))
+				errs = common.AppendError(errs, fmt.Errorf("%w: %w: %s failed to %s", websocket.ErrSubscriptionFailure, errSubscriptionNotAcknowledged, s, method))
 			}
 		}
 
 		for key := range subAck {
-			errs = common.AppendError(errs, fmt.Errorf("%w: %q in result", errUnexpectedSubscriptionChannel, key))
+			errs = common.AppendError(errs, fmt.Errorf("%w: %w: %q in result", websocket.ErrSubscriptionFailure, errUnexpectedSubscriptionChannel, key))
 		}
 	}
 	return errs

@@ -292,6 +292,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 		Price:     101,
 	})
 	require.NoError(t, err)
+	require.Len(t, shortSizes, 1, "short futures amendment size must be available before reading")
 	assert.Equal(t, types.Number(-0.5), <-shortSizes, "short futures amendment should send a negative decimal size")
 
 	closed := connectGateioWithMockedWebsocket(t, gateioAmendStatusWsMock("cancelled", ""))
