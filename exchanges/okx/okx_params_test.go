@@ -854,10 +854,10 @@ func TestGetSpreadTickersOverlayBook(t *testing.T) {
 	assert.Equal(t, int64(1715331407999), result[0].Timestamp.Time().UnixMilli(), "the timestamp should advance to the sprd/books generation time")
 }
 
-// TestEstCompleteTimeUnmarshalJSON pins the documented estCompleteTime forms:
+// TestEstimatedCompleteTimeUnmarshalJSON pins the documented estCompleteTime forms:
 // the wall-clock MM/dd/yyyy, h:mm:ss AM/PM string in UTC+8 decodes, and the
 // null and empty placeholders stay the zero time.
-func TestEstCompleteTimeUnmarshalJSON(t *testing.T) {
+func TestEstimatedCompleteTimeUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var estCompleteTime EstimatedCompleteTime
 	require.NoError(t, json.Unmarshal([]byte(`"01/09/2023, 8:10:48 PM"`), &estCompleteTime), "the documented wall-clock form must decode")
@@ -880,6 +880,16 @@ func TestEstCompleteTimeUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err, "Marshal must not error")
 	assert.Equal(t, `"2023-01-09T20:10:48+08:00"`, string(encoded), "the estimate should serialise as an RFC 3339 timestamp")
 	assert.Equal(t, "2023-01-09 20:10:48 +0800 UTC+8", estCompleteTime.String(), "the estimate should print as its time")
+}
+
+// TestPositionDataDecodesTheNotionalAmount pins notionalCcy as the documented
+// notional value in coin, a quantity beside notionalUsd rather than a currency.
+func TestPositionDataDecodesTheNotionalAmount(t *testing.T) {
+	t.Parallel()
+	var positionData []PositionData
+	require.NoError(t, json.Unmarshal([]byte(`[{"instId":"BTC-USDT","notionalCcy":"0.4","notionalUsd":"25000"}]`), &positionData), "Unmarshal must not error")
+	exp := []PositionData{{InstrumentID: "BTC-USDT", NotionalCurrency: types.Number(0.4), NotionalUSD: types.Number(25000)}}
+	assert.Equal(t, exp, positionData, "the position risk row should decode its notional amounts")
 }
 
 // TestOrderBookSequenceIDDecodesTheBareInteger pins the REST book's seqId

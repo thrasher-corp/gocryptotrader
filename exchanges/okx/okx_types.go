@@ -1855,7 +1855,7 @@ type AccountDetail struct {
 	AutoLendMatchedAmount              types.Number  `json:"autoLendMtAmt"`
 	// MaxSpotInUseAmount is filled by the account channel push, which sends
 	// maxSpotInUseAmt; the REST balances endpoint sends maxSpotInUse instead
-	// (MaxSpotInUseAmount above).
+	// (MaxSpotInUse above).
 	MaxSpotInUseAmount types.Number `json:"maxSpotInUseAmt"`
 }
 
@@ -2029,7 +2029,7 @@ type PositionData struct {
 	InstrumentID     string        `json:"instId"`
 	InstrumentType   string        `json:"instType"`
 	ManagementMode   string        `json:"mgnMode"`
-	NotionalCurrency currency.Code `json:"notionalCcy"`
+	NotionalCurrency types.Number  `json:"notionalCcy"`
 	NotionalUSD      types.Number  `json:"notionalUsd"`
 	Position         string        `json:"pos"`
 	PositionCurrency currency.Code `json:"posCcy"`
@@ -2723,7 +2723,7 @@ type SubaccountBalanceDetail struct {
 	IsolatedUnrealisedProfitAndLoss  types.Number `json:"isoUpl"`
 	SpotInUseAmount                  types.Number `json:"spotInUseAmt"`
 	ClientSpotInUseAmount            types.Number `json:"clSpotInUseAmt"`
-	MaxSpotInUseAmount               types.Number `json:"maxSpotInUse"`
+	MaxSpotInUse                     types.Number `json:"maxSpotInUse"`
 	SpotBalance                      types.Number `json:"spotBal"`
 	OpenAvgPrice                     types.Number `json:"openAvgPx"`
 	AccAvgPrice                      types.Number `json:"accAvgPx"`
