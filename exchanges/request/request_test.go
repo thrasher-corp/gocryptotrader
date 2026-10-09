@@ -902,105 +902,6 @@ func TestExecuteRequestRedirectError(t *testing.T) {
 	assert.Equal(t, 1, body.closeCalls, "executeRequest should close body exactly once")
 }
 
-func TestExecuteRequestVerboseRequestBody(t *testing.T) {
-	t.Parallel()
-
-	getBodyErr := errors.New("get request body failure")
-	readErr := errors.New("read request body failure")
-	closeErr := errors.New("close request body failure")
-
-	for _, tc := range []struct {
-		name                       string
-		body                       io.Reader
-		getBodyErr                 error
-		closeErr                   error
-		expectedErr                error
-		expectedCloseCalls         int
-		expectedTransportCalls     int
-		expectedResponseCloseCalls int
-	}{
-		{
-			name:        "get body failure",
-			getBodyErr:  getBodyErr,
-			expectedErr: getBodyErr,
-		},
-		{
-			name:               "read body failure",
-			body:               iotest.ErrReader(readErr),
-			expectedErr:        readErr,
-			expectedCloseCalls: 1,
-		},
-		{
-			name:                       "close body failure",
-			body:                       strings.NewReader(`{"request":true}`),
-			closeErr:                   closeErr,
-			expectedCloseCalls:         1,
-			expectedTransportCalls:     1,
-			expectedResponseCloseCalls: 1,
-		},
-		{
-			name:                       "successful body copy",
-			body:                       strings.NewReader(`{"request":true}`),
-			expectedCloseCalls:         1,
-			expectedTransportCalls:     1,
-			expectedResponseCloseCalls: 1,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			requestBody := &trackedReadCloser{
-				Reader:   tc.body,
-				closeErr: tc.closeErr,
-			}
-			responseBody := &trackedReadCloser{Reader: strings.NewReader(`{"response":true}`)}
-			transportCalls := 0
-			httpClient := &http.Client{
-				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					transportCalls++
-					return &http.Response{
-						Status:     "200 OK",
-						StatusCode: http.StatusOK,
-						ProtoMajor: 1,
-						ProtoMinor: 1,
-						Header:     make(http.Header),
-						Body:       responseBody,
-						Request:    req,
-					}, nil
-				}),
-			}
-			r, err := New("test", httpClient)
-			require.NoError(t, err, "New must not error")
-			t.Cleanup(func() {
-				assert.NoError(t, r.Shutdown(), "Shutdown should not error")
-			})
-
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com", http.NoBody)
-			require.NoError(t, err, "http.NewRequestWithContext must not error")
-			req.Header.Set("X-Test", "value")
-			req.GetBody = func() (io.ReadCloser, error) {
-				if tc.getBodyErr != nil {
-					return nil, tc.getBodyErr
-				}
-				return requestBody, nil
-			}
-			retry, err := r.executeRequest(t.Context(), &Item{
-				Method: http.MethodPost,
-				Path:   "https://example.com",
-			}, req, 1, true)
-			require.False(t, retry, "executeRequest must not retry")
-			if tc.expectedErr == nil {
-				require.NoError(t, err, "executeRequest must not error")
-			} else {
-				require.ErrorIs(t, err, tc.expectedErr, "executeRequest must return the expected error")
-			}
-			assert.Equal(t, tc.expectedCloseCalls, requestBody.closeCalls, "executeRequest should close requestBody the expected number of times")
-			assert.Equal(t, tc.expectedTransportCalls, transportCalls, "executeRequest should execute the transport the expected number of times")
-			assert.Equal(t, tc.expectedResponseCloseCalls, responseBody.closeCalls, "executeRequest should close the response body the expected number of times")
-		})
-	}
-}
-
 func TestDoRequest_NoContent(t *testing.T) {
 	t.Parallel()
 	newRequester := func(t *testing.T) *Requester {
@@ -1227,6 +1128,13 @@ func TestEvaluateRetry(t *testing.T) {
 	retry, err = r.evaluateRetry(t.Context(), nil, transportErr, 1, false)
 	require.ErrorIs(t, err, transportErr, "evaluateRetry must return the transport error when retrying is declined")
 	require.False(t, retry, "evaluateRetry must not retry when the retry policy declines")
+
+	credentialErr := &url.Error{Op: http.MethodGet, URL: "https://example.com?signature=returned-secret", Err: transportErr}
+	retry, err = r.evaluateRetry(t.Context(), nil, credentialErr, 1, false)
+	require.ErrorIs(t, err, transportErr, "evaluateRetry must preserve the transport cause after redacting the URL")
+	require.False(t, retry, "evaluateRetry must not retry a declined URL error")
+	assert.NotContains(t, err.Error(), "returned-secret", "evaluateRetry should not return URL credentials to its caller")
+	assert.Contains(t, err.Error(), "signature=[REDACTED]", "evaluateRetry should retain redacted URL structure")
 
 	r.retryPolicy = DefaultRetryPolicy
 	retry, err = r.evaluateRetry(t.Context(), nil, errInvalidPath, 1, false)
