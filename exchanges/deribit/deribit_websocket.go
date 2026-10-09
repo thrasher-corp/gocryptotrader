@@ -237,7 +237,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 		return e.Websocket.DataHandler.Send(ctx, announcement)
 	case "book":
-		return e.processOrderbook(respRaw, channels)
+		return e.processOrderbook(ctx, respRaw, channels)
 	case "chart":
 		return e.processCandleChart(ctx, respRaw, channels)
 	case "deribit_price_index":
@@ -740,7 +740,7 @@ func (e *Exchange) processCandleChart(ctx context.Context, respRaw []byte, chann
 	})
 }
 
-func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
+func (e *Exchange) processOrderbook(ctx context.Context, respRaw []byte, channels []string) error {
 	var response wsResponse
 	orderbookData := &wsOrderbook{}
 	response.Params.Data = orderbookData
@@ -797,7 +797,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 
 		switch orderbookData.Type {
 		case "snapshot":
-			return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 				Exchange:          e.Name,
 				ValidateOrderbook: e.ValidateOrderbook,
 				LastUpdated:       orderbookData.Timestamp.Time(),
@@ -808,7 +808,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 				LastUpdateID:      orderbookData.ChangeID,
 			})
 		case "change":
-			return e.Websocket.Orderbook.Update(&orderbook.Update{
+			return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 				Asks:       asks,
 				Bids:       bids,
 				Pair:       cp,
@@ -865,7 +865,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Asks:         asks,
 			Bids:         bids,
 			Pair:         cp,
