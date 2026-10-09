@@ -67,7 +67,9 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		var request struct {
 			Operation string `json:"op"`
 		}
-		require.NoError(tb, json.Unmarshal(payload, &request), "private websocket request must decode")
+		if !assert.NoError(tb, json.Unmarshal(payload, &request), "private websocket request should decode") {
+			return common.ErrMalformedData
+		}
 		assert.False(tb, strings.HasPrefix(request.Operation, "sprd-"), "spread requests should use the business websocket")
 		return wsHandler(tb, payload, conn)
 	}))
@@ -77,7 +79,9 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		var request struct {
 			Operation string `json:"op"`
 		}
-		require.NoError(tb, json.Unmarshal(payload, &request), "business websocket request must decode")
+		if !assert.NoError(tb, json.Unmarshal(payload, &request), "business websocket request should decode") {
+			return common.ErrMalformedData
+		}
 		assert.True(tb, strings.HasPrefix(request.Operation, "sprd-"), "standard requests should use the private websocket")
 		return wsHandler(tb, payload, conn)
 	}))
@@ -105,19 +109,8 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 			return nil
 		},
 		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
-		Handler: func(_ context.Context, conn websocket.Connection, incoming []byte) error {
-			var m struct {
-				ID string `json:"id"`
-			}
-			if err := json.Unmarshal(incoming, &m); err != nil {
-				return err
-			}
-			if m.ID != "" {
-				return conn.RequireMatchWithData(m.ID, incoming)
-			}
-			return nil
-		},
-		MessageFilter: privateConnection,
+		Handler:               ex.wsHandleData,
+		MessageFilter:         privateConnection,
 	}
 	require.NoError(t, ex.Websocket.SetupNewConnection(connectionSetup))
 	businessSetup := *connectionSetup
@@ -136,6 +129,12 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 		return privateErr == nil && businessErr == nil
 	}, time.Second, 10*time.Millisecond, "websocket connections were not ready")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.API.AuthenticatedSupport, ex.SkipAuthCheck = true, true
+	privateConn, err := ex.Websocket.GetConnection(privateConnection)
+	require.NoError(t, err, "mock private connection must be available")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "mock credentials must be available")
+	ex.setWebsocketOrderCredentials(privateConn, creds)
 	t.Cleanup(func() {
 		if err := ex.Websocket.Disable(); err != nil {
 			assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "mock websocket should only report already disabled")
@@ -1056,89 +1055,6 @@ func TestWsProcessOptionSummary(t *testing.T) {
 	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"))
 	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"9.1","gamma":"9.2","theta":"-9.3","vega":"9.4","deltaBS":"0.1","gammaBS":"0.2","thetaBS":"-0.3","vegaBS":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
 	require.ErrorIs(t, err, errOptionSummaryDispatch)
-}
-
-func TestContractPositionMode(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name       string
-		asset      asset.Item
-		body, want string
-		err        error
-	}{
-		{name: "spot needs no lookup", asset: asset.Spot},
-		{name: "options needs no lookup", asset: asset.Options},
-		{name: "spread needs no lookup", asset: asset.Spread},
-		{name: "futures net", asset: asset.Futures, body: `{"code":"0","data":[{"posMode":"net_mode"}]}`, want: "net_mode"},
-		{name: "swap hedge", asset: asset.PerpetualSwap, body: `{"code":"0","data":[{"posMode":"long_short_mode"}]}`, want: "long_short_mode"},
-		{name: "missing mode", asset: asset.Futures, body: `{"code":"0","data":[{}]}`, err: errInvalidPositionMode},
-		{name: "invalid mode", asset: asset.PerpetualSwap, body: `{"code":"0","data":[{"posMode":"invalid"}]}`, err: errInvalidPositionMode},
-		{name: "no configuration", asset: asset.Futures, body: `{"code":"0","data":null}`, err: common.ErrNoResponse},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := new(Exchange)
-			require.NoError(t, testexch.Setup(ex), "Setup must succeed")
-			ex.API.AuthenticatedSupport = true
-			ex.SkipAuthCheck = true
-			var requests atomic.Int64
-			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests.Add(1)
-				assert.True(t, strings.HasSuffix(r.URL.Path, "account/config"), "position mode should come from the account configuration")
-				_, err := w.Write([]byte(tc.body))
-				assert.NoError(t, err, "configuration response should write")
-			}))
-			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must configure")
-			require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "mock endpoint must configure")
-			actual, err := ex.contractPositionMode(t.Context(), tc.asset)
-			if tc.err != nil {
-				assert.ErrorIs(t, err, tc.err, "invalid configuration should return its sentinel error")
-			} else {
-				require.NoError(t, err, "valid configuration must resolve")
-				assert.Equal(t, tc.want, actual, "position mode should match the account")
-			}
-			wantRequests := int64(1)
-			if tc.body == "" {
-				wantRequests = 0
-			}
-			assert.Equal(t, wantRequests, requests.Load(), "only contracts should query the account configuration")
-		})
-	}
-	t.Run("external position mode changes are observed", func(t *testing.T) {
-		t.Parallel()
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
-		ex.API.AuthenticatedSupport = true
-		ex.SkipAuthCheck = true
-		var requests atomic.Int64
-		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			mode := "net_mode"
-			if requests.Add(1) > 1 {
-				mode = "long_short_mode"
-			}
-			_, err := w.Write([]byte(`{"code":"0","data":[{"posMode":"` + mode + `"}]}`))
-			assert.NoError(t, err, "configuration response should write")
-		}))
-		require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must configure")
-		require.NoError(t, ex.API.Endpoints.SetRunningURL("RestSpotURL", server.URL+"/"), "mock endpoint must configure")
-		for _, want := range []string{"net_mode", "long_short_mode"} {
-			actual, err := ex.contractPositionMode(t.Context(), asset.Futures)
-			require.NoError(t, err, "updated account configuration must resolve")
-			assert.Equal(t, want, actual, "fresh position mode should observe external account changes")
-		}
-		assert.Equal(t, int64(2), requests.Load(), "both submissions should obtain a fresh position mode")
-	})
-	t.Run("lookup errors retain their cause", func(t *testing.T) {
-		t.Parallel()
-		ex := new(Exchange)
-		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
-		ex.API.AuthenticatedSupport = true
-		ex.SkipAuthCheck = true
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		_, err := ex.contractPositionMode(ctx, asset.Futures)
-		assert.ErrorIs(t, err, context.Canceled, "failed account lookup should retain the cancellation cause")
-	})
 }
 
 func TestConnectOKXWithMockedWebsocket(t *testing.T) {

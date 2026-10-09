@@ -2567,19 +2567,93 @@ func TestGetRecentTrades(t *testing.T) {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.SubmitOrder(t.Context(), &order.Submit{
-			Exchange:    e.Name,
-			Pair:        getPair(t, a),
-			Side:        order.Buy,
-			Type:        order.Limit,
-			Price:       1,
-			Amount:      1,
-			AssetType:   a,
-			TimeInForce: order.GoodTillCancel,
+	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		for _, a := range e.GetAssetTypes(false) {
+			_, err := e.SubmitOrder(t.Context(), &order.Submit{
+				Exchange:    e.Name,
+				Pair:        getPair(t, a),
+				Side:        order.Buy,
+				Type:        order.Limit,
+				Price:       1,
+				Amount:      1,
+				AssetType:   a,
+				TimeInForce: order.GoodTillCancel,
+			})
+			assert.NoErrorf(t, err, "SubmitOrder should not error for %s", a)
+		}
+	})
+	type testCase struct {
+		name       string
+		asset      asset.Item
+		side       order.Side
+		left       float64
+		finishAs   string
+		wantStatus order.Status
+	}
+	testCases := make([]testCase, 0, 18)
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures} {
+		for _, side := range []order.Side{order.Buy, order.Sell} {
+			for _, outcome := range []testCase{
+				{name: "filled", finishAs: "filled", wantStatus: order.Filled},
+				{name: "partially filled IOC", left: 6, finishAs: "ioc", wantStatus: order.Cancelled},
+				{name: "unfilled IOC", left: 10, finishAs: "ioc", wantStatus: order.Cancelled},
+			} {
+				outcome.name = a.String() + "/" + side.String() + "/" + outcome.name
+				outcome.asset, outcome.side = a, side
+				testCases = append(testCases, outcome)
+			}
+		}
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			pair := currency.NewBTCUSDT()
+			path := "/api/v4/futures/usdt/orders"
+			switch tc.asset {
+			case asset.CoinMarginedFutures:
+				pair = currency.NewBTCUSD()
+				path = "/api/v4/futures/btc/orders"
+			case asset.DeliveryFutures:
+				pair = currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter)
+				path = "/api/v4/delivery/usdt/orders"
+			}
+			size, left := 10.0, tc.left
+			if tc.side == order.Sell {
+				size, left = -size, -left
+			}
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method, "submission should use POST")
+				assert.Equal(t, path, r.URL.Path, "submission should reach the requested derivative endpoint")
+				var submitted struct {
+					Size types.Number `json:"size"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&submitted), "submitted size should decode") {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				assert.Equal(t, size, submitted.Size.Float64(), "submission should retain buy or sell direction")
+				_, err := fmt.Fprintf(w, `{"id":42,"status":"finished","finish_as":%q,"size":"%g","left":"%g","price":"100","fill_price":"101"}`, tc.finishAs, size, left)
+				assert.NoError(t, err, "mock response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must configure")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "mock derivative endpoint must configure")
+			got, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: pair, AssetType: tc.asset, Side: tc.side, Type: order.Limit, Amount: 10, Price: 100, TimeInForce: order.ImmediateOrCancel})
+			require.NoError(t, err, "derivative submission must succeed")
+			require.NotNil(t, got, "submission must return its venue response")
+			assert.Equal(t, tc.wantStatus, got.Status, "finish reason should identify a fill or cancellation")
+			assert.Equal(t, 10.0, got.Amount, "submitted amount should be absolute")
+			assert.Equal(t, tc.left, got.RemainingAmount, "remaining amount should retain the absolute venue remainder")
+			assert.Equal(t, 10-tc.left, got.Amount-got.RemainingAmount, "executed quantity should reflect the venue's actual fill")
+			assert.Equal(t, "42", got.OrderID, "venue order ID should be retained")
+			assert.Equal(t, 101.0, got.AverageExecutedPrice, "venue fill price should be retained")
 		})
-		assert.NoErrorf(t, err, "SubmitOrder should not error for %s", a)
 	}
 }
 

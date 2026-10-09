@@ -1052,6 +1052,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
 		resp.Amount = math.Abs(o.Size.Float64())
+		resp.RemainingAmount = math.Abs(o.RemainingAmount.Float64())
 		resp.Price = o.Price.Float64()
 		resp.AverageExecutedPrice = o.FillPrice.Float64()
 		return resp, nil
@@ -1079,6 +1080,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
 		resp.Amount = math.Abs(o.Size.Float64())
+		resp.RemainingAmount = math.Abs(o.RemainingAmount.Float64())
 		resp.Price = o.Price.Float64()
 		resp.AverageExecutedPrice = o.FillPrice.Float64()
 		return resp, nil

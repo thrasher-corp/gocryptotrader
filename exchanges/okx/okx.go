@@ -19,7 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -33,9 +35,13 @@ import (
 type Exchange struct {
 	exchange.Base
 
-	instrumentsInfoMapLock   sync.Mutex
-	instrumentsInfoFetchLock sync.Mutex
-	instrumentsInfoMap       map[string][]Instrument
+	instrumentsInfoMapLock      sync.Mutex
+	instrumentsInfoFetchLock    sync.Mutex
+	instrumentsInfoMap          map[string][]Instrument
+	positionModeMu              sync.Mutex
+	positionModes               map[accounts.Credentials]*positionModeCacheEntry
+	websocketOrderCredentialsMu sync.Mutex
+	websocketOrderCredentials   map[websocket.Connection]accounts.Credentials
 }
 
 const (
@@ -1798,6 +1804,16 @@ func (e *Exchange) SetPositionMode(ctx context.Context, positionMode string) (*P
 	if positionMode != "long_short_mode" && positionMode != "net_mode" {
 		return nil, errInvalidPositionMode
 	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	store := &accounts.ContextCredentialsStore{}
+	store.Load(creds)
+	ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+	// Prevent orders from reading the old mode while this mutation is pending.
+	e.changePositionModeCache(creds, true)
+	defer e.changePositionModeCache(creds, false)
 	var resp *PositionMode
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
 		PositionMode: positionMode,

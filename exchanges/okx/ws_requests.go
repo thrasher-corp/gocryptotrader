@@ -278,6 +278,11 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 		Arguments: payload,
 	}
 
+	if operation == "order" || operation == "batch-orders" {
+		if err := e.checkWebsocketOrderCredentials(ctx, conn); err != nil {
+			return err
+		}
+	}
 	incoming, err := conn.SendMessageReturnResponse(ctx, epl, id, outbound)
 	if err != nil {
 		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operation, err)

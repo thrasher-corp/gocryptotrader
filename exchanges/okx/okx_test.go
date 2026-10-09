@@ -3819,11 +3819,20 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	type submissionCase struct {
+		route                  string
+		asset                  asset.Item
+		mode                   string
+		reduce                 bool
+		side                   order.Side
+		execution, open, close string
+	}
+	cases := make([]submissionCase, 0, 384)
 	for _, route := range []string{"REST", "websocket", "trigger", "conditional", "chase", "trailing", "TWAP", "OCO"} {
 		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
 			for _, mode := range []string{"net_mode", "long_short_mode"} {
 				for _, reduce := range []bool{false, true} {
-					for _, tc := range []struct {
+					for _, side := range []struct {
 						side                   order.Side
 						execution, open, close string
 					}{
@@ -3834,92 +3843,164 @@ func TestSubmitOrder(t *testing.T) {
 						{order.Short, "sell", "short", "long"},
 						{order.Ask, "sell", "short", "long"},
 					} {
-						t.Run(fmt.Sprintf("%s/%s/%s/%s/reduce=%t", route, a, mode, tc.side, reduce), func(t *testing.T) {
-							t.Parallel()
-							wantSide := tc.open
-							if reduce {
-								wantSide = tc.close
-							}
-							if mode == "net_mode" {
-								wantSide = "net"
-							}
-							var orderRequests, modeRequests atomic.Int64
-							check := func(payload []byte) {
-								orderRequests.Add(1)
-								assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
-								assert.Contains(t, string(payload), `"posSide":"`+wantSide+`"`, "wire position side should follow the actual account mode")
-								if reduce {
-									wantReduceOnly := `"reduceOnly":true`
-									if route == "REST" || route == "websocket" {
-										wantReduceOnly = `"reduceOnly":"true"`
-									}
-									assert.Contains(t, string(payload), wantReduceOnly, "wire payload should retain reduce-only intent")
-								}
-							}
-							var ex *Exchange
-							if route == "websocket" {
-								ex = connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
-									tb.Helper()
-									check(payload)
-									return okxOrderWsMock(tb, payload, conn)
-								})
-							} else {
-								ex = new(Exchange)
-								require.NoError(t, testexch.Setup(ex), "Setup must succeed")
-							}
-							ex.API.AuthenticatedSupport = true
-							ex.SkipAuthCheck = true
-							if err := ex.DisableRateLimiter(); err != nil {
-								require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled, "mock rate limiter must only report already disabled")
-							}
-							server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-								w.Header().Set("Content-Type", "application/json")
-								response := `{"code":"0","data":[{"ordId":"mode-order","algoId":"mode-order","sCode":"0"}]}`
-								switch {
-								case strings.HasSuffix(r.URL.Path, "account/config"):
-									modeRequests.Add(1)
-									response = `{"code":"0","data":[{"posMode":"` + mode + `"}]}`
-								case strings.HasSuffix(r.URL.Path, "public/instruments"):
-									response = `{"code":"0","data":[{"instId":"` + mainPair.String() + `","instIdCode":"42"}]}`
-								default:
-									payload, err := io.ReadAll(r.Body)
-									if !assert.NoError(t, err, "request body should be readable") {
-										return
-									}
-									check(payload)
-								}
-								_, err := w.Write([]byte(response))
-								assert.NoError(t, err, "mock response should write")
-							}))
-							require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must be configured")
-							require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
-							submission := &order.Submit{Exchange: ex.Name, AssetType: a, Pair: mainPair, Side: tc.side, Type: order.Limit, Amount: 1, Price: 1, ReduceOnly: reduce, TriggerPrice: 1, TrackingMode: order.Distance, TrackingValue: 1, MarginType: margin.Multi}
-							switch route {
-							case "trigger":
-								submission.Type = order.Trigger
-							case "conditional":
-								submission.Type = order.ConditionalStop
-							case "chase":
-								submission.Type = order.Chase
-							case "trailing":
-								submission.Type = order.TrailingStop
-							case "TWAP":
-								submission.Type = order.TWAP
-							case "OCO":
-								submission.Type = order.OCO
-								submission.RiskManagementModes.TakeProfit.Price = 2
-								submission.RiskManagementModes.StopLoss.Price = 1
-							}
-							response, err := ex.SubmitOrder(t.Context(), submission)
-							require.NoError(t, err, "order must succeed in its configured account mode")
-							assert.NotEmpty(t, response.OrderID, "successful order should retain its ID")
-							assert.Equal(t, int64(1), orderRequests.Load(), "one order should reach the selected transport")
-							assert.Equal(t, int64(1), modeRequests.Load(), "each order should fetch its account position mode")
-						})
+						cases = append(cases, submissionCase{route, a, mode, reduce, side.side, side.execution, side.open, side.close})
 					}
 				}
 			}
 		}
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s/%s/%s/%s/reduce=%t", tc.route, tc.asset, tc.mode, tc.side, tc.reduce), func(t *testing.T) {
+			t.Parallel()
+			wantSide := tc.open
+			if tc.reduce {
+				wantSide = tc.close
+			}
+			if tc.mode == "net_mode" {
+				wantSide = "net"
+			}
+			var orderRequests, modeRequests atomic.Int64
+			check := func(payload []byte) {
+				orderRequests.Add(1)
+				assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
+				assert.Contains(t, string(payload), `"posSide":"`+wantSide+`"`, "wire position side should follow the actual account mode")
+				if tc.reduce {
+					wantReduceOnly := `"reduceOnly":true`
+					if tc.route == "REST" || tc.route == "websocket" {
+						wantReduceOnly = `"reduceOnly":"true"`
+					}
+					assert.Contains(t, string(payload), wantReduceOnly, "wire payload should retain reduce-only intent")
+				}
+			}
+			var ex *Exchange
+			if tc.route == "websocket" {
+				ex = connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+					tb.Helper()
+					check(payload)
+					return okxOrderWsMock(tb, payload, conn)
+				})
+			} else {
+				ex = new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			}
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			if err := ex.DisableRateLimiter(); err != nil {
+				require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled, "mock rate limiter must only report already disabled")
+			}
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				response := `{"code":"0","data":[{"ordId":"mode-order","algoId":"mode-order","sCode":"0"}]}`
+				switch {
+				case strings.HasSuffix(r.URL.Path, "account/config"):
+					modeRequests.Add(1)
+					response = `{"code":"0","data":[{"posMode":"` + tc.mode + `"}]}`
+				case strings.HasSuffix(r.URL.Path, "public/instruments"):
+					response = `{"code":"0","data":[{"instId":"` + mainPair.String() + `","instIdCode":"42"}]}`
+				default:
+					payload, err := io.ReadAll(r.Body)
+					if !assert.NoError(t, err, "request body should be readable") {
+						return
+					}
+					check(payload)
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must be configured")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+			submission := &order.Submit{Exchange: ex.Name, AssetType: tc.asset, Pair: mainPair, Side: tc.side, Type: order.Limit, Amount: 1, Price: 1, ReduceOnly: tc.reduce, TriggerPrice: 1, TrackingMode: order.Distance, TrackingValue: 1, MarginType: margin.Multi}
+			switch tc.route {
+			case "trigger":
+				submission.Type = order.Trigger
+			case "conditional":
+				submission.Type = order.ConditionalStop
+			case "chase":
+				submission.Type = order.Chase
+			case "trailing":
+				submission.Type = order.TrailingStop
+			case "TWAP":
+				submission.Type = order.TWAP
+			case "OCO":
+				submission.Type = order.OCO
+				submission.RiskManagementModes.TakeProfit.Price = 2
+				submission.RiskManagementModes.StopLoss.Price = 1
+			}
+			response, err := ex.SubmitOrder(t.Context(), submission)
+			require.NoError(t, err, "order must succeed in its configured account mode")
+			assert.NotEmpty(t, response.OrderID, "successful order should retain its ID")
+			assert.Equal(t, int64(1), orderRequests.Load(), "one order should reach the selected transport")
+			assert.Equal(t, int64(1), modeRequests.Load(), "first order should fetch its account position mode")
+		})
+	}
+
+	for _, contextual := range []bool{false, true} {
+		t.Run(fmt.Sprintf("credential rotation/context=%t", contextual), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			ex.API.AuthenticatedSupport, ex.SkipAuthCheck = true, true
+			if err := ex.DisableRateLimiter(); err != nil {
+				require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled, "mock limiter must only report already disabled")
+			}
+			original := accounts.Credentials{Key: "original", Secret: "secret", ClientID: "passphrase"}
+			rotated := accounts.Credentials{Key: "rotated", Secret: "changed", ClientID: "new-passphrase"}
+			ex.SetCredentials(&original)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			store := &accounts.ContextCredentialsStore{}
+			store.Load(&original)
+			if contextual {
+				ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+			}
+			entered, release := make(chan struct{}), make(chan struct{})
+			var orders atomic.Int64
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, original.Key, r.Header.Get("OK-ACCESS-KEY"), "configuration and order should use the same credential snapshot")
+				response := `{"code":"0","data":[{"ordId":"frozen-order","sCode":"0"}]}`
+				if strings.HasSuffix(r.URL.Path, "account/config") {
+					close(entered)
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return
+					}
+					response = `{"code":"0","data":[{"posMode":"net_mode"}]}`
+				} else {
+					orders.Add(1)
+					payload, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "order body should read")
+					assert.Contains(t, string(payload), `"posSide":"net"`, "order should retain its original account's position mode")
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "client must configure")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must configure")
+			result := make(chan error, 1)
+			go func() {
+				_, err := ex.SubmitOrder(ctx, &order.Submit{Exchange: ex.Name, AssetType: asset.Futures, Pair: mainPair, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1, MarginType: margin.Multi})
+				result <- err
+			}()
+			select {
+			case <-entered:
+			case <-ctx.Done():
+				require.FailNow(t, "configuration request must begin")
+			}
+			if contextual {
+				store.Load(&rotated)
+			} else {
+				ex.SetCredentials(&rotated)
+			}
+			close(release)
+			select {
+			case err := <-result:
+				require.NoError(t, err, "order must retain its frozen account")
+			case <-ctx.Done():
+				require.FailNow(t, "frozen order must finish")
+			}
+			assert.Equal(t, int64(1), orders.Load(), "one order should reach the original account")
+		})
 	}
 
 	var resp []PlaceOrderRequestParam

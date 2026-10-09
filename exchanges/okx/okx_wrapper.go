@@ -932,6 +932,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
+	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {
+		creds, err := e.GetCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+	}
 	positionMode, err := e.contractPositionMode(ctx, s.AssetType)
 	if err != nil {
 		return nil, err
@@ -1000,7 +1009,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				orderRequest.OrderType = orderOptimalLimitIOC
 			}
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		useWebsocket := e.Websocket.CanUseAuthenticatedWebsocketForWrapper()
+		if useWebsocket && (s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap) {
+			conn, err := e.Websocket.GetConnection(privateConnection)
+			if err == nil {
+				err = e.checkWebsocketOrderCredentials(ctx, conn)
+			}
+			useWebsocket = err == nil
+		}
+		if useWebsocket {
 			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, s.AssetType, orderRequest.InstrumentID)
 			if resolveErr != nil {
 				return nil, resolveErr
@@ -1473,27 +1490,6 @@ func deriveOrderSide(side order.Side) (string, error) {
 	}
 }
 
-// contractPositionMode reads the account acted for by this request. Fetching it
-// for each submission also observes mode changes made outside this process.
-func (e *Exchange) contractPositionMode(ctx context.Context, a asset.Item) (string, error) {
-	if a != asset.Futures && a != asset.PerpetualSwap {
-		return "", nil
-	}
-	configuration, err := e.GetAccountConfiguration(ctx)
-	if err != nil {
-		return "", fmt.Errorf("error fetching account position mode: %w", err)
-	}
-	if configuration == nil {
-		return "", common.ErrNoResponse
-	}
-	switch configuration.PositionMode {
-	case "net_mode", "long_short_mode":
-		return configuration.PositionMode, nil
-	default:
-		return "", fmt.Errorf("%w: %q", errInvalidPositionMode, configuration.PositionMode)
-	}
-}
-
 func derivePositionSide(s *order.Submit, mode string) string {
 	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
 		return ""
@@ -1692,6 +1688,22 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	}
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
+	}
+	if s.AssetType == asset.Futures || s.AssetType == asset.PerpetualSwap {
+		creds, err := e.GetCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
+		store := &accounts.ContextCredentialsStore{}
+		store.Load(creds)
+		ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+		conn, err := e.Websocket.GetConnection(privateConnection)
+		if err != nil {
+			return nil, err
+		}
+		if err := e.checkWebsocketOrderCredentials(ctx, conn); err != nil {
+			return nil, err
+		}
 	}
 	if s.AssetType == asset.Spread {
 		pairFormat, err := e.GetPairFormat(s.AssetType, true)

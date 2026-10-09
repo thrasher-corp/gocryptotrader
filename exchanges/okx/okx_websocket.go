@@ -251,6 +251,7 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 }
 
 func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.Connection) error {
+	e.setWebsocketOrderCredentials(conn, nil)
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -281,16 +282,20 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 	var intermediary struct {
-		Code    int64  `json:"code,string"`
+		Code    *int64 `json:"code,string"`
 		Message string `json:"msg"`
 	}
 	if err := json.Unmarshal(resp, &intermediary); err != nil {
 		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 
-	if intermediary.Code != 0 {
-		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operationLogin, intermediary.Code, intermediary.Message)
+	if intermediary.Code == nil {
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operationLogin, common.ErrMalformedData)
 	}
+	if *intermediary.Code != 0 {
+		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operationLogin, *intermediary.Code, intermediary.Message)
+	}
+	e.setWebsocketOrderCredentials(conn, creds)
 	return nil
 }
 
