@@ -681,7 +681,17 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			ws := newConfiguredMultiManager(t, nil)
 			disconnected := make(chan Connection, 2)
 			public := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, OnDisconnect: func(conn Connection) { disconnected <- conn }}}
-			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Connector: dial, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }}}
+			var privateConn *connection
+			private := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{URL: mockURL, Handler: noopHandler, SubscriptionsNotRequired: true, Authenticated: true, Authenticate: func(context.Context, Connection) error { return errDastardlyReason }, Connector: func(ctx context.Context, conn Connection) error {
+				privateConn, _ = conn.(*connection)
+				return dial(ctx, conn)
+			}}}
+			t.Cleanup(func() {
+				// A removed connection is unreachable from manager Shutdown if cleanup regresses.
+				if privateConn != nil && privateConn.IsConnected() {
+					assert.NoError(t, privateConn.Shutdown(), "leaked private connection should close")
+				}
+			})
 			ws.connectionManager = []*websocket{public, private}
 			err := ws.Connect(t.Context())
 			require.ErrorIs(t, err, errFailedToAuthenticate, "Connect must report failed authentication")
@@ -689,6 +699,8 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			assert.False(t, ws.CanUseAuthenticatedEndpoints(), "private operations should be disabled")
 			require.Len(t, public.connections, 1, "public connection must remain tracked")
 			assert.Empty(t, private.connections, "failed private connection should be removed")
+			require.NotNil(t, privateConn, "private connection must be dialled")
+			require.False(t, privateConn.IsConnected(), "failed private connection must be closed")
 			require.NoError(t, public.connections[0].SendJSONMessage(t.Context(), request.Unset, map[string]string{"ping": "test"}), "public connection must remain usable")
 			require.NoError(t, ws.Shutdown(), "Shutdown must succeed")
 			select {
@@ -2333,7 +2345,13 @@ func TestReader(t *testing.T) {
 	conn := &readerTestConnection{Connection: m.CreateUnmanagedTestConnection("ws://closed")}
 	m.Wg.Add(1)
 	reader(t.Context(), conn, func(context.Context, Connection, []byte) error { return nil })
-	m.Wg.Wait()
+	done := make(chan struct{})
+	go func() { m.Wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		require.FailNow(t, "Reader must release the wait group")
+	}
 }
 
 func TestReadMessages(t *testing.T) {
@@ -2367,4 +2385,16 @@ func (c *readerTestConnection) ReadMessage() Response {
 	frame := c.frames[0]
 	c.frames = c.frames[1:]
 	return frame
+}
+
+func TestIsIdle(t *testing.T) {
+	t.Parallel()
+	for _, idle := range []bool{false, true} {
+		t.Run(strconv.FormatBool(idle), func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			m.idle.Store(idle)
+			assert.Equal(t, idle, m.IsIdle(), "idle state should reflect the last connection attempt")
+		})
+	}
 }

@@ -546,6 +546,16 @@ allTrades:
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
+// canUseWebsocketOrders requires the private request route before selecting
+// websocket submission over the REST fallback.
+func (e *Exchange) canUseWebsocketOrders() bool {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return false
+	}
+	_, err := e.Websocket.GetConnection("auth")
+	return err == nil
+}
+
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	if err := o.Validate(e.GetTradingRequirements()); err != nil {
@@ -559,7 +569,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 
 	var orderID string
 	status := order.New
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if e.canUseWebsocketOrders() {
 		var symbolStr string
 		if symbolStr, err = e.fixCasing(fPair, o.AssetType); err != nil {
 			return nil, err
@@ -619,7 +629,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
-	if e.Websocket.IsEnabled() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if e.Websocket.IsEnabled() && e.canUseWebsocketOrders() {
 		orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
 		if err != nil {
 			return &order.ModifyResponse{OrderID: action.OrderID}, err
@@ -657,7 +667,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if e.canUseWebsocketOrders() {
 		err = e.WsCancelOrder(ctx, orderIDInt)
 	} else {
 		_, err = e.CancelExistingOrder(ctx, orderIDInt)
@@ -676,7 +686,7 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if e.canUseWebsocketOrders() {
 		err = e.WsCancelAllOrders(ctx)
 	} else {
 		_, err = e.CancelAllExistingOrders(ctx)

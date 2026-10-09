@@ -68,6 +68,7 @@ type websocketTestConnection struct {
 	response  websocket.Response
 	dialCalls int
 	sent      []any
+	respond   func(context.Context, any, any) ([]byte, error)
 }
 
 func (c *websocketTestConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
@@ -80,8 +81,11 @@ func (c *websocketTestConnection) SendJSONMessage(_ context.Context, _ request.E
 	return c.sendErr
 }
 
-func (c *websocketTestConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+func (c *websocketTestConnection) SendMessageReturnResponse(ctx context.Context, _ request.EndpointLimit, signature, payload any) ([]byte, error) {
 	c.sent = append(c.sent, payload)
+	if c.respond != nil {
+		return c.respond(ctx, signature, payload)
+	}
 	return c.response.Raw, c.sendErr
 }
 
@@ -2280,6 +2284,50 @@ func TestUnsubscribeForConnection(t *testing.T) {
 
 func TestManageSubs(t *testing.T) {
 	t.Parallel()
+
+	for _, code := range []int{200, 400} {
+		t.Run(fmt.Sprintf("private round trip %d", code), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath)}
+			conn.respond = func(ctx context.Context, signature, payload any) ([]byte, error) {
+				req, ok := payload.(wsReq)
+				require.True(t, ok, "private request must use V2 format")
+				matched, err := conn.MatchReturnResponses(ctx, signature, 1)
+				if err != nil {
+					return nil, err
+				}
+				response := []byte(fmt.Sprintf(`{"action":%q,"ch":%q,"code":%d}`, req.Action, req.Channel, code))
+				if err := ex.wsHandleData(ctx, conn, response); err != nil {
+					return nil, err
+				}
+				select {
+				case result := <-matched:
+					if result.Err != nil {
+						return nil, result.Err
+					}
+					return result.Responses[0], nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			sub := &subscription.Subscription{Authenticated: true, QualifiedChannel: "orders#btcusdt"}
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			if code != 200 {
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "existing private subscription must register")
+				assert.Error(t, ex.manageSubs(ctx, conn, wsUnsubOp, subscription.List{sub}), "rejected unsubscribe should return a venue error")
+				assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "rejected unsubscribe should preserve its subscription")
+				return
+			}
+			require.NoError(t, ex.manageSubs(ctx, conn, wsSubOp, subscription.List{sub}), "private subscribe must match its acknowledgement")
+			assert.Equal(t, subscription.SubscribedState, sub.State(), "subscribe should activate the subscription")
+			require.NoError(t, ex.manageSubs(ctx, conn, wsUnsubOp, subscription.List{sub}), "private unsubscribe must match its acknowledgement")
+			assert.Nil(t, ex.Websocket.GetSubscription(sub), "unsubscribe should remove its subscription")
+			assert.Equal(t, subscription.UnsubscribedState, sub.State(), "unsubscribe should transition its state")
+		})
+	}
 
 	t.Run("rejects batching", func(t *testing.T) {
 		t.Parallel()

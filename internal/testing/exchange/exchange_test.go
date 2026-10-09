@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -96,8 +97,22 @@ func TestMockHTTPInstance(t *testing.T) {
 
 // TestMockWsInstance exercises MockWsInstance
 func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
-	require.NotNil(t, b, "MockWsInstance must not be nil")
+	t.Parallel()
+	for i := range 6 {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+			var b *binance.Exchange
+			t.Cleanup(func() {
+				require.NotNil(t, b, "MockWsInstance must remain available after cleanup")
+				assert.False(t, b.Websocket.IsConnected(), "cleanup should close mock connections")
+				assert.False(t, b.Websocket.IsEnabled(), "cleanup should stop reconnect monitoring")
+			})
+			b = MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+			require.NotNil(t, b, "MockWsInstance must not be nil")
+			assert.True(t, b.Websocket.IsConnected(), "mock connection should be ready")
+			assert.False(t, b.Websocket.CanUseAuthenticatedEndpoints(), "legacy mocks should not attempt live authentication")
+		})
+	}
 }
 
 func TestMockWsInstanceVerbose(t *testing.T) {
@@ -125,6 +140,7 @@ func TestMockWsInstanceSupportsMultiConnectionManagement(t *testing.T) {
 		}
 	})
 	assert.True(t, b.GetBase().Websocket.IsConnected(), "Websocket manager should be connected for multi-connection websocket exchanges")
+	assert.True(t, b.GetBase().Websocket.CanUseAuthenticatedEndpoints(), "managed mocks should retain their private routes")
 }
 
 func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {

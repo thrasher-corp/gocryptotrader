@@ -318,6 +318,11 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
 func (m *Manager) FlushChannels(ctx context.Context) error {
+	if m.IsIdle() {
+		if err := m.Connect(ctx); !errors.Is(err, errAlreadyConnected) {
+			return err
+		}
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	return m.flushChannels(ctx)

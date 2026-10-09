@@ -2187,7 +2187,6 @@ func TestSendWsPayload(t *testing.T) {
 			}
 			return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","result":`+result+`}`))
 		}))
-		t.Cleanup(func() { assert.NoError(t, ex.Websocket.Shutdown(), "websocket should shut down") })
 		var result struct {
 			OrderID string `json:"order_id"`
 		}
@@ -4456,6 +4455,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s.Asset = a
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
+					if !e.supportsChannel(s, a, p) {
+						continue
+					}
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = channelName(s) + "." + p.String()
 					if s.Interval != 0 {
@@ -4472,6 +4474,27 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
+	t.Run("USDC spot streams", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+		pairs := currency.Pairs{currency.NewPair(currency.BTC, currency.USDC), currency.NewPair(currency.ETH, currency.USDC)}
+		require.NoError(t, ex.UpdatePairs(pairs, asset.Spot, false), "available spot pairs must update")
+		require.NoError(t, ex.UpdatePairs(pairs, asset.Spot, true), "enabled spot pairs must update")
+		ex.Features.Subscriptions = subscription.List{
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+		}
+		generated, err := ex.generateSubscriptions()
+		require.NoError(t, err, "unsupported streams must be omitted without preventing valid expansion")
+		channels := make([]string, 0, len(generated))
+		for _, s := range generated {
+			channels = append(channels, s.QualifiedChannel)
+		}
+		assert.ElementsMatch(t, []string{"ticker.BTC_USDC.100ms", "ticker.ETH_USDC.100ms", "book.BTC_USDC.100ms", "book.ETH_USDC.100ms"}, channels, "only supported USDC spot channels should be generated")
+	})
 }
 
 func TestSubscribeForConnection(t *testing.T) {
@@ -4618,10 +4641,43 @@ func TestChannelName(t *testing.T) {
 
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "live balance update must succeed")
+		assert.NotNil(t, result, "live update should return balances")
+	})
+	for _, requested := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.All} {
+		t.Run(requested.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				payload := `{"result":[{"currency":"BTC"},{"currency":"ETH"}]}`
+				if strings.HasSuffix(r.URL.Path, getAccountSummary) {
+					payload = `{"result":{"balance":10,"available_funds":7}}`
+				}
+				_, err := fmt.Fprint(w, payload)
+				assert.NoError(t, err, "response write should succeed")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client setup must succeed")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "endpoint setup must succeed")
+			result, err := ex.UpdateAccountBalances(t.Context(), requested)
+			require.NoError(t, err, "shared collateral must save under a valid asset")
+			require.Len(t, result, 1, "shared collateral must have one account")
+			assert.Equal(t, asset.Spot, result[0].AssetType, "all callers should use the canonical shared wallet")
+			balances, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+			require.NoError(t, err, "aggregate balances must be available")
+			for _, curr := range []currency.Code{currency.BTC, currency.ETH} {
+				assert.Equal(t, 10.0, balances[curr].Total, "shared collateral should not be double counted")
+				assert.Equal(t, 3.0, balances[curr].Hold, "hold should reflect unavailable funds")
+			}
+		})
+	}
 }
 
 func TestGetFundingHistory(t *testing.T) {
@@ -5124,6 +5180,7 @@ func TestGetLockedStatus(t *testing.T) {
 
 func TestSayHello(t *testing.T) {
 	t.Parallel()
+	testexch.SetupWs(t, e)
 	result, err := e.SayHello(t.Context(), "Thrasher", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -6005,4 +6062,35 @@ func TestTickerPathsAgree(t *testing.T) {
 	exp.BaseVolume, exp.QuoteVolume = 4289.0028892, 3.3126e8
 	exp.OpenInterest = 840922200
 	assert.Equal(t, exp, received("incremental_ticker.BTC-PERPETUAL"), "a change should merge onto the snapshot")
+}
+
+func TestSupportsChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		asset     asset.Item
+		supported bool
+	}{
+		{asset.Spot, true},
+		{asset.Futures, true},
+		{asset.Options, true},
+		{asset.OptionCombo, true},
+		{asset.FutureCombo, true},
+		{asset.Empty, false},
+		{asset.All, false},
+		{asset.Margin, false},
+		{asset.PerpetualSwap, false},
+		{asset.Binary, false},
+	} {
+		for _, channel := range []string{subscription.AllTradesChannel, tradesChannel, subscription.CandlesChannel, chartTradesChannel, subscription.TickerChannel, subscription.OrderbookChannel, "custom.channel"} {
+			for _, quote := range []currency.Code{currency.USDC, currency.BTC} {
+				t.Run(fmt.Sprintf("%s/%s/%s", tc.asset, channel, quote), func(t *testing.T) {
+					t.Parallel()
+					ex := new(Exchange)
+					ex.SetDefaults()
+					unsupportedChannel := tc.asset == asset.Spot && quote.Equal(currency.USDC) && (channel == subscription.AllTradesChannel || channel == tradesChannel || channel == subscription.CandlesChannel || channel == chartTradesChannel)
+					assert.Equal(t, tc.supported && !unsupportedChannel, ex.supportsChannel(&subscription.Subscription{Channel: channel}, tc.asset, currency.NewPair(currency.ETH, quote)), "only supported assets and streams should be accepted")
+				})
+			}
+		}
+	}
 }

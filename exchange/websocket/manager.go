@@ -82,6 +82,7 @@ const (
 type Manager struct {
 	enabled                       atomic.Bool
 	state                         atomic.Uint32
+	idle                          atomic.Bool
 	verbose                       bool
 	canUseAuthenticatedEndpoints  atomic.Bool
 	authenticatedSupport          atomic.Bool
@@ -475,12 +476,12 @@ func (m *Manager) connect(ctx context.Context) error {
 	}
 	m.subscriptions.Clear()
 
+	m.idle.Store(false)
 	m.setState(connectingState)
 
-	m.Wg.Add(1)
-	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
-
 	if !m.useMultiConnectionManagement {
+		m.Wg.Add(1)
+		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 		if m.connector == nil {
 			return fmt.Errorf("%v %w", m.exchangeName, errNoConnectFunc)
 		}
@@ -672,9 +673,14 @@ func (m *Manager) connect(ctx context.Context) error {
 	connected := len(m.connections) > 0
 	m.connectionManagerMu.RUnlock()
 	if !connected {
+		m.idle.Store(true)
 		m.setState(disconnectedState)
 		return subscriptionError
 	}
+
+	// Idle connects must not leave a monitor competing for later traffic alerts.
+	m.Wg.Add(1)
+	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
 	// Assume connected state here. All connections have been established.
 	// All subscriptions have been sent and stored. All data received is being
@@ -908,6 +914,12 @@ func (m *Manager) IsConnected() bool {
 // IsConnecting returns whether the websocket is connecting
 func (m *Manager) IsConnecting() bool {
 	return m.state.Load() == connectingState
+}
+
+// IsIdle reports whether a successful connect found no subscriptions or sockets,
+// allowing pair or asset changes to activate the manager without reconnecting failures.
+func (m *Manager) IsIdle() bool {
+	return m.idle.Load()
 }
 
 func (m *Manager) setEnabled(b bool) {

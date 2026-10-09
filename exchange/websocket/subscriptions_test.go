@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -727,6 +729,67 @@ func TestFlushChannelsConcurrentReaders(t *testing.T) {
 
 func TestFlushChannels(t *testing.T) {
 	t.Parallel()
+	t.Run("idle activation retains healthy traffic", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = 10 * time.Millisecond
+		require.NoError(t, m.Setup(setup), "Setup must not error")
+		srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+		var pairEnabled atomic.Bool
+		var received atomic.Int64
+		var connected Connection
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+			URL: "ws" + srv.URL[len("http"):] + "/ws",
+			Connector: func(ctx context.Context, conn Connection) error {
+				connected = conn
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				if !pairEnabled.Load() {
+					return nil, nil
+				}
+				return subscription.List{{Channel: "ticker"}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return m.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return m.RemoveSubscriptions(conn, subs...)
+			},
+			Handler: func(context.Context, Connection, []byte) error { received.Add(1); return nil },
+		}), "SetupNewConnection must not error")
+		require.NoError(t, m.Connect(t.Context()), "empty startup connect must succeed")
+		require.True(t, m.IsIdle(), "manager with no subscriptions must report idle")
+		require.False(t, m.IsConnected(), "idle manager must remain disconnected")
+		done := make(chan struct{})
+		go func() { m.Wg.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			require.FailNow(t, "Idle manager must have no traffic-monitor goroutine")
+		}
+		require.NoError(t, m.FlushChannels(t.Context()), "flush with nothing enabled must remain a successful idle connect")
+		pairEnabled.Store(true)
+		require.NoError(t, m.FlushChannels(t.Context()), "flush must activate an idle manager")
+		require.NotNil(t, connected, "activation must create a connection")
+		require.True(t, m.IsConnected(), "activation must connect the manager")
+		assert.False(t, m.IsIdle(), "connected manager should clear idle state")
+		assert.Len(t, m.GetSubscriptions(), 1, "new subscription should be registered")
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for range 12 {
+			<-ticker.C
+			require.True(t, m.IsConnected(), "regular traffic must keep the activated manager connected")
+			require.NoError(t, connected.SendJSONMessage(t.Context(), request.Unset, map[string]string{"ping": "test"}), "healthy connection must accept traffic")
+		}
+		assert.Positive(t, received.Load(), "echo traffic should reach the reader")
+	})
+
 	// Enabled pairs/setup system
 
 	dodgyWs := Manager{}

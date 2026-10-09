@@ -3,6 +3,7 @@ package exchange
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -118,7 +119,19 @@ func MockWsInstance[T any, PT interface {
 	b := e.GetBase()
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
-	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	// Managed private setups need this flag; legacy connectors must not try
+	// authenticating against endpoints outside the mock server.
+	if b.Websocket.Conn == nil {
+		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
+	tb.Cleanup(func() {
+		if err := b.Websocket.Disable(); err != nil && !errors.Is(err, websocket.ErrAlreadyDisabled) {
+			assert.NoError(tb, err, "Websocket disable should not error")
+		}
+		if err := b.Websocket.Shutdown(); err != nil && !errors.Is(err, websocket.ErrNotConnected) {
+			assert.NoError(tb, err, "Websocket shutdown should not error")
+		}
+	})
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
 

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1675,7 +1676,11 @@ func TestHandleWSEvent(t *testing.T) {
 		message     string
 		errIs       error
 		errContains string
+		wantAuth    bool
 	}{
+		{name: "auth accepted", message: `{"event":"auth","status":"OK"}`, wantAuth: true},
+		{name: "auth rejected", message: `{"event":"auth","status":"ERROR","code":10100}`, errContains: "WS auth subscription error"},
+		{name: "auth malformed", message: `{"event":"auth"}`, errIs: common.ErrParsingWSField},
 		{name: "info", message: `{"event":"info"}`},
 		{name: "missing event", message: `{}`, errIs: common.ErrParsingWSField},
 		{name: "unknown event", message: `{"event":"unknown"}`, errContains: "unknown WS event"},
@@ -1684,6 +1689,9 @@ func TestHandleWSEvent(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			if strings.HasPrefix(tc.name, "auth ") {
+				ex.Websocket.SetCanUseAuthenticatedEndpoints(!tc.wantAuth)
+			}
 			err := ex.handleWSEvent(t.Context(), testexch.GetMockConn(t, ex, ""), []byte(tc.message))
 			switch {
 			case tc.errIs != nil:
@@ -1692,6 +1700,9 @@ func TestHandleWSEvent(t *testing.T) {
 				require.ErrorContains(t, err, tc.errContains, "handleWSEvent must return the expected error")
 			default:
 				require.NoError(t, err, "handleWSEvent must not error")
+			}
+			if strings.HasPrefix(tc.name, "auth ") {
+				assert.Equal(t, tc.wantAuth, ex.Websocket.CanUseAuthenticatedEndpoints(), "authentication state should follow the acknowledgement")
 			}
 		})
 	}

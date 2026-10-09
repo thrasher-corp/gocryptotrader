@@ -3,8 +3,11 @@ package bitfinex
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,10 +20,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 type wsConnectFixtureConnection struct {
@@ -332,4 +338,95 @@ func TestHandleWSSubscribedConnectionIsolation(t *testing.T) {
 		assert.Same(t, sub, ex.Websocket.GetSubscription(websocketChannelKey{tc.conn, 1}), "channel ID should belong to its connection")
 	}
 	assert.NotSame(t, ex.Websocket.GetSubscription(websocketChannelKey{a, 1}), ex.Websocket.GetSubscription(websocketChannelKey{b, 1}), "identical channel IDs should remain distinct")
+}
+
+func TestCanUseWebsocketOrders(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                          string
+		privateDialFails, disableAuth bool
+		authResponse                  string
+		want                          bool
+	}{
+		{name: "private route", want: true},
+		{name: "private dial failure", privateDialFails: true},
+		{name: "authentication disabled", disableAuth: true},
+		{name: "authentication rejected", authResponse: `{"event":"auth","status":"ERROR","code":10100}`},
+		{name: "authentication malformed", authResponse: `{"event":"auth"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var dials atomic.Int32
+			upgrade := mockws.CurryWsMockUpgrader(t, func(_ testing.TB, raw []byte, c *gws.Conn) error {
+				var req map[string]any
+				if err := json.Unmarshal(raw, &req); err != nil {
+					return err
+				}
+				switch req["event"] {
+				case "conf":
+					return c.WriteMessage(gws.TextMessage, []byte(`{"event":"conf","status":"OK"}`))
+				case "subscribe":
+					return c.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"event":"subscribed","channel":"ticker","chanId":1,"subId":%q}`, req["subId"]))
+				}
+				return nil
+			})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if dials.Add(1) > 1 && tc.privateDialFails {
+					http.Error(w, "private endpoint unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				upgrade(w, r)
+			}))
+			server.Start() // The connector uses its own dialler and requires a network socket.
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			ex.Websocket.SetAuthenticatedSupport(true)
+			ex.API.AuthenticatedWebsocketSupport = true
+			ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}}}
+			connectErr := ex.Websocket.Connect(t.Context())
+			t.Cleanup(func() {
+				if err := ex.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "Disable should only report an already disabled monitor")
+				}
+				if err := ex.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only report already closed mock connections")
+				}
+			})
+			if tc.privateDialFails {
+				require.ErrorIs(t, connectErr, websocket.ErrNotConnected, "Connect must report the private dial failure")
+				require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "authentication must stay enabled when only the private dial fails")
+			} else {
+				require.NoError(t, connectErr, "Connect must establish both routes")
+			}
+			if tc.disableAuth {
+				ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			}
+			if tc.authResponse != "" {
+				conn, err := ex.Websocket.GetConnection("auth")
+				require.NoError(t, err, "private connection must remain dialled to reproduce rejected authentication")
+				require.Error(t, ex.handleWSEvent(t.Context(), conn, []byte(tc.authResponse)), "invalid authentication must report an error")
+				assert.False(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "invalid authentication should disable private requests")
+			}
+			assert.Equal(t, tc.want, ex.canUseWebsocketOrders(), "orders should require an authenticated connected private route")
+			if tc.want {
+				return
+			}
+			var cancellations atomic.Int32
+			restServer := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				cancellations.Add(1)
+				assert.True(t, strings.HasSuffix(r.URL.Path, "order/cancel/all"), "cancellation should use the REST route")
+				_, err := w.Write([]byte(`{"result":"success"}`))
+				assert.NoError(t, err, "cancellation response should write")
+			}))
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(restServer.Client()), "mock HTTP client must configure")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), restServer.URL+"/"), "REST endpoint must configure")
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{})
+			require.NoError(t, err, "cancellation must fall back to REST")
+			assert.Equal(t, int32(1), cancellations.Load(), "one cancellation should reach REST rather than an unavailable or unauthenticated socket")
+		})
+	}
 }

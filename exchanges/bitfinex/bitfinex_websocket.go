@@ -467,6 +467,8 @@ func (e *Exchange) handleWSEvent(ctx context.Context, conn websocket.Connection,
 			return fmt.Errorf("unknown channel error; Message: %s", respRaw)
 		}
 	case wsEventAuth:
+		// A dialled private socket cannot serve requests after failed authentication.
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		status, err := jsonparser.GetUnsafeString(respRaw, "status")
 		if err != nil {
 			return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, respRaw)
@@ -476,6 +478,7 @@ func (e *Exchange) handleWSEvent(ctx context.Context, conn websocket.Connection,
 			if err := json.Unmarshal(respRaw, &glob); err != nil {
 				return fmt.Errorf("unable to Unmarshal auth resp; Error: %w Msg: %v", err, respRaw)
 			}
+			e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			// TODO - Send a better value down the channel
 			return e.Websocket.DataHandler.Send(ctx, glob)
 		}

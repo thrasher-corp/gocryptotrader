@@ -531,7 +531,11 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
-	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
+	matchOp := wsSubOp
+	if s.Authenticated {
+		matchOp = op
+	}
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, matchOp+":"+s.QualifiedChannel, req)
 	if err == nil {
 		err = getErrResp(respRaw)
 	}

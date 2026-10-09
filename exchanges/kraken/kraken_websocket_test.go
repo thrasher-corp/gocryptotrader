@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -498,6 +500,27 @@ func TestCanUseWebsocketOrders(t *testing.T) {
 			assert.Equal(t, tc.want, ex.canUseWebsocketOrders(), "selection should require authentication and a connected private route")
 		})
 	}
+	t.Run("public connection without private channels", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		server := httptest.NewTestServer(t, mockWsHandler(t, mockWsServer))
+		server.Start() // The connector uses its own dialler and requires a network socket.
+		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
+		ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
+		ex.Websocket.SetAuthenticatedSupport(true)
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		t.Cleanup(func() {
+			if err := ex.Websocket.Disable(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "Disable should only report an already disabled monitor")
+			}
+			if err := ex.Websocket.Shutdown(); err != nil {
+				assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only report already closed mock connections")
+			}
+		})
+		require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "authentication must stay enabled with only the public connection")
+		assert.False(t, ex.canUseWebsocketOrders(), "orders should use REST when the private connection is not dialled")
+	})
 }
 
 func TestWsCancelOrder(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -848,7 +849,13 @@ func (e *Exchange) processOrderbook(ctx context.Context, respRaw []byte, channel
 
 // generateSubscriptions returns a list of configured subscriptions
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
+		return len(s.Pairs) == 1 && !e.supportsChannel(s, s.Asset, s.Pairs[0])
+	}), nil
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -971,6 +978,25 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 		return true
 	}
 	return false
+}
+
+// supportsChannel requires an asset supported by this exchange and excludes
+// unsupported USDC spot trade and candle streams.
+func (e *Exchange) supportsChannel(s *subscription.Subscription, a asset.Item, p currency.Pair) bool {
+	if !e.SupportsAsset(a) {
+		return false
+	}
+	if a != asset.Spot {
+		return true
+	}
+	if !p.Quote.Equal(currency.USDC) {
+		return true
+	}
+	channel, ok := subscriptionNames[s.Channel]
+	if !ok {
+		channel = s.Channel
+	}
+	return channel != tradesChannel && channel != chartTradesChannel
 }
 
 const subTplText = `
