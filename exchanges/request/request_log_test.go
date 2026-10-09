@@ -27,6 +27,7 @@ var sensitiveLogKeys = []string{
 	"X-BAPI-SIGN",
 	"Btse-Api",
 	"X-Auth",
+	"X-Exchange-Auth",
 	"Btse-Sign",
 	"Kc-Api-Sign",
 	"Api-Sign",
@@ -74,6 +75,8 @@ func TestIsSensitiveLogKey(t *testing.T) {
 		{name: "prefix_refresh_TOKEN", sensitive: true},
 		{name: "Btse-Api", sensitive: true},
 		{name: "X-Auth", sensitive: true},
+		{name: "X-Exchange-Auth", sensitive: true},
+		{name: "X_Exchange_Api", sensitive: true},
 		{name: "prefix_AuTh", sensitive: true},
 		{name: "_api", sensitive: true},
 		{name: "api"},
@@ -254,6 +257,7 @@ func TestBodyForLogContentTypeAndUnchangedJSON(t *testing.T) {
 		{name: "declared form carrying a number outside float64's range", contentType: "application/x-www-form-urlencoded", body: `{"password":"secret","n":1e9999}`, expected: "[REDACTED INVALID JSON BODY]"},
 		{name: "declared form carrying an indented JSON array", contentType: "application/x-www-form-urlencoded", body: ` [{"apiKey":"secret"}]`, expected: ` [{"apiKey":"[REDACTED]"}]`},
 		{name: "non-form body", contentType: "text/plain", body: "upstream unavailable", expected: "[REDACTED NON-FORM BODY]"},
+		{name: "undeclared invalid JSON", body: `{"password":"secret"`, expected: "[REDACTED INVALID JSON BODY]"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -314,6 +318,16 @@ func TestURLErrorForLogRedactsNestedURLs(t *testing.T) {
 	assert.Contains(t, redacted.Error(), "signature=[REDACTED]", "redacted error should retain diagnostic query structure")
 	assert.Contains(t, err.Error(), "outer-secret", "redaction should not mutate the original outer error")
 	assert.Contains(t, err.Error(), "inner-secret", "redaction should not mutate the original nested error")
+	assert.NoError(t, urlErrorForLog(nil), "a nil error interface should be returned unchanged")
+	var typedNil *url.Error
+	require.NotPanics(t, func() { redacted = urlErrorForLog(typedNil) }, "a typed-nil URL error must not panic redaction")
+	assert.Same(t, typedNil, redacted, "a typed-nil URL error should be returned unchanged")
+	nestedNil := &url.Error{Op: http.MethodGet, URL: "https://example.com/api?signature=placeholder", Err: typedNil}
+	require.NotPanics(t, func() { redacted = urlErrorForLog(nestedNil) }, "a nested typed-nil URL error must not panic redaction")
+	nestedRedacted, ok := redacted.(*url.Error)
+	require.True(t, ok, "the redacted outer error must retain its URL error type")
+	assert.Equal(t, "https://example.com/api?signature=[REDACTED]", nestedRedacted.URL, "the outer URL should be redacted beside a typed-nil cause")
+	assert.Same(t, typedNil, nestedRedacted.Err, "the nested typed-nil error should be preserved without dereferencing it")
 
 	var deep error
 	deep = errors.New("transport failure")
