@@ -237,7 +237,12 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	// (e.g. HTTP 204 No Content) to avoid a spurious syntax error.
 	var unmarshallError error
 	if p.Result != nil && resp.StatusCode != http.StatusNoContent {
-		unmarshallError = json.Unmarshal(contents, p.Result)
+		// A *[]byte result takes the body as sent, for endpoints replying with files rather than JSON
+		if body, ok := p.Result.(*[]byte); ok {
+			*body = contents
+		} else {
+			unmarshallError = json.Unmarshal(contents, p.Result)
+		}
 	}
 
 	if p.HTTPRecording {

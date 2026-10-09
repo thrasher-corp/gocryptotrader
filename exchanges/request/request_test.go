@@ -1108,6 +1108,27 @@ func TestDoRequest_NoContent(t *testing.T) {
 	}
 }
 
+func TestDoRequestRawBodyResult(t *testing.T) {
+	t.Parallel()
+	const csvBody = "date,uid\n2026-10-09T00:00:00Z,c1\n"
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/csv")
+		_, err := w.Write([]byte(csvBody))
+		assert.NoError(t, err, "Write should not error")
+	}))
+	r, err := New("test", common.NewHTTPClientWithTimeout(0), WithLimiter(globalshell))
+	require.NoError(t, err, "New requester must not error")
+	t.Cleanup(func() { assert.NoError(t, r.Shutdown(), "Shutdown should not error") })
+	require.NoError(t, r.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+
+	var body []byte
+	err = r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+		return &Item{Method: http.MethodGet, Path: server.URL, Result: &body}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error for a non-JSON body taken as bytes")
+	assert.Equal(t, csvBody, string(body), "A *[]byte result should hold the body as sent")
+}
+
 func TestDoRequest_Retries(t *testing.T) {
 	t.Parallel()
 

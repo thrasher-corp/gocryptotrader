@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 17,
+ "version": 18,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -2315,8 +2315,10 @@
      "RestFuturesSupplementaryURL": "https://futures.kraken.com/api/",
      "RestFuturesURL": "https://futures.kraken.com/derivatives",
      "RestSpotURL": "https://api.kraken.com",
-     "WebsocketSpotSupplementaryURL": "wss://ws-auth.kraken.com",
-     "WebsocketSpotURL": "wss://ws.kraken.com"
+     "WebsocketFuturesURL": "wss://futures.kraken.com/ws/v1",
+     "WebsocketPrivateURL": "wss://ws-l3.kraken.com/v2",
+     "WebsocketSpotSupplementaryURL": "wss://ws-auth.kraken.com/v2",
+     "WebsocketSpotURL": "wss://ws.kraken.com/v2"
     }
    },
    "features": {
@@ -2367,6 +2369,33 @@
      {
       "enabled": true,
       "channel": "myTrades",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "ticker",
+      "asset": "futures"
+     },
+     {
+      "enabled": true,
+      "channel": "allTrades",
+      "asset": "futures"
+     },
+     {
+      "enabled": true,
+      "channel": "orderbook",
+      "asset": "futures"
+     },
+     {
+      "enabled": true,
+      "channel": "myOrders",
+      "asset": "futures",
+      "authenticated": true
+     },
+     {
+      "enabled": true,
+      "channel": "myTrades",
+      "asset": "futures",
       "authenticated": true
      }
     ]

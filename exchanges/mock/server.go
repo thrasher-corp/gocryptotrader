@@ -300,7 +300,12 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 				case float64:
 					mockVals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
 				case map[string]any, []any, nil:
-					mockVals.Add(k, fmt.Sprintf("%v", val))
+					// Encoded as DeriveURLValsFromJSONMap encodes the request's values, so nested values can match
+					b, err := json.Marshal(val)
+					if err != nil {
+						return nil, err
+					}
+					mockVals.Add(k, string(b))
 				default:
 					log.Println(reflect.TypeOf(val))
 					log.Fatal("unhandled type please add as needed")
