@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -4786,6 +4787,64 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestGetHistoricalFundingRatesPageOverlap(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(49 * time.Hour)
+	var requests atomic.Int64
+	// Return ascending hourly records after the requested start, including the
+	// end, keeping only the latest page. This repeats the boundary of the next page.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if requests.Add(1) > 100 || r.URL.Path != "/api/v2/public/get_funding_rate_history" || q.Get("instrument_name") != btcPerpInstrument {
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		startMilli, err := strconv.ParseInt(q.Get("start_timestamp"), 10, 64)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		endMilli, err := strconv.ParseInt(q.Get("end_timestamp"), 10, 64)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		hour := time.Hour.Milliseconds()
+		var records []map[string]int64
+		for ts := startMilli/hour*hour + hour; ts <= endMilli; ts += hour {
+			records = append(records, map[string]int64{"timestamp": ts})
+		}
+		records = records[max(0, len(records)-24):]
+		assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"result": records}), "Encode should not error")
+	}))
+	defer srv.Close()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
+	cp, err := currency.NewPairFromString(btcPerpInstrument)
+	require.NoError(t, err, "NewPairFromString must not error")
+	result, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            cp,
+		PaymentCurrency: currency.USDT,
+		StartDate:       start,
+		EndDate:         end,
+	})
+	require.NoError(t, err, "GetHistoricalFundingRates must not error")
+	expected := make([]int64, 0, 49)
+	for ts := start.Add(time.Hour); !ts.After(end); ts = ts.Add(time.Hour) {
+		expected = append(expected, ts.UnixMilli())
+	}
+	got := make([]int64, 0, len(result.FundingRates))
+	for _, rate := range result.FundingRates {
+		got = append(got, rate.Time.UnixMilli())
+	}
+	assert.Equal(t, expected, got, "GetHistoricalFundingRates should return each hourly rate once when pages overlap")
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {

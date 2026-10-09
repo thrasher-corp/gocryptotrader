@@ -934,15 +934,14 @@ func (m *Manager) GetConfiguredWebsocketURLs() ([]string, error) {
 		m.connectionManagerMu.RLock()
 		defer m.connectionManagerMu.RUnlock()
 		urls := make([]string, 0, len(m.connectionManager))
-		seen := make(map[string]struct{}, len(m.connectionManager))
+		seen := make(common.Seen[string], len(m.connectionManager))
 		for _, ws := range m.connectionManager {
 			if ws == nil || ws.setup.URL == "" {
 				continue
 			}
-			if _, ok := seen[ws.setup.URL]; ok {
+			if seen.CheckAndRecord(ws.setup.URL) {
 				continue
 			}
-			seen[ws.setup.URL] = struct{}{}
 			urls = append(urls, ws.setup.URL)
 		}
 		return urls, nil

@@ -753,3 +753,18 @@ func (m *mergedContext) Value(key any) any {
 	}
 	return m.Context.Value(key)
 }
+
+// Seen is a generic set-like type that tracks whether items of type T have been seen before.
+// It is not safe for concurrent use without external synchronisation.
+type Seen[T comparable] map[T]bool
+
+// CheckAndRecord reports whether item has been seen before, and records it if not.
+// An entry stored as false counts as unseen.
+// When sharing a Seen instance, callers must synchronise the entire CheckAndRecord call and any direct map access.
+func (s Seen[T]) CheckAndRecord(item T) bool {
+	if s[item] {
+		return true
+	}
+	s[item] = true
+	return false
+}

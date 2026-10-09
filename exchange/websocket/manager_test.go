@@ -1638,6 +1638,13 @@ func TestGetConfiguredWebsocketURLs(t *testing.T) {
 	urls, err = multi.GetConfiguredWebsocketURLs()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"wss://one.example/ws", "wss://two.example/ws"}, urls)
+
+	connSetupThree := *connSetupOne
+	connSetupThree.MessageFilter = "three"
+	require.NoError(t, multi.SetupNewConnection(&connSetupThree), "SetupNewConnection must accept a shared URL under another message filter")
+	urls, err = multi.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.ElementsMatch(t, []string{"wss://one.example/ws", "wss://two.example/ws"}, urls, "GetConfiguredWebsocketURLs should list a shared URL once")
 }
 
 func TestConnectionShutdown(t *testing.T) {
