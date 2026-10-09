@@ -645,7 +645,7 @@ type AnnouncementDataPoint struct {
 	OfficialActualReleaseDatetimeLocal  time.Time       `json:"official_actual_release_datetime_local"`
 	CollectedAtNanoseconds              types.Time      `json:"collected_at_ns"`
 	CollectedAtISO                      time.Time       `json:"collected_at_iso"`
-	IngestionLatencyMS                  float64         `json:"ingestion_latency_ms"`
+	IngestionLatencyMilliseconds        float64         `json:"ingestion_latency_ms"`
 	IngestionLatencyReference           string          `json:"ingestion_latency_reference"`
 	PercentChange                       float64         `json:"pct_change"`
 	PercentChangeYearOverYear           float64         `json:"pct_change_yoy"`
@@ -790,35 +790,35 @@ type AnnouncementChangeEvent struct {
 	StreamReadyAtNanoseconds                           types.Time                  `json:"stream_ready_at_ns"`
 	ServerSentAtNanoseconds                            types.Time                  `json:"server_sent_at_ns"`
 	AcknowledgementEndpoint                            string                      `json:"acknowledgement_endpoint"`
-	AgeMS                                              float64                     `json:"age_ms"`
-	StaleAfterMS                                       float64                     `json:"stale_after_ms"`
+	AgeMilliseconds                                    float64                     `json:"age_ms"`
+	StaleAfterMilliseconds                             float64                     `json:"stale_after_ms"`
 	Stale                                              bool                        `json:"stale"`
 	LateDelivery                                       bool                        `json:"late_delivery"`
 	LateEventsAreDelivered                             bool                        `json:"late_events_are_delivered"`
 	ScheduledReleaseAtNanoseconds                      types.Time                  `json:"scheduled_release_at_ns"`
-	ScheduledToServerSendMS                            float64                     `json:"scheduled_to_server_send_ms"`
+	ScheduledToServerSendMilliseconds                  float64                     `json:"scheduled_to_server_send_ms"`
 	SourceLate                                         bool                        `json:"source_late"`
-	SourceLateByMS                                     float64                     `json:"source_late_by_ms"`
+	SourceLateByMilliseconds                           float64                     `json:"source_late_by_ms"`
 	SourceDelayProven                                  bool                        `json:"source_delay_proven"`
-	PlatformDeliveryAfterSourceMS                      float64                     `json:"platform_delivery_after_source_ms"`
+	PlatformDeliveryAfterSourceMilliseconds            float64                     `json:"platform_delivery_after_source_ms"`
 	PollingStartedAtNanoseconds                        types.Time                  `json:"polling_started_at_ns"`
-	PollingStartedLagMS                                float64                     `json:"polling_started_lag_ms"`
+	PollingStartedLagMilliseconds                      float64                     `json:"polling_started_lag_ms"`
 	PollingStartedBeforeScheduledRelease               bool                        `json:"polling_started_before_scheduled_release"`
 	PreFreshStalePollCount                             float64                     `json:"pre_fresh_stale_poll_count"`
 	LastStaleFetchCompletedAtNanoseconds               types.Time                  `json:"last_stale_fetch_completed_at_ns"`
 	FirstFreshResponseCompletedAtNanoseconds           types.Time                  `json:"first_fresh_response_completed_at_ns"`
 	OfficialSourceStaleAfterScheduledRelease           bool                        `json:"official_source_stale_after_scheduled_release"`
-	ScheduledToFirstFreshResponseMS                    float64                     `json:"scheduled_to_first_fresh_response_ms"`
+	ScheduledToFirstFreshResponseMilliseconds          float64                     `json:"scheduled_to_first_fresh_response_ms"`
 	SourceFreshnessObservationWindowStartAtNanoseconds types.Time                  `json:"source_freshness_observation_window_start_at_ns"`
 	SourceFreshnessObservationWindowEndAtNanoseconds   types.Time                  `json:"source_freshness_observation_window_end_at_ns"`
-	SourceFreshnessObservationWindowMS                 float64                     `json:"source_freshness_observation_window_ms"`
+	SourceFreshnessObservationWindowMilliseconds       float64                     `json:"source_freshness_observation_window_ms"`
 	SourceFreshnessObservationBasis                    string                      `json:"source_freshness_observation_basis"`
 	SourceDelayAttribution                             string                      `json:"source_delay_attribution"`
 	FXMacroDataDeliveryAttribution                     string                      `json:"fxmd_delivery_attribution"`
-	FXMacroDataAfterSourceMS                           float64                     `json:"fxmd_after_source_ms"`
+	FXMacroDataAfterSourceMilliseconds                 float64                     `json:"fxmd_after_source_ms"`
 	FXMacroDataAfterSourceSLOMet                       bool                        `json:"fxmd_after_source_slo_met"`
 	CatchupSource                                      string                      `json:"catchup_source"`
-	CatchupDelayMS                                     float64                     `json:"catchup_delay_ms"`
+	CatchupDelayMilliseconds                           float64                     `json:"catchup_delay_ms"`
 	RecoveryClass                                      string                      `json:"recovery_class"`
 	SubsecondStatus                                    string                      `json:"subsecond_status"`
 	SubsecondOperationalStatus                         string                      `json:"subsecond_operational_status"`

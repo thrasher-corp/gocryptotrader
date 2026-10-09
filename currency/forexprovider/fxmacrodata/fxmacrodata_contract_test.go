@@ -546,7 +546,7 @@ func TestAnnouncementChanges(t *testing.T) {
 			ReleaseTimestamp:                     types.Time(time.Unix(1786105800, 0)),
 			DeliveryMode:                         "live",
 			PollingStartedAtNanoseconds:          types.Time(time.Unix(0, 1786105795952048238)),
-			PollingStartedLagMS:                  -4047.952,
+			PollingStartedLagMilliseconds:        -4047.952,
 			PollingStartedBeforeScheduledRelease: true,
 			PreFreshStalePollCount:               273,
 			SubsecondContractOutcome:             "met",
