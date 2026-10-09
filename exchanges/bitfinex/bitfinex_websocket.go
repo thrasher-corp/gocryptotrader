@@ -1740,6 +1740,8 @@ func (e *Exchange) getErrResp(resp []byte) error {
 }
 
 func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection) error {
+	// A connected socket becomes a private request route only after its auth acknowledgement.
+	e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err

@@ -226,16 +226,32 @@ func TestUnsubscribeForConnection(t *testing.T) {
 
 func TestWsSendAuthConn(t *testing.T) {
 	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	conn := &wsConnectFixtureConnection{}
-
-	require.NoError(t, ex.wsSendAuthConn(t.Context(), conn), "wsSendAuthConn must not error")
-	assert.Equal(t, int32(1), conn.sendJSONCalls.Load(), "wsSendAuthConn should send one request")
+	errSend := errors.New("auth send failure")
+	for _, tc := range []struct {
+		name    string
+		sendErr error
+	}{
+		{name: "pending acknowledgement"},
+		{name: "send failure", sendErr: errSend},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.API.AuthenticatedWebsocketSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			conn := &wsConnectFixtureConnection{sendErr: tc.sendErr}
+			err := ex.wsSendAuthConn(t.Context(), conn)
+			if tc.sendErr != nil {
+				assert.ErrorIs(t, err, tc.sendErr, "authentication should retain the send failure")
+			} else {
+				require.NoError(t, err, "wsSendAuthConn must not error")
+			}
+			assert.Equal(t, int32(1), conn.sendJSONCalls.Load(), "wsSendAuthConn should send one request")
+			assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "private requests should wait for a successful acknowledgement even when sending succeeds")
+		})
+	}
 }
 
 func TestResubOrderbook(t *testing.T) {
@@ -343,13 +359,14 @@ func TestHandleWSSubscribedConnectionIsolation(t *testing.T) {
 func TestCanUseWebsocketOrders(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name                          string
-		privateDialFails, disableAuth bool
-		authResponse                  string
-		want                          bool
+		name                                       string
+		privateDialFails, disableAuth, pendingAuth bool
+		authResponse                               string
+		want                                       bool
 	}{
 		{name: "private route", want: true},
 		{name: "private dial failure", privateDialFails: true},
+		{name: "pending authentication", pendingAuth: true},
 		{name: "authentication disabled", disableAuth: true},
 		{name: "authentication rejected", authResponse: `{"event":"auth","status":"ERROR","code":10100}`},
 		{name: "authentication malformed", authResponse: `{"event":"auth"}`},
@@ -363,6 +380,11 @@ func TestCanUseWebsocketOrders(t *testing.T) {
 					return err
 				}
 				switch req["event"] {
+				case "auth":
+					if tc.pendingAuth {
+						return nil
+					}
+					return c.WriteMessage(gws.TextMessage, []byte(`{"event":"auth","status":"OK"}`))
 				case "conf":
 					return c.WriteMessage(gws.TextMessage, []byte(`{"event":"conf","status":"OK"}`))
 				case "subscribe":
@@ -399,6 +421,13 @@ func TestCanUseWebsocketOrders(t *testing.T) {
 				require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "authentication must stay enabled when only the private dial fails")
 			} else {
 				require.NoError(t, connectErr, "Connect must establish both routes")
+				if !tc.pendingAuth {
+					require.Eventually(t, ex.canUseWebsocketOrders, time.Second, time.Millisecond, "private route must wait for a successful auth acknowledgement")
+				} else {
+					_, err := ex.Websocket.GetConnection("auth")
+					require.NoError(t, err, "pending authentication must have a connected private socket")
+					assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "a connected socket should remain unauthenticated until acknowledgement")
+				}
 			}
 			if tc.disableAuth {
 				ex.Websocket.SetCanUseAuthenticatedEndpoints(false)

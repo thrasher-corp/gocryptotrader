@@ -476,8 +476,8 @@ func (m *Manager) connect(ctx context.Context) error {
 	}
 	m.subscriptions.Clear()
 
-	m.idle.Store(false)
 	m.setState(connectingState)
+	m.idle.Store(false)
 
 	if !m.useMultiConnectionManagement {
 		m.Wg.Add(1)
@@ -920,6 +920,20 @@ func (m *Manager) IsConnecting() bool {
 // allowing pair or asset changes to activate the manager without reconnecting failures.
 func (m *Manager) IsIdle() bool {
 	return m.idle.Load()
+}
+
+// CanFlushChannels reports whether configuration changes should refresh subscriptions.
+// Read idle before the state snapshot so activation cannot hide between the two reads.
+// Ordinary disconnected managers are excluded to avoid redialling failed venues.
+func (m *Manager) CanFlushChannels() bool {
+	if !m.IsEnabled() {
+		return false
+	}
+	if m.idle.Load() {
+		return true
+	}
+	state := m.state.Load()
+	return state == connectingState || state == connectedState
 }
 
 func (m *Manager) setEnabled(b bool) {

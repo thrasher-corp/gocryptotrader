@@ -2398,3 +2398,32 @@ func TestIsIdle(t *testing.T) {
 		})
 	}
 }
+
+func TestCanFlushChannels(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		state   uint32
+		idle    bool
+		enabled bool
+		want    bool
+	}{
+		{name: "uninitialised", enabled: true},
+		{name: "offline", state: disconnectedState, enabled: true},
+		{name: "idle", state: disconnectedState, idle: true, enabled: true, want: true},
+		{name: "connecting", state: connectingState, enabled: true, want: true},
+		{name: "connected", state: connectedState, enabled: true, want: true},
+		{name: "idle activation transition", state: connectingState, idle: true, enabled: true, want: true},
+		{name: "disabled idle", state: disconnectedState, idle: true},
+		{name: "disabled connected", state: connectedState},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			m.setEnabled(tc.enabled)
+			m.setState(tc.state)
+			m.idle.Store(tc.idle)
+			assert.Equal(t, tc.want, m.CanFlushChannels(), "flush eligibility should reflect one state snapshot and idle activation")
+		})
+	}
+}

@@ -1301,7 +1301,6 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWSAuth(t *testing.T) {
 	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	testexch.SetupWs(t, e)
-	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must be turned on")
 
 	var resp map[string]any
 	catcher := func() (ok bool) {
@@ -1314,6 +1313,7 @@ func TestWSAuth(t *testing.T) {
 	}
 
 	if assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Auth response should arrive") {
+		require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "successful authentication acknowledgement must enable private requests")
 		assert.Equal(t, "auth", resp["event"], "event should be correct")
 		assert.Equal(t, "OK", resp["status"], "status should be correct")
 		assert.NotEmpty(t, resp["auth_id"], "status should be correct")
