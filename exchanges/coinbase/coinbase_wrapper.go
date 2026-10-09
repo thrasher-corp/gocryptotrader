@@ -119,6 +119,7 @@ func (e *Exchange) SetDefaults() {
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	e.wsSeqState = make(map[websocket.Connection]uint64)
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -143,21 +144,24 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinbaseWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 	}); err != nil {
 		return err
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsRunningURL,
+		Connector:             e.wsConnect,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Handler:               e.wsHandleData,
+		OnDisconnect:          e.wsDisconnected,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         asset.Spot,
 	})
 }
 

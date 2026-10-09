@@ -8,12 +8,18 @@ import (
 	"uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// Websocket request operation types
 const (
-	OutboundTradeConnection  = "PRIVATE_TRADE"
+	// OutboundTradeConnection is the legacy trade connection key.
+	//
+	// Deprecated: use the configured exchange.WebsocketTrade endpoint for connection lookup.
+	OutboundTradeConnection = "PRIVATE_TRADE"
+	// InboundPrivateConnection is the legacy private connection key.
+	//
+	// Deprecated: use the configured exchange.WebsocketPrivate endpoint for connection lookup.
 	InboundPrivateConnection = "PRIVATE"
 )
 
@@ -64,13 +70,21 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*W
 
 // sendWebsocketTradeRequest sends a trade request to the exchange through the websocket connection
 func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkID string, payload any, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
-	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
-	// sending the request.
-	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
+	wsTradeURL, err := e.API.Endpoints.GetURL(exchange.WebsocketTrade)
 	if err != nil {
 		return nil, err
 	}
-	inbound, err := e.Websocket.GetConnection(InboundPrivateConnection)
+	wsPrivateURL, err := e.API.Endpoints.GetURL(exchange.WebsocketPrivate)
+	if err != nil {
+		return nil, err
+	}
+	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
+	// sending the request.
+	outbound, err := e.Websocket.GetConnection(wsTradeURL)
+	if err != nil {
+		return nil, err
+	}
+	inbound, err := e.Websocket.GetConnection(wsPrivateURL)
 	if err != nil {
 		return nil, err
 	}

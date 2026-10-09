@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -151,6 +154,53 @@ func TestResubscribe(t *testing.T) {
 }
 
 // TestSubscriptions tests adding, getting and removing subscriptions
+func TestResubscribeToChannelOnManagedConnection(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		connHeld bool
+	}{
+		{name: "full connection store", connHeld: true},
+		{name: "connection store not yet filled", connHeld: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			m.useMultiConnectionManagement = true
+			m.MaxSubscriptionsPerConnection = 2
+			book, ticker := &subscription.Subscription{Channel: "book"}, &subscription.Subscription{Channel: "ticker"}
+			ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+				Subscriber: func(_ context.Context, c Connection, l subscription.List) error {
+					for _, s := range l {
+						s.SetKey(fmt.Sprintf("%s-%p-%d", s.Channel, s, time.Now().UnixNano())) // venues such as Bitfinex assign a new key on each subscribe
+					}
+					return m.AddSuccessfulSubscriptions(c, l...)
+				},
+				Unsubscriber: func(_ context.Context, c Connection, l subscription.List) error {
+					return m.RemoveSubscriptions(c, l...)
+				},
+			}}
+			conn := &connection{subscriptions: subscription.NewStore()}
+			m.connectionManager = []*websocket{ws}
+			m.trackConnection(conn, ws)
+			require.NoError(t, m.AddSuccessfulSubscriptions(conn, book, ticker), "AddSuccessfulSubscriptions must not error")
+			if tc.connHeld {
+				require.NoError(t, conn.subscriptions.Add(book), "connection store Add must not error")
+				require.NoError(t, conn.subscriptions.Add(ticker), "connection store Add must not error")
+			}
+			for range 2 {
+				require.NoError(t, m.ResubscribeToChannel(t.Context(), conn, book), "ResubscribeToChannel must not error")
+				assert.Equal(t, subscription.SubscribedState, book.State(), "book should be subscribed again")
+			}
+			assert.Equal(t, tc.connHeld, slices.Contains(conn.subscriptions.List(), book), "connection store should hold the book only if it held it before")
+			if tc.connHeld {
+				err := m.SubscribeToChannels(t.Context(), conn, subscription.List{{Channel: "ticker", Pairs: currency.Pairs{currency.NewBTCUSD()}}})
+				assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "a new subscription should still count against a full connection")
+			}
+		})
+	}
+}
+
 func TestSubscriptions(t *testing.T) {
 	t.Parallel()
 	w := new(Manager) // Do not use NewManager; We want to exercise w.subs == nil
@@ -190,6 +240,46 @@ func TestSuccessfulSubscriptions(t *testing.T) {
 	assert.ErrorIs(t, (*Manager)(nil).RemoveSubscriptions(nil, nil), common.ErrNilPointer, "Should error correctly when nil websocket")
 	w.subscriptions = nil
 	assert.ErrorIs(t, w.RemoveSubscriptions(nil, c), common.ErrNilPointer, "Should error correctly when nil websocket")
+}
+
+func TestUpdateSuccessfulSubscriptionKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil manager", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, (*Manager)(nil).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on nil Websocket")
+	})
+
+	t.Run("uninitialised manager", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, (&Manager{}).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on an uninitialised Websocket")
+	})
+
+	t.Run("updates key and state", func(t *testing.T) {
+		t.Parallel()
+		w := new(Manager)
+		sub := &subscription.Subscription{Key: "temporary", Channel: subscription.TickerChannel}
+		require.NoError(t, w.AddSubscriptions(nil, sub), "AddSubscriptions must not error")
+
+		err := w.UpdateSuccessfulSubscriptionKey(nil, sub, 42)
+		require.NoError(t, err, "UpdateSuccessfulSubscriptionKey must not error")
+		assert.Nil(t, w.GetSubscription("temporary"), "old key should no longer resolve")
+		assert.Same(t, sub, w.GetSubscription(42), "new key should resolve to the same subscription")
+		assert.Equal(t, 42, sub.Key, "subscription key should be updated")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "subscription should be subscribed")
+	})
+
+	t.Run("duplicate target key", func(t *testing.T) {
+		t.Parallel()
+		w := new(Manager)
+		sub := &subscription.Subscription{Key: 42, Channel: subscription.TickerChannel}
+		duplicate := &subscription.Subscription{Key: 1337, Channel: subscription.OrderbookChannel}
+		require.NoError(t, w.AddSubscriptions(nil, sub, duplicate), "AddSubscriptions must not error")
+
+		assert.ErrorIs(t, w.UpdateSuccessfulSubscriptionKey(nil, sub, 1337), subscription.ErrDuplicate, "UpdateSuccessfulSubscriptionKey should error when the target key is already used")
+		assert.Same(t, sub, w.GetSubscription(42), "subscription should remain at the original key after duplicate error")
+		assert.Same(t, duplicate, w.GetSubscription(1337), "duplicate target subscription should remain stored")
+	})
 }
 
 // TestGetSubscription logic test
@@ -639,6 +729,67 @@ func TestFlushChannelsConcurrentReaders(t *testing.T) {
 
 func TestFlushChannels(t *testing.T) {
 	t.Parallel()
+	t.Run("idle activation retains healthy traffic", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = 10 * time.Millisecond
+		require.NoError(t, m.Setup(setup), "Setup must not error")
+		srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+		var pairEnabled atomic.Bool
+		var received atomic.Int64
+		var connected Connection
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+			URL: "ws" + srv.URL[len("http"):] + "/ws",
+			Connector: func(ctx context.Context, conn Connection) error {
+				connected = conn
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				if !pairEnabled.Load() {
+					return nil, nil
+				}
+				return subscription.List{{Channel: "ticker"}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return m.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return m.RemoveSubscriptions(conn, subs...)
+			},
+			Handler: func(context.Context, Connection, []byte) error { received.Add(1); return nil },
+		}), "SetupNewConnection must not error")
+		require.NoError(t, m.Connect(t.Context()), "empty startup connect must succeed")
+		require.True(t, m.IsIdle(), "manager with no subscriptions must report idle")
+		require.False(t, m.IsConnected(), "idle manager must remain disconnected")
+		done := make(chan struct{})
+		go func() { m.Wg.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			require.FailNow(t, "Idle manager must have no traffic-monitor goroutine")
+		}
+		require.NoError(t, m.FlushChannels(t.Context()), "flush with nothing enabled must remain a successful idle connect")
+		pairEnabled.Store(true)
+		require.NoError(t, m.FlushChannels(t.Context()), "flush must activate an idle manager")
+		require.NotNil(t, connected, "activation must create a connection")
+		require.True(t, m.IsConnected(), "activation must connect the manager")
+		assert.False(t, m.IsIdle(), "connected manager should clear idle state")
+		assert.Len(t, m.GetSubscriptions(), 1, "new subscription should be registered")
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for range 12 {
+			<-ticker.C
+			require.True(t, m.IsConnected(), "regular traffic must keep the activated manager connected")
+			require.NoError(t, connected.SendJSONMessage(t.Context(), request.Unset, map[string]string{"ping": "test"}), "healthy connection must accept traffic")
+		}
+		assert.Positive(t, received.Load(), "echo traffic should reach the reader")
+	})
+
 	// Enabled pairs/setup system
 
 	dodgyWs := Manager{}

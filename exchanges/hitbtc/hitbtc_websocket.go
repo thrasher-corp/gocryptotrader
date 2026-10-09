@@ -67,7 +67,7 @@ func (e *Exchange) WsConnect() error {
 	go e.wsReadData(ctx)
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.wsLogin(ctx)
+		err = e.AuthenticateWebsocket(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
 		}
@@ -593,8 +593,8 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	return errs
 }
 
-// wsLogin authenticates the websocket connection
-func (e *Exchange) wsLogin(ctx context.Context) error {
+// AuthenticateWebsocket authenticates the websocket connection
+func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
 	if !e.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}

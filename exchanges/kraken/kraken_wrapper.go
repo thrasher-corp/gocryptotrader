@@ -194,23 +194,25 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            krakenWSURL,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsRunningURL,
+		Connector:             e.wsConnect,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleData,
+		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         asset.Spot,
 	})
 	if err != nil {
 		return err
@@ -220,12 +222,20 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-		URL:                  wsRunningAuthURL,
+		URL:                   wsRunningAuthURL,
+		Connector:             e.wsConnect,
+		Authenticate:          e.wsAuthenticate,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePrivateSubscriptions,
+		Handler:               e.wsHandleData,
+		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Authenticated:         true,
+		MessageFilter:         "auth",
 	})
 }
 
@@ -692,6 +702,16 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 	return nil, common.ErrFunctionNotSupported
 }
 
+// canUseWebsocketOrders requires the private request route to be available before
+// selecting websocket submission over the REST fallback.
+func (e *Exchange) canUseWebsocketOrders() bool {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return false
+	}
+	_, err := e.Websocket.GetConnection("auth")
+	return err == nil
+}
+
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(e.GetTradingRequirements())
@@ -710,7 +730,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		case s.TimeInForce.Is(order.ImmediateOrCancel):
 			timeInForce = "IOC"
 		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketOrders() {
 			orderID, err = e.wsAddOrder(ctx, &WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
@@ -791,7 +811,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot:
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketOrders() {
 			return e.wsCancelOrders(ctx, []string{o.OrderID})
 		}
 		_, err := e.CancelExistingOrder(ctx, o.OrderID)
@@ -810,7 +830,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+	if !e.canUseWebsocketOrders() {
 		return nil, common.ErrFunctionNotSupported
 	}
 
@@ -834,7 +854,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 	}
 	switch req.AssetType {
 	case asset.Spot:
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		if e.canUseWebsocketOrders() {
 			cancel, err := e.wsCancelAllOrders(ctx)
 			if err != nil {
 				return resp, err
@@ -849,7 +869,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 			return resp, err
 		}
 		for orderID := range openOrders.Open {
-			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			if e.canUseWebsocketOrders() {
 				err = e.wsCancelOrders(ctx, []string{orderID})
 			} else {
 				_, err = e.CancelExistingOrder(ctx, orderID)
@@ -1407,17 +1427,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		}
 	}
 	return getOrdersRequest.Filter(e.Name, orders), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	resp, err := e.GetWebsocketToken(ctx)
-	if err != nil {
-		return err
-	}
-
-	e.setWebsocketAuthToken(resp)
-	return nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

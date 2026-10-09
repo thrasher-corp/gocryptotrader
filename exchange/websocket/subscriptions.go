@@ -202,6 +202,19 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 	return errs
 }
 
+// UpdateSuccessfulSubscriptionKey marks a stored subscription as subscribed and
+// replaces its key without removing it from the store between keys.
+func (m *Manager) UpdateSuccessfulSubscriptionKey(conn Connection, sub *subscription.Subscription, key any) error {
+	if m == nil {
+		return fmt.Errorf("%w: UpdateSuccessfulSubscriptionKey called on nil Websocket", common.ErrNilPointer)
+	}
+	subscriptionStore := m.subscriptionStore(conn)
+	if subscriptionStore == nil {
+		return fmt.Errorf("%w: UpdateSuccessfulSubscriptionKey called on uninitialised Websocket", common.ErrNilPointer)
+	}
+	return subscriptionStore.UpdateKeyAndState(sub, key, subscription.SubscribedState)
+}
+
 // GetSubscription returns a subscription at the key provided
 // returns nil if no subscription is at that key or the key is nil
 // Keys can implement subscription.MatchableKey in order to provide custom matching logic
@@ -252,6 +265,7 @@ func (m *Manager) GetSubscriptions() subscription.List {
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
 	var usedCapacity int
+	incoming := len(subs)
 	if ws, ok := m.managedWebsocket(conn); ok {
 		if ws.subscriptions == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
@@ -268,6 +282,12 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		}
 		subscriptionStore = ws.subscriptions
 		usedCapacity = connSubStore.Len()
+		// Resubscriptions retain their slot even when the venue changes their key.
+		for _, held := range connSubStore.List() {
+			if slices.Contains(subs, held) {
+				incoming--
+			}
+		}
 	} else {
 		subscriptionStore = m.subscriptionStore(nil)
 		if subscriptionStore == nil {
@@ -276,11 +296,11 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		usedCapacity = subscriptionStore.Len()
 	}
 
-	if m.MaxSubscriptionsPerConnection > 0 && usedCapacity+len(subs) > m.MaxSubscriptionsPerConnection {
+	if m.MaxSubscriptionsPerConnection > 0 && usedCapacity+incoming > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v",
 			errSubscriptionsExceedsLimit,
 			usedCapacity,
-			len(subs),
+			incoming,
 			m.MaxSubscriptionsPerConnection)
 	}
 
@@ -298,6 +318,11 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
 func (m *Manager) FlushChannels(ctx context.Context) error {
+	if m.IsIdle() {
+		if err := m.Connect(ctx); !errors.Is(err, errAlreadyConnected) {
+			return err
+		}
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	return m.flushChannels(ctx)

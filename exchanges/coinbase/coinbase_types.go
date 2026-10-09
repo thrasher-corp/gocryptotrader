@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -28,6 +29,8 @@ type Exchange struct {
 	exchange.Base
 	jwt         jwtManager
 	pairAliases pairAliases
+	wsSeqState  map[websocket.Connection]uint64
+	wsSeqMu     sync.Mutex
 }
 
 // FiatTransferType is used so that we don't need to duplicate the four fiat transfer-related endpoints under version 2 of the API
