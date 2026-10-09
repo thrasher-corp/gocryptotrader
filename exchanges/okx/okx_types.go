@@ -103,8 +103,8 @@ var (
 	errMissingValidGreeksType               = errors.New("missing valid greeks type")
 	errMissingIsolatedMarginTradingSetting  = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
 	errInvalidCounterParties                = errors.New("missing counter parties")
-	errMissingRFQIDOrQuoteID                = errors.New("either RFQ ID or Quote ID is missing")
-	errMissingRFQID                         = errors.New("error missing rfq ID")
+	errMissingRequestForQuoteIDOrQuoteID    = errors.New("either RFQ ID or Quote ID is missing")
+	errMissingRequestForQuoteID             = errors.New("error missing rfq ID")
 	errMissingLegs                          = errors.New("missing legs")
 	errMissingSizeOfQuote                   = errors.New("missing size of quote leg")
 	errMissingLegsQuotePrice                = errors.New("error missing quote price")
@@ -118,7 +118,7 @@ var (
 	errMissingSubOrderType                  = errors.New("missing sub order type")
 	errMissingQuantity                      = errors.New("invalid quantity to buy or sell")
 	errAddressRequired                      = errors.New("address is required")
-	errMaxRFQOrdersToCancel                 = errors.New("no more than 100 RFQ cancel order parameter is allowed")
+	errMaxRequestForQuoteOrdersToCancel     = errors.New("no more than 100 RFQ cancel order parameter is allowed")
 	errInvalidUnderlying                    = errors.New("invalid underlying")
 	errInstrumentFamilyOrUnderlyingRequired = errors.New("either underlying or instrument family is required")
 	errMissingRequiredParameter             = errors.New("missing required parameter")
@@ -1707,30 +1707,30 @@ type ConvertCurrencyPair struct {
 
 // EstimateQuoteRequestInput represents estimate quote request parameters
 type EstimateQuoteRequestInput struct {
-	BaseCurrency         currency.Code `json:"baseCcy,omitzero"`
-	QuoteCurrency        currency.Code `json:"quoteCcy,omitzero"`
-	Side                 string        `json:"side,omitempty"`
-	RFQAmount            float64       `json:"rfqSz,omitempty"`
-	RFQSzCurrency        currency.Code `json:"rfqSzCcy,omitzero"`
-	ClientRequestOrderID string        `json:"clQReqId,omitempty"`
-	Tag                  string        `json:"tag,omitempty"`
+	BaseCurrency                currency.Code `json:"baseCcy,omitzero"`
+	QuoteCurrency               currency.Code `json:"quoteCcy,omitzero"`
+	Side                        string        `json:"side,omitempty"`
+	RequestForQuoteAmount       float64       `json:"rfqSz,omitempty"`
+	RequestForQuoteSizeCurrency currency.Code `json:"rfqSzCcy,omitzero"`
+	ClientRequestOrderID        string        `json:"clQReqId,omitempty"`
+	Tag                         string        `json:"tag,omitempty"`
 }
 
 // EstimateQuoteResponse represents estimate quote response data
 type EstimateQuoteResponse struct {
-	BaseCurrency    string       `json:"baseCcy"`
-	BaseSize        types.Number `json:"baseSz"`
-	ClientRequestID string       `json:"clQReqId"`
-	ConvertPrice    types.Number `json:"cnvtPx"`
-	OrigRFQSize     types.Number `json:"origRfqSz"`
-	QuoteCurrency   string       `json:"quoteCcy"`
-	QuoteID         string       `json:"quoteId"`
-	QuoteSize       types.Number `json:"quoteSz"`
-	QuoteTime       types.Time   `json:"quoteTime"`
-	RFQSize         types.Number `json:"rfqSz"`
-	RFQSizeCurrency string       `json:"rfqSzCcy"`
-	Side            order.Side   `json:"side"`
-	TTLMs           string       `json:"ttlMs"` // Validity period of quotation in milliseconds
+	BaseCurrency                string       `json:"baseCcy"`
+	BaseSize                    types.Number `json:"baseSz"`
+	ClientRequestID             string       `json:"clQReqId"`
+	ConvertPrice                types.Number `json:"cnvtPx"`
+	OriginalRequestForQuoteSize types.Number `json:"origRfqSz"`
+	QuoteCurrency               string       `json:"quoteCcy"`
+	QuoteID                     string       `json:"quoteId"`
+	QuoteSize                   types.Number `json:"quoteSz"`
+	QuoteTime                   types.Time   `json:"quoteTime"`
+	RequestForQuoteSize         types.Number `json:"rfqSz"`
+	RequestForQuoteSizeCurrency string       `json:"rfqSzCcy"`
+	Side                        order.Side   `json:"side"`
+	TTLMs                       string       `json:"ttlMs"` // Validity period of quotation in milliseconds
 }
 
 // ConvertTradeInput represents convert trade request input
@@ -2392,8 +2392,8 @@ type CounterpartiesResponse struct {
 	Type       string `json:"type"`
 }
 
-// RFQOrderLeg represents RFQ Order responses leg
-type RFQOrderLeg struct {
+// RequestForQuoteOrderLeg represents RFQ Order responses leg
+type RequestForQuoteOrderLeg struct {
 	Size               types.Number  `json:"sz"`
 	Side               string        `json:"side"`
 	InstrumentID       string        `json:"instId"`
@@ -2404,32 +2404,32 @@ type RFQOrderLeg struct {
 	TradeQuoteCurrency currency.Code `json:"tradeQuoteCcy,omitzero"`
 }
 
-// CreateRFQInput RFQ create method input
-type CreateRFQInput struct {
-	Anonymous      bool          `json:"anonymous"`
-	CounterParties []string      `json:"counterparties"`
-	ClientRFQID    string        `json:"clRfqId"`
-	Legs           []RFQOrderLeg `json:"legs"`
+// CreateRequestForQuoteInput RFQ create method input
+type CreateRequestForQuoteInput struct {
+	Anonymous               bool                      `json:"anonymous"`
+	CounterParties          []string                  `json:"counterparties"`
+	ClientRequestForQuoteID string                    `json:"clRfqId"`
+	Legs                    []RequestForQuoteOrderLeg `json:"legs"`
 }
 
-// CancelRFQRequestParam represents cancel RFQ order request params
-type CancelRFQRequestParam struct {
-	RFQID       string `json:"rfqId,omitempty"`
-	ClientRFQID string `json:"clRfqId,omitempty"`
+// CancelRequestForQuoteRequestParam represents cancel RFQ order request params
+type CancelRequestForQuoteRequestParam struct {
+	RequestForQuoteID       string `json:"rfqId,omitempty"`
+	ClientRequestForQuoteID string `json:"clRfqId,omitempty"`
 }
 
-// CancelRFQRequestsParam represents cancel multiple RFQ orders request params
-type CancelRFQRequestsParam struct {
-	RFQIDs       []string `json:"rfqIds,omitempty"`
-	ClientRFQIDs []string `json:"clRfqIds,omitempty"`
+// CancelRequestForQuoteRequestsParam represents cancel multiple RFQ orders request params
+type CancelRequestForQuoteRequestsParam struct {
+	RequestForQuoteIDs       []string `json:"rfqIds,omitempty"`
+	ClientRequestForQuoteIDs []string `json:"clRfqIds,omitempty"`
 }
 
-// CancelRFQResponse represents cancel RFQ orders response
-type CancelRFQResponse struct {
-	RFQID         string `json:"rfqId"`
-	ClientRFQID   string `json:"clRfqId"`
-	StatusCode    string `json:"sCode"`
-	StatusMessage string `json:"sMsg"`
+// CancelRequestForQuoteResponse represents cancel RFQ orders response
+type CancelRequestForQuoteResponse struct {
+	RequestForQuoteID       string `json:"rfqId"`
+	ClientRequestForQuoteID string `json:"clRfqId"`
+	StatusCode              string `json:"sCode"`
+	StatusMessage           string `json:"sMsg"`
 }
 
 // MMPStatusResponse holds MMP reset status response
@@ -2457,23 +2457,23 @@ type MMPConfigDetail struct {
 
 // ExecuteQuoteParams represents Execute quote request params
 type ExecuteQuoteParams struct {
-	RFQID   string `json:"rfqId,omitempty"`
-	QuoteID string `json:"quoteId,omitempty"`
+	RequestForQuoteID string `json:"rfqId,omitempty"`
+	QuoteID           string `json:"quoteId,omitempty"`
 }
 
 // ExecuteQuoteResponse represents execute quote response
 type ExecuteQuoteResponse struct {
-	BlockTradedID      string                             `json:"blockTdId"`
-	RFQID              string                             `json:"rfqId"`
-	ClientRFQID        string                             `json:"clRfqId"`
-	QuoteID            string                             `json:"quoteId"`
-	ClientQuoteID      string                             `json:"clQuoteId"`
-	TraderCode         string                             `json:"tTraderCode"`
-	MakerTraderCode    string                             `json:"mTraderCode"`
-	CreationTime       types.Time                         `json:"cTime"`
-	Legs               []OrderLeg                         `json:"legs"`
-	AccountAllocations []RequestForQuoteAccountAllocation `json:"acctAlloc"`
-	Tag                string                             `json:"tag"`
+	BlockTradedID           string                             `json:"blockTdId"`
+	RequestForQuoteID       string                             `json:"rfqId"`
+	ClientRequestForQuoteID string                             `json:"clRfqId"`
+	QuoteID                 string                             `json:"quoteId"`
+	ClientQuoteID           string                             `json:"clQuoteId"`
+	TraderCode              string                             `json:"tTraderCode"`
+	MakerTraderCode         string                             `json:"mTraderCode"`
+	CreationTime            types.Time                         `json:"cTime"`
+	Legs                    []OrderLeg                         `json:"legs"`
+	AccountAllocations      []RequestForQuoteAccountAllocation `json:"acctAlloc"`
+	Tag                     string                             `json:"tag"`
 }
 
 // RequestForQuoteAccountAllocation represents the per-sub-account execution detail of an
@@ -2528,10 +2528,10 @@ type OrderLeg struct {
 
 // CreateQuoteParams holds information related to create quote
 type CreateQuoteParams struct {
-	RFQID         string     `json:"rfqId"`
-	ClientQuoteID string     `json:"clQuoteId"`
-	QuoteSide     string     `json:"quoteSide"`
-	Legs          []QuoteLeg `json:"legs"`
+	RequestForQuoteID string     `json:"rfqId"`
+	ClientQuoteID     string     `json:"clQuoteId"`
+	QuoteSide         string     `json:"quoteSide"`
+	Legs              []QuoteLeg `json:"legs"`
 }
 
 // QuoteLeg the legs of the Quote
@@ -2546,20 +2546,20 @@ type QuoteLeg struct {
 
 // QuoteResponse holds create quote response variables
 type QuoteResponse struct {
-	CreationTime       types.Time                         `json:"cTime"`
-	UpdateTime         types.Time                         `json:"uTime"`
-	ValidUntil         types.Time                         `json:"validUntil"`
-	QuoteID            string                             `json:"quoteId"`
-	ClientQuoteID      string                             `json:"clQuoteId"`
-	RFQID              string                             `json:"rfqId"`
-	QuoteSide          string                             `json:"quoteSide"`
-	ClientRFQID        string                             `json:"clRfqId"`
-	TraderCode         string                             `json:"traderCode"`
-	State              string                             `json:"state"`
-	Reason             string                             `json:"reason"`
-	Legs               []QuoteLeg                         `json:"legs"`
-	AccountAllocations []RequestForQuoteAccountAllocation `json:"acctAlloc"`
-	Tag                string                             `json:"tag"`
+	CreationTime            types.Time                         `json:"cTime"`
+	UpdateTime              types.Time                         `json:"uTime"`
+	ValidUntil              types.Time                         `json:"validUntil"`
+	QuoteID                 string                             `json:"quoteId"`
+	ClientQuoteID           string                             `json:"clQuoteId"`
+	RequestForQuoteID       string                             `json:"rfqId"`
+	QuoteSide               string                             `json:"quoteSide"`
+	ClientRequestForQuoteID string                             `json:"clRfqId"`
+	TraderCode              string                             `json:"traderCode"`
+	State                   string                             `json:"state"`
+	Reason                  string                             `json:"reason"`
+	Legs                    []QuoteLeg                         `json:"legs"`
+	AccountAllocations      []RequestForQuoteAccountAllocation `json:"acctAlloc"`
+	Tag                     string                             `json:"tag"`
 }
 
 // CancelQuoteRequestParams represents cancel quote request params
@@ -2582,73 +2582,73 @@ type CancelQuoteResponse struct {
 	StatusMessage string `json:"sMsg"`
 }
 
-// RFQsRequest represents get RFQ orders param
-type RFQsRequest struct {
-	RFQID       string
-	ClientRFQID string
-	State       string
-	BeginningID string
-	EndID       string
-	Limit       uint64
+// RequestForQuotesRequest represents get RFQ orders param
+type RequestForQuotesRequest struct {
+	RequestForQuoteID       string
+	ClientRequestForQuoteID string
+	State                   string
+	BeginningID             string
+	EndID                   string
+	Limit                   uint64
 }
 
-// RFQResponse RFQ response detail
-type RFQResponse struct {
-	CreateTime            types.Time                         `json:"cTime"`
-	UpdateTime            types.Time                         `json:"uTime"`
-	ValidUntil            types.Time                         `json:"validUntil"`
-	TraderCode            string                             `json:"traderCode"`
-	RFQID                 string                             `json:"rfqId"`
-	ClientRFQID           string                             `json:"clRfqId"`
-	State                 string                             `json:"state"`
-	Counterparties        []string                           `json:"counterparties"`
-	AllowPartialExecution bool                               `json:"allowPartialExecution"`
-	GroupID               string                             `json:"groupId"`
-	FlowType              string                             `json:"flowType"`
-	Legs                  []RFQOrderLeg                      `json:"legs"`
-	AccountAllocations    []RequestForQuoteAccountAllocation `json:"acctAlloc"`
-	Tag                   string                             `json:"tag"`
+// RequestForQuoteResponse RFQ response detail
+type RequestForQuoteResponse struct {
+	CreateTime              types.Time                         `json:"cTime"`
+	UpdateTime              types.Time                         `json:"uTime"`
+	ValidUntil              types.Time                         `json:"validUntil"`
+	TraderCode              string                             `json:"traderCode"`
+	RequestForQuoteID       string                             `json:"rfqId"`
+	ClientRequestForQuoteID string                             `json:"clRfqId"`
+	State                   string                             `json:"state"`
+	Counterparties          []string                           `json:"counterparties"`
+	AllowPartialExecution   bool                               `json:"allowPartialExecution"`
+	GroupID                 string                             `json:"groupId"`
+	FlowType                string                             `json:"flowType"`
+	Legs                    []RequestForQuoteOrderLeg          `json:"legs"`
+	AccountAllocations      []RequestForQuoteAccountAllocation `json:"acctAlloc"`
+	Tag                     string                             `json:"tag"`
 }
 
 // QuotesRequest represents get quotes request params
 type QuotesRequest struct {
-	RFQID         string
-	ClientRFQID   string
-	QuoteID       string
-	ClientQuoteID string
-	State         string
-	BeginID       string
-	EndID         string
-	Limit         uint64
+	RequestForQuoteID       string
+	ClientRequestForQuoteID string
+	QuoteID                 string
+	ClientQuoteID           string
+	State                   string
+	BeginID                 string
+	EndID                   string
+	Limit                   uint64
 }
 
 // RequestForQuoteTradesRequest represents an RFQ trades request
 type RequestForQuoteTradesRequest struct {
-	RFQID         string
-	ClientRFQID   string
-	QuoteID       string
-	BlockTradeID  string
-	ClientQuoteID string
-	BeginID       string
-	EndID         string
-	Limit         uint64
+	RequestForQuoteID       string
+	ClientRequestForQuoteID string
+	QuoteID                 string
+	BlockTradeID            string
+	ClientQuoteID           string
+	BeginID                 string
+	EndID                   string
+	Limit                   uint64
 }
 
 // RequestForQuoteTradeResponse RFQ trade response
 type RequestForQuoteTradeResponse struct {
-	RFQID              string                             `json:"rfqId"`
-	ClientRFQID        string                             `json:"clRfqId"`
-	QuoteID            string                             `json:"quoteId"`
-	ClientQuoteID      string                             `json:"clQuoteId"`
-	BlockTradeID       string                             `json:"blockTdId"`
-	Legs               []RequestForQuoteTradeLeg          `json:"legs"`
-	CreationTime       types.Time                         `json:"cTime"`
-	TakerTraderCode    string                             `json:"tTraderCode"`
-	MakerTraderCode    string                             `json:"mTraderCode"`
-	IsSuccessful       bool                               `json:"isSuccessful"`
-	ErrorCode          string                             `json:"errorCode"`
-	AccountAllocations []RequestForQuoteAccountAllocation `json:"acctAlloc"`
-	Tag                string                             `json:"tag"`
+	RequestForQuoteID       string                             `json:"rfqId"`
+	ClientRequestForQuoteID string                             `json:"clRfqId"`
+	QuoteID                 string                             `json:"quoteId"`
+	ClientQuoteID           string                             `json:"clQuoteId"`
+	BlockTradeID            string                             `json:"blockTdId"`
+	Legs                    []RequestForQuoteTradeLeg          `json:"legs"`
+	CreationTime            types.Time                         `json:"cTime"`
+	TakerTraderCode         string                             `json:"tTraderCode"`
+	MakerTraderCode         string                             `json:"mTraderCode"`
+	IsSuccessful            bool                               `json:"isSuccessful"`
+	ErrorCode               string                             `json:"errorCode"`
+	AccountAllocations      []RequestForQuoteAccountAllocation `json:"acctAlloc"`
+	Tag                     string                             `json:"tag"`
 }
 
 // RequestForQuoteTradeLeg RFQ trade response leg
@@ -3560,28 +3560,28 @@ type WsGreekData struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// WsRFQ represents websocket push data for "rfqs" subscription
-type WsRFQ struct {
-	Argument SubscriptionInfo `json:"arg"`
-	Data     []WsRFQData      `json:"data"`
+// WsRequestForQuote represents websocket push data for "rfqs" subscription
+type WsRequestForQuote struct {
+	Argument SubscriptionInfo        `json:"arg"`
+	Data     []WsRequestForQuoteData `json:"data"`
 }
 
-// WsRFQData represents rfq order response data streamed through the websocket channel
-type WsRFQData struct {
-	CreationTime          types.Time                         `json:"cTime"`
-	UpdateTime            types.Time                         `json:"uTime"`
-	TraderCode            string                             `json:"traderCode"`
-	RFQID                 string                             `json:"rfqId"`
-	ClientRFQID           string                             `json:"clRfqId"`
-	State                 string                             `json:"state"`
-	ValidUntil            types.Time                         `json:"validUntil"`
-	Counterparties        []string                           `json:"counterparties"`
-	AllowPartialExecution bool                               `json:"allowPartialExecution"`
-	GroupID               string                             `json:"groupId"`
-	FlowType              string                             `json:"flowType"`
-	Legs                  []RFQOrderLeg                      `json:"legs"`
-	AccountAllocations    []RequestForQuoteAccountAllocation `json:"acctAlloc"`
-	Tag                   string                             `json:"tag"`
+// WsRequestForQuoteData represents rfq order response data streamed through the websocket channel
+type WsRequestForQuoteData struct {
+	CreationTime            types.Time                         `json:"cTime"`
+	UpdateTime              types.Time                         `json:"uTime"`
+	TraderCode              string                             `json:"traderCode"`
+	RequestForQuoteID       string                             `json:"rfqId"`
+	ClientRequestForQuoteID string                             `json:"clRfqId"`
+	State                   string                             `json:"state"`
+	ValidUntil              types.Time                         `json:"validUntil"`
+	Counterparties          []string                           `json:"counterparties"`
+	AllowPartialExecution   bool                               `json:"allowPartialExecution"`
+	GroupID                 string                             `json:"groupId"`
+	FlowType                string                             `json:"flowType"`
+	Legs                    []RequestForQuoteOrderLeg          `json:"legs"`
+	AccountAllocations      []RequestForQuoteAccountAllocation `json:"acctAlloc"`
+	Tag                     string                             `json:"tag"`
 }
 
 // WsQuote represents websocket push data for "quotes" subscription
@@ -3592,20 +3592,20 @@ type WsQuote struct {
 
 // WsQuoteData represents a single quote order information
 type WsQuoteData struct {
-	ValidUntil         types.Time                         `json:"validUntil"`
-	UpdatedTime        types.Time                         `json:"uTime"`
-	CreationTime       types.Time                         `json:"cTime"`
-	Legs               []OrderLeg                         `json:"legs"`
-	QuoteID            string                             `json:"quoteId"`
-	RFQID              string                             `json:"rfqId"`
-	TraderCode         string                             `json:"traderCode"`
-	QuoteSide          string                             `json:"quoteSide"`
-	State              string                             `json:"state"`
-	Reason             string                             `json:"reason"`
-	ClientQuoteID      string                             `json:"clQuoteId"`
-	ClientRFQID        string                             `json:"clRfqId"`
-	AccountAllocations []RequestForQuoteAccountAllocation `json:"acctAlloc"`
-	Tag                string                             `json:"tag"`
+	ValidUntil              types.Time                         `json:"validUntil"`
+	UpdatedTime             types.Time                         `json:"uTime"`
+	CreationTime            types.Time                         `json:"cTime"`
+	Legs                    []OrderLeg                         `json:"legs"`
+	QuoteID                 string                             `json:"quoteId"`
+	RequestForQuoteID       string                             `json:"rfqId"`
+	TraderCode              string                             `json:"traderCode"`
+	QuoteSide               string                             `json:"quoteSide"`
+	State                   string                             `json:"state"`
+	Reason                  string                             `json:"reason"`
+	ClientQuoteID           string                             `json:"clQuoteId"`
+	ClientRequestForQuoteID string                             `json:"clRfqId"`
+	AccountAllocations      []RequestForQuoteAccountAllocation `json:"acctAlloc"`
+	Tag                     string                             `json:"tag"`
 }
 
 // WsStructureBlocTrade represents websocket push data for "struc-block-trades" subscription
@@ -3616,19 +3616,19 @@ type WsStructureBlocTrade struct {
 
 // WsBlockTradeResponse represents a structure block order information
 type WsBlockTradeResponse struct {
-	CreationTime       types.Time                         `json:"cTime"`
-	RFQID              string                             `json:"rfqId"`
-	ClientRFQID        string                             `json:"clRfqId"`
-	QuoteID            string                             `json:"quoteId"`
-	ClientQuoteID      string                             `json:"clQuoteId"`
-	BlockTradeID       string                             `json:"blockTdId"`
-	TakerTraderCode    string                             `json:"tTraderCode"`
-	MakerTraderCode    string                             `json:"mTraderCode"`
-	Legs               []OrderLeg                         `json:"legs"`
-	IsSuccessful       bool                               `json:"isSuccessful"`
-	ErrorCode          string                             `json:"errorCode"`
-	AccountAllocations []RequestForQuoteAccountAllocation `json:"acctAlloc"`
-	Tag                string                             `json:"tag"`
+	CreationTime            types.Time                         `json:"cTime"`
+	RequestForQuoteID       string                             `json:"rfqId"`
+	ClientRequestForQuoteID string                             `json:"clRfqId"`
+	QuoteID                 string                             `json:"quoteId"`
+	ClientQuoteID           string                             `json:"clQuoteId"`
+	BlockTradeID            string                             `json:"blockTdId"`
+	TakerTraderCode         string                             `json:"tTraderCode"`
+	MakerTraderCode         string                             `json:"mTraderCode"`
+	Legs                    []OrderLeg                         `json:"legs"`
+	IsSuccessful            bool                               `json:"isSuccessful"`
+	ErrorCode               string                             `json:"errorCode"`
+	AccountAllocations      []RequestForQuoteAccountAllocation `json:"acctAlloc"`
+	Tag                     string                             `json:"tag"`
 }
 
 // WsSpotGridAlgoOrder represents websocket push data for "struc-block-trades" subscription

@@ -116,9 +116,9 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		verify func(t *testing.T)
 	}{
 		{
-			name: "RFQs send clRfqId",
+			name: "RequestForQuotes send clRfqId",
 			call: func() error {
-				_, err := e.GetRFQs(t.Context(), &RFQsRequest{ClientRFQID: "rfq-client-1"})
+				_, err := e.GetRequestForQuotes(t.Context(), &RequestForQuotesRequest{ClientRequestForQuoteID: "rfq-client-1"})
 				return err
 			},
 			path:   "/rfq/rfqs",
@@ -128,7 +128,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "Quotes send clRfqId",
 			call: func() error {
-				_, err := e.GetQuotes(t.Context(), &QuotesRequest{ClientRFQID: "rfq-client-1"})
+				_, err := e.GetQuotes(t.Context(), &QuotesRequest{ClientRequestForQuoteID: "rfq-client-1"})
 				return err
 			},
 			path:   "/rfq/quotes",
@@ -138,7 +138,7 @@ func TestDocsPinnedRequestParameters(t *testing.T) {
 		{
 			name: "RFQ trades send clRfqId without state",
 			call: func() error {
-				_, err := e.GetRequestForQuoteTrades(t.Context(), &RequestForQuoteTradesRequest{ClientRFQID: "rfq-client-1"})
+				_, err := e.GetRequestForQuoteTrades(t.Context(), &RequestForQuoteTradesRequest{ClientRequestForQuoteID: "rfq-client-1"})
 				return err
 			},
 			path:   "/rfq/trades",

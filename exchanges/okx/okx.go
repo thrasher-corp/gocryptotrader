@@ -817,59 +817,59 @@ func (e *Exchange) GetCounterparties(ctx context.Context) ([]CounterpartiesRespo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getCounterpartiesEPL, http.MethodGet, "rfq/counterparties", nil, &resp, request.AuthenticatedRequest)
 }
 
-// CreateRFQ Creates a new RFQ
-func (e *Exchange) CreateRFQ(ctx context.Context, arg *CreateRFQInput) (*RFQResponse, error) {
+// CreateRequestForQuote Creates a new RFQ
+func (e *Exchange) CreateRequestForQuote(ctx context.Context, arg *CreateRequestForQuoteInput) (*RequestForQuoteResponse, error) {
 	if len(arg.CounterParties) == 0 {
 		return nil, errInvalidCounterParties
 	}
 	if len(arg.Legs) == 0 {
 		return nil, errMissingLegs
 	}
-	var resp *RFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, createRFQEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
+	var resp *RequestForQuoteResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, createRequestForQuoteEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelRFQ cancels a request for quotation
-func (e *Exchange) CancelRFQ(ctx context.Context, rfqID, clientRFQID string) (*CancelRFQResponse, error) {
-	if rfqID == "" && clientRFQID == "" {
+// CancelRequestForQuote cancels a request for quotation
+func (e *Exchange) CancelRequestForQuote(ctx context.Context, requestForQuoteID, clientRequestForQuoteID string) (*CancelRequestForQuoteResponse, error) {
+	if requestForQuoteID == "" && clientRequestForQuoteID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp *CancelRFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelRFQEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRFQRequestParam{
-		RFQID:       rfqID,
-		ClientRFQID: clientRFQID,
+	var resp *CancelRequestForQuoteResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelRequestForQuoteEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRequestForQuoteRequestParam{
+		RequestForQuoteID:       requestForQuoteID,
+		ClientRequestForQuoteID: clientRequestForQuoteID,
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be cancelled at a time
-func (e *Exchange) CancelMultipleRFQs(ctx context.Context, arg *CancelRFQRequestsParam) ([]CancelRFQResponse, error) {
+// CancelMultipleRequestForQuotes cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be cancelled at a time
+func (e *Exchange) CancelMultipleRequestForQuotes(ctx context.Context, arg *CancelRequestForQuoteRequestsParam) ([]CancelRequestForQuoteResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
-	if len(arg.RFQIDs) == 0 && len(arg.ClientRFQIDs) == 0 {
+	if len(arg.RequestForQuoteIDs) == 0 && len(arg.ClientRequestForQuoteIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
-	} else if len(arg.RFQIDs)+len(arg.ClientRFQIDs) > 100 {
-		return nil, errMaxRFQOrdersToCancel
+	} else if len(arg.RequestForQuoteIDs)+len(arg.ClientRequestForQuoteIDs) > 100 {
+		return nil, errMaxRequestForQuoteOrdersToCancel
 	}
-	var resp []CancelRFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRFQEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
+	var resp []CancelRequestForQuoteResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRequestForQuotesEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllRFQs cancels all active RFQs
-func (e *Exchange) CancelAllRFQs(ctx context.Context) (types.Time, error) {
+// CancelAllRequestForQuotes cancels all active RFQs
+func (e *Exchange) CancelAllRequestForQuotes(ctx context.Context) (types.Time, error) {
 	resp := &tsResp{}
-	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, resp, request.AuthenticatedRequest)
+	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRequestForQuotesEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, resp, request.AuthenticatedRequest)
 }
 
 // ExecuteQuote executes a Quote. It is only used by the creator of the RFQ
-func (e *Exchange) ExecuteQuote(ctx context.Context, rfqID, quoteID string) (*ExecuteQuoteResponse, error) {
-	if rfqID == "" || quoteID == "" {
-		return nil, errMissingRFQIDOrQuoteID
+func (e *Exchange) ExecuteQuote(ctx context.Context, requestForQuoteID, quoteID string) (*ExecuteQuoteResponse, error) {
+	if requestForQuoteID == "" || quoteID == "" {
+		return nil, errMissingRequestForQuoteIDOrQuoteID
 	}
 	var resp *ExecuteQuoteResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, executeQuoteEPL, http.MethodPost, "rfq/execute-quote", &ExecuteQuoteParams{
-		RFQID:   rfqID,
-		QuoteID: quoteID,
+		RequestForQuoteID: requestForQuoteID,
+		QuoteID:           quoteID,
 	}, &resp, request.AuthenticatedRequest)
 }
 
@@ -905,10 +905,10 @@ func (e *Exchange) SetQuoteProducts(ctx context.Context, args []SetQuoteProductP
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setQuoteProductsEPL, http.MethodPost, "rfq/maker-instrument-settings", &args, &resp, request.AuthenticatedRequest)
 }
 
-// ResetRFQMMPStatus reset the MMP status to be inactive
-func (e *Exchange) ResetRFQMMPStatus(ctx context.Context) (types.Time, error) {
+// ResetRequestForQuoteMMPStatus reset the MMP status to be inactive
+func (e *Exchange) ResetRequestForQuoteMMPStatus(ctx context.Context) (types.Time, error) {
 	resp := &tsResp{}
-	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
+	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, resetRequestForQuoteMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
 }
 
 // CreateQuote allows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
@@ -919,8 +919,8 @@ func (e *Exchange) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*Qu
 	}
 	arg.QuoteSide = strings.ToLower(arg.QuoteSide)
 	switch {
-	case arg.RFQID == "":
-		return nil, errMissingRFQID
+	case arg.RequestForQuoteID == "":
+		return nil, errMissingRequestForQuoteID
 	case arg.QuoteSide != order.Buy.Lower() && arg.QuoteSide != order.Sell.Lower():
 		return nil, order.ErrSideIsInvalid
 	case len(arg.Legs) == 0:
@@ -963,23 +963,23 @@ func (e *Exchange) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequ
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, "rfq/cancel-batch-quotes", &arg, &resp, request.AuthenticatedRequest)
 }
 
-// CancelAllRFQQuotes cancels all active quote orders
-func (e *Exchange) CancelAllRFQQuotes(ctx context.Context) (types.Time, error) {
+// CancelAllRequestForQuoteQuotes cancels all active quote orders
+func (e *Exchange) CancelAllRequestForQuoteQuotes(ctx context.Context) (types.Time, error) {
 	resp := &tsResp{}
 	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil, resp, request.AuthenticatedRequest)
 }
 
-// GetRFQs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
-func (e *Exchange) GetRFQs(ctx context.Context, arg *RFQsRequest) ([]RFQResponse, error) {
-	if *arg == (RFQsRequest{}) {
+// GetRequestForQuotes retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
+func (e *Exchange) GetRequestForQuotes(ctx context.Context, arg *RequestForQuotesRequest) ([]RequestForQuoteResponse, error) {
+	if *arg == (RequestForQuotesRequest{}) {
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}
-	if arg.RFQID != "" {
-		params.Set("rfqId", arg.RFQID)
+	if arg.RequestForQuoteID != "" {
+		params.Set("rfqId", arg.RequestForQuoteID)
 	}
-	if arg.ClientRFQID != "" {
-		params.Set("clRfqId", arg.ClientRFQID)
+	if arg.ClientRequestForQuoteID != "" {
+		params.Set("clRfqId", arg.ClientRequestForQuoteID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
@@ -993,8 +993,8 @@ func (e *Exchange) GetRFQs(ctx context.Context, arg *RFQsRequest) ([]RFQResponse
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []RFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRFQsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
+	var resp []RequestForQuoteResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRequestForQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetQuotes retrieves all Quotes where the user is a counterparty, either as the creator or the receiver
@@ -1003,11 +1003,11 @@ func (e *Exchange) GetQuotes(ctx context.Context, arg *QuotesRequest) ([]QuoteRe
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}
-	if arg.RFQID != "" {
-		params.Set("rfqId", arg.RFQID)
+	if arg.RequestForQuoteID != "" {
+		params.Set("rfqId", arg.RequestForQuoteID)
 	}
-	if arg.ClientRFQID != "" {
-		params.Set("clRfqId", arg.ClientRFQID)
+	if arg.ClientRequestForQuoteID != "" {
+		params.Set("clRfqId", arg.ClientRequestForQuoteID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
@@ -1037,11 +1037,11 @@ func (e *Exchange) GetRequestForQuoteTrades(ctx context.Context, arg *RequestFor
 		return nil, common.ErrEmptyParams
 	}
 	params := url.Values{}
-	if arg.RFQID != "" {
-		params.Set("rfqId", arg.RFQID)
+	if arg.RequestForQuoteID != "" {
+		params.Set("rfqId", arg.RequestForQuoteID)
 	}
-	if arg.ClientRFQID != "" {
-		params.Set("clRfqId", arg.ClientRFQID)
+	if arg.ClientRequestForQuoteID != "" {
+		params.Set("clRfqId", arg.ClientRequestForQuoteID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
@@ -1065,8 +1065,8 @@ func (e *Exchange) GetRequestForQuoteTrades(ctx context.Context, arg *RequestFor
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetPublicRFQTrades retrieves recent executed block trades
-func (e *Exchange) GetPublicRFQTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
+// GetPublicRequestForQuoteTrades retrieves recent executed block trades
+func (e *Exchange) GetPublicRequestForQuoteTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
 	params := url.Values{}
 	if beginID != "" {
 		params.Set("beginId", beginID)
@@ -1475,10 +1475,10 @@ func (e *Exchange) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestI
 	default:
 		return nil, order.ErrSideIsInvalid
 	}
-	if arg.RFQAmount <= 0 {
+	if arg.RequestForQuoteAmount <= 0 {
 		return nil, fmt.Errorf("%w, RFQ amount required", limits.ErrAmountBelowMin)
 	}
-	if arg.RFQSzCurrency.IsEmpty() {
+	if arg.RequestForQuoteSizeCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, missing RFQ currency", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp *EstimateQuoteResponse

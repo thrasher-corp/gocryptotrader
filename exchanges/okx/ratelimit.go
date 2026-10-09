@@ -49,21 +49,21 @@ const (
 	tradeOneClickRepayEPL
 	massCancelMMPOrderEPL
 	getCounterpartiesEPL
-	createRFQEPL
-	cancelRFQEPL
-	cancelMultipleRFQEPL
-	cancelAllRFQsEPL
+	createRequestForQuoteEPL
+	cancelRequestForQuoteEPL
+	cancelMultipleRequestForQuotesEPL
+	cancelAllRequestForQuotesEPL
 	executeQuoteEPL
 	getQuoteProductsEPL
 	setQuoteProductsEPL
-	resetRFQMMPEPL
+	resetRequestForQuoteMMPEPL
 	setMMPEPL
 	getMMPConfigEPL
 	createQuoteEPL
 	cancelQuoteEPL
 	cancelMultipleQuotesEPL
 	cancelAllQuotesEPL
-	getRFQsEPL
+	getRequestForQuotesEPL
 	getQuotesEPL
 	getTradesEPL
 	getTradesHistoryEPL
@@ -327,29 +327,29 @@ var rateLimits = func() request.RateLimitDefinitions {
 		massCancelMMPOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
 		// Block Trading endpoints
-		getCounterpartiesEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		createRFQEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		cancelRFQEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		cancelMultipleRFQEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		cancelAllRFQsEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		executeQuoteEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 2, 1),
-		getQuoteProductsEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setQuoteProductsEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		resetMMPStatusEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		resetRFQMMPEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		setMMPEPL:                      request.NewRateLimitWithWeight(tenSecondsInterval, 2, 1),
-		getMMPConfigEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		createQuoteEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 50, 1),
-		cancelQuoteEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 50, 1),
-		cancelMultipleQuotesEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		cancelAllQuotesEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getRFQsEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getQuotesEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getTradesEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getTradesHistoryEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		optionInstrumentTradeFamilyEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		optionTradesEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getPublicTradesEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getCounterpartiesEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		createRequestForQuoteEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		cancelRequestForQuoteEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		cancelMultipleRequestForQuotesEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		cancelAllRequestForQuotesEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		executeQuoteEPL:                   request.NewRateLimitWithWeight(threeSecondsInterval, 2, 1),
+		getQuoteProductsEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setQuoteProductsEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		resetMMPStatusEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		resetRequestForQuoteMMPEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setMMPEPL:                         request.NewRateLimitWithWeight(tenSecondsInterval, 2, 1),
+		getMMPConfigEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		createQuoteEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 50, 1),
+		cancelQuoteEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 50, 1),
+		cancelMultipleQuotesEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		cancelAllQuotesEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getRequestForQuotesEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getQuotesEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getTradesEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getTradesHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		optionInstrumentTradeFamilyEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		optionTradesEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getPublicTradesEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
 		// Funding
 		getCurrenciesEPL:              request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),

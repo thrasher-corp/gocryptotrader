@@ -382,7 +382,7 @@ func TestGetBlockTrade(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, pairs)
 
-		publicTrades, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 100)
+		publicTrades, err := e.GetPublicRequestForQuoteTrades(contextGenerate(), "", "", 100)
 		require.NoError(t, err)
 
 		tested := false
@@ -1659,58 +1659,58 @@ func TestGetCounterparties(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-const createRFQInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trader2"],"clRfqId":"rfq01","legs":[{"sz":"25","side":"buy","instId":"BTCUSD-221208-100000-C"},{"sz":"150","side":"buy","instId":"BTC-USDT","tgtCcy":"base_ccy"}]}`
+const createRequestForQuoteInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trader2"],"clRfqId":"rfq01","legs":[{"sz":"25","side":"buy","instId":"BTCUSD-221208-100000-C"},{"sz":"150","side":"buy","instId":"BTC-USDT","tgtCcy":"base_ccy"}]}`
 
-func TestCreateRFQ(t *testing.T) {
+func TestCreateRequestForQuote(t *testing.T) {
 	t.Parallel()
-	var input *CreateRFQInput
-	err := json.Unmarshal([]byte(createRFQInputJSON), &input)
+	var input *CreateRequestForQuoteInput
+	err := json.Unmarshal([]byte(createRequestForQuoteInputJSON), &input)
 	require.NoError(t, err)
 
-	_, err = e.CreateRFQ(contextGenerate(), &CreateRFQInput{CounterParties: []string{}})
+	_, err = e.CreateRequestForQuote(contextGenerate(), &CreateRequestForQuoteInput{CounterParties: []string{}})
 	require.ErrorIs(t, err, errInvalidCounterParties)
 
-	_, err = e.CreateRFQ(contextGenerate(), &CreateRFQInput{CounterParties: []string{"Trader1"}})
+	_, err = e.CreateRequestForQuote(contextGenerate(), &CreateRequestForQuoteInput{CounterParties: []string{"Trader1"}})
 	require.ErrorIs(t, err, errMissingLegs)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CreateRFQ(contextGenerate(), input)
+	result, err := e.CreateRequestForQuote(contextGenerate(), input)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestCancelRFQ(t *testing.T) {
+func TestCancelRequestForQuote(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelRFQ(contextGenerate(), "", "")
+	_, err := e.CancelRequestForQuote(contextGenerate(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelRFQ(contextGenerate(), "", "somersdjskfjsdkfjxvxv")
+	result, err := e.CancelRequestForQuote(contextGenerate(), "", "somersdjskfjsdkfjxvxv")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestMultipleCancelRFQ(t *testing.T) {
+func TestMultipleCancelRequestForQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelMultipleRFQs(contextGenerate(), nil)
+	_, err := e.CancelMultipleRequestForQuotes(contextGenerate(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.CancelMultipleRFQs(contextGenerate(), &CancelRFQRequestsParam{})
+	_, err = e.CancelMultipleRequestForQuotes(contextGenerate(), &CancelRequestForQuoteRequestsParam{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	_, err = e.CancelMultipleRFQs(contextGenerate(), &CancelRFQRequestsParam{RFQIDs: make([]string, 100), ClientRFQIDs: make([]string, 100)})
-	require.ErrorIs(t, err, errMaxRFQOrdersToCancel)
+	_, err = e.CancelMultipleRequestForQuotes(contextGenerate(), &CancelRequestForQuoteRequestsParam{RequestForQuoteIDs: make([]string, 100), ClientRequestForQuoteIDs: make([]string, 100)})
+	require.ErrorIs(t, err, errMaxRequestForQuoteOrdersToCancel)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelMultipleRFQs(contextGenerate(), &CancelRFQRequestsParam{ClientRFQIDs: []string{"somersdjskfjsdkfjxvxv"}})
+	result, err := e.CancelMultipleRequestForQuotes(contextGenerate(), &CancelRequestForQuoteRequestsParam{ClientRequestForQuoteIDs: []string{"somersdjskfjsdkfjxvxv"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestCancelAllRFQs(t *testing.T) {
+func TestCancelAllRequestForQuotes(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelAllRFQs(contextGenerate())
+	result, err := e.CancelAllRequestForQuotes(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1718,7 +1718,7 @@ func TestCancelAllRFQs(t *testing.T) {
 func TestExecuteQuote(t *testing.T) {
 	t.Parallel()
 	_, err := e.ExecuteQuote(contextGenerate(), "", "")
-	assert.ErrorIs(t, err, errMissingRFQIDOrQuoteID)
+	assert.ErrorIs(t, err, errMissingRequestForQuoteIDOrQuoteID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ExecuteQuote(contextGenerate(), "22540", "84073")
@@ -1777,10 +1777,10 @@ func TestSetQuoteProducts(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestResetRFQMMPStatus(t *testing.T) {
+func TestResetRequestForQuoteMMPStatus(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.ResetRFQMMPStatus(contextGenerate())
+	result, err := e.ResetRequestForQuoteMMPStatus(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1792,9 +1792,9 @@ func TestCreateQuote(t *testing.T) {
 
 	arg := &CreateQuoteParams{}
 	_, err = e.CreateQuote(contextGenerate(), arg)
-	require.ErrorIs(t, err, errMissingRFQID)
+	require.ErrorIs(t, err, errMissingRequestForQuoteID)
 
-	arg.RFQID = "123456789"
+	arg.RequestForQuoteID = "123456789"
 	_, err = e.CreateQuote(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -1824,8 +1824,8 @@ func TestCreateQuote(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CreateQuote(contextGenerate(), &CreateQuoteParams{
-		RFQID:     "12345",
-		QuoteSide: order.Buy.Lower(),
+		RequestForQuoteID: "12345",
+		QuoteSide:         order.Buy.Lower(),
 		Legs: []QuoteLeg{
 			{
 				Price:          1234,
@@ -1874,21 +1874,21 @@ func TestCancelMultipleQuote(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCancelAllRFQQuotes(t *testing.T) {
+func TestCancelAllRequestForQuoteQuotes(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	tt, err := e.CancelAllRFQQuotes(contextGenerate())
+	tt, err := e.CancelAllRequestForQuoteQuotes(contextGenerate())
 	require.NoError(t, err)
 	assert.NotEmpty(t, tt)
 }
 
-func TestGetRFQs(t *testing.T) {
+func TestGetRequestForQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetRFQs(contextGenerate(), &RFQsRequest{})
+	_, err := e.GetRequestForQuotes(contextGenerate(), &RequestForQuotesRequest{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetRFQs(contextGenerate(), &RFQsRequest{
+	result, err := e.GetRequestForQuotes(contextGenerate(), &RequestForQuotesRequest{
 		Limit: 1,
 	})
 	require.NoError(t, err)
@@ -1919,10 +1919,10 @@ func TestGetRequestForQuoteTrades(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetPublicRFQTrades(t *testing.T) {
+func TestGetPublicRequestForQuoteTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetPublicRFQTrades(contextGenerate(), "", "", 3)
+	result, err := e.GetPublicRequestForQuoteTrades(contextGenerate(), "", "", 3)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2227,17 +2227,17 @@ func TestEstimateQuote(t *testing.T) {
 	arg.Side = order.Sell.Lower()
 	_, err = e.EstimateQuote(contextGenerate(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	arg.RFQAmount = 30
+	arg.RequestForQuoteAmount = 30
 	_, err = e.EstimateQuote(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.EstimateQuote(contextGenerate(), &EstimateQuoteRequestInput{
-		BaseCurrency:  currency.BTC,
-		QuoteCurrency: currency.USDT,
-		Side:          order.Sell.Lower(),
-		RFQAmount:     30,
-		RFQSzCurrency: currency.USDT,
+		BaseCurrency:                currency.BTC,
+		QuoteCurrency:               currency.USDT,
+		Side:                        order.Sell.Lower(),
+		RequestForQuoteAmount:       30,
+		RequestForQuoteSizeCurrency: currency.USDT,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4433,7 +4433,7 @@ var pushDataMap = map[string]string{
 	"Advanced Algo Order":                   `{"arg": {"channel":"algo-advance","uid": "77982378738415879","instType":"SPOT","instId":"BTC-USDT"},"data":[{"actualPx":"","actualSide":"","actualSz":"0","algoId":"355056228680335360","cTime":"1630924001545","ccy":"","count":"1","instId":"BTC-USDT","instType":"SPOT","lever":"0","notionalUsd":"","ordPx":"","ordType":"iceberg","pTime":"1630924295204","posSide":"net","pxLimit":"10","pxSpread":"1","pxVar":"","side":"buy","slOrdPx":"","slTriggerPx":"","state":"pause","sz":"0.1","szLimit":"0.1","tdMode":"cash","timeInterval":"","tpOrdPx":"","tpTriggerPx":"","tag": "adadadadad","triggerPx":"","triggerTime":"","callbackRatio":"","callbackSpread":"","activePx":"","moveTriggerPx":""}]}`,
 	"Position Risk":                         `{"arg": {"channel": "liquidation-warning","uid": "77982378738415879","instType": "FUTURES"},"data": [{"adl":"1","availPos":"1","avgPx":"2566.31","cTime":"1619507758793","ccy":"ETH","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","imr":"","instId":"ETH-USD-210430","instType":"FUTURES","interest":"0","last":"2566.22","lever":"10","liab":"","liabCcy":"","liqPx":"2352.8496681818233","markPx":"2353.849","margin":"0.0003896645377994","mgnMode":"isolated","mgnRatio":"11.731726509588816","mmr":"0.0000311811092368","notionalUsd":"2276.2546609009605","optVal":"","pTime":"1619507761462","pos":"1","posCcy":"","posId":"307173036051017730","posSide":"long","thetaBS":"","thetaPA":"","tradeId":"109844","uTime":"1619507761462","upl":"-0.0000009932766034","uplRatio":"-0.0025490556801078","vegaBS":"","vegaPA":""}, {"adl":"1","availPos":"1","avgPx":"2566.31","cTime":"1619507758793","ccy":"ETH","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","imr":"","instId":"ETH-USD-SWAP","instType":"SWAP","interest":"0","last":"2566.22","lever":"10","liab":"","liabCcy":"","liqPx":"2352.8496681818233","markPx":"2353.849","margin":"0.0003896645377994","mgnMode":"isolated","mgnRatio":"11.731726509588816","mmr":"0.0000311811092368","notionalUsd":"2276.2546609009605","optVal":"","pTime":"1619507761462","pos":"1","posCcy":"","posId":"307173036051017730","posSide":"long","thetaBS":"","thetaPA":"","tradeId":"109844","uTime":"1619507761462","upl":"-0.0000009932766034","uplRatio":"-0.0025490556801078","vegaBS":"","vegaPA":""}]}`,
 	"Account Greeks":                        `{"arg": {"channel": "account-greeks","ccy": "BTC"},"data": [{"thetaBS": "","thetaPA":"","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","vegaBS":"","vegaPA":"","ccy":"BTC","ts":"1620282889345"}]}`,
-	"RFQs":                                  `{"arg": {"channel": "account-greeks","ccy": "BTC"},"data": [{"thetaBS": "","thetaPA":"","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","vegaBS":"","vegaPA":"","ccy":"BTC","ts":"1620282889345"}]}`,
+	"RequestForQuotes":                      `{"arg": {"channel": "account-greeks","ccy": "BTC"},"data": [{"thetaBS": "","thetaPA":"","deltaBS":"","deltaPA":"","gammaBS":"","gammaPA":"","vegaBS":"","vegaPA":"","ccy":"BTC","ts":"1620282889345"}]}`,
 	"Accounts":                              `{"arg": {"channel": "account","ccy": "BTC","uid": "77982378738415879"},	"data": [{"uTime": "1597026383085","totalEq": "41624.32","isoEq": "3624.32","adjEq": "41624.32","ordFroz": "0","imr": "4162.33","mmr": "4","notionalUsd": "","mgnRatio": "41624.32","details": [{"availBal": "","availEq": "1","ccy": "BTC","cashBal": "1","uTime": "1617279471503","disEq": "50559.01","eq": "1","eqUsd": "45078.3790756226851775","frozenBal": "0","interest": "0","isoEq": "0","liab": "0","maxLoan": "","mgnRatio": "","notionalLever": "0.0022195262185864","ordFrozen": "0","upl": "0","uplLiab": "0","crossLiab": "0","isoLiab": "0","coinUsdPrice": "60000","stgyEq":"0","spotInUseAmt":"","isoUpl":""}]}]}`,
 	"Quotes":                                `{"arg": {"channel":"quotes"},"data":[{"validUntil":"1608997227854","uTime":"1608267227834","cTime":"1608267227834","legs":[{"px":"0.0023","sz":"25.0","instId":"BTC-USD-220114-25000-C","side":"sell","tgtCcy":""},{"px":"0.0045","sz":"25","instId":"BTC-USD-220114-35000-C","side":"buy","tgtCcy":""}],"quoteId":"25092","rfqId":"18753","traderCode":"SATS","quoteSide":"sell","state":"canceled","clQuoteId":""}]}`,
 	"Structure Block Trades":                `{"arg": {"channel":"struc-block-trades"},"data":[{"cTime":"1608267227834","rfqId":"18753","clRfqId":"","quoteId":"25092","clQuoteId":"","blockTdId":"180184","tTraderCode":"ANAND","mTraderCode":"WAGMI","legs":[{"px":"0.0023","sz":"25.0","instId":"BTC-USD-20220630-60000-C","side":"sell","fee":"0.1001","feeCcy":"BTC","tradeId":"10211","tgtCcy":""},{"px":"0.0033","sz":"25","instId":"BTC-USD-20220630-50000-C","side":"buy","fee":"0.1001","feeCcy":"BTC","tradeId":"10212","tgtCcy":""}]}]}`,

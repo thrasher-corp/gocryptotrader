@@ -38,7 +38,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 	}
 	var gridPositions []*WsGridPosition
 	var accountPushes []*WsAccountChannelPushData
-	var rfqPushes []*WsRFQ
+	var requestForQuotePushes []*WsRequestForQuote
 	var liquidations []*WsLiquidationOrders
 	var algoOrderPushes []*WsAlgoOrder
 	var advancedAlgoOrderPushes []*WsAdvancedAlgoOrder
@@ -66,8 +66,8 @@ func TestWSPushSchemasDecode(t *testing.T) {
 			gridPositions = append(gridPositions, v)
 		case *WsAccountChannelPushData:
 			accountPushes = append(accountPushes, v)
-		case *WsRFQ:
-			rfqPushes = append(rfqPushes, v)
+		case *WsRequestForQuote:
+			requestForQuotePushes = append(requestForQuotePushes, v)
 		case *WsLiquidationOrders:
 			liquidations = append(liquidations, v)
 		case *WsAlgoOrder:
@@ -133,14 +133,14 @@ func TestWSPushSchemasDecode(t *testing.T) {
 
 	t.Run("rfqs push decodes the millisecond timestamps", func(t *testing.T) {
 		t.Parallel()
-		require.Len(t, rfqPushes, 1, "the rfqs push must decode into the RFQ push struct")
-		require.Len(t, rfqPushes[0].Data, 1, "the rfq row must decode")
-		row := rfqPushes[0].Data[0]
+		require.Len(t, requestForQuotePushes, 1, "the rfqs push must decode into the RFQ push struct")
+		require.Len(t, requestForQuotePushes[0].Data, 1, "the rfq row must decode")
+		row := requestForQuotePushes[0].Data[0]
 		assert.Equal(t, int64(1611033737572), row.CreationTime.Time().UnixMilli(), "the documented cTime millisecond string should decode")
 		assert.Equal(t, int64(1611033737572), row.UpdateTime.Time().UnixMilli(), "the documented uTime millisecond string should decode")
 		assert.Equal(t, int64(1611033857557), row.ValidUntil.Time().UnixMilli(), "the documented validUntil millisecond string should decode")
 		assert.Equal(t, "active", row.State, "the documented state should decode")
-		assert.Equal(t, "22534", row.RFQID, "the documented rfqId should decode")
+		assert.Equal(t, "22534", row.RequestForQuoteID, "the documented rfqId should decode")
 	})
 
 	t.Run("liquidation orders decode the envelope data", func(t *testing.T) {

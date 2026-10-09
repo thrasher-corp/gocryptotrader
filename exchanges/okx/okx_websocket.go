@@ -88,7 +88,7 @@ const (
 	channelAlgoAdvance          = "algo-advance"
 	channelLiquidationWarning   = "liquidation-warning"
 	channelAccountGreeks        = "account-greeks"
-	channelRFQs                 = "rfqs"
+	channelRequestForQuotes     = "rfqs"
 	channelQuotes               = "quotes"
 	channelStructureBlockTrades = "struc-block-trades"
 	channelSpotGridOrder        = "grid-orders-spot"
@@ -443,8 +443,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
 		return e.wsProcessPushData(ctx, respRaw, &response)
-	case channelRFQs:
-		var response WsRFQ
+	case channelRequestForQuotes:
+		var response WsRequestForQuote
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelQuotes:
 		var response WsQuote
