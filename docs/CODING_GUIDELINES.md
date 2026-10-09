@@ -293,6 +293,11 @@ Use `require` and `assert` appropriately:
     already partially filled order. Use different fill prices, quantities and
     fees to distinguish the latest fill from cumulative execution, and verify
     unavailable cumulative values remain unknown.
+    Preserve individual fills in `Trades`; a fill alone does not establish the
+    order's total quantity, status, average price or cumulative fee. When the
+    payload includes cumulative quantities, use exact wire-decimal arithmetic
+    to distinguish a sole fill from a later fill, not float equality or a
+    tolerance that could hide earlier fills on large orders.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 - Bound channel receives and other waits in tests so a missing event fails

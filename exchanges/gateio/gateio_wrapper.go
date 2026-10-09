@@ -1756,20 +1756,20 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				od := order.Detail{
-					OrderID:        o[j].OrderID,
-					Amount:         o[j].Amount.Float64(),
-					ExecutedAmount: o[j].Amount.Float64(),
-					Price:          o[j].Price.Float64(),
-					Date:           o[j].CreateTime.Time(),
-					Side:           side,
-					Exchange:       e.Name,
-					Pair:           fp,
-					AssetType:      req.AssetType,
-					Fee:            o[j].Fee.Float64(),
-					FeeAsset:       o[j].FeeCurrency,
+					OrderID: o[j].OrderID,
+					// A trade row does not report order-wide quantities, status,
+					// limit price, average or fee; preserve only the individual fill.
+					Date:      o[j].CreateTime.Time(),
+					Side:      side,
+					Exchange:  e.Name,
+					Pair:      fp,
+					AssetType: req.AssetType,
+					Trades: []order.TradeHistory{{
+						TID: o[j].TradeID, Price: o[j].Price.Float64(), Amount: o[j].Amount.Float64(),
+						Fee: o[j].Fee.Float64(), FeeAsset: o[j].FeeCurrency.String(),
+						Side: side, Timestamp: o[j].CreateTime.Time(), Exchange: e.Name,
+					}},
 				}
-				// Each row is a single fill, so its price is the execution price.
-				od.AverageExecutedPrice = o[j].Price.Float64()
 				od.InferExecutionAndTimes()
 				resp = append(resp, od)
 			}

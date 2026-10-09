@@ -717,23 +717,24 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
+// tradeHistoryToOrderDetail preserves a fill, not cumulative order state.
+// Order quantities, status, limit price, average and fee are unavailable.
 func tradeHistoryToOrderDetail(history *TradeHistory, format currency.PairFormat, exchangeName string) (order.Detail, error) {
 	side, err := order.StringToOrderSide(history.Type)
 	if err != nil {
 		return order.Detail{}, err
 	}
 	detail := order.Detail{
-		OrderID:              strconv.FormatInt(history.OrderID, 10),
-		Amount:               history.Amount,
-		ExecutedAmount:       history.Amount,
-		Exchange:             exchangeName,
-		Date:                 history.Timestamp.Time(),
-		Side:                 side,
-		Fee:                  history.FeeAmount,
-		FeeAsset:             history.FeeCurrency,
-		Price:                history.Price,
-		AverageExecutedPrice: history.Price,
-		Pair:                 currency.NewPairWithDelimiter(history.BaseCurrency, history.QuoteCurrency, format.Delimiter),
+		OrderID:  strconv.FormatInt(history.OrderID, 10),
+		Exchange: exchangeName,
+		Date:     history.Timestamp.Time(),
+		Side:     side,
+		Trades: []order.TradeHistory{{
+			TID: strconv.FormatInt(history.TID, 10), Price: history.Price, Amount: history.Amount,
+			Fee: history.FeeAmount, FeeAsset: history.FeeCurrency.String(),
+			Side: side, Timestamp: history.Timestamp.Time(), Exchange: exchangeName,
+		}},
+		Pair: currency.NewPairWithDelimiter(history.BaseCurrency, history.QuoteCurrency, format.Delimiter),
 	}
 	detail.InferExecutionAndTimes()
 	return detail, nil

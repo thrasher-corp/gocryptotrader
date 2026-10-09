@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -391,11 +392,25 @@ func TestTradeHistoryToOrderDetailExecutionMappings(t *testing.T) {
 		Price: 60, Amount: 2, Type: "buy", OrderID: 42, BaseCurrency: "BTC", QuoteCurrency: "USD", FeeAmount: 0.3, FeeCurrency: currency.USD,
 	}, currency.PairFormat{Delimiter: "-"}, "Gemini")
 	require.NoError(t, err, "tradeHistoryToOrderDetail must not error")
-	assert.Equal(t, 2.0, got.ExecutedAmount, "conversion should retain the reported filled quantity")
-	assert.Equal(t, 60.0, got.AverageExecutedPrice, "conversion should retain the reported fill price")
-	assert.Zero(t, got.ExecutedQuoteAmount, "conversion should not invent an unavailable quote total")
-	assert.Equal(t, 0.3, got.Fee, "conversion should retain the reported fee")
-	assert.Equal(t, currency.USD, got.FeeAsset, "conversion should retain the reported fee currency")
+	assert.Equal(t, order.Detail{
+		OrderID: "42", Exchange: "Gemini", Side: order.Buy, Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"),
+		Trades: []order.TradeHistory{{TID: "0", Price: 60, Amount: 2, Fee: 0.3, FeeAsset: "USD", Side: order.Buy, Exchange: "Gemini"}},
+	}, got, "conversion should preserve the fill without inventing order totals")
+	for i, fill := range []TradeHistory{
+		{TID: 101, OrderID: 42, Amount: 1.5, Price: 11, FeeAmount: 0.1, FeeCurrency: currency.USD},
+		{TID: 102, OrderID: 42, Amount: 0.5, Price: 12, FeeAmount: 0.05, FeeCurrency: currency.BTC},
+	} {
+		fill.Type, fill.BaseCurrency, fill.QuoteCurrency = "sell", "BTC", "USD"
+		got, err = tradeHistoryToOrderDetail(&fill, currency.PairFormat{Delimiter: "-"}, "Gemini")
+		require.NoError(t, err, "fill conversion must not error")
+		assert.Equal(t, order.Detail{
+			OrderID: "42", Exchange: "Gemini", Side: order.Sell, Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Trades: []order.TradeHistory{{
+				TID: strconv.Itoa(101 + i), Price: fill.Price, Amount: fill.Amount,
+				Fee: fill.FeeAmount, FeeAsset: fill.FeeCurrency.String(), Side: order.Sell, Exchange: "Gemini",
+			}},
+		}, got, "each fill should remain separate from unknown order totals")
+	}
 }
 
 // TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them

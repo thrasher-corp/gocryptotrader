@@ -2878,7 +2878,7 @@ func TestGetOrderHistorySpotExecutionPrice(t *testing.T) {
 		"StorePairs must enable the test pair")
 
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`[{"id":"1","create_time_ms":1735720637000,"currency_pair":"BTC_USDT","order_id":"2","side":"buy","amount":"0.01","price":"60000","fee":"0.1","fee_currency":"USDT"}]`))
+		_, err := w.Write([]byte(`[{"id":"1","create_time_ms":1735720637000,"currency_pair":"BTC_USDT","order_id":"2","side":"buy","amount":"0.01","price":"60000","fee":"0.1","fee_currency":"USDT"},{"id":"3","create_time_ms":1735720638000,"currency_pair":"BTC_USDT","order_id":"2","side":"buy","amount":"0.02","price":"60010","fee":"0.05","fee_currency":"BTC"}]`))
 		assert.NoError(t, err, "mock spot trade history response should be written")
 	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
@@ -2892,8 +2892,18 @@ func TestGetOrderHistorySpotExecutionPrice(t *testing.T) {
 		Type:      order.AnyType,
 	})
 	require.NoError(t, err, "GetOrderHistory must not error")
-	require.Len(t, orders, 1, "spot trade history must contain one fill")
-	assert.Equal(t, 60000.0, orders[0].AverageExecutedPrice, "single-fill price should be the average execution price")
+	assert.Equal(t, order.FilteredOrders{
+		{
+			OrderID: "2", Exchange: ex.Name, Side: order.Buy, AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Date: time.UnixMilli(1735720637000), LastUpdated: time.UnixMilli(1735720637000),
+			Trades: []order.TradeHistory{{TID: "1", Price: 60000, Amount: 0.01, Fee: 0.1, FeeAsset: "USDT", Side: order.Buy, Exchange: ex.Name, Timestamp: time.UnixMilli(1735720637000)}},
+		},
+		{
+			OrderID: "2", Exchange: ex.Name, Side: order.Buy, AssetType: asset.Spot, Pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Date: time.UnixMilli(1735720638000), LastUpdated: time.UnixMilli(1735720638000),
+			Trades: []order.TradeHistory{{TID: "3", Price: 60010, Amount: 0.02, Fee: 0.05, FeeAsset: "BTC", Side: order.Buy, Exchange: ex.Name, Timestamp: time.UnixMilli(1735720638000)}},
+		},
+	}, orders, "spot history should preserve both fills without inventing order totals")
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
