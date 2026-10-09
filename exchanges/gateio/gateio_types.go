@@ -1,9 +1,11 @@
 package gateio
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -556,7 +558,7 @@ type OrderbookLevels orderbook.Levels
 func (o *OrderbookLevels) UnmarshalJSON(data []byte) error {
 	var levels []OrderbookItem
 	if err := json.Unmarshal(data, &levels); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", common.ErrMalformedData, err)
 	}
 
 	*o = make(OrderbookLevels, len(levels))
@@ -937,6 +939,7 @@ type OptionsTicker struct {
 	LastPrice             types.Number  `json:"last_price"`
 	MarkPrice             types.Number  `json:"mark_price"`
 	IndexPrice            types.Number  `json:"index_price"`
+	UnderlyingPrice       types.Number  `json:"underlying_price"`
 	PositionSize          types.Number  `json:"position_size"`
 	Ask1Size              types.Number  `json:"ask1_size"`
 	Ask1Price             types.Number  `json:"ask1_price"`

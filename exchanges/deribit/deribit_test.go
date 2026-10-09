@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -4024,6 +4025,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	exp := subscription.List{}
 	for _, s := range e.Features.Subscriptions {
+		if s.Channel == subscription.MyAccountChannel {
+			exp = append(exp, &subscription.Subscription{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true, QualifiedChannel: "user.portfolio.any"})
+			continue
+		}
+
 		for _, a := range e.GetAssetTypes(true) {
 			if !e.IsAssetWebsocketSupported(a) {
 				continue
@@ -4035,7 +4041,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = channelName(s) + "." + p.String()
+					s.QualifiedChannel = channelName(s)
+					if !strings.HasSuffix(s.QualifiedChannel, ".") {
+						s.QualifiedChannel += "."
+					}
+					s.QualifiedChannel += p.String()
 					if s.Interval != 0 {
 						s.QualifiedChannel += "." + channelInterval(s)
 					}
@@ -4050,6 +4060,41 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
+
+	t.Run("linear dated futures use an underscore", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		pair := currency.NewPairWithDelimiter("AVAX", "USDC-27AUG26", currency.DashDelimiter)
+		require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{pair}, asset.Futures, false), "SetPairs available must not error")
+		require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{pair}, asset.Futures, true), "SetPairs must not error")
+		ex.Features.Subscriptions = subscription.List{{
+			Enabled:  true,
+			Asset:    asset.Futures,
+			Channel:  subscription.TickerChannel,
+			Interval: kline.HundredMilliseconds,
+		}}
+
+		generated, err := ex.generateSubscriptions()
+		require.NoError(t, err)
+		require.Len(t, generated, 1, "one subscription must be generated")
+		assert.Equal(t, "ticker.AVAX_USDC-27AUG26.100ms", generated[0].QualifiedChannel, "dated linear future should use the exchange delimiter")
+	})
+
+	t.Run("account subscription uses portfolio", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true}}
+
+		generated, err := ex.generateSubscriptions()
+		require.NoError(t, err)
+		require.Len(t, generated, 1, "one account subscription must be generated")
+		assert.Equal(t, "user.portfolio.any", generated[0].QualifiedChannel, "account subscription should use the portfolio channel")
+	})
 }
 
 func TestChannelInterval(t *testing.T) {
@@ -4087,16 +4132,50 @@ func TestChannelInterval(t *testing.T) {
 func TestChannelName(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, tickerChannel, channelName(&subscription.Subscription{Channel: subscription.TickerChannel}))
+	assert.Equal(t, userPortfolioChannel+".any", channelName(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
 	assert.Equal(t, userLockChannel, channelName(&subscription.Subscription{Channel: userLockChannel}))
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: "wibble"}) }, "Unknown channels should panic")
 }
 
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "live balance update must succeed")
+		assert.NotNil(t, result, "live update should return balances")
+	})
+	for _, requested := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.All} {
+		t.Run(requested.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				payload := `{"result":[{"currency":"BTC"},{"currency":"ETH"}]}`
+				if strings.HasSuffix(r.URL.Path, getAccountSummary) {
+					payload = `{"result":{"balance":10,"available_funds":7}}`
+				}
+				_, err := fmt.Fprint(w, payload)
+				assert.NoError(t, err, "response write should succeed")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client setup must succeed")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "endpoint setup must succeed")
+			result, err := ex.UpdateAccountBalances(t.Context(), requested)
+			require.NoError(t, err, "shared collateral must save under a valid asset")
+			require.Len(t, result, 1, "shared collateral must have one account")
+			assert.Equal(t, asset.Spot, result[0].AssetType, "all callers should use the canonical shared wallet")
+			balances, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+			require.NoError(t, err, "aggregate balances must be available")
+			for _, curr := range []currency.Code{currency.BTC, currency.ETH} {
+				assert.Equal(t, 10.0, balances[curr].Total, "shared collateral should not be double counted")
+				assert.Equal(t, 3.0, balances[curr].Hold, "hold should reflect unavailable funds")
+			}
+		})
+	}
 }
 
 func TestGetFundingHistory(t *testing.T) {
@@ -4265,6 +4344,7 @@ func TestGetAssetFromInstrument(t *testing.T) {
 		{"BTC-PCAL-14NOV25_7NOV25-112000", asset.OptionCombo, nil},
 		{"XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4", asset.OptionCombo, nil},
 		{"ETH-CS-26SEP25-5000_5500", asset.OptionCombo, nil},
+		{"BTC-STRD-25JUN27-64000", asset.OptionCombo, nil},
 		{"HELLOMOTO", asset.Empty, errUnsupportedInstrumentFormat},
 		{"hi-my-name-is-moto", asset.Empty, errUnsupportedInstrumentFormat},
 	}
@@ -4424,6 +4504,7 @@ var websocketPushData = map[string]string{
 	"Volatility Index":                       `{"params" : {"data" : {"volatility" : 129.36,"timestamp" : 1619777946007,"index_name" : "btc_usd","estimated_delivery" : 129.36},"channel" : "deribit_volatility_index.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
 	"Estimated Expiration Price":             `{"params" : {"data" : {"seconds" : 180929,"price" : 3939.73,"is_estimated" : false},"channel" : "estimated_expiration_price.btc_usd"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
 	"Incremental Ticker":                     `{"jsonrpc": "2.0", "method": "subscription", "params": { "channel": "incremental_ticker.BTC-PERPETUAL", "data": { "type": "snapshot", "timestamp": 1677592580023, "stats": { "volume_usd": 224579520.0, "volume": 9581.70741368, "price_change": -1.2945, "low": 23123.5, "high": 23900.0 }, "state": "open", "settlement_price": 23240.71, "open_interest": 333091400, "min_price": 23057.4, "max_price": 23759.65, "mark_price": 23408.41, "last_price": 23409.0, "interest_value": 0.0, "instrument_name": "BTC-PERPETUAL", "index_price": 23406.85, "funding_8h": 0.0, "estimated_delivery_price": 23406.85, "current_funding": 0.0, "best_bid_price": 23408.5, "best_bid_amount": 53270.0, "best_ask_price": 23409.0, "best_ask_amount": 46990.0 } } }`,
+	"Incremental Ticker Options":             `{"jsonrpc": "2.0", "method": "subscription", "params": { "channel": "incremental_ticker.BTC-26NOV24-92000-C", "data": { "type": "snapshot", "timestamp": 1677592580023, "stats": { "volume_usd": 224579520.0, "volume": 9581.70741368, "price_change": -1.2945, "low": 23123.5, "high": 23900.0 }, "state": "open", "settlement_price": 23240.71, "open_interest": 333091400, "min_price": 23057.4, "max_price": 23759.65, "mark_price": 23408.41, "last_price": 23409.0, "interest_value": 0.0, "instrument_name": "BTC-26NOV24-92000-C", "index_price": 23406.85, "funding_8h": 0.0, "estimated_delivery_price": 23406.85, "current_funding": 0.0, "best_bid_price": 23408.5, "best_bid_amount": 53270.0, "best_ask_price": 23409.0, "best_ask_amount": 46990.0, "greeks": {"delta": 0.1, "gamma": 0.2, "vega": 0.3, "theta": 0.4, "rho": 0.5}, "bid_iv": 0.11, "ask_iv": 0.12, "mark_iv": 0.13 } } }`,
 	"Instrument State":                       `{"params" : {"data" : {"timestamp" : 1553080940000,"state" : "created","instrument_name" : "BTC-22MAR19"},"channel" : "instrument.state.any.any"},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
 	"Currency Trades":                        `{"params":{"data":[{"trade_seq":2,"trade_id" : "48079289","timestamp" : 1590484589306,"tick_direction" : 2,"price" : 0.0075,"mark_price" : 0.01062686,"iv" : 47.58,"instrument_name" : "BTC-27MAY20-9000-C","index_price" : 8956.17,"direction" : "sell","amount" : 3}],"channel" : "trades.option.BTC.raw"},"method":"subscription","jsonrpc":"2.0"}`,
 	"Change Updates":                         `{"params" : {"data" : {"trades" : [{"trade_seq" : 866638,"trade_id" : "1430914","timestamp" : 1605780344032,"tick_direction" : 1,"state" : "filled","self_trade" : false,"reduce_only" : false,"profit_loss" : 0.00004898,"price" : 17391,"post_only" : false,"order_type" : "market","order_id" : "3398016","matching_id" : null,"mark_price" : 17391,"liquidity" : "T","instrument_name" : "BTC-PERPETUAL","index_price" : 17501.88,"fee_currency" : "BTC","fee" : 1.6e-7,"direction" : "sell","amount" : 10		  }		],"positions" : [		  {			"total_profit_loss" : 1.69711368,			"size_currency" : 10.646886321,			"size" : 185160,			"settlement_price" : 16025.83,			"realized_profit_loss" : 0.012454598,			"realized_funding" : 0.01235663,			"open_orders_margin" : 0,			"mark_price" : 17391,			"maintenance_margin" : 0.234575865,			"leverage" : 33,			"kind" : "future",			"interest_value" : 1.7362511643080387,			"instrument_name" : "BTC-PERPETUAL",			"initial_margin" : 0.319750953,			"index_price" : 17501.88,			"floating_profit_loss" : 0.906961435,			"direction" : "buy",			"delta" : 10.646886321,			"average_price" : 15000		  }		],"orders" : [		  {			"web" : true,			"time_in_force" : "good_til_cancelled",			"replaced" : false,			"reduce_only" : false,			"profit_loss" : 0.00009166,			"price" : 15665.5,			"post_only" : false,			"order_type" : "market",			"order_state" : "filled",			"order_id" : "3398016",			"max_show" : 10,			"last_update_timestamp" : 1605780344032,			"label" : "",			"is_liquidation" : false,			"instrument_name" : "BTC-PERPETUAL",			"filled_amount" : 10,			"direction" : "sell",			"creation_timestamp" : 1605780344032,			"commission" : 1.6e-7,			"average_price" : 17391,			"api" : false,			"amount" : 10}],"instrument_name" : "BTC-PERPETUAL"	  },	  "channel" : "user.changes.BTC-PERPETUAL.raw"	},	"method" : "subscription",	"jsonrpc" : "2.0"  }`,
@@ -4448,10 +4529,76 @@ func TestProcessPushData(t *testing.T) {
 	for k, v := range websocketPushData {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsHandleData(t.Context(), []byte(v))
+			ex := e
+			if k == "User Portfolio" {
+				ex = new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "portfolio exchange setup must succeed")
+				ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+				ex.API.AuthenticatedSupport = true
+			}
+			err := ex.wsHandleData(t.Context(), []byte(v))
 			require.NoError(t, err, "wsHandleData must not error")
 		})
 	}
+}
+
+func TestProcessIncrementalTicker(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid channel", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), nil, []string{"incremental_ticker"})
+		assert.ErrorIs(t, err, common.ErrMalformedData, "processIncrementalTicker should reject invalid channels")
+	})
+
+	t.Run("invalid instrument", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), nil, []string{"incremental_ticker", ""})
+		assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "processIncrementalTicker should reject an empty instrument")
+	})
+
+	t.Run("invalid payload", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte("{"), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		assert.Error(t, err, "processIncrementalTicker should reject invalid JSON")
+	})
+
+	t.Run("futures ticker", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		require.NoError(t, err)
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "futures ticker must dispatch one ticker")
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "processIncrementalTicker should dispatch a ticker")
+	})
+
+	t.Run("options ticker", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker Options"]), []string{"incremental_ticker", "BTC-26NOV24-92000-C"})
+		require.NoError(t, err)
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "options ticker must dispatch one ticker")
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "incremental ticker should not emit incomplete Greeks")
+	})
+
+	t.Run("ticker dispatch error", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.DataHandler = stream.NewRelay(1)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"), "DataHandler.Send must not error")
+		err := ex.processIncrementalTicker(t.Context(), []byte(websocketPushData["Incremental Ticker"]), []string{"incremental_ticker", "BTC-PERPETUAL"})
+		assert.Error(t, err, "processIncrementalTicker should return ticker dispatch errors")
+	})
 }
 
 func TestProcessCandleChartIntervalMapping(t *testing.T) {
@@ -4514,6 +4661,21 @@ func TestOptionPairToString(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6DEC29-0D87-C")}: "MATIC_USDC-6DEC29-0d87-C",
 	} {
 		assert.Equal(t, exp, optionPairToString(pair), "optionPairToString should return correctly")
+	}
+}
+
+func TestOptionComboPairToString(t *testing.T) {
+	t.Parallel()
+	for pair, expected := range map[currency.Pair]string{
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("ICOND-7AUG26-62000_65000_67000_70000")}:  "BTC-ICOND-7AUG26-62000_65000_67000_70000",
+		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("USDC-PS-5AUG26-1780_1650")}:              "ETH_USDC-PS-5AUG26-1780_1650",
+		{Delimiter: currency.DashDelimiter, Base: currency.XRP, Quote: currency.NewCode("USDC-CBUT-26SEP25-2D9_3D2_3D4")}:         "XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4",
+		{Delimiter: currency.DashDelimiter, Base: currency.NewCode("PAXG"), Quote: currency.NewCode("USDC-CS-12SEP25-3550_3600")}: "PAXG_USDC-CS-12SEP25-3550_3600",
+	} {
+		t.Run(expected, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, expected, optionComboPairToString(pair), "optionComboPairToString should return correctly")
+		})
 	}
 }
 
@@ -5154,11 +5316,11 @@ func TestProcessTickerMapsEveryKind(t *testing.T) {
 	}
 }
 
-// TestProcessIncrementalTicker covers incremental_ticker, where Deribit sends one snapshot and then
+// TestProcessIncrementalTickerMergesChanges covers incremental_ticker, where Deribit sends one snapshot and then
 // only the fields that moved: part of stats or none of it, an explicit 0 for a book side that
 // empties, and a null for a range that empties. Built afresh, the first change zeroed every volume
 // and the day's range, since the store overwrites a pair wholesale
-func TestProcessIncrementalTicker(t *testing.T) {
+func TestProcessIncrementalTickerMergesChanges(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
@@ -5463,4 +5625,46 @@ func TestTickerPathsAgree(t *testing.T) {
 	exp.BaseVolume, exp.QuoteVolume = 4289.0028892, 3.3126e8
 	exp.OpenInterest = 840922200
 	assert.Equal(t, exp, received("incremental_ticker.BTC-PERPETUAL"), "a change should merge onto the snapshot")
+}
+
+func TestWsHandleDataPortfolio(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		currency string
+		wantErr  error
+	}{
+		{name: "valid", currency: "BTC"},
+		{name: "empty currency", wantErr: currency.ErrCurrencyCodeEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
+			ex.API.AuthenticatedSupport = true
+			account := accounts.NewSubAccount(asset.Spot, "")
+			account.Balances.Set(currency.ETH, accounts.Balance{Total: 20, Hold: 5})
+			require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{account}, true), "existing currency must save")
+			payload := `{"jsonrpc":"2.0","method":"subscription","params":{"channel":"user.portfolio.any","data":{"currency":"` + tc.currency + `","balance":10,"available_funds":7}}}`
+			err := ex.wsHandleData(t.Context(), []byte(payload))
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr, "invalid currency should return its sentinel")
+				return
+			}
+			require.NoError(t, err, "portfolio push must update balances")
+			balances, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+			require.NoError(t, err, "shared wallet balances must be available")
+			require.Len(t, balances, 2, "a single-currency push must preserve other currencies")
+			assert.Equal(t, 10.0, balances[currency.BTC].Total, "push should store total balance")
+			assert.Equal(t, 3.0, balances[currency.BTC].Hold, "push should store held balance")
+			assert.Equal(t, 20.0, balances[currency.ETH].Total, "push should preserve unrelated balances")
+			payload = strings.ReplaceAll(payload, `"balance":10,"available_funds":7`, `"balance":0,"available_funds":0`)
+			require.NoError(t, ex.wsHandleData(t.Context(), []byte(payload)), "zero balance update must succeed")
+			balances, err = ex.Accounts.CurrencyBalances(nil, asset.Spot)
+			require.NoError(t, err, "updated balances must be available")
+			assert.Zero(t, balances[currency.BTC].Total, "zero balance should replace previous holdings")
+			assert.Equal(t, 20.0, balances[currency.ETH].Total, "zero update should retain unrelated holdings")
+		})
+	}
 }

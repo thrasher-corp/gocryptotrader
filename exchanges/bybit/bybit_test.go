@@ -23,7 +23,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -3148,6 +3150,44 @@ func TestWSHandleData(t *testing.T) {
 			assert.NoError(t, err, "wsHandleData should not error")
 		}
 	}
+	t.Run("options ticker dispatches ticker and greeks", func(t *testing.T) {
+		t.Parallel()
+
+		ex := testInstance()
+		pairs, err := ex.GetEnabledPairs(asset.Options)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		require.NotEmpty(t, pairs, "options pairs must not be empty")
+		symbol := pairs[0].String()
+		payload := fmt.Sprintf(`{"topic":%q,"ts":1672304486868,"type":"snapshot","data":{"symbol":%q,"lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markPriceIv":"0.13"}}`, "tickers."+symbol, symbol)
+		err = ex.wsHandleData(t.Context(), nil, asset.Options, []byte(payload))
+		require.NoError(t, err, "wsHandleData must process an options ticker")
+		require.Len(t, ex.Websocket.DataHandler.C, 2, "options ticker must dispatch both ticker and Greeks")
+		assert.IsType(t, &ticker.Price{}, (<-ex.Websocket.DataHandler.C).Data, "first dispatch should contain a ticker")
+		greeks, ok := (<-ex.Websocket.DataHandler.C).Data.(*exchangeoptions.Greeks)
+		require.True(t, ok, "second dispatch must contain option greeks")
+		assert.Equal(t, 0.1, greeks.Delta, "Delta should be normalised")
+		assert.Equal(t, 0.13, greeks.MarkImpliedVolatility, "MarkImpliedVolatility should be normalised")
+	})
+	t.Run("returns the Greeks send error when the data handler is full", func(t *testing.T) {
+		t.Parallel()
+
+		ex := testInstance()
+		pairs, err := ex.GetEnabledPairs(asset.Options)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		require.NotEmpty(t, pairs, "options pairs must not be empty")
+		ex.Websocket.DataHandler = stream.NewRelay(2)
+		require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"), "DataHandler.Send must not error")
+		symbol := pairs[0].String()
+		payload := fmt.Sprintf(`{"topic":%q,"ts":1672304486868,"type":"snapshot","data":{"symbol":%q,"lastPrice":"2","delta":"0.1","markPriceIv":"0.13"}}`, "tickers."+symbol, symbol)
+		err = ex.wsHandleData(t.Context(), nil, asset.Options, []byte(payload))
+		assert.ErrorContains(t, err, "failed to relay <*options.Greeks>", "wsHandleData should return the Greeks send error")
+		require.Len(t, ex.Websocket.DataHandler.C, 2, "the ticker must be queued before the Greeks send fails")
+		assert.Equal(t, "saturate", (<-ex.Websocket.DataHandler.C).Data, "the existing payload should remain queued")
+		queuedTicker, ok := (<-ex.Websocket.DataHandler.C).Data.(*ticker.Price)
+		require.True(t, ok, "the queued payload must be the ticker")
+		assert.Equal(t, pairs[0], queuedTicker.Pair, "the queued ticker should retain its pair")
+		assert.Equal(t, 2.0, queuedTicker.Last, "the queued ticker should retain its price")
+	})
 }
 
 func TestWsPositionUnmarshal(t *testing.T) {
@@ -3524,13 +3564,15 @@ func TestWsTicker(t *testing.T) {
 		return e.wsHandleData(t.Context(), nil, a, r)
 	})
 	e.Websocket.DataHandler.Close()
-	expected := 8
+	expected := 9
 	require.Len(t, e.Websocket.DataHandler.C, expected, "Should see correct number of tickers")
+	tickerSequence := 0
 	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:
+			tickerSequence++
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
-			switch expected - len(e.Websocket.DataHandler.C) {
+			switch tickerSequence {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
@@ -3660,6 +3702,20 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			}
+		case *exchangeoptions.Greeks:
+			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
+			assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
+			assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")
+			assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			assert.Equal(t, -0.37596534, v.Delta, "Delta should be correct")
+			assert.Equal(t, 0.00003161, v.Gamma, "Gamma should be correct")
+			assert.Equal(t, 82.65324199, v.Vega, "Vega should be correct")
+			assert.Equal(t, -51.54651685, v.Theta, "Theta should be correct")
+			assert.Equal(t, 3475.00, v.BidPrice, "BidPrice should be correct")
+			assert.Equal(t, 3520.00, v.AskPrice, "AskPrice should be correct")
+			assert.Equal(t, 0.5479, v.BidImpliedVolatility, "BidImpliedVolatility should be correct")
+			assert.Equal(t, 0.5534, v.AskImpliedVolatility, "AskImpliedVolatility should be correct")
+			assert.Equal(t, 0.5513, v.MarkImpliedVolatility, "MarkImpliedVolatility should be correct")
 		case error:
 			t.Error(v)
 		default:
@@ -4146,7 +4202,7 @@ func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
 	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{})
 	require.NoError(t, err)
 	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
-	require.Error(t, err)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
 }
 
 func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
@@ -4165,7 +4221,7 @@ func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
 	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":0,"retMsg":"OK","op":"auth","connId":"d2a641kgcg7ab33b7mdg-4x6a"}`)})
 	require.NoError(t, err)
 	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":10004,"retMsg":"Invalid sign","op":"auth","connId":"d2a63t6p49kk82nefh90-4ye8"}`)})
-	require.Error(t, err)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed)
 }
 
 func TestTransformSymbol(t *testing.T) {
@@ -4280,6 +4336,25 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 			t.Parallel()
 			err := e.handleNoTopicWebsocketResponse(t.Context(), &FixtureConnection{match: websocket.NewMatch()}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
 			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse should return expected error")
+		})
+	}
+}
+
+func TestDirectSubscriptionPayload(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+	pair := currency.NewPairWithDelimiter("BTC", "25JUN27-160000-C-USDT", "-")
+	for _, tc := range []struct{ channel, topic string }{
+		{chanPublicTrade, "publicTrade.BTC"},
+		{chanPublicTicker, "tickers.BTC-25JUN27-160000-C-USDT"},
+	} {
+		t.Run(tc.channel, func(t *testing.T) {
+			t.Parallel()
+			got, err := ex.directSubscriptionPayload(asset.Options, "subscribe", subscription.List{{Channel: tc.channel, Pairs: currency.Pairs{pair}}})
+			require.NoError(t, err, "options payload must build")
+			require.Len(t, got, 1, "one request must be generated")
+			assert.Equal(t, []string{tc.topic}, got[0].Arguments, "options topic should use the correct scope")
 		})
 	}
 }

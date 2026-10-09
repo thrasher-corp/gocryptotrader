@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -12,9 +13,11 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -944,6 +947,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -1024,6 +1028,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -3814,6 +3819,190 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	type submissionCase struct {
+		route                  string
+		asset                  asset.Item
+		mode                   string
+		reduce                 bool
+		side                   order.Side
+		execution, open, close string
+	}
+	cases := make([]submissionCase, 0, 384)
+	for _, route := range []string{"REST", "websocket", "trigger", "conditional", "chase", "trailing", "TWAP", "OCO"} {
+		for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+			for _, mode := range []string{"net_mode", "long_short_mode"} {
+				for _, reduce := range []bool{false, true} {
+					for _, side := range []struct {
+						side                   order.Side
+						execution, open, close string
+					}{
+						{order.Buy, "buy", "long", "short"},
+						{order.Long, "buy", "long", "short"},
+						{order.Bid, "buy", "long", "short"},
+						{order.Sell, "sell", "short", "long"},
+						{order.Short, "sell", "short", "long"},
+						{order.Ask, "sell", "short", "long"},
+					} {
+						cases = append(cases, submissionCase{route, a, mode, reduce, side.side, side.execution, side.open, side.close})
+					}
+				}
+			}
+		}
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s/%s/%s/%s/reduce=%t", tc.route, tc.asset, tc.mode, tc.side, tc.reduce), func(t *testing.T) {
+			t.Parallel()
+			wantSide := tc.open
+			if tc.reduce {
+				wantSide = tc.close
+			}
+			if tc.mode == "net_mode" {
+				wantSide = "net"
+			}
+			var orderRequests, modeRequests atomic.Int64
+			check := func(payload []byte) {
+				orderRequests.Add(1)
+				assert.Contains(t, string(payload), `"side":"`+tc.execution+`"`, "wire execution side should match the alias")
+				assert.Contains(t, string(payload), `"posSide":"`+wantSide+`"`, "wire position side should follow the actual account mode")
+				if tc.reduce {
+					wantReduceOnly := `"reduceOnly":true`
+					if tc.route == "REST" || tc.route == "websocket" {
+						wantReduceOnly = `"reduceOnly":"true"`
+					}
+					assert.Contains(t, string(payload), wantReduceOnly, "wire payload should retain reduce-only intent")
+				}
+			}
+			var ex *Exchange
+			if tc.route == "websocket" {
+				ex = connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+					tb.Helper()
+					check(payload)
+					return okxOrderWsMock(tb, payload, conn)
+				})
+			} else {
+				ex = new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+			}
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			if err := ex.DisableRateLimiter(); err != nil {
+				require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled, "mock rate limiter must only report already disabled")
+			}
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				response := `{"code":"0","data":[{"ordId":"mode-order","algoId":"mode-order","sCode":"0"}]}`
+				switch {
+				case strings.HasSuffix(r.URL.Path, "account/config"):
+					modeRequests.Add(1)
+					response = `{"code":"0","data":[{"posMode":"` + tc.mode + `"}]}`
+				case strings.HasSuffix(r.URL.Path, "public/instruments"):
+					response = `{"code":"0","data":[{"instId":"` + mainPair.String() + `","instIdCode":"42"}]}`
+				default:
+					payload, err := io.ReadAll(r.Body)
+					if !assert.NoError(t, err, "request body should be readable") {
+						return
+					}
+					check(payload)
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "mock HTTP client must be configured")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must be configured")
+			submission := &order.Submit{Exchange: ex.Name, AssetType: tc.asset, Pair: mainPair, Side: tc.side, Type: order.Limit, Amount: 1, Price: 1, ReduceOnly: tc.reduce, TriggerPrice: 1, TrackingMode: order.Distance, TrackingValue: 1, MarginType: margin.Multi}
+			switch tc.route {
+			case "trigger":
+				submission.Type = order.Trigger
+			case "conditional":
+				submission.Type = order.ConditionalStop
+			case "chase":
+				submission.Type = order.Chase
+			case "trailing":
+				submission.Type = order.TrailingStop
+			case "TWAP":
+				submission.Type = order.TWAP
+			case "OCO":
+				submission.Type = order.OCO
+				submission.RiskManagementModes.TakeProfit.Price = 2
+				submission.RiskManagementModes.StopLoss.Price = 1
+			}
+			response, err := ex.SubmitOrder(t.Context(), submission)
+			require.NoError(t, err, "order must succeed in its configured account mode")
+			assert.NotEmpty(t, response.OrderID, "successful order should retain its ID")
+			assert.Equal(t, int64(1), orderRequests.Load(), "one order should reach the selected transport")
+			assert.Equal(t, int64(1), modeRequests.Load(), "first order should fetch its account position mode")
+		})
+	}
+
+	for _, contextual := range []bool{false, true} {
+		t.Run(fmt.Sprintf("credential rotation/context=%t", contextual), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "setup must succeed")
+			ex.API.AuthenticatedSupport, ex.SkipAuthCheck = true, true
+			if err := ex.DisableRateLimiter(); err != nil {
+				require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled, "mock limiter must only report already disabled")
+			}
+			original := accounts.Credentials{Key: "original", Secret: "secret", ClientID: "passphrase"}
+			rotated := accounts.Credentials{Key: "rotated", Secret: "changed", ClientID: "new-passphrase"}
+			ex.SetCredentials(&original)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			store := &accounts.ContextCredentialsStore{}
+			store.Load(&original)
+			if contextual {
+				ctx = context.WithValue(ctx, accounts.ContextCredentialsFlag, store)
+			}
+			entered, release := make(chan struct{}), make(chan struct{})
+			var orders atomic.Int64
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, original.Key, r.Header.Get("OK-ACCESS-KEY"), "configuration and order should use the same credential snapshot")
+				response := `{"code":"0","data":[{"ordId":"frozen-order","sCode":"0"}]}`
+				if strings.HasSuffix(r.URL.Path, "account/config") {
+					close(entered)
+					select {
+					case <-release:
+					case <-r.Context().Done():
+						return
+					}
+					response = `{"code":"0","data":[{"posMode":"net_mode"}]}`
+				} else {
+					orders.Add(1)
+					payload, err := io.ReadAll(r.Body)
+					assert.NoError(t, err, "order body should read")
+					assert.Contains(t, string(payload), `"posSide":"net"`, "order should retain its original account's position mode")
+				}
+				_, err := w.Write([]byte(response))
+				assert.NoError(t, err, "response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "client must configure")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must configure")
+			result := make(chan error, 1)
+			go func() {
+				_, err := ex.SubmitOrder(ctx, &order.Submit{Exchange: ex.Name, AssetType: asset.Futures, Pair: mainPair, Side: order.Buy, Type: order.Limit, Amount: 1, Price: 1, MarginType: margin.Multi})
+				result <- err
+			}()
+			select {
+			case <-entered:
+			case <-ctx.Done():
+				require.FailNow(t, "configuration request must begin")
+			}
+			if contextual {
+				store.Load(&rotated)
+			} else {
+				ex.SetCredentials(&rotated)
+			}
+			close(release)
+			select {
+			case err := <-result:
+				require.NoError(t, err, "order must retain its frozen account")
+			case <-ctx.Done():
+				require.FailNow(t, "frozen order must finish")
+			}
+			assert.Equal(t, int64(1), orders.Load(), "one order should reach the original account")
+		})
+	}
+
 	var resp []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	require.NoError(t, err)
@@ -3846,6 +4035,43 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
+	var websocketOrderRequests atomic.Int64
+	websocketExchange := connectOKXWithMockedWebsocket(t, func(tb testing.TB, payload []byte, conn *gws.Conn) error {
+		tb.Helper()
+		require.Contains(tb, string(payload), `"instIdCode":42`, "websocket order request must include the resolved instrument ID code")
+		if websocketOrderRequests.Add(1) == 2 {
+			assert.Contains(tb, string(payload), `"side":"buy"`, "reduce-only futures buy should retain its execution side")
+			assert.Contains(tb, string(payload), `"posSide":"net"`, "net-mode reduce-only futures orders should use net position side")
+			assert.Contains(tb, string(payload), `"reduceOnly":"true"`, "reduce-only intent should reach OKX")
+		}
+		return okxOrderWsMock(tb, payload, conn)
+	})
+	websocketExchange.API.AuthenticatedSupport = true
+	websocketExchange.SkipAuthCheck = true
+	result, err := websocketExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:  websocketExchange.Name,
+		Pair:      mainPair,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Amount:    1,
+		Price:     1,
+	})
+	require.NoError(t, err, "SubmitOrder must place the websocket order")
+	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket order ID")
+	result, err = websocketExchange.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:   websocketExchange.Name,
+		Pair:       mainPair,
+		AssetType:  asset.Futures,
+		Side:       order.Buy,
+		Type:       order.Limit,
+		Amount:     1,
+		Price:      1,
+		ReduceOnly: true,
+	})
+	require.NoError(t, err, "SubmitOrder must place the reduce-only futures order")
+	assert.Equal(t, "submit-order", result.OrderID, "SubmitOrder should return the websocket futures order ID")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Submit{
 		Pair: currency.Pair{
@@ -3860,7 +4086,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "yeneOrder",
 		AssetType: asset.Spot,
 	}
-	result, err := e.SubmitOrder(contextGenerate(), arg)
+	result, err = e.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -4050,6 +4276,64 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, id, clientID, want string
+		noMatch                  bool
+		side                     order.Side
+	}{
+		{name: "buy side", side: order.Buy, want: "buy-1"},
+		{name: "bid side", side: order.Bid, want: "buy-1"},
+		{name: "long side", side: order.Long, want: "buy-1"},
+		{name: "sell side", side: order.Sell, want: "sell-1"},
+		{name: "ask side", side: order.Ask, want: "sell-1"},
+		{name: "short side", side: order.Short, want: "sell-1"},
+		{name: "order ID", id: "buy-1", want: "buy-1"},
+		{name: "conflicting IDs", id: "buy-1", clientID: "sell-client", noMatch: true},
+		{name: "matching IDs", id: "buy-1", clientID: "buy-client", want: "buy-1"},
+	} {
+		t.Run("mocked filter "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := connectOKXWithMockedWebsocket(t, func(tb testing.TB, p []byte, conn *gws.Conn) error {
+				tb.Helper()
+				assert.False(tb, tc.noMatch, "conflicting identifiers should not send cancellations")
+				var req struct {
+					ID   string                    `json:"id"`
+					Op   string                    `json:"op"`
+					Args []CancelOrderRequestParam `json:"args"`
+				}
+				if err := json.Unmarshal(p, &req); err != nil {
+					return err
+				}
+				assert.Equal(tb, "batch-cancel-orders", req.Op, "cancellation should use the batch operation")
+				assert.Len(tb, req.Args, 1, "only the selected order should be sent without empty entries")
+				for _, arg := range req.Args {
+					assert.Equal(tb, tc.want, arg.OrderID, "only the matching order should be cancelled")
+					assert.Equal(tb, uint64(42), arg.InstrumentIDCode, "cancellation should include the resolved instrument code")
+				}
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","op":"batch-cancel-orders","code":"0","data":[{"ordId":"`+tc.want+`","sCode":"0"}]}`))
+			})
+			ex.API.AuthenticatedSupport = true
+			ex.SkipAuthCheck = true
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := `{"code":"0","data":[{"instId":"BTC-USDT","instIdCode":"42"}]}`
+				if strings.Contains(r.URL.Path, "orders-pending") {
+					body = `{"code":"0","data":[{"instId":"BTC-USDT","ordId":"sell-1","clOrdId":"sell-client","side":"sell"},{"instId":"BTC-USDT","ordId":"buy-1","clOrdId":"buy-client","side":"buy"}]}`
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "mock endpoint must update")
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: tc.side, OrderID: tc.id, ClientOrderID: tc.clientID})
+			require.NoError(t, err, "filtered cancellation must succeed")
+			if tc.noMatch {
+				assert.Empty(t, resp.Status, "conflicting identifiers should cancel nothing")
+			} else {
+				assert.Equal(t, map[string]string{tc.want: order.Cancelled.String()}, resp.Status, "only the selected order should be cancelled")
+			}
+		})
+	}
+
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -4069,6 +4353,14 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
+	for _, ai := range []asset.Item{asset.Binary, asset.Index} {
+		t.Run("unsupported "+ai.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.ModifyOrder(t.Context(), &order.Modify{OrderID: "1", Pair: mainPair, AssetType: ai, Amount: 0.5})
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "unsupported asset should be rejected before dispatch")
+		})
+	}
+
 	_, err := e.ModifyOrder(contextGenerate(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil)
 
@@ -6894,6 +7186,36 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	t.Run("family membership refresh", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		pairs := currency.Pairs{
+			currency.NewPairWithDelimiter("BTC", "USD-270625-42000-C", "-"),
+			currency.NewPairWithDelimiter("BTC", "USD-270625-44000-C", "-"),
+		}
+		require.NoError(t, ex.SetPairs(pairs, asset.Options, false), "available options must update")
+		require.NoError(t, ex.SetPairs(pairs, asset.Options, true), "enabled options must update")
+		ex.Features.Subscriptions = subscription.List{{Channel: subscription.AllTradesChannel, Asset: asset.Options}, {Channel: channelOptSummary, Asset: asset.Options}}
+		before, err := ex.generateSubscriptions(true)
+		require.NoError(t, err, "family subscriptions must generate")
+		require.Len(t, before, 2, "each channel must have one family subscription")
+		store, err := subscription.NewStoreFromList(before)
+		require.NoError(t, err, "family subscriptions must be stored")
+		require.NoError(t, ex.SetPairs(pairs[1:], asset.Options, true), "one option must be disabled")
+		after, err := ex.generateSubscriptions(true)
+		require.NoError(t, err, "updated families must generate")
+		added, removed := store.Diff(after)
+		require.Len(t, removed, 2, "refresh must remove both complete old family subscriptions")
+		require.Len(t, added, 2, "refresh must resubscribe both families for remaining pairs")
+		for _, sub := range removed {
+			assert.Len(t, sub.Pairs, 2, "unsubscription should retire all old family members")
+		}
+		for _, sub := range added {
+			assert.True(t, sub.Pairs.Equal(pairs[1:]), "replacement should retain the surviving option")
+		}
+	})
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -6901,8 +7223,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{
-		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	exp := subscription.List{}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
+		exp = append(exp, s)
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6916,14 +7244,22 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			if isSymbolChannel(s) {
+			switch {
+			case isSymbolChannel(s):
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instId":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			} else {
+			case isInstFamilyChannel(s):
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instFamily":%q,"instType":%q}`, name, optionInstrumentFamilyFromPair(p), GetInstrumentTypeFromAssetItem(s.Asset))
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6935,7 +7271,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, append(public, private...))
+	testsubs.EqualLists(t, exp, slices.Concat(public, private))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)
@@ -7182,6 +7518,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -7192,6 +7529,15 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
+	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap} {
+		for _, side := range []string{"", positionSideNet, positionSideLong, positionSideShort} {
+			t.Run(a.String()+"/"+side, func(t *testing.T) {
+				t.Parallel()
+				arg := PlaceOrderRequestParam{InstrumentID: mainPair.String(), AssetType: a, Side: "buy", PositionSide: side, OrderType: orderMarket, Amount: 1, ReduceOnly: side == "" || side == positionSideNet}
+				assert.NoError(t, arg.Validate(), "net and hedge position-side values should validate")
+			})
+		}
+	}
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {

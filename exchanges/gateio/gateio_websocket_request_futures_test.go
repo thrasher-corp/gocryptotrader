@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -149,7 +150,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 	_, err = e.WebsocketFuturesAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, errInvalidAmount)
 
-	amend.Size = 2
+	amend.Size = types.Number(0.5)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
