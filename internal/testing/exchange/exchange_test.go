@@ -103,6 +103,7 @@ func TestMockWsInstance(t *testing.T) {
 	})
 	require.NotNil(t, b, "MockWsInstance result must remain available after the subtest")
 	assert.False(t, b.Websocket.IsConnected(), "Websocket should be disconnected during test cleanup")
+	assert.False(t, b.Websocket.IsEnabled(), "Websocket should remain disabled after test cleanup")
 }
 
 func TestMockWsInstanceVerbose(t *testing.T) {

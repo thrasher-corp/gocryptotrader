@@ -3,6 +3,7 @@ package exchange
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -116,6 +117,14 @@ func MockWsInstance[T any, PT interface {
 	s.Start()
 
 	b := e.GetBase()
+	tb.Cleanup(func() {
+		if err := b.Websocket.Disable(); err != nil && !errors.Is(err, websocket.ErrAlreadyDisabled) {
+			assert.NoError(tb, err, "Websocket disable should not error")
+		}
+		if err := b.Websocket.Shutdown(); err != nil && !errors.Is(err, websocket.ErrNotConnected) {
+			assert.NoError(tb, err, "Websocket shutdown should not error")
+		}
+	})
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
@@ -131,11 +140,6 @@ func MockWsInstance[T any, PT interface {
 
 	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
-	tb.Cleanup(func() {
-		if b.Websocket.IsConnected() {
-			require.NoError(tb, b.Websocket.Shutdown(), "Websocket shutdown must not error")
-		}
-	})
 
 	return e
 }
