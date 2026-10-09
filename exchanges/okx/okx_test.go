@@ -1913,6 +1913,18 @@ func TestSetQuoteProducts(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errMissingInstrumentID, "validation must check Data[y] for each arg, not Data[x]")
 
+	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{
+		{
+			InstrumentType: "SPOT",
+			Data:           []MakerInstrumentSetting{{InstrumentID: mainPair.String()}},
+		},
+		{
+			InstrumentType: "SWAP",
+			Data:           []MakerInstrumentSetting{{}},
+		},
+	})
+	require.ErrorIs(t, err, errInstrumentFamilyRequired, "a later group missing its family must error rather than index past its settings")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{
 		{
@@ -5256,6 +5268,7 @@ func TestGetHistoricalFundingRatesPaymentsPagination(t *testing.T) {
 	var mu sync.Mutex
 	var billsQueries []url.Values
 	billsCalls := 0
+	rateCalls := 0
 
 	now := time.Now()
 	start := now.Add(-24 * time.Hour)
@@ -5279,6 +5292,15 @@ func TestGetHistoricalFundingRatesPaymentsPagination(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/public/funding-rate-history":
+			mu.Lock()
+			rateCalls++
+			calls := rateCalls
+			mu.Unlock()
+			if calls > 4 {
+				// A short page ends the rates loop; refuse to feed the storm.
+				_, _ = w.Write([]byte(`{"code":"1","msg":"mock: rate pagination did not stop after a short page"}`))
+				return
+			}
 			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}]}`, fundingTime.UnixMilli())
 		case "/public/funding-rate":
 			_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, fundingTime.UnixMilli(), fundingTime.Add(8*time.Hour).UnixMilli())
@@ -5508,6 +5530,105 @@ func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
 		}
 	}
 	assert.Equal(t, map[int]string{0: "-1", 99: "-2", 150: "-3", 198: "-4", rateCount - 1: "-5"}, paid, "each payment should land on its own rate, whichever page it arrived on")
+}
+
+// TestGetHistoricalFundingRatesZeroEndDate pins the open-ended reading of an
+// unset end date: the pager must query from now so the newest rates come back,
+// where a before-only query makes OKX answer with the oldest page after the
+// start date and silently truncates the history; payments must page against
+// the same effective window instead of skipping the bills loop.
+func TestGetHistoricalFundingRatesZeroEndDate(t *testing.T) {
+	for _, includePayments := range []bool{false, true} {
+		t.Run(fmt.Sprintf("payments-%v", includePayments), func(t *testing.T) {
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+			var mu sync.Mutex
+			rateCalls := 0
+			billsCalls := 0
+
+			now := time.Now()
+			start := now.Add(-24 * time.Hour)
+			// Funding timestamps are funding-interval aligned on OKX, which the
+			// bills-to-funding-time matching below relies on.
+			fundingTime := now.Truncate(8 * time.Hour).Add(-8 * time.Hour)
+			// The first page a before-only query returns: an old rate, not the
+			// newest one.
+			truncatedTime := start.Add(2 * time.Hour)
+
+			srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/public/funding-rate-history":
+					mu.Lock()
+					rateCalls++
+					calls := rateCalls
+					mu.Unlock()
+					if calls > 4 {
+						// A short page ends the rates loop; refuse to feed the storm.
+						_, _ = w.Write([]byte(`{"code":"1","msg":"mock: rate pagination did not stop after a short page"}`))
+						return
+					}
+					if r.URL.Query().Get("after") == "" {
+						_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0002","fundingTime":"%d"}]}`, truncatedTime.UnixMilli())
+						return
+					}
+					_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d"}]}`, fundingTime.UnixMilli())
+				case "/public/funding-rate":
+					_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","fundingRate":"0.0001","fundingTime":"%d","nextFundingRate":"0.0001","nextFundingTime":"%d"}]}`, fundingTime.UnixMilli(), fundingTime.Add(8*time.Hour).UnixMilli())
+				case "/account/bills":
+					mu.Lock()
+					billsCalls++
+					calls := billsCalls
+					mu.Unlock()
+					if calls > 4 {
+						// A short page ends the bills loop; refuse to feed the storm.
+						_, _ = w.Write([]byte(`{"code":"1","msg":"mock: bills pagination did not stop after a short page"}`))
+						return
+					}
+					if r.URL.Query().Get("after") != "" {
+						_, _ = w.Write([]byte(`{"code":"1","msg":"mock: unexpected bills cursor"}`))
+						return
+					}
+					_, _ = fmt.Fprintf(w, `{"code":"0","msg":"","data":[{"billId":"a0","ccy":"USDT","type":"8","subType":"173","pnl":"-1.5","ts":"%d","instId":"BTC-USDT-SWAP"}]}`, fundingTime.UnixMilli())
+				default:
+					_, _ = w.Write([]byte(`{"code":"0","msg":"","data":[]}`))
+				}
+			}))
+
+			b := e.GetBase()
+			b.SkipAuthCheck = true
+			require.NoError(t, e.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
+			for k := range b.API.Endpoints.GetURLMap() {
+				require.NoErrorf(t, b.API.Endpoints.SetRunningURL(k, srv.URL+"/"), "Setup must point endpoint %s at the mock server", k)
+			}
+			e.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
+			sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, e, asset.PerpetualSwap, perpetualSwapPair)
+
+			result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+				Asset:                asset.PerpetualSwap,
+				Pair:                 perpetualSwapPair,
+				PaymentCurrency:      currency.USDT,
+				StartDate:            start,
+				IncludePayments:      includePayments,
+				IncludePredictedRate: true,
+			})
+			require.NoError(t, err, "an unset end date must be read as open-ended, not error")
+
+			require.Len(t, result.FundingRates, 1, "the newest page must be returned")
+			assert.Equal(t, fundingTime.UnixMilli(), result.FundingRates[0].Time.UnixMilli(), "the newest rate should come back, not the old page a before-only query returns")
+
+			mu.Lock()
+			bills := billsCalls
+			mu.Unlock()
+			if includePayments {
+				require.Equal(t, 1, bills, "the bills loop must page against the same effective window")
+				assert.Equal(t, "-1.5", result.FundingRates[0].Payment.String(), "the payment should come from the matching funding fee bill")
+			} else {
+				assert.Zero(t, bills, "no bills request should be made without payments")
+			}
+		})
+	}
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

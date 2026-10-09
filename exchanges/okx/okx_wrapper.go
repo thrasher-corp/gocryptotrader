@@ -2274,6 +2274,12 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
+	if r.EndDate.IsZero() {
+		// An unset end reads as open-ended, spanning up to now; a before-only
+		// query would make OKX answer with the oldest page after the start
+		// date, silently truncating the history.
+		r.EndDate = time.Now()
+	}
 	requestLimit := 100
 	maxLookback := time.Now().Add(-e.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
