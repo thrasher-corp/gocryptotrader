@@ -1592,6 +1592,8 @@ type OrderbookItem struct {
 	Amount        float64                `protobuf:"fixed64,1,opt,name=amount,proto3" json:"amount,omitempty"`
 	Price         float64                `protobuf:"fixed64,2,opt,name=price,proto3" json:"price,omitempty"`
 	Id            int64                  `protobuf:"varint,3,opt,name=id,proto3" json:"id,omitempty"`
+	StrAmount     string                 `protobuf:"bytes,4,opt,name=str_amount,json=strAmount,proto3" json:"str_amount,omitempty"`
+	StrPrice      string                 `protobuf:"bytes,5,opt,name=str_price,json=strPrice,proto3" json:"str_price,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1645,6 +1647,20 @@ func (x *OrderbookItem) GetId() int64 {
 		return x.Id
 	}
 	return 0
+}
+
+func (x *OrderbookItem) GetStrAmount() string {
+	if x != nil {
+		return x.StrAmount
+	}
+	return ""
+}
+
+func (x *OrderbookItem) GetStrPrice() string {
+	if x != nil {
+		return x.StrPrice
+	}
+	return ""
 }
 
 type OrderbookResponse struct {
@@ -14793,11 +14809,14 @@ const file_rpc_proto_rawDesc = "" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12(\n" +
 	"\x04pair\x18\x02 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x1d\n" +
 	"\n" +
-	"asset_type\x18\x03 \x01(\tR\tassetType\"M\n" +
+	"asset_type\x18\x03 \x01(\tR\tassetType\"\x89\x01\n" +
 	"\rOrderbookItem\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x14\n" +
 	"\x05price\x18\x02 \x01(\x01R\x05price\x12\x0e\n" +
-	"\x02id\x18\x03 \x01(\x03R\x02id\"\x90\x02\n" +
+	"\x02id\x18\x03 \x01(\x03R\x02id\x12\x1d\n" +
+	"\n" +
+	"str_amount\x18\x04 \x01(\tR\tstrAmount\x12\x1b\n" +
+	"\tstr_price\x18\x05 \x01(\tR\bstrPrice\"\x90\x02\n" +
 	"\x11OrderbookResponse\x12(\n" +
 	"\x04pair\x18\x01 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12#\n" +
 	"\rcurrency_pair\x18\x02 \x01(\tR\fcurrencyPair\x12)\n" +

@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -371,10 +375,10 @@ func getOrderbook(c *cli.Context) error {
 		exchangeStyle = c.Bool("exchangestyle")
 	}
 
-	const depthCeiling uint64 = 100 // The maximum the depth can be regardless of user entry
+	const depthCeiling = 100 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
-	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
-		depthLimit = d
+	if d := c.Int64("depthlimit"); d > 0 && d < depthCeiling {
+		depthLimit = int(d)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -410,13 +414,9 @@ func getOrderbook(c *cli.Context) error {
 	}
 
 	if exchangeStyle {
-		bidLen := uint64(len(result.Bids) - 1) //nolint:gosec // Can fit in uint64
-		askLen := uint64(len(result.Asks) - 1) //nolint:gosec // Can fit in uint64
-		maxLen := min(max(bidLen, askLen), depthLimit)
-		renderOrderbookExchangeStyle(result, exchangeName, assetType, maxLen, askLen, bidLen)
-	} else {
-		jsonOutput(result)
+		return renderOrderbookExchangeStyle(os.Stdout, result, exchangeName, assetType, depthLimit)
 	}
+	jsonOutput(result)
 	return nil
 }
 
@@ -489,10 +489,10 @@ func getOrderbookStream(c *cli.Context) error {
 		exchangeStyle = c.Bool("exchangestyle")
 	}
 
-	const depthCeiling uint64 = 50 // The maximum the depth can be regardless of user entry
+	const depthCeiling = 50 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
-	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
-		depthLimit = d
+	if d := c.Int64("depthlimit"); d > 0 && d < depthCeiling {
+		depthLimit = int(d)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -544,73 +544,166 @@ func getOrderbookStream(c *cli.Context) error {
 			continue
 		}
 
-		bidLen := uint64(len(resp.Bids) - 1) //nolint:gosec // Can fit in uint64
-		askLen := uint64(len(resp.Asks) - 1) //nolint:gosec // Can fit in uint64
-		maxLen := min(max(bidLen, askLen), depthLimit)
-
 		if exchangeStyle {
-			renderOrderbookExchangeStyle(resp, exchangeName, assetType, maxLen, askLen, bidLen)
+			err = renderOrderbookExchangeStyle(os.Stdout, resp, exchangeName, assetType, depthLimit)
 		} else {
-			fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
-			fmt.Println("\t\tBids\t\t\t\tAsks")
-			fmt.Println()
-
-			for i := range maxLen {
-				var bidAmount, bidPrice float64
-				if i <= bidLen {
-					bidAmount = resp.Bids[i].Amount
-					bidPrice = resp.Bids[i].Price
-				}
-
-				var askAmount, askPrice float64
-				if i <= askLen {
-					askAmount = resp.Asks[i].Amount
-					askPrice = resp.Asks[i].Price
-				}
-
-				fmt.Printf("%.8f %s @ %.8f %s\t\t%.8f %s @ %.8f %s\n",
-					bidAmount,
-					resp.Pair.Base,
-					bidPrice,
-					resp.Pair.Quote,
-					askAmount,
-					resp.Pair.Base,
-					askPrice,
-					resp.Pair.Quote)
-			}
+			err = renderOrderbookStream(os.Stdout, resp, exchangeName, depthLimit)
+		}
+		if err != nil {
+			return err
 		}
 	}
 }
 
-func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, assetType string, maxLen, askLen, bidLen uint64) {
-	maxLen-- // ensure we get the 0 index at the correct max length
-	upperBase := strings.ToUpper(resp.Pair.Base)
-	upperQuote := strings.ToUpper(resp.Pair.Quote)
-	printFmt := "%s%.8f\t\t%.8f\n"
-	fmt.Printf("%sOrderbook stream for %v %v %v - Last updated %v\n",
-		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+type orderbookDisplayLevel struct {
+	price, amount string
+}
 
-	fmt.Printf("%sPrice(%v)\t\tAmount(%s)\n",
-		grayText, upperQuote, upperBase)
-	for i := uint64(0); i <= maxLen; i++ {
-		j := maxLen - i
-		var askAmount, askPrice float64
-		if j <= askLen {
-			askAmount = resp.Asks[j].Amount
-			askPrice = resp.Asks[j].Price
+func orderbookDisplayLevels(items []*gctrpc.OrderbookItem, depthLimit int) []orderbookDisplayLevel {
+	levels := make([]orderbookDisplayLevel, min(len(items), max(0, depthLimit)))
+	for i := range levels {
+		levels[i] = orderbookDisplayLevel{
+			price:  items[i].StrPrice,
+			amount: items[i].StrAmount,
 		}
-		fmt.Printf(printFmt, redText, askPrice, askAmount)
-	}
-	fmt.Println()
-	for i := uint64(0); i <= maxLen; i++ {
-		var bidAmount, bidPrice float64
-		if i <= bidLen {
-			bidAmount = resp.Bids[i].Amount
-			bidPrice = resp.Bids[i].Price
+		if levels[i].price == "" {
+			levels[i].price = strconv.FormatFloat(items[i].Price, 'f', -1, 64)
 		}
-		fmt.Printf(printFmt, greenText, bidPrice, bidAmount)
+		if levels[i].amount == "" {
+			levels[i].amount = strconv.FormatFloat(items[i].Amount, 'f', -1, 64)
+		}
 	}
-	fmt.Println(defaultText)
+	return levels
+}
+
+func orderbookColumnWidths(bids, asks []orderbookDisplayLevel, priceHeader, amountHeader string) (priceWidth, amountWidth int) {
+	priceWidth, amountWidth = len(priceHeader), len(amountHeader)
+	for _, side := range [][]orderbookDisplayLevel{bids, asks} {
+		for _, level := range side {
+			priceWidth = max(priceWidth, len(level.price))
+			amountWidth = max(amountWidth, len(level.amount))
+		}
+	}
+	return priceWidth, amountWidth
+}
+
+func orderbookDecimalPlaces(value string) int {
+	if value == "" {
+		return -1
+	}
+	for _, char := range value {
+		if (char < '0' || char > '9') && char != '.' && char != '-' && char != '+' {
+			return -1
+		}
+	}
+	if dot := strings.IndexByte(value, '.'); dot >= 0 {
+		return len(value) - dot - 1
+	}
+	return 0
+}
+
+func padOrderbookDecimals(value string, precision int) string {
+	places := orderbookDecimalPlaces(value)
+	// Preserve missing values and non-fixed-point representations rather than
+	// appending zeros that would change their meaning.
+	if places < 0 || places >= precision {
+		return value
+	}
+	if !strings.Contains(value, ".") {
+		value += "."
+	}
+	return value + strings.Repeat("0", precision-places)
+}
+
+func normaliseOrderbookPrecision(bids, asks []orderbookDisplayLevel) {
+	var pricePrecision, amountPrecision int
+	for _, side := range [][]orderbookDisplayLevel{bids, asks} {
+		for _, level := range side {
+			pricePrecision = max(pricePrecision, orderbookDecimalPlaces(level.price))
+			amountPrecision = max(amountPrecision, orderbookDecimalPlaces(level.amount))
+		}
+	}
+	for _, side := range [][]orderbookDisplayLevel{bids, asks} {
+		for i := range side {
+			side[i].price = padOrderbookDecimals(side[i].price, pricePrecision)
+			side[i].amount = padOrderbookDecimals(side[i].amount, amountPrecision)
+		}
+	}
+}
+
+func writeOrderbookColumns(frame *bytes.Buffer, level orderbookDisplayLevel, priceWidth, amountWidth int) {
+	for range priceWidth - len(level.price) {
+		frame.WriteByte(' ')
+	}
+	frame.WriteString(level.price)
+	frame.WriteString("  ")
+	for range amountWidth - len(level.amount) {
+		frame.WriteByte(' ')
+	}
+	frame.WriteString(level.amount)
+}
+
+func writeOrderbookFrame(w io.Writer, frame *bytes.Buffer) error {
+	n, err := w.Write(frame.Bytes())
+	if err != nil {
+		return err
+	}
+	if n != frame.Len() {
+		return io.ErrShortWrite
+	}
+	return nil
+}
+
+func renderOrderbookStream(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName string, depthLimit int) error {
+	bids, asks := orderbookDisplayLevels(resp.Bids, depthLimit), orderbookDisplayLevels(resp.Asks, depthLimit)
+	normaliseOrderbookPrecision(bids, asks)
+	priceHeader, amountHeader := "Price("+strings.ToUpper(resp.Pair.Quote)+")", "Amount("+strings.ToUpper(resp.Pair.Base)+")"
+	priceWidth, amountWidth := orderbookColumnWidths(bids, asks, priceHeader, amountHeader)
+	var frame bytes.Buffer
+	frame.Grow(256 + (2*(priceWidth+amountWidth+2)+4)*max(len(bids), len(asks)))
+	fmt.Fprintf(&frame, "Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
+	fmt.Fprintf(&frame, "%-*s | Asks\n", priceWidth+amountWidth+2, "Bids")
+	fmt.Fprintf(&frame, "%*s  %*s | %*s  %*s\n", priceWidth, priceHeader, amountWidth, amountHeader, priceWidth, priceHeader, amountWidth, amountHeader)
+	for i := range max(len(bids), len(asks)) {
+		var bid, ask orderbookDisplayLevel
+		if i < len(bids) {
+			bid = bids[i]
+		}
+		if i < len(asks) {
+			ask = asks[i]
+		}
+		writeOrderbookColumns(&frame, bid, priceWidth, amountWidth)
+		frame.WriteString(" | ")
+		writeOrderbookColumns(&frame, ask, priceWidth, amountWidth)
+		frame.WriteByte('\n')
+	}
+	return writeOrderbookFrame(w, &frame)
+}
+
+func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName, assetType string, depthLimit int) error {
+	bids, asks := orderbookDisplayLevels(resp.Bids, depthLimit), orderbookDisplayLevels(resp.Asks, depthLimit)
+	normaliseOrderbookPrecision(bids, asks)
+	upperBase, upperQuote := strings.ToUpper(resp.Pair.Base), strings.ToUpper(resp.Pair.Quote)
+	priceHeader, amountHeader := "Price("+upperQuote+")", "Amount("+upperBase+")"
+	priceWidth, amountWidth := orderbookColumnWidths(bids, asks, priceHeader, amountHeader)
+	var frame bytes.Buffer
+	frame.Grow(256 + (len(redText)+priceWidth+amountWidth+3)*(len(bids)+len(asks)))
+	fmt.Fprintf(&frame, "%sOrderbook stream for %v %v %v - Last updated %v\n",
+		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+	fmt.Fprintf(&frame, "%s%*s  %*s\n", grayText, priceWidth, priceHeader, amountWidth, amountHeader)
+	for i := len(asks); i > 0; i-- {
+		frame.WriteString(redText)
+		writeOrderbookColumns(&frame, asks[i-1], priceWidth, amountWidth)
+		frame.WriteByte('\n')
+	}
+	fmt.Fprintln(&frame)
+	for _, bid := range bids {
+		frame.WriteString(greenText)
+		writeOrderbookColumns(&frame, bid, priceWidth, amountWidth)
+		frame.WriteByte('\n')
+	}
+	fmt.Fprintln(&frame, defaultText)
+	return writeOrderbookFrame(w, &frame)
 }
 
 var getExchangeOrderbookStreamCommand = &cli.Command{

@@ -529,12 +529,12 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 
 	bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
 	for x := range ob.Bids {
-		bids[x] = &gctrpc.OrderbookItem{Amount: ob.Bids[x].Amount, Price: ob.Bids[x].Price}
+		bids[x] = &gctrpc.OrderbookItem{Amount: ob.Bids[x].Amount, Price: ob.Bids[x].Price, StrAmount: ob.Bids[x].StrAmount, StrPrice: ob.Bids[x].StrPrice}
 	}
 
 	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
 	for x := range ob.Asks {
-		asks[x] = &gctrpc.OrderbookItem{Amount: ob.Asks[x].Amount, Price: ob.Asks[x].Price}
+		asks[x] = &gctrpc.OrderbookItem{Amount: ob.Asks[x].Amount, Price: ob.Asks[x].Price, StrAmount: ob.Asks[x].StrAmount, StrPrice: ob.Asks[x].StrPrice}
 	}
 
 	resp := &gctrpc.OrderbookResponse{
@@ -585,10 +585,10 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
 				}
 				for i := range resp.Bids {
-					ob.Bids[i] = &gctrpc.OrderbookItem{Amount: resp.Bids[i].Amount, Price: resp.Bids[i].Price}
+					ob.Bids[i] = &gctrpc.OrderbookItem{Amount: resp.Bids[i].Amount, Price: resp.Bids[i].Price, StrAmount: resp.Bids[i].StrAmount, StrPrice: resp.Bids[i].StrPrice}
 				}
 				for i := range resp.Asks {
-					ob.Asks[i] = &gctrpc.OrderbookItem{Amount: resp.Asks[i].Amount, Price: resp.Asks[i].Price}
+					ob.Asks[i] = &gctrpc.OrderbookItem{Amount: resp.Asks[i].Amount, Price: resp.Asks[i].Price, StrAmount: resp.Asks[i].StrAmount, StrPrice: resp.Asks[i].StrPrice}
 				}
 				obs = append(obs, ob)
 			}
@@ -2089,17 +2089,21 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
 			for i := range base.Bids {
 				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: base.Bids[i].Amount,
-					Price:  base.Bids[i].Price,
-					Id:     base.Bids[i].ID,
+					Amount:    base.Bids[i].Amount,
+					Price:     base.Bids[i].Price,
+					Id:        base.Bids[i].ID,
+					StrAmount: base.Bids[i].StrAmount,
+					StrPrice:  base.Bids[i].StrPrice,
 				}
 			}
 			resp.Asks = make([]*gctrpc.OrderbookItem, len(base.Asks))
 			for i := range base.Asks {
 				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: base.Asks[i].Amount,
-					Price:  base.Asks[i].Price,
-					Id:     base.Asks[i].ID,
+					Amount:    base.Asks[i].Amount,
+					Price:     base.Asks[i].Price,
+					Id:        base.Asks[i].ID,
+					StrAmount: base.Asks[i].StrAmount,
+					StrPrice:  base.Asks[i].StrPrice,
 				}
 			}
 		}
@@ -2159,17 +2163,21 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			resp.Bids = make([]*gctrpc.OrderbookItem, len(ob.Bids))
 			for i := range ob.Bids {
 				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Bids[i].Amount,
-					Price:  ob.Bids[i].Price,
-					Id:     ob.Bids[i].ID,
+					Amount:    ob.Bids[i].Amount,
+					Price:     ob.Bids[i].Price,
+					Id:        ob.Bids[i].ID,
+					StrAmount: ob.Bids[i].StrAmount,
+					StrPrice:  ob.Bids[i].StrPrice,
 				}
 			}
 			resp.Asks = make([]*gctrpc.OrderbookItem, len(ob.Asks))
 			for i := range ob.Asks {
 				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Asks[i].Amount,
-					Price:  ob.Asks[i].Price,
-					Id:     ob.Asks[i].ID,
+					Amount:    ob.Asks[i].Amount,
+					Price:     ob.Asks[i].Price,
+					Id:        ob.Asks[i].ID,
+					StrAmount: ob.Asks[i].StrAmount,
+					StrPrice:  ob.Asks[i].StrPrice,
 				}
 			}
 		}
