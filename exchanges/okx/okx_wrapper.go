@@ -1199,8 +1199,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			PriceSpread:   priceSpread,
 			SizeLimit:     s.Amount,
 			LimitPrice:    s.Price,
-			// OKX documents no input field for the interval, so the wrapper
-			// keeps the 15 minute default and sends it as seconds.
+			// order.Submit has no interval field, so the wrapper keeps the 15
+			// minute default, sent in seconds as OKX's timeInterval takes it.
 			TimeInterval: strconv.FormatInt(int64(kline.FifteenMin.Duration().Seconds()), 10),
 		})
 	case orderOCO:
@@ -1394,7 +1394,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 					NewTakeProfitTriggerPrice:     action.RiskManagementModes.TakeProfit.Price,
 					NewTakeProfitOrderPrice:       action.RiskManagementModes.TakeProfit.LimitPrice,
 					NewStopLossTriggerPrice:       action.RiskManagementModes.StopLoss.Price,
-					NewStopLossOrderPrice:         action.RiskManagementModes.StopLoss.Price,
+					NewStopLossOrderPrice:         action.RiskManagementModes.StopLoss.LimitPrice,
 					NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
 					NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
 				},
@@ -1435,7 +1435,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			NewTakeProfitOrderPrice:   action.RiskManagementModes.TakeProfit.LimitPrice,
 
 			NewStopLossTriggerPrice: action.RiskManagementModes.StopLoss.Price,
-			NewStopLossOrderPrice:   action.RiskManagementModes.StopEntry.LimitPrice,
+			NewStopLossOrderPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
 
 			NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
 			NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
@@ -2259,9 +2259,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 
 // okxFee reports an OKX order fee with its sign normalised: OKX reports the
 // fee negative when it charges it, so a charge reads as a positive cost, as
-// the websocket order stream reports it.
+// the websocket order stream reports it. Subtracting from zero, as the stream
+// does, keeps a zero fee from reading as -0.
 func okxFee(fee types.Number) float64 {
-	return -fee.Float64()
+	return 0 - fee.Float64()
 }
 
 // orderCost returns the cost of an order's fills and the currency it is in.
@@ -3634,9 +3635,15 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			if orderStatus != order.Filled {
 				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
 			}
-			cost := positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64()
-			if multiplier != 1 {
-				cost *= multiplier
+			// OKX sizes fills in contracts: a linear contract's notional is
+			// ctVal x contracts x price in the settlement currency, an
+			// inverse contract's is ctVal x contracts in USD, so its cost in
+			// the base settlement currency divides by the price.
+			var cost float64
+			if contractSettlementType != futures.Inverse {
+				cost = positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64() * multiplier
+			} else if avgPx := positions[j].AveragePrice.Float64(); avgPx > 0 {
+				cost = multiplier * positions[j].AccumulatedFillSize.Float64() / avgPx
 			}
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
@@ -3658,7 +3665,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
-				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
+				CostAsset:            contract.SettlementCurrency,
 				TimeInForce:          tif,
 			})
 		}
@@ -3799,7 +3806,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				settleCurr = currency.NewCode(result[i].SettlementCurrency)
 
 				contractSettlementType = futures.Linear
-				if result[i].SettlementCurrency == result[i].BaseCurrency {
+				// OKX leaves baseCcy empty on derivatives, so ctType is the
+				// only reliable inverse marker; absent types stay linear.
+				if result[i].ContractType == "inverse" {
 					contractSettlementType = futures.Inverse
 				}
 			}

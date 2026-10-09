@@ -6800,6 +6800,9 @@ func TestOrderTypeString(t *testing.T) {
 		{OrderType: order.UnknownType, TIF: order.PostOnly}:             {Expected: orderPostOnly},
 		{OrderType: order.UnknownType, TIF: order.FillOrKill}:           {Expected: orderFOK},
 		{OrderType: order.UnknownType, TIF: order.ImmediateOrCancel}:    {Expected: orderIOC},
+		// Only Limit and MarketMakerProtection read PostOnly from a combined
+		// time in force; an unlisted type combination is still refused.
+		{OrderType: order.TakeProfit | order.Limit, TIF: order.GoodTillCancel | order.PostOnly}: {Error: order.ErrUnsupportedOrderType},
 	}
 	for tc, val := range orderTypesToStringMap {
 		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
@@ -6808,6 +6811,30 @@ func TestOrderTypeString(t *testing.T) {
 			require.ErrorIs(t, err, val.Error)
 			assert.Equal(t, val.Expected, orderTypeString)
 		})
+	}
+}
+
+// TestOrderTypeStringReadsPostOnlyFromCombinedTIFs guards the post-only order
+// types against a time in force that combines PostOnly with other flags,
+// which TimeInForce.IsValid allows: every such combination must still place
+// as post-only.
+func TestOrderTypeStringReadsPostOnlyFromCombinedTIFs(t *testing.T) {
+	t.Parallel()
+	flags := []order.TimeInForce{order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.StopOrReduce}
+	for mask := range 1 << len(flags) {
+		tif := order.PostOnly
+		for i, f := range flags {
+			if mask&(1<<i) != 0 {
+				tif |= f
+			}
+		}
+		require.Truef(t, tif.IsValid(), "%s must be a valid time in force", tif)
+		got, err := orderTypeString(order.Limit, tif)
+		require.NoErrorf(t, err, "orderTypeString must not error for a limit order with %s", tif)
+		assert.Equalf(t, orderPostOnly, got, "a limit order with %s should place as post_only", tif)
+		got, err = orderTypeString(order.MarketMakerProtection, tif)
+		require.NoErrorf(t, err, "orderTypeString must not error for an MMP order with %s", tif)
+		assert.Equalf(t, orderMarketMakerProtectionAndPostOnly, got, "an MMP order with %s should place as mmp_and_post_only", tif)
 	}
 }
 
@@ -7198,6 +7225,29 @@ func TestWsProcessSpreadOrders(t *testing.T) {
 	t.Parallel()
 	err := e.wsProcessSpreadOrders(t.Context(), []byte(wsProcessSpreadOrdersJSON))
 	assert.NoError(t, err)
+}
+
+// TestWsProcessSpreadOrdersReportsFills guards the spread order stream's fill
+// mapping: the executed amount is the accumulated fill rather than the last
+// fill, the remainder is what is left of the size, and the order type's time
+// in force is kept.
+func TestWsProcessSpreadOrdersReportsFills(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	push := `{"arg":{"channel":"sprd-orders","sprdId":"BTC-USDT_BTC-USDT-SWAP","uid":"614488474791936"},"data":[{"sprdId":"BTC-USDT_BTC-USDT-SWAP","ordId":"312269865356374016","clOrdId":"b1","px":"999","sz":"3","ordType":"post_only","side":"buy","fillSz":"0.5","fillPx":"999","accFillSz":"2","pendingFillSz":"1","state":"partially_filled","avgPx":"998","uTime":"1597026383085","cTime":"1597026383085"}]}`
+	require.NoError(t, ex.wsProcessSpreadOrders(t.Context(), []byte(push)), "wsProcessSpreadOrders must not error")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "wsProcessSpreadOrders must relay the push")
+	resp := <-ex.Websocket.DataHandler.C
+	details, ok := resp.Data.([]order.Detail)
+	require.True(t, ok, "the push must relay order details")
+	stamp := time.UnixMilli(1597026383085)
+	exp := []order.Detail{{
+		AssetType: asset.Spread, Amount: 3, AverageExecutedPrice: 998, ClientOrderID: "b1", Date: stamp, Exchange: ex.Name,
+		ExecutedAmount: 2, OrderID: "312269865356374016", Pair: spreadPair, Price: 999, QuoteAmount: 2997, RemainingAmount: 1,
+		Side: order.Buy, Status: order.PartiallyFilled, Type: order.Limit, LastUpdated: stamp, TimeInForce: order.PostOnly,
+	}}
+	assert.Equal(t, exp, details, "the push should report the accumulated fill, the remainder and the time in force")
 }
 
 func TestWsProcessSpreadTradesJSON(t *testing.T) {

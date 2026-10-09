@@ -51,16 +51,19 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
-		if tif == order.PostOnly {
+		if tif.Is(order.PostOnly) {
 			return orderMarketMakerProtectionAndPostOnly, nil
 		}
 		return orderMarketMakerProtection, nil
 	case order.OptimalLimit:
 		return orderOptimalLimitIOC, nil
 	case order.Limit:
-		switch tif {
-		case order.PostOnly:
+		// TimeInForce.IsValid lets PostOnly combine with flags such as
+		// GoodTillCancel, and the order must still place as post-only.
+		if tif.Is(order.PostOnly) {
 			return orderPostOnly, nil
+		}
+		switch tif {
 		case order.FillOrKill:
 			return orderFOK, nil
 		case order.ImmediateOrCancel:
