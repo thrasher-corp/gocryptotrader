@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -371,10 +373,10 @@ func getOrderbook(c *cli.Context) error {
 		exchangeStyle = c.Bool("exchangestyle")
 	}
 
-	const depthCeiling uint64 = 100 // The maximum the depth can be regardless of user entry
+	const depthCeiling = 100 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
-	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
-		depthLimit = d
+	if d := c.Int64("depthlimit"); d > 0 && d < depthCeiling {
+		depthLimit = int(d)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -410,10 +412,7 @@ func getOrderbook(c *cli.Context) error {
 	}
 
 	if exchangeStyle {
-		bidLen := uint64(len(result.Bids) - 1) //nolint:gosec // Can fit in uint64
-		askLen := uint64(len(result.Asks) - 1) //nolint:gosec // Can fit in uint64
-		maxLen := min(max(bidLen, askLen), depthLimit)
-		renderOrderbookExchangeStyle(result, exchangeName, assetType, maxLen, askLen, bidLen)
+		renderOrderbookExchangeStyle(os.Stdout, result, exchangeName, assetType, depthLimit)
 	} else {
 		jsonOutput(result)
 	}
@@ -489,10 +488,10 @@ func getOrderbookStream(c *cli.Context) error {
 		exchangeStyle = c.Bool("exchangestyle")
 	}
 
-	const depthCeiling uint64 = 50 // The maximum the depth can be regardless of user entry
+	const depthCeiling = 50 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
-	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
-		depthLimit = d
+	if d := c.Int64("depthlimit"); d > 0 && d < depthCeiling {
+		depthLimit = int(d)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -544,73 +543,63 @@ func getOrderbookStream(c *cli.Context) error {
 			continue
 		}
 
-		bidLen := uint64(len(resp.Bids) - 1) //nolint:gosec // Can fit in uint64
-		askLen := uint64(len(resp.Asks) - 1) //nolint:gosec // Can fit in uint64
-		maxLen := min(max(bidLen, askLen), depthLimit)
-
 		if exchangeStyle {
-			renderOrderbookExchangeStyle(resp, exchangeName, assetType, maxLen, askLen, bidLen)
+			renderOrderbookExchangeStyle(os.Stdout, resp, exchangeName, assetType, depthLimit)
 		} else {
-			fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
-			fmt.Println("\t\tBids\t\t\t\tAsks")
-			fmt.Println()
-
-			for i := range maxLen {
-				var bidAmount, bidPrice float64
-				if i <= bidLen {
-					bidAmount = resp.Bids[i].Amount
-					bidPrice = resp.Bids[i].Price
-				}
-
-				var askAmount, askPrice float64
-				if i <= askLen {
-					askAmount = resp.Asks[i].Amount
-					askPrice = resp.Asks[i].Price
-				}
-
-				fmt.Printf("%.8f %s @ %.8f %s\t\t%.8f %s @ %.8f %s\n",
-					bidAmount,
-					resp.Pair.Base,
-					bidPrice,
-					resp.Pair.Quote,
-					askAmount,
-					resp.Pair.Base,
-					askPrice,
-					resp.Pair.Quote)
-			}
+			renderOrderbookStream(os.Stdout, resp, exchangeName, depthLimit)
 		}
 	}
 }
 
-func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, assetType string, maxLen, askLen, bidLen uint64) {
-	maxLen-- // ensure we get the 0 index at the correct max length
-	upperBase := strings.ToUpper(resp.Pair.Base)
-	upperQuote := strings.ToUpper(resp.Pair.Quote)
-	printFmt := "%s%.8f\t\t%.8f\n"
-	fmt.Printf("%sOrderbook stream for %v %v %v - Last updated %v\n",
-		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
-
-	fmt.Printf("%sPrice(%v)\t\tAmount(%s)\n",
-		grayText, upperQuote, upperBase)
-	for i := uint64(0); i <= maxLen; i++ {
-		j := maxLen - i
-		var askAmount, askPrice float64
-		if j <= askLen {
-			askAmount = resp.Asks[j].Amount
-			askPrice = resp.Asks[j].Price
-		}
-		fmt.Printf(printFmt, redText, askPrice, askAmount)
-	}
-	fmt.Println()
-	for i := uint64(0); i <= maxLen; i++ {
-		var bidAmount, bidPrice float64
-		if i <= bidLen {
+func renderOrderbookStream(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName string, depthLimit int) {
+	fmt.Fprintf(w, "Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
+	fmt.Fprintln(w, "\t\tBids\t\t\t\tAsks")
+	fmt.Fprintln(w)
+	for i := range min(max(len(resp.Bids), len(resp.Asks)), depthLimit) {
+		var bidAmount, bidPrice, askAmount, askPrice float64
+		if i < len(resp.Bids) {
 			bidAmount = resp.Bids[i].Amount
 			bidPrice = resp.Bids[i].Price
 		}
-		fmt.Printf(printFmt, greenText, bidPrice, bidAmount)
+		if i < len(resp.Asks) {
+			askAmount = resp.Asks[i].Amount
+			askPrice = resp.Asks[i].Price
+		}
+		fmt.Fprintf(w, "%.8f %s @ %.8f %s\t\t%.8f %s @ %.8f %s\n",
+			bidAmount, resp.Pair.Base, bidPrice, resp.Pair.Quote,
+			askAmount, resp.Pair.Base, askPrice, resp.Pair.Quote)
 	}
-	fmt.Println(defaultText)
+}
+
+func renderOrderbookExchangeStyle(w io.Writer, resp *gctrpc.OrderbookResponse, exchangeName, assetType string, depthLimit int) {
+	maxLen := min(max(len(resp.Bids), len(resp.Asks)), depthLimit)
+	upperBase := strings.ToUpper(resp.Pair.Base)
+	upperQuote := strings.ToUpper(resp.Pair.Quote)
+	printFmt := "%s%.8f\t\t%.8f\n"
+	fmt.Fprintf(w, "%sOrderbook stream for %v %v %v - Last updated %v\n",
+		whiteText, strings.ToUpper(exchangeName), assetType, upperBase+"-"+upperQuote, time.UnixMicro(resp.LastUpdated).Format(common.SimpleTimeFormatWithTimezone))
+
+	fmt.Fprintf(w, "%sPrice(%v)\t\tAmount(%s)\n",
+		grayText, upperQuote, upperBase)
+	for i := maxLen; i > 0; i-- {
+		j := i - 1
+		var askAmount, askPrice float64
+		if j < len(resp.Asks) {
+			askAmount = resp.Asks[j].Amount
+			askPrice = resp.Asks[j].Price
+		}
+		fmt.Fprintf(w, printFmt, redText, askPrice, askAmount)
+	}
+	fmt.Fprintln(w)
+	for i := range maxLen {
+		var bidAmount, bidPrice float64
+		if i < len(resp.Bids) {
+			bidAmount = resp.Bids[i].Amount
+			bidPrice = resp.Bids[i].Price
+		}
+		fmt.Fprintf(w, printFmt, greenText, bidPrice, bidAmount)
+	}
+	fmt.Fprintln(w, defaultText)
 }
 
 var getExchangeOrderbookStreamCommand = &cli.Command{
